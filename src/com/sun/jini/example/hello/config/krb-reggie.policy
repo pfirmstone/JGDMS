@@ -1,0 +1,38 @@
+/* Security policy for Kerberos-enabled reggie */
+
+
+/* Grant all permissions to local JAR files */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission com.sun.jini.reggie.RegistrarPermission "getProxyVerifier";
+};
+
+/* Grant permissions to the server */
+grant principal
+        javax.security.auth.kerberos.KerberosPrincipal "${serverPrincipal}" 
+{
+    permission com.sun.jini.reggie.RegistrarPermission "register";
+    permission com.sun.jini.reggie.RegistrarPermission "cancelServiceLease";
+    permission com.sun.jini.reggie.RegistrarPermission "renewServiceLease";
+    permission com.sun.jini.reggie.RegistrarPermission "cancelLeases";
+    permission com.sun.jini.reggie.RegistrarPermission "renewLeases";
+};
+
+/* Grant permissions to the client */
+grant principal
+        javax.security.auth.kerberos.KerberosPrincipal "${clientPrincipal}" 
+{
+    permission com.sun.jini.reggie.RegistrarPermission "lookup";
+    permission com.sun.jini.reggie.RegistrarPermission "notify";
+    permission com.sun.jini.reggie.RegistrarPermission "cancelEventLease";
+    permission com.sun.jini.reggie.RegistrarPermission "renewEventLease";
+    permission com.sun.jini.reggie.RegistrarPermission "cancelLeases";
+    permission com.sun.jini.reggie.RegistrarPermission "renewLeases";
+};

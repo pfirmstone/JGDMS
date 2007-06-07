@@ -1,0 +1,1044 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<project name="build-common" basedir="." default="">
+
+  <property environment="env"/>
+
+  <property name="parent-dir" location="${top}/.." />
+
+  <!-- ##								-->
+  <!-- ## Import the local settings if they exist, ignoring errors	-->
+  <!-- ## (ie, optional=true) if the file is nonexistent.		-->
+  <!-- ## 								-->
+
+  <import file="build_local.xml" optional="true"/>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: setup-all						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="setup-all"
+	  description="Initializes common environment"
+          depends="setup-dirs,
+                   setup-paths,
+                   deps">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: env							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="env"
+          description="Initializes the build environment."
+          depends="">
+
+    <!-- ##								-->
+    <!-- ## Set JAVA_HOME if it isn't already set:			-->
+    <!-- ##								-->
+
+    <condition property="env.JAVA_HOME" value="${java.home}">
+      <not> <isset property="env.JAVA_HOME"/> </not>
+    </condition>
+    
+    <!-- ##								-->
+    <!-- ## The default JDK version on Mac OSX does not have a		-->
+    <!-- ## tools.jar, in which case we'll use dt.jar .  However, if an	-->
+    <!-- ## alternate version of the JDK has been installed, we'll try	-->
+    <!-- ## to use tools.jar if it exists.				-->
+    <!-- ##								-->
+
+    <condition property="jdk-tools-jar" value="${env.JAVA_HOME}/lib/dt.jar">
+      <and>
+        <os family="mac"/>
+        <not> <available file="${env.JAVA_HOME}/lib/tools.jar"/> </not>
+      </and>
+    </condition>
+
+    <condition property="jdk-tools-jar" value="${env.JAVA_HOME}/lib/tools.jar">
+      <not> <os family="mac"/> </not>
+    </condition>
+     
+    <property name="jre-ext-dir" location="${env.JAVA_HOME}/jre/lib/ext"/>
+
+    <condition property="env.JINI_HOME" value="${parent-dir}">
+      <not> <isset property="env.JINI_HOME"/> </not>
+    </condition>
+
+    <!-- ##								-->
+    <!-- ## If the user has JINI_BUILD set in their environment, use	-->
+    <!-- ## it to set the build property:				-->
+    <!-- ##								-->
+
+    <condition property="build" value="${env.JINI_BUILD}">
+      <isset property="env.JINI_BUILD"/>
+    </condition>
+
+    <condition property="build" value="${top}">
+      <not> <isset property="build"/> </not>
+    </condition>
+
+    <condition property="src.jini" value="${top}/src">
+      <not> <isset property="src.jini"/> </not>
+    </condition>
+
+    <condition property="src.dir" value="${src.jini}">
+      <not> <isset property="src.dir"/> </not>
+    </condition>
+
+    <condition property="src.tools" value="${top}/src">
+      <not> <isset property="src.tools"/> </not>
+    </condition>
+
+    <property name="build.classes"	location="${build}/classes"		/>
+    <property name="build.classes.pse"	location="${build}/classesPSE"		/>
+    <property name="build.deps"         location="${build}/deps"		/>
+    <property name="build.doc"          location="${build}/doc"			/>
+    <property name="build.doc.api"      location="${build.doc}/api"		/>
+    <property name="build.doc.spec.api" location="${build.doc}/specs/api"	/>
+    <property name="build.lib"          location="${build}/lib"			/>
+    <property name="build.lib-dl"       location="${build}/lib-dl"		/>
+    <property name="build.lib-ext"      location="${build}/lib-ext"		/>
+
+    <property name="entry.dest.dir"	location="${build}/configentry"		/>
+    <property name="entry.src.dir"	location="${src.jini}/configentry"	/>
+
+    <property name="lib"		location="${env.JINI_HOME}/lib"		/>
+    <property name="lib-dl"		location="${env.JINI_HOME}/lib-dl"	/>
+    <property name="lib-ext"		location="${env.JINI_HOME}/lib-ext"	/>
+
+    <property name="src.jini.manifest"	location="${src.jini}/manifest"		/>
+    <property name="src.tools.manifest"	location="${src.tools}/manifest"	/>
+
+    <!-- ##								-->
+    <!-- ## Product version info					-->
+    <!-- ##								-->
+
+    <property name="version"		value="2.1" />
+    <property name="version-suffix"	value=""/>
+
+    <property name="manifest-info"	value="${java.version} (${java.vendor})"/>
+
+    <!-- ##								-->
+    <!-- ## Private package inclusions for use with classdep; the	-->
+    <!-- ## classes in these packages are both not part of the JSK	-->
+    <!-- ## platform and not public (have generated javadoc)		-->
+    <!-- ##								-->
+    <!-- ## The -skip for logging classes is because LogManager is in	-->
+    <!-- ## jsk-pllatform.jar and Levels is in jsk-lib.jar		-->
+    <!-- ##								-->
+    <!-- ## The -in com.sun.jini.outrigger is there in order to catch	-->
+    <!-- ## any use of the following deprecated APIs:			-->
+    <!-- ##       com.sun.jini.outrigger.AdminIterator			-->
+    <!-- ##       com.sun.jini.outrigger.ConstrainableJavaSpaceAdmin	-->
+    <!-- ##       com.sun.jini.outrigger.JavaSpaceAdmin			-->
+    <!-- ## Once these APIs have been removed, the outrigger include	-->
+    <!-- ## can be removed						-->
+    <!-- ##								-->
+
+    <property name="jskprivate.include"
+	      value="-in com.sun.jini.action -in com.sun.jini.collection -in com.sun.jini.constants -in com.sun.jini.system -in com.sun.jini.logging -skip com.sun.jini.logging.LogManager -skip com.sun.jini.logging.Levels -in com.sun.jini.outrigger" />
+
+    <!-- ##								-->
+    <!-- ## javac options						-->
+    <!-- ##								-->
+
+    <condition property="env.JAVADEBUG" value="lines,source,vars">
+      <not> <isset property="env.JAVADEBUG"/> </not>
+    </condition>
+
+    <!-- ##								-->
+    <!-- ## javadoc options						-->
+    <!-- ##								-->
+
+    <property name="tm"			value="&lt;sup&gt;&lt;font size=-2&gt;TM&lt;/font&gt;&lt;/sup&gt;"/>
+
+    <property name="api-copyright"	value="Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements.  See the NOTICE file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the &quot;License&quot;); you may not use this file except in compliance with the License. You may obtain a copy of the License at &lt;ul&gt; &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot;&gt;http://www.apache.org/licenses/LICENSE-2.0&lt;/a&gt; &lt;/ul&gt; Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License."/>
+
+    <property name="api-doc-title"	value="Jini${tm} Technology Starter Kit v${version}${version-suffix} API Documentation"/>
+    <property name="api-win-title"	value="Jini(TM) Technology Starter Kit v${version}${version-suffix} API Documentation"/>
+
+    <property name="spec-doc-title"	value="Jini${tm} Technology Starter Kit Specifications"/>
+    <property name="spec-win-title"	value="Jini(TM) Technology Starter Kit Specifications"/>
+
+    <property name="jdk-doc-url"	value="http://java.sun.com/j2se/1.4.2/docs/api"/>
+    <property name="jdk-packages"	value="${build.doc}/j2se"/>
+
+    <!-- ##								-->
+    <!-- ## Common packages to exclude within ClassDep			-->
+    <!-- ##								-->
+
+    <property name="jskplatform.exclude"
+	      value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager" />
+
+    <!-- ##								-->
+    <!-- ## Uncomment the following lines, and set the pro-zip-home 	-->
+    <!-- ## variable if you have Progress Software's ObjectStore PSEPro	-->
+    <!-- ##								-->
+
+    <!-- property name="have-psepro"	value="true"/ -->
+
+    <!-- property name="pro-zip-home"	location=""/  -->
+
+    <!-- ##								-->
+    <!-- ## Set the PSEpro zip-file properties: 			-->
+    <!-- ##								-->
+
+    <condition property="pro-zip-home" value="${lib}">
+      <not> <isset property="pro-zip-home"/> </not>
+    </condition>
+
+    <condition property="psepro-zip" value="${pro-zip-home}/pro.zip">
+      <available file="${pro-zip-home}/pro.zip"/>
+    </condition>
+
+    <!-- ##								-->
+    <!-- ## If the PSEpro zip-file does not exist, we'll need to 	-->
+    <!-- ## exclude the logstore sources from the build:		-->
+    <!-- ##								-->
+
+    <condition property="logstore-excludes" value="**/logstore/**">
+      <not> <isset property="psepro-zip"/> </not>
+    </condition>
+
+    <!-- ##								-->
+    <!-- ## Display some of our property settings:			-->
+    <!-- ##								-->
+
+    <echo message="JINI_HOME:		${env.JINI_HOME}"		/>
+    <echo message="JAVA_HOME:		${env.JAVA_HOME}"		/>
+    <echo message="java.home:		${java.home}"			/>
+    <echo message="Java  Ver:		${ant.java.version}"		/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: extract-classes					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="extract-classes"
+	  description="Extracts the classes from a prescribed set of jar
+		       files from the official distribution into a classes
+		       directory at the same level."
+          depends="env">
+
+    <property name="top-classes" value="${env.JINI_HOME}/classes"/>
+
+    <condition property="classes-exists-error" value="true">
+      <available file="${top-classes}"/>
+    </condition>
+
+    <fail if="classes-exists-error">
+      The "${top-classes}" directory already exists--ABORTING.
+    </fail>
+
+    <mkdir dir="${top-classes}"/>
+
+    <unzip dest="${top-classes}">
+	<fileset dir="${lib}">
+	    <include name="destroy.jar"			/>
+	    <include name="fiddler.jar"			/>
+	    <include name="group.jar"			/>
+	    <include name="jsk-platform.jar"		/>
+	    <include name="mahalo.jar"			/>
+	    <include name="mercury.jar"			/>
+	    <include name="norm.jar"			/>
+	    <include name="outrigger.jar"		/>
+	    <include name="outrigger-logstore.jar"	/>
+	    <include name="phoenix.jar"			/>
+	    <include name="phoenix-group.jar"		/>
+	    <include name="phoenix-init.jar"		/>
+	    <include name="reggie.jar"			/>
+	    <include name="sharedvm.jar"		/>
+	    <include name="start.jar"			/>
+	    <include name="tools.jar"			/>
+	</fileset>
+
+	<fileset dir="${lib-dl}">
+	    <include name="fiddler-dl.jar"		/>
+	    <include name="group-dl.jar"		/>
+	    <include name="mahalo-dl.jar"		/>
+	    <include name="mercury-dl.jar"		/>
+	    <include name="norm-dl.jar"			/>
+	    <include name="outrigger-dl.jar"		/>
+	    <include name="phoenix-dl.jar"		/>
+	    <include name="reggie-dl.jar"		/>
+	</fileset>
+
+	<fileset dir="${lib-ext}">
+	    <include name="jsk-policy.jar"		/>
+	</fileset>
+    </unzip>
+
+    <delete dir="${top-classes}/META-INF" quiet="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: setup-dirs						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="setup-dirs"
+	  description="Creates dirs, paths, etc."
+          depends="env">
+
+    <!-- ##								-->
+    <!-- ## Create build directory structure				-->
+    <!-- ##								-->
+
+    <mkdir dir="${build}"		/>
+    <mkdir dir="${build.classes}"	/>
+    <mkdir dir="${build.classes.pse}"	/>
+    <mkdir dir="${build.deps}"		/>
+    <mkdir dir="${build.doc}"		/>
+    <mkdir dir="${build.doc.api}"	/>
+    <mkdir dir="${build.doc.spec.api}"	/>
+    <mkdir dir="${build.lib}"		/>
+    <mkdir dir="${build.lib-dl}"	/>
+    <mkdir dir="${build.lib-ext}"	/>
+    <mkdir dir="${entry.dest.dir}"	/>
+              
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: setup-paths						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="setup-paths"
+	  description="Creates path based properties"
+          depends="env">
+
+    <path id="path.jini">
+      <pathelement path="${build.classes}" />
+      <pathelement location="${psepro-zip}"/>
+    </path>
+
+    <path id="path.tools">
+      <pathelement path="${build.classes}" />
+      <pathelement location="${jdk-tools-jar}" />
+    </path>
+    
+    <path id="path.apidoc">
+      <path refid="path.jini" />
+      <path refid="path.tools" />
+    </path>
+    
+    <path id="path.classdep">
+      <pathelement path="${build.classes}" />
+      <pathelement path="${src.jini}" />
+      <pathelement path="${src.tools}" />
+      <pathelement location="${jdk-tools-jar}" />
+    </path>
+    
+    <!-- ##								-->
+    <!-- ## initialize patterns...					-->
+    <!-- ##								-->
+
+    <patternset id="pattern.nomakefiles">
+      <exclude name="**/GNUmakefile*" />
+    </patternset>
+
+    <property name="tools-source" value="com/sun/jini/tool/**/*.java"/>
+
+    <patternset id="tools.source">
+      <include name="${tools-source}"/>
+    </patternset>
+
+    <!-- ##								-->
+    <!-- ## The sub-components may try to set java-source for their	-->
+    <!-- ## specific needs, so attempt to set it for a top-down build.	-->
+    <!-- ## Otherwise, use the existing setting.			-->
+    <!-- ##								-->
+
+    <condition property="java-source" value="**/*.java">
+      <not> <isset property="java-source"/> </not>
+    </condition>
+
+    <patternset id="java.source">
+      <include name="${java-source}"/>
+    </patternset>
+   
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: deps							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="deps"
+	  description="Verifies build dependencies"
+	  depends="">
+
+    <!-- ##								-->
+    <!-- ## verify JDK version						-->
+    <!-- ##								-->
+
+    <condition property="unsupported-jdk">
+      <or>
+         <equals arg1="${ant.java.version}" arg2="1.1" />
+         <equals arg1="${ant.java.version}" arg2="1.2" />
+         <equals arg1="${ant.java.version}" arg2="1.3" />
+      </or>
+    </condition>
+
+    <fail if="unsupported-jdk">
+
+      ${ant.project.name} requires Java 2 SDK 1.4 or greater to continue.
+    </fail>
+
+    <!-- ##								-->
+    <!-- ## verify J2SDK installation directory				-->
+    <!-- ##								-->
+
+    <condition property="java-home-not-found">
+      <not>
+        <and>
+          <isset property="env.JAVA_HOME" />
+          <available file="${jdk-tools-jar}" />
+        </and>
+      </not>
+    </condition>
+    
+    <fail if="java-home-not-found">
+    
+      A valid J2SDK installation could not be found at:
+          ${env.JAVA_HOME}
+      
+      Please set the JAVA_HOME environment variable to point to the 
+      location of your J2SDK installation.
+    </fail>
+    
+    <!-- ##								-->
+    <!-- ## verify JSK installation directory				-->
+    <!-- ##								-->
+
+    <condition property="jini-home-not-found">
+      <not>
+        <and>
+          <isset property="env.JINI_HOME"		/>
+          <available file="${top}"			/>
+          <available file="${src.jini}"			/>
+          <available file="${src.jini.manifest}"	/>
+          <available file="${src.tools}"		/>
+          <available file="${src.tools.manifest}"	/>
+        </and>
+      </not>
+    </condition>
+
+    <fail if="jini-home-not-found">
+    
+      A valid JSK installation could not be found at:
+
+          ${env.JINI_HOME}
+      
+      Please set the JINI_HOME environment variable to point to the 
+      location of your JSK installation.
+    </fail>
+    
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## MACRO: javac-cmd						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <macrodef name="javac-cmd">
+
+     <attribute name="source.dir"/>
+     <attribute name="source.pat"/>
+
+     <sequential>
+
+       <!-- ##								-->
+       <!-- ## Note the debug and debuglevel attribute settings.  The	-->
+       <!-- ## default for the "debug" attribute is "no" or "off"	-->
+       <!-- ## (in Ant version 1.6.2 at least).  That differs from the	-->
+       <!-- ## default for the actual javac command, which is "lines" 	-->
+       <!-- ## and "source", hence the need for the debug settings in	-->
+       <!-- ## the following javac task:				-->
+       <!-- ##								-->
+
+       <echo message='javac	destdir="${build.classes}"
+ 				fork="yes"
+				debug="yes"
+				debuglevel="${env.JAVADEBUG}"
+				deprecation="yes"
+				destdir="${build.classes}"
+				nowarn="no"
+				source="1.4"
+				srcdir="@{source.dir}"
+				target="1.4"
+				verbose="no"'/>
+
+       <javac	fork="yes"
+		debug="yes"
+		debuglevel="${env.JAVADEBUG}"
+		deprecation="yes"
+		destdir="${build.classes}"
+		nowarn="no"
+		source="1.4"
+		srcdir="@{source.dir}"
+		target="1.4"
+		verbose="no">
+
+         <classpath  refid="path.jini"/>
+         <patternset refid="@{source.pat}"/>
+
+         <exclude name="${logstore-excludes}"/>
+
+       </javac>
+     </sequential>
+
+  </macrodef>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## MACRO: preferredlistgen					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <macrodef name="preferredlistgen">
+
+     <element name="plg-elements"/>
+
+     <sequential>
+
+       <java classname="com.sun.jini.tool.PreferredListGen"
+             classpath="${build.classes}"
+             failonerror="true"
+	     fork="true">
+       
+         <plg-elements/>
+       
+       </java>
+
+     </sequential>
+
+  </macrodef>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: javadoc						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="javadoc"
+          description="For NetBeans compatibility."
+          depends="doc">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: doc							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="doc"
+          description="Generates the javadoc."
+          depends="setup-all">
+
+    <delete dir="${build.doc.api}" quiet="true" />
+    <mkdir  dir="${build.doc.api}"		/>
+
+    <javadoc	author="true"
+		bottom="${api-copyright}"
+		breakiterator="yes"
+		destdir="${build.doc.api}"
+		doctitle="${api-doc-title}"
+		linkoffline="${jdk-doc-url} ${jdk-packages}"
+		serialwarn="yes"
+		source="1.4"
+		use="true"
+		version="true"
+		windowtitle="${api-win-title}">
+
+      <tag name="com.sun.jini.impl"
+	   enabled="true"
+	   scope="packages,types"
+	   description="Implementation Specifics:" />
+
+      <classpath refid="path.apidoc"/>
+
+      <sourcepath>
+        <pathelement path="${src.jini}"  />
+        <pathelement path="${src.tools}" />
+      </sourcepath>
+
+      <fileset dir="${src.jini}" includes="com/sun/jini/mahalo/MahaloPermission.java" />
+
+      <package name="com.sun.jini.admin"			/>
+      <package name="com.sun.jini.config"			/>
+      <package name="com.sun.jini.discovery"			/>
+      <package name="com.sun.jini.discovery.kerberos"		/>
+      <package name="com.sun.jini.discovery.plaintext"		/>
+      <package name="com.sun.jini.discovery.ssl"		/>
+      <package name="com.sun.jini.discovery.x500.sha1withdsa"	/>
+      <package name="com.sun.jini.discovery.x500.sha1withrsa"	/>
+      <package name="com.sun.jini.example.browser"		/>
+      <package name="com.sun.jini.fiddler"			/>
+      <package name="com.sun.jini.landlord"			/>
+      <package name="com.sun.jini.lease"			/>
+      <package name="com.sun.jini.logging"			/>
+      <package name="com.sun.jini.lookup.entry"			/>
+      <package name="com.sun.jini.mercury"			/>
+      <package name="com.sun.jini.norm"				/>
+      <package name="com.sun.jini.outrigger"			/>
+      <package name="com.sun.jini.outrigger.logstore"		/>
+      <package name="com.sun.jini.outrigger.snaplogstore"	/>
+      <package name="com.sun.jini.phoenix"			/>
+      <package name="com.sun.jini.proxy"			/>
+      <package name="com.sun.jini.reggie"			/>
+      <package name="com.sun.jini.resource"			/>
+      <package name="com.sun.jini.start"			/>
+      <package name="com.sun.jini.thread"			/>
+      <package name="com.sun.jini.tool"				/>
+      <package name="com.sun.jini.tool.envcheck"		/>
+
+      <package name="net.jini.activation"			/>
+      <package name="net.jini.admin"				/>
+      <package name="net.jini.config"				/>
+      <package name="net.jini.constraint"			/>
+      <package name="net.jini.core.constraint"			/>
+      <package name="net.jini.core.discovery"			/>
+      <package name="net.jini.core.entry"			/>
+      <package name="net.jini.core.event"			/>
+      <package name="net.jini.core.lease"			/>
+      <package name="net.jini.core.lookup"			/>
+      <package name="net.jini.core.transaction"			/>
+      <package name="net.jini.core.transaction.server"		/>
+      <package name="net.jini.discovery"			/>
+      <package name="net.jini.entry"				/>
+      <package name="net.jini.event"				/>
+      <package name="net.jini.export"				/>
+      <package name="net.jini.id"				/>
+      <package name="net.jini.iiop"				/>
+      <package name="net.jini.io"				/>
+      <package name="net.jini.io.context"			/>
+      <package name="net.jini.jeri"				/>
+      <package name="net.jini.jeri.connection"			/>
+      <package name="net.jini.jeri.http"			/>
+      <package name="net.jini.jeri.kerberos"			/>
+      <package name="net.jini.jeri.ssl"				/>
+      <package name="net.jini.jeri.tcp"				/>
+      <package name="net.jini.jrmp"				/>
+      <package name="net.jini.lease"				/>
+      <package name="net.jini.loader"				/>
+      <package name="net.jini.loader.pref"			/>
+      <package name="net.jini.lookup"				/>
+      <package name="net.jini.lookup.entry"			/>
+      <package name="net.jini.security"				/>
+      <package name="net.jini.security.policy"			/>
+      <package name="net.jini.security.proxytrust"		/>
+      <package name="net.jini.space"				/>
+      <package name="net.jini.url.file"				/>
+      <package name="net.jini.url.httpmd"			/>
+      <package name="net.jini.url.https"			/>
+
+    </javadoc>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: spec-doc						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="spec-doc"
+          description="Generates the specification-only javadoc."
+          depends="setup-all">
+
+    <delete dir="${build.doc.spec.api}" quiet="true" />
+    <mkdir  dir="${build.doc.spec.api}"		/>
+
+    <javadoc	author="true"
+		bottom="${api-copyright}"
+		breakiterator="yes"
+		destdir="${build.doc.spec.api}"
+		doctitle="${spec-doc-title}"
+		linkoffline="${jdk-doc-url} ${jdk-packages}"
+		serialwarn="yes"
+		source="1.4"
+		use="true"
+		version="true"
+		windowtitle="${spec-win-title}">
+
+      <tag name="com.sun.jini.impl"
+	   enabled="false"
+	   description="ignore" />
+
+      <classpath refid="path.apidoc"/>
+
+      <sourcepath>
+        <pathelement path="${src.jini}"  />
+        <pathelement path="${src.tools}" />
+      </sourcepath>
+
+      <package name="net.jini.activation"		/>
+      <package name="net.jini.config"			/>
+      <package name="net.jini.constraint"		/>
+      <package name="net.jini.core.constraint"		/>
+      <package name="net.jini.entry"			/>
+      <package name="net.jini.export"			/>
+      <package name="net.jini.id"			/>
+      <package name="net.jini.iiop"			/>
+      <package name="net.jini.io"			/>
+      <package name="net.jini.io.context"		/>
+      <package name="net.jini.jeri"			/>
+      <package name="net.jini.jeri.connection"		/>
+      <package name="net.jini.jeri.http"		/>
+      <package name="net.jini.jeri.kerberos"		/>
+      <package name="net.jini.jeri.ssl"			/>
+      <package name="net.jini.jeri.tcp"			/>
+      <package name="net.jini.jrmp"			/>
+      <package name="net.jini.loader"			/>
+      <package name="net.jini.loader.pref"		/>
+      <package name="net.jini.security"			/>
+      <package name="net.jini.security.policy"		/>
+      <package name="net.jini.security.proxytrust"	/>
+      <package name="net.jini.space"			/>
+      <package name="net.jini.url.file"			/>
+      <package name="net.jini.url.httpmd"		/>
+      <package name="net.jini.url.https"		/>
+
+    </javadoc>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: jars							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="jars"
+          description="Generates jar files for each sub-component."
+          depends="tools">
+
+    <!-- ##								-->
+    <!-- ## The following jars must be built first:			-->
+    <!-- ##								-->
+
+    <ant target="this.jars"
+	 antfile="build.xml"
+	 dir="${src.jini}"
+	 inheritall="false"
+	 inheritrefs="true"/>
+
+    <!-- ##								-->
+    <!-- ## Now subsequent jars can be built:				-->
+    <!-- ##								-->
+
+    <echo message="Searching for build.xml files ..."/>
+
+    <subant target="this.jars" inheritall="false" inheritrefs="true">
+
+      <fileset dir="${src.dir}">
+        <include name="com/**/build.xml"/>
+        <include name="net/**/build.xml"/>
+      </fileset>
+
+    </subant>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: build							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="build"
+          description="For NetBeans compatibility."
+          depends="compile">
+
+  </target>
+  
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: compile						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="compile"
+          description="Compiles jini source"
+          depends="setup-all">
+
+    <echo message="Compiling sources: ${java-source} ..."/>
+
+    <javac-cmd source.dir="${src.dir}"	source.pat="java.source"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: compile.local						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="compile.local"
+	  if="compile-local"
+          description="Processes the compile_local target defined in build_local.xml
+		       if the compile-local property and compile_local target both exist."
+          depends="setup-all">
+
+    <antcall target="compile_local"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: build-psepro-classes					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="build-psepro-classes"
+	  if="have-psepro"
+          description="Build the classes that require PSEpro processing."
+          depends="setup-all">
+
+    <echo message="Running ant psepro-classes in ${src.jini}/com/sun/jini/outrigger/logstore/build.xml"/>
+
+    <ant target="psepro-classes"
+	 antfile="build.xml"
+	 dir="${src.jini}/com/sun/jini/outrigger/logstore"
+	 inheritall="false"
+         inheritrefs="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: copy-psepro-zip					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="copy-psepro-zip"
+	  if="psepro-zip"
+          description=""
+          depends="setup-all">
+
+    <echo message="Running ant copy-pro-zip in ${src.jini}/com/sun/jini/outrigger/logstore/build.xml"/>
+
+    <ant target="copy-pro-zip"
+	 antfile="build.xml"
+	 dir="${src.jini}/com/sun/jini/outrigger/logstore"
+	 inheritall="false"
+         inheritrefs="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: install.policy					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="install.policy"
+          description="Installs our policy jars into the JRE ext dir."
+          depends="setup-all">
+
+    <delete file="${jre-ext-dir}/jsk-policy.jar" />
+
+    <copy file="${lib-ext}/jsk-policy.jar"	todir="${jre-ext-dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: uninstall.policy					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="uninstall.policy"
+          description="Removes our policy jars from the JRE ext dir."
+          depends="env">
+
+    <delete file="${jre-ext-dir}/jsk-policy.jar" />
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: stubs							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="stubs"
+          description="Generates stub files for each sub-component."
+          depends="compile">
+
+    <echo message="Searching for build.xml files for building stubs ..."/>
+
+    <subant target="this.stubs"
+            genericantfile="build.xml"
+            inheritall="false"
+            inheritrefs="true">
+
+      <fileset dir="${src.dir}">
+        <include name="com/**/build.xml"/>
+        <include name="net/**/build.xml"/>
+      </fileset>
+
+    </subant>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: tools							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="tools"
+          description="Compiles tools source"
+          depends="setup-all">
+
+    <ant target="compile"
+	 antfile="build.xml"
+	 dir="${src.tools}/com/sun/jini/tool"
+	 inheritall="false"
+	 inheritrefs="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: tools-jar						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="tools-jar"
+          description="Generates the tools jar file"
+          depends="setup-all">
+
+    <ant target="this.jars"
+	 antfile="build.xml"
+	 dir="${src.tools}/com/sun/jini/tool"
+	 inheritall="false"
+	 inheritrefs="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: clean.all						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="clean.all"
+          description="Deletes the lib, lib-dl, and lib-ext  directories."
+          depends="clean.jars,
+		   clean.jre.ext">
+
+    <delete dir="${build.classes}"	quiet="true"/>
+    <delete dir="${build.classes.pse}"	quiet="true"/>
+    <delete dir="${build.deps}"		quiet="true"/>
+    <delete dir="${build.doc.api}"	quiet="true"/>
+    <delete dir="${entry.dest.dir}"     quiet="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: clean.jars						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="clean.jars"
+          description="Deletes the lib, lib-dl, and lib-ext directories."
+          depends="env">
+
+    <delete dir="${build.lib}"		quiet="true"/>
+    <delete dir="${build.lib-dl}"	quiet="true"/>
+    <delete dir="${build.lib-ext}"	quiet="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: clean.jre.ext						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="clean.jre.ext"
+          description="Deletes the items that we installed in the jre/lib/ext
+		       directory."
+          depends="env,
+		   clean.local">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: clean.local						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="clean.local"
+	  if="clean-local"
+          description="Processes the clean_local target defined in build_local.xml
+		       if the clean-local property and clean_local target both exist."
+          depends="env">
+
+    <antcall target="clean_local"/>
+
+  </target>
+
+</project>
+

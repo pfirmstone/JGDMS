@@ -1,0 +1,11 @@
+# transient mercury configuration entries
+com.sun.jini.mercury.discoveryManager: net.jini.discovery.DiscoveryManagement
+com.sun.jini.mercury.initialLookupAttributes: net.jini.core.entry.Entry[]
+com.sun.jini.mercury.initialLookupGroups: String[]
+com.sun.jini.mercury.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
+com.sun.jini.mercury.leasePeriodPolicy: com.sun.jini.landlord.LeasePeriodPolicy
+com.sun.jini.mercury.listenerPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.mercury.locatorToJoinPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.mercury.loginContext: javax.security.auth.login.LoginContext
+com.sun.jini.mercury.notificationsTaskManager: com.sun.jini.thread.TaskManager
+com.sun.jini.mercury.serverExporter: net.jini.export.Exporter

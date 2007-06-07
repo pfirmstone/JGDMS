@@ -1,0 +1,3 @@
+net.jini.url.httpmd.HttpmdIntegrityVerifier
+net.jini.url.https.HttpsIntegrityVerifier
+net.jini.url.file.FileIntegrityVerifier

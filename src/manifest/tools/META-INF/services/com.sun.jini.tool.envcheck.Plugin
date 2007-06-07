@@ -1,0 +1,11 @@
+com.sun.jini.tool.envcheck.plugins.CheckCodebase
+com.sun.jini.tool.envcheck.plugins.CheckJSKPolicy
+com.sun.jini.tool.envcheck.plugins.CheckJSKPlatform
+com.sun.jini.tool.envcheck.plugins.CheckNoLoopback
+com.sun.jini.tool.envcheck.plugins.CheckLoggingConfig
+com.sun.jini.tool.envcheck.plugins.CheckJDK1_4
+com.sun.jini.tool.envcheck.plugins.CheckPolicy
+com.sun.jini.tool.envcheck.plugins.CheckActivationSystem
+com.sun.jini.tool.envcheck.plugins.CheckConfig
+com.sun.jini.tool.envcheck.plugins.CheckJsseProps
+com.sun.jini.tool.envcheck.plugins.CheckPersistence

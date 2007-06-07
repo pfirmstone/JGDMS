@@ -1,0 +1,6 @@
+# non-activatable persistent reggie configuration entries
+com.sun.jini.reggie.persistenceDirectory: String
+com.sun.jini.reggie.persistenceSnapshotThreshold: int
+com.sun.jini.reggie.persistenceSnapshotWeight: float 
+com.sun.jini.reggie.recoveredListenerPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.reggie.recoveredLocatorPreparer: net.jini.security.ProxyPreparer

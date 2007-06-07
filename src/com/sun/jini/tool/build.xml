@@ -1,0 +1,228 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<project name="tool" basedir="." default="all">
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## ENVIRONMENT SETTINGS						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <!-- ##								-->
+  <!-- ## Import the local settings if they exist, ignoring errors	-->
+  <!-- ## (ie, optional=true) if the file is nonexistent.		-->
+  <!-- ## 								-->
+
+  <import file="../../../../build_local.xml" optional="true"/>
+
+  <condition property="top" value="../../../../..">
+    <not> <isset property="top"/> </not>
+  </condition>
+
+  <property name="pkg-path" value="com/sun/jini/tool"/>
+
+  <!-- ##								-->
+  <!-- ## Set java-source for use with the javac task:			-->
+  <!-- ##								-->
+
+  <property name="java-source" value="${pkg-path}/**/*.java" />
+
+  <import file="${top}/build_common.xml"/>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: all							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="all"
+          description=""
+          depends="compile,
+		   copy-resources">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: clean                                                 -->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="clean"
+          description="Removes all files and dirs created by the build."
+          depends="setup-all">
+
+    <!-- ##                                                             -->
+    <!-- ## Delete the applicable build files and directories.		-->
+    <!-- ##                                                             -->
+
+    <delete dir="${build.classes}/${pkg-path}"
+            quiet="true" verbose="false" />
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: copy-resources					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="copy-resources"
+          description="Copies various resources directories to the classes dir."
+          depends="setup-all">
+
+    <delete dir="${build.classes}/${pkg-path}/resources"/>
+    <mkdir  dir="${build.classes}/${pkg-path}/resources"/>
+
+    <copy todir="${build.classes}/${pkg-path}/resources">
+
+      <fileset dir="${src.tools}/${pkg-path}/resources">
+        <include name="**"/>
+        <patternset refid="pattern.nomakefiles"	   />
+      </fileset>
+
+    </copy>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.jars						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.jars"
+	  depends="tools.jar">
+  
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: tools.jar						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="tools.jar"
+	  depends="setup-all">
+  
+    <property name="tools.deps" location="${build.deps}/tools.deps" />
+    
+    <!-- ##								-->
+    <!-- ## Run ClassDep            					-->
+    <!-- ##								-->
+
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${tools.deps}">
+          
+      <classpath refid="path.classdep"	/>
+      <arg value="-cp"			/>
+      <arg path="${build.classes}"	/>
+      <arg value="-files"		/>
+      <arg line="${jskprivate.include}"	/>
+
+      <arg line="-in com.sun.jini.tool"	/>
+      <arg line="-in com.sun.jini.start"	/>
+
+      <arg value="com.sun.jini.tool.CheckConfigurationFile"			/>
+      <arg value="com.sun.jini.tool.CheckSer"					/>
+      <arg value="com.sun.jini.tool.ClassDep"					/>
+      <arg value="com.sun.jini.tool.ClassDep$$Compare"				/>
+      <arg value="com.sun.jini.tool.ClassDep$$Env"				/>
+      <arg value="com.sun.jini.tool.ClassDepLoader"				/>
+      <arg value="com.sun.jini.tool.ClassServer"				/>
+      <arg value="com.sun.jini.tool.ComputeDigest"				/>
+      <arg value="com.sun.jini.tool.ComputeHttpmdCodebase"			/>
+      <arg value="com.sun.jini.tool.JarWrapper"					/>
+      <arg value="com.sun.jini.tool.PreferredListGen"				/>
+      <arg value="com.sun.jini.tool.envcheck.AbstractPlugin"			/>
+      <arg value="com.sun.jini.tool.envcheck.EnvCheck"				/>
+      <arg value="com.sun.jini.tool.envcheck.SubVM"				/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckActivationSystem"	/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckCodebase"		/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckConfig"		/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckJDK1_4"		/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckJSKPlatform"		/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckJSKPolicy"		/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckJsseProps"		/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckLoggingConfig"	/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckNoLoopback"		/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckPersistence"		/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.CheckPolicy"		/>
+      <arg value="com.sun.jini.tool.envcheck.plugins.FileAccessCheckTask"	/>
+    </java>
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete file="${build.lib}/tools.jar" quiet="true" />
+
+    <jar destfile="${build.lib}/tools.jar" 
+         index="false"
+	 manifest="${src.tools.manifest}/tools.mf">
+         
+      <fileset	dir="${src.tools.manifest}/tools"
+		includes="META-INF/services/com.sun.jini.tool.envcheck.Plugin" />
+
+      <fileset dir="${build.classes}"  includesfile="${tools.deps}" />
+
+      <fileset	dir="${src.tools}"
+		includes="com/sun/jini/tool/resources/*.properties
+			  com/sun/jini/tool/envcheck/resources/*.properties
+			  com/sun/jini/tool/envcheck/plugins/resources/*.properties" />
+
+    </jar>
+
+    <!-- ##								-->
+    <!-- ## Generate the Preferred List					-->
+    <!-- ##								-->
+
+    <preferredlistgen>
+
+      <plg-elements>
+
+      <arg line="-cp"							/>
+      <arg path="${build.classes}"					/>
+
+      <arg line="-jar"							/>
+      <arg path="${build.lib}/tools.jar"				/>
+      
+      </plg-elements>
+
+    </preferredlistgen>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.stubs						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.stubs" description="Just a dummy target."/>
+
+</project>
+

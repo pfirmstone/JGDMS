@@ -1,0 +1,697 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<project name="configentry" basedir="." default="all">
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## ENVIRONMENT SETTINGS						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <property name="top" location="../.."/>
+
+  <!-- ##								-->
+  <!-- ## Set java-source for use with the javac task:			-->
+  <!-- ##								-->
+
+  <property name="java-source" value="**/*.java" />
+  
+  <import file="${top}/build_common.xml"/>
+
+  <patternset id="svc-common-entries-set">
+    <include name="JoinManager" />
+
+    <patternset id="dis-common-entries-set">
+      <include name="LeaseRenewalManager"      />
+      <include name="LookupDiscovery"          />
+      <include name="LookupLocatorDiscovery"   />
+    </patternset>
+
+  </patternset>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## MACRODEF: create-activatable					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <macrodef name="create-activatable">
+
+     <attribute name="prefix"/>
+
+     <sequential>
+       <echo message="Creating ${entry.dest.dir}/@{prefix}-activatable"/>
+
+       <concat destfile="${entry.dest.dir}/@{prefix}-activatable">
+   
+	 <fileset dir="${entry.src.dir}">
+	   <include name="@{prefix}-activatable"/>
+	   <include name="@{prefix}-persistent" />
+	   <include name="@{prefix}-transient"  />
+	 </fileset>
+   
+	 <fileset dir="${entry.src.dir}">
+	   <patternset refid="svc-common-entries-set"/>
+	 </fileset>
+   
+       </concat>
+     </sequential>
+
+  </macrodef>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## MACRODEF: create-persistent					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <macrodef name="create-persistent">
+
+     <attribute name="prefix"/>
+
+     <sequential>
+       <echo message="Creating ${entry.dest.dir}/@{prefix}-persistent"/>
+
+       <concat destfile="${entry.dest.dir}/@{prefix}-persistent">
+   
+	 <fileset dir="${entry.src.dir}">
+	   <include name="@{prefix}-persistent" />
+	   <include name="@{prefix}-transient"  />
+	 </fileset>
+   
+	 <fileset dir="${entry.src.dir}">
+	   <patternset refid="svc-common-entries-set"/>
+	 </fileset>
+   
+       </concat>
+     </sequential>
+
+  </macrodef>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## MACRODEF: create-transient					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <macrodef name="create-transient">
+
+     <attribute name="prefix"/>
+
+     <sequential>
+       <echo message="Creating ${entry.dest.dir}/@{prefix}-transient"/>
+
+       <concat destfile="${entry.dest.dir}/@{prefix}-transient">
+   
+	 <fileset dir="${entry.src.dir}">
+	   <include name="@{prefix}-transient"  />
+	 </fileset>
+   
+	 <fileset dir="${entry.src.dir}">
+	   <patternset refid="svc-common-entries-set"/>
+	 </fileset>
+   
+       </concat>
+     </sequential>
+
+  </macrodef>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: all							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="all"
+          depends="setup-all,
+		   browser,
+		   destroy,
+		   fiddler-activatable,
+		   fiddler-persistent,
+		   fiddler-transient,
+		   JoinManager,
+		   LeaseRenewalManager,
+		   LookupDiscovery,
+		   LookupLocatorDiscovery,
+		   mahalo-activatable,
+		   mahalo-persistent,
+		   mahalo-transient,
+		   mercury-activatable,
+		   mercury-persistent,
+		   mercury-transient,
+		   norm-activatable,
+		   norm-persistent,
+		   norm-transient,
+		   outrigger-activatable,
+		   outrigger-persistent,
+		   outrigger-transient,
+		   phoenix,
+		   phoenix-group,
+		   phoenix-stop,
+		   reggie-activatable,
+		   reggie-persistent,
+		   reggie-transient,
+		   ServiceDiscoveryManager,
+		   sharedgroup,
+		   start,
+		   WakeupManager">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: dis-common-entries					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="dis-common-entries"
+	  depends="LeaseRenewalManager,
+		   LookupDiscovery,
+		   LookupLocatorDiscovery">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: svc-common-entries					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="svc-common-entries"
+	  depends="JoinManager,
+		   dis-common-entries">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: browser						-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="browser"
+          depends="dis-common-entries">
+
+    <delete file="${entry.dest.dir}/browser"/>
+
+    <echo message="Creating ${entry.dest.dir}/browser"/>
+
+    <concat destfile="${entry.dest.dir}/browser">
+
+      <fileset dir="${entry.src.dir}">
+        <include name="browser"/>
+      </fileset>
+
+      <fileset dir="${entry.src.dir}">
+        <patternset refid="dis-common-entries-set"/>
+      </fileset>
+
+    </concat>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: destroy						-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="destroy">
+
+    <delete file="${entry.dest.dir}/destroy"/>
+    <copy   file="${entry.src.dir}/destroy" todir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: fiddler-activatable					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="fiddler-activatable"
+          depends="fiddler-persistent,
+		   fiddler-transient,
+		   svc-common-entries">
+
+    <delete file="${entry.dest.dir}/fiddler-activatable"/>
+    <create-activatable prefix="fiddler"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: fiddler-persistent					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="fiddler-persistent">
+
+    <delete file="${entry.dest.dir}/fiddler-persistent"/>
+    <create-persistent prefix="fiddler"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: fiddler-transient					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="fiddler-transient">
+
+    <delete file="${entry.dest.dir}/fiddler-transient"/>
+    <create-transient prefix="fiddler"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: JoinManager						-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="JoinManager">
+
+    <delete file="${entry.dest.dir}/JoinManager"/>
+    <copy   file="${entry.src.dir}/JoinManager" todir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: LeaseRenewalManager					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="LeaseRenewalManager">
+
+    <delete file="${entry.dest.dir}/LeaseRenewalManager"/>
+    <copy   file="${entry.src.dir}/LeaseRenewalManager" todir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: LookupDiscovery					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="LookupDiscovery">
+
+    <delete file="${entry.dest.dir}/LookupDiscovery"/>
+    <copy   file="${entry.src.dir}/LookupDiscovery" todir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: LookupLocatorDiscovery				-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="LookupLocatorDiscovery">
+
+    <delete file="${entry.dest.dir}/LookupLocatorDiscovery"/>
+    <copy   file="${entry.src.dir}/LookupLocatorDiscovery" todir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: mahalo-activatable					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="mahalo-activatable">
+
+    <delete file="${entry.dest.dir}/mahalo-activatable"/>
+    <create-activatable prefix="mahalo"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: mahalo-persistent					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="mahalo-persistent">
+
+    <delete file="${entry.dest.dir}/mahalo-persistent"/>
+    <create-persistent prefix="mahalo"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: mahalo-transient					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="mahalo-transient">
+
+    <delete file="${entry.dest.dir}/mahalo-transient"/>
+    <create-transient prefix="mahalo"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: mercury-activatable					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="mercury-activatable">
+
+    <delete file="${entry.dest.dir}/mercury-activatable"/>
+    <create-activatable prefix="mercury"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: mercury-persistent					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="mercury-persistent">
+
+    <delete file="${entry.dest.dir}/mercury-persistent"/>
+    <create-persistent prefix="mercury"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: mercury-transient					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="mercury-transient">
+
+    <delete file="${entry.dest.dir}/mercury-transient"/>
+    <create-transient prefix="mercury"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: norm-activatable					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="norm-activatable">
+
+    <delete file="${entry.dest.dir}/norm-activatable"/>
+    <create-activatable prefix="norm"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: norm-persistent					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="norm-persistent">
+
+    <delete file="${entry.dest.dir}/norm-persistent"/>
+    <create-persistent prefix="norm"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: norm-transient					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="norm-transient">
+
+    <delete file="${entry.dest.dir}/norm-transient"/>
+    <create-transient prefix="norm"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: outrigger-activatable					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="outrigger-activatable">
+
+    <delete file="${entry.dest.dir}/outrigger-activatable"/>
+    <create-activatable prefix="outrigger"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: outrigger-persistent					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="outrigger-persistent">
+
+    <delete file="${entry.dest.dir}/outrigger-persistent"/>
+    <create-persistent prefix="outrigger"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: outrigger-transient					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="outrigger-transient">
+
+    <delete file="${entry.dest.dir}/outrigger-transient"/>
+    <create-transient prefix="outrigger"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: phoenix						-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="phoenix">
+
+    <delete file="${entry.dest.dir}/phoenix"/>
+    <copy   file="${entry.src.dir}/phoenix" todir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: phoenix-group						-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="phoenix-group">
+
+    <delete file="${entry.dest.dir}/phoenix-group"/>
+    <copy   file="${entry.src.dir}/phoenix-group" todir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: phoenix-stop						-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="phoenix-stop">
+
+    <delete file="${entry.dest.dir}/phoenix-stop"/>
+    <copy   file="${entry.src.dir}/phoenix-stop" todir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: reggie-activatable					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="reggie-activatable">
+
+    <delete file="${entry.dest.dir}/reggie-activatable"/>
+    <create-activatable prefix="reggie"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: reggie-persistent					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="reggie-persistent">
+
+    <delete file="${entry.dest.dir}/reggie-persistent"/>
+    <create-persistent prefix="reggie"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: reggie-transient					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="reggie-transient">
+
+    <delete file="${entry.dest.dir}/reggie-transient"/>
+    <create-transient prefix="reggie"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: ServiceDiscoveryManager				-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="ServiceDiscoveryManager">
+
+    <delete file="${entry.dest.dir}/ServiceDiscoveryManager"/>
+    <copy   file="${entry.src.dir}/ServiceDiscoveryManager" todir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: sharedgroup						-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="sharedgroup">
+
+    <delete file="${entry.dest.dir}/sharedgroup"/>
+    <copy   file="${entry.src.dir}/sharedgroup" todir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: start							-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="start">
+
+    <delete file="${entry.dest.dir}/start"/>
+    <copy   file="${entry.src.dir}/start" todir="${entry.dest.dir}"/>
+
+  </target>
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: WakeupManager 					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="WakeupManager">
+
+    <delete file="${entry.dest.dir}/WakeupManager"/>
+    <copy   file="${entry.src.dir}/WakeupManager" todir="${entry.dest.dir}"/>
+
+  </target>
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: clean                                                 -->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="clean"
+          description="Removes all files and dirs created by the build."
+          depends="clean.jre.ext">
+
+    <delete dir="${entry.dest.dir}"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.jars						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.jars"
+	  description="Just a dummy target.">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.stubs						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.stubs"
+	  description="Just a dummy target.">
+
+  </target>
+
+</project>
+

@@ -1,0 +1,198 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+</head>
+<body bgcolor="white">
+
+Provides generic abstractions for exporting remote objects ({@link
+net.jini.export.Exporter}), obtaining a proxy from an exported remote
+object ({@link net.jini.export.ProxyAccessor}), obtaining the
+server-side context information for an executing remote call ({@link
+net.jini.export.ServerContext}), and defining export permissions
+({@link net.jini.export.ExportPermission}).  These abstractions are
+independent of communication protocols, remote invocation semantics,
+and other details of remote object behavior.
+
+<a name="Requirements"><h2>Requirements</h2></a>
+
+The <code>Exporter</code> abstraction is intended to satisfy the
+following requirements:
+
+<ul>
+<li> support a variety of implementations for exporting and
+unexporting remote objects using a protocol independent API
+<li> support exporting a given remote object to multiple runtimes
+</ul>
+
+<a name="Exporter"><h2>Exporter</h2></a>
+
+<p>The interface {@link net.jini.export.Exporter} is a
+high-level API for both <i>exporting</i> a single remote object so
+that it can receive remote method invocations, and <i>unexporting</i>
+that same remote object.  Applications can use a {@link
+net.jini.config.Configuration} provider together with
+the <code>Exporter</code> interface to export remote objects in a way
+that can be configured and deployed at run-time to use specific
+implementations of the <code>Exporter</code> interface.  See the <a
+href="../config/package-summary.html#Example"><code>net.jini.config</code>
+package</a> documentation for examples on configurable exporting.
+
+<p>Several implementations of the <code>Exporter</code> interface are provided:
+
+<blockquote><table summary="Describes built-in exporter implementations"
+cellpadding=3 cellspacing=3>
+  <tr>
+    <td valign=top>{@link net.jini.jrmp.JrmpExporter}</td>
+
+    <td>Exports an object using the Java(TM) Remote Method Invocation
+(Java RMI) implementation in Java 2, SDK, Standard Edition
+(J2SE(TM)).  The behavior of remote objects exported via a
+<code>JrmpExporter</code> are the same as the behavior of objects
+exported via equivalent <code>exportObject</code> methods of the
+<code>java.rmi.server.UnicastRemoteObject</code> and
+<code>java.rmi.activation.Activatable</code> classes.</td>
+  </tr>
+  <tr>
+    <td valign=top>{@link net.jini.iiop.IiopExporter}</td>
+
+    <td>Exports an object using the Java Remote Method Invocation over
+Internet-ORB Protocol technology (RMI-IIOP) in J2SE.  The behavior of
+remote objects exported via an <code>IiopExporter</code> are the same
+as the behavior of objects exported via the <code>exportObject</code>
+method of the class <code>javax.rmi.PortableRemoteObject</code> and
+(where appropriate) connected to an <code>ORB</code> via the
+<code>connect</code> method of <code>javax.rmi.CORBA.Stub</code>.</td>
+
+  </tr>
+  <tr>
+    <td valign=top>{@link net.jini.jeri.BasicJeriExporter}</td>
+    <td>Exports an object to use Jini(TM) extensible remote invocation
+(Jini ERI).  A remote object exported with
+<code>BasicJeriExporter</code> can have associated custom remote
+invocation and dispatch behavior, as well as a customized
+communication protocol.</td>  
+  </tr></table></blockquote>
+
+<p>The details of export and unexport behavior, including
+communication protocols used for remote invocation and additional
+invocation semantics, are defined by the particular implementation of
+the <code>Exporter</code> interface.
+
+<p>To export a remote object, an application needs to either construct
+a new instance of an <code>Exporter</code> implementation explicitly
+or use the <code>Configuration.getEntry</code> method to obtain a new
+instance of an <code>Exporter</code> implementation.  It is preferable
+to obtain exporters via the <code>Configuration</code> provider
+because doing so eliminates application code dependency on specific
+<code>Exporter</code> implementations.  Only a single object can be
+exported per <code>Exporter</code> instance.  Since an exporter hides
+all the details of export behavior (for example, an object or
+activation identifier) and such information in many cases is only
+applicable to a single object, it simplifies the abstraction and the
+programming model to require a new exporter per export.
+
+<p>The <code>export</code> method exports a remote object and returns
+a proxy that implements all the remote interfaces of the remote object
+and that can be used to invoke remote methods on that exported remote
+object.  The caller should not make any assumptions about the behavior
+of the <code>Exporter</code> implementation to which the object was
+exported, the implementation of the returned proxy (for example, it
+need not be a "stub" class as defined in the Java RMI specification), or
+the communication protocols used by the returned proxy to invoke
+remote methods.
+
+<p>A remote object exported via a given <code>Exporter</code> instance
+can later be unexported by invoking the <code>unexport</code> method
+of that <code>Exporter</code> instance.
+
+<a name="ProxyAccessor"><h2>ProxyAccessor</h2></a>
+
+<p>The interface {@link net.jini.export.ProxyAccessor} provides a
+means to obtain a proxy for an exported remote object and is typically
+used in conjunction with activatable remote objects.  An activatable
+remote object should implement this interface so that the activation
+group can obtain the remote object's proxy once the remote object is
+created (activated) and exported.  If an activatable remote object
+does not implement this interface, it must define a constructor that
+takes as arguments an {@link java.rmi.activation.ActivationID} and a
+{@link java.rmi.MarshalledObject}, and it must be serializable and
+marshalling the object produces a suitable proxy for the remote
+object.
+
+<a name="ServerContext"><h2>ServerContext</h2></a>
+
+<p>The class {@link net.jini.export.ServerContext}
+provides a generic API for associating and obtaining server context
+information for a remote call executing in the current thread.
+
+The class contains static methods for obtaining the server context for
+the current thread (<code>ServerContext.getServerContext</code>) and
+for executing some action within a given server context
+(<code>ServerContext.doWithServerContext</code>).  In addition, the
+<code>ServerContext</code> class provides the interface {@link
+net.jini.export.ServerContext.Spi} for server context
+providers that are consulted to obtain a server context if one is not
+already associated with the current thread via the
+<code>ServerContext.doWithServerContext</code> method.
+
+<p>The context information available from a given element of the
+collection is determined by that element's type.  Examples of types
+that a given element might implement include:
+
+<ul>
+<li>{@link net.jini.io.context.ClientHost}
+<li>{@link net.jini.io.context.ClientSubject}
+<li>{@link net.jini.io.context.IntegrityEnforcement}
+</ul>
+
+<p>A remote object does not itself set up a <code>ServerContext</code>,
+rather the <code>Exporter</code> implementation that
+dispatches incoming calls to its exported remote objects may establish
+one for each call that it services.
+
+<p>For supplying context information for remote method execution, the
+<code>BasicJeriExporter</code> implementation uses the method
+<code>doWithServerContext</code> and the <code>JrmpExporter</code>
+implementation uses the provider interface
+<code>ServerContext.Spi</code>.  The <code>IiopExporter</code>
+implementation does not support the <code>ServerContext</code> API in
+supplying context information for incoming calls dispatched to its
+exported objects.
+
+<a name="ExportPermission"><h2>ExportPermission</h2></a>
+
+<p>The class {@link net.jini.export.ExportPermission}
+defines runtime permissions associated with export-related
+operations.  When invoking {@link
+net.jini.jeri.AbstractILFactory#getInvocationDispatcherMethods}, the calling
+context must have been granted the permission
+<code>ExportPermission("exportRemoteInterface.<i>interfaceName</i>")</code>
+for each non-public remote interface the supplied remote object
+implements.
+
+<p>
+
+@since 2.0
+@version 1.1
+
+</body>
+</html>

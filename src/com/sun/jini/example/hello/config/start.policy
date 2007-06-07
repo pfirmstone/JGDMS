@@ -1,0 +1,10 @@
+/* Policy file for the service starter */
+
+/* Grant the local JAR files all permissions */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};

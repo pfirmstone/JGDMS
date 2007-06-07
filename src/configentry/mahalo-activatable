@@ -1,0 +1,3 @@
+# activatable persistent mahalo configuration entries
+com.sun.jini.mahalo.activationIdPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.mahalo.activationSystemPreparer: net.jini.security.ProxyPreparer

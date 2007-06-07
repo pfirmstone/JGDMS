@@ -1,0 +1,35 @@
+/* Security policy for SSL-enabled reggie */
+
+/* Keystore containing trusted certificates to use for authentication */
+keystore "..${/}prebuiltkeys${/}truststore";
+
+/* Grant all permissions to local JAR files */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+/* Grant permissions to all */
+grant {
+    permission com.sun.jini.reggie.RegistrarPermission "getProxyVerifier";
+};
+
+/* Grant permissions to server */
+grant principal "server" {
+    permission com.sun.jini.reggie.RegistrarPermission "register";
+    permission com.sun.jini.reggie.RegistrarPermission "cancelServiceLease";
+    permission com.sun.jini.reggie.RegistrarPermission "renewServiceLease";
+    permission com.sun.jini.reggie.RegistrarPermission "cancelLeases";
+    permission com.sun.jini.reggie.RegistrarPermission "renewLeases";
+};
+grant principal "client" { 
+    permission com.sun.jini.reggie.RegistrarPermission "lookup";
+    permission com.sun.jini.reggie.RegistrarPermission "notify";
+    permission com.sun.jini.reggie.RegistrarPermission "cancelEventLease";
+    permission com.sun.jini.reggie.RegistrarPermission "renewEventLease";
+    permission com.sun.jini.reggie.RegistrarPermission "cancelLeases";
+    permission com.sun.jini.reggie.RegistrarPermission "renewLeases";
+};

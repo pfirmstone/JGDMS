@@ -1,0 +1,6 @@
+# non-activatable persistent mercury configuration entries
+com.sun.jini.mercury.logToSnapshotThreshold: int
+com.sun.jini.mercury.persistenceDirectory: String
+com.sun.jini.mercury.recoveredListenerPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.mercury.recoveredLocatorToJoinPreparer: net.jini.security.ProxyPreparer
+

@@ -1,0 +1,62 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+</head>
+<body bgcolor="white">
+
+Provides classes and interfaces for using universally unique
+identifiers.
+
+<h2><code>Uuid</code> and <code>UuidFactory</code></h2>
+
+<p>Instances of the class {@link net.jini.id.Uuid} are universally
+unique identifiers.  A <code>Uuid</code> is a 128-bit value.  The
+class {@link net.jini.id.UuidFactory} provides static methods for
+creating <code>Uuid</code> instances with specified values and newly
+generated values.
+
+<p>The design of the <code>Uuid</code> and <code>UuidFactory</code>
+classes is intended to allow the actual class of a <code>Uuid</code>
+instance to be <i>preferred</i> (see {@link net.jini.loader.pref}), to
+help preserve that class's codebase annotation when it gets
+unmarshalled, while the <code>Uuid</code> class itself is not
+preferred, so that <code>Uuid</code> can be used in public field,
+method, and constructor declarations of types resolvable by classes
+defined by different class loaders.
+
+<h2><code>ReferentUuid</code> and <code>ReferentUuids</code></h2>
+
+<p>The interface {@link net.jini.id.ReferentUuid} allows a proxy for a
+resource to express the identity of that resource as a
+<code>Uuid</code>.  The class {@link net.jini.id.ReferentUuids}
+provides a static convenience method for comparing the identities of
+proxies that are instances of <code>ReferentUuid</code>.  With a
+uniform interface for accessing the identity of a proxy's resource,
+two proxies can be recognized as being for the same resource even if
+the proxies' implementation classes are not the same version or not
+defined by the same class loader.
+
+@since 2.0
+@version 2.0
+
+</body>
+</html>

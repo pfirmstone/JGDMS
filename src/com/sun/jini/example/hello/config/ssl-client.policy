@@ -1,0 +1,21 @@
+/* Security policy for SSL client */
+
+/* Keystore containing trusted certificates to use for authentication */
+keystore "..${/}prebuiltkeys${/}truststore";
+
+/* Grant the local JAR files all permissions */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+/* Grant permissions to the reggie principal */
+grant principal "reggie" {
+    /* Allow the SDM listener in reggie to call us back */
+    permission net.jini.security.AccessPermission "notify";
+    /* Allow trust verification */
+    permission net.jini.security.AccessPermission "getProxyVerifier";
+};

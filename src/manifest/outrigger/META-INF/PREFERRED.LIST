@@ -1,0 +1,6 @@
+PreferredResources-Version: 1.0
+
+Preferred: true
+
+Name: com/sun/jini/start/*
+Preferred: false

@@ -1,0 +1,10 @@
+/* Security policy for starting activatable SSL server */
+
+/* Grant all permissions to local JAR files */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};

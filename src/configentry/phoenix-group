@@ -1,0 +1,8 @@
+# phoenix activation group configuration entries
+com.sun.jini.phoenix.inheritGroupSubject: boolean
+com.sun.jini.phoenix.instantiatorExporter: net.jini.export.Exporter
+com.sun.jini.phoenix.loginContext: javax.security.auth.login.LoginContext
+com.sun.jini.phoenix.monitorPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.phoenix.systemPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.phoenix.unexportTimeout: int
+com.sun.jini.phoenix.unexportWait: int

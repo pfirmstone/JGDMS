@@ -1,0 +1,43 @@
+/* Security policy for activatable Kerberos server */
+
+/* Grant all permissions to local JAR files */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+/* Grant permissions to client principal */
+grant principal 
+    javax.security.auth.kerberos.KerberosPrincipal "${clientPrincipal}" 
+{
+    /* Call sayHello method */
+    permission com.sun.jini.example.hello.ServerPermission "sayHello";
+};
+
+/* Grant permissions to phoenix principal */
+grant principal 
+    javax.security.auth.kerberos.KerberosPrincipal "${phoenixPrincipal}" 
+{
+    /* Get proxy verifier */
+    permission com.sun.jini.phoenix.InstantiatorPermission "getProxyVerifier";
+
+    /* Instantiate activatable server */
+    permission com.sun.jini.phoenix.InstantiatorPermission "newInstance";
+};
+
+/* Grant permissions to reggie principal */
+grant principal 
+    javax.security.auth.kerberos.KerberosPrincipal "${reggiePrincipal}" 
+{
+    /* Allow reggie to call us back so join works */
+    permission net.jini.security.AccessPermission "notify";
+};
+
+/* Grant permissions to all principals */
+grant {
+    /* Call getProxyVerifier method */
+    permission com.sun.jini.example.hello.ServerPermission "getProxyVerifier";
+};

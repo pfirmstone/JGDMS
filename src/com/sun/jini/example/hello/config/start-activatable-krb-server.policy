@@ -1,0 +1,10 @@
+/* Security policy for starting activatable Kerberos server */
+
+/* Grant all permissions local JAR files */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};

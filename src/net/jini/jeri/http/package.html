@@ -1,0 +1,228 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Provides implementations of the {@link net.jini.jeri.Endpoint} and
+{@link net.jini.jeri.ServerEndpoint} abstractions that use HTTP
+messages sent over TCP sockets as the underlying communication
+mechanism.  {@link net.jini.jeri.http.HttpEndpoint} instances can be
+used by clients to initiate calls over HTTP; each instance contains
+the host name and TCP port number to which to connect, as well as an
+optional {@link javax.net.SocketFactory} for customizing the type of
+{@link java.net.Socket} to use.  {@link
+net.jini.jeri.http.HttpServerEndpoint} instances are used to listen
+for and receive incoming calls over HTTP; each instance contains the
+name of the listening host and the number of the TCP port on which to
+listen, as well as an optional {@link javax.net.ServerSocketFactory}
+for customizing the type of {@link java.net.ServerSocket} to use. <p>
+
+Note that providing socket factories which produce SSL sockets does
+not result in endpoints which are fully HTTPS capable.  HTTPS support
+is offered by the {@link net.jini.jeri.ssl} security provider.
+
+<h2>HTTP mapping</h2>
+
+<code>HttpEndpoint</code> and <code>HttpServerEndpoint</code> map 
+{@link net.jini.jeri.OutboundRequest} and 
+{@link net.jini.jeri.InboundRequest} instances to HTTP
+request/response messages: request data is transmitted as the
+<code>entity-body</code> of an HTTP POST request, while response data is
+transmitted as the <code>entity-body</code> of the corresponding HTTP response
+message.  When possible, HTTP 1.1 persistent connections and chunked transfer
+coding are employed.  For information on HTTP, refer to 
+<a href="http://www.ietf.org/rfc/rfc2616.txt">RFC 2616</a>.
+
+<h2>HTTP proxying</h2>
+
+To determine whether or not requests should be sent through an HTTP proxy,
+<code>HttpEndpoint</code> consults the same set of system properties used by
+{@link java.net.HttpURLConnection}:
+<ul>
+  <li><code>http.proxyHost</code>: if specified, the value of this property is
+  interpreted as the host name of the HTTP proxy to use.  If
+  <code>http.proxyHost</code> is not specified, then the <code>proxyHost</code>
+  system property is consulted as a fallback; if it is not specified either,
+  then HTTP proxying is disabled (i.e., all HTTP messages are sent directly to
+  the target host of the given <code>HttpEndpoint</code>).<p>
+
+  <li><code>http.proxyPort</code>: if <code>http.proxyHost</code> or
+  <code>proxyHost</code> is set, then the (integer) value of
+  <code>http.proxyPort</code> system property is used as the port number on
+  which to connect to the HTTP proxy; if unspecified, then the
+  <code>proxyPort</code> property is consulted as a fallback.  If neither
+  <code>http.proxyPort</code> nor <code>proxyPort</code> is specified (but
+  <code>http.proxyHost</code> or <code>proxyHost</code> is), then the HTTP
+  proxy port number defaults to 80.<p>
+
+  <li><code>http.nonProxyHosts</code>: if specified, the value of this property
+  is interpreted as a list of host name patterns, each delimited by the '|'
+  character.  Individual host name patterns may be literal host
+  names/addresses, or partial host names/addresses containing the '*' character
+  as a wildcard.  The '*' wildcard matches arbitrary (including zero-length)
+  spans of characters.  If <code>http.nonProxyHosts</code> is specified and the
+  name of the target host for a given outbound message matches at least one of
+  the patterns, then messages to that host will not be sent through the HTTP
+  proxy.<p>
+</ul>
+The values of the system properties above are resampled for each new outbound
+HTTP message.
+
+<h2>HTTP authentication</h2>
+
+<code>HttpEndpoint</code> supports both basic and digest HTTP authentication
+methods, specified in <a href="http://www.ietf.org/rfc/rfc2617.txt">RFC
+2617</a>.  Like <code>HttpURLConnection</code>, it obtains authentication
+parameters (e.g., username, password) from the {@link java.net.Authenticator}
+class.
+
+<h2>Constraint support</h2>
+
+<code>HttpEndpoint</code> and <code>HttpServerEndpoint</code> support
+the transport layer aspects of at least the following constraints:
+
+<ul>
+<li>any {@link net.jini.core.constraint.ConnectionAbsoluteTime}
+<li>any {@link net.jini.core.constraint.ConnectionRelativeTime}
+<li>a {@link net.jini.core.constraint.ConstraintAlternatives} if at
+    least one element is supported
+<li>{@link net.jini.core.constraint.Integrity#NO Integrity.NO}
+<li>{@link net.jini.core.constraint.Confidentiality#NO Confidentiality.NO}
+<li>{@link net.jini.core.constraint.ClientAuthentication#NO
+				    ClientAuthentication.NO}
+<li>{@link net.jini.core.constraint.ServerAuthentication#NO
+				    ServerAuthentication.NO}
+<li>{@link net.jini.core.constraint.Delegation#NO Delegation.NO}
+<li>any {@link net.jini.core.constraint.ClientMaxPrincipal}
+<li>any {@link net.jini.core.constraint.ClientMaxPrincipalType}
+<li>any {@link net.jini.core.constraint.ClientMinPrincipal}
+<li>any {@link net.jini.core.constraint.ClientMinPrincipalType}
+<li>any {@link net.jini.core.constraint.ServerMinPrincipal}
+<li>any {@link net.jini.core.constraint.DelegationAbsoluteTime}
+<li>any {@link net.jini.core.constraint.DelegationRelativeTime}
+</ul>
+
+(Note that <code>ClientMaxPrincipal</code>,
+<code>ClientMaxPrincipalType</code>, <code>ClientMinPrincipal</code>,
+<code>ClientMinPrincipalType</code>, <code>ServerMinPrincipal</code>,
+<code>DelegationAbsoluteTime</code>, and
+<code>DelegationRelativeTime</code> constraints are trivially
+supported if <code>ClientAuthentication.YES</code>,
+<code>ServerAuthentication.YES</code>, and <code>Delegation.YES</code>
+are not supported.)
+
+@since 2.0
+@version 2.0
+
+@com.sun.jini.impl
+
+<h2>Logging</h2>
+
+This implementation uses the {@link java.util.logging.Logger} named
+<code>net.jini.jeri.http.client</code> to log information at the
+following levels:
+
+<p><table summary="Describes what is logged to the client logger at
+various logging levels" border=1 cellpadding=5>
+
+<tr> <th> Level <th> Description
+
+<tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED}
+     <td> exceptions thrown attempting to initiate a request
+
+<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+     <td> exceptions caught attempting to connect a socket, set
+	  options on a client-side socket, or reuse a connection
+
+<tr> <td> {@link java.util.logging.Level#FINE FINE}
+     <td> client-side socket operations (create, connect, reuse, and
+	  close)
+
+</table>
+
+<p>This implementation uses the {@link java.util.logging.Logger} named
+<code>net.jini.jeri.http.server</code> to log information at the
+following levels:
+
+<p><table summary="Describes what is logged to the server logger at
+various logging levels" border=1 cellpadding=5>
+
+<tr> <th> Level <th> Description
+
+<tr> <td> {@link java.util.logging.Level#WARNING WARNING}
+     <td> exceptions accepting on a server socket
+
+<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+     <td> exceptions caught setting options on a server-side socket
+
+<tr> <td> {@link java.util.logging.Level#FINE FINE}
+     <td> server-side socket operations (create, accept, and close)
+
+</table>
+
+<h2>System properties</h2>
+
+In addition to the HTTP proxy-related system properties listed above, this
+implementation of <code>HttpEndpoint</code> and <code>HttpServerEndpoint</code>
+recognizes the following system properties:
+<p>
+<ul>
+<li><code>com.sun.jini.jeri.http.idleConnectionTimeout</code> - The number of
+    milliseconds to retain idle client-side HTTP connections before closing
+    them.  The default is <code>15000</code>.
+<li><code>com.sun.jini.jeri.http.idleServerConnectionTimeout</code> - The
+    number of milliseconds to retain idle server-side HTTP connections before
+    closing them.  The default is the idle client-side connection timeout (as
+    specified by the <code>com.sun.jini.jeri.http.idleConnectionTimeout</code>
+    system property) plus <code>10000</code>.
+<li><code>com.sun.jini.jeri.http.responseAckTimeout</code> - The number of
+    milliseconds to wait for acknowledgments from
+    {@link net.jini.io.context.AcknowledgmentSource} instances.  The default is
+    <code>15000</code>.
+<li><code>com.sun.jini.jeri.http.disableProxyPersistentConnections</code> - If
+    the value is case-insensitive equal to <code>true</code>, client-side
+    connections through the HTTP proxy are not reused across requests;
+    otherwise, persistent connections are maintained and reused if possible.
+<li><code>com.sun.jini.jeri.http.pingProxyConnections</code> - If
+    the value is case-insensitive equal to <code>true</code>, then if an
+    HTTP proxy is being used, ping the server endpoint to verify whether
+    it is alive and reachable. The ping occurs before the first request
+    and before each subsequent request which follows the expiration of
+    the ping proxy timeout period (below) following the previous ping.
+    When using an HTTP proxy it is often impossible to distinguish
+    between inability to reach the server endpoint (such as because the
+    server process refused a connection by the HTTP proxy) and the lack
+    of response from a delivered request (which might result in an
+    UnmarshalException). The ping increases the likelihood that the
+    inability to reach the server endpoint can be explicitly identified.
+    The default value is <code>false</code>, and no pings are done.
+<li><code>com.sun.jini.jeri.http.pingProxyConnectionTimeout</code> - The
+    number of milliseconds from the time a server endpoint was last
+    pinged before a ping will precede the next request. The default is
+    <code>Long.MAX_VALUE</code> (essentially meaning, ping only before
+    the first request).
+</ul>
+
+</body>
+</html>

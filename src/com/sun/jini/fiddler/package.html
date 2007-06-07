@@ -1,0 +1,2667 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<html>
+<body bgcolor="white">
+
+Provides the server side of an implementation of the lookup discovery service
+(see <code>{@link net.jini.discovery.LookupDiscoveryService}</code>). 
+Multiple client-side proxy classes are used to interact and communicate 
+with the backend server defined in the class 
+<code>{@link com.sun.jini.fiddler.FiddlerImpl}</code>. 
+Those proxy classes are:
+<ul><li> <code>{@link com.sun.jini.fiddler.FiddlerProxy}</code> - the proxy
+         for the <code>{@link net.jini.discovery.LookupDiscoveryService}</code>
+         interface, which defines how clients register with the lookup discovery
+         service
+    <li> <code>{@link com.sun.jini.fiddler.FiddlerAdminProxy}</code> - the proxy
+         for the <code>{@link com.sun.jini.fiddler.FiddlerAdmin}</code> interface, 
+         which specifies the methods through which clients can perform administrative
+         duties such as joining, changing the policy for persisting the service's
+         state, and gracefully shutting down the service
+    <li> <code>{@link com.sun.jini.fiddler.FiddlerRegistration}</code> - the proxy 
+         for the <code>{@link net.jini.discovery.LookupDiscoveryRegistration}</code> 
+         interface, which specifies the methods through which clients can perform
+         duties such as group and locator management, state retrieval, and discarding 
+         discovered but unavailable lookup services so they will be eligible for 
+         re-discovery
+</ul>
+<p>
+Clients interact with the <i>Fiddler</i> implementation of the lookup
+discovery service by communicating with the backend server through the 
+above proxies. When a client makes a remote method invocation on one of 
+the proxies, the proxy makes a call on the corresponding method which is 
+specified in the <code>{@link com.sun.jini.fiddler.Fiddler}</code> interface, 
+is implemented in <code>{@link com.sun.jini.fiddler.FiddlerImpl}</code>, 
+and ultimately executes on the backend server.
+<p>
+The Fiddler implementation of the lookup discovery service can be run
+in one of the following modes:
+<ul><li> <i>transient</i> - when run in this mode, Fiddler will not persist its
+         state, and it is not <i>activatable</i>; that is, it will not be 
+         restarted by the activation system upon a system crash or failure.
+         To run Fiddler in this mode, specify the wrapper class 
+         <code>com.sun.jini.fiddler.TransientFiddlerImpl</code>, to the
+         {@link com.sun.jini.start.NonActivatableServiceDescriptor}, as
+         required by the {@link com.sun.jini.start Service Starter} framework.
+    <li> <i>nonactivatable</i> - when run in this mode, Fiddler <i>does</i> persist
+         its state, but is not activatable. To run Fiddler in this mode, specify the
+         wrapper class <code>com.sun.jini.fiddler.NonActivatableFiddlerImpl</code>,
+         to the {@link com.sun.jini.start.NonActivatableServiceDescriptor}, as
+         required by the {@link com.sun.jini.start Service Starter} framework.
+    <li> <i>activatable</i> - when run in this mode, Fiddler both persists its 
+         state, and is activatable. To run Fiddler in this mode, specify the
+         wrapper class <code>com.sun.jini.fiddler.ActivatableFiddlerImpl</code>,
+         to the {@link com.sun.jini.start.SharedActivatableServiceDescriptor}, as
+         required by the {@link com.sun.jini.start Service Starter} framework.
+</ul>
+<p>
+This document provides the following information about Fiddler:
+<ul><li> <a href="#fiddlerConfigEntries">Configuring Fiddler</a>
+    <li> <a href="#fiddlerAccessControl">Access Control Permission Targets</a>
+    <li> <a href="#fiddlerLoggers">Logging</a>
+    <li> <a href="#fiddlerExamples">Examples for Running Fiddler</a>
+</ul>
+
+
+<a name="fiddlerConfigEntries">
+
+<H2>Configuring Fiddler</H2>
+
+The Fiddler implementation of the lookup discovery service supports the
+configuration entries described below; where each configuration entry name
+is associated with the component name <code>com.sun.jini.fiddler</code>.
+Note that the configuration entries specified here are specific to the
+Fiddler implementation of the service. Also note that each entry whose name 
+is prefixed with the string "initial" is retrieved only when the service
+is started for the first time. All other entries, unless otherwise stated,
+are retrieved from the configuration when the service is started
+or restarted.
+
+<a name="activationIdPreparer">
+<table summary="Describes the activationIdPreparer configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>activationIdPreparer</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
+                    </code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Preparer for the proxy to the activation ID that is 
+             generated by the activation system and associated with 
+             the instance of the lookup discovery service that the 
+             activation system constructs. The value of this entry 
+             should not be <code>null</code>, and is only used when
+             the service is run in activatable mode. 
+             <p>
+             This service does not invoke any methods on the prepared
+             <code>ActivationID</code> directly; however, the service
+             passes the prepared <code>ActivationID</code> to clients
+             which may call its
+            {@link java.rmi.activation.ActivationID#activate activate}
+             method if they need to reactivate this service.
+  </table>
+
+<a name="activationSystemPreparer">
+<table summary="Describes the activationSystemPreparer configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>activationSystemPreparer</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
+                    </code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Preparer for the proxy to the activation system. The value of
+             this entry should not be <code>null</code>, and is only used
+             when the service is run in activatable mode. 
+             <p>
+             The following methods of the proxy returned by this preparer
+             are invoked by this service:
+             <ul>
+              <li>{@link java.rmi.activation.ActivationSystem#unregisterObject 
+                                                              unregisterObject}
+             </ul>
+  </table>
+
+<a name="discoveryManager">
+<table summary="Describes the discoveryManager configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>discoveryManager</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.discovery.DiscoveryManagement}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new 
+      {@link net.jini.discovery.LookupDiscoveryManager#LookupDiscoveryManager(
+      java.lang.String[], net.jini.core.discovery.LookupLocator[], 
+      net.jini.discovery.DiscoveryListener, 
+      net.jini.config.Configuration) LookupDiscoveryManager}(
+          {@link net.jini.discovery.DiscoveryGroupManagement#NO_GROUPS DiscoveryGroupManagement.NO_GROUPS},
+           new {@link net.jini.core.discovery.LookupLocator}[0], null, config)</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> The discovery manager that is passed to the join manager
+             that is employed by this service to advertise itself to
+             clients through lookup services. This discovery manager
+             must satisfy the following requirements: it must not be
+             <code>null</code>, it must be an instance of both the interface
+             {@link net.jini.discovery.DiscoveryGroupManagement} and the
+             interface {@link net.jini.discovery.DiscoveryLocatorManagement},
+             and it must be initially configured to discover
+             <code>DiscoveryGroupManagement.NO_GROUPS</code> and no locators
+             (<code>new </code>{@link net.jini.core.discovery.LookupLocator
+             LookupLocator}[0]).
+  </table>
+
+<a name="initialLeaseBound">
+<table summary="Describes the initialLeaseBound configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>initialLeaseBound</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>long</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>1000*60*30</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> The initial value of the least upper bound applied to the
+             duration of each lease granted by this service.
+             <p>
+             Once the service has completed startup processing, the 
+             value of this item can be modified through the 
+             <code>{@link com.sun.jini.fiddler.FiddlerAdmin}</code> interface.
+             During startup, and upon any change through 
+             <code>com.sun.jini.fiddler.FiddlerAdmin</code>, the
+             persistent version of the service stores the value of this
+             item. After any crash-and-restart of the service, that stored
+             value - rather than this configuration item - is always
+             consulted during recovery.
+  </table>
+
+<a name="initialLookupAttributes">
+<table summary="Describes the initialLookupAttributes configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>initialLookupAttributes</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.core.entry.Entry Entry[]}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>null</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Additional set of attributes the service will associate 
+             itself with when initially joining each targeted lookup 
+             service at startup. To determine the full set of 
+             attributes to use when initially joining lookup services, 
+             this set is combined with the set of attributes the 
+             service itself supplies internally 
+             (<code>{@link net.jini.lookup.entry.ServiceInfo}</code> and 
+             <code>{@link com.sun.jini.lookup.entry.BasicServiceType}</code>
+             for this implementation of the service). A <code>null</code> 
+             value is equivalent to
+             an empty <code>{@link net.jini.core.entry.Entry}</code> array.
+             This item is consulted only when the service starts up for 
+             the first time. 
+             <p>
+             During initial startup, the service joins all discovered 
+             lookup services, registering itself with the combined set 
+             of attributes described above. Once the initial join 
+             process is complete, the set of attributes with which the 
+             service is currently registered (and with which it is to 
+             perform all future joins) can be modified through the 
+             <code>{@link net.jini.admin.JoinAdmin}</code> interface. 
+             During startup, and upon any change through
+             {@link net.jini.admin.JoinAdmin}, the service persists the set of
+             attributes with which it is to join the lookup services
+             of interest. After any crash-and-restart of the service,
+             those persisted attributes - rather than this configuration
+             item - are always consulted during recovery.
+  </table>
+
+<a name="initialLookupGroups">
+<table summary="Describes the initialLookupGroups configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>initialLookupGroups</code></font>
+
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link java.lang.String}[]
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new 
+               {@link java.lang.String}[] { "" } /* the public group */</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Initial groups this service should discover and join. 
+             <p>
+             During initial startup, the service will retrieve the 
+             value contained in this item and directly configure itself 
+             to discover and join lookup services belonging to the 
+             given groups.
+             <p>
+             Once the service has completed startup processing, the 
+             set of groups to join can be modified through the 
+             {@link net.jini.admin.JoinAdmin} interface. During startup, 
+             and upon any change through {@link net.jini.admin.JoinAdmin},
+             the service persists the set of groups to join. After any 
+             crash-and-restart of the service, those persisted group 
+             names - rather than this configuration item - are always 
+             consulted during recovery.
+  </table>
+
+<a name="initialLookupLocators">
+<table summary="Describes the initialLookupLocators configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>initialLookupLocators</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.core.discovery.LookupLocator}[]
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new 
+               {@link net.jini.core.discovery.LookupLocator}[0]</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Initial locators of lookup services this service should 
+             discover and join.
+             <p>
+             During initial startup, the service will retrieve the 
+             value contained in this item and directly configure 
+             itself to discover and join the lookup services 
+             corresponding to the given locators.
+             <p>
+             Once the service has completed startup processing, the set
+             of locators to join can be modified through the 
+             {@link net.jini.admin.JoinAdmin} interface. During startup, and 
+             upon any change through {@link net.jini.admin.JoinAdmin}, the 
+             service persists the set of locators to join. After 
+             any crash-and-restart of the service, those persisted 
+             locators - rather than this configuration item - are 
+             always consulted during recovery.
+  </table>
+
+<a name="initialPersistenceSnapshotThreshold">
+<table summary="Describes the initialPersistenceSnapshotThreshold
+               configuration entry" border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>initialPersistenceSnapshotThreshold</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>int</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>200</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> The initial value for the threshold used by the persistent
+             versions of the service when deciding whether or not to take
+             a snapshot of the service's state. This value represents the
+             number of log records that must have been written since the
+             last snapshot and before a new snapshot is taken.
+             <p>
+             Once the service has completed startup processing, the 
+             value of this item can be modified through the 
+             <code>{@link com.sun.jini.fiddler.FiddlerAdmin}</code> interface.
+             During startup, and upon any change through 
+             <code>com.sun.jini.fiddler.FiddlerAdmin</code>, the
+             persistent version of the service stores the value of this
+             item. After any crash-and-restart of the service, that stored
+             value - rather than this configuration item - is always
+             consulted during recovery.
+  </table>
+
+<a name="initialPersistenceSnapshotWeight">
+<table summary="Describes the initialPersistenceSnapshotWeight configuration
+               entry" border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>initialPersistenceSnapshotWeight</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>float</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>10</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> The initial value for the weight factor the persistent versions
+             of the service each applies when deciding when to take a
+             snapshot of the service's state. This value represents the
+             ratio of the size of the snapshot record to the size of the
+             log update record.
+             <p>
+             Once the service has completed startup processing, the 
+             value of this item can be modified through the 
+             <code>{@link com.sun.jini.fiddler.FiddlerAdmin}</code> interface.
+             During startup, and upon any change through 
+             <code>com.sun.jini.fiddler.FiddlerAdmin</code>, the
+             persistent version of the service stores the value of this
+             item. After any crash-and-restart of the service, that stored
+             value - rather than this configuration item - is always
+             consulted during recovery.
+  </table>
+
+<a name="leaseMax">
+<table summary="Describes the leaseMax configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>leaseMax</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>long</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>1000L*60*60*24*365*1000</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> When re-setting the bound on lease durations, that bound 
+             cannot be set to a value larger than this value.
+  </table>
+
+<a name="listenerPreparer">
+<table summary="Describes the listenerPreparer configuration entry"
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>listenerPreparer</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
+                    </code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Preparer for the proxies to the remote event listeners 
+             that are registered with this service. This preparer is
+             used to prepare those listeners only when they are initially
+             registered with this service. The value of this entry 
+             should not be <code>null</code>, and the preparer must return
+             a listener that is equal to the original listener as determined
+             by <code>Object.equals</code>. 
+             <p>
+             This preparer should perform all operations required to use a
+             newly received listener, typically including verifying trust
+             in the listener proxy, granting permissions, and setting
+             constraints. The prepared listener will be retained by the
+             service in its persistent store.
+             <p>
+             The following methods of the proxy returned by this preparer
+             are invoked by this service:
+             <ul>
+              <li>{@link net.jini.core.event.RemoteEventListener#notify notify}
+             </ul>
+  </table>
+
+<a name="locatorToDiscoverPreparer">
+<table summary="Describes the locatorToDiscoverPreparer configuration entry"
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>locatorToDiscoverPreparer</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
+                    </code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Preparer for the lookup locators of the lookup services
+             this service is to discover on behalf of the clients that
+             register with it. This preparer is used to prepare those
+             locators only when they are initially input to this service;
+             either when a client first registers with this service, or
+             later, when the registration's locators-of-interest are
+             changed through the <code>LookupDiscoveryRegistration</code>.
+             The value of this entry should not be <code>null</code>.
+             <p>
+             This preparer should perform all operations required to use a
+             newly received lookup locator, typically including verifying
+             trust in the listener proxy, granting permissions, and setting
+             constraints. The prepared lookup locator will be retained by
+             the service in its persistent store.
+             <p>
+             Currently, none of the methods on the lookup locator returned
+             by this preparer are invoked by this implementation of the
+             service.
+  </table>
+
+<a name="locatorToJoinPreparer">
+<table summary="Describes the locatorToJoinPreparer configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>locatorToJoinPreparer</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
+                    </code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Preparer for the lookup locators of the lookup services
+             the service itself is to discover and join. This preparer is
+             used to prepare those locators only when they are initially
+             associated with this service; either when this service
+             is first started, or later, when the locators are changed
+             through the {@link net.jini.admin.JoinAdmin} interface.
+             The value of this entry should not be <code>null</code>.
+             <p>
+             This preparer should perform all operations required to use a
+             newly received lookup locator, typically including verifying
+             trust in the listener proxy, granting permissions, and setting
+             constraints. The prepared lookup locator will be retained by
+             the service in its persistent store.
+             <p>
+             The <code>LookupLocator</code> instances obtained from the
+             <code>initialLookupLocators</code> configuration entry will
+             <i>not</i> be prepared by this preparer.
+             <p>
+             When joining any lookup service, this service may invoke
+             (or use the constraints assigned to) the following methods of
+             the <code>LookupLocator</code> instances returned by this
+             preparer:
+             <ul>
+              <li>{@link net.jini.core.discovery.LookupLocator#getRegistrar 
+                                                                 getRegistrar}
+             </ul>
+  </table>
+
+<a name="loginContext">
+<table summary="Describes the loginContext configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>loginContext</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link javax.security.auth.login.LoginContext}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> no login context
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> The JAAS login context to use for performing a JAAS 
+             login. This context also provides the <code>Subject</code> 
+             the service will run as after the service has successfully 
+             logged in. If the value of this entry is <code>null</code>,
+             no JAAS login is performed.
+  </table>
+
+<a name="persistenceDirectory">
+<table summary="Describes the persistenceDirectory configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>persistenceDirectory</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link java.lang.String}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <em>Required for persistent implementations:
+                        no default
+                    </em>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> The path of the directory in which this service will store
+             its persistent state. This entry is required only for
+             persistent (activatable and nonactivatable) implementations
+             of this service; otherwise it is not used. The value of this
+             entry should not be <code>null</code>, and the associated 
+             directory should not already exist. That directory will be
+             deleted if the service is destroyed through the 
+             <code>{@link com.sun.jini.admin.DestroyAdmin}</code> 
+             interface.
+  </table>
+
+<a name="recoveredListenerPreparer">
+<table summary="Describes the recoveredListenerPreparer configuration entry"
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>recoveredListenerPreparer</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
+                    </code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Preparer for the proxies to the remote event listeners 
+             that are registered with this service. This preparer is
+             used to prepare those listeners only after they have been
+             previously prepared; for example, upon recovery of the
+             service's persisted state. The value of this entry should
+             not be <code>null</code>, and is only used by the persistent
+             versions of this service (activatable and nonactivatable
+             modes).
+             <p>
+             This preparer needs to perform only those operations whose
+             results are not retained in the listener proxy itself, but
+             which need need to be performed in the environment in which
+             the proxy is unmarshalled; typically the granting of permissions.
+             <p>
+             The following methods of the proxy returned by this preparer
+             are invoked by this service:
+             <ul>
+              <li>{@link net.jini.core.event.RemoteEventListener#notify notify}
+             </ul>
+  </table>
+
+<a name="recoveredLocatorToDiscoverPreparer">
+<table summary="Describes the recoveredLocatorToDiscoverPreparer configuration
+               entry" border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>recoveredLocatorToDiscoverPreparer</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
+                    </code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Preparer for the lookup locators of the lookup services
+             this service is to discover on behalf of the clients that
+             register with it. This preparer is used to prepare those
+             locators only after they have been previously prepared;
+             for example, upon recovery of the service's persisted state.
+             The value of this entry should not be <code>null</code>,
+             and is only used by the persistent versions of this service
+             (activatable and nonactivatable modes).
+             <p>
+             This preparer should perform only those operations whose
+             results are not retained in the lookup locator itself, but
+             which need to be performed in the environment in which the 
+             proxy is unmarshalled; typically the granting of permissions.
+  </table>
+
+<a name="recoveredLocatorToJoinPreparer">
+<table summary="Describes the recoveredLocatorToJoinPreparer configuration
+               entry" border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>recoveredLocatorToJoinPreparer</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.security.ProxyPreparer}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
+                    </code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> Preparer for the lookup locators of the lookup services
+             the service itself is to discover and join. This preparer
+             is used to prepare those locators only after they have been
+             previously prepared; for example, upon recovery of the
+             service's persisted state. The value of this entry should
+             not be <code>null</code>, and is only used by the persistent
+             versions of this service (activatable and nonactivatable modes).
+             <p>
+             This preparer should perform only those operations whose
+             results are not retained in the lookup locator itself, but
+             which need to be performed in the environment in which the 
+             proxy is unmarshalled; typically the granting of permissions.
+             <p>
+             The <code>LookupLocator</code> instances obtained from the
+             <code>initialLookupLocators</code> are prepared by this 
+             preparer only during recovery.
+  </table>
+
+<a name="serverExporter">
+<table summary="Describes the serverExporter configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>serverExporter</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link net.jini.export.Exporter}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> Activatable case - <br>
+               <code> new 
+               {@link net.jini.activation.ActivationExporter#ActivationExporter(
+                   java.rmi.activation.ActivationID,
+                   net.jini.export.Exporter) ActivationExporter}(<br>
+                             &nbsp &nbsp &nbsp activationID,<br>
+                             &nbsp &nbsp &nbsp new {@link net.jini.jeri.BasicJeriExporter#BasicJeriExporter(
+                                              net.jini.jeri.ServerEndpoint,
+                                              net.jini.jeri.InvocationLayerFactory,
+                                              boolean,
+                                              boolean) BasicJeriExporter}(<br>
+                                                   &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp
+                                                   {@link net.jini.jeri.tcp.TcpServerEndpoint#getInstance TcpServerEndpoint.getInstance}(0),<br>
+                                                   &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp 
+                                                   new {@link net.jini.jeri.BasicILFactory}(),<br>
+                                                   &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp 
+                                                   false,<br>
+                                                   &nbsp &nbsp &nbsp &nbsp &nbsp &nbsp 
+                                                   true) )</code>
+               <p>Nonactivatable case - <br>
+               <code> new 
+                 {@link net.jini.jeri.BasicJeriExporter#BasicJeriExporter(
+                                         net.jini.jeri.ServerEndpoint,
+                                         net.jini.jeri.InvocationLayerFactory,
+                                         boolean,
+                                         boolean) BasicJeriExporter}(<br>
+                    &nbsp &nbsp &nbsp {@link net.jini.jeri.tcp.TcpServerEndpoint#getInstance TcpServerEndpoint.getInstance}(0),<br>
+                    &nbsp &nbsp &nbsp new {@link net.jini.jeri.BasicILFactory}(),<br>
+                    &nbsp &nbsp &nbsp false,<br>
+                    &nbsp &nbsp &nbsp true)</code>
+              <p>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> The object to use for exporting this service. The value of this
+             entry should not be <code>null</code>. When this service is run
+             in the activatable mode, the call to <code>getEntry</code> will
+             supply the activation ID in the <code>data</code> argument.
+  </table>
+
+<a name="taskManager">
+<table summary="Describes the taskManager configuration entry" 
+               border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>taskManager</code></font>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> {@link com.sun.jini.thread.TaskManager}
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new 
+              {@link com.sun.jini.thread.TaskManager#TaskManager()
+                                    TaskManager}(10, (15*1000), 1.0f)</code>
+
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description:
+        <td> The object that pools and manages the various threads 
+             executed by this implementation of the service. The 
+             default manager creates a maximum of 10 threads, waits 
+             15 seconds before removing idle threads, and uses a load 
+             factor of 1.0 when determining whether to create a new 
+             thread.
+  </table>
+<p>
+
+The configuration passed to Fiddler will be passed to one or more
+of the configurable classes listed below. Thus, the same configuration 
+used to configure Fiddler is also used to configure instances of the 
+classes used by Fiddler to perform that service's lookup discovery and 
+join management duties. For information on the configuration entries 
+supported by those classes, refer to the documentation associated with 
+each class.
+<p>
+<ul>
+  <li> <a href="../../../../net/jini/discovery/LookupDiscovery.html" title="class in net.jini.discovery"><code>LookupDiscovery</code></a>,
+       employed by the service to use the multicast discovery protocol to discover the group(s) of lookup services the service should
+       join, as specified through the <a href="#discoveryManager"><code>discoveryManager</code></a> configuration entry
+  <li> <a href="../../../../net/jini/discovery/LookupLocatorDiscovery.html" title="class in net.jini.discovery"><code>LookupLocatorDiscovery</code></a>,
+       employed by the service to use the unicast discovery protocol to discover the specific lookup service(s) the service
+       should join, as specified through the <a href="#discoveryManager"><code>discoveryManager</code></a> configuration entry
+  <li> <a href="../../../../net/jini/lookup/JoinManager.html" title="class in net.jini.lookup"><code>JoinManager</code></a>,
+       employed by the service to manage the service's <i>join state</i> related to the lookup service(s) discovered through
+       multicast and/or unicast discovery
+</ul>
+<p>
+
+<a name="fiddlerAccessControl">
+<h2>Access Control Permission Targets</h2>
+</a>
+
+The following table lists the names of the remote methods provided
+by the proxy objects to the Fiddler backend server, and each method's
+corresponding target name, which can be used to enforce access control
+using {@link com.sun.jini.fiddler.FiddlerPermission}:
+<p>
+<table border="1" cellpadding="5"
+       summary="The proxy methods and associated target names for
+       FiddlerPermission.">
+
+<tr> <th> Proxy Method <th> Target Name
+
+<!-- LookupDiscoveryService -->
+
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryService#register
+                                    LookupDiscoveryService.register}
+     <td> register
+
+<!-- LookupDiscoveryRegistration -->
+
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryRegistration#getRegistrars
+                                    LookupDiscoveryRegistration.getRegistrars}
+     <td> getRegistrars
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryRegistration#getGroups
+                                    LookupDiscoveryRegistration.getGroups}
+     <td> getGroups
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryRegistration#getLocators
+                                    LookupDiscoveryRegistration.getLocators}
+     <td> getLocators
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryRegistration#addGroups
+                                    LookupDiscoveryRegistration.addGroups}
+     <td> addGroups
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryRegistration#setGroups
+                                    LookupDiscoveryRegistration.setGroups}
+     <td> setGroups
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryRegistration#removeGroups
+                                    LookupDiscoveryRegistration.removeGroups}
+     <td> removeGroups
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryRegistration#addLocators
+                                    LookupDiscoveryRegistration.addLocators}
+     <td> addLocators
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryRegistration#setLocators
+                                    LookupDiscoveryRegistration.setLocators}
+     <td> setLocators
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryRegistration#removeLocators
+                                    LookupDiscoveryRegistration.removeLocators}
+     <td> removeLocators
+<tr> <td> {@link net.jini.discovery.LookupDiscoveryRegistration#discard
+                                    LookupDiscoveryRegistration.discard}
+     <td> discard
+
+<!-- Lease and LeaseMap -->
+
+<tr> <td> {@link net.jini.core.lease.Lease#renew Lease.renew}
+     <td> renewLease
+<tr> <td> {@link net.jini.core.lease.Lease#cancel Lease.cancel}
+     <td> cancelLease
+<tr> <td> {@link net.jini.core.lease.LeaseMap#renewAll LeaseMap.renewAll}
+     <td> renewLeases
+<tr> <td> {@link net.jini.core.lease.LeaseMap#cancelAll LeaseMap.cancelAll}
+     <td> cancelLeases
+
+<!-- Administrable -->
+
+<tr> <td> {@link net.jini.admin.Administrable#getAdmin Administrable.getAdmin}
+     <td> getAdmin
+
+<!-- FiddlerAdmin -->
+
+<tr> <td> {@link com.sun.jini.fiddler.FiddlerAdmin#setLeaseBound
+                                      FiddlerAdmin.setLeaseBound}
+     <td> setLeaseBound
+<tr> <td> {@link com.sun.jini.fiddler.FiddlerAdmin#getLeaseBound
+                                      FiddlerAdmin.getLeaseBound}
+     <td> getLeaseBound
+<tr> <td> {@link com.sun.jini.fiddler.FiddlerAdmin#setPersistenceSnapshotWeight
+                                      FiddlerAdmin.setPersistenceSnapshotWeight}
+     <td> setPersistenceSnapshotWeight
+<tr> <td> {@link com.sun.jini.fiddler.FiddlerAdmin#getPersistenceSnapshotWeight
+                                      FiddlerAdmin.getPersistenceSnapshotWeight}
+     <td> getPersistenceSnapshotWeight
+<tr> <td> {@link com.sun.jini.fiddler.FiddlerAdmin#setPersistenceSnapshotThreshold
+                                      FiddlerAdmin.setPersistenceSnapshotThreshold}
+     <td> setPersistenceSnapshotThreshold
+<tr> <td> {@link com.sun.jini.fiddler.FiddlerAdmin#getPersistenceSnapshotThreshold
+                                      FiddlerAdmin.getPersistenceSnapshotThreshold}
+     <td> getPersistenceSnapshotThreshold
+
+<!-- JoinAdmin -->
+
+<tr> <td> {@link net.jini.admin.JoinAdmin#getLookupAttributes
+                                JoinAdmin.getLookupAttributes}
+     <td> getLookupAttributes
+<tr> <td> {@link net.jini.admin.JoinAdmin#addLookupAttributes
+                                JoinAdmin.addLookupAttributes}
+     <td> addLookupAttributes
+<tr> <td> {@link net.jini.admin.JoinAdmin#modifyLookupAttributes
+                                JoinAdmin.modifyLookupAttributes}
+     <td> modifyLookupAttributes
+
+<tr> <td> {@link net.jini.admin.JoinAdmin#getLookupGroups
+                                JoinAdmin.getLookupGroups}
+     <td> getLookupGroups
+<tr> <td> {@link net.jini.admin.JoinAdmin#addLookupGroups
+                                JoinAdmin.addLookupGroups}
+     <td> addLookupGroups
+<tr> <td> {@link net.jini.admin.JoinAdmin#removeLookupGroups
+                                JoinAdmin.removeLookupGroups}
+     <td> removeLookupGroups
+<tr> <td> {@link net.jini.admin.JoinAdmin#setLookupGroups
+                                JoinAdmin.setLookupGroups}
+     <td> setLookupGroups
+
+<tr> <td> {@link net.jini.admin.JoinAdmin#getLookupLocators
+                                JoinAdmin.getLookupLocators}
+     <td> getLookupLocators
+<tr> <td> {@link net.jini.admin.JoinAdmin#addLookupLocators
+                                JoinAdmin.addLookupLocators}
+     <td> addLookupLocators
+<tr> <td> {@link net.jini.admin.JoinAdmin#removeLookupLocators
+                                JoinAdmin.removeLookupLocators}
+     <td> removeLookupLocators
+<tr> <td> {@link net.jini.admin.JoinAdmin#setLookupLocators
+                                JoinAdmin.setLookupLocators}
+     <td> setLookupLocators
+
+<!-- DestroyAdmin -->
+
+<tr> <td> {@link com.sun.jini.admin.DestroyAdmin#destroy DestroyAdmin.destroy}
+     <td> destroy
+
+<!-- ProxyTrust -->
+
+<tr> <td> {@link net.jini.security.proxytrust.ProxyTrust#getProxyVerifier
+                                              ProxyTrust.getProxyVerifier}
+     <td> getProxyVerifier
+
+<!-- ServiceProxyAccessor -->
+
+<tr> <td> {@link com.sun.jini.start.ServiceProxyAccessor#getServiceProxy
+                                    ServiceProxyAccessor.getServiceProxy}
+     <td> getServiceProxy
+
+</table>
+
+<a name="fiddlerLoggers">
+
+<H2>Loggers Employed By Fiddler</H2>
+
+This implementation of the lookup discovery service (Fiddler) uses a separate
+<code>{@link java.util.logging.Logger}</code> for each type of information 
+it logs. The name of each <code>Logger</code> is a dot-separated concatenation
+of the implementation package name, <code>com.sun.jini.fiddler</code>, with 
+a descriptive string. The list below identifies the descriptive part of 
+each <code>Logger</code> name, along with a brief description of the 
+information that will be sent to the associated Logger.
+<ul>
+  <li> <a href="#discardLogger"><code>discard</code></a> - trace information
+       related to lookup services that are discarded by this service
+  <li> <a href="#eventsLogger"><code>events</code></a> - trace information
+       related to events sent or received by this service
+
+  <li> <a href="#discardLogger"><code>groupsLogger</code></a> - trace 
+       information related to the groups this service is attempting to discover
+       on behalf of its clients
+
+  <li> <a href="#leaseLogger"><code>lease</code></a> - trace information
+       related to the leases granted or received by this service
+
+  <li> <a href="#locatorsLogger"><code>locators</code></a> - trace information
+       related to the locators this service is attempting to discover on
+       behalf of its clients
+
+  <li> <a href="#persistLogger"><code>persist</code></a> - trace information
+       related to the state persistence mechanism employed by the implementation
+       of this service
+
+  <li> <a href="#problemLogger"><code>problem</code></a> - serious, unexpected
+       problems that the user/deployer/administrator needs to know about
+
+  <li> <a href="#registrationLogger"><code>registration</code></a> - trace
+       information related to the registrations granted by or to this service
+
+  <li> <a href="#startupLogger"><code>startup</code></a> - one time trace
+       information such as startup/deactivation/shutdown notices
+
+  <li> <a href="#tasksLogger"><code>discard</code></a> - trace information
+       related to the tasks executed by this implementation of the service
+</ul>
+<p>
+For each <code>Logger</code> named above, the following tables describe the
+information that will be logged, and the levels at which that information
+will be logged:
+<p>
+<!-- discard logger -->
+<a name="discardLogger">
+   <table border="1" cellpadding="5"
+          summary="Describes the log levels for the information this 
+                  implementation of the lookup discovery service logs
+                  to the Logger named com.sun.jini.fiddler.discard">
+   <caption halign="center" valign="top"><b><code>com.sun.jini.fiddler.discard</code></b></caption>
+   <tr>
+     <th scope="col">Level</th> 
+     <th scope="col">Description</th>
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#FINE FINE}</td>
+     <td>
+       trace information related to lookup services that are discarded by this
+       service
+     </td>
+   </tr>
+   </table>
+
+<p>
+<!-- events logger -->
+<a name="eventsLogger">
+   <table border="1" cellpadding="5"
+          summary="Describes the log levels for the information this 
+                  implementation of the lookup discovery service logs
+                  to the Logger named com.sun.jini.fiddler.events">
+   <caption halign="center" valign="top"><b><code>com.sun.jini.fiddler.events</code></b></caption>
+   <tr>
+     <th scope="col">Level</th> 
+     <th scope="col">Description</th>
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#FINE FINE}</td>
+     <td>
+       trace information related to events sent or received by this service
+     </td>
+   </tr>
+   </table>
+
+<p>
+<!-- groups logger -->
+<a name="groupsLogger">
+   <table border="1" cellpadding="5"
+          summary="Describes the log levels for the information this 
+                  implementation of the lookup discovery service logs
+                  to the Logger named com.sun.jini.fiddler.groups">
+   <caption halign="center" valign="top"><b><code>com.sun.jini.fiddler.groups</code></b></caption>
+   <tr>
+     <th scope="col">Level</th> 
+     <th scope="col">Description</th>
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#FINER FINER}</td>
+     <td>
+       trace information related to the groups this service is attempting to
+       discover
+     </td>
+   </tr>
+   </table>
+
+<p>
+<!-- lease logger -->
+<a name="leaseLogger">
+   <table border="1" cellpadding="5"
+          summary="Describes the log levels for the information this 
+                  implementation of the lookup discovery service logs
+                  to the Logger named com.sun.jini.fiddler.lease">
+   <caption halign="center" valign="top"><b><code>com.sun.jini.fiddler.lease</code></b></caption>
+   <tr>
+     <th scope="col">Level</th> 
+     <th scope="col">Description</th>
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#FINER FINER}</td>
+     <td>
+       trace information related to the leases granted or received by this
+       service
+     </td>
+   </tr>
+   </table>
+
+<p>
+<!-- locators logger -->
+<a name="locatorsLogger">
+   <table border="1" cellpadding="5"
+          summary="Describes the log levels for the information this 
+                  implementation of the lookup discovery service logs
+                  to the Logger named com.sun.jini.fiddler.locators">
+   <caption halign="center" valign="top"><b><code>com.sun.jini.fiddler.locator</code></b></caption>
+   <tr>
+     <th scope="col">Level</th> 
+     <th scope="col">Description</th>
+   </tr>
+     <tr>
+     <td>{@link java.util.logging.Level#FINER FINER}</td>
+     <td>
+       trace information related to the locators this service is attempting to
+       discover on behalf of its clients
+     </td>
+   </tr>
+   </table>
+
+<p>
+<!-- persist logger -->
+<a name="persistLogger">
+   <table border="1" cellpadding="5"
+          summary="Describes the log levels for the information this 
+                  implementation of the lookup discovery service logs
+                  to the Logger named com.sun.jini.fiddler.persist">
+   <caption halign="center" valign="top"><b><code>com.sun.jini.fiddler.persist</code></b></caption>
+   <tr>
+     <th scope="col">Level</th> 
+     <th scope="col">Description</th>
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#FINEST FINEST}</td>
+     <td>
+       trace information related to the state persistence mechanism employed
+       by the implementation of this service
+     </td>
+   </tr>
+   </table>
+
+<p>
+<!-- problem logger -->
+<a name="problemLogger">
+   <table border="1" cellpadding="5"
+         summary="Describes the log levels for the information this 
+                 implementation of the lookup discovery service logs
+                 to the Logger named com.sun.jini.fiddler.problem">
+   <caption halign="center" valign="top"><b><code>com.sun.jini.fiddler.problem</code></b></caption>
+   <tr>
+     <th scope="col">Level</th> 
+     <th scope="col">Description</th>
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#SEVERE SEVERE}</td>
+     <td>
+       problems which prevent startup or cause shutdown of the service, or
+       which generally prevent the service from continuing with its 
+       processing
+     </td>
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#WARNING WARNING}</td>
+     <td>
+       problems that allow the service to continue with its processing,
+       but in a "crippled" state that might be serious enough to affect
+       other operations in the system
+     </td>
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#INFO INFO}</td>
+     <td>
+       serious, unexpected "problems" that occur during processing that the
+       user/deployer/administrator needs to know about, but which doesn't
+       necessarily indicate problems with other operations in the system
+     </td>
+   </tr>
+   <tr>
+     <td>{@link com.sun.jini.logging.Levels#FAILED FAILED}</td>
+     <td>
+       exceptions that occur while retrieving the locator of a discovered
+       lookup service
+     </td>
+   </tr>
+   <tr>
+     <td>{@link com.sun.jini.logging.Levels#HANDLED HANDLED}</td>
+     <td>
+       problems that occur while attempting to prepare locators or log
+       information about events the service sends
+     </td>
+   </tr>
+   </table>
+
+<p>
+<!-- registration logger -->
+<a name="registrationLogger">
+   <table border="1" cellpadding="5"
+          summary="Describes the log levels for the information this 
+                  implementation of the lookup discovery service logs
+                  to the Logger named com.sun.jini.fiddler.registration">
+   <caption halign="center" valign="top"><b><code>com.sun.jini.fiddler.registration</code></b></caption>
+   <tr>
+     <th scope="col">Level</th> 
+     <th scope="col">Description</th>   
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#FINER FINER}</td>
+     <td>
+       trace information related to the registrations granted by or to this
+       service
+     </td>
+   </tr>
+   </table>
+
+<p>
+<!-- startup logger -->
+<a name="startupLogger">
+   <table border="1" cellpadding="5"
+          summary="Describes the log levels for the information this 
+                  implementation of the lookup discovery service logs
+                  to the Logger named com.sun.jini.fiddler.startup">
+   <caption halign="center" valign="top"><b><code>com.sun.jini.fiddler.startup</code></b></caption>
+   <tr>
+     <th scope="col">Level</th> 
+     <th scope="col">Description</th>
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#INFO INFO}</td>
+     <td>
+       one time trace information, such as startup/deactivation/shutdown
+       notices
+     </td>
+   </tr>
+   </table>
+
+<p>
+<!-- tasks logger -->
+<a name="tasksLogger">
+   <table border="1" cellpadding="5"
+          summary="Describes the log levels for the information this 
+                  implementation of the lookup discovery service logs
+                  to the Logger named com.sun.jini.fiddler.tasks">
+   <caption halign="center" valign="top"><b><code>com.sun.jini.fiddler.tasks</code></b></caption>
+   <tr>
+     <th scope="col">Level</th> 
+     <th scope="col">Description</th>
+   </tr>
+   <tr>
+     <td>{@link java.util.logging.Level#FINEST FINEST}</td>
+     <td>
+       trace information related to the tasks executed by this implementation
+       of the service
+     </td>
+   </tr>
+   </table>
+<p>
+See the {@link com.sun.jini.logging.LogManager} class for one way to use
+the logging levels <code>HANDLED</code> and <code>FAILED</code> in standard 
+logging configuration files.
+<p>
+<a name="fiddlerExamples">
+<h2>Examples for Running Fiddler</h2>
+</a>
+
+This section provides example command lines, configuration files, and
+security policy files for running Fiddler in several configurations.
+These examples make the following assumptions:
+
+<ul> <li> The examples are being run on UNIX platforms.
+     <li> The Java(TM) 2 Platform, Standard Edition, has been installed
+          in the directory <b><i>java_install_dir</i></b>
+     <li> The Jini(TM) Technology Starter Kit (starter kit) has been
+          installed in the directory <b><i>jini_install_dir</i></b>
+     <li> The example configuration and policy files described below are
+          available in the directories <b><i>example_install_dir/config</i></b>
+          and <b><i>example_install_dir/policy</i></b> respectively
+     <li> The name of the host on which the service will run is <b><i>myHost</i></b>
+     <li> The name of the lookup group the service will discover and join 
+          is <b><i>myGroup.myCompany.com</i></b>
+     <li> The HTTP server for download JAR files will listen for requests
+          on port <b><i>8080</i></b>
+</ul>
+<p>
+To use these examples to start Fiddler on your system, you will need to
+make one or more modifications that are specific to your system. The list
+below describes the sort of modifications you may need to make in order
+for the examples to run on your system. 
+
+<ul> <li> Change all occurrences of <b><i>myHost</i></b> to the
+          actual name of the host on which the service is to run.
+     <li> Replace all occurrences of <b><i>java_install_dir</i></b>
+          with the path to the 1.4 version (or above) of the Java 2 
+          Platform installed on your system.
+     <li> Replace all occurrences of <b><i>jini_install_dir</i></b>
+          with the path to the desired version of the starter kit.
+     <li> Replace all occurrences of <b><i>example_install_dir/config</i></b>
+          and <b><i>example_install_dir/policy</i></b> with the appropriate
+          path to the example configuration and policy files.
+     <li> With respect to the <i>command lines</i> provided below, 
+          if running on Windows, replace the UNIX file system separator
+          <b>'/'</b> with the Windows separator (<b>'\'</b>),
+          prepend the appropriate drive-letter-with-colon on all directory path
+          file specifications, and replace the various install directories if
+          appropriate.
+     <li> With respect to the configuration and policy files, if running
+          on Windows, prepend the appropriate drive-letter-with-colon on 
+          all directory path file specifications, and replace install
+          directories where appropriate.
+</ul>
+<p>
+Note that when running on Windows, unlike the command lines, it is 
+<i><b>not</b></i> necessary to replace the UNIX file system separator 
+with the Windows separator in the example configuration and policy files
+provided here. This is because those files specify directory paths using 
+the special token for the <code>file.separator</code> system property 
+(<b>'${/}'</b>); which provides for the automatic substitution of the 
+appropriate separator, depending on the OS.
+<p>
+<a name="httpServer">
+<h3>HTTP Server</h3>
+
+For each of the possible modes in which Fiddler executes, an HTTP server
+must be running that makes available the necessary download JAR files from
+the <b><i>jini_install_dir/lib-dl</i></b> directory. Note that <b><i>the same 
+HTTP server can be used for all of the examples</i></b> described below. 
+That is, once started, the HTTP server does <b><i>not</i></b> need to be 
+stopped and restarted for each mode in which the service runs.
+<p>
+If you choose to use the HTTP server supplied with the starter
+kit, then the following command will start that daemon in <i>verbose</i>
+mode, listening for requests on port <code>8080</code>, and serving files 
+from the root directory, <b><i>jini_install_dir/lib-dl</i></b>:
+
+<blockquote>
+<pre>
+java_install_dir/bin/java -jar jini_install_dir/lib/tools.jar \
+                               -dir jini_install_dir/lib-dl \
+                               -port 8080 \
+                               -verbose
+</pre>
+</blockquote>
+Note that rather than executing the HTTP server directly as shown above,
+it can also be run as a transient service using the
+{@link com.sun.jini.start Service Starter} framework. For details on
+how to do this, refer to the 
+<a href="../../../../com/sun/jini/tool/ClassServer.html" 
+title="class in com.sun.jini.tool"><code>ClassServer</code></a>
+documentation.
+<p>
+<a name="executionModes">
+<h3>The Execution Modes of the Service</h3>
+
+As stated above, Fiddler can be run in one of the following three modes:
+<ul><li>transient (not persistent and not activatable)
+    <li>nonactivatable (persistent but not activatable)
+    <li>activatable (persistent and activatable)
+</ul>
+<p>
+One of the significant features of Jini Network Technology is that it is 
+designed to allow for configuration and pluggability of the remote communication
+framework itself, as well as the transport employed by that framework.
+Because of this, the list of framework/transport combinations that Fiddler 
+can be configured to use for its remote communication, in conjunction with
+the mode in which Fiddler is configured to run, is essentially
+boundless. The flexibility inherent in the configuration mechanism allows 
+Fiddler not only to be configured to employ any <i>existing</i> remote 
+communication framework and transport, but also any <i>future</i> framework 
+or transport that may be defined. The current release of the starter kit 
+provides implementations for the following remote communication frameworks 
+and transports:
+<ul><li>JRMP over TCP/IP
+    <li>Jini Extensible Remote Invocation (<i>Jini ERI</i>) over TCP/IP (the default for all modes)
+    <li>Jini ERI over HTTP
+    <li>Jini ERI over HTTPS
+    <li>Jini ERI over SSL/TLS (JSSE)
+    <li>Jini ERI over Kerberos/GSS-API (JGSS)
+</ul>
+<p>
+So as not to exceed the scope of this document, the examples below
+are limited to the following combinations of mode and remote
+communication mechanism:
+<ul>
+  <li> <a href="#transientJRMP"><code>transient mode using JRMP over TCP/IP</code></a>
+  <li> <a href="#transientJERI"><code>transient mode using Jini ERI over TCP/IP</code></a>
+  <li> <a href="#nonactivatableJERI"><code>nonactivatable mode using Jini ERI over TCP/IP</code></a>
+  <li> <a href="#activatableJRMP"><code>activatable mode using JRMP over TCP/IP</code></a>
+  <li> <a href="#activatableJERI"><code>activatable mode using Jini ERI over TCP/IP</code></a>
+</ul>
+For detailed examples of the other combinations, see the
+<a href="../../../../../../source/src/com/sun/jini/example/hello/index.html">hello example</a>
+supplied with the starter kit.
+<p>
+
+<a name="activation">
+<h3>Activation</h3>
+In order to run the activatable mode of this service, an activation
+system must be running on the same host as the service. For previous
+releases of the starter kit, RMID was used for this purpose. Although RMID 
+may still be used under certain circumstances, it is recommended that the 
+<a href="../../../../com/sun/jini/phoenix/package-summary.html"><code>com.sun.jini.phoenix</code></a>
+implementation supplied with the starter kit now be used for all 
+activatable configurations of the service.
+<p>
+For the two activatable examples below, command lines for starting
+and stopping Phoenix, along with an associated set of example configuration 
+and policy files are presented. Note that, as with the HTTP server, Phoenix 
+may also be started using the {@link com.sun.jini.start Service Starter} 
+framework (as described 
+<a href="../../../../com/sun/jini/phoenix/package-summary.html"><code>here</code></a>).
+<p>
+<h3>Configuration and Security Policy Files</h3>
+In each of the examples below, the service requires a configuration file
+and a security policy file. Additionally, because the Service Starter 
+framework is used to start the service, a separate configuration and
+policy file - different than that provided for the service - are provided 
+for that framework. Finally, for the activatable mode of the service, not 
+only are configuration files and a security policy file required to run 
+Phoenix, but because the Service Starter framework executes the service in 
+an <code>{@link java.rmi.activation.ActivationGroup ActivationGroup}</code>
+(referred to as a <i>shared VM</i>) that may be shared with other services,
+a configuration and policy file are both required to be defined for the 
+shared VM as well.
+<p>
+The table below shows what is required for each example configuration of 
+Fiddler presented here:
+<p>
+<table border="1" cellpadding="5"
+         summary="Describes the various configuration files and security
+                  policy that must be provided to run the service">
+   <caption halign="center" valign="top"><b><code>Example Configuration Matrix</code></b></caption>
+
+   <tr>
+     <th><a href="#executionModes"><b>Mode<br>RMI</b></a></th>
+     <th>Daemons</th>
+     <th>Configuration</th>
+     <th>Security Policy</th>
+   </tr>
+
+   <tr>
+     <th><a href="#transientJRMP"><code>Transient<br>JRMP</code></a></th>
+     <td><a href="#httpServer"><code>HTTPD</code></a></td>
+     <td><a href="#jrmpStartTransientConfig"><code>jrmp-start-transient.config</code></a><br> 
+         <a href="#jrmpTransientFiddlerConfig"><code>jrmp-transient-fiddler.config</code></a>
+     </td>
+     <td><a href="#jrmpStartTransientPolicy"><code>jrmp-start-transient.policy</code></a><br> 
+         <a href="#jrmpTransientFiddlerPolicy"><code>jrmp-transient-fiddler.policy</code></a>
+     </td>
+   </tr>
+
+   <tr>
+     <th><a href="#transientJERI"><code>Transient<br>Jini ERI</code></a></th>
+     <td><a href="#httpServer"><code>HTTPD</code></a></td>
+     <td><a href="#jeriStartTransientConfig"><code>jeri-start-transient.config</code></a><br> 
+         <a href="#jeriTransientFiddlerConfig"><code>jeri-transient-fiddler.config</code></a>
+     </td>
+     <td><a href="#jeriStartTransientPolicy"><code>jeri-start-transient.policy</code></a><br> 
+         <a href="#jeriTransientFiddlerPolicy"><code>jeri-transient-fiddler.policy</code></a>
+     </td>
+   </tr>
+
+   <tr>
+     <th><a href="#nonactivatableJERI"><code>Non-<br>activatable<br>Jini ERI</code></a></th>
+     <td><a href="#httpServer"><code>HTTPD</code></a></td>
+     <td><a href="#jeriStartNonactivatableConfig"><code>jeri-start-nonactivatable.config</code></a><br> 
+         <a href="#jeriNonactivatableFiddlerConfig"><code>jeri-nonactivatable-fiddler.config</code></a>
+     </td>
+     <td><a href="#jeriStartNonactivatablePolicy"><code>jeri-start-nonactivatable.policy</code></a><br> 
+         <a href="#jeriNonactivatableFiddlerPolicy"><code>jeri-nonactivatable-fiddler.policy</code></a>
+     </td>
+   </tr>
+
+   <tr>
+     <th><a href="#activatableJRMP"><code>Activatable<br>JRMP</code></a></th>
+     <td><a href="#httpServer"><code>HTTPD</code></a><br>
+         <a href="#activation"><code>Phoenix</code></a>
+     </td>
+     <td><a href="#jrmpStartActivatableConfig"><code>jrmp-start-activatable.config</code></a><br> 
+         <a href="#jrmpActivatableFiddlerConfig"><code>jrmp-activatable-fiddler.config</code></a><br> 
+         <a href="#jrmpPhoenixConfig"><code>jrmp-phoenix.config</code></a><br> 
+         <a href="#jrmpPhoenixGroupConfig"><code>jrmp-phoenix-group.config</code></a><br> 
+         <a href="#jrmpDestroyGroupConfig"><code>jrmp-destroyGroup.config</code></a>
+     </td>
+     <td><a href="#jrmpStartActivatablePolicy"><code>jrmp-start-activatable.policy</code></a><br> 
+         <a href="#jrmpActivatableFiddlerPolicy"><code>jrmp-activatable-fiddler.policy</code></a><br> 
+         <a href="#jrmpPhoenixPolicy"><code>jrmp-phoenix.policy</code></a><br> 
+         <a href="#jrmpSharedvmPolicy"><code>jrmp-sharedvm.policy</code></a>
+     </td>
+   </tr>
+
+   <tr>
+     <th><a href="#activatableJERI"><code>Activatable<br>Jini ERI</code></a></th>
+     <td><a href="#httpServer"><code>HTTPD</code></a><br>
+         <a href="#activation"><code>Phoenix</code></a>
+     </td>
+
+     <td><a href="#jeriStartActivatableConfig"><code>jeri-start-activatable.config</code></a><br> 
+         <a href="#jeriActivatableFiddlerConfig"><code>jeri-activatable-fiddler.config</code></a><br> 
+         <a href="#jeriPhoenixConfig"><code>jeri-phoenix.config</code></a><br> 
+         <a href="#jeriPhoenixGroupConfig"><code>jeri-phoenix-group.config</code></a><br> 
+         <a href="#jeriDestroyGroupConfig"><code>jeri-destroyGroup.config</code></a>
+     </td>
+     <td><a href="#jeriStartActivatablePolicy"><code>jeri-start-activatable.policy</code></a><br> 
+         <a href="#jeriActivatableFiddlerPolicy"><code>jeri-activatable-fiddler.policy</code></a><br> 
+         <a href="#jeriPhoenixPolicy"><code>jeri-phoenix.policy</code></a><br> 
+         <a href="#jeriSharedvmPolicy"><code>jeri-sharedvm.policy</code></a>
+     </td>
+   </tr>
+</table>
+<p>
+What follows are the command lines used to start Fiddler in the
+configurations summarized in the table above, as well as example 
+content for the various configuration and policy files required 
+by each of those example configurations.
+<p>
+
+<!-- Transient-JRMP -->
+
+<a name="transientJRMP">
+<h3>Transient Mode using JRMP</h3>
+
+The following command will start Fiddler in <b><i>transient</i></b> mode using 
+<b><i>JRMP</i></b> for remote communication. This configuration of Fiddler will 
+not persist any state information, and it will not be restarted by the 
+activation system upon a system crash or failure.
+
+<h4>Command Line</h4>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jrmp-start-transient.policy \
+    -jar jini_install_dir/lib/start.jar \
+           example_install_dir/config/jrmp-start-transient.config
+</pre>
+</blockquote>
+<p>
+<a name="jrmpStartTransientConfig">
+<h4>Starter Configuration: example_install_dir/config/jrmp-start-transient.config</h4>
+<blockquote>
+<pre>
+import com.sun.jini.start.NonActivatableServiceDescriptor;
+import com.sun.jini.start.ServiceDescriptor;
+
+com.sun.jini.start {
+
+    private static serviceCodebase   = new String("http://myHost:8080/fiddler-dl.jar http://myHost:8080/jsk-dl.jar");
+    private static servicePolicyFile = new String("example_install_dir${/}policy${/}jrmp-transient-fiddler.policy");
+    private static serviceClasspath  = new String("jini_install_dir${/}lib${/}fiddler.jar");
+    private static serviceImplName   = new String("com.sun.jini.fiddler.TransientFiddlerImpl");
+    private static serviceConfig     = new String("example_install_dir${/}config${/}jrmp-transient-fiddler.config");
+    private static serviceArgsArray  = new String[] { serviceConfig };
+
+    private static nonActivatableServiceDescriptor =
+                   new NonActivatableServiceDescriptor(serviceCodebase,
+                                                       servicePolicyFile,
+                                                       serviceClasspath,
+                                                       serviceImplName,
+                                                       serviceArgsArray);
+    static serviceDescriptors = 
+                 new ServiceDescriptor[] { nonActivatableServiceDescriptor };
+
+}//end com.sun.jini.start
+</pre>
+</blockquote>
+<p>
+<a name="jrmpTransientFiddlerConfig">
+<h4>Service Configuration: example_install_dir/config/jrmp-transient-fiddler.config</h4>
+<blockquote>
+<pre>
+import net.jini.jrmp.JrmpExporter;
+
+com.sun.jini.fiddler {
+
+    serverExporter = new JrmpExporter();
+    initialLookupGroups = new String[] {"myGroup.myCompany.com"};
+
+}//end com.sun.jini.fiddler
+</pre>
+</blockquote>
+<p>
+<a name="jrmpStartTransientPolicy">
+<h4>Starter Security Policy: example_install_dir/policy/jrmp-start-transient.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-platform.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:${java.class.path}" { 
+    permission java.security.AllPermission;
+};
+</pre>
+</blockquote>
+<p>
+<a name="jrmpTransientFiddlerPolicy">
+<h4>Service Security: example_install_dir/policy/jrmp-transient-fiddler.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-lib.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:jini_install_dir/lib/fiddler.jar" {
+    permission java.security.AllPermission;
+}; 
+</pre>
+</blockquote>
+<p>
+
+<!-- Transient-JERI -->
+
+<a name="transientJERI">
+<h3>Transient Mode using Jini ERI</h3>
+
+The following command will start Fiddler in <b><i>transient</i></b> mode using 
+Jini ERI for remote communication. As with the transient-JRMP
+configuration, this configuration of Fiddler will not persist any state 
+information, and it will not be restarted by the activation system upon 
+a system crash or failure.
+
+<h4>Command Line</h4>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jeri-start-transient.policy \
+    -jar jini_install_dir/lib/start.jar \
+           example_install_dir/config/jeri-start-transient.config
+</pre>
+</blockquote>
+<p>
+<a name="jeriStartTransientConfig">
+<h4>Starter Configuration: example_install_dir/config/jeri-start-transient.config</h4>
+<blockquote>
+<pre>
+import com.sun.jini.start.NonActivatableServiceDescriptor;
+import com.sun.jini.start.ServiceDescriptor;
+
+com.sun.jini.start {
+
+    private static serviceCodebase   = new String("http://myHost:8080/fiddler-dl.jar http://myHost:8080/jsk-dl.jar");
+    private static servicePolicyFile = new String("example_install_dir${/}policy${/}jeri-transient-fiddler.policy");
+    private static serviceClasspath  = new String("jini_install_dir${/}lib${/}fiddler.jar");
+    private static serviceImplName   = new String("com.sun.jini.fiddler.TransientFiddlerImpl");
+    private static serviceConfig     = new String("example_install_dir${/}config${/}jeri-transient-fiddler.config");
+    private static serviceArgsArray  = new String[] { serviceConfig };
+
+    private static nonActivatableServiceDescriptor =
+                   new NonActivatableServiceDescriptor(serviceCodebase,
+                                                       servicePolicyFile,
+                                                       serviceClasspath,
+                                                       serviceImplName,
+                                                       serviceArgsArray);
+    static serviceDescriptors = 
+                 new ServiceDescriptor[] { nonActivatableServiceDescriptor };
+
+}//end com.sun.jini.start
+</pre>
+</blockquote>
+<p>
+<a name="jeriTransientFiddlerConfig">
+<h4>Service Configuration: example_install_dir/config/jeri-transient-fiddler.config</h4>
+Note that the value of the <a href="#serverExporter"><code>serverExporter</code></a>
+configuration entry specified in this example configuration file is actually the default 
+value that would be used by the service if no value were supplied for that entry. 
+Although it is not necessary to specify a value for that entry, it is included in this 
+example for reference purposes. Note also that when the value of the <code>port</code> 
+argument in the call to <code>TcpServerEndpoint.getInstance</code> is 0 (as it is in 
+this example), the actual port used to export the service will be randomly chosen by 
+the Jini ERI framework.
+<p>
+It may be worth comparing the exporter specified in this example to the exporter 
+specified in the <a href="#jeriNonactivatableFiddlerConfig"><code>JERI/Nonactivatable</code></a> 
+example presented later. This example allows the Jini ERI <i>framework</i> - not the 
+deployer - to choose the port and object ID with which to export the service, whereas the 
+<a href="#jeriNonactivatableFiddlerConfig"><code>JERI/Nonactivatable</code></a> example 
+specifies a <i>specific</i> port and object ID to use. This can be seen by observing 
+that this example inputs 0 for the port and uses only the 4-argument version of the
+<code>{@link net.jini.jeri.BasicJeriExporter BasicJeriExporter}</code> constructor 
+(leaving the object ID unspecified), whereas the other example configures the exporter 
+using the 5-argument version of the constructor, supplying a non-zero value for the port 
+and a specific value for the object ID in the last argument.
+<p>
+To understand why the transient and nonactivatable modes of the service are exported 
+differently, consider the following. The nonactivatable mode of the service persists 
+its state because it wishes to be able to recover and pick up where it left off when 
+it is restarted after a crash or system failure. As will be explained in a little more 
+detail <a href="#nonactivatableJRMP"><code>below</code></a>, in order to do this, the 
+service must always be exported and re-exported using the same port and object ID.
+Thus, for the nonactivatable mode of the service under Jini ERI, the exporter used is 
+configured with a fixed port and object ID. On the other hand, there is no such 
+requirement for the transient modes of the service (under either JRMP or Jini ERI). 
+This is because by its nature, each time a transient service is started, it is as if 
+it is started for the very first time; there is no state to recover, no "place" to 
+pick up where a previous run left off.
+<p>
+<blockquote>
+<pre>
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+
+com.sun.jini.fiddler {
+
+    private invocationLayerFactory = new BasicILFactory();
+    serverExporter = new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+                                           invocationLayerFactory,
+                                           false,
+                                           true);
+
+    initialLookupGroups = new String[] {"myGroup.myCompany.com"};
+
+}//end com.sun.jini.fiddler
+</pre>
+</blockquote>
+<p>
+<a name="jeriStartTransientPolicy">
+<h4>Starter Security Policy: example_install_dir/policy/jeri-start-transient.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-platform.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:${java.class.path}" { 
+    permission java.security.AllPermission;
+};
+</pre>
+</blockquote>
+<p>
+<a name="jeriTransientFiddlerPolicy">
+<h4>Service Security: example_install_dir/policy/jeri-transient-fiddler.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-lib.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:jini_install_dir/lib/fiddler.jar" {
+    permission java.security.AllPermission;
+}; 
+</pre>
+</blockquote>
+<p>
+
+<!-- Nonactivatable-JRMP -->
+
+<a name="nonactivatableJRMP">
+<h3>Nonactivatable Mode using JRMP</h3>
+
+Although it is possible to run Fiddler in nonactivatable mode using JRMP, it is
+not recommended. This is because when Fiddler has been configured in this way 
+and is restarted, clients of the service that hold old proxies to the service
+that were created on a previous run will not be able to interact with the
+service through those old proxies; effectively making the restarted service
+useless to those clients.  A proxy that was created on a previous run cannot
+be used to communicate with the restarted service because such a proxy
+is associated with an old object ID, produced when the service was previously
+exported; whereas the restarted service will be associated with a <b><i>new</i></b>, 
+different object ID, produced when the service is re-exported during the restart. 
+Note that this will be true even if the service is re-exported on the same port. 
+<p>
+The reason the restarted service cannot be re-exported with the object ID from 
+its previous run is that when a service is configured to use JRMP, the service 
+is exported using a {@link net.jini.jrmp.JrmpExporter}, and such an exporter 
+cannot be created with a pre-specified object ID. Thus, although the old 
+object ID could be recovered from persisted state when the service is restarted, 
+there is no way to re-export the service (under JRMP) with that old object ID. 
+And so a new object ID is assigned to the service's inner proxy every time the 
+service is restarted. To address this, one might argue that clients could always 
+obtain a new service proxy (containing the new inner proxy with the new object ID) 
+simply by re-querying the lookup service. But this only addresses <i>primary</i>
+proxies to the service; it doesn't address <i>secondary</i> proxies such as
+leases the service had issued to its clients on previous runs. Any such leases
+would no longer be valid, and so each client would need to re-register with the 
+restarted service through the new primary proxy to obtain new leases. From the 
+point of view of the client then, it would be as if the service was started anew.
+<p>
+Note that for nonactivatable, persistent services that are exported using 
+Jini ERI, the above situation can be avoided. Jini ERI allows the service
+to be configured to always be exported on the same port, with the same object ID 
+(see the <a href="#jeriNonactivatableFiddlerConfig"><code>JERI/Nonactivatable</code></a> 
+example configuration below). Thus, any primary or secondary proxies a client 
+holds that are from a prior run of the service, can still be used to communicate 
+with the service when the service is restarted. 
+<p>
+Also note that the situation described above for nonactivatable, persistent
+services exported under JRMP does not affect services that are registered with 
+an activation system (that is, services that are <i>activatable</i>); and this
+holds for services exported under <i>either</i> JRMP or Jini ERI. This is
+because the activation mechanism provided in Java Remote Method Invocation 
+(<i>Java RMI</i>) provides for <i>persistent references</i>; that is,
+remote references that remain valid after the service has crashed and been
+restarted. For more details, see the <a href="../../../../../release-notes/activation.html" 
+title="Note on RMI Activation and How it is Used in the Starter Kit">
+<code>"Note on RMI Activation"</code></a>.
+<p>
+Finally, recall that a primary purpose for persisting state is so that the service 
+can recover that state and pick up where it left off when restarted. For the
+reasons described above, when a service is configured to be persistent but 
+nonactivatable, and is also configured to be exported using JRMP, that purpose 
+cannot be achieved. Therefore, the use of such a configuration is strongly 
+discouraged. With this in mind, the following guidelines should be considered 
+when deciding how to configure a service with respect to mode, communication 
+framework, and transport:
+<ul><li>If state recovery is not important, then the service should be configured 
+        for the transient mode using the communication framework and 
+        transport of choice.
+    <li>If state recovery is important, but JRMP is not necessary, then the 
+        service should be configured for the mode of choice, but the 
+        communication framework should be Jini ERI with the transport of
+        choice.
+    <li>If both state recovery and JRMP are necessary, then the service 
+        should be configured to be activatable. That is, the only way to get 
+        persistent, valid JRMP references is when the service is activatable.
+</ul>
+<p>
+
+<!-- Nonactivatable-JERI -->
+
+<a name="nonactivatableJERI">
+<h3>Nonactivatable Mode using Jini ERI</h3>
+
+The following command will start Fiddler in <b><i>nonactivatable</i></b> mode 
+using <b><i>Jini ERI</i></b> for remote communication. This configuration of Fiddler 
+will persist its state information, but it will not be restarted by the activation 
+system upon a system crash or failure. In order to recover its state and "pick
+up where it left off", the service must be restarted either manually, or by 
+some means other than Java RMI activation (for example, some sort of script that
+auto-starts the service on system recovery).
+
+<h4>Command Line</h4>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jeri-start-nonactivatable.policy \
+    -jar jini_install_dir/lib/start.jar \
+           example_install_dir/config/jeri-start-nonactivatable.config
+</pre>
+</blockquote>
+<p>
+<a name="jeriStartNonactivatableConfig">
+<h4>Starter Configuration: example_install_dir/config/jeri-start-nonactivatable.config</h4>
+<blockquote>
+<pre>
+import com.sun.jini.start.NonActivatableServiceDescriptor;
+import com.sun.jini.start.ServiceDescriptor;
+
+com.sun.jini.start {
+
+    private static serviceCodebase   = new String("http://myHost:8080/fiddler-dl.jar http://myHost:8080/jsk-dl.jar");
+    private static servicePolicyFile = new String("example_install_dir${/}policy${/}jeri-nonactivatable-fiddler.policy");
+    private static serviceClasspath  = new String("jini_install_dir${/}lib${/}fiddler.jar");
+    private static serviceImplName   = new String("com.sun.jini.fiddler.NonActivatableFiddlerImpl");
+    private static serviceConfig     = new String("example_install_dir${/}config${/}jeri-nonactivatable-fiddler.config");
+    private static serviceArgsArray  = new String[] { serviceConfig };
+
+    private static nonActivatableServiceDescriptor =
+                   new NonActivatableServiceDescriptor(serviceCodebase,
+                                                       servicePolicyFile,
+                                                       serviceClasspath,
+                                                       serviceImplName,
+                                                       serviceArgsArray);
+    static serviceDescriptors = 
+                 new ServiceDescriptor[] { nonActivatableServiceDescriptor };
+
+}//end com.sun.jini.start
+</pre>
+</blockquote>
+<p>
+<a name="jeriNonactivatableFiddlerConfig">
+<h4>Service Configuration: example_install_dir/config/jeri-nonactivatable-fiddler.config</h4>
+Note that there is nothing special about the values specified for the <code>objPort</code> 
+and <code>objId</code> configuration entries in the example configuration file shown below. 
+For both entries, fixed arbitrarily chosen values are specified. What's important is that 
+neither the port nor the object ID is changed if the service is restarted. For a more 
+detailed explanation of why this is important, see the respective notes accompanying the 
+<a href="#jeriTransientFiddlerConfig"><code>JERI/Transient</code></a> example and the 
+<a href="#nonactivatableJRMP"><code>JRMP/Nonactivatable</code></a> explanation.
+<p>
+<blockquote>
+<pre>
+import net.jini.id.UuidFactory;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+
+com.sun.jini.fiddler {
+
+    private invocationLayerFactory = new BasicILFactory();
+
+    private objPort = 19999;
+    private objId = UuidFactory.create("17ac4cdc-375a-9acc-1026-da040656ffbb");
+
+    serverExporter = new BasicJeriExporter
+                                     (TcpServerEndpoint.getInstance(objPort),
+                                      invocationLayerFactory,
+                                      false,
+                                      true,
+                                      objId);
+
+    initialLookupGroups = new String[] {"myGroup.myCompany.com"};
+    persistenceDirectory = new String("${java.io.tmpdir}jeri-fiddler-log");
+
+}//end com.sun.jini.fiddler
+</pre>
+</blockquote>
+<p>
+<a name="jeriStartNonactivatablePolicy">
+<h4>Starter Security Policy: example_install_dir/policy/jeri-start-nonactivatable.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-platform.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:${java.class.path}" { 
+    permission java.security.AllPermission;
+};
+</pre>
+</blockquote>
+<p>
+<a name="jeriNonactivatableFiddlerPolicy">
+<h4>Service Security: example_install_dir/policy/jeri-nonactivatable-fiddler.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-lib.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:jini_install_dir/lib/fiddler.jar" {
+    permission java.security.AllPermission;
+}; 
+</pre>
+</blockquote>
+<p>
+
+<!-- Phoenix-JRMP -->
+
+<a name="phoenixJRMP">
+<h3>Phoenix using JRMP</h3>
+
+In order to run Fiddler in any of the activatable configurations, an
+activation system must be running on the same host as Fiddler. Phoenix
+is the name of the implementation of the activation system provided with 
+the starter kit. Because Phoenix is configurable and supports the desired 
+communication mechanisms, that implementation is presented with the
+activatable configurations of Fiddler that follow. (For more information
+and examples on Phoenix, refer to the Phoenix documentation 
+<a href="../../../../com/sun/jini/phoenix/package-summary.html"><code>here</code></a>.)
+<p>
+The following commands will, respectively, start and stop Phoenix when using 
+<b><i>JRMP</i></b> for remote communication.
+
+<h4>Command Line</h4>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jrmp-phoenix.policy \
+  -Djava.rmi.server.codebase="http://myHost:8080/phoenix-dl.jar http://myHost:8080/jsk-dl.jar" \
+    -jar jini_install_dir/lib/phoenix.jar \
+           example_install_dir/config/jrmp-phoenix.config
+</pre>
+</blockquote>
+<p>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jrmp-phoenix.policy \
+  -Djava.rmi.server.codebase="http://myHost:8080/phoenix-dl.jar http://myHost:8080/jsk-dl.jar" \
+    -jar jini_install_dir/lib/phoenix.jar \
+           -stop \
+           example_install_dir/config/jrmp-phoenix.config
+</pre>
+</blockquote>
+<p>
+<a name="jrmpPhoenixConfig">
+<h4>Phoenix Configuration: example_install_dir/config/jrmp-phoenix.config</h4>
+<blockquote>
+<pre>
+import com.sun.jini.phoenix.ActivatorSunJrmpExporter;
+import com.sun.jini.phoenix.MonitorAccessExporter;
+import com.sun.jini.phoenix.RegistrySunExporter;
+import com.sun.jini.phoenix.SystemAccessExporter;
+
+com.sun.jini.phoenix {
+
+    registryExporter = new RegistrySunExporter();
+    systemExporter = new SystemAccessExporter();
+    activatorExporter = new ActivatorSunJrmpExporter();
+    monitorExporter = new MonitorAccessExporter();
+    groupConfig = new String[] { "example_install_dir${/}config${/}jrmp-phoenix-group.config" };
+    groupTimeout = 1800000;
+    persistenceDirectory = new String("${java.io.tmpdir}jrmp-phoenix-log");
+
+}//end com.sun.jini.phoenix
+</pre>
+</blockquote>
+<p>
+<a name="jrmpPhoenixGroupConfig">
+<h4>Phoenix Activation Group Configuration: example_install_dir/config/jrmp-phoenix-group.config</h4>
+
+This configuration file specifies the entries used to configure 
+the activation group VM that is spawned by Phoenix. The Phoenix
+activation group exports one remote object: the activation instantiator.
+
+<blockquote>
+<pre>
+import com.sun.jini.phoenix.InstantiatorAccessExporter;
+
+com.sun.jini.phoenix {
+
+    instantiatorExporter = new InstantiatorAccessExporter();
+
+}//end com.sun.jini.phoenix
+</pre>
+</blockquote>
+<p>
+
+</pre>
+</blockquote>
+<p>
+<a name="jrmpPhoenixPolicy">
+<h4>Phoenix Security Policy: example_install_dir/policy/jrmp-phoenix.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-platform.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/jsk-lib.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:${java.class.path}" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/phoenix-group.jar" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    /* Remote methods to allow to be invoked */
+    permission com.sun.jini.phoenix.SystemPermission "registerGroup";
+    permission com.sun.jini.phoenix.SystemPermission "registerObject";
+    permission com.sun.jini.phoenix.SystemPermission "unregisterGroup";
+    permission com.sun.jini.phoenix.SystemPermission "unregisterObject";
+    permission com.sun.jini.phoenix.MonitorPermission "*";
+
+    /* System Properties to allow to be set on all VMs */
+    permission com.sun.jini.phoenix.ExecOptionPermission "-classpath";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-cp";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.manager=";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.debug=all";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.debug=access,failure";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.debug=policy,access,failure";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission "jini_install_dir${/}lib${/}sharedvm.jar";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.policy=example_install_dir${/}policy${/}policy.all";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.policy=example_install_dir${/}policy${/}jrmp-sharedvm.policy";
+
+    /* System Properties for Fiddler Activatable Object */
+    permission com.sun.jini.phoenix.ExecOptionPermission "jini_install_dir${/}lib${/}fiddler.jar";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.policy=example_install_dir${/}policy${/}jrmp-activatable-fiddler.policy";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.rmi.server.codebase=http://myHost:8080/fiddler-dl.jar http://myHost:8080/jsk-dl.jar";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-DserviceConfig=example_install_dir${/}config${/}jrmp-activatable-fiddler.config";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-DserviceClasspath=jini_install_dir${/}lib${/}fiddler.jar";
+};
+</pre>
+</blockquote>
+<p>
+
+<!-- Activatable-JRMP -->
+
+<a name="activatableJRMP">
+<h3>Activatable Mode using JRMP</h3>
+
+The first command shown below will start Fiddler in <b><i>activatable</i></b> mode 
+using <b><i>JRMP</i></b> for remote communication. This configuration of Fiddler will 
+persist its state information, and it will be restarted by the activation system 
+upon a system crash or failure.
+<p>
+The second command will destroy the shared VM in which Fiddler (and possibly other
+services) are running. That command will remove the shared VM log directories, but
+will not remove any service-specific persistence directories. Typically, this
+command is executed only after all services executing in the shared VM have
+been gracefully (administratively) shutdown.
+
+<h4>Command Line</h4>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jrmp-start-activatable.policy \
+    -jar jini_install_dir/lib/start.jar \
+           example_install_dir/config/jrmp-start-activatable.config
+</pre>
+</blockquote>
+<p>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jrmp-start-activatable.policy \
+    -jar jini_install_dir/lib/destroy.jar \
+           example_install_dir/config/jrmp-start-activatable.config
+</pre>
+</blockquote>
+<p>
+<a name="jrmpStartActivatableConfig">
+<h4>Starter Configuration: example_install_dir/config/jrmp-start-activatable.config</h4>
+<blockquote>
+<pre>
+import com.sun.jini.start.ServiceDescriptor;
+import com.sun.jini.start.SharedActivatableServiceDescriptor;
+import com.sun.jini.start.SharedActivationGroupDescriptor;
+import net.jini.security.BasicProxyPreparer;
+
+com.sun.jini.start {
+
+    activationSystemPreparer = new BasicProxyPreparer();
+
+    private static sharedVMPolicyFile = new String("example_install_dir${/}policy${/}jrmp-sharedvm.policy");
+    private static sharedVMClasspath  = new String("jini_install_dir${/}lib${/}sharedvm.jar");
+
+    private static groupCodebase   = new String("http://myHost:8080/group-dl.jar");
+    private static groupPolicyFile = new String("example_install_dir${/}policy${/}jrmp-sharedvm.policy");
+    private static groupClasspath  = new String("jini_install_dir${/}lib${/}group.jar");
+    private static groupImplName   = new String("com.sun.jini.start.SharedGroupImpl");
+    private static groupArgsArray  = new String[] { "example_install_dir${/}config${/}jrmp-destroyGroup.config" };
+
+    private static serviceCodebase   = new String("http://myHost:8080/fiddler-dl.jar http://myHost:8080/jsk-dl.jar");
+    private static servicePolicyFile = new String("example_install_dir${/}policy${/}jrmp-activatable-fiddler.policy");
+    private static serviceClasspath  = new String("jini_install_dir${/}lib${/}fiddler.jar");
+    private static serviceImplName   = new String("com.sun.jini.fiddler.ActivatableFiddlerImpl");
+    private static serviceConfig     = new String("example_install_dir${/}config${/}jrmp-activatable-fiddler.config");
+    private static serviceArgsArray  = new String[] { serviceConfig };
+
+    private static sharedVMDir = "${java.io.tmpdir}jrmp-sharedvm-log";
+
+    private static serverCommand    = null;
+    private static serverOptions    = null;
+    private static serverProperties =
+                     new String[] { "serviceClasspath", serviceClasspath,
+                                    "serviceConfig",    serviceConfig };
+    private registryHost = "myHost";
+    private registryPort = 1098;
+
+    private static sharedActivationGroupDescriptor =
+                   new SharedActivationGroupDescriptor(sharedVMPolicyFile,
+                                                       sharedVMClasspath,
+                                                       sharedVMDir,
+                                                       serverCommand,
+                                                       serverOptions,
+                                                       serverProperties,
+                                                       registryHost,
+                                                       registryPort );
+    private static destroySharedGroupDescriptor =
+                   new SharedActivatableServiceDescriptor(groupCodebase,
+                                                          groupPolicyFile,
+                                                          groupClasspath,
+                                                          groupImplName,
+                                                          sharedVMDir,
+                                                          groupArgsArray,
+                                                          false,
+                                                          registryHost,
+                                                          registryPort );
+    private static activatableServiceDescriptor =
+                   new SharedActivatableServiceDescriptor(serviceCodebase,
+                                                          servicePolicyFile,
+                                                          serviceClasspath,
+                                                          serviceImplName,
+                                                          sharedVMDir,
+                                                          serviceArgsArray,
+                                                          true,
+                                                          registryHost,
+                                                          registryPort );
+    static serviceDescriptors =
+           new ServiceDescriptor[] { sharedActivationGroupDescriptor,
+                                     activatableServiceDescriptor };
+    static serviceDestructors =
+           new ServiceDescriptor[] { destroySharedGroupDescriptor };
+
+}//end com.sun.jini.start
+</pre>
+</blockquote>
+<p>
+<a name="jrmpActivatableFiddlerConfig">
+<h4>Service Configuration: example_install_dir/config/jrmp-activatable-fiddler.config</h4>
+<blockquote>
+<pre>
+import net.jini.jrmp.JrmpExporter;
+import net.jini.security.BasicProxyPreparer;
+import java.rmi.activation.ActivationID;
+
+com.sun.jini.fiddler {
+
+    serverExporter = new JrmpExporter( (ActivationID)$data, 0 );
+
+    activationSystemPreparer = new BasicProxyPreparer();
+    activationIdPreparer = new BasicProxyPreparer();
+
+    initialLookupGroups = new String[] {"myGroup.myCompany.com"};
+    persistenceDirectory = new String("${java.io.tmpdir}jrmp-fiddler-log");
+
+}//end com.sun.jini.fiddler
+</pre>
+</blockquote>
+<p>
+<a name="jrmpDestroyGroupConfig">
+<h4>Service Configuration: example_install_dir/config/jrmp-destroyGroup.config</h4>
+<blockquote>
+<pre>
+import net.jini.jrmp.JrmpExporter;
+import net.jini.security.BasicProxyPreparer;
+import java.rmi.activation.ActivationID;
+
+com.sun.jini.start {
+
+    exporter = new JrmpExporter( (ActivationID)$data,0 );
+    activationSystemPreparer = new BasicProxyPreparer();
+
+}//end com.sun.jini.start
+</pre>
+</blockquote>
+<p>
+<a name="jrmpStartActivatablePolicy">
+<h4>Starter Security Policy: example_install_dir/policy/jrmp-start-activatable.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-platform.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:${java.class.path}" { 
+    permission java.security.AllPermission;
+};
+</pre>
+</blockquote>
+<p>
+<a name="jrmpActivatableFiddlerPolicy">
+<h4>Service Security: example_install_dir/policy/jrmp-activatable-fiddler.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-lib.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:jini_install_dir/lib/fiddler.jar" {
+    permission java.security.AllPermission;
+}; 
+</pre>
+</blockquote>
+<p>
+<a name="jrmpSharedvmPolicy">
+<h4>Service Security: example_install_dir/policy/jrmp-sharedvm.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-platform.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/jsk-lib.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/phoenix-init.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/phoenix-group.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:${java.class.path}" { 
+    permission java.security.AllPermission;
+}; 
+
+grant codebase "file:jini_install_dir/lib/group.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/fiddler.jar" {
+    permission java.security.AllPermission;
+};
+</pre>
+</blockquote>
+<p>
+
+<!-- Phoenix-JERI -->
+
+<a name="phoenixJERI">
+<h3>Phoenix using Jini ERI</h3>
+
+The following commands will, respectively, start and stop Phoenix when using 
+<b><i>Jini ERI</i></b> for remote communication.
+
+<h4>Command Line</h4>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jeri-phoenix.policy \
+  -Djava.rmi.server.codebase="http://myHost:8080/phoenix-dl.jar http://myHost:8080/jsk-dl.jar" \
+    -jar jini_install_dir/lib/phoenix.jar \
+           example_install_dir/config/jeri-phoenix.config
+</pre>
+</blockquote>
+<p>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jeri-phoenix.policy \
+  -Djava.rmi.server.codebase="http://myHost:8080/phoenix-dl.jar http://myHost:8080/jsk-dl.jar" \
+    -jar jini_install_dir/lib/phoenix.jar \
+           -stop \
+           example_install_dir/config/jeri-phoenix.config
+</pre>
+</blockquote>
+<p>
+<a name="jeriPhoenixConfig">
+<h4>Phoenix Configuration: example_install_dir/config/jeri-phoenix.config</h4>
+<blockquote>
+<pre>
+import com.sun.jini.phoenix.AccessILFactory;
+import com.sun.jini.phoenix.PhoenixConstants;
+import com.sun.jini.phoenix.RegistrySunExporter;
+import com.sun.jini.phoenix.SystemAccessILFactory;
+
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+
+com.sun.jini.phoenix {
+
+    registryExporter = new RegistrySunExporter();
+
+    private jeriPort = 2000; //cannot be 1098
+    private serverEndpoint = TcpServerEndpoint.getInstance(jeriPort);
+
+    systemExporter = new BasicJeriExporter
+                                   (serverEndpoint,
+                                    new SystemAccessILFactory(),
+                                    false,
+                                    true,
+                                    PhoenixConstants.ACTIVATION_SYSTEM_UUID);
+
+    activatorExporter = new BasicJeriExporter(serverEndpoint,
+                                              new BasicILFactory(),
+                                              false,
+                                              true,
+                                              PhoenixConstants.ACTIVATOR_UUID);
+
+    private invocationLayerFactory = new AccessILFactory();
+    monitorExporter = new BasicJeriExporter(serverEndpoint,
+                                            invocationLayerFactory,
+                                            false,
+                                            true);
+
+    groupConfig = new String[] { "example_install_dir${/}config${/}jeri-phoenix-group.config" };
+    groupTimeout = 1800000;
+    persistenceDirectory = new String("${java.io.tmpdir}jeri-phoenix-log");
+
+}//end com.sun.jini.phoenix
+</pre>
+</blockquote>
+<p>
+<a name="jeriPhoenixGroupConfig">
+<h4>Phoenix Activation Group Configuration: example_install_dir/config/jeri-phoenix-group.config</h4>
+
+<blockquote>
+<pre>
+import com.sun.jini.phoenix.AccessILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+
+com.sun.jini.phoenix {
+
+    private invocationLayerFactory = new AccessILFactory();
+    instantiatorExporter = new BasicJeriExporter
+                                            (TcpServerEndpoint.getInstance(0),
+                                             invocationLayerFactory,
+                                             false,
+                                             true);
+}//end com.sun.jini.phoenix
+</pre>
+</blockquote>
+<p>
+
+</pre>
+</blockquote>
+<p>
+<a name="jeriPhoenixPolicy">
+<h4>Phoenix Security Policy: example_install_dir/policy/jeri-phoenix.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-platform.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/jsk-lib.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:${java.class.path}" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/phoenix-group.jar" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    /* Remote methods to allow to be invoked */
+    permission com.sun.jini.phoenix.SystemPermission "registerGroup";
+    permission com.sun.jini.phoenix.SystemPermission "registerObject";
+    permission com.sun.jini.phoenix.SystemPermission "unregisterGroup";
+    permission com.sun.jini.phoenix.SystemPermission "unregisterObject";
+    permission com.sun.jini.phoenix.MonitorPermission "*";
+
+    /* System Properties to allow to be set on all VMs */
+    permission com.sun.jini.phoenix.ExecOptionPermission "-classpath";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-cp";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.manager=";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.debug=all";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.debug=access,failure";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.debug=policy,access,failure";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission "jini_install_dir${/}lib${/}sharedvm.jar";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.policy=example_install_dir${/}policy${/}policy.all";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.policy=example_install_dir${/}policy${/}jeri-sharedvm.policy";
+
+    /* System Properties for Fiddler Activatable Object */
+    permission com.sun.jini.phoenix.ExecOptionPermission "jini_install_dir${/}lib${/}fiddler.jar";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.policy=example_install_dir${/}policy${/}jeri-activatable-fiddler.policy";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.rmi.server.codebase=http://myHost:8080/fiddler-dl.jar http://myHost:8080/jsk-dl.jar";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-DserviceConfig=example_install_dir${/}config${/}jeri-activatable-fiddler.config";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-DserviceClasspath=jini_install_dir${/}lib${/}fiddler.jar";
+};
+</pre>
+</blockquote>
+<p>
+
+<!-- Activatable-JERI -->
+
+<a name="activatableJERI">
+<h3>Activatable Mode using Jini ERI</h3>
+
+The first command shown below will start Fiddler in <b><i>activatable</i></b> mode 
+using <b><i>Jini ERI</i></b> for remote communication. This configuration of Fiddler
+will persist its state information, and it will be restarted by the activation system 
+upon a system crash or failure.
+<p>
+The second command will destroy the shared VM in which Fiddler (and possibly other
+services) are running. That command will remove the shared VM log directories, but
+will not remove any service-specific persistence directories. Typically, this
+command is executed only after all services executing in the shared VM have
+been gracefully (administratively) shutdown.
+
+<h4>Command Line</h4>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jeri-start-activatable.policy \
+    -jar jini_install_dir/lib/start.jar \
+           example_install_dir/config/jeri-start-activatable.config
+</pre>
+</blockquote>
+<p>
+<blockquote>
+<pre>
+java_install_dir/bin/java \
+  -Djava.security.manager= \
+  -Djava.security.policy=example_install_dir/policy/jeri-start-activatable.policy \
+    -jar jini_install_dir/lib/destroy.jar \
+           example_install_dir/config/jeri-start-activatable.config
+</pre>
+</blockquote>
+<p>
+<a name="jeriStartActivatableConfig">
+<h4>Starter Configuration: example_install_dir/config/jeri-start-activatable.config</h4>
+<blockquote>
+<pre>
+import com.sun.jini.start.ServiceDescriptor;
+import com.sun.jini.start.SharedActivatableServiceDescriptor;
+import com.sun.jini.start.SharedActivationGroupDescriptor;
+import net.jini.security.BasicProxyPreparer;
+
+com.sun.jini.start {
+
+    activationSystemPreparer = new BasicProxyPreparer();
+
+    private static sharedVMPolicyFile = new String("example_install_dir${/}policy${/}jeri-sharedvm.policy");
+    private static sharedVMClasspath  = new String("jini_install_dir${/}lib${/}sharedvm.jar");
+
+    private static groupCodebase   = new String("http://myHost:8080/group-dl.jar");
+    private static groupPolicyFile = new String("example_install_dir${/}policy${/}jeri-sharedvm.policy");
+    private static groupClasspath  = new String("jini_install_dir${/}lib${/}group.jar");
+    private static groupImplName   = new String("com.sun.jini.start.SharedGroupImpl");
+    private static groupArgsArray  = new String[] { "example_install_dir${/}config${/}jeri-destroyGroup.config" };
+
+    private static serviceCodebase   = new String("http://myHost:8080/fiddler-dl.jar http://myHost:8080/jsk-dl.jar");
+    private static servicePolicyFile = new String("example_install_dir${/}policy${/}jeri-activatable-fiddler.policy");
+    private static serviceClasspath  = new String("jini_install_dir${/}lib${/}fiddler.jar");
+    private static serviceImplName   = new String("com.sun.jini.fiddler.ActivatableFiddlerImpl");
+    private static serviceConfig     = new String("example_install_dir${/}config${/}jeri-activatable-fiddler.config");
+    private static serviceArgsArray  = new String[] { serviceConfig };
+
+    private static sharedVMDir = "${java.io.tmpdir}jeri-sharedvm-log";
+
+    private static serverCommand    = null;
+    private static serverOptions    = null;
+    private static serverProperties =
+                     new String[] { "serviceClasspath", serviceClasspath,
+                                    "serviceConfig",    serviceConfig };
+    private registryHost = "myHost";
+    private registryPort = 1098;
+
+    private static sharedActivationGroupDescriptor =
+                   new SharedActivationGroupDescriptor(sharedVMPolicyFile,
+                                                       sharedVMClasspath,
+                                                       sharedVMDir,
+                                                       serverCommand,
+                                                       serverOptions,
+                                                       serverProperties,
+                                                       registryHost,
+                                                       registryPort );
+    private static destroySharedGroupDescriptor =
+                   new SharedActivatableServiceDescriptor(groupCodebase,
+                                                          groupPolicyFile,
+                                                          groupClasspath,
+                                                          groupImplName,
+                                                          sharedVMDir,
+                                                          groupArgsArray,
+                                                          false,
+                                                          registryHost,
+                                                          registryPort );
+    private static activatableServiceDescriptor =
+                   new SharedActivatableServiceDescriptor(serviceCodebase,
+                                                          servicePolicyFile,
+                                                          serviceClasspath,
+                                                          serviceImplName,
+                                                          sharedVMDir,
+                                                          serviceArgsArray,
+                                                          true,
+                                                          registryHost,
+                                                          registryPort );
+    static serviceDescriptors =
+           new ServiceDescriptor[] { sharedActivationGroupDescriptor,
+                                     activatableServiceDescriptor };
+    static serviceDestructors =
+           new ServiceDescriptor[] { destroySharedGroupDescriptor };
+
+}//end com.sun.jini.start
+</pre>
+</blockquote>
+<p>
+<a name="jeriActivatableFiddlerConfig">
+<h4>Service Configuration: example_install_dir/config/jeri-activatable-fiddler.config</h4>
+<blockquote>
+<pre>
+import net.jini.activation.ActivationExporter;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+import net.jini.security.BasicProxyPreparer;
+import java.rmi.activation.ActivationID;
+
+com.sun.jini.fiddler {
+
+    private invocationLayerFactory = new BasicILFactory();
+    private underlyingExporter = 
+                new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+                                      invocationLayerFactory,
+                                      false,
+                                      true);
+    serverExporter = new ActivationExporter((ActivationID)$data,
+                                            underlyingExporter);
+
+    activationSystemPreparer = new BasicProxyPreparer();
+    activationIdPreparer = new BasicProxyPreparer();
+
+    initialLookupGroups = new String[] {"myGroup.myCompany.com"};
+    persistenceDirectory = new String("${java.io.tmpdir}jeri-fiddler-log");
+
+}//end com.sun.jini.fiddler
+</pre>
+</blockquote>
+<p>
+<a name="jeriDestroyGroupConfig">
+<h4>Service Configuration: example_install_dir/config/jeri-destroyGroup.config</h4>
+<blockquote>
+<pre>
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+import net.jini.security.BasicProxyPreparer;
+
+com.sun.jini.start {
+
+    exporter = new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+                                     new BasicILFactory(),
+                                     false,
+                                     true);
+
+    activationSystemPreparer = new BasicProxyPreparer();
+
+}//end com.sun.jini.start
+</pre>
+</blockquote>
+<p>
+<a name="jeriStartActivatablePolicy">
+<h4>Starter Security Policy: example_install_dir/policy/jeri-start-activatable.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-platform.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:${java.class.path}" { 
+    permission java.security.AllPermission;
+};
+</pre>
+</blockquote>
+<p>
+<a name="jeriActivatableFiddlerPolicy">
+<h4>Service Security: example_install_dir/policy/jeri-activatable-fiddler.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-lib.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:jini_install_dir/lib/fiddler.jar" {
+    permission java.security.AllPermission;
+}; 
+</pre>
+</blockquote>
+<p>
+<a name="jeriSharedvmPolicy">
+<h4>Service Security: example_install_dir/policy/jeri-sharedvm.policy</h4>
+<blockquote>
+<pre>
+grant codebase "file:jini_install_dir/lib/jsk-platform.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/jsk-lib.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/phoenix-init.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/phoenix-group.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:${java.class.path}" { 
+    permission java.security.AllPermission;
+}; 
+
+grant codebase "file:jini_install_dir/lib/group.jar" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:jini_install_dir/lib/fiddler.jar" {
+    permission java.security.AllPermission;
+};
+</pre>
+</blockquote>
+<p>
+
+@see net.jini.discovery.LookupDiscoveryService
+
+</body>
+</html>

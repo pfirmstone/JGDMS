@@ -1,0 +1,10 @@
+/* Security policy for non-secure client */
+
+/* Grant all permissions to our classes */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codebase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};

@@ -1,0 +1,1082 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+</head>
+<body bgcolor="white">
+
+A configurable Java(TM) Remote Method Invocation (Java RMI) activation
+system daemon implementation. Phoenix is a configurable alternative to
+<code>rmid</code>; it implements and supports all of the same
+activation interfaces and semantics as <code>rmid</code>, but it also
+implements and supports {@linkplain net.jini.security network
+security}. Like <code>rmid</code>, Phoenix also provides a simple
+command line interface for stopping an activation system daemon on the
+same host.
+
+<h2>Starting Phoenix</h2>
+
+Phoenix can be started by command line, or it can be launched by the
+{@linkplain com.sun.jini.start.ServiceStarter}.  In either case, its
+configuration options must be specified as described in <a
+href="#phoenixConfig">Phoenix Configuration</a>.
+
+<ol>
+<li>Starting Phoenix by command line
+<p>The standard command line for running Phoenix is:
+<pre>
+java [<i>options</i>] -jar <var><b>install_dir</b></var>/lib/phoenix.jar <i>configOptions</i>
+</pre>
+
+where <i>options</i> are standard options for the <code>java</code>
+command, <var><b>install_dir</b></var> is the directory where the starter kit
+is installed, and <i>configOptions</i> are the options (typically starting
+with a filename or URL) of a <a href="#phoenixConfig">Phoenix
+configuration</a>.
+
+<p>Phoenix has code that must be downloadable to clients, so one of
+the options should set the <code>java.rmi.server.codebase</code>
+system property to a codebase path (space-separated list of URLS) that
+serves up <var><b>install_dir</b></var><code>/lib-dl/phoenix-dl.jar</code> and
+<var><b>install_dir</b></var><code>/lib-dl/jsk-dl.jar</code> (in that order).
+Phoenix also runs with a security manager, so one of the options should
+set the <code>java.security.policy</code> system property to a security
+policy file.  The Phoenix configuration must supply at least a
+<code>persistenceDirectory</code> entry for the component named
+<code>com.sun.jini.phoenix</code>.
+<p>
+<li>Starting Phoenix via Service Starter
+<p>Phoenix supports being started via a {@link
+com.sun.jini.start.NonActivatableServiceDescriptor}.  An example
+service descriptor for starting Phoenix is:
+
+<pre>
+new NonActivatableServiceDescriptor(
+    <i>codebase</i>,
+    <i>policy</i>,
+    "<var><b>install_dir</b></var>/lib/phoenix.jar",    // classpath
+    "com.sun.jini.phoenix.PhoenixStarter",  // implClassName
+    <i>serverConfigArgs</i>)
+</pre>
+
+where <i>codebase</i> is the codebase path, <i>policy</i> is the name
+of the security policy file,
+<var><b>install_dir</b></var> is the directory where the starter kit
+is installed,
+<var><b>install_dir</b></var><code>/lib/phoenix.jar</code> is the class path for
+Phoenix, <code>com.sun.jini.phoenix.PhoenixStarter</code> is the class
+name of the instance to construct to start Phoenix, and
+<i>serverConfigArgs</i> are the options (typically starting with a
+filename or URL) of a <a href="#phoenixConfig">Phoenix
+configuration</a>.
+
+<p>Phoenix has code that must be downloadable to clients, so 
+the codebase path specified by <i>codebase</i> should be two URLs that
+serve up <var><b>install_dir</b></var><code>/lib-dl/phoenix-dl.jar</code> and
+<var><b>install_dir</b></var><code>/lib-dl/jsk-dl.jar</code> (in that order).
+The Phoenix configuration must supply at least a
+<code>persistenceDirectory</code> entry for the component named
+<code>com.sun.jini.phoenix</code>.
+
+<p>The <code>PhoenixStarter</code> instance implements the {@link
+com.sun.jini.start.ServiceProxyAccessor} interface, and implements the
+{@link com.sun.jini.start.ServiceProxyAccessor#getServiceProxy
+getServiceProxy} method to return Phoenix's
+<code>ActivationSystem</code> proxy.  When Phoenix's
+<code>ActivationSystem</code> is shutdown, the activation system
+implementation will invoke the <code>unregister</code> method of the
+{@link com.sun.jini.start.LifeCycle} instance passed to the
+<code>PhoenixStarter</code> constructor.
+
+<p>See the <a href="../start/package-summary.html">com.sun.jini.start
+package documentation</a> for details on configuring service
+descriptors.
+
+</ol>
+
+<a name="phoenixConfig">
+<h2>Phoenix configuration</h2></a>
+
+<p>Phoenix obtains its configuration by calling
+{@link net.jini.config.ConfigurationProvider#getInstance
+ConfigurationProvider.getInstance} with the specified <i>configOptions</i>.
+
+<p>The following entries are obtained from the configuration, all for the
+component named <code>com.sun.jini.phoenix</code>:
+<p>
+  <table summary="Describes the loginContext configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      loginContext</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link javax.security.auth.login.LoginContext}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>null</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> JAAS login context
+  </table>
+
+  <table summary="Describes the persistenceDirectory configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      persistenceDirectory</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>String</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> no default
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> log directory
+  </table>
+
+  <table summary="Describes the activatorExporter configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      activatorExporter</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.export.Exporter}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>
+<pre>
+new {@link net.jini.jeri.BasicJeriExporter}(
+    new {@link net.jini.jeri.tcp.TcpServerEndpoint#getInstance TcpServerEndpoint.getInstance}(1198),
+    new {@link net.jini.jeri.BasicILFactory}(),
+    false, true,
+    {@link com.sun.jini.phoenix.PhoenixConstants#ACTIVATOR_UUID})</pre></code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> activator exporter
+  </table>
+
+  <table summary="Describes the systemExporter configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      systemExporter</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.export.Exporter}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>
+<pre>
+new {@link net.jini.jeri.BasicJeriExporter}(
+    new {@link net.jini.jeri.tcp.TcpServerEndpoint#getInstance TcpServerEndpoint.getInstance}(1198),
+    new {@link com.sun.jini.phoenix.SystemAccessILFactory}(),
+    false, true,
+    {@link com.sun.jini.phoenix.PhoenixConstants#ACTIVATION_SYSTEM_UUID})</pre></code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> {@link java.rmi.activation.ActivationSystem} exporter
+  </table>
+
+  <table summary="Describes the monitorExporter configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      monitorExporter</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.export.Exporter}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>
+<pre>new {@link net.jini.jeri.BasicJeriExporter}(
+    new {@link net.jini.jeri.tcp.TcpServerEndpoint#getInstance TcpServerEndpoint.getInstance}(1198),
+    new {@link com.sun.jini.phoenix.AccessILFactory}())</pre></code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> {@link java.rmi.activation.ActivationMonitor} exporter
+  </table>
+
+  <table summary="Describes the registryExporter configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      registryExporter</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.export.Exporter}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link com.sun.jini.phoenix.RegistrySunExporter}()</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> {@link java.rmi.registry.Registry} exporter
+  </table>
+
+  <table summary="Describes the instantiatorPreparer configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      instantiatorPreparer</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.security.ProxyPreparer}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> {@link java.rmi.activation.ActivationInstantiator} proxy preparer
+  </table>
+
+  <table summary="Describes the groupConfig configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      groupConfig</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>String[]</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> same configuration options as Phoenix
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> default activation group configuration options
+  </table>
+
+  <table summary="Describes the groupLocation configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      groupLocation</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>String</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> obtain the location (a URL) from the code source
+of the protection domain of Phoenix's implementation class; if the URL
+ends in ".jar", then the default value for this
+entry is that URL except that ".jar" is replaced with "-group.jar",
+otherwise the default value is <code>null</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> codebase for {@link com.sun.jini.phoenix.ActivationGroupImpl}
+  </table>
+
+  <table summary="Describes the groupOptions configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      groupOptions</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>String[]</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new String[0]</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> extra options for all activation group commands
+  </table>
+
+  <table summary="Describes the groupTimeout configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      groupTimeout</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>int</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>60000</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> maximum time in milliseconds to wait for group activation or termination
+  </table>
+
+  <table summary="Describes the groupThrottle configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      groupThrottle</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>int</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>3</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> maximum concurrent activation group execs
+  </table>
+
+  <table summary="Describes the groupOutputHandler configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      groupOutputHandler</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link com.sun.jini.phoenix.GroupOutputHandler}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> a handler that sends the group standard output to the standard output stream of Phoenix and sends the group error output to the error output stream of Phoenix
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> handler for the output of activation group processes
+  </table>
+
+  <table summary="Describes the unexportTimeout configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      unexportTimeout</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>int</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>60000</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> maximum time in milliseconds to wait for in-progress calls to finish during shutdown before forcibly unexporting remote objects
+  </table>
+
+  <table summary="Describes the unexportWait configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      unexportWait</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>int</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>10</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> milliseconds to wait between unexport attempts during shutdown
+  </table>
+
+  <table summary="Describes the persistenceSnapshotThreshold configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      persistenceSnapshotThreshold</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>int</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>200</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> number of log updates between snapshots
+  </table>
+
+<p>
+If no default is listed for an entry and the configuration cannot provide
+that entry, Phoenix will not start.
+<p>
+If a non-<code>null</code> <code>loginContext</code> entry is provided,
+a login is performed on that context, and Phoenix executes under the resulting
+{@link javax.security.auth.Subject} (via
+{@link javax.security.auth.Subject#doAsPrivileged Subject.doAsPrivileged}).
+<p>
+The <code>persistenceDirectory</code> entry specifies the name of the
+directory Phoenix uses to write its persistent database. If the named
+directory does not exist, Phoenix will create it. Only the directory itself
+will be created; the parent directory must already exist.
+<p>
+Phoenix exports four remote objects: activator, activation system, activation
+monitor, and registry. Each object is exported using an <code>Exporter</code>
+obtained from the configuration. Phoenix provides various classes to
+facilitate the configuration of these exporters, as described further below.
+None of the remote objects implement any access control directly; any desired
+access control must be implemented through the exporters. The exported
+registry is always read-only, with a single binding of the name
+<code>java.rmi.activation.ActivationSystem</code> to the activation system
+proxy; this proxy also implements {@link com.sun.jini.phoenix.ActivationAdmin}.
+For compatibility with {@link java.rmi.activation.ActivationGroup#getSystem
+ActivationGroup.getSystem}, the registry must be exported to the JRMP runtime,
+using the registry well-known object identifier. To support persistent
+references, the exporters for the activator and the activation system must
+produce proxies that are reusable across restarts of Phoenix. For JRMP and
+Jini(TM) extensible remote invocation (Jini ERI), this means using fixed object
+identifiers and fixed ports.
+<p>
+If the activator supports constraints (meaning the activator proxy implements
+{@link net.jini.core.constraint.RemoteMethodControl}), then the
+activation identifiers handed out by Phoenix will also implement
+<code>RemoteMethodControl</code>, otherwise they will not. The activator
+implements {@link net.jini.security.proxytrust.ServerProxyTrust}
+and its
+{@link net.jini.security.proxytrust.ServerProxyTrust#getProxyVerifier
+getProxyVerifier} method returns a verifier for the activation
+identifiers used by Phoenix. The activation identifier class implements
+the <code>getProxyTrustIterator</code> method required by
+{@link net.jini.security.proxytrust.ProxyTrustVerifier},
+providing an iterator that produces the activator proxy. To support trust
+verification of activation identifiers, the activator proxy must implement
+{@link net.jini.security.proxytrust.TrustEquivalence} and
+must either be a bootstrap proxy that implements
+{@link net.jini.security.proxytrust.ProxyTrust} or be able
+to produce one through its own <code>getProxyTrustIterator</code> method.
+<p>
+Whenever an <code>ActivationInstantiator</code> proxy is received from an
+activation group, Phoenix passes it to the
+{@link net.jini.security.ProxyPreparer} given by the
+<code>instantiatorPreparer</code> entry, if any. The resulting proxy is used
+whenever Phoenix makes a remote call to that activation group.
+<p>
+
+When Phoenix starts an activation group, it relies on
+<code>phoenix-init.jar</code> being in the class path of the group VM,
+therefore this JAR file must be included directly or indirectly in the class
+path specified in the <code>CommandEnvironment</code> of the
+<code>ActivationGroupDesc</code>.  Phoenix starts an activation group as
+follows: <ul>
+<li>If the activation group class has a
+public <code>createGroup</code> method that has three parameters of type
+<code>ActivationGroupID</code>, <code>ActivationGroupDesc</code>, and
+<code>long</code>, Phoenix calls that method with the activation group
+identifier, the activation group descriptor, and the current group
+incarnation.  Normally it should in turn call {@link
+net.jini.activation.ActivationGroup#createGroup
+ActivationGroup.createGroup}, to allow exporter-based remote objects to go
+inactive.
+<li>If the activation group class has no such method, by default the
+{@link net.jini.activation.ActivationGroup#createGroup
+ActivationGroup.createGroup} method is called.
+</ul>
+
+<p>
+The class {@link com.sun.jini.phoenix.ActivationGroupImpl} is used by Phoenix
+when an activation group descriptor does not specify a group class name. This
+group implementation is also configurable. The <code>groupConfig</code> entry
+specifies the configuration options that should be used when the group
+descriptor does not specify a group class and does not provide any explicit
+initialization data for the group. The configuration entries used by
+<code>ActivationGroupImpl</code> are described further below.
+<p>
+The <code>groupLocation</code> entry specifies the codebase, if any, that
+should be used to load the class
+{@link com.sun.jini.phoenix.ActivationGroupImpl}. This codebase is used when
+an activation group descriptor does not specify a group class name and does
+not specify a group location.
+<p>
+The <code>groupOptions</code> entry specifies extra command line options to
+pass for every activation group process created by Phoenix. These options are
+always placed <i>after</i> any properties and command line options specified
+in the activation group descriptor, in the final command line used to create
+the process. The most common use of this feature is to temporarily set system
+properties for debugging.
+<p>
+The <code>groupTimeout</code> entry specifies the maximum time in milliseconds
+to wait after an activation group process is created before an
+<code>activeGroup</code> remote call must be received from that group. If the
+remote call is not received within that period, the attempt to activate an
+object within that group will terminate with an
+<code>ActivationException</code>. If an activation group process subsequently
+must be destroyed (so that a new process for the same group can be created),
+this entry also specifies the maximum time to wait for the process to actually
+terminate (after being destroyed) before giving up and proceeding to create
+a new process.
+<p>
+The <code>groupThrottle</code> entry specifies the maximum number of group
+processes Phoenix will create concurrently, to avoid system thrashing
+(particularly when Phoenix is restarting). If too many group processes need
+to be created at one time, creation of some will temporarily be deferred until
+existing creations complete.
+<p>
+The <code>groupOutputHandler</code> entry specifies the
+{@link com.sun.jini.phoenix.GroupOutputHandler} for the output of activation
+group processes. The handler is called each time a group process is created.
+<p>
+The <code>unexportTimeout</code> entry specifies the maximum time in
+milliseconds to wait for in-progress inbound remote calls to finish during
+shutdown before forcibly unexporting all remote objects. The
+<code>exportWait</code> entry specifies the time in milliseconds to wait
+between unsuccessful export attempts.
+<p>
+Phoenix writes information about registered groups and objects to a
+persistent database, so that Phoenix can be restarted after a crash
+without losing state. As registrations are changed, incremental update
+records are written out, until a threshold is reached, and then a
+consolidated snapshot of the entire state is written out (to speed up
+recovery after a crash). The <code>persistenceSnapshotThreshold</code>
+entry specifies the the number of incremental updates to write between
+snapshots.
+<p>
+Phoenix uses the {@link java.util.logging.Logger} named
+<code>com.sun.jini.phoenix</code> to log information at the following
+levels:
+<p>
+
+<table summary="Describes what is logged by Phoenix at various logging levels"
+       border=1 cellpadding=5>
+<tr> <th> Level   <th> Description
+<tr> <td> {@link java.util.logging.Level#SEVERE SEVERE}
+		  <td> persistent database snapshot failures 
+<tr> <td> {@link java.util.logging.Level#WARNING WARNING}
+		  <td> failure to restart an activatable object that
+		       has been registered to auto-restart
+<tr> <td> {@link java.util.logging.Level#WARNING WARNING}
+		  <td> failure to recover from the persistent database
+<tr> <td> {@link java.util.logging.Level#INFO INFO}
+		  <td> startup of Phoenix
+<tr> <td> {@link java.util.logging.Level#INFO INFO}
+		  <td> shutdown of Phoenix
+<tr> <td> {@link java.util.logging.Level#FINE FINE}
+		  <td> process command line when an activation group
+		       is created
+</table>
+
+<h2>Exporter classes</h2>
+
+The following class is useful for exporting the registry:
+<ul>
+<li>{@link com.sun.jini.phoenix.RegistrySunExporter}
+</ul>
+A custom exporter class will be needed for Java 2 Standard Edition
+implementations from vendors other than Sun Microsystems(TM), Inc.
+<p>
+The following classes are useful in conjunction with Jini ERI:
+<ul>
+<li>{@link com.sun.jini.phoenix.AccessILFactory}
+<li>{@link com.sun.jini.phoenix.PhoenixConstants}
+<li>{@link com.sun.jini.phoenix.SystemAccessILFactory}
+<li>{@link com.sun.jini.phoenix.SystemAccessProxyTrustILFactory}
+</ul>
+<p>
+The following classes are useful in conjunction with JRMP:
+<ul>
+<li>{@link com.sun.jini.phoenix.ActivatorSunJrmpExporter}
+<li>{@link com.sun.jini.phoenix.InstantiatorAccessExporter}
+<li>{@link com.sun.jini.phoenix.MonitorAccessExporter}
+<li>{@link com.sun.jini.phoenix.SystemAccessExporter}
+<li>{@link com.sun.jini.phoenix.SunJrmpExporter}
+</ul>
+
+<h2>Activation group configuration</h2>
+
+<code>ActivationGroupImpl</code> obtains the following entries from its
+configuration, all for the component named <code>com.sun.jini.phoenix</code>:
+<p>
+  <table summary="Describes the loginContext configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      loginContext</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link javax.security.auth.login.LoginContext}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>null</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> JAAS login context
+  </table>
+
+  <table summary="Describes the inheritGroupSubject configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      inheritGroupSubject</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>boolean</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>false</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> if <code>true</code>, group subject is inherited when an activatable object is created
+  </table>
+
+  <table summary="Describes the instantiatorExporter configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      instantiatorExporter</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.export.Exporter}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> retains existing JRMP export of instantiator
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> {@link java.rmi.activation.ActivationInstantiator} exporter
+  </table>
+
+  <table summary="Describes the monitorPreparer configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      monitorPreparer</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.security.ProxyPreparer}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> {@link java.rmi.activation.ActivationMonitor} proxy preparer
+  </table>
+
+  <table summary="Describes the systemPreparer configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      systemPreparer</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.security.ProxyPreparer}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> {@link java.rmi.activation.ActivationSystem} proxy preparer
+  </table>
+
+  <table summary="Describes the unexportTimeout configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      unexportTimeout</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>int</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>60000</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> maximum time in milliseconds to wait for in-progress calls to finish before forcibly unexporting the group when going inactive
+  </table>
+
+  <table summary="Describes the unexportWait configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      unexportWait</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>int</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>10</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> milliseconds to wait between unexport attempts when going inactive
+  </table>
+
+<p>
+If a non-<code>null</code> <code>loginContext</code> entry is provided,
+a login is performed on that context, the group is created under the resulting
+{@link javax.security.auth.Subject} (set to be read-only), and all subsequent
+remote calls by the group to Phoenix are executed under that subject.
+<p>
+By default, the activation group automatically exports itself as a JRMP
+unicast remote object. (This is a limitation of the existing activation
+system design.) If an <code>instantiatorExporter</code> entry is provided, the
+group is unexported from the JRMP runtime and then re-exported with the
+provided exporter.
+<p>
+When the group is initially created, it passes the
+<code>ActivationSystem</code> proxy (obtained from the
+<code>ActivationGroupID</code>) to the
+{@link net.jini.security.ProxyPreparer} given by the
+<code>systemPreparer</code> entry, if any. A new
+<code>ActivationGroupID</code> is constructed with the resulting proxy,
+and is used to create the group. A remote call through the prepared
+<code>ActivationSystem</code> proxy is made to report the group as active, and
+the <code>ActivationMonitor</code> proxy returned by that call is passed to
+the {@link net.jini.security.ProxyPreparer} given by the
+<code>monitorPreparer</code> entry, if any. The prepared
+<code>ActivationMonitor</code> proxy will be used for all subsequent remote
+calls to Phoenix.
+<p>
+The <code>unexportTimeout</code> entry specifies the maximum time in
+milliseconds to wait for in-progress inbound remote calls to finish before
+forcibly unexporting the group when it goes inactive. The
+<code>exportWait</code> entry specifies the time in milliseconds to wait
+between unsuccessful export attempts.
+<p>
+The <code>inheritGroupSubject</code> entry if <code>true</code>
+indicates that the activation group's subject should be inherited by the
+access control context in which the group creates an activatable object.
+If the entry is <code>false</code>, then the group's subject is
+not inherited by that context.  The default is <code>false</code>.
+
+<h2>Access control</h2>
+
+Access control mechanisms for incoming remote calls should be configured into
+the exporters used to export the various remote objects.
+<p>
+For JRMP and Jini ERI, a local-host-based access control policy (equivalent to
+that enforced by <code>rmid</code>) can be obtained by using the exporters
+provided in this package.
+<p>
+{@link com.sun.jini.phoenix.SystemPermission},
+{@link com.sun.jini.phoenix.ActivatorPermission},
+{@link com.sun.jini.phoenix.MonitorPermission}, and
+{@link com.sun.jini.phoenix.InstantiatorPermission}
+can be used to express access control policies for remote objects
+exported with {@link net.jini.jeri.BasicJeriExporter},
+by passing one of those classes to
+{@link net.jini.jeri.ProxyTrustILFactory} or
+{@link com.sun.jini.phoenix.SystemAccessProxyTrustILFactory}.
+<p>
+{@link com.sun.jini.phoenix.ExecPermission} and
+{@link com.sun.jini.phoenix.ExecOptionPermission} can be used to express the
+access control policy for what activation group descriptors can be registered.
+These permissions are checked by
+{@link com.sun.jini.phoenix.DefaultGroupPolicy}, which is used by
+{@link com.sun.jini.phoenix.SystemAccessExporter},
+{@link com.sun.jini.phoenix.SystemAccessILFactory}, and
+{@link com.sun.jini.phoenix.SystemAccessProxyTrustILFactory}.
+
+<h2>Compatibility with rmid</h2>
+
+Activatable remote object implementations that work under <code>rmid</code>
+should work under Phoenix.
+
+<p>Activation group implementations that work under <code>rmid</code>
+should work under Phoenix, provided the Phoenix
+<code>ActivationSystem</code> is exported using a JRMP exporter. An
+unmodified JRMP-based group implementation will not work under Phoenix
+if the Phoenix <code>ActivationSystem</code> is exported using a Jini
+ERI exporter, because Jini ERI does not support stub replacement for
+JRMP implementation objects and the existing activation group design
+relies on such stub replacement. However, JRMP-based group
+implementations can be made compatible with activation systems based
+on Jini ERI, and still work under <code>rmid</code>, by adding a
+<code>writeReplace</code> method to the group implementation class
+that returns the stub.
+
+<p>Activation group implementations and activatable remote object
+implementations that depend on {@linkplain net.jini.activation
+activation extensions} supported by Phoenix will not work under
+<code>rmid</code>.
+
+<p>The persistent databases used by <code>rmid</code> and Phoenix are not
+compatible.
+
+<h2>Stopping a daemon</h2>
+
+A running activation system daemon (not necessarily an instance of Phoenix)
+can be shut down gracefully with the command:
+<pre>
+java [<i>options</i>] -jar <var><b>install_dir</b></var>/lib/phoenix.jar -stop <i>configOptions</i>
+</pre>
+<p>
+In this case, the following entries are obtained from the configuration, all
+for the component named <code>com.sun.jini.phoenix</code>:
+<p>
+  <table summary="Describes the loginContext configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      loginContext</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link javax.security.auth.login.LoginContext}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>null</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> JAAS login context
+  </table>
+
+  <table summary="Describes the systemPreparer configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      systemPreparer</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>{@link net.jini.security.ProxyPreparer}</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> {@link java.rmi.activation.ActivationSystem} proxy preparer
+  </table>
+
+  <table summary="Describes the registryHost configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      registryHost</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>String</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>null</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> registry host
+  </table>
+
+  <table summary="Describes the registryPort configuration entry"
+         border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+      registryPort</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>int</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>1098</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Description: <td> registry port
+  </table>
+<p>
+If a non-<code>null</code> <code>loginContext</code> entry is provided,
+a login is performed on that context, and the <code>shutdown</code> remote call
+is executed under the resulting {@link javax.security.auth.Subject} (via
+{@link javax.security.auth.Subject#doAsPrivileged Subject.doAsPrivileged}).
+<p>
+The activation system daemon to shut down is obtained by looking up the name
+<code>java.rmi.activation.ActivationSystem</code> in the registry at the host
+given by the <code>registryHost</code> configuration entry (defaulting to the
+local host) and the port given by the <code>registryPort</code> configuration
+entry (defaulting to port 1098).
+<p>
+The <code>ActivationSystem</code> proxy obtained from the registry is
+passed to the {@link net.jini.security.ProxyPreparer} given by
+the <code>systemPreparer</code> entry, if any. The resulting proxy is used for
+the <code>shutdown</code> remote call.
+
+<h2>Example configurations</h2>
+
+The following are example Phoenix configurations, written using the
+syntax supported by {@link net.jini.config.ConfigurationFile}.  For
+simplicity, each configuration example combines both entries used by
+Phoenix and entries used by Phoenix's default group implementation.
+By default, the configuration options for Phoenix will be used as the
+configuration options for an activation group if either the {@link
+com.sun.jini.phoenix.ActivationGroupData} in the group's {@link
+java.rmi.activation.ActivationGroupDesc} does not specify
+configuration options or the Phoenix configuration file does not
+specify a <code>groupConfig</code> entry.  If a configuration file is
+shared by both Phoenix and activation groups, some
+type-import-on-demand declarations (i.e., wildcard imports) may be
+required.  If fully-qualified class names are imported, a
+<code>ConfigurationException</code> will be thrown if an import is
+encountered for a class that is not found.  This may happen if a class
+is available to Phoenix, but is not available to the activation group,
+or vice versa.
+
+<hr>
+<pre>
+// a Jini ERI configuration specifying constraints
+import com.sun.jini.config.KeyStores;
+import com.sun.jini.phoenix.*;
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+import net.jini.jeri.*;
+import net.jini.jeri.ssl.SslServerEndpoint;
+import net.jini.security.*;
+import javax.security.auth.login.LoginContext;
+
+com.sun.jini.phoenix {
+    registryExporter = new RegistrySunExporter();
+    private sslPort = 2000; // pick one, cannot be 1098
+    private daemonEndpoint = SslServerEndpoint.getInstance(sslPort);
+    private integrity = new BasicMethodConstraints(
+	new InvocationConstraints(Integrity.YES, null));
+    systemExporter =
+	new BasicJeriExporter(daemonEndpoint,
+			      new SystemAccessProxyTrustILFactory(integrity),
+			      false, true,
+			      PhoenixConstants.ACTIVATION_SYSTEM_UUID);
+    activatorExporter =
+	new BasicJeriExporter(daemonEndpoint,
+			      new ProxyTrustILFactory(integrity, null),
+			      false, true,
+			      PhoenixConstants.ACTIVATOR_UUID);
+    monitorExporter =
+	new BasicJeriExporter(daemonEndpoint,
+			      new ProxyTrustILFactory(
+				     integrity, MonitorPermission.class));
+    private groupEndpoint = SslServerEndpoint.getInstance(0);
+    instantiatorExporter =
+	new BasicJeriExporter(groupEndpoint,
+			      new ProxyTrustILFactory(
+				     integrity, InstantiatorPermission.class));
+    private static keystore = KeyStores.getKeyStore(
+				    "${user.home}${/}.keystore", null);
+    private mutualAuth =
+	new BasicMethodConstraints(new InvocationConstraints(
+	    new InvocationConstraint[]{
+		Integrity.YES,
+		ClientAuthentication.YES,
+		ServerAuthentication.YES,
+		new ServerMinPrincipal(
+		    KeyStores.getX500Principal("phoenix", keystore))},
+	    null));
+    instantiatorPreparer = new BasicProxyPreparer(true, mutualAuth, null);
+    monitorPreparer = instantiatorPreparer;
+    systemPreparer = instantiatorPreparer;
+    loginContext = new LoginContext("phoenix");
+    persistenceDirectory = "log";
+}
+</pre>
+<hr>
+<pre>
+// a Jini ERI configuration
+
+com.sun.jini.phoenix {
+    persistenceDirectory = "log";
+}
+</pre>
+<hr>
+<pre>
+// a JRMP configuration
+import com.sun.jini.phoenix.*;
+
+com.sun.jini.phoenix {
+    activatorExporter = new ActivatorSunJrmpExporter();
+    systemExporter = new SystemAccessExporter();
+    monitorExporter = new MonitorAccessExporter();
+    instantiatorExporter = new InstantiatorAccessExporter();
+    persistenceDirectory = "log";
+}
+</pre>
+<hr>
+<pre>
+// a JRMP configuration with no access control
+import com.sun.jini.phoenix.*;
+import net.jini.jrmp.JrmpExporter;
+import java.rmi.activation.ActivationSystem;
+
+com.sun.jini.phoenix {
+    registryPort = ActivationSystem.SYSTEM_PORT;
+    registryExporter = new RegistrySunExporter(registryPort);
+    activatorExporter = new ActivatorSunJrmpExporter(registryPort);
+    systemExporter = new SunJrmpExporter(4, registryPort);
+    monitorExporter = new JrmpExporter(registryPort);
+    instantiatorExporter = null;
+    persistenceDirectory = "log";
+}
+</pre>
+
+<h2>Example security policies</h2>
+
+The following are example Phoenix security policies, written using the syntax
+supported by the default security policy provider.
+<hr>
+<pre>
+// a secure Jini ERI Phoenix policy
+keystore "file://${user.home}/.keystore";
+
+grant codebase "file:<var><b>install_dir</b></var>/lib/jsk-platform.jar" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:<var><b>install_dir</b></var>/lib/jsk-lib.jar" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:<var><b>install_dir</b></var>/lib/phoenix.jar" {
+  permission java.io.FilePermission "${user.home}${/}phoenix.config", "read";
+  // next two used in configuration file
+  permission java.util.PropertyPermission "user.home", "read";
+  permission javax.security.auth.AuthPermission "createLoginContext.phoenix";
+  permission javax.security.auth.AuthPermission "doAsPrivileged";
+  // next two needed by RegistrySunExporter
+  permission java.lang.RuntimePermission
+        "accessClassInPackage.sun.rmi.server";
+  permission java.lang.RuntimePermission
+        "accessClassInPackage.sun.rmi.transport";
+};
+
+grant principal "phoenix" codebase "file:<var><b>install_dir</b></var>/lib/phoenix.jar" {
+  permission javax.security.auth.AuthPermission "getSubject";
+  // next two needed by RegistrySunExporter
+  permission java.lang.RuntimePermission "accessDeclaredMembers";
+  permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+  permission java.io.FilePermission "log", "read,write";
+  permission java.io.FilePermission "log/-", "read,write,delete";
+  // needed to default group location to phoenix-group.jar
+  permission java.lang.RuntimePermission "getProtectionDomain";
+  // next two needed for default java program for groups
+  permission java.util.PropertyPermission "java.home", "read";
+  permission java.io.FilePermission "${java.home}${/}bin${/}java", "execute";
+  permission java.lang.RuntimePermission "shutdownHooks";
+  // used in configuration file
+  permission java.io.FilePermission "${user.home}${/}.keystore", "read";
+  // next two needed to export remote objects
+  permission java.lang.RuntimePermission "getClassLoader";
+  permission net.jini.export.ExportPermission "exportRemoteInterface.com.sun.jini.phoenix.Activator";
+  // next two for outgoing newInstance calls to groups
+  // connect to just local host (but not "localhost") would be sufficient
+  permission java.net.SocketPermission "*:1024-", "connect";
+  permission net.jini.security.AuthenticationPermission
+        "${{self}} peer ${{self}}", "connect";
+  // next two for incoming remote calls
+  permission java.net.SocketPermission "*:1024-", "accept";
+  permission net.jini.security.AuthenticationPermission
+        "${{self}}", "accept";
+};
+
+// grant administrator permission to do most things
+grant principal "admin" {
+  permission com.sun.jini.phoenix.SystemPermission "register*";
+  permission com.sun.jini.phoenix.SystemPermission "get*";
+  permission com.sun.jini.phoenix.SystemPermission "set*";
+  permission com.sun.jini.phoenix.SystemPermission "shutdown";
+  permission com.sun.jini.phoenix.ExecOptionPermission
+        "-Djava.security.auth.login.config=${user.home}${/}login";
+  permission com.sun.jini.phoenix.ExecOptionPermission
+        "-Djavax.net.ssl.trustStore=${user.home}${/}.keystore";
+  permission com.sun.jini.phoenix.ExecOptionPermission
+        "-Djava.security.policy=${user.home}${/}group.security.policy";
+};
+
+// typical service needs to verify trust, unregister, and change its descriptor
+grant principal "service" {
+  permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
+  permission com.sun.jini.phoenix.SystemPermission "unregister*";
+  permission com.sun.jini.phoenix.SystemPermission "*ActivationDesc";
+};
+
+// for callbacks from activation groups
+grant principal "phoenix" {
+  permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
+  permission com.sun.jini.phoenix.SystemPermission "activeGroup";
+  permission com.sun.jini.phoenix.MonitorPermission "*";
+};
+</pre>
+<hr>
+<pre>
+// part of a secure Jini ERI group policy
+keystore "file://${user.home}/.keystore";
+
+grant codebase "file:<var><b>install_dir</b></var>/lib/jsk-platform.jar" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:<var><b>install_dir</b></var>/lib/phoenix-init.jar" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:<var><b>install_dir</b></var>/lib/phoenix-group.jar" {
+  permission java.lang.RuntimePermission "setContextClassLoader";
+  permission java.lang.RuntimePermission "getClassLoader";
+  // needed to set the ActivationGroup instance
+  permission java.lang.RuntimePermission "setFactory";
+  permission java.lang.RuntimePermission "modifyThreadGroup";
+  permission javax.security.auth.AuthPermission "createLoginContext.phoenix";
+  permission javax.security.auth.AuthPermission "getSubject";
+  permission javax.security.auth.AuthPermission "doAsPrivileged";
+  // next two need to call non-public constructors and activate methods
+  permission java.lang.RuntimePermission "accessDeclaredMembers";
+  permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+  // accept from just local host (but not "localhost") would be sufficient
+  permission java.net.SocketPermission "*:1024-", "accept";
+  // need to connect to local host and codebases of all activatable objects
+  permission java.net.SocketPermission "*:1024-", "connect";
+  permission net.jini.security.AuthenticationPermission
+    "${{alias:phoenix}} peer ${{alias:phoenix}}", "connect,accept";
+  permission java.io.FilePermission "${user.home}${/}phoenix.config", "read";
+  // used in configuration file
+  permission java.io.FilePermission "${user.home}${/}.keystore", "read";
+
+  /* Because ActivationGroupImpl creates the activatable objects, either
+   * this codebase also needs whatever permissions are needed by those
+   * objects, or the objects must use AccessController.doPrivileged or
+   * equivalent to avoid the need for such grants.
+   */
+};
+
+// for remote calls from Phoenix
+grant principal "phoenix" {
+  permission com.sun.jini.phoenix.InstantiatorPermission "*";
+};
+</pre>
+
+@since 2.0
+
+</body>
+</html>

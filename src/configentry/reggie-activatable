@@ -1,0 +1,3 @@
+# activatable persistent reggie configuration entries
+com.sun.jini.reggie.activationIdPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.reggie.activationSystemPreparer: net.jini.security.ProxyPreparer

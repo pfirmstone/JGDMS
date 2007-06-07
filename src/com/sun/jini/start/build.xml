@@ -1,0 +1,412 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<project name="start" basedir="." default="all">
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## ENVIRONMENT SETTINGS						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <property name="top" location="../../../../.."/>
+
+  <property name="pkg-path" value="com/sun/jini/${ant.project.name}"/>
+
+  <!-- ##								-->
+  <!-- ## Set java-source for use with the javac task:			-->
+  <!-- ##								-->
+
+  <property name="java-source" value="${pkg-path}/**/*.java" />
+
+  <import file="${top}/build_common.xml"/>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: all							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="all"
+          description=""
+          depends="compile,
+		   copy-resources,
+		   this.stubs">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: clean                                                 -->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="clean"
+          description="Removes all files and dirs created by the build."
+          depends="clean.jre.ext">
+
+    <!-- ##                                                             -->
+    <!-- ## Delete the applicable build files and directories.		-->
+    <!-- ##                                                             -->
+
+    <delete dir="${build.classes}/${pkg-path}" quiet="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: copy-resources					-->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="copy-resources"
+          description="Copies various resources directories to the classes dir."
+          depends="setup-all">
+
+    <delete dir="${build.classes}/${pkg-path}/resources"/>
+    <mkdir  dir="${build.classes}/${pkg-path}/resources"/>
+
+    <copy todir="${build.classes}/${pkg-path}/resources">
+
+      <fileset dir="${src.jini}/${pkg-path}/resources">
+        <include name="**"/>
+        <patternset refid="pattern.nomakefiles"	   />
+      </fileset>
+
+    </copy>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.jars						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.jars"
+          description=""
+          depends="destroy.jar,
+                   group.jar,
+                   group-dl.jar,
+                   sharedvm.jar,
+                   start.jar">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: destroy.jar						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="destroy.jar"
+          depends="tools">
+
+    <property name="destroy.deps" location="${build.deps}/destroy.deps" />
+
+    <!-- ##								-->
+    <!-- ## Run ClassDep.						-->
+    <!-- ##								-->
+
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${destroy.deps}">
+      
+      <classpath refid="path.classdep"					/>
+      <arg value="-cp"							/>
+      <arg path="${build.classes}"					/>
+      <arg value="-files"						/>
+      <arg line="${jskprivate.include}"					/>
+
+      <arg line="-in com.sun.jini.start"				/>
+
+      <arg value="com.sun.jini.start.DestroySharedGroup"		/>
+
+    </java>
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete  file="${build.lib}/destroy.jar" quiet="true"/>
+
+    <jar destfile="${build.lib}/destroy.jar" 
+         index="false"
+         manifest="${src.jini.manifest}/destroy.mf">
+         
+      <fileset dir="${build.classes}"
+	       includesfile="${destroy.deps}">
+        <include name="com/sun/jini/start/resources/**"/>
+      </fileset>
+
+    </jar>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: group.jar						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="group.jar"
+          depends="tools">
+  
+    <property name="group.deps" location="${build.deps}/group.deps" />
+    
+    <!-- ##								-->
+    <!-- ## Run ClassDep.						-->
+    <!-- ##								-->
+
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${group.deps}">
+      
+      <classpath refid="path.classdep"					/>
+      <arg value="-cp"							/>
+      <arg path="${build.classes}"					/>
+      <arg value="-files"						/>
+      <arg line="${jskprivate.include}"					/>
+
+      <arg line="-in com.sun.jini.start"				/>
+
+      <arg value="com.sun.jini.start.SharedGroupImpl"			/>
+      <arg value="com.sun.jini.start.SharedGroupImpl_Stub"		/>
+
+    </java>
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete  file="${build.lib}/group.jar" quiet="true"/>
+
+    <jar destfile="${build.lib}/group.jar" 
+         index="false">
+         
+      <fileset dir="${build.classes}"  includesfile="${group.deps}" />
+
+    </jar>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: group-dl.jar						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="group-dl.jar"
+          depends="tools">
+  
+    <property name="group-dl.deps" location="${build.deps}/group-dl.deps" />
+  
+    <!-- ##								-->
+    <!-- ## Run ClassDep.						-->
+    <!-- ##								-->
+
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${group-dl.deps}">
+      
+      <classpath refid="path.classdep"					/>
+      <arg value="-cp"							/>
+      <arg path="${build.classes}"					/>
+      <arg value="-files"						/>
+      <arg line="${jskprivate.include}"					/>
+      
+      <arg line="-in com.sun.jini.start"				/>
+
+      <arg value="com.sun.jini.start.ProxyVerifier"			/>
+      <arg value="com.sun.jini.start.SharedGroupImpl_Stub"		/>
+
+    </java>
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete  file="${build.lib-dl}/group-dl.jar" quiet="true"/>
+
+    <jar destfile="${build.lib-dl}/group-dl.jar" 
+         index="false">
+         
+      <fileset dir="${build.classes}"  includesfile="${group-dl.deps}" />
+      
+    </jar>
+
+    <!-- ##								-->
+    <!-- ## Generate the Preferred List					-->
+    <!-- ##								-->
+
+    <preferredlistgen>
+
+      <plg-elements>
+
+	<arg line="-cp"							/>
+	<arg path="${build.lib}/jsk-platform.jar"			/>
+  
+	<arg line="-jar"						/>
+	<arg path="${build.lib-dl}/group-dl.jar"			/>
+  
+	<arg line="-jar"						/>
+	<arg path="${build.lib-dl}/jsk-dl.jar"				/>
+  
+	<arg line="-proxy com.sun.jini.start.SharedGroupImpl_Stub"	/>
+
+      </plg-elements>
+
+    </preferredlistgen>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: sharedvm.jar						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="sharedvm.jar"
+          depends="tools">
+  
+    <property name="sharedvm.deps" location="${build.deps}/sharedvm.deps" />
+
+    <!-- ##								-->
+    <!-- ## Run ClassDep.						-->
+    <!-- ##								-->
+    
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${sharedvm.deps}">
+          
+      <classpath refid="path.classdep"					/>
+      <arg value="-cp"							/>
+      <arg path="${build.classes}"					/>
+      <arg value="-files"						/>
+      <arg line="${jskplatform.exclude}"				/>
+
+      <arg line="-in com.sun.jini" 					/>
+
+      <arg value="com.sun.jini.start.ActivateWrapper"			/>
+
+    </java>
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete  file="${build.lib}/sharedvm.jar" quiet="true"/>
+
+    <jar destfile="${build.lib}/sharedvm.jar" 
+         index="false"
+         manifest="${src.jini.manifest}/sharedvm.mf">
+         
+      <fileset dir="${build.classes}"  includesfile="${sharedvm.deps}" />
+
+    </jar>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: start.jar						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="start.jar"
+          depends="tools">
+    
+    <property name="start.deps" location="${build.deps}/start.deps" />
+
+    <!-- ##								-->
+    <!-- ## Run ClassDep.						-->
+    <!-- ##								-->
+    
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${start.deps}">
+          
+      <classpath refid="path.classdep"					/>
+      <arg value="-cp"							/>
+      <arg path="${build.classes}"					/>
+      <arg value="-files"						/>
+      <arg line="${jskplatform.exclude}"				/>
+      
+      <arg line="-in com.sun.jini" 					/>
+
+      <arg value="com.sun.jini.start.ServiceStarter"			/>
+      <arg value="com.sun.jini.start.SharedActivatableServiceDescriptor"/>
+      <arg value="com.sun.jini.start.SharedActivationGroupDescriptor"	/>
+      <arg value="com.sun.jini.start.NonActivatableServiceDescriptor"	/>
+
+    </java>
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete  file="${build.lib}/start.jar" quiet="true"/>
+
+    <jar destfile="${build.lib}/start.jar" 
+         index="false"
+         manifest="${src.jini.manifest}/start.mf">
+         
+      <fileset dir="${build.classes}"
+	       includesfile="${start.deps}">
+        <include name="com/sun/jini/start/resources/**"	/>
+      </fileset>
+
+    </jar>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.stubs						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.stubs"
+          depends="compile">
+
+    <!-- ##                                                             -->
+    <!-- ## Compile RMI stubs                                           -->
+    <!-- ##                                                             -->
+
+    <rmic base="${build.classes}" stubversion="1.2">
+
+      <classpath refid="path.jini" />
+
+      <include name="com/sun/jini/start/SharedGroupImpl.class" />
+
+    </rmic>
+
+  </target>
+
+</project>
+

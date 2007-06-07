@@ -1,0 +1,144 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!-- ################################################################## -->
+
+<project name="Jini" basedir="." default="all">
+
+  <description>
+  </description>
+
+  <!-- ##								-->
+  <!-- ## Import the common build settings and targets.			-->
+  <!-- ##								-->
+
+  <property name="top" location="."/>
+
+  <import file="${top}/build_common.xml"/>
+
+  <property name="top-down-build" value="true"/>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: all							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="all"
+	  description="Builds all sources."
+	  depends="copy-psepro-zip,
+		   configentry,
+		   compile,
+		   compile.local,
+		   build-psepro-classes,
+		   copy-resources,
+		   stubs,
+		   tools">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: configentry						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="configentry" 
+	  description="Populates the configentry directory."
+	  depends="">
+
+    <ant target="all"
+	 antfile="build.xml"	dir="${src.jini}/configentry"
+	 inheritall="false"	inheritrefs="true"/>
+
+  </target>
+    
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: copy-resources					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="copy-resources" 
+	  description="Copies various resources directories to the classes dir."
+	  depends="">
+
+    <ant target="copy-resources"
+	 antfile="build.xml"	dir="${src.jini}/com/sun/jini/start"
+	 inheritall="false"	inheritrefs="true"/>
+
+    <ant target="copy-resources"
+	 antfile="build.xml"	dir="${src.tools}/com/sun/jini/tool"
+	 inheritall="false"	inheritrefs="true"/>
+
+  </target>
+    
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: clean							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="clean" 
+	  description="Removes all files and dirs created by the build."
+	  depends="clean.all">
+
+  </target>
+    
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: clobber						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="clobber" 
+	  description="Removes all files and dirs created by the build."
+	  depends="clean.all">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.jars						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.jars"
+	  description="Just a dummy target.">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.stubs						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.stubs"
+	  description="Just a dummy target.">
+
+  </target>
+
+</project>

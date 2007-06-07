@@ -1,0 +1,234 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<html>
+<body text="#000000" bgcolor="#ffffff" link="#9b37cc"
+      vlink="#cc1877" alink="#ffffff">
+
+<title>Building the Jini(TM) Technology Packages</title>
+<a name="TOP">
+<center><h1>Building the Jini(TM) Technology Packages</h1></center>
+
+<br>
+The Jini(TM) Technology Starter Kit (starter kit) includes support for 
+generating binary (JAR) files and documentation from the provided source code
+using the Apache Ant build tool (available from the Ant project site at
+Apache.org, <a href="http://ant.apache.org">
+               <code>http://ant.apache.org</code></a>). 
+<p>
+This page describes how to use <code>ant</code> to build the starter kit from
+the source code. This Ant build process was originally based on Geoff Arnold's
+Ant build script, located at <a href="http://user-garnold.jini.org">
+<code>http://user-garnold.jini.org</code></a>, and we thank him for his
+contribution.
+
+<p>
+It is not necessary to build the JAR files from source code to get started with
+Jini technology.  The JAR files are provided for you as part of the starter kit,
+depending on your installation options.  The location of the JAR files is 
+documented in <a href="info-index.html#examine">info-index.html</a> .  In the
+instructions below, <B><VAR>install_dir</VAR></B> is the directory into which
+you installed the starter kit distribution.
+
+<p>
+<b>NOTE</b>:<i> Please do not attempt to build the starter kit JAR files
+without first taking note of the <a href="#outrigger"> Outrigger build
+issues</a>, and the
+<a href="http://developer.java.sun.com/developer/products/jini/tested.html"> 
+platforms on which the starter kit has been tested</a></i>.
+
+<p>
+<hr>
+<h2>Build instructions</h2>
+
+<p>
+The following prerequisites must be met before a build can be executed:
+<ul>
+  <li>	
+    The <b><code>bin</code></b> directory of the Java(TM) 2 SDK, Standard
+    Edition, v 1.4 (or later) must be in your executable search path. You can
+    obtain the Java software at <a href="http://java.sun.com">
+    <code>http://java.sun.com</code></a> . 
+  </li>
+  <p>
+  <li>
+    The <b><code>JAVA_HOME</code></b> environment variable must be set to the
+    full path of the top-level directory of the installed Java2 SDK software.
+  </li>
+  <p>
+  <li>
+    Apache Ant, version 1.6.2 or later, must be installed on your system.  You
+    can obtain the Ant software from Ant's project site at
+    <a href="http://ant.apache.org"><code>http://ant.apache.org</code></a> . 
+  </li>
+  <p>
+  <li>
+    The <b><code>ANT_HOME</code></b> environment variable must be set to the
+    full path of the top-level directory of the installed Ant software.
+  </li>
+</ul>
+
+<p>
+The following build options are currently available:
+<ul>
+  <li>	
+    The <b><code>JAVADEBUG</code></b> environment can be used to override the
+    default debuglevel values.  The possible values are "<code>none</code>",
+    "<code>lines</code>", "<code>source</code>", and "<code>vars</code>".
+    If two or more values are used together, they must be comma-separated
+    (eg, "<code>lines,source,vars</code>").  Refer to the javac documentation
+    or the javac task section of the Ant documentation for further details
+    regarding these debuglevel options.
+  </li>
+</ul>
+
+<p>
+To build the starter kit JAR files, you must:
+
+<pre>
+    cd <B><VAR>install_dir</VAR></B>/source
+
+    ant &lt;<i>target</i>&gt;
+</pre>
+
+where the basic targets are:
+<blockquote>
+  <dl>
+    <dt>
+    <b>all</b><br>
+    This target is also the default target and can be invoked by simply running
+    <code>ant</code> without specifying any target.  This target compiles the
+    class files for all of the starter kit source code, generates Java Remote
+    Method Invocation (Java RMI) stub classes, and generates the configentry 
+    files.  The class files and configentry files will be placed in the following
+    directories, respectively:
+    <br><br>
+      &nbsp;&nbsp; <code><B><VAR>install_dir</VAR></B>/source/classes</code>
+      <br>
+      &nbsp;&nbsp; <code><B><VAR>install_dir</VAR></B>/source/configentry</code> 
+
+    <p>
+    <dt>
+    <b>jars</b><br>
+    Creates the JAR files for the starter kit, using the compiled class files.
+    The compiled class files must already have been created.  The resulting JAR
+    files will be placed in the following directories:
+    <br><br>
+      &nbsp;&nbsp; <code><B><VAR>install_dir</VAR></B>/source/lib</code>    <br>
+      &nbsp;&nbsp; <code><B><VAR>install_dir</VAR></B>/source/lib-dl</code> <br>
+      &nbsp;&nbsp; <code><B><VAR>install_dir</VAR></B>/source/lib-ext</code><br>
+    <br>
+    <b>NOTE</b>:
+    <br>
+    <i>
+    During the jars build, warning messages similar to the following are generated:
+    </i>
+    <br><br>
+    &nbsp;&nbsp;&nbsp;&nbsp;<code>[java] Nested class LogManager$Probe has different preferred state than outer class LogManager</code>
+    <br><br>
+    <i>
+    Messages of this sort are expected and pose no concern to the resulting build.
+    </i>
+
+    <p>
+    <dt>
+    <b>clean</b><br>
+    Removes the class files, configentry files, docs, JAR files, and all associated
+    directories generated during the build.
+
+    <p>
+    <dt>
+    <b>doc</b> or <b>javadoc</b><br>
+    Generates API documentation for the starter kit, using the Javadoc(TM) tool.
+    The documentation will be placed in the following directory:
+    <br><br>
+      &nbsp;&nbsp; <code><B><VAR>install_dir</VAR></B>/source/doc/api</code>
+
+    <p>
+    <dt>
+    <b>spec-doc</b><br>
+    Generates the specification-only documentation for the starter kit, using the Javadoc(TM) tool.
+    The documentation will be placed in the following directory:
+    <br><br>
+      &nbsp;&nbsp; <code><B><VAR>install_dir</VAR></B>/source/doc/specs/api</code>
+
+  </dl>
+</blockquote>
+
+
+<p>
+If you make any modifications and/or corrections to this build process and
+want those changes considered for use in our next release, please submit your
+modifications to <code>jini-comments@sun.com</code> for consideration.
+
+<p>
+<hr>
+<a name="outrigger">
+<h2>Outrigger build issues</h2>
+
+<code>PersistentOutriggerImpl</code> (the contributed persistent
+implementation of JavaSpaces(TM) technology from Sun Microsystems) relies
+on a pluggable persistence layer, <a
+href="api/com/sun/jini/outrigger/Store.html"><code>com.sun.jini.outrigger.Store</code></a>.
+This release includes two implementations of the <code>Store</code>
+interface, <a
+href="api/com/sun/jini/outrigger/logstore/LogStore.html">logstore</a>
+and <a
+href="api/com/sun/jini/outrigger/snaplogstore/LogStore.html">snaplogstore</a>.
+By default,
+<code>PersistentOutriggerImpl</code> uses the snaplogstore implementation.
+<p>
+
+Logstore depends on Progress Software's <i>ObjectStore PSEPro for Java</i>
+(PSEPro) to persist the contents of the space to disk.  PSEPro requires the
+post processing of the class files for any objects that are going to be
+persisted.  PSEPro also requires a set of runtime classes. Neither the
+runtime classes nor post processor are distributed in this release of
+the starter kit. As a result, unless you have obtained the PSEPro
+development tools (in particular Release 6.0 Service Pack 7), you cannot
+build <code>LogStore</code> from its source code (note, logstore's source
+code is included in this release).
+<p>
+
+If you use the above process to build the starter kit, you will be able to
+build <code>TransientOutriggerImpl</code> (the contributed,
+<i>non-persistent</i> implementation of JavaSpaces technology from Sun
+Microsystems), <code>PersistentOutriggerImpl</code>, and snaplogstore
+(along with the non-Outrigger parts of the starter kit). If PSEPro's
+runtime classes are not present, the above process will not (re)build the
+<code>logstore</code> package or the associated archive files.
+<p>
+
+<hr>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+</body>
+</html>

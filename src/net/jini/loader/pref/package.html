@@ -1,0 +1,110 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+</head>
+<body bgcolor="white">
+
+Provides class loader and {@link java.rmi.server.RMIClassLoader}
+provider implementations that support <i>preferred classes</i>.
+
+<p>A preferred class is a class that is to be loaded by a class loader
+without the loader delegating to its parent class loader first.
+Resources may also be preferred.
+
+<p>With a class loader that supports preferred classes, the first JAR
+file or other URL location from which the loader loads classes can
+contain a <i>preferred list</i>.  A preferred list declares names of
+certain classes and other resources throughout the loader's path of
+URLs as being <i>preferred</i> or not.  When the loader is asked to
+load a class or resource that is preferred (according to the preferred
+list) and the class or resource exists in the loader's path of URLs,
+the loader will not delegate first to its parent class loader as it
+otherwise would do; instead, it will attempt to load the class or
+resource from its own path of URLs only.
+
+<p>By controlling class loader delegation, preferred classes can help
+accomplish the following goals:
+
+<ul>
+
+<li>Ensure that a downloaded class preserves its original codebase
+annotation when it is marshalled later, even if there is a local
+version of the class (that is, a class with the same name that could
+be loaded by an ancestor class loader).
+
+<li>Ensure that the desired version of a downloaded class or resource
+is used, even if there is a local version of the class or resource.
+
+<li>Ensure that the expected security permissions are granted to a
+downloaded class, such as the automatic permission to connect to its
+codebase host, even if there is a local version of the class.
+
+</ul>
+
+Preferred classes accomplish these goals at the expense of type
+equivalence with local classes, because a preferred class constitutes
+a different runtime type than a local class with the same name that
+might otherwise have been loaded.  Therefore, the choice of which
+classes to make preferred should be considered carefully.
+
+<p>There is not a complete or definitive set of rules for when to make
+a class or resource preferred or not, but the following guidelines are
+generally advisable:
+
+<ul>
+
+<li>A type that appears in the transitive closure of the public APIs
+of a downloaded component should <i>not</i> be preferred, so that code
+defined by other class loaders can use those APIs.  In other words,
+for any public class or interface that is part of the downloaded
+component's exported API, that class or interface as well as the
+declared types of its public fields and the declared parameter and
+return types of its public methods should not be preferred, and the
+same algorithm should be applied recursively to all such declared
+types.  Exception types thrown by the methods of the component's API
+that are expected to be caught explicitly by external callers should
+also not be preferred.
+
+<li>A class that will be the actual class of a serialized object (and
+that is not covered by the previous guideline) should be preferred, so
+that its original codebase annotation will be preserved for later
+marshalling, and so forth.
+
+</ul>
+
+<p>{@link net.jini.loader.pref.PreferredClassLoader} is a class loader
+implementation that supports preferred classes, and its specification
+defines the format of preferred lists.
+
+<p>{@link net.jini.loader.pref.PreferredClassProvider} is an
+<code>RMIClassLoader</code> provider implementation that uses
+<code>PreferredClassLoader</code> to support preferred classes.
+
+<p>{@link net.jini.loader.pref.RequireDlPermProvider} is a subclass of
+<code>PreferredClassProvider</code> that enforces {@link
+net.jini.loader.DownloadPermission}.
+
+@since 2.0
+@version 2.0
+
+</body>
+</html>

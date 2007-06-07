@@ -1,0 +1,10 @@
+/* Security policy for non-secure Reggie */
+
+/* Grant all permissions to our classes */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};

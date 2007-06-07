@@ -1,0 +1,12 @@
+# transient mahalo configuration entries
+com.sun.jini.mahalo.discoveryManager: net.jini.discovery.DiscoveryManagement
+com.sun.jini.mahalo.initialLookupAttributes: net.jini.core.entry.Entry[]
+com.sun.jini.mahalo.initialLookupGroups: String[]
+com.sun.jini.mahalo.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
+com.sun.jini.mahalo.leasePeriodPolicy: com.sun.jini.landlord.LeasePeriodPolicy
+com.sun.jini.mahalo.loginContext: javax.security.auth.login.LoginContext
+com.sun.jini.mahalo.lookupLocatorPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.mahalo.participantPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.mahalo.serverExporter: net.jini.export.Exporter
+com.sun.jini.mahalo.settlerPool: com.sun.jini.thread.TaskManager
+com.sun.jini.mahalo.taskPool: com.sun.jini.thread.TaskManager

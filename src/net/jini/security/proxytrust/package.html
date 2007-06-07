@@ -1,0 +1,104 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Defines a trust verifier to support verification of proxies that use
+dynamically downloaded code, implementation mechanisms to support the
+verification of such proxies, and an exporter for remote objects that have
+such proxies. The trust verifier is intended to be specified in a resource to
+configure the operation of
+{@link net.jini.security.Security#verifyObjectTrust
+Security.verifyObjectTrust}.
+<p>
+The purpose of this package is to support verification of proxies that use
+dynamically downloaded code, in a way that limits the knowledge that must be
+pre-configured into the client. Specifically, the idea is to require the
+client to only know who the server must authenticate as (which is something
+the client presumably needs to know anyway), to avoid requiring the client to
+know anything else (such as where the code was downloaded from or who signed
+that code), and to avoid making assumptions about the authentication
+mechanism (such as requiring the server to have a public/private key pair
+that it has to use for signing the proxy code).
+<p>
+Rather than having the client directly determine if it trusts the proxy,
+the approach taken is to first determine that the client can trust the server
+(by requiring the server to authenticate itself), and then determine that the
+server trusts the proxy (by asking the server for a verifier and passing the
+proxy to that verifier). If the client trusts the server and the server
+trusts the proxy, then transitively the client is inferred to trust the
+proxy. However, there are questions to answer for both of these steps.
+<p>
+First, there is the question of how the client can reliably verify that the
+server authenticates itself, when the client does not yet trust the
+downloaded proxy. The
+{@link net.jini.security.proxytrust.ProxyTrustVerifier}
+requires the proxy to support some bootstrap remote communication mechanism
+that the client does trust. Specifically, the proxy must be able to provide a
+bootstrap proxy, which must be an instance of both
+{@link net.jini.security.proxytrust.ProxyTrust} and
+{@link net.jini.core.constraint.RemoteMethodControl}. This
+bootstrap proxy either must be trusted by the client, or it must be a
+dynamic proxy which is trusted by the client after removing remote codebase
+information from the dynamic proxy class. In the common case of a smart
+proxy wrapped around a standard dynamic proxy (for example, a dynamic proxy
+for a remote object exported to use Jini(TM) extensible remote invocation
+(Jini ERI)), the dynamic proxy usually can serve as the bootstrap proxy if
+its invocation handler does not depend on any downloaded code, on the
+assumption that the client will have configured in a trust verifier for local
+dynamic proxies and their invocation handlers (for example,
+{@link net.jini.jeri.BasicJeriTrustVerifier}). However, there
+is no requirement that normal communication with the server use the same
+protocol used by the bootstrap proxy; the bootstrap proxy could be used
+strictly for trust verification. The
+{@link net.jini.security.proxytrust.ProxyTrustExporter}
+is provided for this purpose.
+<p>
+Second, there is the question of how to reliably obtain a verifier from the
+server. (The proxy is not sent to the server because an untrusted proxy
+could use a <code>writeReplace</code> serialization method to replace
+itself on the wire with a trusted proxy; the proxy needs to be checked in
+the client.) Authentication of the server should be required during the
+remote call through the bootstrap proxy to obtain the verifier from the
+server, as should object integrity, so that the remote call and the
+verifier object received from it can be trusted. To accomplish this,
+the client is responsible for specifying
+{@link net.jini.core.constraint.ServerAuthentication#YES
+ServerAuthentication.YES}, an appropriate
+{@link net.jini.core.constraint.ServerMinPrincipal} instance,
+and {@link net.jini.core.constraint.Integrity#YES Integrity.YES}
+as requirements for the
+{@link net.jini.security.proxytrust.ProxyTrust#getProxyVerifier
+ProxyTrust.getProxyVerifier} method in a
+{@link net.jini.core.constraint.MethodConstraints} instance
+included as an element of the context collection passed to
+<code>Security.verifyObjectTrust</code>. Normally such constraints should be
+obtained from a {@link net.jini.config.Configuration} rather
+than being explicitly constructed.
+
+@since 2.0
+@version 3.0
+
+</body>
+</html>

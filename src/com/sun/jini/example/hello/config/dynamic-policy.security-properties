@@ -1,0 +1,4 @@
+# Java security properties file to install the dynamic security policy
+# provider
+
+policy.provider=net.jini.security.policy.DynamicPolicyProvider

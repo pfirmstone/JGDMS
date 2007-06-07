@@ -1,0 +1,30 @@
+/* Security policy for activatable SSL server */
+
+/* Keystore containing trusted certificates to use for authentication */
+keystore "..${/}prebuiltkeys${/}truststore";
+
+/* Grant all permissions to local JAR files*/
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+/* Grant permissions to phoenix principal */
+grant principal "phoenix" {
+    permission com.sun.jini.phoenix.InstantiatorPermission "getProxyVerifier";
+    permission com.sun.jini.phoenix.InstantiatorPermission "newInstance";
+};
+
+/* Grant permissions to client principal */
+grant principal "client" {
+    /* Call sayHello method */
+    permission com.sun.jini.example.hello.ServerPermission "sayHello";
+};
+
+/* Grant permissions to all principals */
+grant {
+    permission com.sun.jini.example.hello.ServerPermission "getProxyVerifier";
+};

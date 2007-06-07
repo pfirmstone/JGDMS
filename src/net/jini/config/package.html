@@ -1,0 +1,199 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Provides a {@link net.jini.config.Configuration} interface for obtaining
+objects needed to configure applications, such as {@link
+net.jini.export.Exporter} or {@link net.jini.security.ProxyPreparer}
+instances, or other application-specific objects, from configuration
+files, databases, or other sources. Application developers are
+encouraged to use this interface, rather than explicitly constructing
+instances of exporters and proxy preparers, so that applications can be
+customized without requiring code modifications. Applications should
+normally use {@link net.jini.config.ConfigurationProvider} to obtain
+<code>Configuration</code> instances, so that the interpretation of
+configuration options can be customized without requiring code
+modifications. <p>
+
+The {@link net.jini.config.ConfigurationException} class is the
+superclass of all exceptions thrown if a problem occurs when obtaining
+configuration information. {@link net.jini.config.NoSuchEntryException}
+is the subclass thrown for a missing configuration entry. {@link
+net.jini.config.ConfigurationNotFoundException} is the subclass thrown
+for missing configuration source locations and if default options are
+requested but not available. <p>
+
+The {@link net.jini.config.ConfigurationFile} class is the standard
+default configuration provider, which reads text written in a subset of
+the expression syntax in the Java(TM) programming language from files
+and URLs to produce configuration objects. <p>
+
+The {@link net.jini.config.AbstractConfiguration} class is a skeletal
+implementation of the <code>Configuration</code> interface, used to
+simplify writing implementations. <p>
+
+The {@link net.jini.config.EmptyConfiguration} class implements a
+<code>Configuration</code> with no entries. Applications can use an
+instance of this class to simplify handling cases where no configuration
+is specified rather than, for example, checking for a <code>null</code>
+configuration. <p>
+
+<a name="Usage"><h2>Using Configuration</h2></a>
+
+Once an application gets a <code>Configuration</code> using
+<code>ConfigurationProvider</code> or through an application-specific
+mechanism, the application should pass that configuration to other
+subsystems that need configuration information, in addition to using it
+for its own needs. This arrangement provides the user with a uniform way
+to supply configuration information to all the components that make up
+an application. <p>
+
+The names that applications and subsystems use for configuration entries
+should be chosen carefully to avoid conflicts. One possible approach is
+to use fully qualified class names as the component for configurable
+applications and utilities, and to use fully qualified package names as
+the component for services. For each entry, the decision should be made
+whether to supply a default or to throw
+<code>NoSuchEntryException</code> if there is no matching
+entry. Components should document which configuration entries they use,
+as well as the expected type and default, if any, for each entry. <p>
+
+<a name="Example"><h2>Example</h2></a>
+
+Here is a sketch of how to use these facilities for an application with
+configurable exporting. The class below shows exporting an object using
+a <code>Configuration</code>: <p>
+
+<pre>
+    import java.rmi.*;
+    import net.jini.config.*;
+    import net.jini.export.*;
+    public class Example implements Remote {
+        public static void main(String[] args) throws Exception {
+            Configuration config = ConfigurationProvider.getInstance(args);
+            Exporter exporter = (Exporter) config.getEntry(
+                "Example", "exporter", Exporter.class);
+            Remote proxy = exporter.export(new Example());
+            System.out.println(proxy);
+            exporter.unexport(true);
+        }
+    }
+</pre> <p>
+
+Here are the contents of a <code>ConfigurationFile</code> source file to
+export the object using an JRMP exporter: <p>
+
+<pre>
+    import net.jini.jrmp.*;
+    Example {
+        exporter = new JrmpExporter();
+    }
+</pre> <p>
+
+Here are the contents of another <code>ConfigurationFile</code> to
+export the object using a Jini(TM) extensible remote invocation (Jini
+ERI) exporter over HTTP on a specific port: <p>
+
+<pre>
+    import net.jini.jeri.*;
+    import net.jini.jeri.http.*;
+    Example {
+        exporter = new BasicJeriExporter(HttpServerEndpoint.getInstance(12000));
+    }
+</pre> <p>
+
+This application can be configured to export the object in either of
+these ways (or more with other configuration files) by passing an
+argument that specifies the location of one of the configuration files:
+
+<pre>
+    java Example jrmp.config
+
+    java Example jeri.config
+</pre>
+
+@since 2.0
+@version 2.0
+
+@com.sun.jini.impl <!-- Implementation Specifics -->
+
+<p><a name="Logging">
+<font size="+1"><b>Loggers and Logging Levels</b></font>
+</a><p>
+
+This implementation of the <code>ConfigurationProvider</code>,
+<code>AbstractConfiguration</code>, <code>ConfigurationFile</code>, and
+<code>EmptyConfiguration</code> classes uses the {@link
+java.util.logging.Logger} named <code>net.jini.config</code> to log
+information at the following logging levels: <p>
+
+<table border="1" cellpadding="5" summary="Describes logging performed
+       by configuration classes at different logging levels">
+
+<caption halign="center" valign="top"><b><code>
+	 net.jini.config</code></b></caption>
+
+<tr> <th scope="col"> Level <th scope="col"> Description
+
+<tr> <td> {@link java.util.logging.Level#INFO INFO} <td> problems adding new
+     prohibited methods for <code>ConfigurationFile</code>
+
+<tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED} <td> problems
+     getting a configuration using <code>ConfigurationProvider</code>,
+     or problems getting entries, including getting entries that are not
+     found, from the configuration implementation classes
+
+<tr> <td> {@link java.util.logging.Level#FINE FINE} <td> returning default
+     values from the configuration implementation classes
+
+<tr> <td> {@link java.util.logging.Level#FINER FINER} <td> getting existing
+     entries from the configuration implementation classes, creating a
+     <code>ConfigurationFile</code>, or adding new prohibited methods
+     for <code>ConfigurationFile</code>
+
+</table> <p>
+
+See the {@link com.sun.jini.logging.LogManager} class for one way to use
+the <code>FAILED</code> logging level in standard logging configuration
+files.
+
+<!--
+<h2>Package Specification</h2>
+
+##### FILL IN ANY SPECS NEEDED BY JAVA COMPATIBILITY KIT #####
+<ul>
+  <li><a href="">##### REFER TO ANY FRAMEMAKER SPECIFICATION HERE #####</a>
+</ul>
+
+<h2>Related Documentation</h2>
+
+For overviews, tutorials, examples, guides, and tool documentation, please see:
+<ul>
+  <li><a href="">##### REFER TO NON-SPEC DOCUMENTATION HERE #####</a>
+</ul>
+-->
+
+</body>
+</html>

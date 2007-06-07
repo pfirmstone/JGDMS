@@ -1,0 +1,450 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Provides implementations of {@link net.jini.jeri.Endpoint} and {@link
+net.jini.jeri.ServerEndpoint} that use TLS/SSL and HTTPS (HTTP over
+TLS/SSL) to support invocation constraints. <p>
+
+The package includes two <code>ServerEndpoint</code> classes to support
+the server side of remote connections, {@link
+net.jini.jeri.ssl.SslServerEndpoint} for direct communication over TCP
+sockets using TLS/SSL (<a href="http://www.ietf.org/rfc/rfc2246.txt"
+target="_top">Secure Socket Layer</a>), and {@link
+net.jini.jeri.ssl.HttpsServerEndpoint} for communication through
+firewalls using HTTPS (<a
+href="http://www.ietf.org/rfc/rfc2818.txt">Hypertext Transfer Protocol
+encapsulated in the TLS/SSL protocol</a>), with the associated
+<code>Endpoint</code> classes, {@link net.jini.jeri.ssl.SslEndpoint} and
+{@link net.jini.jeri.ssl.HttpsEndpoint}. <p>
+
+The package includes the {@link
+net.jini.jeri.ssl.ConfidentialityStrength} constraint, supported by the
+endpoints in the package, for specifying requirements or preferences for
+weak or strong confidentiality on remote connections. <p>
+
+The package also includes the {@link
+net.jini.jeri.ssl.SslTrustVerifier} trust verifier for establishing
+trust in remote proxies that use instances of the endpoint and
+constraint classes supplied in this package, as well as principals of
+type <code>X500Principal</code>. <p>
+
+<a name="supported_constraints"><h2>Supported Constraints</h2></a>
+
+The endpoint classes in this package support at least the following
+constraints, possibly limited by the available cipher suites: <p>
+
+<ul>
+<li> {@link net.jini.core.constraint.ClientAuthentication}
+<li> {@link net.jini.core.constraint.ClientMaxPrincipal}, when it
+     contains an {@link javax.security.auth.x500.X500Principal}
+<li> {@link net.jini.core.constraint.ClientMaxPrincipalType}, when it
+     contains <code>X500Principal</code>
+<li> {@link net.jini.core.constraint.ClientMinPrincipal}, when it
+     contains a single <code>X500Principal</code> only
+<li> {@link net.jini.core.constraint.ClientMinPrincipalType}, when it
+     contains <code>X500Principal</code> only
+<li> {@link net.jini.core.constraint.Confidentiality}
+<li> {@link net.jini.jeri.ssl.ConfidentialityStrength}, a
+     provider-specific constraint for specifying weak or strong
+     confidentiality
+<li> {@link net.jini.core.constraint.ConnectionAbsoluteTime}
+<li> {@link net.jini.core.constraint.ConnectionRelativeTime}, trivially
+     on the server side, since this only takes effect on the client side
+<li> {@link net.jini.core.constraint.ConstraintAlternatives}, if the
+     elements all have the same actual class and at least one element
+     is supported
+<li> {@link net.jini.core.constraint.Delegation#NO}
+<li> {@link net.jini.core.constraint.Delegation#YES}, trivially, for
+     anonymous clients
+<li> {@link net.jini.core.constraint.DelegationAbsoluteTime}, trivially,
+     when delegation is not supported
+<li> {@link net.jini.core.constraint.DelegationRelativeTime}, trivially
+     on the server side, when delegation is not supported
+<li> {@link net.jini.core.constraint.Integrity#YES}
+<li> {@link net.jini.core.constraint.ServerAuthentication}
+<li> {@link net.jini.core.constraint.ServerMinPrincipal}, when it
+     contains a single <code>X500Principal</code> only
+</ul> <p>
+
+Note that {@link net.jini.core.constraint.ConnectionRelativeTime} and
+{@link net.jini.core.constraint.DelegationRelativeTime} constraints may
+be used on the client side at higher levels, but should be converted to
+the associated absolute time constraints for use by the
+<code>Endpoint</code> classes. <p>
+
+<a name="subject_authentication"><h2>Subject Authentication</h2></a>
+
+The endpoint classes authenticate as a single {@link
+java.security.Principal} if the following items are present in the
+{@link javax.security.auth.Subject}: <p>
+
+<ul>
+<li> One or more principals of type <code>X500Principal</code>
+<li> For each principal, one or more certificate chains, stored as
+     public credentials, and represented by instances of {@link
+     java.security.cert.CertPath}, whose <code>getType</code> method
+     returns "X.509", and for which calling <code>getSubjectDN</code> on
+     the certificate chain's first element returns that principal's name
+<li> For each certificate chain, an instance of {@link
+     javax.security.auth.x500.X500PrivateCredential}, stored as a
+     private credential, whose <code>getCertificate</code> method
+     returns a value equal to the first element of the certificate
+     chain, and whose <code>getPrivateKey</code> method returns the
+     associated private key
+</ul> <p>
+
+In addition, the {@link net.jini.jeri.Endpoint#newRequest newRequest}
+methods for the client endpoint classes will only authenticate as a
+given principal if the caller has been granted {@link
+net.jini.security.AuthenticationPermission} with that principal as the
+local principal, the principal representing the authenticated identity
+of the server as the peer principal, and the <code>connect</code>
+action. <p>
+
+Similarly, the server endpoint classes will only dispatch remote calls
+that authenticate as a given principal if the caller of {@link
+net.jini.jeri.ServerEndpoint.ListenEndpoint#listen listen} on their
+{@link net.jini.jeri.ServerEndpoint.ListenEndpoint ListenEndpoint} has
+been granted <code>AuthenticationPermission</code> with that principal
+as the local principal, the principal representing the authenticated
+identity of the client for the call (if any) as the peer principal, and
+the <code>accept</code> action. <p>
+
+These endpoint classes support remote connections between authenticated
+servers and authenticated or anonymous clients, and between anonymous
+servers and anonymous clients. Connections between anonymous servers and
+authenticated clients are not supported. Because of the suites available
+in the TLS/SSL protocol, support for {@link
+net.jini.core.constraint.Confidentiality#NO} requires the server to
+authenticate with an RSA public key. <p>
+
+If the server subject contains principals and credentials that would
+permit authentication of more than one <code>X500Principal</code>, the
+endpoint will make an arbitrary choice of the principal to use for
+authentication, and will continue to make the same choice so long as
+subject contents, validity of credentials, and security permissions do
+not change. <p>
+
+If there is a security manager, the {@link
+net.jini.jeri.OutboundRequestIterator#next OutboundRequestIterator.next}
+methods defined on the iterators returned by calling the {@link
+net.jini.jeri.Endpoint#newRequest newRequest} methods on the client
+endpoints call the security manager's {@link
+java.lang.SecurityManager#checkConnect checkConnect} method with the
+endpoint's server host and port. <p>
+
+Similarly, if there is a security manager, the {@link
+net.jini.jeri.ServerEndpoint.ListenEndpoint#checkPermissions
+checkPermissions} and {@link
+net.jini.jeri.ServerEndpoint.ListenEndpoint#listen listen} methods
+defined on <code>ListenEndpoint</code> instances returned by the server
+endpoints call the security manager's {@link
+java.lang.SecurityManager#checkListen checkListen} method, as well as
+requiring the caller to have <code>AuthenticationPermission</code> with
+all the server principals specified in the server endpoint and the
+<code>listen</code> action. <p>
+
+The host name specified when creating <code>SslServerEndpoint</code> or
+<code>HttpsServerEndpoint</code> instances controls the host name that
+will be contained in associated <code>Endpoint</code> instances produced
+when {@link net.jini.jeri.ServerEndpoint#enumerateListenEndpoints
+ServerEndpoint.enumerateListenEndpoints} is invoked to listen on the
+server endpoint; the host name does not affect the behavior of the
+listen operation itself, which listens on all of the local system's
+network addresses. If the host name in the server endpoint is
+<code>null</code>, then the host name in the endpoint instances that it
+produces will be the default server host name, which is the IP address
+string of the {@link java.net.InetAddress} returned by {@link
+java.net.InetAddress#getLocalHost InetAddress.getLocalHost} when
+<code>enumerateListenEndpoints</code> is invoked. <p>
+
+The client and server endpoint classes permit specifying a {@link
+javax.net.SocketFactory} for creating the {@link java.net.Socket}
+instances that client endpoints use to make remote connections back to
+the server. The server endpoints permit specifying a {@link
+javax.net.ServerSocketFactory} for creating the {@link
+java.net.ServerSocket} instances that the server endpoint uses to accept
+remote connections. These socket factories and sockets should not
+implement the TLS/SSL protocol; it is the responsibility of the
+implementation to establish TLS/SSL connections over the sockets it
+obtains from the socket factories. In particular, instances of {@link
+javax.net.ssl.SSLSocketFactory} and {@link
+javax.net.ssl.SSLServerSocketFactory} should not be used, and the
+factories used should not return instances of {@link
+javax.net.ssl.SSLSocket} or {@link javax.net.ssl.SSLServerSocket}. <p>
+
+A <code>SocketFactory</code> used with instances of the endpoint classes
+should be serializable, and must implement {@link
+java.lang.Object#equals Object.equals} to obey the guidelines that are
+specified for <code>equals</code> methods of {@link
+net.jini.jeri.Endpoint} instances. A <code>ServerSocketFactory</code>
+used with instances of the server endpoint classes must implement
+<code>Object.equals</code> to obey the guidelines that are specified for
+<code>equals</code> methods of {@link
+net.jini.jeri.ServerEndpoint.ListenEndpoint ListenEndpoint}
+instances. <p>
+
+The <code>HttpsEndpoint</code> class recognizes the following system
+properties: <p>
+
+<ul>
+<li> https.proxyHost - The host name for the secure proxy server. The
+     default is to use no proxy server.
+<li> https.proxyPort - The port for the secure proxy server. The default
+     is 443.
+<li> http.nonProxyHosts - The names of hosts for which direct
+     connections should be made rather than using the proxy server. Each
+     host name may contain '<code>*</code>' wildcard characters in any
+     position to match zero or more of any characters within the
+     name. Multiple host names may be specified by separating the names
+     with '<code>|</code>' characters. The default is for all
+     connections to use the proxy server if one is specified.
+</ul>
+
+The <code>SslEndpoint</code> and <code>SslServerEndpoint</code> classes
+use the <a href="../connection/doc-files/mux.html">Jini(TM) extensible
+remote invocation (Jini ERI) multiplexing protocol</a> to map outgoing
+requests to socket connections.
+
+@since 2.0
+@version 2.0
+
+@com.sun.jini.impl <!-- Implementation Specifics -->
+
+This implementation uses the <a
+href="http://java.sun.com/j2se/1.4/docs/guide/security/jsse/JSSERefGuide.html"
+target="_top">Java(TM) Secure Socket Extension (JSSE)</a>. <p>
+
+This implementation uses the {@link
+net.jini.jeri.connection.ConnectionManager} and {@link
+net.jini.jeri.connection.ServerConnectionManager} classes to manage
+connections. <p>
+
+<a name="logging">
+<font size="+1"><b>Loggers and Logging Levels</b></font>
+</a><p>
+
+This implementation uses the following {@link java.util.logging.Logger}
+instances in the <code>net.jini.jeri.ssl</code> namespace: <p>
+
+<ul>
+<li> <a href="#init_logger">init</a> - problems during initialization
+<li> <a href="#client_logger">client</a> - information about
+     client-side connections
+<li> <a href="#server_logger">server</a> - information about
+     server-side connections
+</ul> <p>
+
+<a name="init_logger"></a>
+<table border="1" cellpadding="5" summary="Describes logging to the init
+       logger performed by endpoint classes in this package at different
+       logging levels">
+
+<caption halign="center" valign="top"><b><code>
+	 net.jini.jeri.ssl.init</code></b></caption>
+
+<tr> <th scope="col"> Level <th scope="col"> Description
+
+<tr> <td> {@link java.util.logging.Level#WARNING WARNING} <td> problems
+with initializing JSSE or with registering internal entry points with
+discovery providers
+
+</table> <p>
+
+<a name="client_logger"></a>
+<table border="1" cellpadding="5" summary="Describes logging to the
+       client logger performed by endpoint classes in this package at
+       different logging levels">
+
+<caption halign="center" valign="top"><b><code>
+	 net.jini.jeri.ssl.client</code></b></caption>
+
+<tr> <th scope="col"> Level <th scope="col"> Description
+
+<tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED} <td>
+problems with outbound requests
+
+<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED} <td>
+exceptions caught involving authentication
+
+<tr> <td> {@link java.util.logging.Level#FINE FINE} <td> authentication
+decisions; creating, choosing, expiring, or closing connections; or
+handling outbound requests
+
+<tr> <td> {@link java.util.logging.Level#FINEST FINEST} <td> low level
+operation tracing
+
+</table> <p>
+
+<a name="server_logger"></a>
+<table border="1" cellpadding="5" summary="Describes logging to the
+       server logger performed by endpoint classes in this package at
+       different logging levels">
+
+<caption halign="center" valign="top"><b><code>
+	 net.jini.jeri.ssl.server</code></b></caption>
+
+<tr> <th scope="col"> Level <th scope="col"> Description
+
+<tr> <td> {@link java.util.logging.Level#INFO INFO} <td> problems with
+accepting or handling server connections, or with handling inbound
+requests
+
+<tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED} <td>
+problems with checking constraints or permissions, with enumerating
+listen endpoints, or with security issues for inbound requests
+
+<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED} <td>
+exceptions caught involving authentication
+
+<tr> <td> {@link java.util.logging.Level#FINE FINE} <td> creating
+server endpoints, enumerating listen endpoints, creating or closing
+connections or listen handles, or checking constraints for endpoints or
+inbound requests
+
+<tr> <td> {@link java.util.logging.Level#FINEST FINEST} <td> low level
+operation tracing
+
+</table> <p>
+
+See the {@link com.sun.jini.logging.LogManager} class for one way to use
+the <code>FAILED</code> and <code>HANDLED</code> logging levels in
+standard logging configuration files. <p>
+
+<a name="configuration">
+<font size="+1"><b>Configuration</b></font>
+</a><p>
+
+This implementation uses the following security providers: <p>
+
+<ul>
+<li> {@link javax.net.ssl.SSLContext}, with the protocol specified by
+     the <code>com.sun.jini.jeri.ssl.sslProtocol</code> system property,
+     or <code>"TLS"</code> if that property is not defined, to provide
+     the TLS/SSL implementation. The {@link
+     javax.net.ssl.SSLContext#init SSLContext.init} method is called
+     with <code>null</code> for the <code>random</code> parameter to use
+     the default {@link java.security.SecureRandom} implementation.
+<li> {@link java.security.cert.CertificateFactory}, with type
+     <code>"X.509"</code>, to generate <code>CertPath</code> instances
+     from X.509 certificate chains
+<li> {@link javax.net.ssl.TrustManagerFactory}, with the algorithm
+     specified by the
+     <code>com.sun.jini.jeri.ssl.trustManagerFactoryAlgorithm</code>
+     system property, or the default algorithm if that property is not
+     defined, to implement trust management for the TLS/SSL
+     implementation. The factory must return trust managers that
+     implement {@link javax.net.ssl.X509TrustManager}.
+</ul> <p>
+
+See the documentation on <a
+href="http://java.sun.com/j2se/1.4/docs/guide/security/CryptoSpec.html#ProviderInstalling"
+target="_top">installing security providers</a> and <a
+href="http://java.sun.com/j2se/1.4/docs/guide/security/jsse/JSSERefGuide.html#ProviderCust"
+target="_top">configuring JSSE</a> for information on configuring these
+providers. <p>
+
+The <a
+href="http://java.sun.com/j2se/1.4/docs/guide/security/jsse/JSSERefGuide.html#Customization"
+target="_top">JSSE documentation</a> also describes the system
+properties for configuring the location, type, and password of the
+truststore that the endpoints use, through JSSE, to make decisions about
+what certificate chains should be trusted. <p>
+
+Both the TLS/SSL and HTTPS implementations recognize the following
+system properties: <p>
+
+<ul>
+<li> <code>com.sun.jini.jeri.ssl.maxServerSessionDuration</code> - The
+     maximum number of milliseconds a server-side TLS/SSL session should
+     be used before expiring. The default is 24 hours. The value used
+     should be larger than the maximum client session duration to allow
+     the client to negotiate a new session before the server timeout
+     occurs.
+<li> <code>com.sun.jini.jeri.ssl.maxClientSessionDuration</code> - The
+     maximum number of milliseconds a client-side TLS/SSL session should
+     be used. The default is 23.5 hours. The value should be smaller
+     than the maximum server session duration to allow the client to
+     negotiate a new session before the server timeout occurs.
+<li> <code>com.sun.jini.jeri.ssl.sslProtocol</code> - The secure socket
+     protocol used when obtaining {@link javax.net.ssl.SSLContext}
+     instances. The default is <code>"TLS"</code>.
+<li> <code>com.sun.jini.jeri.ssl.trustManagerFactoryAlgorithm</code> -
+     The algorithm used when obtaining {@link
+     javax.net.ssl.TrustManagerFactory} instances. The default is the
+     value returned by {@link
+     javax.net.ssl.TrustManagerFactory#getDefaultAlgorithm
+     TrustManagerFactory.getDefaultAlgorithm}.
+<li> <code>com.sun.jini.jeri.ssl.cipherSuites</code> - The TLS/SSL
+     cipher suites that should be used for communication. The default is
+     the list of suites supported by the JSSE implementation. The value
+     should specify the suite names, separated by commas. The value will
+     be ignored if it contains no suites or specifies suites that are
+     not supported by the JSSE implementation. Suites appearing earlier
+     in the list will be preferred to ones appearing later for suites
+     that support the same requirements and preferences.
+</ul> <p>
+
+The following system properties are recognized by HTTPS implementation
+only: <p>
+
+<ul>
+<li> <code>com.sun.jini.jeri.https.idleConnectionTimeout</code> - The
+     number of milliseconds to retain idle client-side HTTPS connections
+     before closing them. The default is <code>15000</code>.
+<li> <code>com.sun.jini.jeri.https.idleServerConnectionTimeout</code> -
+     The number of milliseconds to retain idle server-side HTTPS
+     connections before closing them.  The default is the idle
+     client-side connection timeout (as specified by the
+     <code>com.sun.jini.jeri.https.idleConnectionTimeout</code> system
+     property) plus <code>30000</code>.
+<li> <code>com.sun.jini.jeri.https.responseAckTimeout</code> - The
+     number of milliseconds to wait for acknowledgments from {@link
+     net.jini.io.context.AcknowledgmentSource} instances, or to keep
+     track of acknowledgements that have not yet been sent. The default
+     is <code>15000</code>.
+<li><code>com.sun.jini.jeri.https.pingProxyConnections</code> - If
+    the value is case-insensitive equal to <code>true</code>, then if an
+    HTTP proxy is being used, ping the server endpoint to verify whether
+    it is alive and reachable. The ping occurs before the first request
+    and before each subsequent request which follows the expiration of
+    the ping proxy timeout period (below) following the previous ping.
+    When using an HTTP proxy it is often impossible to distinguish
+    between inability to reach the server endpoint (such as because the
+    server process refused a connection by the HTTP proxy) and the lack
+    of response from a delivered request (which might result in an
+    UnmarshalException). The ping increases the likelihood that the
+    inability to reach the server endpoint can be explicitly identified.
+    The default value is <code>false</code>, and no pings are done.
+<li><code>com.sun.jini.jeri.https.pingProxyConnectionTimeout</code> - The
+    number of milliseconds from the time a server endpoint was last
+    pinged before a ping will precede the next request. The default is
+    <code>Long.MAX_VALUE</code> (essentially meaning, ping only before
+    the first request).
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,54 @@
+/* Security policy for SSL Phoenix */
+
+/* Keystore containing trusted certificates to use for authentication */
+keystore "..${/}prebuiltkeys${/}truststore";
+
+/* Grant the local JAR files all permissions */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+/* Grant permission to the "server" principal */
+grant principal "server" {
+    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
+    permission com.sun.jini.phoenix.SystemPermission "registerGroup";
+    permission com.sun.jini.phoenix.SystemPermission "registerObject";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+        "-Djava.security.manager=";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+        "-Djava.security.policy=config${/}activatable-ssl-server.policy";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+      "-Djava.security.properties=config${/}dynamic-policy.security-properties";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+        "-Djava.security.auth.login.config=config${/}ssl-phoenix.login";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+        "-Djavax.net.ssl.trustStore=prebuiltkeys${/}truststore";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+        "-Djava.protocol.handler.pkgs=net.jini.url";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+	"-Djava.rmi.server.codebase=*";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+        "-classpath";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+        "lib${/}server-act.jar${path.separator}lib${/}mdprefld.jar";
+};
+
+/* Grant the principal "phoenix" the permissions to start a group */
+grant principal "phoenix" {
+    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
+    permission com.sun.jini.phoenix.MonitorPermission "getProxyVerifier";
+    permission com.sun.jini.phoenix.SystemPermission "activeGroup";
+};

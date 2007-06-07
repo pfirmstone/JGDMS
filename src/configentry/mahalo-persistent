@@ -1,0 +1,4 @@
+# non-activatable persistent mahalo configuration entries
+com.sun.jini.mahalo.persistenceDirectory: String
+com.sun.jini.mahalo.recoveredLookupLocatorPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.mahalo.recoveredParticipantPreparer: net.jini.security.ProxyPreparer

@@ -1,0 +1,7 @@
+# non-activatable persistent norm configuration entries
+com.sun.jini.norm.persistenceDirectory: String
+com.sun.jini.norm.persistenceSnapshotThreshold: int
+com.sun.jini.norm.persistenceSnapshotWeight: float
+com.sun.jini.norm.recoveredLeasePreparer: net.jini.security.ProxyPreparer
+com.sun.jini.norm.recoveredListenerPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.norm.recoveredLocatorPreparer: net.jini.security.ProxyPreparer

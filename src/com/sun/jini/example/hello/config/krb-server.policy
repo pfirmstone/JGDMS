@@ -1,0 +1,25 @@
+/* Security policy for Kerberos server */
+
+/* Grant the local JARS all permissions */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+/* Grant permissions to client principal */
+grant principal 
+	javax.security.auth.kerberos.KerberosPrincipal "${clientPrincipal}" 
+{
+    /* Call sayHello method */
+    permission com.sun.jini.example.hello.ServerPermission "sayHello";
+};
+
+/* Grant permissions to all principals */
+grant {
+    /* Call getProxyVerifier method */
+    permission com.sun.jini.example.hello.ServerPermission "getProxyVerifier";
+};
+

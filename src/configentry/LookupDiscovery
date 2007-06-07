@@ -1,0 +1,14 @@
+# LookupDiscovery configuration entries
+net.jini.discovery.LookupDiscovery.discoveryConstraints: net.jini.core.constraint.MethodConstraints
+net.jini.discovery.LookupDiscovery.finalMulticastRequestInterval: long
+net.jini.discovery.LookupDiscovery.initialMulticastRequestDelayRange: long
+net.jini.discovery.LookupDiscovery.multicastAnnouncementInterval: long
+net.jini.discovery.LookupDiscovery.multicastInterfaceRetryInterval: int
+net.jini.discovery.LookupDiscovery.multicastInterfaces: java.net.NetworkInterface[]
+net.jini.discovery.LookupDiscovery.multicastRequestHost: String
+net.jini.discovery.LookupDiscovery.multicastRequestInterval: long
+net.jini.discovery.LookupDiscovery.multicastRequestMax: int
+net.jini.discovery.LookupDiscovery.registrarPreparer: net.jini.security.ProxyPreparer
+net.jini.discovery.LookupDiscovery.taskManager: com.sun.jini.thread.TaskManager
+net.jini.discovery.LookupDiscovery.unicastDelayRange: long
+net.jini.discovery.LookupDiscovery.wakeupManager: com.sun.jini.thread.WakeupManager

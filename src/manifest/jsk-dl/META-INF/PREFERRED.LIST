@@ -1,0 +1,15 @@
+PreferredResources-Version: 1.0
+
+Preferred: true
+
+Name: com/sun/jini/admin/*
+Preferred: false
+
+Name: com/sun/jini/resource/ServiceConfigurationError.class
+Preferred: false
+
+Name: com/sun/jini/start/ServiceProxyAccessor.class
+Preferred: false
+
+Name: net/jini/-
+Preferred: false

@@ -1,0 +1,56 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<HTML>
+<BODY BGCOLOR="white">
+
+<P>
+This is a utility for services implementing leases.  The {@link
+com.sun.jini.landlord.Landlord} is the basic interface that defines the
+utility.  A service that exports leases implements the
+<CODE>Landlord</CODE> interface, which is used for callbacks by the utility
+classes when a lease's status changes.  Each leased resource is identified
+by a landlord-generated {@link net.jini.id.Uuid} called a cookie.  The
+{@link net.jini.core.lease.Lease} object handed to the client contains the
+cookie, and that cookie is used when communicating with the landlord about
+the lease.
+<P>
+The utility classes define a lease object type {@link
+com.sun.jini.landlord.LandlordLease}.  The <CODE>Lease</CODE> objects
+handed to clients will be of this type.  <CODE>LandlordLease</CODE> objects
+talk to the <CODE>Landlord</CODE> about the lease.  A factory class, {@link
+com.sun.jini.landlord.LeaseFactory}, can be used to generate new
+leases. The package also contains a constrainable implementation of
+<code>Lease</code>, {@link
+com.sun.jini.landlord.ConstrainableLandlordLease}, that implements
+{@link net.jini.core.constraint.RemoteMethodControl} and supports proxy
+trust verification (when used with {@link
+com.sun.jini.landlord.LandlordProxyVerifier}) and suitable implementations
+of {@link net.jini.core.lease.LeaseMap}. It also contains utilities and
+interfaces to assist you in implementing the <code>Landlord</code>
+interfaces: {@link com.sun.jini.landlord.LandlordUtil}, {@link
+com.sun.jini.landlord.LeasePeriodPolicy}, and {@link
+com.sun.jini.landlord.FixedLeasePeriodPolicy}.
+<P>
+Using the classes in this package, you can write services that export
+leases and handle primarily those factors that are unique to your service,
+letting the utility classes do generic lease-related work. 
+
+</BODY>
+</HTML>
+

@@ -1,0 +1,13 @@
+# transient norm configuration entries
+com.sun.jini.norm.discoveryManager: net.jini.discovery.DiscoveryManagement
+com.sun.jini.norm.initialLookupAttributes: net.jini.core.entry.Entry[]
+com.sun.jini.norm.initialLookupGroups: String[]
+com.sun.jini.norm.initialLookupLocators: net.jini.core.discovery.LookupLocator[]
+com.sun.jini.norm.isolateSets: boolean
+com.sun.jini.norm.leaseManager: net.jini.lease.LeaseRenewalManager
+com.sun.jini.norm.leasePolicy: com.sun.jini.landlord.LeasePeriodPolicy
+com.sun.jini.norm.leasePreparer: net.jini.security.ProxyPreparer
+com.sun.jini.norm.listenerPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.norm.locatorPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.norm.loginContext: javax.security.auth.login.LoginContext
+com.sun.jini.norm.serverExporter: net.jini.export.Exporter

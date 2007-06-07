@@ -1,0 +1,10 @@
+com.sun.jini.discovery.plaintext.Client
+com.sun.jini.discovery.plaintext.Server
+com.sun.jini.discovery.ssl.Client
+com.sun.jini.discovery.ssl.Server
+com.sun.jini.discovery.kerberos.Client
+com.sun.jini.discovery.kerberos.Server
+com.sun.jini.discovery.x500.sha1withdsa.Client
+com.sun.jini.discovery.x500.sha1withdsa.Server
+com.sun.jini.discovery.x500.sha1withrsa.Client
+com.sun.jini.discovery.x500.sha1withrsa.Server

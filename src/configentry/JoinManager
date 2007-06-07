@@ -1,0 +1,10 @@
+# JoinManager configuration entries
+net.jini.lookup.JoinManager.discoveryManager: net.jini.discovery.DiscoveryManagement
+net.jini.lookup.JoinManager.leaseManager: net.jini.lease.LeaseRenewalManager
+net.jini.lookup.JoinManager.maxLeaseDuration: long
+net.jini.lookup.JoinManager.registrarPreparer: net.jini.security.ProxyPreparer
+net.jini.lookup.JoinManager.registrationPreparer: net.jini.security.ProxyPreparer
+net.jini.lookup.JoinManager.serviceLeasePreparer: net.jini.security.ProxyPreparer
+net.jini.lookup.JoinManager.taskManager: com.sun.jini.thread.TaskManager
+net.jini.lookup.JoinManager.wakeupManager: com.sun.jini.thread.WakeupManager
+net.jini.lookup.JoinManager.wakeupRetries: int

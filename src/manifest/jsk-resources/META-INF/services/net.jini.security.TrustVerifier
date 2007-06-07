@@ -1,0 +1,7 @@
+net.jini.constraint.ConstraintTrustVerifier
+net.jini.jeri.BasicJeriTrustVerifier
+net.jini.jeri.ssl.SslTrustVerifier
+net.jini.jeri.kerberos.KerberosTrustVerifier
+net.jini.security.proxytrust.ProxyTrustVerifier
+net.jini.discovery.ConstrainableLookupLocatorTrustVerifier
+com.sun.jini.discovery.DiscoveryConstraintTrustVerifier

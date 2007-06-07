@@ -1,0 +1,206 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Provides implementations of the {@link net.jini.jeri.Endpoint} and
+{@link net.jini.jeri.ServerEndpoint} abstractions that use TCP sockets
+as the underlying communication mechanism.
+
+Requests and responses are framed and multiplexed over TCP connections
+using the <a href="../connection/doc-files/mux.html">Jini(TM)
+extensible remote invocation (Jini ERI) multiplexing protocol</a>.
+
+<p>A {@link net.jini.jeri.tcp.TcpEndpoint} can be used to initiate
+requests over a TCP connection.  Each instance contains a host name
+string (which may be a name or an IP address) and a TCP port number,
+as well as an optional {@link javax.net.SocketFactory} for customizing
+the type of {@link java.net.Socket} instances to use.  When initiating
+a new request, a new TCP connection is created to the host and port,
+using the socket factory if present, if an existing connection is not
+already available for use.
+
+<p>A {@link net.jini.jeri.tcp.TcpServerEndpoint} can be used to listen
+for and receive incoming requests over a TCP connection.  Each
+instance contains a TCP port number to listen on, a host name string
+to use in <code>Endpoint</code> instances derived from the instance,
+an optional {@link javax.net.ServerSocketFactory} for customizing the
+type of {@link java.net.ServerSocket} instances to use, and an
+optional {@link javax.net.SocketFactory} to use in derived
+<code>Endpoint</code> instances.  When listening for requests, the
+port is bound to listen for TCP connections, using the server socket
+factory if present.  The {@link
+net.jini.jeri.tcp.TcpServerEndpoint#enumerateListenEndpoints
+TcpServerEndpoint.enumerateListenEndpoints} method will produce
+<code>TcpEndpoint</code> instances with the same host name, port, and
+client socket factory for client-side use (for example, to be embedded
+in remote proxies).
+
+<h2>Jini ERI multiplexing protocol mapping</h2>
+
+<code>TcpEndpoint</code> and <code>TcpServerEndpoint</code> map,
+respectively, {@link net.jini.jeri.OutboundRequest} and {@link
+net.jini.jeri.InboundRequest} instances to distinct sessions of a Jini
+ERI multiplexing protocol connection.  For each new request initiated,
+a <code>TcpEndpoint</code> starts a new session as the client of a
+connection to the remote endpoint.  As the server of an accepted
+connection, a <code>TcpServerEndpoint</code> creates a new
+<code>InboundRequest</code> to represent each session started by the
+remote endpoint.  Request data is transmitted as the data sent for the
+corresponding session by the client, and response data is transmitted
+as the data sent for the corresponding session by the server.  TCP
+connections are reused by a <code>TcpEndpoint</code> when possible.
+
+<h2>Constraint support</h2>
+
+<code>TcpEndpoint</code> and <code>TcpServerEndpoint</code> support
+the transport layer aspects of at least the following constraints:
+
+<ul>
+<li>any {@link net.jini.core.constraint.ConnectionAbsoluteTime}
+<li>any {@link net.jini.core.constraint.ConnectionRelativeTime}
+<li>a {@link net.jini.core.constraint.ConstraintAlternatives} if at
+    least one element is supported
+<li>{@link net.jini.core.constraint.Integrity#NO Integrity.NO}
+<li>{@link net.jini.core.constraint.Confidentiality#NO Confidentiality.NO}
+<li>{@link net.jini.core.constraint.ClientAuthentication#NO
+				    ClientAuthentication.NO}
+<li>{@link net.jini.core.constraint.ServerAuthentication#NO
+				    ServerAuthentication.NO}
+<li>{@link net.jini.core.constraint.Delegation#NO Delegation.NO}
+<li>any {@link net.jini.core.constraint.ClientMaxPrincipal}
+<li>any {@link net.jini.core.constraint.ClientMaxPrincipalType}
+<li>any {@link net.jini.core.constraint.ClientMinPrincipal}
+<li>any {@link net.jini.core.constraint.ClientMinPrincipalType}
+<li>any {@link net.jini.core.constraint.ServerMinPrincipal}
+<li>any {@link net.jini.core.constraint.DelegationAbsoluteTime}
+<li>any {@link net.jini.core.constraint.DelegationRelativeTime}
+</ul>
+
+(Note that <code>ClientMaxPrincipal</code>,
+<code>ClientMaxPrincipalType</code>, <code>ClientMinPrincipal</code>,
+<code>ClientMinPrincipalType</code>, <code>ServerMinPrincipal</code>,
+<code>DelegationAbsoluteTime</code>, and
+<code>DelegationRelativeTime</code> constraints are trivially
+supported if <code>ClientAuthentication.YES</code>,
+<code>ServerAuthentication.YES</code>, and <code>Delegation.YES</code>
+are not supported.)
+
+@since 2.0
+@version 2.0
+
+@com.sun.jini.impl
+
+This implementation uses {@link
+net.jini.jeri.connection.ConnectionManager} and {@link
+net.jini.jeri.connection.ServerConnectionManager} for connection
+management.
+
+<h2>Logging</h2>
+
+This implementation uses the {@link java.util.logging.Logger} named
+<code>net.jini.jeri.tcp.client</code> to log information at the
+following levels:
+
+<p><table summary="Describes what is logged to the client logger at
+various logging levels" border=1 cellpadding=5>
+
+<tr> <th> Level <th> Description
+
+<tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED}
+     <td> exceptions thrown attempting to initiate a request
+
+<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+     <td> exceptions caught attempting to connect a socket, set
+	  options on a client-side socket, or reuse a connection
+
+<tr> <td> {@link java.util.logging.Level#FINE FINE}
+     <td> client-side socket operations (create, connect, reuse, and
+	  close)
+
+</table>
+
+<p>This implementation uses the {@link java.util.logging.Logger} named
+<code>net.jini.jeri.tcp.server</code> to log information at the
+following levels:
+
+<p><table summary="Describes what is logged to the server logger at
+various logging levels" border=1 cellpadding=5>
+
+<tr> <th> Level <th> Description
+
+<tr> <td> {@link java.util.logging.Level#WARNING WARNING}
+     <td> exceptions accepting on a server socket
+
+<tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+     <td> exceptions caught setting options on a server-side socket
+
+<tr> <td> {@link java.util.logging.Level#FINE FINE}
+     <td> server-side socket operations (create, accept, and close)
+
+</table>
+
+<h2>System Properties</h2>
+
+This implementation recognizes the following system properties:
+
+<p><ul>
+
+<li><code>com.sun.jini.jeri.tcp.useNIO</code> - This property is
+interpreted as a <code>boolean</code> value (see {@link
+java.lang.Boolean#getBoolean Boolean.getBoolean}).  If
+<code>true</code>, then when not using a socket factory, the
+implementation will use {@link java.nio.channels} APIs to create
+sockets that have associated selectable channels; specifically:
+
+<ul>
+
+<li>a <code>TcpEndpoint</code> with no socket factory will create
+sockets using {@link java.nio.channels.SocketChannel#open
+SocketChannel.open}, and
+
+<li>a <code>TcpServerEndpoint</code> with no server socket factory
+will create server sockets using {@link
+java.nio.channels.ServerSocketChannel#open ServerSocketChannel.open}.
+
+</ul>
+
+Otherwise, when not using a socket factory, the implementation will
+create sockets that do not have channels:
+
+<ul>
+
+<li>a <code>TcpEndpoint</code> with no socket factory will create
+sockets using {@link java.net.Socket#Socket()}, and
+
+<li>a <code>TcpServerEndpoint</code> with no server socket factory
+will create server sockets using {@link
+java.net.ServerSocket#ServerSocket(int)}.
+
+</ul>
+
+</ul>
+
+</body>
+</html>

@@ -1,0 +1,257 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Provides implementations of {@link net.jini.jeri.Endpoint} and {@link
+net.jini.jeri.ServerEndpoint} that use Kerberos as the underlying
+network security protocol to support security related invocation
+constraints for remote requests.  The <code>ServerEndpoint</code>
+abstraction is implemented by the {@link
+net.jini.jeri.kerberos.KerberosServerEndpoint}, while the client side
+<code>Endpoint</code> abstraction is implemented by the {@link
+net.jini.jeri.kerberos.KerberosEndpoint}. <p>
+
+The package also includes the {@link
+net.jini.jeri.kerberos.KerberosTrustVerifier} for establishing trust
+in remote proxies that use instances of the
+<code>KerberosEndpoint</code>, as well as principals of type {@link
+javax.security.auth.kerberos.KerberosPrincipal}. <p>
+
+This class uses the <a
+href="../connection/doc-files/mux.html">Jini(TM) extensible remote
+invocation (Jini ERI) multiplexing protocol</a> to map outgoing
+requests to the underlying secure connection streams. <p>
+
+The secure connection streams in this provider are implemented using
+the Kerberos Version 5 GSS-API Mechanism, defined in <a
+href="http://www.ietf.org/rfc/rfc1964.txt">RFC 1964</a>, over socket
+connections between client and server endpoints. <p>
+
+Note that, because Kerberos inherently requires client authentication,
+this transport provider does not support distributed garbage collection
+(DGC); if DGC is enabled using {@link net.jini.jeri.BasicJeriExporter},
+all DGC remote calls through this provider will silently fail.
+
+<a name="supported_constraints"><h2>Supported Constraints</h2></a>
+
+The endpoint classes in this package support at least the following
+standard constraints: <p>
+
+<ul>
+<li>{@link net.jini.core.constraint.Integrity#YES}
+<li>{@link net.jini.core.constraint.Confidentiality}
+<li>{@link net.jini.core.constraint.ClientAuthentication#YES}
+<li>{@link net.jini.core.constraint.ConnectionAbsoluteTime}
+<li>{@link net.jini.core.constraint.ConnectionRelativeTime}, trivially
+    on the server side, since this only takes effect on the client side
+<li>{@link net.jini.core.constraint.ServerAuthentication#YES}
+<li>{@link net.jini.core.constraint.ClientMaxPrincipal}, when it
+    contains at least one <code>KerberosPrincipal</code>
+<li>{@link net.jini.core.constraint.ClientMaxPrincipalType}, when
+    it contains the <code>KerberosPrincipal</code> class
+<li>{@link net.jini.core.constraint.ClientMinPrincipal}, when it
+    contains exactly one <code>KerberosPrincipal</code>
+<li>{@link net.jini.core.constraint.ClientMinPrincipalType}, when
+    it contains only the <code>KerberosPrincipal</code> class
+<li>{@link net.jini.core.constraint.ServerMinPrincipal}, when it
+    contains exactly one <code>KerberosPrincipal</code>
+<li>{@link net.jini.core.constraint.Delegation}
+<li>{@link net.jini.core.constraint.ConstraintAlternatives}, if the
+    elements all have the same actual class and at least one
+    element is supported
+</ul> <p>
+
+@com.sun.jini.impl <!-- Implementation Specifics -->
+
+Classes in this package use the <a
+href="http://www.ietf.org/rfc/rfc2853.txt">Java(TM) GSS-API</a> to
+provide the underlying Kerberos network authentication protocol
+support. The Kerberos network authentication protocol is defined in <a
+href="http://www.ietf.org/rfc/rfc1510.txt">RFC 1510</a>. The GSS-API
+is defined in a language independent way in <a
+href="http://www.ietf.org/rfc/rfc2743.txt">RFC 2743</a>.  The Java
+programming language bindings for GSS-API using Kerberos are defined
+in <a href="http://www.ietf.org/rfc/rfc2853.txt">RFC 2853</a>. The
+Java 2 Platform Standard Edition (J2SE(TM)) contains support for
+GSS-API Kerberos Java bindings via the {@link org.ietf.jgss}
+package. An <a
+href="http://java.sun.com/j2se/1.4/docs/guide/security/jgss/tutorials/index.html">Introduction
+to JAAS and Java GSS-API Tutorial</a> is also available. <p>
+
+A <a
+href="http://java.sun.com/j2se/1.4/docs/guide/security/jaas/spec/com/sun/security/auth/module/Krb5LoginModule.html">Kerberos login module</a> can be
+used to populate a <code>Subject</code> with {@link
+javax.security.auth.kerberos.KerberosPrincipal}s and credentials
+({@link javax.security.auth.kerberos.KerberosTicket}s or {@link
+javax.security.auth.kerberos.KerberosKey}s).  Note that by default the
+login module only stores a Ticket Granting Tickets (TGT), not the
+Kerberos key of the principal in the subject after a successful login.
+A <code>KerberosServerEndpoint</code> instance requires the Kerberos
+key of its server principal to be present in the subject, while a
+<code>KerberosEndpoint</code> instance only needs the TGT.  For this
+reason <code>storeKey=true</code> has to be set as an option in the
+login module configuration on the server side.<p>
+
+This provider does not automatically renew any TGTs in the
+<code>Subject</code> used by a <code>KerberosEndpoint</code>. The
+assumption is that the endpoint should merely be a consumer of the
+principals and credentials of the <code>Subject</code>, and never
+change its content. But if new TGTs are added into the
+<code>Subject</code> or old TGTs in the <code>Subject</code> are
+renewed by means outside this provider, the endpoint will pick up and
+use these new TGTs for new requests after the old ones expire. <p>
+
+Due to security concerns, this implementation sometimes only throws an
+exception revealing the specific cause of a problem if the caller is
+granted {@link
+javax.security.auth.AuthPermission}<code>("getSubject")</code>,
+otherwise it throws a generic exception that enumerates possible
+causes.
+
+<p>
+<a name="Logging"><font size="+1"><b>Logging</b></font></a>
+<p>
+
+The endpoint classes use the following {@link
+java.util.logging.Logger} instances to log information at the
+following levels: <p>
+
+<table border="1" cellpadding="5" summary="Describes logging to the
+    client logger performed by endpoint classes in this package at
+    different logging levels">
+
+    <caption halign="center" valign="top"><b><code>
+	net.jini.jeri.kerberos.client</code></b></caption>
+
+    <tr> <th scope="col"> Level <th scope="col"> Description
+
+    <tr> <td> {@link java.util.logging.Level#WARNING WARNING}
+         <td> failure to register with discovery provider
+    <tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED}
+         <td> problem to support constraint requirements, connect to
+              server through socket, establish {@link
+              org.ietf.jgss.GSSContext} to server over established
+              connections, or wrap/unwrap GSS tokens
+    <tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+         <td> exceptions caught attempting to set TCP no delay or keep
+              alive properties on sockets, connect a socket, or reuse
+              a connection
+    <tr> <td> {@link java.util.logging.Level#FINE FINE}
+         <td> endpoint creation, {@link
+              net.jini.jeri.Endpoint#newRequest newRequest}
+              invocation, request handle creation, connection
+              configuration decesions, socket creation, connection
+              open/close, connection reuse decesions,
+              <code>GSSContext</code> establishment
+    <tr> <td> {@link java.util.logging.Level#FINEST FINEST}
+         <td> data message encoding/decoding using
+              <code>GSSContext</code>
+</table> <p>
+
+<table border="1" cellpadding="5" summary="Describes logging to the
+    server logger performed by endpoint classes in this package at
+    different logging levels">
+
+    <caption halign="center" valign="top"><b><code>
+	net.jini.jeri.kerberos.server</code></b></caption>
+
+    <tr> <th scope="col"> Level <th scope="col"> Description
+    <tr> <td> {@link java.util.logging.Level#WARNING WARNING}
+         <td> unexpected failure while accepting connections on the created
+              <code>ServerSocket</code>.
+
+    <tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED}
+
+         <td> problems with permission checking, server principal and
+              Kerberos key presence checking, {@link
+              org.ietf.jgss.GSSCredential} creation, socket connect
+              exception, <code>GSSContext</code> establishment,
+              credential expiration, or wrap/unwrap GSS tokens
+    <tr> <td> {@link com.sun.jini.logging.Levels#HANDLED HANDLED}
+         <td> failure to set TCP no delay or keep alive properties on
+              sockets
+    <tr> <td> {@link java.util.logging.Level#FINE FINE}
+         <td> server endpoint creation, {@link
+              net.jini.jeri.ServerCapabilities#checkConstraints
+              checkConstraints} results, server socket creation,
+              socket connect acceptance, server connection
+              creation/destruction, <code>GSSContext</code>
+              establishment
+    <tr> <td> {@link java.util.logging.Level#FINEST FINEST}
+         <td> data message encoding/decoding using
+              <code>GSSContext</code>
+</table> <p>
+
+<p>
+<a name="Configuration"><font size="+1"><b>Configuration</b></font></a>
+<p>
+
+<b>KDC and realm configuration:</b> <p>
+
+As described in the {@link javax.security.auth.kerberos} package, a
+user can provide the default realm and default Key Distribution Center
+(KDC) host using the system properties
+<code>java.security.krb5.realm</code> and
+<code>java.security.krb5.kdc</code>.  Alternatively, he/she can
+provide an MIT style configuration file:
+<code>&lt;java-home&gt;/lib/security/krb5.conf</code>, where
+<code>&lt;java-home&gt;</code> is the directory where J2SE is
+installed.  If the file is placed elsewhere, the system property
+<code>java.security.krb5.conf</code> can be used to specify its
+location.  A more detailed description of the searching scheme for
+<code>krb5.conf</code> can be found at <a
+href="http://java.sun.com/j2se/1.4/docs/guide/security/jgss/tutorials/KerberosReq.html">here</a>.<p>
+
+<b>System properties supported by this provider</b> <p>
+
+The client endpoints of this provider recognize the following system
+property: <p>
+
+<ul>
+<li>com.sun.jini.jeri.kerberos.KerberosEndpoint.minGssContextLifetime -
+    Minimum number of seconds of remaining lifetime a {@link
+    org.ietf.jgss.GSSContext} of an existing connection has to have
+    before it can be considered as a candidate connection to be chosen
+    for a new request. The default is 30.
+<li>com.sun.jini.jeri.kerberos.KerberosEndpoint.maxGssContextRetries -
+    RFC 1510 specifies that if a KDC or server receives two
+    authenticators with the same client and server pair and timestamps
+    of the same microsecond, the second will be considered a replay
+    and will be rejected.  This means if multiple session ticket
+    requests of the same client and server principal pair and
+    microsecond timestamps are received at a KDC, only the first one
+    will succeed, and the rest will be considered replays and will be
+    rejected by the KDC.  For this reason, the Kerberos provider
+    catches the "replay" exception and retries the corresponding
+    <code>GSSContext</code> initialization handshake.  This system
+    property controls the maximum number of retries a
+    <code>KerberosEndpoint</code> will conduct.  The default is 3.
+</ul> <p>
+
+@since 2.0
+@version 2.0
+
+</body>
+</html>

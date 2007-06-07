@@ -1,0 +1,92 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<html>
+<title>Extended RMI Example</title>
+
+<body text="#000000" bgcolor="#ffffff" link="#9b37cc" vlink="#cc1877"
+      alink="#ffffff">
+
+<h1><center>Kerberos Setup Instructions</center></h1>
+
+<h2>Introduction</h2>
+
+Beginning in version 1.4.1, the Java<sup><font size=-2>TM</font></sup>
+2 SDK, Standard Edition provides three client-side Kerberos tools:
+<code>kinit</code>, <code>klist</code>, and <code>ktab</code> in its
+Windows and Linux distributions.  In this document, we explain how to
+use these tools to obtain Kerberos Ticket Granting Tickets (TGTs) and
+keytabs on their provided platforms.  If you are running on the
+Solaris<sup><font size=-2>TM</font></sup> Operating System (Solaris OS), 
+then in addition to using the Solaris OS version of the
+<a href="http://docs.sun.com/app/docs/doc/817-0689/6mgfkpcrf?a=view#kinit-1"><code>kinit</code></a>
+utility to obtain and cache Kerberos ticket-granting tickets, you should
+also use the Solaris OS-specific Kerberos database administration program, 
+<code>kadmin</code> (for details type, <code>man kadmin</code>).
+
+<h2>Create keytab files</h2>
+
+Create a keytab file, if it does not exist already, and add entries
+using:
+
+<pre>
+ktab -a &lt;principal_name&gt; &lt;password&gt; -k &lt;keytab_name&gt;
+</pre>
+
+For example, to create a keytab file named as
+<code>krb-servers.keytab</code> in the config directory, which
+contains three entries whose principal names are <code>server</code>,
+<code>phoenix</code>, and <code>reggie</code>, and passwords are 
+<code>serverpw</code>, <code>phoenixpw</code>, and <code>reggiepw</code>
+respectively, you would use the following:
+
+<pre>
+ktab -a server serverpw -k config/krb-servers.keytab
+ktab -a phoenix phoenixpw -k config/krb-servers.keytab
+ktab -a reggie reggiepw -k config/krb-servers.keytab
+</pre>
+
+To check what entries are in a keytab file, use:
+
+<pre>
+ktab -l -k &lt;keytab_name&gt;
+</pre>
+
+To create keytabs when running on Solaris OS, one can use the 
+<code>ktadd</code> command provided under the <code>kadmin</code> 
+utility (for details type, <code>man kadmin</code>).
+
+<h2>Create TGT cache</h2>
+
+<code>kinit</code> can used to obtain and cache Kerberos TGTs.  Here
+are links to the documentation of this command on various platforms 
+([<a href="http://java.sun.com/j2se/1.4/docs/tooldocs/linux/kinit.html">Linux</a>]
+ [<a href="http://java.sun.com/j2se/1.4/docs/tooldocs/windows/kinit.html">Windows</a>]
+ [<a href="http://docs.sun.com/app/docs/doc/817-0689/6mgfkpcrf?a=view#kinit-1">Solaris OS</a>]).
+
+<h2>Kerberos Login module documentation</h2>
+
+The Java Authentication and Authorization Service (<a
+href="http://java.sun.com/j2se/1.4/docs/guide/security/jaas/JAASRefGuide.html">JAAS</a>)
+login module for Kerberos is <code>Krb5LoginModule</code>.  To find
+out what options it supports and how to setup its configuration file,
+click <a
+href="http://java.sun.com/j2se/1.4/docs/guide/security/jaas/spec/com/sun/security/auth/module/Krb5LoginModule.html">here</a>.
+
+</body>
+</html>

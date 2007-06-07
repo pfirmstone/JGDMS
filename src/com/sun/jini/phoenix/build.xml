@@ -1,0 +1,368 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<project name="phoenix" basedir="." default="all">
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## ENVIRONMENT SETTINGS						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <property name="top" location="../../../../.."/>
+
+  <property name="pkg-path" value="com/sun/jini/${ant.project.name}"/>
+
+  <!-- ##								-->
+  <!-- ## Set java-source for use with the javac task:			-->
+  <!-- ##								-->
+
+  <property name="java-source" value="${pkg-path}/**/*.java" />
+  
+  <import file="${top}/build_common.xml"/>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: all							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="all"
+          description=""
+          depends="compile,
+		   this.stubs">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: clean                                                 -->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="clean"
+          description="Removes all files and dirs created by the build."
+          depends="clean.jre.ext">
+
+    <delete dir="${build.classes}/${pkg-path}"
+            quiet="true" verbose="false" />
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.jars						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.jars"
+          depends="phoenix.jar,
+		   phoenix-dl.jar,
+		   phoenix-group.jar,
+		   phoenix-init.jar">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: phoenix.jar						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="phoenix.jar"
+	  depends="tools">
+  
+    <property name="phoenix.deps" location="${build.deps}/phoenix.deps" />
+    
+    <!-- ##								-->
+    <!-- ## Run ClassDep.						-->
+    <!-- ##								-->
+
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${phoenix.deps}">
+          
+      <classpath refid="path.classdep"					/>
+      <arg value="-cp"							/>
+      <arg path="${build.classes}"					/>
+      <arg value="-files"						/>
+      <arg line="${jskprivate.include}"					/>
+
+      <arg line="-in com.sun.jini.phoenix"				/>
+
+      <arg value="com.sun.jini.phoenix.AccessILFactory"			/>
+      <arg value="com.sun.jini.phoenix.Activation"			/>
+      <arg value="com.sun.jini.phoenix.ActivatorPermission"		/>
+      <arg value="com.sun.jini.phoenix.ActivatorSunJrmpExporter"	/>
+      <arg value="com.sun.jini.phoenix.MonitorAccessExporter"		/>
+      <arg value="com.sun.jini.phoenix.MonitorPermission"		/>
+      <arg value="com.sun.jini.phoenix.PhoenixConstants"		/>
+      <arg value="com.sun.jini.phoenix.RegistrySunExporter"		/>
+      <arg value="com.sun.jini.phoenix.SystemAccessExporter"		/>
+      <arg value="com.sun.jini.phoenix.SystemAccessILFactory"		/>
+      <arg value="com.sun.jini.phoenix.SystemAccessProxyTrustILFactory"	/>
+      <arg value="com.sun.jini.phoenix.SystemPermission"		/>
+
+      <arg value="com.sun.jini.phoenix.AbstractActivator_Stub"		/>
+      <arg value="com.sun.jini.phoenix.AbstractInstantiator_Stub"	/>
+      <arg value="com.sun.jini.phoenix.AbstractMonitor_Stub"		/>
+      <arg value="com.sun.jini.phoenix.AbstractRegistry_Skel"		/>
+      <arg value="com.sun.jini.phoenix.AbstractRegistry_Stub"		/>
+      <arg value="com.sun.jini.phoenix.AbstractSystem_Stub"		/>
+
+    </java>
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete file="${build.lib}/phoenix.jar" quiet="true" />
+
+    <jar destfile="${build.lib}/phoenix.jar" 
+         index="false"
+	 manifest="${src.jini.manifest}/phoenix.mf">
+         
+      <fileset	dir="${build.classes}"
+		includesfile="${phoenix.deps}" />
+
+      <fileset	dir="${src.jini}"
+		includes="com/sun/jini/phoenix/resources/*.properties" />
+    </jar>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: phoenix-dl.jar					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="phoenix-dl.jar"
+	  depends="tools">
+  
+    <property name="phoenix-dl.deps" location="${build.deps}/phoenix-dl.deps" />
+    
+    <!-- ##								-->
+    <!-- ## Run ClassDep.						-->
+    <!-- ##								-->
+
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${phoenix-dl.deps}">
+          
+      <classpath refid="path.classdep"					/>
+      <arg value="-cp"							/>
+      <arg path="${build.classes}"					/>
+      <arg value="-files"						/>
+      <arg line="${jskprivate.include}"					/>
+
+      <arg line="-in com.sun.jini.phoenix"				/>
+
+      <arg value="com.sun.jini.phoenix.ConstrainableAID"		/>
+      <arg value="com.sun.jini.phoenix.SystemPermission"		/>
+      <arg value="com.sun.jini.phoenix.ActivatorPermission"		/>
+      <arg value="com.sun.jini.phoenix.MonitorPermission"		/>
+      <arg value="com.sun.jini.phoenix.ExecOptionPermission"		/>
+      <arg value="com.sun.jini.phoenix.ExecPermission"			/>
+      <arg value="com.sun.jini.phoenix.InactiveGroupException"		/>
+      <arg value="com.sun.jini.proxy.BasicProxyTrustVerifier"		/>
+      <arg value="com.sun.jini.phoenix.AbstractActivator_Stub"		/>
+      <arg value="com.sun.jini.phoenix.AbstractMonitor_Stub"		/>
+      <arg value="com.sun.jini.phoenix.AbstractSystem_Stub"		/>
+      <arg value="com.sun.jini.phoenix.AbstractRegistry_Stub"		/>
+
+    </java>
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete file="${build.lib-dl}/phoenix-dl.jar" quiet="true" />
+
+    <jar destfile="${build.lib-dl}/phoenix-dl.jar" 
+         index="false">
+         
+      <fileset	dir="${build.classes}"
+		includesfile="${phoenix-dl.deps}" />
+
+    </jar>
+
+    <!-- ##								-->
+    <!-- ## Generate the Preferred List					-->
+    <!-- ##								-->
+
+    <preferredlistgen>
+
+      <plg-elements>
+
+	<arg line="-cp"							/>
+	<arg path="${build.lib}/jsk-platform.jar"			/>
+  
+	<arg line="-jar"						/>
+	<arg path="${build.lib-dl}/phoenix-dl.jar"			/>
+  
+	<arg line="-jar"						/>
+	<arg path="${build.lib-dl}/jsk-dl.jar"				/>
+  
+	<arg line="-proxy com.sun.jini.phoenix.AbstractSystem_Stub"	/>
+
+      </plg-elements>
+
+    </preferredlistgen>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: phoenix-group.jar					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="phoenix-group.jar"
+	  depends="tools">
+
+    <property name="phoenix-group.deps" location="${build.deps}/phoenix-group.deps" />
+    
+    <!-- ##								-->
+    <!-- ## Run ClassDep.						-->
+    <!-- ##								-->
+
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${phoenix-group.deps}">
+          
+      <classpath refid="path.classdep"					/>
+      <arg value="-cp"							/>
+      <arg path="${build.classes}"					/>
+      <arg value="-files"						/>
+      <arg line="${jskplatform.exclude}"				/>
+      <arg line="-in com.sun.jini"					/>
+      <arg line="-in net.jini"						/>
+
+      <arg value="com.sun.jini.phoenix.ActivationGroupImpl"		/>
+      <arg value="com.sun.jini.phoenix.AccessILFactory"			/>
+      <arg value="com.sun.jini.phoenix.InstantiatorAccessExporter"	/>
+      <arg value="com.sun.jini.phoenix.InstantiatorPermission"		/>
+      <arg value="com.sun.jini.phoenix.AbstractInstantiator_Stub"	/>
+
+    </java>
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete file="${build.lib}/phoenix-group.jar" quiet="true" />
+
+    <jar destfile="${build.lib}/phoenix-group.jar" 
+         index="false">
+         
+      <fileset dir="${build.classes}"  includesfile="${phoenix-group.deps}" />
+
+      <metainf dir="${src.jini.manifest}/phoenix-group/META-INF" />
+
+    </jar>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: phoenix-init.jar					-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="phoenix-init.jar"
+	  depends="tools">
+  
+    <property name="phoenix-init.deps" location="${build.deps}/phoenix-init.deps" />
+    
+    <!-- ##								-->
+    <!-- ## Run ClassDep.						-->
+    <!-- ##								-->
+
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${phoenix-init.deps}">
+          
+      <classpath refid="path.classdep"					/>
+      <arg value="-cp"							/>
+      <arg path="${build.classes}"					/>
+      <arg value="-files"						/>
+      <arg line="${jskplatform.exclude}"				/>
+      <arg line="-in com.sun.jini"					/>
+      <arg line="-in net.jini"						/>
+
+      <arg value="com.sun.jini.phoenix.ActivationGroupInit" />
+
+    </java>
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete file="${build.lib}/phoenix-init.jar" quiet="true" />
+
+    <jar destfile="${build.lib}/phoenix-init.jar" 
+         index="false">
+         
+      <fileset dir="${build.classes}"  includesfile="${phoenix-init.deps}" />
+
+    </jar>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.stubs						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.stubs"
+          description="Builds the RMI stubs for ${ant.project.name}."
+          depends="compile">
+
+    <rmic base="${build.classes}" stubversion="1.2">
+
+      <classpath refid="path.jini" />
+
+      <include name="com/sun/jini/phoenix/AbstractActivator.class" />
+      <include name="com/sun/jini/phoenix/AbstractMonitor.class" />
+      <include name="com/sun/jini/phoenix/AbstractSystem.class" />
+      <include name="com/sun/jini/phoenix/AbstractInstantiator.class" />
+
+    </rmic>
+
+    <rmic base="${build.classes}" stubversion="1.1">
+
+      <classpath refid="path.jini" />
+
+      <include name="com/sun/jini/phoenix/AbstractRegistry.class" />
+
+    </rmic>
+
+  </target>
+
+</project>
+

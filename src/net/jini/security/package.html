@@ -1,0 +1,217 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Provides mechanisms and abstractions for managing security, especially in the
+presence of dynamically downloaded code. The mechanisms include:
+<ul>
+<li>A provider-based mechanism for clients to verify that proxies can be
+trusted
+<li>A provider-based mechanism for verifying code integrity
+<li>A provider-based mechanism for clients to dynamically grant permissions
+to proxies
+</ul>
+
+<a name="programming_model"></a><h2>Programming Model</h2>
+
+When a client obtains a proxy from somewhere, normally the client should
+follow these three steps before making any remote calls through the proxy or
+handing any sensitive data to the proxy:
+<ul>
+<li>Verify that the proxy can be <a href="#proxy_trust">trusted</a>
+<li>Attach client
+<a href="../core/constraint/package-summary.html#constraints">constraints</a>
+to (a copy of) the proxy
+<li><a href="#dynamic_grants">Grant</a> permissions (such as
+{@link net.jini.security.AuthenticationPermission}) to the
+proxy
+</ul>
+The first step can be accomplished using
+{@link net.jini.security.Security#verifyObjectTrust
+Security.verifyObjectTrust}. The second step can be accomplished using
+{@link
+net.jini.core.constraint.RemoteMethodControl#setConstraints
+RemoteMethodControl.setConstraints};
+{@link net.jini.constraint.BasicMethodConstraints} is a basic
+implementation of
+{@link net.jini.core.constraint.MethodConstraints}. The last
+step can be accomplished using
+{@link net.jini.security.Security#grant Security.grant}.
+<p>
+Normally the client should be written in such a way that it can be configured
+to allow for variations in the steps used to prepare a proxy for subsequent
+use. The usual way is to obtain a
+{@link net.jini.security.ProxyPreparer} from a
+{@link net.jini.config.Configuration}, using as a default value
+a {@link net.jini.security.BasicProxyPreparer} that simply
+returns the proxy. The client can then be configured at deployment time to
+perform whatever steps are desired.
+<pre>
+Configuration config = ...;
+SomeService proxy = ...;
+ProxyPreparer preparer = (ProxyPreparer) config.getEntry(
+				"MyClient", "someServicePreparer",
+				ProxyPreparer.class, new BasicProxyPreparer());
+proxy = (SomeService) preparer.prepareProxy(proxy);
+</pre>
+<p>
+{@link net.jini.security.BasicProxyPreparer} can be used to
+perform all combinations of these three common steps of proxy preparation.
+
+<a name="proxy_trust"></a><h2>Proxy Trust</h2>
+
+The basic proxy trust issue can be seen with an example. Suppose the client
+wants to make a remote call through a proxy. The proxy implements the
+{@link net.jini.core.constraint.RemoteMethodControl} interface,
+and the client attaches constraints to the proxy, requiring the server to
+authenticate as a particular principal. If the proxy code has been dynamically
+downloaded, and the client does nothing to verify that it trusts the proxy,
+then the downloaded code might simply ignore the client's constraints and
+perform no authentication at all. The proxy code might also corrupt the data
+being passed in the call, or perform some other unintended operation.
+<p>
+The client needs some way to decide that it trusts a proxy. Rather than
+mandating any specific mechanism(s), a pluggable framework is provided.
+The client calls
+{@link net.jini.security.Security#verifyObjectTrust
+Security.verifyObjectTrust}, passing the proxy and a caller context collection
+that typically contains a
+{@link net.jini.core.constraint.MethodConstraints} instance.
+This method uses whatever
+{@link net.jini.security.TrustVerifier} instances have been
+configured to determine if the proxy can be trusted; if any verifier says
+that it trusts the proxy, then the proxy is assumed to be trusted. If no
+verifier trusts the proxy, a <code>SecurityException</code> is thrown. The
+caller context collection contains whatever context information might be
+required by verifiers; a <code>MethodConstraints</code> element in the
+collection is typically used to control any calls to the remote server that
+are made by verifiers.
+<p>
+A baseline for deciding a proxy can be trusted is to examine the proxy and
+all of its constituent objects, excluding the client constraints, to ensure
+that they are all instances of locally trusted (typically, not downloaded)
+classes, containing trusted data. For example,
+{@link net.jini.jeri.BasicJeriTrustVerifier} provides this
+baseline for basic dynamic proxies of remote objects exported to use Jini(TM)
+extensible remote invocation (Jini ERI), in conjunction with
+{@link net.jini.constraint.ConstraintTrustVerifier}, which
+verifies the standard constraints.
+{@link net.jini.security.proxytrust.ProxyTrustVerifier} depends
+on this baseline as a bootstrap, but ultimately asks the server if it trusts
+the proxy.
+<p>
+The client constraints are excluded from the trust verification of a proxy
+because it is assumed that the caller will subsequently either replace them
+with its own constraints that are known to be trusted, or has independently
+decided to trust the existing client constraints.
+<p>
+Note that trust verification does not prevent denial-of-service attacks. If a
+proxy that uses untrusted code is unmarshalled, the untrusted code can execute
+before trust verification takes place. In deployments where the trusted
+sources of downloaded code are known in advance, the
+{@link net.jini.loader.pref.RequireDlPermProvider} can be used
+to prevent code downloading from untrusted sources.
+
+<a name="dynamic_grants"></a><h2>Dynamic Permission Grants</h2>
+
+Once a client decides that it trusts a proxy, it may need to grant additional
+permissions (such as
+{@link net.jini.security.AuthenticationPermission}) to that
+proxy, so that subsequent calls to the proxy operate correctly. It is
+important to delay granting such permissions until after the trust decision,
+so that an untrusted proxy cannot abuse the grants in a way that might cause
+harm.
+<p>
+Dynamic grants require support from the {@link java.security.Policy} provider.
+The {@link net.jini.security.policy} package provides a standard
+interface for security policy providers capable of dynamic permission grants,
+as well as a set of composable security policy providers supporting dynamic
+permission grants and aggregation of multiple security policies in a single
+virtual machine.
+<p>
+{@link net.jini.security.Security#grantSupported
+Security.grantSupported} can be used to determine if the installed security
+policy supports dynamic grants, and
+{@link net.jini.security.Security#grant Security.grant} can
+be used to make dynamic permission grants. The typical use is to grant
+permissions to the class loader of the proxy object's top-level class,
+coupled with the principals of the currently executing subject:
+<pre>
+SomeService proxy = ...;
+Permission[] grants = ...;
+Security.grant(proxy.getClass(), grants);
+</pre>
+In order to dynamically grant a permission, the client itself must have the
+corresponding {@link net.jini.security.GrantPermission}.
+Because the dynamic grant is coupled with the current subject, proxy code must
+assume that actions executed using
+{@link java.security.AccessController#doPrivileged
+AccessController.doPrivileged} will not have the granted permissions (because
+that method executes the action with no subject);
+{@link net.jini.security.Security#doPrivileged
+Security.doPrivileged} should be used instead to maintain the current subject
+and thereby enable privileges in a way that retains the granted permissions.
+
+<a name="code_integrity"></a><h2>Code Integrity</h2>
+
+As described in the {@link net.jini.core.constraint.Integrity}
+constraint class, for a remote call to have integrity, both code and data must
+have integrity, and a common technique is to use codebase URLs that provide
+content integrity. Rather than mandating which URLs provide content integrity,
+a pluggable framework is provided, and
+{@link net.jini.security.Security#verifyCodebaseIntegrity
+Security.verifyCodebaseIntegrity} can be used to determine if all of the
+URLs in a codebase provide content integrity, based on whatever
+{@link net.jini.security.IntegrityVerifier} instances
+have been configured. Application code normally does not call this method
+directly; rather, it is called by the input streams (such as
+{@link net.jini.io.MarshalInputStream}) used to unmarshal
+objects during a remote call. The
+{@link net.jini.url.httpmd.HttpmdIntegrityVerifier},
+{@link net.jini.url.https.HttpsIntegrityVerifier}, and
+{@link net.jini.url.file.FileIntegrityVerifier} classes are
+provided to verify the integrity of HTTPMD, HTTPS, and FILE URLs, respectively.
+
+@since 2.0
+@version 2.0
+
+<!--
+<h2>Package Specification</h2>
+
+##### FILL IN ANY SPECS NEEDED BY JAVA COMPATIBILITY KIT #####
+<ul>
+  <li><a href="">##### REFER TO ANY FRAMEMAKER SPECIFICATION HERE #####</a>
+</ul>
+
+<h2>Related Documentation</h2>
+
+For overviews, tutorials, examples, guides, and tool documentation, please see:
+<ul>
+  <li><a href="">##### REFER TO NON-SPEC DOCUMENTATION HERE #####</a>
+</ul>
+-->
+
+</body>
+</html>

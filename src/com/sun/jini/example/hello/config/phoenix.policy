@@ -1,0 +1,38 @@
+/* Security policy for non-secure Phoenix */
+
+/* Grant the local JAR files all permissions */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+/* Grant permissions to all */
+grant {
+    /* Permit group options */
+    permission com.sun.jini.phoenix.ExecOptionPermission
+      "-Djava.security.manager=";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+      "-Djava.security.policy=config${/}activatable-server.policy";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+      "-Djava.rmi.server.codebase=http://${serverHost}:8080/server-dl.jar http://${serverHost}:8080/jsk-dl.jar";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+      "-Dconfig=config${/}activatable-jeri-server.config";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission
+      "-DserverHost=${serverHost}";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission 
+      "-classpath";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission 
+      "lib${/}server-act.jar";
+
+    permission com.sun.jini.phoenix.ExecOptionPermission 
+    "-Djava.security.properties=config${/}dynamic-policy.security-properties";
+};

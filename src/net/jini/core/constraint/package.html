@@ -1,0 +1,207 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Defines constraints and collections of constraints that can be used to control
+method invocation, and an interface that proxies implement to allow clients
+to specify constraints for remote method calls. Clients control remote calls
+using <a href="#constraints">constraints</a>. The client attaches the
+constraints to a proxy by calling a method on the
+<a href="#remote_control"><code>RemoteMethodControl</code> interface</a>
+implemented by the proxy. At each remote call through a proxy, the proxy
+implementation is responsible for using communication mechanisms that satisfy
+the client's constraints. If the constraints cannot be satisfied, the proxy
+throws a {@link java.rmi.ConnectIOException}.
+
+<a name="constraints"></a><h2>Invocation Constraints</h2>
+
+All constraint classes implement the
+{@link net.jini.core.constraint.InvocationConstraint} interface.
+The constraint mechanism is designed to be extensible; the constraint classes
+defined in this package should be adequate for many applications, but
+additional constraint classes, either generic in nature or specific to a
+particular mechanism or service, can be defined as necessary. By design, the
+constraints defined in this package express <i>what</i> control is desired,
+not <i>how</i> that control should be achieved; the constraints are not tied
+to specific algorithms, mechanisms, or protocols. Although most of the
+constraints defined in this package are related to trust mechanisms, it is
+intended and expected that a wide variety of constraints will be defined,
+particularly in the area of quality of service.
+<p>
+The basic trust-related constraints are very simple:
+<ul>
+<li>{@link net.jini.core.constraint.Integrity} - to make sure
+that the messages and objects (not just data, but also downloaded code) sent
+over the network are not tampered with by third parties
+<li>{@link net.jini.core.constraint.ServerAuthentication} - to
+prove to the client that the server is executing on behalf of some subject, so
+that the call can be terminated if the subject is not trusted by the client.
+The flip side of this is anonymity: to allow a server to remain anonymous when
+it wants to be.
+<li>{@link net.jini.core.constraint.ClientAuthentication} - to
+prove to the server that the client is executing on behalf of some subject, so
+that the server can perform only those tasks for which the subject is
+authorized. The flip side of this is anonymity: to allow a client to remain
+anonymous when it wants to be.
+<li><a name="delegation"</a>
+{@link net.jini.core.constraint.Delegation} - to allow the
+server to authenticate as the client in remote calls made and received by the
+server, to allow the server to act on a client's behalf when dealing with third
+parties, in cases where the identity of the client (not the server) is what
+matters to those parties.
+</ul>
+<p>
+There are also constraints to control which principals of a client or server
+subject must be authenticated, and which principals of a client are permitted
+to be authenticated:
+<ul>
+<li>{@link net.jini.core.constraint.ClientMinPrincipal} - to
+require a client to authenticate as at least some specific principals
+<li>{@link net.jini.core.constraint.ClientMaxPrincipal} - to
+require a client to authenticate as at most some specific principals
+<li>{@link net.jini.core.constraint.ClientMinPrincipalType} - to
+require a client to authenticate as at least some specific types of principals
+<li>{@link net.jini.core.constraint.ClientMaxPrincipalType} - to
+require a client to authenticate as at most some specific types of principals
+<li>{@link net.jini.core.constraint.ServerMinPrincipal} - to
+require a server to authenticate as at least some specific principals
+</ul>
+<p>
+(There is no <code>ServerMaxPrincipal</code> constraint; a client
+should not need to impose such a maximum, and a server can impose a maximum
+by limiting the contents of the subject it uses for network authentication.)
+<p>
+There are also constraints to control the time during which a server is
+permitted to exercise delegation:
+<ul>
+<li>{@link net.jini.core.constraint.DelegationAbsoluteTime} - to
+specify a range of absolute times
+<li>{@link net.jini.core.constraint.DelegationRelativeTime} - to
+specify a range of times relative to the start of the remote call
+</ul>
+Other constraints defined in this package are:
+<ul>
+<li>{@link net.jini.core.constraint.ConnectionRelativeTime} -
+to control the maximum amount of time to wait for a network connection to be
+established
+<li>{@link net.jini.core.constraint.ConnectionAbsoluteTime} -
+to control the maximum absolute time by which a network connection must be
+established
+<li>{@link net.jini.core.constraint.Confidentiality} - to make
+sure that the data sent over the network cannot be interpreted by third parties
+</ul>
+<p>
+There are no explicit <i>don't care</i> constraints; a <i>don't care</i>
+condition is expressed by the <i>absence</i> of constraints.
+<p>
+Constraints can be combined using
+{@link net.jini.core.constraint.ConstraintAlternatives} to
+express alternatives, such that at least one of the individual constraints
+must be satisfied (but not all have to be satisfied) for the aggregate
+constraint to be satisfied.
+<p>
+{@link net.jini.core.constraint.InvocationConstraints}
+aggregates constraints into a set of requirements and a set of preferences. A
+requirement is a mandatory constraint that must be satisfied. A preference is
+a desired constraint, to be satisfied if possible, but it will not be
+satisfied if it conflicts with a requirement. If two preferences conflict,
+it is arbitrary as to which one will be satisfied. If a constraint is not
+understood, due to lack of knowledge of the type of the constraint or the
+contents of the constraint, then the constraint cannot be satisfied.
+<p>
+Finally, {@link net.jini.core.constraint.MethodConstraints}
+defines a mapping from {@link java.lang.reflect.Method} to
+<code>InvocationConstraints</code>, allowing different constraints to be
+specified for different methods. For example, a client might require client
+authentication for write operations but not for read operations, or a client
+might care about the confidentiality of some remote calls but not others.
+<p>
+Although the emphasis in this discussion has been on how clients use
+constraints, constraints typically are also used by servers to specify their
+minimum requirements for remote calls. When a remote object is exported, the
+server's constraints normally are copied from the exporter into the returned
+proxy, so that the proxy knows the minimum constraints required to communicate
+with the server. Note that constraints are not used to specify server-side
+authorization (access control) policy.
+
+<a name="remote_control"></a>
+<h2><code>RemoteMethodControl</code> interface</h2>
+
+Proxies implement the
+{@link net.jini.core.constraint.RemoteMethodControl} interface
+to allow clients to impose constraints on remote calls. If a proxy implements
+this interface, then the semantics of this interface apply to all calls
+through all remote methods defined by the proxy; there is no mechanism to
+exempt remote methods or remote interfaces from these semantics.
+<p>
+Constraints for a remote call come from two sources:
+<ul>
+<li>Client constraints placed on a proxy
+<li>Constraints imposed by the server (including any minimum constraints
+imposed by the communication mechanism used between the proxy and server)
+</ul>
+The client constraints placed on a proxy are specified with a
+<code>MethodConstraints</code> instance, so the client can specify different
+constraints for each remote method. Client constraints placed directly on a
+proxy apply to all remote calls made through that particular proxy by any
+thread. The server constraints are controlled by the proxy implementation;
+they are not exposed to the client, and might vary in ways unknown to the
+client (for example, vary by method or over time). The client should set the
+constraints it wants rather than assuming that the server imposes particular
+constraints.
+<p>
+A remote call will be performed only if the combined requirements (from both
+sources) can be satisfied. If the requirements cannot be satisfied, the proxy
+throws a {@link java.rmi.ConnectIOException}, typically containing (but not
+required to contain) a nested
+{@link net.jini.io.UnsupportedConstraintException}. In addition
+to the requirements, both client and server preferences will be satisfied, to
+the extent possible. Note that it is possible to specify conflicting
+constraints, meaning they cannot be simultaneously satisfied. Preferences that
+conflict with requirements are ignored, and if preferences conflict with each
+other it is arbitrary as to which (if any) are satisfied, but if there are
+conflicting requirements the remote call will not be made.
+
+@since 2.0
+@version 2.0
+
+<!--
+<h2>Package Specification</h2>
+
+##### FILL IN ANY SPECS NEEDED BY JAVA COMPATIBILITY KIT #####
+<ul>
+  <li><a href="">##### REFER TO ANY FRAMEMAKER SPECIFICATION HERE #####</a>
+</ul>
+
+<h2>Related Documentation</h2>
+
+For overviews, tutorials, examples, guides, and tool documentation, please see:
+<ul>
+  <li><a href="">##### REFER TO NON-SPEC DOCUMENTATION HERE #####</a>
+</ul>
+-->
+
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Provides support for the HTTPMD URL protocol. <p>
+
+HTTPMD URLs provide a way to insure the integrity of data retrieved from
+an HTTP URL. The HTTPMD URL includes a message digest for the data to be
+retrieved from the URL. The URL input stream insures that the data has
+the correct message digest when the end of file for the stream is
+reached. <p>
+
+The {@link net.jini.url.httpmd.Handler} class defines a stream handler
+for HTTPMD URLs. You can specify that this class be used for HTTPMD URLs
+by setting the "java.protocol.handler.pkgs" system property to
+"net.jini.url". See {@link java.net.URL#URL(java.lang.String,
+java.lang.String, int, java.lang.String)} for more details on specifying
+a URL stream protocol handler. <p>
+
+The {@link net.jini.url.httpmd.HttpmdIntegrityVerifier} class defines an
+integrity verifier for HTTPMD URLs. This class is intended to be
+specified in a resource to configure the operation of {@link
+net.jini.security.Security#verifyCodebaseIntegrity
+Security.verifyCodebaseIntegrity}. <p>
+
+The {@link net.jini.url.httpmd.HttpmdUtil} class provides utility
+methods for computing the message digest of data specified by a URL and
+for computing HTTPMD URLs for use in codebases.
+
+@since 2.0
+@version 2.0
+
+@com.sun.jini.impl <!-- Implementation Specifics -->
+
+This implementation of HTTPMD URLs uses the {@link
+java.util.logging.Logger} named <code>net.jini.url.httpmd</code> to log
+information at the following logging levels: <p>
+
+<table border="1" cellpadding="5" summary="Describes logging performed
+       by the HTTPMD URL handler at different logging levels">
+
+<caption halign="center" valign="top"><b><code>
+	 net.jini.url.httpmd</code></b></caption>
+
+<tr> <th scope="col"> Level <th scope="col"> Description
+
+<tr> <td> {@link com.sun.jini.logging.Levels#FAILED FAILED} <td> URL
+     input stream detects an incorrect message digest
+
+</table> <p>
+
+See the {@link com.sun.jini.logging.LogManager} class for one way to use
+the <code>FAILED</code> logging level in standard logging configuration
+files.
+
+<!--
+<h2>Package Specification</h2>
+
+##### FILL IN ANY SPECS NEEDED BY JAVA COMPATIBILITY KIT #####
+<ul>
+  <li><a href="">##### REFER TO ANY FRAMEMAKER SPECIFICATION HERE #####</a>
+</ul>
+
+<h2>Related Documentation</h2>
+
+For overviews, tutorials, examples, guides, and tool documentation, please see:
+<ul>
+  <li><a href="">##### REFER TO NON-SPEC DOCUMENTATION HERE #####</a>
+</ul>
+-->
+
+</body>
+</html>

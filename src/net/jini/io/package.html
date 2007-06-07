@@ -1,0 +1,89 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+</head>
+<body bgcolor="white">
+
+Provides I/O interfaces and utility classes.
+
+<h2><code>ObjectStreamContext</code></h2>
+
+<p>The interface {@link net.jini.io.ObjectStreamContext} may be
+implemented by an object serialization stream class (a subclass of
+{@link java.io.ObjectOutputStream} or {@link
+java.io.ObjectInputStream}) to provide each object being serialized or
+deserialized with access to context information relevant to the
+overall serialization or deserialization operation.  The class of an
+object that is being serialized or deserialized can test (in its
+private <code>writeObject(ObjectOutputStream)</code> or
+<code>readObject(ObjectInputStream)</code> method) if the object
+stream being used is an instance of <code>ObjectStreamContext</code>.
+If the stream class does implement that interface, the class can then
+retrieve the context information (as a {@link java.util.Collection
+Collection} of context objects) by invoking the stream's
+<code>getObjectStreamContext</code> method.  The context information
+available from a given element of the collection is determined by that
+element's type.  Examples of types that a context object might
+implement include {@link net.jini.io.context.ClientHost} and {@link
+net.jini.io.context.ClientSubject}.
+
+<h2><code>MarshalOutputStream</code> and <code>MarshalInputStream</code></h2>
+
+<p>The classes {@link net.jini.io.MarshalOutputStream} and {@link
+net.jini.io.MarshalInputStream} extend the object serialization stream
+classes {@link java.io.ObjectOutputStream} and {@link
+java.io.ObjectInputStream} to implement the dynamic class loading
+semantics of RMI argument and result marshalling and unmarshalling.
+<code>MarshalOutputStream</code> and <code>MarshalInputStream</code>
+use {@link java.rmi.server.RMIClassLoader} to get class annotations
+for marshalling and to resolve codebase annotations to {@link
+java.lang.Class} objects for unmarshalling.
+<code>MarshalInputStream</code> supports optional verification that
+the codebase annotation URLs used to resolve classes provide content
+integrity (see {@link
+net.jini.security.Security#verifyCodebaseIntegrity
+Security.verifyCodebaseIntegrity}).  <code>MarshalOutputStream</code>
+and <code>MarshalInputStream</code> may be extended (in concert) to
+communicate class annotations in a way other than in the streams' own
+data.  Both <code>MarshalOutputStream</code> and
+<code>MarshalInputStream</code> implement
+<code>ObjectStreamContext</code>.
+
+<h2><code>MarshalledInstance</code></h2>
+
+<p>A {@link net.jini.io.MarshalledInstance} contains an object in
+serialized form.  A <code>MarshalledInstance</code> can be
+unmarshalled on demand, allowing an object to be sent in such a way
+that the receiver can control when and in what context the object is
+unmarshalled.  <code>MarshalledInstance</code> provides functionality
+similar to {@link java.rmi.MarshalledObject}, but it additionally
+supports use of object stream contexts and optional verification that
+the codebase annotation URLs used to resolve classes provide content
+integrity.  A convenience constructor and method are provided for
+converting between <code>MarshalledObject</code> and
+<code>MarshalledInstance</code> instances.
+
+@since 2.0
+@version 2.0
+
+</body>
+</html>

@@ -1,0 +1,53 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+</head>
+<body bgcolor="white">
+
+Provides interfaces and utility classes related to dynamic class
+loading with {@link java.rmi.server.RMIClassLoader}.  Some of these
+APIs depend on support that is not required of all
+<code>RMIClassLoader</code> providers.
+
+<p>The {@link net.jini.loader.ClassAnnotation} interface may be
+implemented by a {@link java.lang.ClassLoader} to customize the
+behavior of {@link java.rmi.server.RMIClassLoader#getClassAnnotation
+RMIClassLoader.getClassAnnotation} for classes defined by an instance
+of such a class loader (if <code>ClassAnnotation</code> is supported
+by the current <code>RMIClassLoader</code> provider).
+
+<p>{@link net.jini.loader.DownloadPermission} can be used to restrict
+the {@link java.security.CodeSource} values (codebase URLs and
+signers) with which downloaded classes can be defined using
+<code>RMIClassLoader</code> (if <code>DownloadPermission</code> is
+supported by the current <code>RMIClassLoader</code> provider).
+
+<p>{@link net.jini.loader.ClassLoading} provides static methods for
+loading classes using <code>RMIClassLoader</code> with optional
+verification that the codebase URLs used to load classes provide
+content integrity.
+
+@since 2.0
+@version 2.0
+
+</body>
+</html>

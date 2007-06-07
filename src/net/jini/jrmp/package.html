@@ -1,0 +1,78 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Provides an {@link net.jini.export.Exporter} implementation,
+{@link net.jini.jrmp.JrmpExporter}, that can be used to export
+and unexport activatable and non-activatable 
+<a href="http://java.sun.com/j2se/1.4/docs/guide/rmi/">JRMP</a> remote objects.
+<code>JrmpExporter</code> acts as an adapter between existing methods for
+(un)exporting remote objects over JRMP (e.g.,
+{@link java.rmi.server.UnicastRemoteObject#exportObject(java.rmi.Remote)
+UnicastRemoteObject.exportObject}, 
+{@link java.rmi.activation.Activatable#exportObject(java.rmi.Remote,
+java.rmi.activation.ActivationID, int) Activatable.exportObject}) and the
+<code>Exporter</code> interface.  By performing export and unexport operations
+through {@link net.jini.config.Configuration}-provided
+<code>Exporter</code> instances, applications can be configured and deployed at
+run-time to use <code>JrmpExporter</code> and/or other <code>Exporter</code>
+implementations.  See the {@link net.jini.config} package
+documentation for examples on configurable exporting.
+
+<p>This package also defines 
+{@link net.jini.jrmp.JrmpServerContext}--a JRMP-based
+implementation of the 
+{@link net.jini.export.ServerContext} service provider interface
+{@link net.jini.export.ServerContext.Spi}.
+This class is not intended for direct use by applications; rather, it can be
+configured as one of the providers that <code>ServerContext</code> consults
+when determining the current server context, allowing applications written to
+the generic <code>Exporter</code> API to use the generic
+<code>ServerContext</code> API for obtaining server context, even if running
+over JRMP.  For information on configuring <code>ServerContext</code>
+providers, see the documentation for
+{@link net.jini.export.ServerContext#getServerContext}.
+
+@since 2.0
+@version 2.0
+
+<!--
+<h2>Package Specification</h2>
+
+##### FILL IN ANY SPECS NEEDED BY JAVA COMPATIBILITY KIT #####
+<ul>
+  <li><a href="">##### REFER TO ANY FRAMEMAKER SPECIFICATION HERE #####</a>
+</ul>
+
+<h2>Related Documentation</h2>
+
+For overviews, tutorials, examples, guides, and tool documentation, please see:
+<ul>
+  <li><a href="">##### REFER TO NON-SPEC DOCUMENTATION HERE #####</a>
+</ul>
+-->
+
+</body>
+</html>

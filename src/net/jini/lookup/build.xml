@@ -1,0 +1,177 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<project name="lookup" basedir="." default="all">
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## ENVIRONMENT SETTINGS						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <property name="top" location="../../../.."/>
+
+  <property name="pkg-path" value="net/jini/${ant.project.name}"/>
+
+  <!-- ##								-->
+  <!-- ## Set java-source for use with the javac task:			-->
+  <!-- ##								-->
+
+  <property name="java-source" value="${pkg-path}/**/*.java" />
+  
+  <import file="${top}/build_common.xml"/>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: all							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="all"
+          description=""
+          depends="compile">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##                                                               -->
+  <!-- ## TARGET: clean                                                 -->
+  <!-- ##                                                               -->
+  <!-- ################################################################ -->
+
+  <target name="clean"
+          description="Removes all files and dirs created by the build."
+          depends="clean.jre.ext">
+
+    <!-- ##                                                             -->
+    <!-- ## Delete the applicable build files and directories.		-->
+    <!-- ##                                                             -->
+
+    <delete dir="${build.classes}/${pkg-path}" quiet="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.jars							-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.jars"
+          depends="sdm-dl.jar">
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: sdm-dl.jar						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="sdm-dl.jar"
+	  depends="tools">
+  
+    <property name="sdm-dl.deps" location="${build.deps}/sdm-dl.deps" />
+    
+    <!-- ##								-->
+    <!-- ## Run ClassDep.						-->
+    <!-- ##								-->
+
+    <java classname="com.sun.jini.tool.ClassDep"
+          failonerror="true"
+          output="${sdm-dl.deps}">
+          
+      <classpath refid="path.classdep"				/>
+      <arg value="-cp"						/>
+      <arg path="${build.classes}"				/>
+      <arg value="-files"					/>
+      <arg line="${jskplatform.exclude}"			/>
+
+      <arg line="-in com.sun.jini"				/>
+      <arg line="-in net.jini"					/>
+
+      <arg value="com.sun.jini.proxy.BasicProxyTrustVerifier"	/>
+      <arg value="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
+
+    </java> 
+
+    <!-- ##								-->
+    <!-- ## Generate the jar file.					-->
+    <!-- ##								-->
+
+    <delete file="${build.lib-dl}/sdm-dl.jar" quiet="true"/>
+
+    <jar destfile="${build.lib-dl}/sdm-dl.jar"
+	 index="false">
+         
+      <fileset dir="${build.classes}"  includesfile="${sdm-dl.deps}" />
+      
+    </jar>
+
+    <!-- ##								-->
+    <!-- ## Generate the Preferred List					-->
+    <!-- ##								-->
+
+    <preferredlistgen>
+
+      <plg-elements>
+
+	<arg line="-cp"							/>
+	<arg path="${build.lib}/jsk-platform.jar"			/>
+  
+	<arg line="-jar"						/>
+	<arg path="${build.lib-dl}/sdm-dl.jar"				/>
+  
+	<arg line="-jar"						/>
+	<arg path="${build.lib-dl}/jsk-dl.jar"				/>
+  
+	<arg line="-proxy net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub" />
+
+      </plg-elements>
+
+    </preferredlistgen>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: this.stubs						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="this.stubs"
+          description="Builds the RMI stubs for ${ant.project.name}."
+          depends="compile">
+
+    <rmic base="${build.classes}" stubversion="1.2">
+
+      <classpath refid="path.jini" />
+
+      <include name="net/jini/lookup/ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener.class"/>
+
+    </rmic>
+
+  </target>
+
+</project>
+

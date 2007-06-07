@@ -1,0 +1,7 @@
+# non-activatable persistent fiddler configuration entries
+com.sun.jini.fiddler.initialPersistenceSnapshotThreshold: int
+com.sun.jini.fiddler.initialPersistenceSnapshotWeight: float
+com.sun.jini.fiddler.persistenceDirectory: String
+com.sun.jini.fiddler.recoveredListenerPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.fiddler.recoveredLocatorToDiscoverPreparer: net.jini.security.ProxyPreparer
+com.sun.jini.fiddler.recoveredLocatorToJoinPreparer: net.jini.security.ProxyPreparer

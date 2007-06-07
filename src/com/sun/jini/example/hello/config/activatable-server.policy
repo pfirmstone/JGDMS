@@ -1,0 +1,10 @@
+/* Security policy for non-secure, activatable server */
+
+/* Grant local JAR files all permissions */
+grant codeBase "file:..${/}..${/}..${/}..${/}..${/}..${/}..${/}lib${/}*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:lib${/}*" {
+    permission java.security.AllPermission;
+};
