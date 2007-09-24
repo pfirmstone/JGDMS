@@ -13,3 +13,15 @@ Copyright 2002-2005 Geoffrey Arnold (http://www.geoffreyarnold.com)
 This product contains code derived from the Ant build script contributed 
 to the Jini Community by Geoffrey Arnold (http://www.geoffreyarnold.com).
 
+Copyright 2000-2005 Artima Software, Inc.
+Portions of this software were developed by Bill Venners of Artima, Inc., who
+led the ServiceUI project. The ServiceUI project, which was hosted at jini.org,
+was tasked with defining a "standard" approach to attaching UIs to Jini services.
+The ServiceUI specification and API represent the best amalgamation of the ideas
+contributed by all the people who participated in the serviceui project. 
+   
+The original two releases of the ServiceUI API, including specifications
+and code, are available from:
+   
+	http://www.artima.com/jini/serviceui/index.html
+

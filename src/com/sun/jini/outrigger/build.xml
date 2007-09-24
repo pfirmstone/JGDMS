@@ -46,7 +46,6 @@
   <target name="all"
           description=""
           depends="compile,
-		   build-psepro-classes,
 		   this.stubs">
 
   </target>
@@ -63,7 +62,6 @@
           depends="clean.jre.ext">
 
     <delete dir="${build.classes}/${pkg-path}"	quiet="true"/>
-    <delete dir="${build.classes.pse}"		quiet="true"/>
 
   </target>
 
@@ -120,12 +118,6 @@
     <!-- ## Generate the jar file.					-->
     <!-- ##								-->
 
-    <!-- Note that the preferred list for outrigger.jar is not generated-->
-    <!-- by preferredlistgen. This is because pro.zip, which is in the  -->
-    <!-- class-path of outrigger-logstore.jar, may not be present. This -->
-    <!-- result in a error when preferredlistgen preformed a class      -->
-    <!-- search.							-->
-
     <delete file="${build.lib}/outrigger.jar" quiet="true"/>
 
     <jar destfile="${build.lib}/outrigger.jar" 
@@ -148,11 +140,10 @@
   <!-- ################################################################ -->
 
   <target name="store.jars" >
-    <ant inheritAll="false" dir="logstore"
-         target="outrigger-logstore.jar" />
 
     <ant inheritAll="false" dir="snaplogstore"
          target="outrigger-snaplogstore.jar" />
+
   </target>
 
   <!-- ################################################################ -->

@@ -113,7 +113,6 @@
     </condition>
 
     <property name="build.classes"	location="${build}/classes"		/>
-    <property name="build.classes.pse"	location="${build}/classesPSE"		/>
     <property name="build.deps"         location="${build}/deps"		/>
     <property name="build.doc"          location="${build}/doc"			/>
     <property name="build.doc.api"      location="${build.doc}/api"		/>
@@ -194,36 +193,6 @@
 	      value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager" />
 
     <!-- ##								-->
-    <!-- ## Uncomment the following lines, and set the pro-zip-home 	-->
-    <!-- ## variable if you have Progress Software's ObjectStore PSEPro	-->
-    <!-- ##								-->
-
-    <!-- property name="have-psepro"	value="true"/ -->
-
-    <!-- property name="pro-zip-home"	location=""/  -->
-
-    <!-- ##								-->
-    <!-- ## Set the PSEpro zip-file properties: 			-->
-    <!-- ##								-->
-
-    <condition property="pro-zip-home" value="${lib}">
-      <not> <isset property="pro-zip-home"/> </not>
-    </condition>
-
-    <condition property="psepro-zip" value="${pro-zip-home}/pro.zip">
-      <available file="${pro-zip-home}/pro.zip"/>
-    </condition>
-
-    <!-- ##								-->
-    <!-- ## If the PSEpro zip-file does not exist, we'll need to 	-->
-    <!-- ## exclude the logstore sources from the build:		-->
-    <!-- ##								-->
-
-    <condition property="logstore-excludes" value="**/logstore/**">
-      <not> <isset property="psepro-zip"/> </not>
-    </condition>
-
-    <!-- ##								-->
     <!-- ## Display some of our property settings:			-->
     <!-- ##								-->
 
@@ -269,7 +238,6 @@
 	    <include name="mercury.jar"			/>
 	    <include name="norm.jar"			/>
 	    <include name="outrigger.jar"		/>
-	    <include name="outrigger-logstore.jar"	/>
 	    <include name="phoenix.jar"			/>
 	    <include name="phoenix-group.jar"		/>
 	    <include name="phoenix-init.jar"		/>
@@ -316,7 +284,6 @@
 
     <mkdir dir="${build}"		/>
     <mkdir dir="${build.classes}"	/>
-    <mkdir dir="${build.classes.pse}"	/>
     <mkdir dir="${build.deps}"		/>
     <mkdir dir="${build.doc}"		/>
     <mkdir dir="${build.doc.api}"	/>
@@ -341,7 +308,6 @@
 
     <path id="path.jini">
       <pathelement path="${build.classes}" />
-      <pathelement location="${psepro-zip}"/>
     </path>
 
     <path id="path.tools">
@@ -519,8 +485,6 @@
          <classpath  refid="path.jini"/>
          <patternset refid="@{source.pat}"/>
 
-         <exclude name="${logstore-excludes}"/>
-
        </javac>
      </sequential>
 
@@ -622,7 +586,6 @@
       <package name="com.sun.jini.mercury"			/>
       <package name="com.sun.jini.norm"				/>
       <package name="com.sun.jini.outrigger"			/>
-      <package name="com.sun.jini.outrigger.logstore"		/>
       <package name="com.sun.jini.outrigger.snaplogstore"	/>
       <package name="com.sun.jini.phoenix"			/>
       <package name="com.sun.jini.proxy"			/>
@@ -833,50 +796,6 @@
 
   <!-- ################################################################ -->
   <!-- ##								-->
-  <!-- ## TARGET: build-psepro-classes					-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="build-psepro-classes"
-	  if="have-psepro"
-          description="Build the classes that require PSEpro processing."
-          depends="setup-all">
-
-    <echo message="Running ant psepro-classes in ${src.jini}/com/sun/jini/outrigger/logstore/build.xml"/>
-
-    <ant target="psepro-classes"
-	 antfile="build.xml"
-	 dir="${src.jini}/com/sun/jini/outrigger/logstore"
-	 inheritall="false"
-         inheritrefs="true"/>
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: copy-psepro-zip					-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="copy-psepro-zip"
-	  if="psepro-zip"
-          description=""
-          depends="setup-all">
-
-    <echo message="Running ant copy-pro-zip in ${src.jini}/com/sun/jini/outrigger/logstore/build.xml"/>
-
-    <ant target="copy-pro-zip"
-	 antfile="build.xml"
-	 dir="${src.jini}/com/sun/jini/outrigger/logstore"
-	 inheritall="false"
-         inheritrefs="true"/>
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
   <!-- ## TARGET: install.policy					-->
   <!-- ##								-->
   <!-- ################################################################ -->
@@ -984,7 +903,6 @@
 		   clean.jre.ext">
 
     <delete dir="${build.classes}"	quiet="true"/>
-    <delete dir="${build.classes.pse}"	quiet="true"/>
     <delete dir="${build.deps}"		quiet="true"/>
     <delete dir="${build.doc.api}"	quiet="true"/>
     <delete dir="${entry.dest.dir}"     quiet="true"/>

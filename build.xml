@@ -42,11 +42,10 @@
 
   <target name="all"
 	  description="Builds all sources."
-	  depends="copy-psepro-zip,
+	  depends="setup-all,
 		   configentry,
 		   compile,
 		   compile.local,
-		   build-psepro-classes,
 		   copy-resources,
 		   stubs,
 		   tools">

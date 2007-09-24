@@ -1,2 +1,2 @@
 Manifest-Version: 1.0
-Class-Path: outrigger-logstore.jar outrigger-snaplogstore.jar jsk-lib.jar
+Class-Path: outrigger-snaplogstore.jar jsk-lib.jar

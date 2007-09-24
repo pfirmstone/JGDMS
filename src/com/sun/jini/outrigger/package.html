@@ -36,23 +36,19 @@ non-activatable server.<p>
 <code>PersistentOutriggerImpl</code> relies on a pluggable persistence
 layer, {@link com.sun.jini.outrigger.Store}. Which implementation of the
 <code>Store</code> interface to use is controlled by the <a
-href="#store"><code>store</code></a> configuration entry. Unlike previous
-releases there is no default <code>Store</code> implementation.
+href="#store"><code>store</code></a> configuration entry. Unlike some
+previous releases there is no default <code>Store</code> implementation.
 <p>
 
-This release includes two implementation of the <code>Store</code>
+This release includes one implementation of the <code>Store</code>
 interface. {@link com.sun.jini.outrigger.snaplogstore.LogStore
-com.sun.jini.outrigger.snaplogstore.LogStore} and {@link
-com.sun.jini.outrigger.logstore.LogStore
-com.sun.jini.outrigger.logstore.LogStore}. Logstore is the original
-implementation of the <code>Store</code> interface and was the previous
-default. Snapstore was introduced in the 2.1beta2 release. Logstore scales
-better than snaplogstore if the space is going to end up holding a lot of
-data. Unfortunately because of issues relating to the transition in
-licensing, this release does not include the file <code>pro.zip</code>,
-without which logstore will not work. We are sorry for any inconvenience
-this will cause (we hope to make a release with a complete version of
-logstore available as a separate download in the future. ).<p>
+com.sun.jini.outrigger.snaplogstore.LogStore}, also called
+<em>Snaplogstore</em>.  Snaplogstore was introduced in the 2.1beta2
+release. The original implementation of the <code>Store</code> interface,
+<code>com.sun.jini.outrigger.logstore.LogStore</code>, or <em>Logstore</em>
+for short, is no longer available. Snaplogstore and Logstore have different
+scalability characteristics, so if you were using Logstore in the past you
+many want to evaluate how your application works with Snaplogstore.
 
 Because there is no default <code>Store</code> implementation if your are
 using <code>PersistentOutriggerImpl</code> you will need to provide a value
@@ -62,7 +58,7 @@ href="#persistenceDirectory"><code>persistenceDirectory</code></a>
 configuration entry).
 <p>
 
-The storage formats used by snaplogstore and logstore are mutually
+The storage formats used by Snaplogstore and Logstore are mutually
 incompatible.<p>
 
 The JAR file <code>outrigger.jar</code>, included in the <code>lib</code>
@@ -77,21 +73,10 @@ properly.<p>
 <code>outrigger.jar</code> also includes, via a JAR file manifest classpath
 directive, a reference to <code>outrigger-snaplogstore.jar</code>.
 <code>outrigger-snaplogstore.jar</code> adds the classes necessary to run
-<code>PersistentOutriggerImpl</code> with the snaplogstore implementation of
+<code>PersistentOutriggerImpl</code> with the Snaplogstore implementation of
 <code>Store</code>, and must be in the same directory as
 <code>outrigger.jar</code> for <code>PersistentOutriggerImpl</code> to
 operate properly with snaplogstore.<p>
-
-Finally, <code>outrigger.jar</code> includes, via JAR file manifest
-classpath directives, a reference to <code>outrigger-logstore.jar</code>,
-and (via <code>outrigger-logstore.jar</code>'s manifest)
-<code>pro.zip</code>. <code>outrigger-logstore.jar</code> and
-<code>pro.zip</code> add the classes necessary to run
-<code>PersistentOutriggerImpl</code> with the logstore implementation of
-<code>Store</code>.  <code>outrigger-logstore.jar</code> and
-<code>pro.zip</code> must be in the same directory as
-<code>outrigger.jar</code> for <code>PersistentOutriggerImpl</code> to
-operate properly with logstore. <p>
 
 The JAR files <code>outrigger-dl.jar</code> and <code>jsk-dl.jar</code> in
 the <code>lib-dl</code> directory contain the classes needed to
@@ -377,33 +362,6 @@ new {@link net.jini.discovery.LookupDiscoveryManager}(
       service start and restart.
   </table>
 
-<a name="gcInterval"></a>
-<table summary="Describes the gcInterval configuration entry"
-	 border="0" cellpadding="2">
-    <tr valign="top">
-      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
-      <th scope="col" align="left" colspan="2"> <font size="+1">
-      <code>gcInterval</code></font>
-    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Type: <td> <code>int</code>
-    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Default: <td> <code>5</code>
-    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-
-      Description: <td> How often should Outrigger garbage collect the
-      persistent store. Only consulted if {@link
-      com.sun.jini.outrigger.logstore.LogStore
-      com.sun.jini.outrigger.logstore.LogStore} is being used for the
-      <code><a href="#store">store</a></code> configuration entry.
-      Outrigger writes directives into logs that are consumed by a consumer
-      thread. The consumer thread applies the directives to the persistent
-      store. This configuration entry represents how many logs must be
-      consumed before the persistent store is garbage collected. Must be a
-      positive <code>int</code> value. See also the <a
-      href="#maxOps"><code>maxOps</code></a> configuration entry. Obtained
-      at service start and restart.
-  </table>
-
 <a name="initialLookupAttributes"></a>
 <table summary="Describes the initialLookupAttributes configuration entry"
 	 border="0" cellpadding="2">
@@ -592,16 +550,13 @@ new {@link net.jini.discovery.LookupDiscoveryManager}(
       Description: <td> Maximum number of persistent store directives that
       can be written to a log. Only consulted if {@link
       com.sun.jini.outrigger.snaplogstore.LogStore
-      com.sun.jini.outrigger.snaplogstore.LogStore} or {@link
-      com.sun.jini.outrigger.logstore.LogStore
-      com.sun.jini.outrigger.logstore.LogStore} are being used for the <a
+      com.sun.jini.outrigger.snaplogstore.LogStore} is being used for the <a
       href="#store">store</a> configuration entry.  Outrigger writes
       directives for the persistent store into logs that are consumed by a
       consumer thread.  This configuration entry represents the maximum
       number of directives that can be written before a new log is
-      created. Must be a positive <code>int</code> value. If using logstore
-      see also the <a href="#gcInterval"> <code>gcInterval</code></a>
-      configuration entry. Obtained at service start and restart.
+      created. Must be a positive <code>int</code> value. 
+      Obtained at service start and restart.
   </table>
 
 <a name="maxServerQueryTimeout"></a>
@@ -701,10 +656,8 @@ new {@link net.jini.discovery.LookupDiscoveryManager}(
 
       Description: <td> If the {@link
       com.sun.jini.outrigger.snaplogstore.LogStore
-      com.sun.jini.outrigger.snaplogstore.LogStore} or {@link
-      com.sun.jini.outrigger.logstore.LogStore
-      com.sun.jini.outrigger.logstore.LogStore} implementations of {@link
-      com.sun.jini.outrigger.Store} are being used, the value of this entry
+      com.sun.jini.outrigger.snaplogstore.LogStore} implementations of {@link
+      com.sun.jini.outrigger.Store} is being used, the value of this entry
       is the name of the directory that should be used to persist
       Outrigger's state.  Obtained at persistent service start and restart.
   </table>
@@ -934,17 +887,6 @@ new {@link net.jini.discovery.LookupDiscoveryManager}(
       com.sun.jini.outrigger.snaplogstore.LogStore(this)}
       <code> // `this' == the configuration object</code>
       <p>
-
-      A {@link com.sun.jini.outrigger.logstore.LogStore
-      com.sun.jini.outrigger.logstore.LogStore} instance can
-      be created like this:
-      <p>
-
-      <code>new </code>{@link
-      com.sun.jini.outrigger.logstore.LogStore#LogStore 
-      com.sun.jini.outrigger.logstore.LogStore(this)}
-      <code> // `this' == the configuration object</code>
-
   </table>
 
 <a name="takeMultipleLimit"></a>
@@ -1564,14 +1506,6 @@ grant codebase "file:<var><b>install_dir</b></var>/lib/outrigger-snaplogstore.ja
     permission java.security.AllPermission;
 };
 
-grant codebase "file:<var><b>install_dir</b></var>/lib/outrigger-logstore.jar" {
-    permission java.security.AllPermission;
-};
-
-grant codebase "file:<var><b>install_dir</b></var>/lib/pro.zip" {
-    permission java.security.AllPermission;
-};
-
 grant codebase "file:<var><b>install_dir</b></var>/lib/phoenix-group.jar" {
     permission java.security.AllPermission;
 };
@@ -1756,7 +1690,7 @@ com.sun.jini.start {
 </a>
 
 Use this configuration source file to run activatable Outrigger using JRMP
-and the snaplogstore implementation of <code>Store</code>. <p>
+and the Snaplogstore implementation of <code>Store</code>. <p>
 
 <blockquote>
 <pre>
@@ -1974,7 +1908,7 @@ com.sun.jini.start {
 </a>
 
 Use this configuration source file to run persistent Outrigger using Jini
-ERI and the snaplogstore implementation of <code>Store</code>. <p>
+ERI and the Snaplogstore implementation of <code>Store</code>. <p>
 
 <blockquote>
 <pre>
@@ -2152,7 +2086,7 @@ com.sun.jini.start {
 </a>
 
 Use this configuration source file to run activatable Outrigger using Jini
-ERI the snaplogstore implementation of <code>Store</code>. <p>
+ERI the Snaplogstore implementation of <code>Store</code>. <p>
 
 <blockquote>
 <pre>
@@ -2173,3 +2107,4 @@ com.sun.jini.outrigger {
 
 </BODY>
 </HTML>
+

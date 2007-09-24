@@ -1,5 +1,4 @@
 # non-activatable persistent outrigger configuration entries
-com.sun.jini.outrigger.gcInterval: int
 com.sun.jini.outrigger.maxOps: int
 com.sun.jini.outrigger.persistenceDirectory: String
 com.sun.jini.outrigger.recoveredListenerPreparer: net.jini.security.ProxyPreparer
