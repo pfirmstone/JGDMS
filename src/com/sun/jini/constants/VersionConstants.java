@@ -25,5 +25,5 @@ package com.sun.jini.constants;
  */
 public interface VersionConstants {
     /** Current version of the Jini(tm) Software Kit (JSK) */ 
-    String SERVER_VERSION = "2.1";
+    String SERVER_VERSION = "2.1.1";
 }
