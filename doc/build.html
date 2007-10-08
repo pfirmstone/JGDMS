@@ -46,8 +46,7 @@ you installed the starter kit distribution.
 
 <p>
 <b>NOTE</b>:<i> Please do not attempt to build the starter kit JAR files
-without first taking note of the <a href="#outrigger"> Outrigger build
-issues</a>, and the
+without first taking referencing the 
 <a href="http://developer.java.sun.com/developer/products/jini/tested.html"> 
 platforms on which the starter kit has been tested</a></i>.
 
@@ -166,6 +165,19 @@ where the basic targets are:
     <br><br>
       &nbsp;&nbsp; <code><B><VAR>install_dir</VAR></B>/source/doc/specs/api</code>
 
+    <p>
+    <dt>
+    <b>build.release</b><br>
+    This target will compile everything, generate the jar files, generate the javadoc,
+    and produce the distribution bundles (binary and source) in the top-level "dist"
+    directory.
+
+    <p>
+    <dt>
+    <b>release</b><br>
+    This target assumes everything is built and will only produce distribution bundles
+    (binary and source) in the top-level "dist" directory.
+
   </dl>
 </blockquote>
 
@@ -176,43 +188,6 @@ want those changes considered for use in our next release, please submit your
 modifications to <code>jini-comments@sun.com</code> for consideration.
 
 <p>
-<hr>
-<a name="outrigger">
-<h2>Outrigger build issues</h2>
-
-<code>PersistentOutriggerImpl</code> (the contributed persistent
-implementation of JavaSpaces(TM) technology from Sun Microsystems) relies
-on a pluggable persistence layer, <a
-href="api/com/sun/jini/outrigger/Store.html"><code>com.sun.jini.outrigger.Store</code></a>.
-This release includes two implementations of the <code>Store</code>
-interface, <a
-href="api/com/sun/jini/outrigger/logstore/LogStore.html">logstore</a>
-and <a
-href="api/com/sun/jini/outrigger/snaplogstore/LogStore.html">snaplogstore</a>.
-By default,
-<code>PersistentOutriggerImpl</code> uses the snaplogstore implementation.
-<p>
-
-Logstore depends on Progress Software's <i>ObjectStore PSEPro for Java</i>
-(PSEPro) to persist the contents of the space to disk.  PSEPro requires the
-post processing of the class files for any objects that are going to be
-persisted.  PSEPro also requires a set of runtime classes. Neither the
-runtime classes nor post processor are distributed in this release of
-the starter kit. As a result, unless you have obtained the PSEPro
-development tools (in particular Release 6.0 Service Pack 7), you cannot
-build <code>LogStore</code> from its source code (note, logstore's source
-code is included in this release).
-<p>
-
-If you use the above process to build the starter kit, you will be able to
-build <code>TransientOutriggerImpl</code> (the contributed,
-<i>non-persistent</i> implementation of JavaSpaces technology from Sun
-Microsystems), <code>PersistentOutriggerImpl</code>, and snaplogstore
-(along with the non-Outrigger parts of the starter kit). If PSEPro's
-runtime classes are not present, the above process will not (re)build the
-<code>logstore</code> package or the associated archive files.
-<p>
-
 <hr>
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file

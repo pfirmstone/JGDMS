@@ -112,21 +112,26 @@
       <not> <isset property="src.tools"/> </not>
     </condition>
 
+    <property name="lib.dir"		value="lib"				/>
+    <property name="lib-dl.dir"		value="lib-dl"				/>
+    <property name="lib-ext.dir"	value="lib-ext"				/>
+
+    <property name="lib"		location="${env.JINI_HOME}/${lib.dir}"	  />
+    <property name="lib-dl"		location="${env.JINI_HOME}/${lib-dl.dir}" />
+    <property name="lib-ext"		location="${env.JINI_HOME}/${lib-ext.dir}"/>
+
     <property name="build.classes"	location="${build}/classes"		/>
     <property name="build.deps"         location="${build}/deps"		/>
+    <property name="build.dist"         location="${build}/dist"		/>
     <property name="build.doc"          location="${build}/doc"			/>
     <property name="build.doc.api"      location="${build.doc}/api"		/>
     <property name="build.doc.spec.api" location="${build.doc}/specs/api"	/>
-    <property name="build.lib"          location="${build}/lib"			/>
-    <property name="build.lib-dl"       location="${build}/lib-dl"		/>
-    <property name="build.lib-ext"      location="${build}/lib-ext"		/>
+    <property name="build.lib"		location="${build}/${lib.dir}"		/>
+    <property name="build.lib-dl"	location="${build}/${lib-dl.dir}"	/>
+    <property name="build.lib-ext"	location="${build}/${lib-ext.dir}"	/>
 
     <property name="entry.dest.dir"	location="${build}/configentry"		/>
     <property name="entry.src.dir"	location="${src.jini}/configentry"	/>
-
-    <property name="lib"		location="${env.JINI_HOME}/lib"		/>
-    <property name="lib-dl"		location="${env.JINI_HOME}/lib-dl"	/>
-    <property name="lib-ext"		location="${env.JINI_HOME}/lib-ext"	/>
 
     <property name="src.jini.manifest"	location="${src.jini}/manifest"		/>
     <property name="src.tools.manifest"	location="${src.tools}/manifest"	/>
@@ -135,10 +140,23 @@
     <!-- ## Product version info					-->
     <!-- ##								-->
 
+    <property name="product.name"	value="apache-river" />
     <property name="version"		value="2.1.1" />
     <property name="version-suffix"	value=""/>
 
     <property name="manifest-info"	value="${java.version} (${java.vendor})"/>
+
+    <!-- ##								-->
+    <!-- ## Distribution Bundles					-->
+    <!-- ##								-->
+
+    <property name="install.dir"		value="${product.name}-${version}"/>
+
+    <property name="bin.tar.bundle"		value="${build.dist}/${product.name}-${version}-incubating-bin.tar.gz"/>
+    <property name="bin.zip.bundle"		value="${build.dist}/${product.name}-${version}-incubating-bin.zip"/>
+
+    <property name="src.tar.bundle"		value="${build.dist}/${product.name}-${version}-incubating-src.tar.gz"/>
+    <property name="src.zip.bundle"		value="${build.dist}/${product.name}-${version}-incubating-src.zip"/>
 
     <!-- ##								-->
     <!-- ## Private package inclusions for use with classdep; the	-->
@@ -264,6 +282,215 @@
     </unzip>
 
     <delete dir="${top-classes}/META-INF" quiet="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: release						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="build.release"
+	  description=""
+          depends="all,
+		   jars,
+		   doc,
+		   spec-doc,
+		   release">
+
+  </target>
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: release						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="release"
+	  description=""
+          depends="release.bin,
+		   release.src">
+
+  </target>
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: release.bin						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="release.bin"
+	  description=""
+          depends="env">
+
+    <mkdir dir="${build.dist}"/>
+
+    <delete file="${bin.zip.bundle}"/>
+
+    <zip destfile="${bin.zip.bundle}">
+
+      <zipfileset dir="${build}" prefix="${install.dir}">
+	<include name="index.html"			/>
+	<include name="LICENSE"				/>
+	<include name="NOTICE"				/>
+
+	<include name="doc/api/**"			/>
+	<include name="doc/arch2_0.html"		/>
+	<include name="doc/info-index.html"		/>
+	<include name="doc/manpages-index.html"		/>
+	<include name="doc/proxypreparation.pdf"	/>
+	<include name="doc/release-notes/**"		/>
+	<include name="doc/simpleproxyverification.pdf"	/>
+	<include name="doc/smartproxyverification.pdf"	/>
+	<include name="doc/spec-index.html"		/>
+	<include name="doc/specs/**"			/>
+
+	<include name="configentry/**"			/>
+
+	<include name="${lib.dir}/**"			/>
+	<include name="${lib-dl.dir}/**"		/>
+	<include name="${lib-ext.dir}/**"		/>
+      </zipfileset>
+
+    </zip>
+
+
+<!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+    <delete file="${bin.tar.bundle}"/>
+
+##
+## TODO:
+##
+## Investigate how to deal with the tar task's 100-character limitation.
+##
+
+    <tar destfile="${bin.tar.bundle}"
+	 compression="gzip"
+	 longfile="warn">
+
+      <tarfileset dir="${build}" prefix="${install.dir}">
+	<include name="index.html"			/>
+	<include name="LICENSE"				/>
+	<include name="NOTICE"				/>
+
+	<include name="doc/api/**"			/>
+	<include name="doc/arch2_0.html"		/>
+	<include name="doc/info-index.html"		/>
+	<include name="doc/manpages-index.html"		/>
+	<include name="doc/proxypreparation.pdf"	/>
+	<include name="doc/release-notes/**"		/>
+	<include name="doc/simpleproxyverification.pdf"	/>
+	<include name="doc/smartproxyverification.pdf"	/>
+	<include name="doc/spec-index.html"		/>
+	<include name="doc/specs/**"			/>
+
+	<include name="configentry/**"			/>
+
+	<include name="${lib.dir}/**"			/>
+	<include name="${lib-dl.dir}/**"		/>
+	<include name="${lib-ext.dir}/**"		/>
+      </tarfileset>
+
+    </tar>
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+
+  </target>
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: release.src						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="release.src"
+	  description=""
+          depends="env">
+
+    <mkdir dir="${build.dist}"/>
+
+    <delete file="${src.zip.bundle}"/>
+
+    <zip destfile="${src.zip.bundle}">
+
+      <zipfileset dir="${top}" prefix="${install.dir}">
+	<include name="index.html"			/>
+	<include name="LICENSE"				/>
+	<include name="NOTICE"				/>
+
+	<include name="doc/api/**"			/>
+	<include name="doc/arch2_0.html"		/>
+	<include name="doc/info-index.html"		/>
+	<include name="doc/build.html"			/>
+	<include name="doc/manpages-index.html"		/>
+	<include name="doc/proxypreparation.pdf"	/>
+	<include name="doc/release-notes/**"		/>
+	<include name="doc/simpleproxyverification.pdf"	/>
+	<include name="doc/smartproxyverification.pdf"	/>
+	<include name="doc/spec-index.html"		/>
+	<include name="doc/specs/**"			/>
+      </zipfileset>
+
+      <zipfileset dir="${top}" prefix="${install.dir}/source">
+	<include name="build.xml"			/>
+	<include name="build_common.xml"		/>
+
+	<include name="doc/j2se/**"			/>
+
+	<include name="src/**"				/>
+      </zipfileset>
+
+    </zip>
+
+
+<!-- @@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@
+
+    <delete file="${src.tar.bundle}"/>
+
+##
+## TODO:
+##
+## Investigate how to deal with the tar task's 100-character limitation.
+##
+
+    <tar destfile="${src.tar.bundle}"
+	 compression="gzip"
+	 longfile="warn">
+
+      <tarfileset dir="${top}" prefix="${install.dir}">
+	<include name="index.html"			/>
+	<include name="LICENSE"				/>
+	<include name="NOTICE"				/>
+
+	<include name="doc/api/**"			/>
+	<include name="doc/arch2_0.html"		/>
+	<include name="doc/info-index.html"		/>
+	<include name="doc/build.html"			/>
+	<include name="doc/manpages-index.html"		/>
+	<include name="doc/proxypreparation.pdf"	/>
+	<include name="doc/release-notes/**"		/>
+	<include name="doc/simpleproxyverification.pdf"	/>
+	<include name="doc/smartproxyverification.pdf"	/>
+	<include name="doc/spec-index.html"		/>
+	<include name="doc/specs/**"			/>
+      </tarfileset>
+
+      <tarfileset dir="${top}" prefix="${install.dir}/source">
+	<include name="build.xml"			/>
+	<include name="build_common.xml"		/>
+
+	<include name="doc/j2se/**"			/>
+
+	<include name="src/**"				/>
+      </tarfileset>
+
+    </tar>
+
+@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@ -->
+
 
   </target>
 
@@ -899,13 +1126,31 @@
 
   <target name="clean.all"
           description="Deletes the lib, lib-dl, and lib-ext  directories."
-          depends="clean.jars,
+          depends="clean.dist,
+		   clean.jars,
 		   clean.jre.ext">
 
-    <delete dir="${build.classes}"	quiet="true"/>
-    <delete dir="${build.deps}"		quiet="true"/>
-    <delete dir="${build.doc.api}"	quiet="true"/>
-    <delete dir="${entry.dest.dir}"     quiet="true"/>
+    <delete dir="${build.classes}"				quiet="true"/>
+    <delete dir="${build.deps}"					quiet="true"/>
+    <delete dir="${build.doc.api}"				quiet="true"/>
+    <delete dir="${build.doc.spec.api}"				quiet="true"/>
+    <delete dir="${entry.dest.dir}"				quiet="true"/>
+    <delete dir="${src.jini}/com/sun/jini/example/hello/lib"	quiet="true"/>
+
+  </target>
+
+
+  <!-- ################################################################ -->
+  <!-- ##								-->
+  <!-- ## TARGET: clean.dist						-->
+  <!-- ##								-->
+  <!-- ################################################################ -->
+
+  <target name="clean.dist"
+          description="Deletes the distribution directory."
+          depends="env">
+
+    <delete dir="${build.dist}"		quiet="true"/>
 
   </target>
 
