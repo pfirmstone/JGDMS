@@ -18,104 +18,104 @@
 
 <project name="util" basedir="." default="all">
 
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## ENVIRONMENT SETTINGS						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <property name="top" location="../../../../.."/>
-
-  <property name="pkg-path" value="com/artima/lookup/${ant.project.name}"/>
-
-  <!-- ##								-->
-  <!-- ## Set java-source for use with the javac task:			-->
-  <!-- ##								-->
-
-  <property name="java-source" value="${pkg-path}/**/*.java" />
-
-  <import file="${top}/build_common.xml"/>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: all							-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="all"
-          description=""
-          depends="compile">
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##                                                               -->
-  <!-- ## TARGET: clean                                                 -->
-  <!-- ##                                                               -->
-  <!-- ################################################################ -->
-
-  <target name="clean"
-          description="Removes all files and dirs created by the build."
-          depends="clean.jre.ext">
-
-    <delete dir="${build.classes}/${pkg-path}" quiet="true"/>
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: this.jars						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="this.jars"
-	  depends="serviceui.jar">
-
-  </target>
-  
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: serviceui.jar						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="serviceui.jar"
-	  depends="tools">
-  
-    <!-- ##								-->
-    <!-- ## Generate the jar file.					-->
-    <!-- ##								-->
-
-    <delete file="${build.lib}/serviceui.jar" quiet="true" />
-
-    <jar destfile="${build.lib}/serviceui.jar" 
-         index="false">
-
-      <fileset dir="${build.classes}">
-        <include name="net/jini/lookup/entry/UIDescriptor.class"	/>
-	<include name="net/jini/lookup/entry/UIDescriptorBean.class"	/>
-        <include name="net/jini/lookup/ui/**"				/>
-        <include name="com/artima/lookup/util/**"			/>
-      </fileset>
-
-    </jar>
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: this.stubs						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="this.stubs" description="Just a dummy target.">
-
-  </target>
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## ENVIRONMENT SETTINGS						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<property name="top" location="../../../../.."/>
+      
+	<property name="pkg-path" value="com/artima/lookup/${ant.project.name}"/>
+      
+	<!-- ##							-->
+	<!-- ## Set java-source for use with the javac task:	-->
+	<!-- ##							-->
+      
+	<property name="java-source" value="${pkg-path}/**/*.java"/>
+      
+	<import file="${top}/build_common.xml"/>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: all							-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="all"
+		description=""
+		depends="compile">
+      
+	</target>
+      
+      
+	<!-- ################################################################ -->
+	<!-- ##                                                               -->
+	<!-- ## TARGET: clean                                                 -->
+	<!-- ##                                                               -->
+	<!-- ################################################################ -->
+      
+	<target name="clean"
+		description="Removes all files and dirs created by the build."
+		depends="clean.jre.ext">
+      
+		<delete dir="${build.classes}/${pkg-path}" quiet="true"/>
+      
+	</target>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: this.jars						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="this.jars"
+		depends="serviceui.jar">
+      
+	</target>
+	
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: serviceui.jar						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="serviceui.jar"
+		depends="tools">
+	
+		<!-- ##				-->
+		<!-- ## Generate the jar file.	-->
+		<!-- ##				-->
+	    
+		<delete file="${build.lib}/serviceui.jar" quiet="true"/>
+	    
+		<jar destfile="${build.lib}/serviceui.jar" 
+		     index="false">
+	    
+			<fileset dir="${build.classes}">
+				<include name="net/jini/lookup/entry/UIDescriptor.class"/>
+				<include name="net/jini/lookup/entry/UIDescriptorBean.class"/>
+				<include name="net/jini/lookup/ui/**"/>
+				<include name="com/artima/lookup/util/**"/>
+			</fileset>
+	    
+		</jar>
+      
+	</target>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: this.stubs						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="this.stubs" description="Just a dummy target.">
+      
+	</target>
 
 </project>
 

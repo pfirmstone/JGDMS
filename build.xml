@@ -20,124 +20,124 @@
 
 <project name="Jini" basedir="." default="all">
 
-  <description>
-  </description>
-
-  <!-- ##								-->
-  <!-- ## Import the common build settings and targets.			-->
-  <!-- ##								-->
-
-  <property name="top" location="."/>
-
-  <import file="${top}/build_common.xml"/>
-
-  <property name="top-down-build" value="true"/>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: all							-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="all"
-	  description="Builds all sources."
-	  depends="setup-all,
-		   configentry,
-		   compile,
-		   compile.local,
-		   copy-resources,
-		   stubs,
-		   tools">
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: configentry						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="configentry" 
-	  description="Populates the configentry directory."
-	  depends="">
-
-    <ant target="all"
-	 antfile="build.xml"	dir="${src.jini}/configentry"
-	 inheritall="false"	inheritrefs="true"/>
-
-  </target>
-    
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: copy-resources					-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="copy-resources" 
-	  description="Copies various resources directories to the classes dir."
-	  depends="">
-
-    <ant target="copy-resources"
-	 antfile="build.xml"	dir="${src.jini}/com/sun/jini/start"
-	 inheritall="false"	inheritrefs="true"/>
-
-    <ant target="copy-resources"
-	 antfile="build.xml"	dir="${src.tools}/com/sun/jini/tool"
-	 inheritall="false"	inheritrefs="true"/>
-
-  </target>
-    
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: clean							-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="clean" 
-	  description="Removes all files and dirs created by the build."
-	  depends="clean.all">
-
-  </target>
-    
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: clobber						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="clobber" 
-	  description="Removes all files and dirs created by the build."
-	  depends="clean.all">
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: this.jars						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="this.jars"
-	  description="Just a dummy target.">
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: this.stubs						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="this.stubs"
-	  description="Just a dummy target.">
-
-  </target>
+	<description>
+	</description>
+      
+	<!-- ##							-->
+	<!-- ## Import the common build settings and targets.	-->
+	<!-- ##							-->
+      
+	<property name="top" location="."/>
+      
+	<import file="${top}/build_common.xml"/>
+      
+	<property name="top-down-build" value="true"/>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: all							-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="all"
+		description="Builds all sources."
+		depends="setup-all,
+			 configentry,
+			 compile,
+			 compile.local,
+			 copy-resources,
+			 stubs,
+			 tools">
+      
+	</target>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: configentry						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="configentry" 
+		description="Populates the configentry directory."
+		depends="">
+      
+		<ant target="all"
+		     antfile="build.xml"	dir="${src.jini}/configentry"
+		     inheritall="false"		inheritrefs="true"/>
+      
+	</target>
+	  
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: copy-resources						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="copy-resources" 
+		description="Copies various resources directories to the classes dir."
+		depends="">
+      
+		<ant target="copy-resources"
+		     antfile="build.xml"	dir="${src.jini}/com/sun/jini/start"
+		     inheritall="false"		inheritrefs="true"/>
+	    
+		<ant target="copy-resources"
+		     antfile="build.xml"	dir="${src.tools}/com/sun/jini/tool"
+		     inheritall="false"		inheritrefs="true"/>
+      
+	</target>
+	  
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: clean							-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="clean" 
+		description="Removes all files and dirs created by the build."
+		depends="clean.all">
+      
+	</target>
+	  
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: clobber							-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="clobber" 
+		description="Removes all files and dirs created by the build."
+		depends="clean.all">
+      
+	</target>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: this.jars						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="this.jars"
+		description="Just a dummy target.">
+      
+	</target>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: this.stubs						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="this.stubs"
+		description="Just a dummy target.">
+      
+	</target>
 
 </project>

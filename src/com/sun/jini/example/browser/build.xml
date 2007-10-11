@@ -18,208 +18,208 @@
 
 <project name="browser" basedir="." default="all">
 
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## ENVIRONMENT SETTINGS						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <property name="top" location="../../../../../.."/>
-
-  <property name="pkg-path" value="com/sun/jini/example/${ant.project.name}"/>
-
-  <!-- ##								-->
-  <!-- ## Set java-source for use with the javac task:			-->
-  <!-- ##								-->
-
-  <property name="java-source" value="${pkg-path}/**/*.java" />
-  
-  <import file="${top}/build_common.xml"/>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: all							-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="all"
-          description=""
-          depends="compile">
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##                                                               -->
-  <!-- ## TARGET: clean                                                 -->
-  <!-- ##                                                               -->
-  <!-- ################################################################ -->
-
-  <target name="clean"
-          description="Removes all files and dirs created by the build."
-          depends="clean.jre.ext">
-
-    <delete dir="${build.classes}/${pkg-path}" quiet="true"/>
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: this.jars						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="this.jars"
-          depends="browser.jar,
-		   browser-dl.jar">
-  
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: browser.jar						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="browser.jar"
-	  depends="tools">
-
-    <property name="browser.deps" location="${build.deps}/browser.deps" />
-    
-    <!-- ##								-->
-    <!-- ## Run ClassDep.						-->
-    <!-- ##								-->
-
-    <java classname="com.sun.jini.tool.ClassDep"
-          failonerror="true"
-          output="${browser.deps}">
-          
-      <classpath refid="path.classdep"					/>
-      <arg value="-cp"							/>
-      <arg path="${build.classes}"					/>
-      <arg value="-files"						/>
-      <arg line="${jskprivate.include}"					/>
-
-      <arg line="-in com.sun.jini.example.browser"			/>
-
-      <arg value="com.sun.jini.example.browser.Browser"			/>
-      <arg value="com.sun.jini.example.browser.Browser$$Listener_Stub"	/>
-      <arg value="com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"	/>
-
-    </java>
-
-    <!-- ##								-->
-    <!-- ## Generate the jar file.					-->
-    <!-- ##								-->
-
-    <delete file="${build.lib}/browser.jar" quiet="true" />
-
-    <jar destfile="${build.lib}/browser.jar" 
-         index="false"
-	 manifest="${src.jini.manifest}/browser.mf">
-         
-      <fileset dir="${build.classes}"  includesfile="${browser.deps}" />
-
-    </jar>
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: browser-dl.jar					-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="browser-dl.jar"
-          depends="tools">
-
-    <property name="browser-dl.deps" location="${build.deps}/browser-dl.deps" />
-    
-    <!-- ##								-->
-    <!-- ## Run ClassDep.						-->
-    <!-- ##								-->
-
-    <java classname="com.sun.jini.tool.ClassDep"
-          failonerror="true"
-          output="${browser-dl.deps}">
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## ENVIRONMENT SETTINGS						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
       
-      <classpath refid="path.classdep"					/>
-      <arg value="-cp"							/>
-      <arg path="${build.classes}"					/>
-      <arg value="-files"						/>
-      <arg line="${jskprivate.include}"					/>
-
-      <arg line="-in com.sun.jini.example.browser"			/>
-
-      <arg value="com.sun.jini.example.browser.Browser$$Listener_Stub"			/>
-      <arg value="com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"	/>
-      <arg value="com.sun.jini.proxy.BasicProxyTrustVerifier"				/>
-
-    </java>
-
-    <!-- ##								-->
-    <!-- ## Generate the jar file.					-->
-    <!-- ##								-->
-
-    <delete file="${build.lib-dl}/browser-dl.jar" quiet="true"/>
-
-    <jar destfile="${build.lib-dl}/browser-dl.jar"
-         index="false">
-         
-      <fileset dir="${build.classes}"  includesfile="${browser-dl.deps}" />
+	<property name="top" location="../../../../../.."/>
       
-    </jar>
-
-    <!-- ##								-->
-    <!-- ## Generate the Preferred List					-->
-    <!-- ##								-->
-
-    <preferredlistgen>
-
-      <plg-elements>
-
-	<arg line="-cp"							/>
-	<arg path="${build.lib}/jsk-platform.jar"			/>
-  
-	<arg line="-jar"						/>
-	<arg path="${build.lib-dl}/browser-dl.jar"			/>
-  
-	<arg line="-jar"						/>
-	<arg path="${build.lib-dl}/jsk-dl.jar"				/>
-  
-	<arg line="-proxy com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>
-
-      </plg-elements>
-
-    </preferredlistgen>
-
-  </target>
-
-
-  <!-- ################################################################ -->
-  <!-- ##								-->
-  <!-- ## TARGET: this.stubs						-->
-  <!-- ##								-->
-  <!-- ################################################################ -->
-
-  <target name="this.stubs"
-          description="Builds the RMI stubs for ${ant.project.name}."
-          depends="compile">
-
-    <rmic base="${build.classes}" stubversion="1.2">
-
-      <classpath refid="path.jini" />
-
-      <include name="com/sun/jini/example/browser/Browser$$Listener.class"/>	
-      <include name="com/sun/jini/example/browser/ServiceEditor$$NotifyReceiver.class"/>
-
-    </rmic>
-
-  </target>
+	<property name="pkg-path" value="com/sun/jini/example/${ant.project.name}"/>
+      
+	<!-- ##									-->
+	<!-- ## Set java-source for use with the javac task:			-->
+	<!-- ##									-->
+      
+	<property name="java-source" value="${pkg-path}/**/*.java"/>
+	
+	<import file="${top}/build_common.xml"/>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: all							-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="all"
+		description=""
+		depends="compile">
+      
+	</target>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: clean							-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="clean"
+		description="Removes all files and dirs created by the build."
+		depends="clean.jre.ext">
+      
+		<delete dir="${build.classes}/${pkg-path}" quiet="true"/>
+      
+	</target>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: this.jars						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="this.jars"
+		depends="browser.jar,
+			 browser-dl.jar">
+	
+	</target>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: browser.jar						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="browser.jar"
+		depends="tools">
+      
+		<property name="browser.deps" location="${build.deps}/browser.deps"/>
+		
+		<!-- ##			-->
+		<!-- ## Run ClassDep.	-->
+		<!-- ##			-->
+	    
+		<java classname="com.sun.jini.tool.ClassDep"
+		      failonerror="true"
+		      output="${browser.deps}">
+		      
+			<classpath refid="path.classdep"/>
+			<arg value="-cp"/>
+			<arg path="${build.classes}"/>
+			<arg value="-files"/>
+			<arg line="${jskprivate.include}"/>
+		  
+			<arg line="-in com.sun.jini.example.browser"/>
+		  
+			<arg value="com.sun.jini.example.browser.Browser"/>
+			<arg value="com.sun.jini.example.browser.Browser$$Listener_Stub"/>
+			<arg value="com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>
+	    
+		</java>
+	    
+		<!-- ##				-->
+		<!-- ## Generate the jar file.	-->
+		<!-- ##				-->
+	    
+		<delete file="${build.lib}/browser.jar" quiet="true"/>
+	    
+		<jar destfile="${build.lib}/browser.jar" 
+		     index="false"
+		     manifest="${src.jini.manifest}/browser.mf">
+		     
+			<fileset dir="${build.classes}" includesfile="${browser.deps}"/>
+	    
+		</jar>
+      
+	</target>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: browser-dl.jar						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="browser-dl.jar"
+		depends="tools">
+      
+		<property name="browser-dl.deps" location="${build.deps}/browser-dl.deps"/>
+		
+		<!-- ##			-->
+		<!-- ## Run ClassDep.	-->
+		<!-- ##			-->
+	    
+		<java classname="com.sun.jini.tool.ClassDep"
+		      failonerror="true"
+		      output="${browser-dl.deps}">
+		  
+			<classpath refid="path.classdep"/>
+			<arg value="-cp"/>
+			<arg path="${build.classes}"/>
+			<arg value="-files"/>
+			<arg line="${jskprivate.include}"/>
+		  
+			<arg line="-in com.sun.jini.example.browser"/>
+		  
+			<arg value="com.sun.jini.example.browser.Browser$$Listener_Stub"/>
+			<arg value="com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>
+			<arg value="com.sun.jini.proxy.BasicProxyTrustVerifier"/>
+	    
+		</java>
+	    
+		<!-- ##				-->
+		<!-- ## Generate the jar file.	-->
+		<!-- ##				-->
+	    
+		<delete file="${build.lib-dl}/browser-dl.jar" quiet="true"/>
+	    
+		<jar destfile="${build.lib-dl}/browser-dl.jar"
+		     index="false">
+		     
+			<fileset dir="${build.classes}" includesfile="${browser-dl.deps}"/>
+		  
+		</jar>
+	    
+		<!-- ##					-->
+		<!-- ## Generate the Preferred List	-->
+		<!-- ##					-->
+      
+		<preferredlistgen>
+	    
+			<plg-elements>
+		  
+				<arg line="-cp"/>
+				<arg path="${build.lib}/jsk-platform.jar"/>
+			  
+				<arg line="-jar"/>
+				<arg path="${build.lib-dl}/browser-dl.jar"/>
+			  
+				<arg line="-jar"/> 
+				<arg path="${build.lib-dl}/jsk-dl.jar"/>
+			  
+				<arg line="-proxy com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>
+		  
+			</plg-elements>
+	    
+		</preferredlistgen>
+      
+	</target>
+      
+      
+	<!-- ################################################################	-->
+	<!-- ##									-->
+	<!-- ## TARGET: this.stubs						-->
+	<!-- ##									-->
+	<!-- ################################################################	-->
+      
+	<target name="this.stubs"
+		description="Builds the RMI stubs for ${ant.project.name}."
+		depends="compile">
+      
+		<rmic base="${build.classes}" stubversion="1.2">
+	    
+			<classpath refid="path.jini"/>
+	    
+			<include name="com/sun/jini/example/browser/Browser$$Listener.class"/>	
+			<include name="com/sun/jini/example/browser/ServiceEditor$$NotifyReceiver.class"/>
+	    
+		</rmic>
+      
+	</target>
 
 </project>
 
