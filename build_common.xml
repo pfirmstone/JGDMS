@@ -192,7 +192,7 @@
 
     <property name="tm"			value="&lt;sup&gt;&lt;font size=-2&gt;TM&lt;/font&gt;&lt;/sup&gt;"/>
 
-    <property name="api-copyright"	value="Licensed to the Apache Software Foundation (ASF) under one or more contributor license agreements.  See the NOTICE file distributed with this work for additional information regarding copyright ownership. The ASF licenses this file to you under the Apache License, Version 2.0 (the &quot;License&quot;); you may not use this file except in compliance with the License. You may obtain a copy of the License at &lt;ul&gt; &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot;&gt;http://www.apache.org/licenses/LICENSE-2.0&lt;/a&gt; &lt;/ul&gt; Unless required by applicable law or agreed to in writing, software distributed under the License is distributed on an &quot;AS IS&quot; BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the License for the specific language governing permissions and limitations under the License."/>
+    <property name="api-copyright"	value="Copyright 2007, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
 
     <property name="api-doc-title"	value="Jini${tm} Technology Starter Kit v${version}${version-suffix} API Documentation"/>
     <property name="api-win-title"	value="Jini(TM) Technology Starter Kit v${version}${version-suffix} API Documentation"/>
@@ -441,8 +441,12 @@
 	<include name="doc/j2se/**"			/>
 
 	<include name="src/**"				/>
+	<exclude name="src/**/*.sh"			/>
       </zipfileset>
-
+      <zipfileset dir="${top}"
+		  prefix="${install.dir}/source"
+		  includes="src/**/*.sh"
+		  filemode="755"/>
     </zip>
 
 
@@ -865,6 +869,9 @@
 
     </javadoc>
 
+    <mkdir dir="${build.doc.api}/doc-files"/>
+    <copy file="${build}/NOTICE" tofile="${build.doc.api}/doc-files/NOTICE"/>
+
   </target>
 
 
@@ -932,6 +939,9 @@
       <package name="net.jini.url.https"		/>
 
     </javadoc>
+
+    <mkdir dir="${build.doc.spec.api}/doc-files"/>
+    <copy file="${build}/NOTICE" tofile="${build.doc.spec.api}/doc-files/NOTICE"/>
 
   </target>
 
