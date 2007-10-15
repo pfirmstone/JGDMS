@@ -194,11 +194,11 @@
 	    
 		<property name="api-copyright"	value="Copyright 2007, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
 	    
-		<property name="api-doc-title"	value="Jini${tm} Technology Starter Kit v${version}${version-suffix} API Documentation"/>
-		<property name="api-win-title"	value="Jini(TM) Technology Starter Kit v${version}${version-suffix} API Documentation"/>
+		<property name="api-doc-title"	value="Apache River Release v${version}${version-suffix} API Documentation"/>
+		<property name="api-win-title"	value="${api-doc-title}"/>
 	    
-		<property name="spec-doc-title"	value="Jini${tm} Technology Starter Kit Specifications"/>
-		<property name="spec-win-title"	value="Jini(TM) Technology Starter Kit Specifications"/>
+		<property name="spec-doc-title"	value="Apache River Release Specifications"/>
+		<property name="spec-win-title"	value="${spec-doc-title}"/>
 	    
 		<property name="jdk-doc-url"	value="http://java.sun.com/j2se/1.4.2/docs/api"/>
 		<property name="jdk-packages"	value="${build.doc}/j2se"/>

@@ -19,14 +19,14 @@
 <body text="#000000" bgcolor="#ffffff" link="#9b37cc"
       vlink="#cc1877" alink="#ffffff">
 
-<title>Jini(TM) Technology Starter Kit Overview, v2.1.1</title>
+<title>Apache River Release Overview, v2.1.1</title>
 <a name="TOP">
-<center><h1>Jini(TM) Technology Starter Kit Overview<br>v2.1.1</h1></center>
+<center><h1>Apache River Release Overview<br>v2.1.1</h1></center>
 
 <br>
 
 <p>This document provides an overview of the new components of
-the Jini(TM) Technology Starter Kit (starter kit) v2.1.1 release and
+the Apache River v2.1.1 release and
 explains how the components fit together and fit within the
 existing Jini technology infrastructure.  Much of this
 information is available in the package, interface, and class
@@ -53,7 +53,7 @@ Architecture Specification</i></a> defines these categories as follows:
 <p>Originally, the programming model defined models for leasing, event
 notification, and transactions.  The basic infrastructure consisted of
 the discovery/join protocol and the lookup service.  Previous versions
-of the starter kit delivered implementations of the following Jini
+of Apache River delivered implementations of the following Jini
 technology-enabled services (Jini services):
 
 <ul>
@@ -65,7 +65,7 @@ technology-enabled services (Jini services):
 <li> JavaSpaces(TM) Service (outrigger)
 </ul>
 
-<p>The starter kit v2.0 release adds components to the first two
+<p>The Apache River v2.0 release adds components to the first two
 categories (programming model and infrastructure) of the Jini
 architecture, although some components span both of these categories.
 Additionally, this release provides updates to existing services to
@@ -231,7 +231,7 @@ particular implementation of the <code>Exporter</code> interface.
 
 <p>Several standard <code>Exporter</code> implementations, which are
 also implementations of the Java RMI programming model, are provided
-in this release of the starter kit.  The following table lists these
+in this release of Apache River.  The following table lists these
 implementations along with the class whose behavior the exporter is
 semantically equivalent to.
 
@@ -321,7 +321,7 @@ proxies.
 The following is a code snippet from the <a
 href="../source/src/com/sun/jini/example/hello/index.html"><i>hello</i>
 example</a> client, which is part of a comprehensive example included
-in the starter kit:
+in the Apache River release:
 
 <p>
 <pre>
@@ -572,7 +572,7 @@ verifiers from a resource,
 in this distribution, is part of the file
 <code>jsk-resources.jar</code>, which is referenced by
 <code>jsk-platform.jar</code>.  These built-in trust verifiers are
-provided to verify instances of classes in the starter kit.  The
+provided to verify instances of classes in the Apache River release.  The
 following table lists these trust verifier implementations along with
 a description of the instances they verify:
 
@@ -1172,8 +1172,8 @@ and to reference a <code>Configuration</code>.
 <p>The providers in this section are those that a deployer may specify
 explicitly in a configuration.  Applications typically program to the
 interfaces of these providers, but not their implementations.  Many
-applications can utilize the implementations available in the starter
-kit, and therefore, don't need to worry about how to implement a
+applications can utilize the implementations available in the 
+Apache River release, and therefore, don't need to worry about how to implement a
 specific interface, only how to use it.
 
 <blockquote>
