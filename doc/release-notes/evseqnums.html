@@ -19,19 +19,19 @@
 
 <html>
 <head>
-  <title>Note on JavaSpaces(TM) Technology, Persistent Outrigger Services, and Event Sequence Numbers
+  <title>Note on JavaSpaces Technology, Persistent Outrigger Services, and Event Sequence Numbers
   </title>
 </head>
 
 <body text="black" bgcolor="white" link="#9b37cc" vlink="#cc1877" alink="white">
 <center>
-<h1>Note on JavaSpaces(TM) Technology, Persistent Outrigger Services, and Event Sequence Numbers
+<h1>Note on JavaSpaces Technology, Persistent Outrigger Services, and Event Sequence Numbers
 </code></h1>
 </center>
 <p>
-Previously the <i>JavaSpaces(TM) Service Specification</i> required that
+Previously the <i>JavaSpaces Service Specification</i> required that
 event sequence numbers associated with spaces events to be <em>fully
-ordered</em>.  Fully ordered, as defined in the <i>Jini(TM) Distributed
+ordered</em>.  Fully ordered, as defined in the <i>Jini Distributed
 Event Specification</i>, requires that:
 <blockquote>
 	... not only do sequence numbers increase, but they are not
@@ -48,7 +48,7 @@ Event Specification</i>, requires that:
 <p>
 In the Fall of 2000, we received feedback (from Asaf Kariv of GigaSpaces
 Technologies Ltd.) stating that requiring event sequence numbers to be fully
-ordered places too high a burden on implementors of the <i>JavaSpaces(TM)
+ordered places too high a burden on implementors of the <i>JavaSpaces
 Service Specification</i> (GigaSpaces is a vender of a commercial JavaSpaces
 service implementation).  For example, the guarantee requires a persistent
 implementation to store sufficient information <em>during</em> each
@@ -67,10 +67,10 @@ implementations from a number of vendors.
 After substantial discussions within the Jini Community(SM) for more than a
 year, we came to the conclusion that weakening the fully ordered guarantee
 would be unlikely to have significant negative impact on users of
-JavaSpaces technology. As a result, in the 1.2 FCS release of the Jini(TM)
-Technology Starter Kit (starter kit) we changed the <i>JavaSpaces(TM)
+JavaSpaces technology. As a result, in the 1.2 FCS release,  
+we changed the <i>JavaSpaces
 Service Specification</i> so that only the basic guarantee required by the
-<i>Jini(TM) Distributed Event Specification</i> on event sequences numbers
+<i>Jini Distributed Event Specification</i> on event sequences numbers
 is called for. This basic guarantee requires that all sequence numbers are
 unique and ordered, but that gaps in the sequence do not necessarily imply
 that events have been missed.  Put another way, if two remote events
@@ -80,14 +80,14 @@ sequence number of <I>x</I> is less than the sequence number of <I>y</I>,
 but the difference between the two sequence numbers implies nothing about
 how many events may or may not have occurred between <I>x</I> and <I>y</I>.
 <p>
-A related issue is that previous editions of the <i>JavaSpaces(TM) Service
+A related issue is that previous editions of the <i>JavaSpaces Service
 Specification</i> specifically allowed implementations to "compress" event
 deliveries because sequence numbers were fully ordered. This rasises the
 questions &#151; is compression still allowed? and should we be
 calling it out in the specification? It was decided that the event
 specification does allow for event notifications to be dropped even when
 only the basic sequence number guarantee is present, and that it was not
-necessary to call this possibility out in the <i>JavaSpaces(TM) Service
+necessary to call this possibility out in the <i>JavaSpaces Service
 Specification</i>.
 
 <h2>What This Means for Persistent Outrigger Services</h2>

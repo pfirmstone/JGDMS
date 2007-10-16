@@ -22,7 +22,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
 <link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
-<title>JavaSpaces(TM) Service Specification</title>
+<title>JavaSpaces Service Specification</title>
 </head>
 
 <body bgcolor="#ffffff">
@@ -31,7 +31,7 @@
 <table width="90%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a></td>
-<td align=right><em>JavaSpaces(TM) Service Specification</em></td>
+<td align=right><em>JavaSpaces Service Specification</em></td>
 </tr>
 </table>
 <br clear="all">
@@ -54,13 +54,13 @@
    Distributed systems are hard to build. They require careful thinking about problems that do not occur in local computation. The primary problems are those of partial failure, greatly increased latency, and language compatibility. The Java(TM) programming language has a remote method invocation system called RMI that lets you approach general distributed computation in the Java<TM) programming language using techniques natural to the Java programming language and application environment. This is layered on the Java platform's object serialization mechanism to marshal parameters of remote methods into a form that can be shipped across the wire and unmarshalled in a remote server's Java virtual machine<a href="#31491"><sup>1</sup></a> (<span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">JVM</span>).
 </p>
 <p class="Body">
-  <a name="1778"> </a>This specification describes the architecture of JavaSpaces(TM) technology, which is designed to help you solve two related problems: distributed persistence and the design of distributed algorithms. JavaSpaces services use <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">RMI</span> and the serialization feature of the Java programming language to accomplish these goals.
+  <a name="1778"> </a>This specification describes the architecture of JavaSpaces technology, which is designed to help you solve two related problems: distributed persistence and the design of distributed algorithms. JavaSpaces services use <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">RMI</span> and the serialization feature of the Java programming language to accomplish these goals.
 </p>
 <h4 class="Heading3">
   <a name="27387"> </a>JS.1.1	 The JavaSpaces Application Model and Terms
 </h4>
 <p class="Body">
-  <a name="27409"> </a>A JavaSpaces service holds <em class="Emphasis">entries</em>. An entry is a typed group of objects, expressed in a class for the Java platform that implements the interface <code>net.jini.core.entry.Entry</code>. Entries are described in detail in the <a href="entry-spec.html"><em class="Emphasis">Jini(TM) Entry Specification</em></a>. 
+  <a name="27409"> </a>A JavaSpaces service holds <em class="Emphasis">entries</em>. An entry is a typed group of objects, expressed in a class for the Java platform that implements the interface <code>net.jini.core.entry.Entry</code>. Entries are described in detail in the <a href="entry-spec.html"><em class="Emphasis">Jini Entry Specification</em></a>. 
 </p>
 <p class="Body">
   <a name="27420"> </a>An entry can be <em class="Emphasis">written</em> into a JavaSpaces service, which creates a copy of that entry in the space<a href="#27423"><sup>2</sup></a> that can be used in future lookup operations.
@@ -585,7 +585,7 @@ limitations under the License.
 <a href="#skip" title="Skip navigation bar"></a>
 <table width="100%"><tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-<td align=right><em>JavaSpaces(TM) Service Specifications</em></td>
+<td align=right><em>JavaSpaces Service Specifications</em></td>
 </tr></table>
 <a name="skip"></a>
 

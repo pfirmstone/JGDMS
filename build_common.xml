@@ -342,6 +342,7 @@
 				<include name="doc/manpages-index.html"/>
 				<include name="doc/proxypreparation.pdf"/>
 				<include name="doc/release-notes/**"/>
+				<exclude name="doc/release-notes/new.html"/>
 				<include name="doc/simpleproxyverification.pdf"/>
 				<include name="doc/smartproxyverification.pdf"/>
 				<include name="doc/spec-index.html"/>
@@ -382,6 +383,7 @@
 				<include name="doc/manpages-index.html"/>
 				<include name="doc/proxypreparation.pdf"/>
 				<include name="doc/release-notes/**"/>
+				<exclude name="doc/release-notes/new.html"/>
 				<include name="doc/simpleproxyverification.pdf"/>
 				<include name="doc/smartproxyverification.pdf"/>
 				<include name="doc/spec-index.html"/>
@@ -428,6 +430,7 @@
 				<include name="doc/manpages-index.html"/>
 				<include name="doc/proxypreparation.pdf"/>
 				<include name="doc/release-notes/**"/>
+				<exclude name="doc/release-notes/new.html"/>
 				<include name="doc/simpleproxyverification.pdf"/>
 				<include name="doc/smartproxyverification.pdf"/>
 				<include name="doc/spec-index.html"/>
@@ -476,6 +479,7 @@
 				<include name="doc/manpages-index.html"/>
 				<include name="doc/proxypreparation.pdf"/>
 				<include name="doc/release-notes/**"/>
+				<exclude name="doc/release-notes/new.html"/>
 				<include name="doc/simpleproxyverification.pdf"/>
 				<include name="doc/smartproxyverification.pdf"/>
 				<include name="doc/spec-index.html"/>

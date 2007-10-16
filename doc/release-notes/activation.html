@@ -26,9 +26,9 @@ Apache River release</title>
 <br>in the Apache River Release</h1></center>
  
 
-All of the contributed Jini(TM) technology-enabled service (<em>Jini
+All of the contributed Jini technology-enabled service (<em>Jini
 service</em>) implementations in the Apache River release 
-(<em>starter kit</em>) support three modes of operation: transient,
+support three modes of operation: transient,
 persistent/non-activatable, and persistent/activatable.  The lifecycle of
 the services in the first two modes is relatively straightforward and is
 similar to the lifecycles of most other network services written in the
@@ -47,7 +47,7 @@ system and what impact using activation has on the way services
 are started and run.
 <p>
 
-If you are new to the starter kit or doing day-to-day development, you
+If you are new to the Apache River release or doing day-to-day development, you
 probably don't need to use the activatable mode of the contributed
 implementations. The non-activatable modes are considerably simpler to deal
 with and understand. The activatable mode may be necessary or helpful in
@@ -72,7 +72,7 @@ activation system will restart it as necessary.
 <li><em>Demand driven activation</em> &#151; An activatable service can be
 written in such a way that it only requires a running VM when it is
 servicing a client request. Note that the contributed service
-implementations in the starter kit do not exploit this feature of
+implementations in the Apache River release do not exploit this feature of
 activation.
 
 </ul>
@@ -128,7 +128,7 @@ If the service's VM crashes, the activation daemon will restart it as
 necessary. The service can be registered with the activation daemon in such
 a way that the activation daemon will automatically restart a crashed
 service even if there are no active clients. This is in fact how all of the
-starter kit's activatable services register themselves. The other way to
+activatable services register themselves. The other way to
 register with the activation daemon is demand driven &#151; to have it
 (re)start the service only when a client invokes a remote method of the
 service.
@@ -172,7 +172,7 @@ Java Development Kit) activation is the only supported way to get
 persistent references.  With Jini extensible method invocation (Jini ERI)
 there are two ways to create persistent references. One way is to use
 activation. The second way is to create references with fixed ports and
-object IDs. The package documentation for each of the starter kit's
+object IDs. The package documentation for each of the 
 contributed service implementations includes example configurations
 demonstrating how this can be done.
 <p>
@@ -198,7 +198,7 @@ means if there are no other non-daemon threads, the VM will exit). Invoking
 daemon, and any other services registered with it, intact and
 available. When the <a
 href=../api/com/sun/jini/example/browser/package-summary.html>example
-service browser</a> that ships with the starter kit is started with the
+service browser</a> that ships with the Apache River release is started with the
 <code>folderView</code> configuration entry set to <code>true</code> (which
 is the default), it can be used to destroy services that implement
 <code>DestroyAdmin</code>.
@@ -335,7 +335,7 @@ and/or Linux</a>
 
 The second is <a
 href=../api/com/sun/jini/phoenix/package-summary.html>phoenix</a>, which is
-part of the starter kit. Phoenix has better support for Jini ERI, is
+part of the release. Phoenix has better support for Jini ERI, is
 configurable, and supports <code>net.jini.security</code>, making it
 suitable for a much broader range of deployments than <code>rmid</code>.
 <p>

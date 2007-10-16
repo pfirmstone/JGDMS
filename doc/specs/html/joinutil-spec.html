@@ -22,7 +22,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
 <link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
-<title>Jini(TM) Join Utilities Specification  </title>
+<title>Jini Join Utilities Specification  </title>
 </head>
 
 <body bgcolor="#ffffff">
@@ -32,7 +32,7 @@
 <table width="100%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a></td>
-<td align=right><i>A Collection of Jini(TM) Technology Helper Utilities and Services Specifications</i></td>
+<td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications</i></td>
 </tr>
 </table>
 <br clear="all">
@@ -63,13 +63,13 @@
   <a name="1015670"> </a>JU.2	 The <code>JoinManager</code>
 </h3>
 <p class="Body">
-  <a name="1016181"> </a>The goal of any well-behaved Jini service, implemented within the bounds defined by the Jini technology programming model, is to advertise the service it provides by requesting residency within at least one Jini lookup service. Making such a request of a Jini lookup service is known as registering with, or <em class="Emphasis">joining</em>, a lookup service. To demonstrate this good behavior, a service must comply with both the multicast discovery protocol and the unicast discovery protocol to discover the lookup services it is interested in joining. The service must also comply with the join protocol to register with the desired lookup services. The details of the discovery and join protocols are described in the <a href="discovery-spec.html"><em class="Emphasis">Jini(TM) Technology Discovery and Join Specification</em></a>.
+  <a name="1016181"> </a>The goal of any well-behaved Jini service, implemented within the bounds defined by the Jini technology programming model, is to advertise the service it provides by requesting residency within at least one Jini lookup service. Making such a request of a Jini lookup service is known as registering with, or <em class="Emphasis">joining</em>, a lookup service. To demonstrate this good behavior, a service must comply with both the multicast discovery protocol and the unicast discovery protocol to discover the lookup services it is interested in joining. The service must also comply with the join protocol to register with the desired lookup services. The details of the discovery and join protocols are described in the <a href="discovery-spec.html"><em class="Emphasis">Jini Technology Discovery and Join Specification</em></a>.
 </p>
 <p class="Body">
   <a name="1016156"> </a>For the service to maintain its residency in the lookup services it has joined, the service must provide for the coordination, systematic renewal, and overall management of all leases on that residency. In addition to handling all discovery and join duties, as well as managing all leases on lookup service residency, the service must provide for the coordination and management of any attribute sets with which it may have registered.
 </p>
 <p class="Body">
-  <a name="1016215"> </a>With respect to the duties described above, a Jini service may perform all but the attribute set management duties by using the helper utility classes <code>LookupDiscoveryManager</code> and <code>LeaseRenewalManager</code>. (For information on these classes, refer to the <a href="discoveryutil-spec.html"><em class="Emphasis">Jini(TM) Discovery Utilities Specification</em>, Section DU.5, "The LookupDiscoveryManager Utility"</a>,  and the <a href="leaseutil-spec.html"><em class="Emphasis">Jini(TM) Lease Utilities Specification</em>, Section LM.2, "The LeaseRenewalManager"</a>).
+  <a name="1016215"> </a>With respect to the duties described above, a Jini service may perform all but the attribute set management duties by using the helper utility classes <code>LookupDiscoveryManager</code> and <code>LeaseRenewalManager</code>. (For information on these classes, refer to the <a href="discoveryutil-spec.html"><em class="Emphasis">Jini Discovery Utilities Specification</em>, Section DU.5, "The LookupDiscoveryManager Utility"</a>,  and the <a href="leaseutil-spec.html"><em class="Emphasis">Jini Lease Utilities Specification</em>, Section LM.2, "The LeaseRenewalManager"</a>).
 </p>
 <p class="Body">
   <a name="1002807"> </a>Rather than writing a service to use these classes in a coordinated fashion (in addition to providing for attribute management), the service may be written to employ the <code>JoinManager</code> class from the <code>net.jini.lookup</code> package. This utility class performs all of the functions related to discovery, joining, service lease renewal, and attribute management that the Jini technology programming model requires of a well-behaved Jini service. Each of these activities is intimately involved with the maintenance of a service's residency in one or more lookup services (the service's <em class="Emphasis">join state</em>), hence the name <code>JoinManager</code>.
@@ -260,7 +260,7 @@ There are two forms of the <code>addAttributes</code> method. Both forms of this
 <p class="Body">
 An invocation of either form of this method with duplicate elements in the <code>attrSets</code> parameter (where duplication means attribute equality as defined by calling the <code>MarshalledObject.equals</code> method on field values) is equivalent to performing the invocation with the duplicates removed from that parameter. If <code>null</code> is passed in as the value of this parameter, a <code>NullPointerException</code> will be thrown.
 <p class="Body">
-The second form of this method also takes as input a flag indicating whether or not this method should determine if the attributes in the input set are instances of the <code>ServiceControlled</code> interface, which is a marker interface that is used to control which entities may modify a service's attribute set. For more information on this interface, refer to the <a href="schema-spec.html"><em>Jini(TM) Lookup Attribute Schema Specification</em>, Section LS.4.1, "Indicating User Modifiability"</a>. If the value of this flag is true and at least one of the attributes to be added is an instance of the <code>ServiceControlled</code> interface, a <code>SecurityException</code> will be thrown and propagated through this method.
+The second form of this method also takes as input a flag indicating whether or not this method should determine if the attributes in the input set are instances of the <code>ServiceControlled</code> interface, which is a marker interface that is used to control which entities may modify a service's attribute set. For more information on this interface, refer to the <a href="schema-spec.html"><em>Jini Lookup Attribute Schema Specification</em>, Section LS.4.1, "Indicating User Modifiability"</a>. If the value of this flag is true and at least one of the attributes to be added is an instance of the <code>ServiceControlled</code> interface, a <code>SecurityException</code> will be thrown and propagated through this method.
 <p class="Body">
 Note that because there is no guarantee that attribute propagation will have completed upon return from this method, services that invoke this method must take care not to modify the contents of the input array. Doing so could cause the service's attribute state to be corrupted or inconsistent on a subset of the lookup services with which the service is registered as compared with the state reflected on the remaining lookup services. It is for this reason that the effects of modifying the contents of the input array, after this method is invoked, are undefined.
 <p class="Body">
@@ -407,7 +407,7 @@ limitations under the License.
 <table width="100%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-</td><td align=right><i>A Collection of Jini(TM) Technology Helper Utilities and Services Specifications</i></td>
+</td><td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications</i></td>
 </tr>
 </table>
 <a name="skip"></a>
