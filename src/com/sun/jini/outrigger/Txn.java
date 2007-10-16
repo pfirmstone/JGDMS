@@ -41,7 +41,7 @@ import net.jini.security.ProxyPreparer;
 /**
  * This class represents a space's state in a single transaction.
  *
- * Object of this class represent Jini(TM) transactions within outrigger.
+ * Object of this class represent Jini transactions within outrigger.
  * These transactions hold "Transactables" -- things that represent
  * the actions that have been taken under this transaction. For example, 
  * if this transaction were to be cancelled, the Transactables are

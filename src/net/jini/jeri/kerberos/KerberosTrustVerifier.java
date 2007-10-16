@@ -23,7 +23,7 @@ import javax.security.auth.kerberos.KerberosPrincipal;
 import net.jini.security.TrustVerifier;
 
 /**
- * Trust verifier for verifying the Jini(TM) extensible remote
+ * Trust verifier for verifying the Jini extensible remote
  * invocation (Jini ERI) endpoints of type {@link KerberosEndpoint},
  * and principals of type {@link KerberosPrincipal}. This class is
  * intended to be specified in a resource to configure the operation

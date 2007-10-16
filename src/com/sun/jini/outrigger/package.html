@@ -19,7 +19,7 @@
 <HTML>
 <BODY BGCOLOR="white">
 
-This is an implementation of a JavaSpaces(TM) technology-enabled service.
+This is an implementation of a JavaSpaces technology-enabled service.
 In addition to implementing the basic {@link net.jini.space.JavaSpace}
 interface, it all implements the {@link net.jini.space.JavaSpace05}
 extension. <p>
@@ -62,7 +62,7 @@ The storage formats used by Snaplogstore and Logstore are mutually
 incompatible.<p>
 
 The JAR file <code>outrigger.jar</code>, included in the <code>lib</code>
-subdirectory of the Jini(TM) Technology Starter Kit (starter kit)
+subdirectory of the Apache River release
 installation, contains the classes for <code>TransientOutriggerImpl</code>.
 &nbsp <code>outrigger.jar</code> also includes, via a JAR file manifest
 classpath directive, a reference to
@@ -85,7 +85,7 @@ should include both of these files.<p>
 
 None of the JAR files discussed in the previous paragraphs include classes
 from <code>jsk-platform.jar</code>. On the server side service starter, the
-starter kit's service launcher utility, ensures that
+service launcher utility, ensures that
 <code>jsk-platform.jar</code> is available to Outrigger. On the client it
 is the responsibility of the client to make <code>jsk-platform.jar</code>
 available. Typically this is done by including
@@ -138,7 +138,7 @@ more of the following configuration entries:
 Each of these, except for <code>persistenceDirectory</code> and
 <code>store</code>, has reasonable defaults.<p>
 
-Deployments that want to use a Java RMI implementation other than Jini(TM)
+Deployments that want to use a Java RMI implementation other than Jini
 extensible remote invocation (Jini ERI) over TCP/IP on a random port will
 need to provide a value for the <a href="#serverExporter">
 <code>serverExporter</code></a> configuration entry. Deployments that use
@@ -1406,7 +1406,7 @@ The examples below make the following assumptions: <p>
 <ul>
 <li> The Java(TM) 2 Platform, Standard Edition, (J2SE(TM)) has been
      installed, and its commands are available in the current path
-<li> The starter kit has been installed in the
+<li> The Apache River release has been installed in the
      <var><b>install_dir</b></var> directory
 <li> The example configuration and policy files described below are
      available in the <var><b>config_dir</b></var> directory
@@ -1772,8 +1772,8 @@ com.sun.jini.start {
 </a>
 
 This configuration starts a transient Outrigger server that will use Jini
-ERI (the configurable Java RMI implementation included with the starter
-kit) to communicate between proxies and the server. Only a single VM will
+ERI (the configurable Java RMI implementation included with the Apache River 
+release) to communicate between proxies and the server. Only a single VM will
 be involved (which will be started by the command shown below). The
 Outrigger server will reside in this VM. When this VM exits, the server, the
 space it is hosting, and all entries in the space will be gone. This (or a

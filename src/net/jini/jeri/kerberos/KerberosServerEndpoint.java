@@ -182,7 +182,7 @@ import org.ietf.jgss.GSSName;
  * (functionally equivalent) server socket factory. <p>
  *
  * This class uses the <a
- * href="../connection/doc-files/mux.html">Jini(TM) extensible remote
+ * href="../connection/doc-files/mux.html">Jini extensible remote
  * invocation (Jini ERI) multiplexing protocol</a> to map outgoing
  * requests to the underlying secure connection streams. <p>
  *

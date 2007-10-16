@@ -101,7 +101,7 @@ public abstract class AvailabilityEvent extends RemoteEvent {
      * Returns a copy of the {@link Entry} whose transition
      * triggered this event. The returned <code>Entry</code> must
      * be unmarshalled in accordance with the <a
-     * href=http://www.jini.org/standards/index.html>Jini(TM)
+     * href=http://www.jini.org/standards/index.html>Jini
      * Entry Specification</a>.
      * 
      * @return a copy of the {@link Entry} whose transition
@@ -118,7 +118,7 @@ public abstract class AvailabilityEvent extends RemoteEvent {
      * transition triggered this event. Snapshots are defined in
      * section JS.2.6 of the <a
      * href=http://www.jini.org/standards/index.html>
-     * JavaSpaces(TM) Service Specification</a> and are an
+     * JavaSpaces Service Specification</a> and are an
      * alternative representation of a given <code>Entry</code>
      * produced by a particular space for use with that same
      * space. Passing a snapshot to a space is generally more

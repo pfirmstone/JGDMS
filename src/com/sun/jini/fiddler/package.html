@@ -1248,7 +1248,7 @@ These examples make the following assumptions:
 <ul> <li> The examples are being run on UNIX platforms.
      <li> The Java(TM) 2 Platform, Standard Edition, has been installed
           in the directory <b><i>java_install_dir</i></b>
-     <li> The Jini(TM) Technology Starter Kit (starter kit) has been
+     <li> The Apache River release has been
           installed in the directory <b><i>jini_install_dir</i></b>
      <li> The example configuration and policy files described below are
           available in the directories <b><i>example_install_dir/config</i></b>
@@ -1271,7 +1271,7 @@ for the examples to run on your system.
           with the path to the 1.4 version (or above) of the Java 2 
           Platform installed on your system.
      <li> Replace all occurrences of <b><i>jini_install_dir</i></b>
-          with the path to the desired version of the starter kit.
+          with the path to the desired version of the Apache River release.
      <li> Replace all occurrences of <b><i>example_install_dir/config</i></b>
           and <b><i>example_install_dir/policy</i></b> with the appropriate
           path to the example configuration and policy files.
@@ -1305,8 +1305,8 @@ HTTP server can be used for all of the examples</i></b> described below.
 That is, once started, the HTTP server does <b><i>not</i></b> need to be 
 stopped and restarted for each mode in which the service runs.
 <p>
-If you choose to use the HTTP server supplied with the starter
-kit, then the following command will start that daemon in <i>verbose</i>
+If you choose to use the HTTP server supplied with the Apache River
+release, then the following command will start that daemon in <i>verbose</i>
 mode, listening for requests on port <code>8080</code>, and serving files 
 from the root directory, <b><i>jini_install_dir/lib-dl</i></b>:
 
@@ -1344,7 +1344,7 @@ the mode in which Fiddler is configured to run, is essentially
 boundless. The flexibility inherent in the configuration mechanism allows 
 Fiddler not only to be configured to employ any <i>existing</i> remote 
 communication framework and transport, but also any <i>future</i> framework 
-or transport that may be defined. The current release of the starter kit 
+or transport that may be defined. The current release of Apache River
 provides implementations for the following remote communication frameworks 
 and transports:
 <ul><li>JRMP over TCP/IP
@@ -1367,17 +1367,17 @@ communication mechanism:
 </ul>
 For detailed examples of the other combinations, see the
 <a href="../../../../../../source/src/com/sun/jini/example/hello/index.html">hello example</a>
-supplied with the starter kit.
+supplied with the Apache River release.
 <p>
 
 <a name="activation">
 <h3>Activation</h3>
 In order to run the activatable mode of this service, an activation
 system must be running on the same host as the service. For previous
-releases of the starter kit, RMID was used for this purpose. Although RMID 
+releases, RMID was used for this purpose. Although RMID 
 may still be used under certain circumstances, it is recommended that the 
 <a href="../../../../com/sun/jini/phoenix/package-summary.html"><code>com.sun.jini.phoenix</code></a>
-implementation supplied with the starter kit now be used for all 
+implementation supplied with the Apache River release now be used for all 
 activatable configurations of the service.
 <p>
 For the two activatable examples below, command lines for starting
@@ -1771,7 +1771,7 @@ because the activation mechanism provided in Java Remote Method Invocation
 (<i>Java RMI</i>) provides for <i>persistent references</i>; that is,
 remote references that remain valid after the service has crashed and been
 restarted. For more details, see the <a href="../../../../../release-notes/activation.html" 
-title="Note on RMI Activation and How it is Used in the Starter Kit">
+title="Note on RMI Activation and How it is Used in the Apache River release">
 <code>"Note on RMI Activation"</code></a>.
 <p>
 Finally, recall that a primary purpose for persisting state is so that the service 
@@ -1923,7 +1923,7 @@ grant codeBase "file:jini_install_dir/lib/fiddler.jar" {
 In order to run Fiddler in any of the activatable configurations, an
 activation system must be running on the same host as Fiddler. Phoenix
 is the name of the implementation of the activation system provided with 
-the starter kit. Because Phoenix is configurable and supports the desired 
+the Apache River release. Because Phoenix is configurable and supports the desired 
 communication mechanisms, that implementation is presented with the
 activatable configurations of Fiddler that follow. (For more information
 and examples on Phoenix, refer to the Phoenix documentation 

@@ -19,7 +19,7 @@ package net.jini.core.entry;
 
 /**
  * This class is the supertype of all entries that can be stored in a
- * Jini(TM) Lookup service.
+ * Jini Lookup service.
  * <p>
  * Each field of an entry must be a public reference (object) type.
  * You cannot store primitive types in fields of an

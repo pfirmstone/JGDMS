@@ -32,7 +32,7 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.TrustEquivalence;
 
 /**
- * Trust verifier for dynamic proxies and object endpoints used in Jini(TM)
+ * Trust verifier for dynamic proxies and object endpoints used in Jini
  * extensible remote invocation (Jini ERI). This class is intended to be
  * specified in a resource to configure the operation of {@link
  * Security#verifyObjectTrust Security.verifyObjectTrust}.

@@ -27,7 +27,7 @@ import java.io.PrintStream;
  * objects.  For example, it can be used for smart proxy objects that
  * maintain equality for references to the same remote server.  If a
  * single VM twice invokes a remote method that returns a proxy for the
- * same JavaSpaces(TM) server, the references returned by that method 
+ * same JavaSpaces server, the references returned by that method 
  * should be the same.  This allows <code>==</code> tests to work for 
  * proxies to remote servers the same as they would for direct references 
  * to remote servers, which also maintain this property.

@@ -187,7 +187,7 @@ import net.jini.security.SecurityContext;
  * guidelines that are specified for <code>equals</code> methods of {@link
  * net.jini.jeri.ServerEndpoint.ListenEndpoint ListenEndpoint} instances. <p>
  *
- * This class uses the <a href="../connection/doc-files/mux.html">Jini(TM)
+ * This class uses the <a href="../connection/doc-files/mux.html">Jini
  * extensible remote invocation (Jini ERI) multiplexing protocol</a> to map
  * outgoing requests to socket connections.
  *

@@ -93,7 +93,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
 
 /**
- * An implementation of the Jini(TM) Transaction Specification.
+ * An implementation of the Jini Transaction Specification.
  *
  * @author Sun Microsystems, Inc.
  *

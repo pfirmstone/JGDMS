@@ -27,7 +27,7 @@ import java.rmi.*;
 
 /**
  * This interface is implemented by servers that export a
- * JavaSpaces(TM) technology service.  The operations in this interface
+ * JavaSpaces technology service.  The operations in this interface
  * are the public methods that all such spaces support.
  *
  * @author Sun Microsystems, Inc.

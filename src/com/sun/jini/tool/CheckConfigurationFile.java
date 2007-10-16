@@ -83,9 +83,9 @@ import net.jini.config.ConfigurationNotFoundException;
  * actual type is not assignable to the expected type, is treated as an
  * error. <p>
  *
- * Entry description files for all of the starter kit services and utilities
+ * Entry description files for all of the Apache River release services and utilities
  * are provided in the <code>configentry</code> subdirectory beneath the
- * top-level directory of the starter kit installation. <p>
+ * top-level directory of the Apache River release installation. <p>
  *
  * Here is a sample entry description file:
  *
@@ -132,7 +132,7 @@ import net.jini.config.ConfigurationNotFoundException;
  * </pre>
  * </blockquote>
  * 
- * where <var><b>install_dir</b></var> is the directory where the starter kit
+ * where <var><b>install_dir</b></var> is the directory where the Apache River release
  * is installed, and <var><b>your-norm.config</b></var> is a configuration
  * source file intended for use with the transient {@linkplain
  * com.sun.jini.norm Norm} service implementation. This command will print out

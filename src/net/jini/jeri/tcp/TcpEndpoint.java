@@ -70,7 +70,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * making socket connections.
  *
  * <p><code>TcpEndpoint</code> uses the <a
- * href="../connection/doc-files/mux.html">Jini(TM) extensible remote
+ * href="../connection/doc-files/mux.html">Jini extensible remote
  * invocation (Jini ERI) multiplexing protocol</a> to map outgoing
  * requests to socket connections.
  *

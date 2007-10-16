@@ -40,7 +40,7 @@ import net.jini.url.httpmd.HttpmdUtil;
  * </pre>
  * </blockquote>
  *
- * where <var><b>install_dir</b></var> is the directory where the starter kit
+ * where <var><b>install_dir</b></var> is the directory where the Apache River release
  * is installed. This command prints out the message digest for the
  * <code>reggie.jar</code> JAR file, using the <code>sha</code> algorithm.
  *

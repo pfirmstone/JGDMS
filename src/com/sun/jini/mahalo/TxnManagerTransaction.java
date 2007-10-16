@@ -72,7 +72,7 @@ class TxnManagerTransaction
     * TransactionManager may make.
     *
     * This represents the following diagram from the
-    * Jini(TM) Transaction Spec:
+    * Jini Transaction Spec:
     *
     *  ACTIVE ----> VOTING ------->COMMITTED
     *     \           |

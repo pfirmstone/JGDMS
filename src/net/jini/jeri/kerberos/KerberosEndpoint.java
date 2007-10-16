@@ -175,7 +175,7 @@ import org.ietf.jgss.GSSName;
  * happen, the TGT for the request has to be forwardable. <p>
  *
  * This class uses the <a
- * href="../connection/doc-files/mux.html">Jini(TM) extensible remote
+ * href="../connection/doc-files/mux.html">Jini extensible remote
  * invocation (Jini ERI) multiplexing protocol</a> to map outgoing
  * requests to the underlying secure connection streams. <p>
  *

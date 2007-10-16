@@ -120,7 +120,7 @@ import java.util.logging.Logger;
  *        -port 8081 -dir <var><b>install_dir</b></var>/lib-dl -verbose
  * </pre></blockquote>
  * where <var><b>install_dir</b></var>
- * is the directory where the starter kit is installed.
+ * is the directory where the Apache River release is installed.
  * This command places the class server on the (non-default) port 
  * 8081, which  serves out the files under the (non-default) directory  
  * <var><b>install_dir</b></var>/lib-dl. The <code>-verbose</code> option

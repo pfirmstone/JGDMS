@@ -27,7 +27,7 @@ import net.jini.core.constraint.RemoteMethodControl;
 
 /**
  * A collection of {@link Entry} instances to be incrementally
- * returned from a JavaSpaces(TM) service. Some operations on a
+ * returned from a JavaSpaces service. Some operations on a
  * space must return more entries than can be conveniently
  * returned by a single call, generally because returning all the
  * entries in one result would consume too many resources in the
@@ -116,7 +116,7 @@ public interface MatchSet {
      * returns a copy to the caller. Returns <code>null</code> if
      * the match set is empty. The returned <code>Entry</code>
      * must be unmarshalled in accordance with the <a 
-     * href=http://www.jini.org/standards/index.html>Jini(TM) Entry
+     * href=http://www.jini.org/standards/index.html>Jini Entry
      * Specification</a>.<p>
      *
      * A given invocation of this method may perform remote

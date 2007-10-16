@@ -24,6 +24,6 @@ package com.sun.jini.constants;
  *
  */
 public interface VersionConstants {
-    /** Current version of the Jini(tm) Software Kit (JSK) */ 
+    /** Current version of the Apache River release */ 
     String SERVER_VERSION = "2.1.1";
 }

@@ -160,7 +160,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * obey the guidelines that are specified for <code>equals</code> methods of
  * {@link Endpoint} instances. <p>
  *
- * This class uses the <a href="../connection/doc-files/mux.html">Jini(TM)
+ * This class uses the <a href="../connection/doc-files/mux.html">Jini
  * extensible remote invocation (Jini ERI) multiplexing protocol</a> to map
  * outgoing requests to socket connections.
  *

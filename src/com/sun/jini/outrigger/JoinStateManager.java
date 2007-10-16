@@ -64,7 +64,7 @@ class JoinStateManager implements StorableObject {
 
     /**
      * <code>JoinManager</code> that is handling the details of binding
-     * into Jini(TM) lookup services.
+     * into Jini lookup services.
      */
     private JoinManager  mgr;
 

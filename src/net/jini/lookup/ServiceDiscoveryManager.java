@@ -2535,7 +2535,7 @@ public class ServiceDiscoveryManager {
      * remote listener, <i>it is the entity's responsibility</i> to provide a
      * mechanism for any lookup service to acquire the proxy to the exported
      * listener. One way to do this is to configure this utility to export
-     * the listener using the Jini(TM) Extensible Remote Invocation (Jini ERI)
+     * the listener using the Jini Extensible Remote Invocation (Jini ERI)
      * communication framework. When the listener is exported to use Jini ERI,
      * and no proxy customizations (such as a custom invocation handler or
      * transport endpoint) are used, no other action is necessary to make the

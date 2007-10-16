@@ -120,7 +120,7 @@ import java.util.regex.Pattern;
  * % java -jar <var><b>install_dir</b></var>/lib/jarwrapper.jar \
  *        -httpmd=SHA-1 wrapper.jar base_dir src1.jar src2.jar
  * </pre></blockquote>
- * where <var><b>jsk_install_dir</b></var> is the directory where the starter kit
+ * where <var><b>jsk_install_dir</b></var> is the directory where the Apache River release
  * is installed. This command line would result in the creation of a wrapper
  * JAR file, <code>wrapper.jar</code>, in the current working directory, whose
  * contents would be based on the source JAR files <code>src1.jar</code> and

@@ -345,7 +345,7 @@ public interface LeaseRenewalSet {
      * <p>
      * The <code>handback</code> argument to this method specifies an
      * object that will be part of the expiration warning event
-     * notification. This mechanism is detailed in the Jini(TM)
+     * notification. This mechanism is detailed in the Jini
      * Distributed Event Specification.
      * <p>
      * This method returns the event registration for this event. The
@@ -413,7 +413,7 @@ public interface LeaseRenewalSet {
      * <p>
      * The <code>handback</code> argument specifies an object that
      * will be part of the renewal failure event notification. This
-     * mechanism is detailed in the Jini(TM) Distributed Event
+     * mechanism is detailed in the Jini Distributed Event
      * Specification.
      * <p>
      * This method returns the event registration for this event. The

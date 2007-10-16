@@ -27,11 +27,11 @@
 
 <h2>Introduction</h2>
 <p>
-The Hello example was created to illustrate how a typical Jini(TM) 
+The Hello example was created to illustrate how a typical Jini 
 technology-based application can be configured and optionally secured
 using the configuration and Jini extensible remote invocation (Jini ERI) 
 facilities that arrived in version 2.0 of the Jini Technology Starter Kit 
-(starter kit). The components built from the files making up this example 
+. The components built from the files making up this example 
 are a <i>server</i> component that implements a <code>Hello</code> 
 interface with a <code>sayHello()</code> method, and a <i>client</i> 
 component that employs a <i>lookup service</i> to obtain a reference to 
@@ -136,7 +136,7 @@ example exploits the
 <a href="../../../../../../../doc/specs/api/net/jini/security/policy/DynamicPolicyProvider.html">dynamic permission granting</a>
 features of the 
 <a href="../../../../../../../doc/specs/api/net/jini/security/policy/package-summary.html">security policy provider</a>
-included in the starter kit. 
+included in the Apache River release. 
 
 <h4>SSL setup</h4>
 
@@ -226,22 +226,22 @@ In order to enable
 <a href="../../../../../../../doc/specs/api/net/jini/security/policy/DynamicPolicyProvider.html">dynamic permission granting</a>,
 the 
 <a href="../../../../../../../doc/specs/api/net/jini/security/policy/package-summary.html">security policy provider</a>
-included in the starter kit must be installed as an extension 
+included in the Apache River release must be installed as an extension 
 in the Java 2 SDK (or JRE) used to run this example. Although the
 <a href="../../../../../../../doc/info-index.html#install">top level documentation</a>
-of the starter kit discusses two different strategies for installing 
+of the Apache River release discusses two different strategies for installing 
 the policy provider, the strategy that this example <b>requires</b> 
 is the strategy in which the JAR file <code>jsk-policy.jar</code> 
 is copied into the Java extensions directory; specifically:
 <p>
 <ol>
   <li>Locate the <code>jsk-policy.jar</code> file in the
-      <code>lib-ext</code> directory of the starter kit.
+      <code>lib-ext</code> directory of the Apache River release.
   </li>
   <li>Locate the <code>jre/lib/ext</code> directory inside your
       Java 2 SDK (or JRE) distribution.
   </li>
-  <li>Copy the <code>jsk-policy.jar</code> file from the starter kit
+  <li>Copy the <code>jsk-policy.jar</code> file from the Apache River release
       to the <code>jre/lib/ext</code> directory as located in step 2.
   </li>
 </ol>
@@ -249,7 +249,7 @@ is copied into the Java extensions directory; specifically:
 After following the steps outlined above, if the virtual machine 
 for the Java platform associated with the <code>ext</code> directory 
 is available in your path, then the features provided by the security 
-policy provider included in the starter kit will be available when 
+policy provider included in the Apache River release will be available when 
 running the example.
 <p>
 <hr>
@@ -316,10 +316,10 @@ window, change the directory to the hello directory. That is,
 
 To run this example under any of the possible configurations, a single 
 class server should be started to serve up files from both the example's
-<code>lib</code> directory and the starter kit's <code>lib-dl</code>
+<code>lib</code> directory and the Apache River release <code>lib-dl</code>
 directory. The 
 <a href="../../../../../../../doc/api/com/sun/jini/tool/ClassServer.html">class server</a>
-provided in the starter kit is used for this purpose. Note that once 
+provided in the Apache River release is used for this purpose. Note that once 
 started, there is no need to shut down the class server (cntrl-c) until 
 it is no longer needed. This is because that single class server can be 
 shared by each configuration. To start the class server, type the 
@@ -1050,8 +1050,8 @@ communicate with each other under those configurations.
 
 <h4>Dynamic permissions, integrity, access control</h4>
 
-To install the security policy provider included in the starter
-kit (to enable dynamic permission granting) the secure configurations
+To install the security policy provider included in the Apache River 
+release (to enable dynamic permission granting) the secure configurations
 of the lookup service, the server, and Phoenix each use the 
 security properties file, 
 <code><a href="config/dynamic-policy.security-properties">config/dynamic-policy.security-properties</a></code>.
@@ -1467,7 +1467,7 @@ implementing the activatable form of the server component.
 Another common strategy is to provide a separate registration 
 mechanism (for example, the class
 <a href="../../../../../../../doc/api/com/sun/jini/start/SharedActivatableServiceDescriptor.html"><code>SharedActivatableServiceDescriptor</code></a>
-from the starter kit's
+from the Apache River release's
 <a href="../../../../../../../doc/api/com/sun/jini/start/package-summary.html"><i>service starter framework</i></a>).
 <p>
 As with the confirming configurations, the activatable configurations 
@@ -1767,7 +1767,7 @@ running. Presumably, you obtained this code from a vendor that you
 trust will not supply a JDK or JRE that does "bad things". Even if 
 the version of Java you are using was not installed by you, it was 
 probably pre-installed by the (trusted) vendor who supplied your
-system. Similarly, the starter kit itself was obtained from a 
+system. Similarly, the Apache River release itself was obtained from a 
 trusted source (the Jini team), and was installed by someone you must 
 certainly trust - you! Code that is installed and runs locally (including 
 your own application code) can be safely granted "all permissions" 
@@ -1782,15 +1782,15 @@ the policy file for both the
 from the <a href="#all-policy-files">lists below</a>. In both files, 
 you will see that "all permissions" is granted to the JAR files from only
 the <a href="../../../../../../../lib"><code>lib</code></a> directory
-of the starter kit, with no entries granting "all permissions" to  
+of the Apache River release, with no entries granting "all permissions" to  
 <code>http: URL</code>s referencing any of the JAR files from the 
 <a href="../../../../../../../lib-dl"><code>lib-dl</code></a> directory.
 Recall that files such as <code>jsk-platform.jar</code>, 
-<code>reggie.jar</code>, etc. are contained in the starter kit's 
+<code>reggie.jar</code>, etc. are contained in the Apache River release's 
 <code>lib</code> directory whereas only <i>downloadable</i> JAR 
 files (such as <code>jsk-dl.jar</code>, <code>reggie-dl.jar</code>, etc.) 
 are contained in the <code>lib-dl</code> directory. The pattern
-promoted by the starter kit is that the JAR files from the 
+promoted by the Apache River release is that the JAR files from the 
 <code>lib</code> directory are expected to be locally installed, 
 not downloaded; whereas the JAR files contained in the <code>lib-dl</code> 
 directory are expected to be downloaded. Thus, another way of stating 
@@ -2194,7 +2194,7 @@ Logging is performed in this example using the Java platform's
 This example does not specify any of its own 
 <a href="http://java.sun.com/j2se/1.4.2/docs/api/java/util/logging/Logger.html">loggers</a>.
 All logging that occurs in this example occurs through the various 
-loggers specified in the starter kit itself, which are configured
+loggers specified in the Apache River release itself, which are configured
 using the following 
 <a href="http://java.sun.com/j2se/1.4.2/docs/guide/util/logging/overview.html#1.8">logger configuration file</a>:
 

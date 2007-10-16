@@ -25,7 +25,7 @@ import net.jini.security.proxytrust.ProxyTrust;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 /**
- * Invocation layer factory for remote objects exported to use Jini(TM)
+ * Invocation layer factory for remote objects exported to use Jini
  * extensible remote invocation (Jini ERI) that produces proxies that
  * additionally implement the {@link ProxyTrust} interface. The remote object
  * being exported must be an instance of {@link ServerProxyTrust}, and the

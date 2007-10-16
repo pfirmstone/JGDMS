@@ -42,7 +42,7 @@ import net.jini.security.SecurityContext;
 
 /**
  * An <code>Exporter</code> implementation for exporting
- * a remote object to use Jini(TM) extensible remote invocation
+ * a remote object to use Jini extensible remote invocation
  * (Jini ERI).  Typically, instances of this class should be
  * obtained from a {@link Configuration} rather than being explicitly
  * constructed.

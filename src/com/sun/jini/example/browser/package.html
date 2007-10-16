@@ -24,12 +24,12 @@
 </head>
 <body text="#000000" bgcolor="#ffffff" link="#9b37cc"
       vlink="#cc1877" alink="#ffffff">
-A visualization tool for exploring Jini(TM) Network Technology
+A visualization tool for exploring Jini Network Technology
 communities (<i>djinns</i>). The Service Browser
 lets you discover lookup services and inspect the various
 services registered within those lookup services. This tool
-is provided as an example program within the Jini Technology Starter Kit
-(starter kit) but many who use it think
+is provided as an example program within the Apache River release
+but many who use it think
 of it more as a utility than an example.
 <p>
 This document provides the following information about the Service Browser:
@@ -55,7 +55,7 @@ structure:
 </pre></blockquote>
 where <var><b>java_options</b></var> includes such things as the security
 policy file and the RMI codebase annotation, <var><b>install_dir</b></var>
-is the directory where the starter kit is installed, and
+is the directory where the Apache River release is installed, and
 <var><b>config_options</b></var> includes any
 {@link net.jini.config.Configuration} provider options. The
 Service Browser can be run with no <var><b>config_options</b></var>.
@@ -250,7 +250,7 @@ proxy implements any of the administrative interfaces supported by the Service
 Browser, selecting <b>Admin Service</b> from this menu brings up the
 <b>ServiceItem Editor</b> window. Selecting <b>Browse Service</b> from
 this menu brings up the <b>ServiceItem Browser</b> window. If the service
-is a JavaSpaces(TM) service and either its proxy implements the
+is a JavaSpaces service and either its proxy implements the
 {@link net.jini.space.JavaSpace05} interface or its administrative proxy
 implements the {@link com.sun.jini.outrigger.JavaSpaceAdmin}
 interface, selecting <b>Browse Entries</b> from this menu brings up a
@@ -666,7 +666,7 @@ In this example, the local host is assumed to have the name
 <var><b>your_host</b></var>, running an HTTP server on port
 <var><b>http_port</b></var>, serving files in the <code>lib</code>
 subdirectory of <var><b>install_dir</b></var>, the directory where the
-starter kit is installed.
+Apache River release is installed.
 When the Service Browser is run this way, without a configuration file, it
 will perform multicast discovery to find all available lookup
 services, and will use Jini extensible remote invocation (Jini ERI)

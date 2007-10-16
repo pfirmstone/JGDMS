@@ -89,7 +89,7 @@ import net.jini.security.SecurityContext;
  * enumerateListenEndpoints} is invoked.
  *
  * <p><code>TcpServerEndpoint</code> uses the <a
- * href="../connection/doc-files/mux.html">Jini(TM) extensible remote
+ * href="../connection/doc-files/mux.html">Jini extensible remote
  * invocation (Jini ERI) multiplexing protocol</a> to map incoming
  * requests to socket connections.
  *

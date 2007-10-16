@@ -317,7 +317,7 @@ public class EventType implements Serializable {
 
 	// Even if there is no listener, an event has occurred, so
 	// increment the sequence number (note this a stronger
-	// guarantee that the Jini(TM) Distributed Event Specification,
+	// guarantee that the Jini Distributed Event Specification,
 	// but one that is required by the LRS spec).
 	lastSeqNum++;
 

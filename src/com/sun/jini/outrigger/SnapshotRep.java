@@ -22,7 +22,7 @@ import net.jini.core.entry.Entry;
 
 /**
  * This class is used by the <code>snapshot</code> implementation of the
- * proxy to create a <code>snapshot</code>.  Here's what the JavaSpaces(tm)
+ * proxy to create a <code>snapshot</code>.  Here's what the JavaSpaces
  * specification says about <code>snapshot</code>.
  *
  * The process of serializing an entry for transmission to a JavaSpaces

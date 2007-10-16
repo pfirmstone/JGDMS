@@ -35,7 +35,7 @@ import net.jini.jeri.ServerEndpoint;
 
 /**
  * Provides server-side connection management using the <a
- * href="{@docRoot}/net/jini/jeri/connection/doc-files/mux.html">Jini(TM)
+ * href="{@docRoot}/net/jini/jeri/connection/doc-files/mux.html">Jini
  * extensible remote invocation (Jini ERI) multiplexing protocol</a>
  * to frame and multiplex requests and responses over connections.
  *

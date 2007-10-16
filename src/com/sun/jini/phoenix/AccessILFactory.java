@@ -31,7 +31,7 @@ import net.jini.jeri.ServerCapabilities;
 /**
  * A basic invocation layer factory, used in exporting an
  * <code>ActivationMonitor</code> or <code>ActivationInstantiator</code> to
- * use Jini(TM) extensible remote invocation (Jini ERI), that is similar to
+ * use Jini extensible remote invocation (Jini ERI), that is similar to
  * {@link BasicILFactory} except the returned invocation dispatcher only
  * accepts calls from the local host.
  *

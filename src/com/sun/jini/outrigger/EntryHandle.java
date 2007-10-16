@@ -102,7 +102,7 @@ import com.sun.jini.landlord.LeasedResource;
  * @author Sun Microsystems, Inc.  
  */
 // We do not store this data on the EntryRep object itself because it
-// is not really part of the client<->JavaSpaces(TM) service protocol -- 
+// is not really part of the client<->JavaSpaces service protocol -- 
 // some implementations of EntryHolder may not choose to use this
 // mechanism.  It does add an extra object per EntryRep object in
 // those that *do* use it, and so we may want to re-examine this in the

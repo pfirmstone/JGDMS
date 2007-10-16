@@ -79,7 +79,7 @@ import java.io.IOException;
  *      -cp <var><b>input_classpath</b></var> <var><b>processing_options</b></var> <var><b>output_options</b></var>
  * </pre></blockquote>
  * <p>
- * where <var><b>install_dir</b></var> is the directory where the starter kit
+ * where <var><b>install_dir</b></var> is the directory where the Apache River release
  * is installed.
  * Note that the options for this tool can be specified in any order, and
  * can be intermixed.
@@ -90,7 +90,7 @@ import java.io.IOException;
  * is an argument to the <code>ClassDep</code> tool itself and should
  * include all of the classes that might need to be included in the
  * dependency analysis. Typically this will include all of your application
- * classes, classes from the starter kit, and any other classes on which
+ * classes, classes from the Apache River release, and any other classes on which
  * your classes might depend. It is safe to include more classes than are
  * actually necessary (since the purpose of this tool is, after all, to
  * determine which subset of these classes is actually necessary), but it is
@@ -332,7 +332,7 @@ import java.io.IOException;
  * <a name="examples"></a>
  * <h3>Examples</h3>
  *
- * (The examples in this section assume you ran the starter kit installer
+ * (The examples in this section assume you ran the Apache River release installer
  * with an "Install Set" selection that created the top-level
  * <code>classes</code> directory. Alternatively, if you have compiled from
  * the source code, substitute <code>source/classes</code> for

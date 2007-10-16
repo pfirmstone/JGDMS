@@ -33,7 +33,7 @@ import net.jini.jeri.ServerCapabilities;
 
 /**
  * Invocation layer factory for exporting an {@link ActivationSystem}
- * to use Jini(TM) extensible remote invocation (Jini ERI), that is similar
+ * to use Jini extensible remote invocation (Jini ERI), that is similar
  * to {@link BasicILFactory} except the remote object must be an
  * <code>ActivationSystem</code> instance and the returned dispatcher
  * optionally accepts calls from the local host and optionally enforces a

@@ -23,7 +23,7 @@ import net.jini.core.entry.Entry;
 
 /**
  * Utility class for handling JavaBeans(TM) components that relate to Entry 
- * classes in the Jini(TM) lookup service.
+ * classes in the Jini lookup service.
  * 
  * @author Sun Microsystems, Inc.
  */

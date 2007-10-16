@@ -49,7 +49,7 @@ import java.util.Enumeration;
  * import codebase to use 
  * <code><VAR><B>policy_dir</B></VAR>${/}policy.fiddler</code> for their
  * policy file, where <VAR><B>install_dir</B></VAR> is the installation
- * directory of the starter kit and <VAR><B>policy_dir</B></VAR> is the
+ * directory of the Apache River release and <VAR><B>policy_dir</B></VAR> is the
  * pathname to the directory containing the policy file.
  *
  * @author Sun Microsystems, Inc.

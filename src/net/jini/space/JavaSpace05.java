@@ -62,7 +62,7 @@ import net.jini.entry.UnusableEntriesException;
  * takes as one of its arguments a <code>Collection</code> of
  * <code>Entry</code> instances. The entries themselves must be
  * serialized in accordance with the <a
- * href=http://www.jini.org/standards/index.html>Jini(TM) Entry
+ * href=http://www.jini.org/standards/index.html>Jini Entry
  * Specification</a> and will not be altered by the
  * call. Typically, the <code>Collection</code> holding the entries
  * will not be serialized at all. If one of these entries can't be
@@ -73,9 +73,9 @@ import net.jini.entry.UnusableEntriesException;
  * Invocation remote interface semantics.
  *
  * @see <a href=http://www.jini.org/standards/index.html>
- *      JavaSpaces(TM) Service Specification</a>
+ *      JavaSpaces Service Specification</a>
  * @see <a href=http://www.jini.org/standards/index.html>
- *      Jini(TM) Entry Specification</a>
+ *      Jini Entry Specification</a>
  * @since 2.1
  */
 public interface JavaSpace05 extends JavaSpace {

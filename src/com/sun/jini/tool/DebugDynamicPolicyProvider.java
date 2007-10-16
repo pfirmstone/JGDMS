@@ -108,10 +108,10 @@ import net.jini.security.policy.PolicyInitializationException;
  * To use this security policy provider, do the following: <ul>
  *
  * <li> Copy the <code>jsk-policy.jar</code> file from the <code>lib-ext</code>
- * subdirectory of the Jini(TM) Technology Starter Kit (starter kit)
+ * subdirectory of the Apache River release
  * installation to the extensions directory of the Java(TM) 2 SDK (or JRE)
  * installation, and copy the <code>jsk-debug-policy.jar</code> file
- * from the <code>lib</code> subdirectory of the starter kit installation to
+ * from the <code>lib</code> subdirectory of the Apache River release installation to
  * the extensions directory of the Java 2 SDK (or JRE) installation.
  *
  * <li> Specify this class as the security policy provider. Create a copy of

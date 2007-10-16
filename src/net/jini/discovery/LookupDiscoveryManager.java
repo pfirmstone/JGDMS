@@ -503,7 +503,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *        When the discard is a no-interest discard, if the discarded
          *        reg was previously discovered by ONLY locator discovery,
          *        then a discarded event is sent; otherwise, no event is sent
-         *        (see section DU.2.5.1 of the "Jini(TM) Discovery Utilities
+         *        (see section DU.2.5.1 of the "Jini Discovery Utilities
          *        Specification").
          *  </ul><p>
          *  The logic described above can be collapsed into the following
@@ -718,7 +718,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *        discard is an active no-interest discard, if the discarded
          *        reg was previously discovered by ONLY group discovery, then
          *        a discarded event is sent; otherwise, no event is sent
-         *        (see section DU.2.4.1 of the "Jini(TM) Discovery Utilities
+         *        (see section DU.2.4.1 of the "Jini Discovery Utilities
          *        Specification").
          *   <li> if the member groups contained in the discarded event from
          *        the <code>LookupDiscovery</code> neither intersect the

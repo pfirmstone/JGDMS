@@ -386,7 +386,7 @@ public class OutriggerServerImpl
      * numbers (when compared to the previous invocation) will appear
      * to have a [large] gap.
      * <p>
-     * [See the JavaSpaces(TM) Service Specification for detail on "fully
+     * [See the JavaSpaces Service Specification for detail on "fully
      *  ordered".]
      */
     private long sessionId = 0;
