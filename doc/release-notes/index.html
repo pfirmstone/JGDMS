@@ -26,10 +26,86 @@
 <h1><center> <a name="TOP">Apache River 
 <br>v2.1.1 Release Notes</a></h1></center>
 <p>
-<ul>These release notes are organized as follows: 
+<p>
+<hr>
+Apache River is an effort undergoing incubation at The Apache Software
+Foundation (ASF), sponsored by the Apache Incubator. Incubation is
+required of all newly accepted projects until a further review
+indicates that the infrastructure, communications, and decision making
+process have stabilized in a manner consistent with other successful
+ASF projects. While incubation status is not necessarily a reflection
+of the completeness or stability of the code, it does indicate that
+the project has yet to be fully endorsed by the ASF.
+<p>
+Apache River is aimed at the development and advancement of the
+Jini technology core infrastructure. Jini technology is a service
+oriented architecture that defines a programming model which both
+exploits and extends Java technology to enable the construction of
+secure, distributed systems which are adaptive to change.
+<hr>
+<h2>Notes of Interest for this Release</h2>
+This first release from the Apache River project is based on the
+contributions of Sun's Jini Technology Starter Kit (Starter Kit) v2.1
+and Service UI from Artima.  The release focuses on merging the
+two contributions together, structuring separate src and bin releases,
+and amending the source and documentation naming/versioning/etc
+to the Apache River project.
+<br>
+Some points of note:
+<br><br>
 <ul>
-        <li><a href=new.html>What's new in v2.1.1?</a> 
-        <li><a href="bugfixes.html">Bugs fixed since the v2.0.2 release</a>
+<li>NOTICE file and source license headers updated </li><br>
+<li>Source and documentation updated for release name ("Apache
+   River release") and version ("v2.1.1") </li><br>
+<li> Graphical installer (which was a 3rd party application in the
+Starter Kit) is no longer available</li><br>
+<li>The combined source and binary release in the Starter Kit has
+been separated into two releases:  src and bin </li><br>
+<li>The "logstore" implementation of com.sun.jini.outrigger.Store has
+been removed
+<p>
+   The persistent version of Outrigger relies on a pluggable persistence
+   layer, <code>com.sun.jini.outrigger.Store</code>. Previous releases
+   of the Starter Kit included two implementations of the Store interface,
+   <em>logstore</em> and <em>snaplogstore</em>. This release removes
+   logstore.
+<p>
+   Logstore has been around in various forms since the 1.0 version of
+   Outrigger. Snapstore was introduced in v2.1 of the Starter Kit.
+<p>
+   The v2.0.n releases of the Starter Kit used logstore as the default Store
+    implementation, this release has no default Store. In order to switch an
+    existing set of configuration files, security policy files, etc., from using
+    logstore to snaplogstore, you will need to change the
+    <code>com.sun.jini.outrigger.store</code> configuration entry (or add a
+    store configuration entry if you don't already have one) to yield a
+    <code>com.sun.jini.outrigger.snaplogstore.LogStore</code> object. You
+    will also need to ensure that <code>outrigger-snaplogstore.jar</code> has
+    been granted sufficient permissions (see Outrigger's package documentation
+    for a sample security policy file.).
+<p>
+    Note that depending on the nature of your application snaplogstore can
+    have a significantly different performance profile than logstore.
+<p>
+    The storage formats used by snaplogstore and logstore are mutually
+    incompatible.
+ </li>
+</ul>
+
+<hr>
+<h2>Submitting Issues</h2>
+<p>
+If you would like to submit a bug against the Apache River release, please use the
+<a href="http://issues.apache.org/jira/browse/RIVER">River JIRA</a>.
+To discuss problems, questions, or suggestions on the release, please subscribe
+to the <code>river-dev</code>list from the <a href="http://incubator.apache.org/river/mailing.html">
+project Mailing Lists</a> page.
+<hr>
+In this first release from the Apache River project, we're also including
+these release notes from the Jini Technology Starter Kit v2.0.2 release for 
+background and context: 
+<ul>
+        <li><a href="bugfixes.html">Bugs fixed between v2.0.1 and v2.0.2 releases</a>
         <li><a href=#changes>Changes since the v2.0.1 release</a>
 	<li><a href=#platform>Platform dependencies</a>
 	<li>JAR file structure
@@ -42,21 +118,10 @@
 		<li><a href=#persistent_outrigger_jars>Persistent Outrigger JAR files</a>
 		<li><a href=#deprecated_jars>Deprecated JAR files</a>
 	</ul>
-	<li><a href=#mac>Tested Platforms
 	<li><a href=#javadoc>Note on the API documentation</a>
-</ul></ul>
-<hr>
-<ul>
-<p>
-If you would like to submit a bug against the Apache River release, please use the
-<a href="http://issues.apache.org/jira/browse/RIVER">River JIRA</a>.
-To discuss problems, questions, or suggestions on the release, please subscribe
-to the <code>river-dev</code>list from the <a href="http://incubator.apache.org/river/mailing.html">
-project Mailing Lists</a> page.
 </ul>
-<hr>
 <ul><a name="changes">
-<h2>Changes since the v2.0.1 release</h2></a>
+<h2>Changes to the Starter Kit between v2.0.1 and v2.0.2</h2></a>
 <h3>Services</h3>
 <ul>
 	<li><a href="reggie.html">Reggie</a>
@@ -546,22 +611,6 @@ this release and might not be supplied in future versions of the Apache River re
 </dl>
 </ul>
 <hr>
-<ul><a name="mac">
-<h2>Tested Platforms
-</h2>
-For a complete list of tested 
-platforms, please visit
-<a href="http://java.sun.com/developer/products/jini/tested.html">
-http://java.sun.com/developer/products/jini/tested.html</a>.
-<p>
-On MacOS 10.3 and MacOS 10.4 we occasionally encountered 
-<code>java.lang.AssertionError</code>s in our testing when assertions were 
-enabled on JDK 1.4.2_05 and JDK 1.4.2_07 respectively. The nature of these 
-errors seems to indicate a problem with the virtual machine for the MacOS 
-platform. We did not encounter any other quality issues 
-on MacOS when assertions were disabled. 
-</ul>
-<hr>
 <ul><a name="javadoc">
 <h2>Note on the API documentation</h2> 
 The on-line API documentation (generated by the
@@ -572,9 +621,6 @@ for the classes and interfaces that we think might be important or useful
 to you. However, almost all of our classes and interfaces have
 documentation comments, so if you wish, you can produce
 API documentation for them yourself.
-Please let us know how you feel about this documentation approach by
-sending email to <code>jini-comments@java.sun.com</code>, with the subject:
-API documentation.
 </ul>
 
 <hr>
