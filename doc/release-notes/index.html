@@ -23,9 +23,8 @@
       vlink="#cc1877" alink="#ffffff">
 
 
-<h1><center> <a name="TOP">Apache River 
+<center> <h1><a name="TOP">Apache River 
 <br>v2.1.1 Release Notes</a></h1></center>
-<p>
 <p>
 <hr>
 Apache River is an effort undergoing incubation at The Apache Software
@@ -50,17 +49,17 @@ and Service UI from Artima.  The release focuses on merging the
 two contributions together, structuring separate src and bin releases,
 and amending the source and documentation naming/versioning/etc
 to the Apache River project.
-<br>
+<p>
 Some points of note:
-<br><br>
+<br>
 <ul>
-<li>NOTICE file and source license headers updated </li><br>
+<li>NOTICE file and source license headers updated </li>
 <li>Source and documentation updated for release name ("Apache
-   River release") and version ("v2.1.1") </li><br>
+   River release") and version ("v2.1.1") </li>
 <li> Graphical installer (which was a 3rd party application in the
-Starter Kit) is no longer available</li><br>
+Starter Kit) is no longer available</li>
 <li>The combined source and binary release in the Starter Kit has
-been separated into two releases:  src and bin </li><br>
+been separated into two releases:  src and bin </li>
 <li>The "logstore" implementation of com.sun.jini.outrigger.Store has
 been removed
 <p>
@@ -98,7 +97,7 @@ been removed
 If you would like to submit a bug against the Apache River release, please use the
 <a href="http://issues.apache.org/jira/browse/RIVER">River JIRA</a>.
 To discuss problems, questions, or suggestions on the release, please subscribe
-to the <code>river-dev</code>list from the <a href="http://incubator.apache.org/river/mailing.html">
+to the <code>river-dev</code> list from the <a href="http://incubator.apache.org/river/mailing.html">
 project Mailing Lists</a> page.
 <hr>
 In this first release from the Apache River project, we're also including
@@ -120,7 +119,7 @@ background and context:
 	</ul>
 	<li><a href=#javadoc>Note on the API documentation</a>
 </ul>
-<ul><a name="changes">
+<a name="changes">
 <h2>Changes to the Starter Kit between v2.0.1 and v2.0.2</h2></a>
 <h3>Services</h3>
 <ul>
@@ -142,9 +141,9 @@ background and context:
 <h3>Tools</h3>
 <ul>
 	<li><a href="browser.html">ServiceBrowser</a>
-	<li><a href="classdep.html"><code>ClassDep</a></code>
-	<li><a href="classserver.html"><code>ClassServer</a></code>
-	<li><a href="servicestarter.html"><code>ServiceStarter</a></code>	
+	<li><a href="classdep.html"><code>ClassDep</code></a>
+	<li><a href="classserver.html"><code>ClassServer</code></a>
+	<li><a href="servicestarter.html"><code>ServiceStarter</code></a>
 </ul>
 <h3>Other</h3>
 <ul>
@@ -153,11 +152,9 @@ background and context:
 	<li><a href="security.html">Security</a>
 	<li><a href="activate.html">Activation</a>
 	<li><a href="comsunjinithread.html"><code>com.sun.jini.thread</code></a>
-
-</ul></ul>
+</ul>
 <hr>
-<ul><a name="platform">
-<h2>Platform dependencies</h2>
+<ul><a name="platform"><h2>Platform dependencies</h2></a>
 This release depends on new features included in version 1.4 of
 the <a href="http://java.sun.com/j2se/1.4/">Java(TM) 2 Platform,
 Standard Edition</a>. You should not expect to be able to use
@@ -167,7 +164,7 @@ that dynamically download code from the services provided in this release.
 </ul>
 <hr>
 <ul><a name="platform_jars">
-<h2>Platform JAR files</h2>
+<h2>Platform JAR files</h2></a>
 In this release we have extended our platform requirements to be
 more than just the Java 2 Platform, Standard Edition.
 <p>
@@ -205,7 +202,6 @@ in the same <code>security.properties</code> file, where
 which typically can be found as the value of the <code>policy.provider</code>
 security property in the <code>jre/lib/security/java.security</code> file of
 the Java 2 SDK installation.
-</pre>
 <p><dt><b><code>jsk-platform.jar</code></b>
 <dd>
 This JAR file contains classes and interfaces that we have chosen to include
@@ -398,9 +394,10 @@ plus the following classes:
 </ul>
 Any other classes or interfaces found in this JAR file should be considered
 implementation details.
+</dl>
 </ul>
 <ul><a name="starter_jars">
-<h2>Service Starter JAR files</h2>
+<h2>Service Starter JAR files</h2></a>
 All of our services are designed to be run under the
 <a href="../api/com/sun/jini/start/package-summary.html">Service Starter</a>.
 <p>
@@ -434,7 +431,7 @@ service descriptor as above for <code>group.jar</code>.
 </dl>
 </ul>
 <ul><a name="service_jars">
-<h2>Service JAR files</h2>
+<h2>Service JAR files</h2></a>
 There are two primary JAR files for each service, a service JAR file with
 a name of the form <code><var>service</var>.jar</code>, and a codebase JAR
 file with a name of the form <code><var>service</var>-dl.jar</code>.
@@ -495,7 +492,7 @@ expected to have <code>jsk-platform.jar</code> in their class path.
 </dl>
 </ul>
 <ul><a name="activation_jars">
-<h2>Activation JAR files</h2>
+<h2>Activation JAR files</h2></a>
 This release contains a configurable Java Remote Method Invocation
 (Java RMI) activation system daemon implementation named
 <a href="../api/com/sun/jini/phoenix/package-summary.html">Phoenix</a>
@@ -519,7 +516,7 @@ but is instead loaded automatically from the same directory as
 </dl>
 </ul>
 <ul><a name="tools_jars">
-<h2>Tools JAR files</h2>
+<h2>Tools JAR files</h2></a>
 <dl>
 <dt><b><code>tools.jar</code></b>
 <dd>This JAR file contains <a href="../manpages-index.html#tools">tools</a> for:
@@ -549,7 +546,7 @@ Browser</a>.
 </dl>
 </ul>
 <ul><a name="persistent_outrigger_jars">
-<h2>Persistent Outrigger JAR files</h2>
+<h2>Persistent Outrigger JAR files</h2></a>
 <dl>
 <p><dt><b><code>outrigger-logstore.jar</code></b>
 <dd>A secondary JAR file referenced by the <code>Class-Path</code> manifest
@@ -562,10 +559,10 @@ practice you should not need to refer directly to this JAR file.
 it is only used if you attempt to rebuild the Apache River release from sources and
 do not have the necessary ObjectStore PSE Pro for Java postprocessor tool.
 In practice you should not need to refer directly to this JAR file.
-
+</dl>
 </ul>
 <ul><a name="deprecated_jars">
-<h2>Deprecated JAR files</h2>
+<h2>Deprecated JAR files</h2></a>
 <dl>
 <dt><b><code>jini-core.jar</code></b>
 <dd>This JAR file contains all of the classes and interfaces in the
@@ -612,7 +609,7 @@ this release and might not be supplied in future versions of the Apache River re
 </ul>
 <hr>
 <ul><a name="javadoc">
-<h2>Note on the API documentation</h2> 
+<h2>Note on the API documentation</h2></a>
 The on-line API documentation (generated by the
 Javadoc(TM) tool) provided in this release does not include
 every class and interface in the <code>com.sun.jini</code> packages.
@@ -639,6 +636,5 @@ distributed under the License is distributed on an "AS IS" BASIS,
 WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
-
 </body>
 </html>
