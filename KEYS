@@ -1,0 +1,33 @@
+
+This file contains the PGP keys of various developers.
+
+Users: pgp < KEYS
+       gpg --import KEYS
+Developers: 
+        pgp -kxa <your name> and append it to this file.
+        (pgpk -ll <your name> && pgpk -xa <your name>) >> this file.
+        (gpg --list-sigs <your name>
+             && gpg --armor --export <your name>) >> this file.
+
+
+========================================================================================
+
+
+pub   1024R/86124FBC 2007-12-19
+uid                  Frank Barnaby (CODE SIGNING KEY) <fbarnaby@apache.org>
+sig 3        86124FBC 2007-12-19  Frank Barnaby (CODE SIGNING KEY) <fbarnaby@apache.org>
+
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: GnuPG v1.4.7 (SunOS)
+
+mI0ER2lPLQEEAMD8GEy2mN9Nr3Ogo5GMy8JwljgRN3o+WTwHu8uz5iG4XgpSfwrj
+OdMy424UaNd6/xTdlV3NMnG+HWFF8TaVsiusEFhMa0ep/ChGjXwfXmnzp/xMj915
+LHzRWnTF1JMQa5Mg6zvGZUqpLozcsuyGOhW/GwsphDUI0buDcrUCc5ERABEBAAG0
+NkZyYW5rIEJhcm5hYnkgKENPREUgU0lHTklORyBLRVkpIDxmYmFybmFieUBhcGFj
+aGUub3JnPoi2BBMBAgAgBQJHaU8tAhsDBgsJCAcDAgQVAggDBBYCAwECHgECF4AA
+CgkQGaL/R4YST7xn+wP+Ip9IwFyHsmVibc/iG35eqw2WKX45XATONz3E50Gc88Nf
+qwkdo/vjdoE34mEovnr4L8IkS1v9aGaffjx2XPsm01fuzMeFaKoSHrdgM3Ah8gNk
+3l3BdbLTzwiBdCBLuKGwjwp+ltUWv97IkKoXSTinnKDGmLD/4OGY3dmLyBaJ/qs=
+=WG5h
+-----END PGP PUBLIC KEY BLOCK-----
+
