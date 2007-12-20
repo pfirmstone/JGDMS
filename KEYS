@@ -16,8 +16,11 @@ Developers:
 pub   1024R/86124FBC 2007-12-19
 uid                  Frank Barnaby <fbarnaby@apache.org>
 sig 3        86124FBC 2007-12-20  Frank Barnaby <fbarnaby@apache.org>
+sig 3        7DDF5B95 2007-12-20  Jim Hurley <jhurley@apache.org>
 uid                  Frank Barnaby <Frank.Barnaby@Sun.Com>
 sig 3        86124FBC 2007-12-20  Frank Barnaby <fbarnaby@apache.org>
+sig 3        7DDF5B95 2007-12-20  Jim Hurley <jhurley@apache.org>
+
 
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v1.4.7 (SunOS)
