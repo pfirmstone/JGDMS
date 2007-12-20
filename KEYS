@@ -14,8 +14,10 @@ Developers:
 
 
 pub   1024R/86124FBC 2007-12-19
-uid                  Frank Barnaby (CODE SIGNING KEY) <fbarnaby@apache.org>
-sig 3        86124FBC 2007-12-19  Frank Barnaby (CODE SIGNING KEY) <fbarnaby@apache.org>
+uid                  Frank Barnaby <fbarnaby@apache.org>
+sig 3        86124FBC 2007-12-20  Frank Barnaby <fbarnaby@apache.org>
+uid                  Frank Barnaby <Frank.Barnaby@Sun.Com>
+sig 3        86124FBC 2007-12-20  Frank Barnaby <fbarnaby@apache.org>
 
 -----BEGIN PGP PUBLIC KEY BLOCK-----
 Version: GnuPG v1.4.7 (SunOS)
@@ -23,11 +25,16 @@ Version: GnuPG v1.4.7 (SunOS)
 mI0ER2lPLQEEAMD8GEy2mN9Nr3Ogo5GMy8JwljgRN3o+WTwHu8uz5iG4XgpSfwrj
 OdMy424UaNd6/xTdlV3NMnG+HWFF8TaVsiusEFhMa0ep/ChGjXwfXmnzp/xMj915
 LHzRWnTF1JMQa5Mg6zvGZUqpLozcsuyGOhW/GwsphDUI0buDcrUCc5ERABEBAAG0
-NkZyYW5rIEJhcm5hYnkgKENPREUgU0lHTklORyBLRVkpIDxmYmFybmFieUBhcGFj
-aGUub3JnPoi2BBMBAgAgBQJHaU8tAhsDBgsJCAcDAgQVAggDBBYCAwECHgECF4AA
-CgkQGaL/R4YST7xn+wP+Ip9IwFyHsmVibc/iG35eqw2WKX45XATONz3E50Gc88Nf
-qwkdo/vjdoE34mEovnr4L8IkS1v9aGaffjx2XPsm01fuzMeFaKoSHrdgM3Ah8gNk
-3l3BdbLTzwiBdCBLuKGwjwp+ltUWv97IkKoXSTinnKDGmLD/4OGY3dmLyBaJ/qs=
-=WG5h
+JUZyYW5rIEJhcm5hYnkgPEZyYW5rLkJhcm5hYnlAU3VuLkNvbT6ItgQTAQIAIAUC
+R2qsUQIbAwYLCQgHAwIEFQIIAwQWAgMBAh4BAheAAAoJEBmi/0eGEk+8PFcEAInJ
+2c8QeSZSnmCmUibFxsPXJAHtTeDoNqArlCVjV+W79QlZxgE+jEkdsC870a5KyYNi
+N8QOttkn85mYIsKYYKcFazuaWh227Bljs3ot7c+CIMzlYdonP3XuZmWV2gOeuVvt
+vyekCAM36W4xs6suuZUFND4TVuP2AyDTzDCxNUvatCNGcmFuayBCYXJuYWJ5IDxm
+YmFybmFieUBhcGFjaGUub3JnPoi2BBMBAgAgBQJHaq24AhsDBgsJCAcDAgQVAggD
+BBYCAwECHgECF4AACgkQGaL/R4YST7wrSQP/ZFpFhTeQQ29b/BXXY9eGHFsOkyX1
+6HjHOAeejne/FxGC1e9xihHKgMtA6YJuCaOBmGtquXakGIwpxRGZjqlgeqZ4jibc
+hCaqcda0sI1FK2RP3a7LH2YY9A+jWgYSkQPNLuxYbLaQG2Vs16zR7FhKc9C+pGl6
+d2O1pFZC8Q1sx60=
+=Luq8
 -----END PGP PUBLIC KEY BLOCK-----
 
