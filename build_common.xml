@@ -333,9 +333,11 @@
 	    
 			<zipfileset dir="${build}" prefix="${install.dir}">
 				<include name="index.html"/>
+
+				<include name="DISCLAIMER"/>
 				<include name="LICENSE"/>
 				<include name="NOTICE"/>
-			
+
 				<include name="doc/api/**"/>
 				<include name="doc/arch2_0.html"/>
 				<include name="doc/info-index.html"/>
@@ -374,6 +376,8 @@
 	    
 			<tarfileset dir="${build}" prefix="${install.dir}">
 				<include name="index.html"/>
+
+				<include name="DISCLAIMER"/>
 				<include name="LICENSE"/>
 				<include name="NOTICE"/>
 			
@@ -420,6 +424,8 @@
 	    
 			<zipfileset dir="${top}" prefix="${install.dir}">
 				<include name="index.html"/>
+
+				<include name="DISCLAIMER"/>
 				<include name="LICENSE"/>
 				<include name="NOTICE"/>
 			
@@ -438,10 +444,27 @@
 			</zipfileset>
 		  
 			<zipfileset dir="${top}" prefix="${install.dir}/source">
+				<include name="index.html"/>
+
 				<include name="build.xml"/>
 				<include name="build_common.xml"/>
 			
+				<include name="DISCLAIMER"/>
+				<include name="LICENSE"/>
+				<include name="NOTICE"/>
+
+				<include name="doc/arch2_0.html"/>
+				<include name="doc/info-index.html"/>
+				<include name="doc/build.html"/>
 				<include name="doc/j2se/**"/>
+				<include name="doc/manpages-index.html"/>
+				<include name="doc/proxypreparation.pdf"/>
+				<include name="doc/release-notes/**"/>
+				<exclude name="doc/release-notes/new.html"/>
+				<include name="doc/simpleproxyverification.pdf"/>
+				<include name="doc/smartproxyverification.pdf"/>
+				<include name="doc/spec-index.html"/>
+				<include name="doc/specs/html/**"/>
 			
 				<include name="src/**"/>
 				<exclude name="src/**/*.sh"/>
@@ -469,6 +492,8 @@
 	    
 			<tarfileset dir="${top}" prefix="${install.dir}">
 				<include name="index.html"/>
+
+				<include name="DISCLAIMER"/>
 				<include name="LICENSE"/>
 				<include name="NOTICE"/>
 			
@@ -487,10 +512,27 @@
 			</tarfileset>
 		  
 			<tarfileset dir="${top}" prefix="${install.dir}/source">
+				<include name="index.html"/>
+
 				<include name="build.xml"/>
 				<include name="build_common.xml"/>
 			
+				<include name="DISCLAIMER"/>
+				<include name="LICENSE"/>
+				<include name="NOTICE"/>
+
+				<include name="doc/arch2_0.html"/>
+				<include name="doc/build.html"/>
+				<include name="doc/info-index.html"/>
 				<include name="doc/j2se/**"/>
+				<include name="doc/manpages-index.html"/>
+				<include name="doc/proxypreparation.pdf"/>
+				<include name="doc/release-notes/**"/>
+				<exclude name="doc/release-notes/new.html"/>
+				<include name="doc/simpleproxyverification.pdf"/>
+				<include name="doc/smartproxyverification.pdf"/>
+				<include name="doc/spec-index.html"/>
+				<include name="doc/specs/html/**"/>
 			
 				<include name="src/**"/>
 			</tarfileset>
