@@ -16,7 +16,19 @@
  ! limitations under the License.
  !-->
 
+
+
 <!-- ################################################################## -->
+<!-- ##									-->
+<!-- ## Building Apache River						-->
+<!-- ## _____________________						-->
+<!-- ##									-->
+<!-- ## Refer to doc/build.html to obtain detailed instructions for	-->
+<!-- ##	building the Apache River source distribution.			-->
+<!-- ##									-->
+<!-- ################################################################## -->
+
+
 
 <project name="Jini" basedir="." default="all">
 

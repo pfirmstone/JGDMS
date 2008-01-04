@@ -69,47 +69,32 @@ interface for details.<p>
 Included in Release</b>
 <dd>
 
-The persistent version of Outrigger relies on a pluggable persistence layer,
-<a
-href="../api/com/sun/jini/outrigger/Store.html"><code>com.sun.jini.outrigger.Store</code></a>.
-Previous releases included one implementation of the <code>Store</code>
-interface, <a
-href="../api/com/sun/jini/outrigger/logstore/LogStore.html">logstore</a>.
-This release adds a second implementation, <a
-href="../api/com/sun/jini/outrigger/snaplogstore/LogStore.html">snaplogstore</a>.
+   The persistent version of Outrigger relies on a pluggable persistence
+   layer, <code>com.sun.jini.outrigger.Store</code>. Previous releases
+   of the Starter Kit included two implementations of the Store interface,
+   <em>logstore</em> and <em>snaplogstore</em>. This release removes
+   logstore.
 <p>
-
-While all the necessary classes are included with this release to run the
-transient version of Outrigger, or the persistent version using the new
-snaplogstore implementation of <code>Store</code>, the logstore
-implementation of <code>Store</code> requires the runtime classes for
-Progress Software's <i>ObjectStore PSEPro for Java</i>
-(PSEPro). Unfortunately, because of issues relating to the transition in
-licensing, this release does not include the PSEPro runtime classes,
-without which logstore will not work. We are sorry for any inconvenience
-this will cause.  We hope to make a release with a complete version of
-logstore available as a separate download in the future.
+   Logstore has been around in various forms since the 1.0 version of
+   Outrigger. Snapstore was introduced in v2.1 of the Starter Kit.
 <p>
-
-Where v2.0.n releases used logstore as the default <code>Store</code>
-implementation, this release has no default store. In order to switch an
-existing set of configuration files, security policy files, etc., from
-using logstore to snaplogstore, you will need to change the <a
-href="../api/com/sun/jini/outrigger/package-summary.html#store">
-<code>com.sun.jini.outrigger.store</code></a> configuration entry (or add a
-<code>store</code> if you don't already have one) to yield a
-<code>com.sun.jini.outrigger.snaplogstore.LogStore</code> object. You will
-also need to ensure that <code>outrigger-snaplogstore.jar</code> has been
-granted sufficient permissions (see Outrigger's package <a
-href="../api/com/sun/jini/outrigger/package-summary.html#outrigger_all_policy">documentation</a>
-for a sample security policy file.).<p>
-
-Note that depending on the nature of your application snaplogstore can have
-a significantly different performance profile than logstore.<p>
-
-The storage formats used by snaplogstore and logstore are mutually
-incompatible.<p>
+   The v2.0.n releases of the Starter Kit used logstore as the default Store
+    implementation, this release has no default Store. In order to switch an
+    existing set of configuration files, security policy files, etc., from using
+    logstore to snaplogstore, you will need to change the
+    <code>com.sun.jini.outrigger.store</code> configuration entry (or add a
+    store configuration entry if you don't already have one) to yield a
+    <code>com.sun.jini.outrigger.snaplogstore.LogStore</code> object. You
+    will also need to ensure that <code>outrigger-snaplogstore.jar</code> has
+    been granted sufficient permissions (see Outrigger's package documentation
+    for a sample security policy file.).
 <p>
+    Note that depending on the nature of your application snaplogstore can
+    have a significantly different performance profile than logstore.
+<p>
+    The storage formats used by snaplogstore and logstore are mutually
+    incompatible.
+
 
 <dt><b>Incompatible Change Made to <code>Store</code> Interface</b>
 
@@ -186,7 +171,7 @@ support for <code>JavaSpaceAdmin</code> is dropped.
 To better support the layering of applications,
 the JAR files, including those related to Outrigger, have
 been restructured. The changes to the server-side files
-(e.g. <code>outrigger.jar</code>, <code>outrigger-logstore.jar</code>,
+(e.g. <code>outrigger.jar</code>, <code>outrigger-snaplogstore.jar</code>,
 etc.) may require changes to the security policy files used for Outrigger
 servers. Permissions must now be granted to <code>jsk-lib.jar</code> in
 addition to Outrigger's other server side JAR files. The changes to

@@ -423,24 +423,9 @@
 		<zip destfile="${src.zip.bundle}">
 	    
 			<zipfileset dir="${top}" prefix="${install.dir}">
-				<include name="index.html"/>
-
 				<include name="DISCLAIMER"/>
 				<include name="LICENSE"/>
 				<include name="NOTICE"/>
-			
-				<include name="doc/api/**"/>
-				<include name="doc/arch2_0.html"/>
-				<include name="doc/info-index.html"/>
-				<include name="doc/build.html"/>
-				<include name="doc/manpages-index.html"/>
-				<include name="doc/proxypreparation.pdf"/>
-				<include name="doc/release-notes/**"/>
-				<exclude name="doc/release-notes/new.html"/>
-				<include name="doc/simpleproxyverification.pdf"/>
-				<include name="doc/smartproxyverification.pdf"/>
-				<include name="doc/spec-index.html"/>
-				<include name="doc/specs/**"/>
 			</zipfileset>
 		  
 			<zipfileset dir="${top}" prefix="${install.dir}/source">
@@ -491,24 +476,9 @@
 		     longfile="warn">
 	    
 			<tarfileset dir="${top}" prefix="${install.dir}">
-				<include name="index.html"/>
-
 				<include name="DISCLAIMER"/>
 				<include name="LICENSE"/>
 				<include name="NOTICE"/>
-			
-				<include name="doc/api/**"/>
-				<include name="doc/arch2_0.html"/>
-				<include name="doc/info-index.html"/>
-				<include name="doc/build.html"/>
-				<include name="doc/manpages-index.html"/>
-				<include name="doc/proxypreparation.pdf"/>
-				<include name="doc/release-notes/**"/>
-				<exclude name="doc/release-notes/new.html"/>
-				<include name="doc/simpleproxyverification.pdf"/>
-				<include name="doc/smartproxyverification.pdf"/>
-				<include name="doc/spec-index.html"/>
-				<include name="doc/specs/**"/>
 			</tarfileset>
 		  
 			<tarfileset dir="${top}" prefix="${install.dir}/source">

@@ -22,7 +22,7 @@
 
 <center><h1>Apache River Release<BR>Getting Started & More with v2.1.1</h1></center>
 <UL><UL>
-  <LI><a href="#examine">Examining the installed files</a>
+  <LI><a href="#examine">Examining the distribution</a>
   <LI><a href="#install">Installing the <code>jsk-policy.jar</code> file</a>
   <LI><a href="#example">Example program documentation</a>
   <LI><a href="#build">Building from the source code</a>
@@ -34,28 +34,27 @@
 <hr>
 <UL>
 <p>
-<a name="examine"><LI><B>Examining the installed files</B></LI></a>
+<a name="examine"><LI><B>Examining the Distribution</B></LI></a>
 <p>
-Once you have installed this release, your installation folder
-should contain some or all of the following items. The actual items installed 
-depend on the features selected during installation.
+Once you have unarchived this release, your installation folder
+should contain most if not all of the following items.
 <p>
 <blockquote>	
   <dl>
+     <dt><b>DISCLAIMER</b><dd>
+	The disclaimer regarding the fact that this project is currently under incubation at The Apache Software Foundation.
+     <dt><b>LICENSE</b><dd>
+	The Apache License.
+     <dt><b>NOTICE</b><dd>
+	The file containing contributor acknowledgments.
      <dt><b>index.html</b><dd>
 	The starting page for all documentation
      <dt><b>configentry</b><dd>
 	The directory that contains configuration entry description files
 	for all of the Jini services and utilities
-     <dt><b>classes</b><dd>
-     	The directory that contains class files from the JAR files 
-     	that are in the <code>lib</code> and <code>lib-dl</code> directories
      <dt><b>doc</b><dd>
 	The directory that contains specifications, API documentation,
 	manual pages, release notes, license information, and other documentation
-     <dt><b>installverify</b><dd>
-        The directory that contains configurations and an executable for 
-        starting a service browser and six contributed Jini services	
      <dt><b>lib</b><dd>
 	The directory where the non-download JAR files are located
      <dt><b>lib-dl</b><dd>
@@ -63,10 +62,7 @@ depend on the features selected during installation.
      <dt><b>lib-ext</b><dd>
      	The directory where the dynamic security policy provider is located
      <dt><b>source</b><dd>
-	The directory that contains all of the source code and build files 
-	for the release and the hello example
-     <dt><b>uninstall</b><dd>
-     	The directory that contains the uninstaller for the release     
+     	The directory where source code may be located if installed via the separate source release, which is only available as a separate download.
   </dl>
 </blockquote>
 
@@ -107,8 +103,11 @@ permission grant is not needed.
 <a name="example"><LI><B>Example program documentation</B></a>
 <p>
 	<ul>
-	<li>The <a href="../source/src/com/sun/jini/example/hello/index.html">
-	hello</a> example was installed if the source feature was selected during installation.
+	<li>The hello example is only included in the source release, which is available
+	as a separate download.  Once the source release is downloaded and unarchived,
+	the example documentation will be located:
+	<p>
+	&lt;install_dir&gt;/source/src/com/sun/jini/example/hello/index.html
 
         <li>Additional examples may be found at
             <a href="http://starterkit-examples.jini.org">starterkit-examples.jini.org</a>.
@@ -118,10 +117,12 @@ permission grant is not needed.
 <a name="build"><LI><B>Building from the source code</B></a>
 <p>
 	<UL>
-	<LI>The prebuilt binaries are included in the release, as is the 
-	source code.
-	<LI>If you wish to rebuild the source code, please see the 
-	<a href="../doc/build.html">build instructions</a>.
+	<LI>The binaries can be build from the source code, which is available as a
+	separate download.  If you wish to build the source code, you will need to
+	download the source release, unarchive it, and refer to the build instructions,
+	located:
+	<p>
+	&lt;install_dir&gt;/source/doc/build.html
 	</UL
 <p>
 <a name="background"><LI><B>Background Material</B></a>
