@@ -553,9 +553,9 @@ public class Util {
     private static Collection getProhibitedProxyInterfaces() {
 	Collection names = new HashSet();
 	names.add("javax.management.MBeanServerConnection");
-	Enumeration enum;
+	Enumeration resources;
 	try {
-	    enum = ClassLoader.getSystemResources(
+	    resources = ClassLoader.getSystemResources(
 					  prohibitedProxyInterfacesResource);
 	} catch (IOException e) {
 	    throw new ExceptionInInitializerError(
@@ -563,8 +563,8 @@ public class Util {
 			     "problem getting resources: " +
 			     prohibitedProxyInterfacesResource).initCause(e));
 	}
-	while (enum.hasMoreElements()) {
-	    URL url = (URL) enum.nextElement();
+	while (resources.hasMoreElements()) {
+	    URL url = (URL) resources.nextElement();
 	    try {
 		InputStream in = url.openStream();
 		try {
