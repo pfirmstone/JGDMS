@@ -88,8 +88,9 @@ import java.util.logging.Logger;
  *	</code>
  *
  * <li> A relative URL: <br>
- *	    <code>index.html;sha=99f6837808c0a79398bf69d83cfb1b82d20cf0cf,Comment
- *	    </code>
+ *	<code>
+ * 	index.html;sha=99f6837808c0a79398bf69d83cfb1b82d20cf0cf,Comment
+ *	</code>
  *
  * <li> A comment-only relative URL: <br>
  *	    <code>,.jar</code>
@@ -159,7 +160,12 @@ public class Handler extends URLStreamHandler {
 	    /* Remove the comment from the context path */
 	    int param = path.lastIndexOf(';');
 	    if (param != -1) {
-		int comment = path.indexOf(',', param);
+		int equalsIndex = path.indexOf('=', param);
+		if (equalsIndex < 0) {
+		    throw new IllegalArgumentException(
+		        "Message digest parameter is missing a '='");
+		}
+		int comment = path.indexOf(',', equalsIndex);
 		if (comment != -1) {
 		    path = path.substring(0, comment);
 		}
@@ -262,9 +268,13 @@ public class Handler extends URLStreamHandler {
 		return false;
 	    }
 	    /* Ignore comments */
-	    int comment1 = path1.indexOf(',', param + 1);
+	    int equalsIndex = path1.indexOf('=', param + 1);
+	    if (equalsIndex < 0 || equalsIndex != path2.lastIndexOf('=')) {
+		return false;
+	    }
+	    int comment1 = path1.indexOf(',', equalsIndex + 1);
 	    int len = (comment1 != -1) ? comment1 : path1.length();
-	    int comment2 = path2.indexOf(',', param + 1);
+	    int comment2 = path2.indexOf(',', equalsIndex + 1);
 	    int len2 = (comment2 != -1) ? comment2 : path2.length();
 	    if (len != len2) {
 		return false;
@@ -328,7 +338,9 @@ public class Handler extends URLStreamHandler {
 		h += path.hashCode();
 	    } else {
 		h += path.substring(0, param).hashCode();
-		int comment = path.indexOf(',', param);
+		int equalsIndex = path.indexOf('=', param + 1);
+		int comment = path.indexOf(',', equalsIndex != -1 ? equalsIndex
+								  : param + 1);
 		if (comment != -1) {
 		    path = path.substring(0, comment);
 		}
