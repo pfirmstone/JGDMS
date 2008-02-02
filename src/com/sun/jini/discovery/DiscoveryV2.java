@@ -24,8 +24,8 @@ import com.sun.jini.resource.Service;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.lang.ref.SoftReference;
 import java.lang.ref.Reference;
+import java.lang.ref.SoftReference;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.Socket;
@@ -37,9 +37,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -112,7 +112,8 @@ class DiscoveryV2 extends Discovery {
 	    }
 	}
 	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST, "returning {0}", new Object[]{ disco });
+	    logger.log(Level.FINEST, "returning {0} for class loader {1}",
+		       new Object[]{ disco, loader });
 	}
 	return disco;
     }
@@ -235,17 +236,26 @@ class DiscoveryV2 extends Discovery {
 
 	// decode payload
 	MulticastRequest req;
-        if (mrd instanceof DelayedMulticastRequestDecoder) {
+	boolean delayed = false;
+	if (mrd instanceof DelayedMulticastRequestDecoder) {
             DelayedMulticastRequestDecoder dmrd =
                 (DelayedMulticastRequestDecoder) mrd;
             req = dmrd.decodeMulticastRequest(buf, constraints, checker, 
 					      delayConstraintCheck);
-        } else {
+	    delayed = delayConstraintCheck;
+	} else {
             req = mrd.decodeMulticastRequest(buf, constraints, checker);
-        }
+	}
 	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST, "decoded {0} using {1}, {2}, {3}",
-		       new Object[]{ req, mrd, constraints, checker });
+	    if (delayed) {
+		logger.log(Level.FINEST, "decoded {0} using {1}, {2}, {3}, " +
+		           "full constraints checking has been delayed",
+			   new Object[]{ req, mrd, constraints, checker });
+	    }
+	    else {
+		logger.log(Level.FINEST, "decoded {0} using {1}, {2}, {3}",
+			   new Object[]{ req, mrd, constraints, checker });
+	    }
 	}
 	return req;
     }
@@ -346,17 +356,26 @@ class DiscoveryV2 extends Discovery {
         MulticastAnnouncement ann;
 	
 	// decode payload
-        if (mad instanceof DelayedMulticastAnnouncementDecoder) {
+	boolean delayed = false;
+	if (mad instanceof DelayedMulticastAnnouncementDecoder) {
             DelayedMulticastAnnouncementDecoder dmad =
 		(DelayedMulticastAnnouncementDecoder) mad;
             ann = dmad.decodeMulticastAnnouncement(buf, constraints, 
 						   delayConstraintCheck);
-        } else {
+	    delayed = delayConstraintCheck;
+	} else {
             ann = mad.decodeMulticastAnnouncement(buf, constraints);
         }
 	if (logger.isLoggable(Level.FINEST)) {
-	    logger.log(Level.FINEST, "decoded {0} using {1}, {2}",
-		       new Object[]{ ann, mad, constraints });
+	    if (delayed) {
+		logger.log(Level.FINEST, "decoded {0} using {1}, {2}, " +
+		           "full constraints checking has been delayed",
+			   new Object[]{ ann, mad, constraints });
+	    }
+	    else {
+		logger.log(Level.FINEST, "decoded {0} using {1}, {2}",
+			   new Object[]{ ann, mad, constraints });
+	    }
 	}
 	return ann;
     }
@@ -386,7 +405,7 @@ class DiscoveryV2 extends Discovery {
 
 	// determine set of acceptable formats to propose
 	Map udcMap = formatIdMaps[UNICAST_DISCOVERY_CLIENT];
-	Set fids = new HashSet();
+	Set fids = new LinkedHashSet();
 	Exception ex = null;
 	for (Iterator i = udcMap.entrySet().iterator(); i.hasNext(); ) {
 	    Map.Entry ent = (Map.Entry) i.next();
@@ -404,7 +423,8 @@ class DiscoveryV2 extends Discovery {
 		    e instanceof SecurityException)
 		{
 		    ex = e;
-		    logger.log(Levels.HANDLED, "constraint check failed", e);
+		    logger.log(Levels.HANDLED,
+			       "constraint check failed for " + udc, e);
 		} else {
 		    throw (RuntimeException) e;
 		}
@@ -513,7 +533,8 @@ class DiscoveryV2 extends Discovery {
 		    uds = s;
 		    break;
 		} catch (Exception e) {
-		    logger.log(Levels.HANDLED, "constraint check failed", e);
+		    logger.log(Levels.HANDLED,
+			       "constraint check failed for " + uds, e);
 		}
 	    }
 	}
@@ -592,7 +613,7 @@ class DiscoveryV2 extends Discovery {
     }
 
     private static Map makeFormatIdMap(List providers) {
-	Map map = new HashMap();
+	Map map = new LinkedHashMap();
 	for (Iterator i = providers.iterator(); i.hasNext(); ) {
 	    DiscoveryFormatProvider p = (DiscoveryFormatProvider) i.next();
 	    Long fid = new Long(computeFormatID(p.getFormatName()));
