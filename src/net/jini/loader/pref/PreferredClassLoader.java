@@ -517,15 +517,17 @@ public class PreferredClassLoader extends URLClassLoader
 		baseURL = firstURL;
 	    } else {
 		/*
-		 * First determine if the JAR file exists by attempting to
-		 * access it directly, without using a "jar:" URL, because
-		 * the "jar:" URL handler can mask the distinction between
-		 * definite lack of existence and less definitive errors.
-		 * Unfortunately, this direct access circumvents the JAR
+		 * First try to get a definite answer about the existence of a
+		 * PREFERRED.LIST that doesn't by-pass a JAR file cache, if
+		 * any. If that fails we determine if the JAR file exists by
+		 * attempting to access it directly, without using a "jar:" URL,
+		 * because the "jar:" URL handler can mask the distinction
+		 * between definite lack of existence and less definitive
+		 * errors. Unfortunately, this direct access circumvents the JAR
 		 * file caching done by the "jar:" handler, so it ends up
-		 * causing a duplicate request of the JAR file on first
-		 * use.  (For HTTP-protocol URLs, the initial request will
-		 * use HEAD instead of GET.)
+		 * causing duplicate requests of the JAR file on first use when
+		 * our first attempt fails. (For HTTP-protocol URLs, the initial
+		 * request will use HEAD instead of GET.)
 		 *
 		 * After determining that the JAR file exists, attempt to
 		 * retrieve the preferred list using a "jar:" URL, like
@@ -581,7 +583,26 @@ public class PreferredClassLoader extends URLClassLoader
 	}
 
 	if (!exists) {
-	    exists = (getPreferredConnection(firstURL, true) != null);
+	    /*
+	     * first try to get a definite answer of the existence of a JAR
+	     * file, if no IOException is thrown when obtaining it through the
+	     * "jar:" protocol we can safely assume the JAR file is locally
+	     * available upon the attempt (elsewhere) to obtain the preferred
+	     * list
+	     */
+	    try {
+		URL baseURL = getBaseJarURL(firstURL);
+		((JarURLConnection) baseURL.openConnection()).getManifest();
+		exists = true;
+	    }
+	    catch (IOException e) {
+		// we still have no definite answer on whether the JAR file
+		// and therefore the PREFERRED.LIST exists
+	    }
+
+	    if (!exists) {
+		exists = (getPreferredConnection(firstURL, true) != null);
+	    }
 	    if (exists) {
 		synchronized (existSet) {
 		    existSet.add(firstURL);
@@ -636,8 +657,6 @@ public class PreferredClassLoader extends URLClassLoader
     private URLConnection getPreferredConnection(URL url, boolean closeAfter)
 	throws IOException
     {
-	URLConnection preferredConnection = null;
-
 	if (url.getProtocol().equals("file")) {
 	    return url.openConnection();
 	}
