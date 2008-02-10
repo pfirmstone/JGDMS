@@ -134,16 +134,6 @@ class ParticipantHandle implements Serializable, TransactionConstants {
     synchronized int getPrepState() {
 	return prepstate;
     }
-
-
-    boolean compareTo(ParticipantHandle other) {
-        if (storedpart != null)
-	    return storedpart.equals(other);
-	else if (other == null)
-	    return false;
-
-	return false;
-    }
     
     /**
      * Return the <code>hashCode</code> of the 
