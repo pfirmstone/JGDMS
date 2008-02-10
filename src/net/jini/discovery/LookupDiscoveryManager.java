@@ -419,7 +419,6 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
             ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
             HashMap discoveredGroupsMap = new HashMap(proxys.length);
-            HashMap changedGroupsMap    = new HashMap(proxys.length);
 	    for(int i=0; i<proxys.length; i++) {
                 synchronized(discoveredSet) {
                     ProxyReg reg = findReg(proxys[i]);
@@ -1146,8 +1145,6 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
         }
         if(!removed) return; // nothing removed
 
-        String[] newGroupsToDiscover = (String[])(curGroups).toArray
-                                                (new String[curGroups.size()]);
 	lookupDisc.removeGroups(groups); //generates discards that get ignored
     }
 
