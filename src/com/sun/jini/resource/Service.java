@@ -31,7 +31,7 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
-import java.util.TreeSet;
+import java.util.LinkedHashSet;
 
 
 /**
@@ -181,7 +181,7 @@ public final class Service {
      *         The service class for which providers are being sought;
      *         used to construct error detail strings
      *
-     * @param  url
+     * @param  u
      *         The URL naming the configuration file to be parsed
      *
      * @param  returned
@@ -231,7 +231,7 @@ public final class Service {
 	ClassLoader loader;
 	Enumeration configs = null;
 	Iterator pending = null;
-	Set returned = new TreeSet();
+	Set returned = new LinkedHashSet();
 	String nextName = null;
 
 	private LazyIterator(Class service, ClassLoader loader) {
@@ -319,7 +319,7 @@ public final class Service {
      *         be used
      * 
      * @return An <tt>Iterator</tt> that yields provider objects for the given
-     *         service, in some arbitrary order.  The iterator will throw a
+     *         service, in instantiation order.  The iterator will throw a
      *         <tt>ServiceConfigurationError</tt> if a provider-configuration
      *         file violates the specified format or if a provider class cannot
      *         be found and instantiated.
