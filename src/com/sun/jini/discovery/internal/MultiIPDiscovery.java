@@ -130,33 +130,37 @@ public abstract class MultiIPDiscovery {
 	throws IOException, ClassNotFoundException
     {
 	Socket s = new Socket();
-	if (connectionTimeout > Integer.MAX_VALUE) {
-	    s.connect(new InetSocketAddress(host, port));
-	} else {
-	    s.connect(new InetSocketAddress(host, port), 
-		      (int) connectionTimeout);
-	}
-	try {
-	    s.setTcpNoDelay(true);
-	} catch (SocketException e) {
-	    // ignore possible failures and proceed anyway
-	}
-	try {
-	    s.setKeepAlive(true);
-	} catch (SocketException e) {
-	    // ignore possible failures and proceed anyway
-	}
-	s.setSoTimeout(dc.getUnicastSocketTimeout(
-			getDefaultUnicastSocketTimeout()));
-	try {
-	    return performDiscovery(disco, dc, s);
-	} finally {
-	    try {
-		s.close();
-	    } catch (IOException e) {
-		socketCloseException(e);
-	    }
-	}
+        boolean discoveryAttempted = false;
+        try {
+            if (connectionTimeout > Integer.MAX_VALUE) {
+                s.connect(new InetSocketAddress(host, port));
+            } else {
+                s.connect(new InetSocketAddress(host, port), 
+                          (int) connectionTimeout);
+            }
+            try {
+                s.setTcpNoDelay(true);
+            } catch (SocketException e) {
+                // ignore possible failures and proceed anyway
+            }
+            try {
+                s.setKeepAlive(true);
+            } catch (SocketException e) {
+                // ignore possible failures and proceed anyway
+            }
+            s.setSoTimeout(dc.getUnicastSocketTimeout(
+                            getDefaultUnicastSocketTimeout()));
+            discoveryAttempted = true;
+            return performDiscovery(disco, dc, s);
+        } finally {
+            try {
+                s.close();
+            } catch (IOException e) {
+                if (discoveryAttempted) {
+                    socketCloseException(e);
+                }
+            }
+        }
     }
     
     /*
@@ -181,7 +185,7 @@ public abstract class MultiIPDiscovery {
     }
     
     /*
-     * Called when close of a socket on which discovery has been performed
+     * Called when close of a socket on which discovery has been attempted
      * fails. This class implements this method to do nothing by default.
      */
     protected void socketCloseException(IOException ex) {}
