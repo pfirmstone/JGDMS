@@ -1182,7 +1182,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 		    } catch (NullPointerException e) {
 			break; // workaround for bug 4190513
 		    }
-		    taskManager.add(new DecodeAnnouncementTask(pkt));
+		    restoreContextAddTask(new DecodeAnnouncementTask(pkt));
 
 		    buf = new byte[buf.length];
 		    pkt = new DatagramPacket(buf, buf.length);
@@ -1199,7 +1199,6 @@ public class LookupDiscovery implements DiscoveryManagement,
 		}
 	    }//end loop(!interrupted)
 	    sock.close();
-	    sock = null;
             logger.finest("LookupDiscovery - AnnouncementListener thread "
                           +"completed");
 	}//end run
@@ -1258,7 +1257,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 		    }//end if
 		    synchronized (pendingDiscoveries) {
 			pendingDiscoveries.add(sock);
-			taskManager.add(new UnicastDiscoveryTask(sock));
+			restoreContextAddTask(new UnicastDiscoveryTask(sock));
 		    }//end sync
 		} catch (InterruptedIOException e) {
 		    break;
@@ -1431,7 +1430,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 				Object req = new CheckReachabilityMarker(resp);
                                 synchronized (pendingDiscoveries) {
                                     if(pendingDiscoveries.add(req)) {
-                                        taskManager.add(
+                                        restoreContextAddTask(
 					    new UnicastDiscoveryTask(req));
                                     }//endif
                                 }//end sync
@@ -1511,13 +1510,24 @@ public class LookupDiscovery implements DiscoveryManagement,
 	}
 
 	/**
+	 * Restore the privileged context and run
+	 */
+	public void run() {
+	    Security.doPrivileged(new PrivilegedAction() {
+		public Object run() {
+		    doRun();
+		    return null;
+		}//end run
+	    });//end doPrivileged
+	}
+	/**
 	 * Decodes this task's multicast announcement packet.  If the
 	 * constraints for decoding multicast announcements are satisfied and
 	 * the announcement merits further processing, an appropriate object is
 	 * added to the pendingDiscoveries set, and control is transferred to a
 	 * UnicastDiscoveryTask.
 	 */
-	public void run() {
+	private void doRun() {
 	    MulticastAnnouncement ann;
 	    try {
 		ann = decodeMulticastAnnouncement(datagram);
@@ -1572,7 +1582,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    }
 	    if (pending != null) {
 		try {
-		    ann.checkConstraints();
+		    checkAnnouncementConstraints(ann);
 		} catch (Exception e) {
 		    if (!(e instanceof InterruptedIOException)) {
 			logger.log(Levels.HANDLED,
@@ -1600,15 +1610,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 		    } else {
 			final UnicastDiscoveryTask ud =
 			    new UnicastDiscoveryTask(pending, true);
-			final Ticket t = discoveryWakeupMgr.schedule(
-			    System.currentTimeMillis() +
-			    (long) (Math.random() * unicastDelayRange),
-			    new Runnable() {
-				public void run() {
-				    taskManager.add(ud);
-				}
-			    }
-			);
+			final Ticket t = restoreContextScheduleRunnable(ud);
 			synchronized (ud) {
 			    ud.ticket = t;
 			    ud.delayRun = false;
@@ -1714,7 +1716,18 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    this.req = req;
 	    this.delayRun = delayRun;
 	}
+	/**
+	 * Restore the privileged context and run
+	 */
 	public void run() {
+	    Security.doPrivileged(new PrivilegedAction() {
+		public Object run() {
+		    doRun();
+		    return null;
+		}//end run
+	    });//end doPrivileged
+	}
+	private void doRun() {
             logger.finest("LookupDiscovery - UnicastDiscoveryTask started");
 	    try {
 		synchronized (this) {
@@ -3268,6 +3281,25 @@ public class LookupDiscovery implements DiscoveryManagement,
 	}
     }
 
+    /*
+     * Restore the original context while checking constraints.
+     */
+    private void checkAnnouncementConstraints(final MulticastAnnouncement ann)
+	throws IOException
+    {
+	try {
+	    AccessController.doPrivileged(
+		securityContext.wrap(new PrivilegedExceptionAction() {
+		    public Object run() throws IOException {
+			ann.checkConstraints();
+			return null;
+		    }
+	    }), securityContext.getAccessControlContext());
+	} catch (PrivilegedActionException e) {
+	    throw (IOException) e.getCause();
+	}
+    }
+    
     /**
      * Encodes outgoing multicast requests based on protocol in use, applying
      * configured security constraints (if any).
@@ -3308,7 +3340,36 @@ public class LookupDiscovery implements DiscoveryManagement,
 	return (DatagramPacket[]) packets.toArray(
 	    new DatagramPacket[packets.size()]);
     }
+    
+    private void restoreContextAddTask(final TaskManager.Task t) {
+	AccessController.doPrivileged(
+	    securityContext.wrap(new PrivilegedAction() {
+		public Object run() {
+		    taskManager.add(t);
+		    return null;
+		    }
+		}),
+	    securityContext.getAccessControlContext());
+    }
 
+    private Ticket restoreContextScheduleRunnable(final UnicastDiscoveryTask t)
+    {
+	return (Ticket) AccessController.doPrivileged(
+	    securityContext.wrap(new PrivilegedAction() {
+		public Object run() {
+		    return discoveryWakeupMgr.schedule(
+			    System.currentTimeMillis() +
+			    (long) (Math.random() * unicastDelayRange),
+			    new Runnable() {
+				public void run() {
+				    taskManager.add(t);
+				}
+			    }
+			);
+		    }
+		}),
+	    securityContext.getAccessControlContext());
+    }
     /**
      * Performs unicast discovery over given socket based on protocol in use,
      * applying configured security constraints (if any).
