@@ -17,11 +17,9 @@
  */
 package com.sun.jini.mahalo;
 
-import com.sun.jini.admin.DestroyAdmin;
 import com.sun.jini.config.Config;
 import com.sun.jini.landlord.FixedLeasePeriodPolicy;
 import com.sun.jini.landlord.Landlord;
-import com.sun.jini.landlord.Landlord.RenewResults;
 import com.sun.jini.landlord.LandlordUtil;
 import com.sun.jini.landlord.LeaseFactory;
 import com.sun.jini.landlord.LeasedResource;
@@ -36,12 +34,8 @@ import com.sun.jini.thread.ReadyState;
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 
-
-import net.jini.admin.JoinAdmin;
-import net.jini.admin.Administrable;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.*;
-import net.jini.core.event.*;
 import net.jini.core.lease.*;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -51,19 +45,10 @@ import net.jini.core.transaction.server.*;
 
 
 import java.util.*;
-import java.lang.reflect.*;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.PrintWriter;
-import java.io.Serializable;
-import java.net.URL;
 import java.rmi.*;
 import java.rmi.activation.*;
-import java.rmi.server.*;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.SecureRandom;
@@ -77,16 +62,13 @@ import javax.security.auth.login.LoginException;
 import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationProvider;
-import net.jini.config.ConfigurationException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lookup.ServiceID;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.InvocationLayerFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
-import net.jini.jrmp.JrmpExporter;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.proxytrust.ServerProxyTrust;
@@ -578,25 +560,27 @@ class TxnManagerImpl /*extends RemoteServer*/
             }
 	    logmgr.recover();
 	    
-	    // Restore transient state of recovered transactions
-	    Iterator iter = txns.values().iterator();
+	    synchronized(txns) {
+		    // Restore transient state of recovered transactions
+		    Iterator iter = txns.values().iterator();
             TxnManagerTransaction txn;
             while(iter.hasNext()) {
 	        txn = (TxnManagerTransaction)iter.next();
                 if(initLogger.isLoggable(Level.FINEST)) {
-	            initLogger.log(Level.FINEST, 
-		        "Restoring transient state for txn id: {0}", 
-	                new Long(((ServerTransaction)txn.getTransaction()).id));		
-		}
-		try {
-		    txn.restoreTransientState(recoveredParticipantPreparer);
-		} catch (RemoteException re) {
-                    if (persistenceLogger.isLoggable(Level.WARNING)) {
-                        persistenceLogger.log(Level.WARNING,
-		            "Cannot restore the TransactionParticipant", re);
-		    }
+		            initLogger.log(Level.FINEST, 
+			        "Restoring transient state for txn id: {0}", 
+		                new Long(((ServerTransaction)txn.getTransaction()).id));		
+				}
+				try {
+				    txn.restoreTransientState(recoveredParticipantPreparer);
+				} catch (RemoteException re) {
+		                    if (persistenceLogger.isLoggable(Level.WARNING)) {
+		                        persistenceLogger.log(Level.WARNING,
+				            "Cannot restore the TransactionParticipant", re);
+		                    }
 //TODO - what should happen when participant preparation fails?		
-		}
+				}
+            }
 	    }
   
 	    if(initLogger.isLoggable(Level.FINEST)) {
@@ -1112,8 +1096,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     /**
      * Requests the renewal of  a lease on a <code>Transaction</code>.
      *
-     * @param cookie identifies the leased resource
-     *
+     * @param uuid identifies the leased resource
      * @param extension requested lease extension
      *
      * @see net.jini.core.lease.Lease
@@ -1162,7 +1145,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     /**
      * Cancels the lease on a <code>Transaction</code>.
      *
-     * @param cookie identifies the leased resource
+     * @param uuid identifies the leased resource
      *
      * @see net.jini.core.lease.Lease
      * @see com.sun.jini.landlord.LeasedResource
