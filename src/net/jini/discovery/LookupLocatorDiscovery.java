@@ -391,6 +391,7 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
         public ServiceRegistrar proxy = null;
         public final LookupLocator l;
         public String[] memberGroups = null;
+	private boolean discarded = false;
 
 	/* No need to sync on cnt since it's modified only in constructor */
 	private int cnt = 0;
@@ -438,21 +439,12 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
 	}//end calcNextTryTime
 
         /** This method gets called only from the public discard() method.
-         *  The purpose of this method is to prevent the discard method from
-         *  being called too frequently. This method measures the time from
-         *  when the listener's discovered() method gets called to when its
-	 *  discard() method gets called. If the time is less than MIN_RETRY,
-	 *  the next discovery attempt is delayed.
+         *  The purpose of this method is to delay the next discovery attempt.
 	 */
-	public void fixupNextTryTime()  {
-            long curTime = System.currentTimeMillis();
-            if( (curTime - time) > MIN_RETRY ) {
-                tryIndx = 0;
-                nextTryTime = curTime;
-            } else {
-                calcNextTryTime();
-            }//endif
-	}//end fixupNextTryTime
+	public void delayNextTryTime()  {
+	    discarded = true;
+	    tryIndx = 2;
+	}
 
         /** Initiates unicast discovery of the lookup service referenced 
          *  in this class.
@@ -476,18 +468,22 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
 		return true;
 	    } catch (Throwable e) {
                 if( logger.isLoggable(Level.INFO) ) {
-		    LogUtil.logThrow(logger, 
-			Level.INFO,
-			this.getClass(),
-			"tryGetProxy",
-			"exception occured during unicast discovery to "
-			+ "{0}:{1,number,#} with constraints {2}",
-			 new Object[] {
-			    l.getHost(),
-			    new Integer(l.getPort()),
-			    ic
-			 },
-			 e);
+                    try {
+                        LogUtil.logThrow(logger, 
+                            Level.INFO,
+                            this.getClass(),
+                            "tryGetProxy",
+                            "exception occured during unicast discovery to "
+                            + "{0}:{1,number,#} with constraints {2}",
+                             new Object[] {
+                                l.getHost(),
+                                new Integer(l.getPort()),
+                                ic
+                             },
+                             e);
+                    } catch (Throwable t) {
+                        // Ignore
+                    }
                 }//endif
 		calcNextTryTime();//discovery failed; try again even later
 		return false;
@@ -545,6 +541,27 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
 	    memberGroups = resp.getGroups();
         }//end doUnicastDiscovery
 
+	private void queueDiscoveryTask() {
+	    if (discarded) {
+		discarded = false;
+		// We need to delay this discovery
+		discoveryWakeupMgr.schedule(
+			System.currentTimeMillis() + MIN_RETRY,
+		    new Runnable() {
+			public void run() {
+			    discoveryTaskMgr.add
+			     (new DiscoveryTask(LocatorReg.this,
+				discoveryTaskMgr, discoveryWakeupMgr));
+			}
+		    }
+		);
+	    } else {
+		discoveryTaskMgr.add
+                 (new DiscoveryTask(this,
+			discoveryTaskMgr, discoveryWakeupMgr));
+	    }
+	}
+	
         /** Returns true if the locators are equal. */
 	public boolean equals(Object obj) {
             if( !(obj instanceof LocatorReg) ) return false;
@@ -910,7 +927,7 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
             /* Prepare the discarded locatorReg for re-discovery */
 	    reg.proxy = null;
             reg.memberGroups = null;
-	    reg.fixupNextTryTime();
+	    reg.delayNextTryTime();
 	    addToMap(reg);//put discarded reg back in the not-discovered map
             /* Send a discarded event to all registered listeners */
 	    if(!listeners.isEmpty()) {
@@ -1337,18 +1354,8 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
      */
     private void addToMap(LocatorReg reg) {
         undiscoveredLocators.add(reg);//add to set of not-yet-discovered locs
-        queueDiscoveryTask(reg);
+	reg.queueDiscoveryTask();
     }//end addToMap
-
-    /** 
-     *  Queues a DiscoveryTask to attempt, through unicast discovery, to
-     *  discover the lookup service associated with the given LocatorReg
-     *  instance.
-     */
-    private void queueDiscoveryTask(LocatorReg reg) {
-        discoveryTaskMgr.add
-                 (new DiscoveryTask(reg,discoveryTaskMgr,discoveryWakeupMgr));
-    }//end queueDiscoveryTask
 
     /** Determines whether or not the lookup service associated with the
      *  given LookupLocator has already been discovered.
