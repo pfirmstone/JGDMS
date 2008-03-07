@@ -657,11 +657,24 @@ class SslConnection extends Utilities implements Connection {
 	return "";
     }
 
-    void checkConnectPermission() {
+    /**
+     * Determine whether the caller has "connect" SocketPermission for the
+     * connection's underlying socket.
+     *
+     * @return true if there is an underlying socket and the caller has
+     * permission to use it, or false if there is no underlying socket.
+     *
+     * @throws SecurityException if the underlying socket exists but
+     * the caller does not have permission to use it.
+     */
+    boolean checkConnectPermission() {
+	Socket socket = sslSocket;
+	if (socket == null) {
+	    return false;
+	}
+
 	SecurityManager sm = System.getSecurityManager();
 	if (sm != null) {
-	    Socket socket = sslSocket;
-
 	    // This depends on the SslSocket returning information about
 	    // its underlying plain socket.
 	    InetSocketAddress address =
@@ -674,5 +687,6 @@ class SslConnection extends Utilities implements Connection {
 				socket.getPort());
 	    }
 	}
+	return true;
     }
 }

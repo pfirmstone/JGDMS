@@ -314,7 +314,7 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 	List contexts = new CopyOnRemoveList(
 	    getConnectionContexts(constraints, clientPrincipals));
 	if (constrainedServer) {
-	    /* Server prinicipals were named in constraints.  Remove from the
+	    /* Server principals were named in constraints.  Remove from the
 	     * context list any ConnectionContexts for which there is no
 	     * permission to authenticate the context's client principal with
 	     * the context's server principal.
@@ -905,7 +905,9 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 			checkedResolvePermission = true;
 		    }
 		    try {
-			connection.checkConnectPermission();
+			if (!connection.checkConnectPermission()) {
+			    continue;
+			}
 		    } catch (SecurityException e) {
 			if (logger.isLoggable(Levels.HANDLED)) {
 			    LogUtil.logThrow(logger, Levels.HANDLED,

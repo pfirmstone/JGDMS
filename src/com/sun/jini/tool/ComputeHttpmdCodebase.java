@@ -31,8 +31,10 @@ import net.jini.url.httpmd.HttpmdUtil;
 /**
  * Computes the message digests for a codebase with HTTPMD URLs. This utility
  * is run from the {@linkplain #main command line}. <p>
+ * A description of HTTPMD URLs can be found in the {@link net.jini.url.httpmd}
+ * package and its {@link net.jini.url.httpmd.Handler} class.<p>
  *
- * An example command line usage is:
+ * An example command line (shown with lines wrapped for readability) is:
  *
  * <blockquote>
  * <pre>
@@ -48,7 +50,9 @@ import net.jini.url.httpmd.HttpmdUtil;
  * <var><b>http_port</b></var> is the port for that server. This command prints
  * out the download codebase for use by a client that uses the {@link
  * net.jini.lookup.ServiceDiscoveryManager}, using an HTTPMD URL to guarantee
- * integrity for the classes in the <code>sdm-dl.jar</code> JAR file.
+ * integrity for the classes in the <code>sdm-dl.jar</code> JAR file. The
+ * message digest will be computed using the <code>md5</code> algorithm, and
+ * the <code>0</code> will be replaced by the computed digest.
  *
  * @author Sun Microsystems, Inc.
  * @since 2.0
@@ -154,18 +158,17 @@ public class ComputeHttpmdCodebase {
     }
 
     private static synchronized String getString(String key) {
-	if (!resinit) {
-	    try {
+	try {
+	    if (!resinit) {
 		resources = ResourceBundle.getBundle(
 			       "com.sun.jini.tool.resources.computecodebase");
 		resinit = true;
-	    } catch (MissingResourceException e) {
-		e.printStackTrace();
 	    }
-	}
-	try {
 	    return resources.getString(key);
 	} catch (MissingResourceException e) {
+	    e.printStackTrace();
+	    System.err.println("Unable to find a required resource.");
+	    System.exit(1);
 	    return null;
 	}
     }

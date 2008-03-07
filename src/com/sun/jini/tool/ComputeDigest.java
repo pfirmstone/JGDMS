@@ -30,19 +30,19 @@ import net.jini.url.httpmd.HttpmdUtil;
  * Prints the message digest for the contents of a URL. This utility is run
  * from the {@linkplain #main command line}. <p>
  *
- * An example command line usage is:
+ * An example command line (shown with lines wrapped for readability) is:
  *
  * <blockquote>
  * <pre>
  * java -jar <var><b>install_dir</b></var>/lib/computedigest.jar
  *      <var><b>install_dir</b></var>/lib/reggie.jar
- *      sha
+ *      sha1
  * </pre>
  * </blockquote>
  *
  * where <var><b>install_dir</b></var> is the directory where the Apache River release
  * is installed. This command prints out the message digest for the
- * <code>reggie.jar</code> JAR file, using the <code>sha</code> algorithm.
+ * <code>reggie.jar</code> JAR file, using the <code>sha1</code> algorithm.
  *
  * @author Sun Microsystems, Inc.
  * @since 2.0
@@ -85,18 +85,17 @@ public class ComputeDigest {
     }
 
     private static synchronized String getString(String key) {
-	if (!resinit) {
-	    try {
+	try {
+	    if (!resinit) {
 		resources = ResourceBundle.getBundle(
 				 "com.sun.jini.tool.resources.computedigest");
 		resinit = true;
-	    } catch (MissingResourceException e) {
-		e.printStackTrace();
 	    }
-	}
-	try {
 	    return resources.getString(key);
 	} catch (MissingResourceException e) {
+	    e.printStackTrace();
+	    System.err.println("Unable to find a required resource.");
+	    System.exit(1);
 	    return null;
 	}
     }
