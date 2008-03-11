@@ -36,13 +36,13 @@ import net.jini.url.httpmd.HttpmdUtil;
  * <pre>
  * java -jar <var><b>install_dir</b></var>/lib/computedigest.jar
  *      <var><b>install_dir</b></var>/lib/reggie.jar
- *      sha1
+ *      SHA-1
  * </pre>
  * </blockquote>
  *
  * where <var><b>install_dir</b></var> is the directory where the Apache River release
  * is installed. This command prints out the message digest for the
- * <code>reggie.jar</code> JAR file, using the <code>sha1</code> algorithm.
+ * <code>reggie.jar</code> JAR file, using the <code>SHA-1</code> algorithm.
  *
  * @author Sun Microsystems, Inc.
  * @since 2.0
@@ -62,14 +62,14 @@ public class ComputeDigest {
      * The first argument specifies the URL, which is parsed in the context
      * of a <code>file:</code> URL. The second argument, if present,
      * specifies the message digest algorithm, which defaults to
-     * <code>sha1</code>.
+     * <code>SHA-1</code>.
      */
     public static void main(String[] args) {
 	if (args.length < 1 || args.length > 2) {
 	    print("computedigest.usage", null);
 	    System.exit(1);
 	}
-	String algorithm = args.length > 1 ? args[1] : "sha1";
+	String algorithm = args.length > 1 ? args[1] : "SHA-1";
 	try {
 	    URL url = new URL(new URL("file:"), args[0]);
 	    System.out.println(HttpmdUtil.computeDigest(url, algorithm));
