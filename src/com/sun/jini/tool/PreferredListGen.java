@@ -213,8 +213,10 @@ import java.util.regex.Pattern;
  * preferred list and forces the generation of an explicit default preferred
  * entry in the preferred list.  If this option is not provided, the default
  * that produces a list with the fewest entries is used; an explicit entry for
- * the default <code>false</code> case will not be generated. In the event of
- * optimization ties, a default value of <var>false</var> is used.
+ * the default <code>false</code> case will not be generated (except when no
+ * single entry is found, in which case a default preferred value of
+ * <code>false</code> is written). In the event of optimization ties, a default
+ * value of <var>false</var> is used.
  * </dd>
  * <p>
  * <dt><b><code>-noreplace</code></b>
@@ -1270,7 +1272,7 @@ public class PreferredListGen {
 	    }
 	    entries = new TreeSet(bestEntries); // do the sort
 	}
-	if (pref || forceDefault) {
+	if (pref || forceDefault || entries.isEmpty()) {
 	    sb.append(newLine);
 	    sb.append("Preferred: ");
 	    sb.append(pref);
