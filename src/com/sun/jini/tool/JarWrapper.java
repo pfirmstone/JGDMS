@@ -510,7 +510,7 @@ public class JarWrapper {
      * of the generated wrapper JAR file
      * @param apiClasses list of binary class names (type <code>String</code>)
      * that must be considered API classes in case a preferences conflict
-     * arrises during wrapping of the JAR files, or <code>null</code> in case
+     * arises during wrapping of the JAR files, or <code>null</code> in case
      * no such list is available
      *
      * @throws IOException if an I/O error occurs while processing source JAR
@@ -555,7 +555,7 @@ public class JarWrapper {
      * of the generated wrapper JAR file
      * @param apiClasses list of binary class names (type <code>String</code>)
      * that must be considered API classes in case a preferences conflict
-     * arrises during wrapping of the JAR files, or <code>null</code> in case
+     * arises during wrapping of the JAR files, or <code>null</code> in case
      * no such list is available
      *
      * @throws IOException if an I/O error occurs while processing source JAR
