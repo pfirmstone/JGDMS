@@ -33,7 +33,6 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -115,21 +114,23 @@ import java.util.regex.Pattern;
  * java -jar <var><b>jsk_install_dir</b></var>\lib\jarwrapper.jar <var><b>processing_options</b></var>
  * </pre></blockquote>
  * <p>
- * A more specific example with options for running directly from a Unix command line might be:
+ * A more specific example with options for running directly from a Unix command
+ * line might be:
  * <blockquote><pre>
  * % java -jar <var><b>install_dir</b></var>/lib/jarwrapper.jar \
  *        -httpmd=SHA-1 wrapper.jar base_dir src1.jar src2.jar
  * </pre></blockquote>
- * where <var><b>jsk_install_dir</b></var> is the directory where the Apache River release
- * is installed. This command line would result in the creation of a wrapper
- * JAR file, <code>wrapper.jar</code>, in the current working directory, whose
- * contents would be based on the source JAR files <code>src1.jar</code> and
- * <code>src2.jar</code> (as well as any other JAR files referenced
- * transitively through their <code>Class-Path</code> attributes or JAR
- * indexes).  The paths for <code>src1.jar</code> and <code>src2.jar</code>, as
- * well as any transitively referenced JAR files, would be resolved relative to
- * the <code>base_dir</code> directory.  The <code>Class-Path</code> attribute
- * of <code>wrapper.jar</code> would use HTTPMD URLs with SHA-1 digests.
+ * where <var><b>jsk_install_dir</b></var> is the directory where the Apache
+ * River release is installed. This command line would result in the creation
+ * of a wrapper JAR file, <code>wrapper.jar</code>, in the current working
+ * directory, whose contents would be based on the source JAR files
+ * <code>src1.jar</code> and <code>src2.jar</code> (as well as any other JAR
+ * files referenced transitively through their <code>Class-Path</code>
+ * attributes or JAR indexes).  The paths for <code>src1.jar</code> and
+ * <code>src2.jar</code>, as well as any transitively referenced JAR files,
+ * would be resolved relative to the <code>base_dir</code> directory.  The
+ * <code>Class-Path</code> attribute of <code>wrapper.jar</code> would use
+ * HTTPMD URLs with SHA-1 digests.
  * <p>
  * The equivalent programmatic invocation of <code>JarWrapper</code> would be:
  * <blockquote><pre>
@@ -180,12 +181,16 @@ public class JarWrapper {
 	Logger.getLogger(JarWrapper.class.getName());
 
     private final File destJar;
+    /**
+     * Base directory, <code>null</code> in case the JAR files are specified as
+     * absolute files, the so called flatten classpath option.
+     */
     private final File baseDir;
     private final SourceJarURL[] srcJars;
     private final Manifest manifest;
     private final MessageDigest digest;
     private final JarIndexWriter indexWriter;
-    private final PreferredListWriter prefWriter = new PreferredListWriter();
+    private final PreferredListWriter prefWriter;
     private final StringBuffer classPath = new StringBuffer();
     private String mainClass = null;
     private final Set seenJars = new HashSet();
@@ -200,22 +205,36 @@ public class JarWrapper {
 		       String[] srcJars,
 		       String httpmdAlg,
 		       boolean index,
-                       Manifest mf)
+		       Manifest mf,
+		       List apiClasses)
     {
 	this.destJar = new File(destJar);
 	if (this.destJar.exists()) {
 	    throw new LocalizedIllegalArgumentException(
 		"jarwrapper.fileexists", destJar);
 	}
+	if (baseDir != null) {
 	this.baseDir = new File(baseDir);
 	if (!this.baseDir.isDirectory()) {
 	    throw new LocalizedIllegalArgumentException(
 		"jarwrapper.invalidbasedir", baseDir);
 	}
+	}
+	else {
+	    this.baseDir = null;
+	}
 	this.srcJars = new SourceJarURL[srcJars.length];
 	for (int i = 0; i < srcJars.length; i++) {
 	    try {
-		SourceJarURL url = new SourceJarURL(srcJars[i]);
+		SourceJarURL url;
+		if (baseDir == null) {
+		    File file = new File(srcJars[i]);
+		    url = new SourceJarURL(file.getName(),
+			file.getParentFile());
+		}
+		else {
+		    url = new SourceJarURL(srcJars[i]);
+		}
 		if (url.algorithm != null) {
 		    throw new LocalizedIllegalArgumentException(
 			"jarwrapper.urlhasdigest", url);
@@ -241,6 +260,17 @@ public class JarWrapper {
 	}
         manifest = mf != null ? new Manifest(mf) : new Manifest();
 	indexWriter = index ? new JarIndexWriter() : null;
+	List classes = new ArrayList();
+	if (apiClasses != null) {
+	    for (Iterator classNames = apiClasses.iterator();
+		    classNames.hasNext();) {
+		String className = (String) classNames.next();
+		if (className != null) {
+		    classes.add(className.replace('.', '/') + ".class");
+		}
+	    }
+	}
+	prefWriter = new PreferredListWriter(classes);
     }
 
     /**
@@ -458,7 +488,93 @@ public class JarWrapper {
                             Manifest mf)
         throws IOException
     {
-        new JarWrapper(destJar, baseDir, srcJars, httpmdAlg, index, mf).wrap();
+	wrap(destJar, baseDir, srcJars, httpmdAlg, index, mf, null);
+    }
+
+    /**
+     * Generates a wrapper JAR file based on the provided values in the same
+     * manner as described in the documentation for {@link #main}.  The only
+     * difference between this method and <code>main</code> is that it receives
+     * its values as explicit arguments instead of in a command line, and
+     * indicates failure by throwing an exception.
+     *
+     * @param destJar name of the wrapper JAR file to generate
+     * @param baseDir base directory from which to locate source JAR
+     * files to wrap
+     * @param srcJars list of top-level source JAR files to process
+     * @param httpmdAlg name of algorithm to use for generating HTTPMD URLs, or
+     * <code>null</code> if plain HTTP URLs should be used
+     * @param index if <code>true</code>, generate a JAR index; if
+     * <code>false</code>, do not generate one
+     * @param mf manifest containing values to include in the manifest file
+     * of the generated wrapper JAR file
+     * @param apiClasses list of binary class names (type <code>String</code>)
+     * that must be considered API classes in case a preferences conflict
+     * arrises during wrapping of the JAR files, or <code>null</code> in case
+     * no such list is available
+     *
+     * @throws IOException if an I/O error occurs while processing source JAR
+     * files or generating the wrapper JAR file
+     * @throws IllegalArgumentException if the provided values are invalid
+     * @throws NullPointerException if <code>destJar</code>,
+     * <code>baseDir</code>, <code>srcJars</code>, or any element of
+     * <code>srcJars</code> is <code>null</code>
+     */
+    public static void wrap(String destJar,
+                            String baseDir,
+                            String[] srcJars,
+                            String httpmdAlg,
+                            boolean index,
+                            Manifest mf,
+                            List apiClasses)
+        throws IOException
+    {
+        new JarWrapper(destJar, baseDir, srcJars, httpmdAlg, index, mf,
+	    apiClasses).wrap();
+    }
+
+    /**
+     * Generates a wrapper JAR file based on the provided values in the same
+     * manner as described in the documentation for {@link #main}.
+     * <p>
+     * The difference between this method and the 6-arg <code>wrap</code> method
+     * is that the source JAR files must be specified by an absolute path and
+     * that for processing the classpath will be flattened, i.e. each source JAR
+     * file will be considered as relative to its parent directory (that will
+     * serve as a virtual base directory) for the assembly of the
+     * <code>Class-Path</code> entry.
+     *
+     * @param destJar name of the wrapper JAR file to generate
+     * @param srcJars list of top-level source JAR files to process, must be
+     * absolute paths
+     * @param httpmdAlg name of algorithm to use for generating HTTPMD URLs, or
+     * <code>null</code> if plain HTTP URLs should be used
+     * @param index if <code>true</code>, generate a JAR index; if
+     * <code>false</code>, do not generate one
+     * @param mf manifest containing values to include in the manifest file
+     * of the generated wrapper JAR file
+     * @param apiClasses list of binary class names (type <code>String</code>)
+     * that must be considered API classes in case a preferences conflict
+     * arrises during wrapping of the JAR files, or <code>null</code> in case
+     * no such list is available
+     *
+     * @throws IOException if an I/O error occurs while processing source JAR
+     * files or generating the wrapper JAR file
+     * @throws IllegalArgumentException if the provided values are invalid
+     * @throws NullPointerException if <code>destJar</code>,
+     * <code>srcJars</code>, or any element of <code>srcJars</code> is
+     * <code>null</code>
+     */
+    public static void wrap(String destJar,
+                            String[] srcJars,
+                            String httpmdAlg,
+                            boolean index,
+                            Manifest mf,
+                            List apiClasses)
+        throws IOException
+    {
+        new JarWrapper(destJar, null, srcJars, httpmdAlg, index, mf,
+	    apiClasses).wrap();
     }
 
     /**
@@ -481,7 +597,7 @@ public class JarWrapper {
     private void process(SourceJarURL url, PreferredListReader prefReader)
 	throws IOException
     {
-	File file = url.toFile(baseDir);
+	File file = baseDir == null ? url.toFile() : url.toFile(baseDir);
 	boolean seen = seenJars.contains(file);
 	boolean checkMainClass = mainClass == null && prefReader == null;
 	if (seen && !checkMainClass) {
@@ -680,12 +796,7 @@ public class JarWrapper {
      * Returns localized message text corresponding to the given key string.
      */
     static String localize(String key) {
-	String fmt = getResourceString(key);
-	if (fmt == null) {
-	    fmt = "no text found: \"" + key + "\"";
-	}
-	// REMIND: format even without arguments?
-	return MessageFormat.format(fmt, null);
+	return localize(key, new Object[0]);
     }
 
     /**
@@ -693,11 +804,19 @@ public class JarWrapper {
      * passing the provided value as an argument when formatting the message.
      */
     static String localize(String key, Object val) {
+	return localize(key, new Object[] { val });
+    }
+
+    /**
+     * Returns localized message text corresponding to the given key string,
+     * passing the provided values as an argument when formatting the message.
+     */
+    static String localize(String key, Object[] vals) {
 	String fmt = getResourceString(key);
 	if (fmt == null) {
-	    fmt = "no text found: \"" + key + "\" {0}";
+	    return "error: no text found in resource bundle for key: " + key;
 	}
-	return MessageFormat.format(fmt, new Object[]{ val });
+	return MessageFormat.format(fmt, vals);
     }
 
     /**
@@ -774,6 +893,15 @@ public class JarWrapper {
 	LocalizedIOException(String key, Object val) {
 	    super(localize(key, val));
 	}
+
+	/**
+	 * Creates exception with localized message text corresponding to the
+	 * given key string, passing the provided values as an argument when
+	 * formatting the message.
+	 */
+	LocalizedIOException(String key, Object[] vals) {
+	    super(localize(key, vals));
+	}
     }
 
     /**
@@ -795,6 +923,11 @@ public class JarWrapper {
 	final String digest;
 	/** HTTPMD digest comment, or null if non-HTTPMD URL */
 	final String comment;
+	/**
+	 * Base directory associated with relative path for JAR file, only
+	 * set in case the flatten classpath option is used.
+	 */
+	private File baseDir;
 
 	/**
 	 * Creates SourceJarURL based on given raw URL string.
@@ -838,6 +971,16 @@ public class JarWrapper {
 	}
 
 	/**
+	 * Creates SourceJarURL based on given raw URL string that has an
+	 * individual associated base directory.
+	 */
+	SourceJarURL(String raw, File baseDir) throws IOException {
+	    this(raw);
+
+	    this.baseDir = baseDir;
+	}
+
+	/**
 	 * Creates SourceJarURL based on given components.
 	 */
 	SourceJarURL(String path, 
@@ -870,6 +1013,13 @@ public class JarWrapper {
 	    } catch (URISyntaxException e) {
 		throw new AssertionError(e);
 	    }
+	}
+
+	/**
+	 * Returns file represented by this URL.
+	 */
+	File toFile() {
+	    return toFile(baseDir);
 	}
 
 	/**
@@ -1230,8 +1380,18 @@ public class JarWrapper {
 	private final HashMap pathMap = new HashMap();
 	private final DirNode rootNode = new DirNode("");
 	private int numPrefs = 0;
+	private final List apiClasses;
 
-	PreferredListWriter() {
+
+	/**
+	 * Constructs a <code>PreferredListWriter</code>.
+	 *
+	 * @param apiClasses list of URI paths representing classes that must be
+	 * considered API classes in case a preferences conflict arrises during
+	 * wrapping of JAR files
+	 */
+	PreferredListWriter(List apiClasses) {
+	    this.apiClasses = apiClasses;
 	    pathMap.put("", rootNode);
 	}
 
@@ -1252,7 +1412,7 @@ public class JarWrapper {
 			    pref ? "preferred: {0}" : "not preferred: {0}",
 			    new Object[]{ path });
 		    }
-		    addFile(path, pref);
+		    addFile(path, jar.getName(), pref);
 		}
 	    }
 	}
@@ -1282,19 +1442,31 @@ public class JarWrapper {
 	/**
 	 * Records the preferred setting of the given file entry.
 	 */
-	private void addFile(String path, boolean preferred)
+	private void addFile(String path, String jarFileName, boolean preferred)
 	    throws IOException
 	{
 	    FileNode fn = (FileNode) pathMap.get(path);
 	    if (fn != null) {
 		if (fn.preferred != preferred) {
-		    throw new LocalizedIOException(
-			"jarwrapper.prefconflict", path);
+		    // in case it is part of what are considered API classes
+		    // we correct the preferred value if required and correct
+		    // the total number of preferred classes encountered
+		    if (apiClasses.contains(path)) {
+			if (fn.preferred) {
+			    fn.preferred = false;
+			    numPrefs--;
+			}
+		    }
+		    else {
+			throw new LocalizedIOException(
+			    "jarwrapper.prefconflict",
+			    new Object[] { path, jarFileName, fn.jarFileName });
+		    }
 		}
 		return;
 	    }
 
-	    fn = new FileNode(path, preferred);
+	    fn = new FileNode(path, jarFileName, preferred);
 	    pathMap.put(path, fn);
 	    if (preferred) {
 		numPrefs++;
@@ -1387,12 +1559,14 @@ public class JarWrapper {
 	    static final int INCLUDE = 2;
 
 	    final String path;
-	    final boolean preferred;
+	    final String jarFileName;
+	    boolean preferred;
 	    int action;
 
-	    FileNode(String path, boolean preferred) {
+	    FileNode(String path, String jarFileName, boolean preferred) {
 		this.path = path;
 		this.preferred = preferred;
+		this.jarFileName = jarFileName;
 	    }
 	}
 
