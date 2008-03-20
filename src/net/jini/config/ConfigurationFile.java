@@ -368,7 +368,7 @@ import net.jini.security.Security;
  *
  * <tr> <th scope="col"> Level <th scope="col"> Description
  *
- * <tr> <td> {@link Level#INFO INFO} <td> problems adding new prohibited
+ * <tr> <td> {@link Level#SEVERE SEVERE} <td> problems adding new prohibited
  *	methods
  *
  * <tr> <td> {@link Levels#FAILED FAILED} <td> problems getting entries,
@@ -453,12 +453,20 @@ public class ConfigurationFile extends AbstractConfiguration {
 		    }
 		    logger.log(Level.FINER, "Adding prohibited method: {0}",
 			       line);
-		    prohibitedMethods.add(line);
+                    if (validQualifiedIdentifier(line)) {
+                        prohibitedMethods.add(line);
+                    } else {
+                        logger.log(Level.SEVERE, 
+                                "Problem adding prohibited method: {0}", line);
+                        throw new ExceptionInInitializerError(
+                                "Problem adding prohibited method: " + line);
+                    }
 		}
 	    }
 	} catch (IOException e) {
 	    logger.log(
-		Level.INFO, "Problem reading prohibited methods resource", e);
+		Level.SEVERE, "Problem reading prohibited methods resource", e);
+            throw new ExceptionInInitializerError(e);
 	} finally {
 	    if (in != null) {
 		try {

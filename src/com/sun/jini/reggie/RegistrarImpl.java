@@ -2396,11 +2396,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    socket.close();
 	}
 
-	/* This is a workaround for Thread.interrupt not working on
-	 * MulticastSocket.receive on all platforms.
-	 */
 	public synchronized void interrupt() {
-	    socket.close();
+	    // close socket to interrupt MulticastSocket.receive operation
+	    if (socket != null)
+	        socket.close();
 	    super.interrupt();
 	}
 
@@ -4665,6 +4664,26 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	unicaster.start();
 	multicaster.start();
 	announcer.start();
+        
+        /* Shutdown hook so reggie sends a final announcement
+         * packet if VM is terminated.  If reggie is terminated
+         * through DestroyAdmin.destroy() this hook will have no effect.
+         * A timeout on announcer.join() was considered but not deemed
+         * necessary at this point in time.  
+         */
+	Runtime.getRuntime().addShutdownHook(new Thread( new Runnable() {
+	    public void run() {
+		try {
+		    announcer.interrupt();
+		    announcer.join();
+		} catch (Throwable t) {
+                    logThrow(Level.FINEST, getClass().getName(), 
+                        "run", "exception shutting announcer down",
+                        new Object[]{}, t);
+		}
+	    }
+	}));
+        
         snapshotter.start();
 	if (logger.isLoggable(Level.INFO)) {
 	    logger.log(Level.INFO, "started Reggie: {0}, {1}, {2}",
