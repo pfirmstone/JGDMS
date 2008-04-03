@@ -41,6 +41,8 @@ import java.util.HashSet;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
 import java.util.StringTokenizer;
+import java.util.SortedSet;
+import java.util.TreeSet;
 
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
@@ -75,7 +77,7 @@ import java.io.IOException;
  *
  * The command line for running the tool has the form:
  * <blockquote><pre>
- * java -jar <var><b>install_dir</b></var>/lib/classdep.jar
+ * java -jar <var><b>install_dir</b></var>/lib/classdep.jar \
  *      -cp <var><b>input_classpath</b></var> <var><b>processing_options</b></var> <var><b>output_options</b></var>
  * </pre></blockquote>
  * <p>
@@ -147,11 +149,50 @@ import java.io.IOException;
  * separator character. Each class in the tree needs to be in a package that
  * is defined to be "inside" the graph (as described further below).
  * <p>
- * The <code>-prune</code> option can be used to exclude particular subtrees
- * from the set of roots.
+ * <dt><b><var>directory</var></b>
+ * <dd>This option specifies the root directory of a tree of compiled class
+ * files that are considered as root for the dependency checking. This option
+ * can be specified zero or more times. The actual behavior depends on whether
+ * the <code>-newdirbehavior</code> options is specified. The directory must
+ * contain at least one filename separator character and be one of the
+ * directories specified in <var><b>input_classpath</b></var>, or when the old
+ * behavior is effective it can be a subdirectory of one of the directories on
+ * the <var><b>input_classpath</b></var>. Each class in the tree needs to be in
+ * a package that is defined to be "inside" the graph (as described further
+ * below).
+ * <p>
+ * When the <code>-newdirbehavior</code> options is set the <code>-inroot</code>
+ * and <code>-outroot</code> options can be used to include/exclude particular
+ * subtrees from the potential set of roots. When the old behavior is effective
+ * all classes are considered as root, but can be excluded through the
+ * <code>-prune</code> option.
  * <p>
  * <dl>
- * <dt><b><code>-prune</code> <var>package-prefix</var></b>
+ * <dt><b><code>-inroot</code> <var>package-prefix</var></b> (only valid with
+ * <code>-newdirbehavior</code>)
+ * <dd>Specifies a package namespace to include when selecting roots from the
+ * directory trees. Any classes found in this package or a subpackage of it are
+ * considered as root for the dependency checking, unless they are explicitly
+ * excluded using <code>-out</code>, <code>-skip</code> or <code>-outroot</code>
+ * options. If not specified all found classes are considered roots. This option
+ * can be specified zero or more times. Note that the argument to
+ * <code>-inroot</code> is a package namespace (delimited by "."), not a
+ * directory.</dd>
+ * </dl>
+ * <p>
+ * <dl>
+ * <dt><b><code>-outroot</code> <var>package-prefix</var></b> (only valid with
+ * <code>-newdirbehavior</code>)
+ * <dd>Specifies a package namespace to exclude when selecting roots from the
+ * directory trees. Within the directory trees as specified by the
+ * <code>rootdir</code> element, any classes that are in the given package or a
+ * subpackage of it are not treated as roots. This option can be specified zero
+ * or more times. Note that the argument to <code>-outroot</code> is a package
+ * namespace (delimited by "."), not a directory.</dd>
+ * </dl>
+ * <p>
+ * <dl>
+ * <dt><b><code>-prune</code> <var>package-prefix</var></b> (old behavior only)
  * <dd>Specifies a package namespace to exclude when selecting roots from
  * directory trees. Within the directory trees, any classes that are in the
  * given package or a subpackage of it are not treated as roots. Note that
@@ -236,12 +277,25 @@ import java.io.IOException;
  * <dt><b><code>-outer</code></b>
  * <dd>By default, if a static nested class is included in the dependency
  * graph, all references from that static nested class to its immediate
- * lexically enclosing class are ignored, to avoid inadvertent inclusion of
- * the enclosing class. (The default is chosen this way because the compiled
- * class file of a static nested class always contains a reference to the
- * immediate lexically enclosing class.) This option causes all such
- * references to be considered rather than ignored.  Note that this option
- * is needed very infrequently.</dd>
+ * lexically enclosing class are ignored (except when the static nested class
+ * extends its outer class), to avoid inadvertent inclusion of the enclosing
+ * class. (The default is chosen this way because the compiled class file of a
+ * static nested class always contains a reference to the immediate lexically
+ * enclosing class.) This option causes all such references to be considered
+ * rather than ignored.  Note that this option is needed very infrequently.</dd>
+ * </dl>
+ * <p>
+ * <dt><b><code>-newdirbehavior</code></b>
+ * <dd>This option causes the utility to select classes, to serve as root for
+ * the dependency checking, from the directory argument based on the
+ * <code>-inroot</code> and <code>-outroot</code> options specified. When
+ * this option is set subdirectories of the specified directory are no longer
+ * considered as root for finding classes. When this option is not set, the
+ * default, the utility maintains the old behavior with respect to the semantics
+ * for the directories passed in and the <code>-prune</code> option must be
+ * used. You are advised to set this option as there are some edge cases for
+ * which the old behavior won't work as expected, especially when no
+ * <code>-in</code> options are set.</dd>
  * </dl>
  *
  * <a name="output"></a>
@@ -346,10 +400,10 @@ import java.io.IOException;
  * <code>jsk-platform.jar</code>.)
  * <p>
  * <blockquote><pre>
- * java -jar <var><b>install_dir</b></var>/lib/classdep.jar
- *      -cp <var><b>install_dir</b></var>/classes
- *      com.sun.jini.reggie.RegistrarProxy com.sun.jini.reggie.RegistrarImpl_Stub
- *      -in com.sun.jini -in net.jini
+ * java -jar <var><b>install_dir</b></var>/lib/classdep.jar \
+ *      -cp <var><b>install_dir</b></var>/classes \
+ *      com.sun.jini.reggie.RegistrarProxy com.sun.jini.reggie.RegistrarImpl_Stub \
+ *      -in com.sun.jini -in net.jini \
  *      -files
  * </pre></blockquote>
  * <p>
@@ -359,9 +413,9 @@ import java.io.IOException;
  * platform classes such as those in <code>jsk-platform.jar</code>.)
  * <p>
  * <blockquote><pre>
- * java -jar <var><b>install_dir</b></var>/lib/classdep.jar
- *      -cp <var><b>install_dir</b></var>/classes
- *      <var><b>install_dir</b></var>/classes/com/sun/jini/reggie
+ * java -jar <var><b>install_dir</b></var>/lib/classdep.jar \
+ *      -cp <var><b>install_dir</b></var>/classes \
+ *      <var><b>install_dir</b></var>/classes/com/sun/jini/reggie \
  *      -in com.sun.jini -in net.jini
  * </pre></blockquote>
  * <p>
@@ -370,11 +424,11 @@ import java.io.IOException;
  * classes that are immediately referenced by those classes.
  * <p>
  * <blockquote><pre>
- * java -jar <var><b>install_dir</b></var>/lib/classdep.jar
- *      -cp <var><b>install_dir</b></var>/classes
- *      com.sun.jini.reggie.RegistrarImpl
- *      -in com.sun.jini
- *      -edges
+ * java -jar <var><b>install_dir</b></var>/lib/classdep.jar \
+ *      -cp <var><b>install_dir</b></var>/classes \
+ *      com.sun.jini.reggie.RegistrarImpl \
+ *      -in com.sun.jini \
+ *      -edges \
  *      -show net.jini
  * </pre></blockquote>
  * <p>
@@ -383,10 +437,10 @@ import java.io.IOException;
  * classes that directly reference the class <code>java.awt.Image</code>.
  * <p>
  * <blockquote><pre>
- * java -jar <var><b>install_dir</b></var>/lib/classdep.jar
- *      -cp <var><b>install_dir</b></var>/classes
- *      com.sun.jini.reggie.RegistrarImpl
- *      -out java -out javax
+ * java -jar <var><b>install_dir</b></var>/lib/classdep.jar \
+ *      -cp <var><b>install_dir</b></var>/classes \
+ *      com.sun.jini.reggie.RegistrarImpl \
+ *      -out java -out javax \
  *      -tell java.awt.Image
  * </pre></blockquote>
  * <p>
@@ -398,10 +452,10 @@ import java.io.IOException;
  * prevent classes from being used as roots.
  * <p>
  * <blockquote><pre>
- * java -jar <var><b>install_dir</b></var>/lib/classdep.jar
- *      -cp <var><b>install_dir</b></var>/classes
- *      -in net.jini -out net.jini.core -in com.sun.jini
- *      <var><b>install_dir</b></var>/classes/net/jini -prune net.jini.core
+ * java -jar <var><b>install_dir</b></var>/lib/classdep.jar \
+ *      -cp <var><b>install_dir</b></var>/classes \
+ *      -in net.jini -out net.jini.core -in com.sun.jini \
+ *      <var><b>install_dir</b></var>/classes/net/jini -prune net.jini.core \
  *      -files
  * </pre></blockquote>
  *
@@ -481,8 +535,23 @@ public class ClassDep {
      */
     private  final ArrayList prunes  = new ArrayList();
     /**
-     * Set of package prefixes to skip over in the processing 
-     * of dependencies. 
+     * Indicates whether the root directories specified for finding classes
+     * for dependency checking must be traversed in the 'old' way, or that the
+     * new behavior must be effective.
+     */
+    private boolean newRootDirBehavior;
+    /**
+     * Set of packages to include when classes are found through the specified
+     * root directories.
+     */
+    private  final ArrayList insideRoots  = new ArrayList();
+    /**
+     * Set of packages to exclude when classes are found through the specified
+     * root directories.
+     */
+    private  final ArrayList outsideRoots  = new ArrayList();
+    /**
+     * Set of classes to skip over in the processing of dependencies.
      */
     private  final ArrayList skips   = new ArrayList();
     /**
@@ -504,7 +573,13 @@ public class ClassDep {
     /**
      * Container for found dependency classes.
      */
-    private final ArrayList results = new ArrayList();
+    private final SortedSet results = new TreeSet();
+
+    /**
+     * Indicates whether a failure has been encountered during deep dependency
+     * checking.
+     */
+    private boolean failed;
 
     /**
      * No argument constructor. The user must fill in the
@@ -595,9 +670,11 @@ public class ClassDep {
      * Recursively traverse a given path, finding all the classes that
      * make up the set to work with. We take into account skips,
      * prunes, and out sets defined.
+     * <p>
+     * This implementation is here to maintain the old behavior with regard
+     * to how root directories were interpreted.
      *
      * @param path path to traverse down from
-     *
      */
     private void traverse(String path) {
 	String apath = path;
@@ -682,18 +759,102 @@ public class ClassDep {
 		 * If so add them to our working list "classes".
 		 */
 		for (int j = 0; j < inside.size(); j++) {
+		    if (inside.get(j) == null)
+			continue;
 		    int k = file.indexOf(File.separatorChar +
 					 ((String)inside.get(j)).replace(
 						     '.', File.separatorChar));
 		    if (k >= 0) {
-				/*
-				 * Insert the class and make sure to replace
-				 * File.separators into dots.
-				 */
+			/*
+			 * Insert the class and make sure to replace
+			 * File.separators into dots.
+			 */
 			classes.add(file.substring(k + 1).replace(
 						   File.separatorChar, '.'));
 		    }
 		}
+	    }
+	}
+    }
+
+    /**
+     * Recursively traverse a given path, finding all the classes that make up
+     * the set of classes to work with. We take into account inroot and outroot
+     * sets, skips, and the in and out sets defined.
+     *
+     * @param path path to traverse down from
+     * @param rootPath path to the directory that serves as the root for the
+     *        class files found, any path component below the root is part of
+     *        the full qualified name of the class
+     */
+    private void traverse(String path, String rootPath) {
+	// get the current list of files at the current directory we are in. If
+	// there are no files then leave this current recursive thread.
+	String[] files = new File(path).list();
+	if (files == null)
+	    return;
+
+	// determine the package name in File.Separators notation
+	String packageName = path.substring(rootPath.length(), path.length())
+				+ File.separatorChar;
+    outer:
+	//take the found list of files and iterate over them
+	for (int i = 0; i < files.length; i++) {
+	    String file = files[i];
+	    // see if we have a ".class" file. If not then we call ourselves
+	    // again, assuming it is a directory, if not the call will return.
+	    if (!file.endsWith(".class")) {
+		traverse(path + File.separatorChar + file, rootPath);
+	    } else {
+		// when we have in roots defined verify whether we are inside
+		if (!insideRoots.isEmpty()) {
+		    boolean matched = false;
+		    for (int j = 0; j < insideRoots.size(); j++) {
+			if (packageName.startsWith(
+				(String) insideRoots.get(j))) {
+			    matched = true;
+			    break;
+			}
+		    }
+		    if (!matched) {
+			continue;
+		    }
+		}
+
+		// when we have out roots and we are at this level outside we
+		// can break the recursion
+		if (!outsideRoots.isEmpty()) {
+		    for (int j = 0; j < outsideRoots.size(); j++) {
+			if (packageName.startsWith(
+				(String) outsideRoots.get(j))) {
+			    return;
+			}
+		    }
+		}
+
+		// determine the fully qualified class name, but with dots
+		// converted to File.Separators and starting with a
+		// File.Separators as well
+		String className = packageName
+		    			+ file.substring(0, file.length() - 6);
+		// see if there are any class files that need to be skipped, the
+		// skip classes are in the above notation as well
+		for (int j = 0; j < skips.size(); j++) {
+		    String skip = (String) skips.get(j);
+		    if (!className.startsWith(skip)) {
+			continue;
+		    }
+		    // if we matched the entire class or if we have a class with
+		    // an inner class, skip it and go on to the next outer loop
+		    if (className.length() == skip.length()
+			    || className.charAt(skip.length()) == '$')
+			continue outer;
+		}
+
+		// we found a class that satisfy all the criteria, convert it
+		// to the proper notation
+		classes.add(className.substring(1).replace(File.separatorChar,
+							   '.'));
 	    }
 	}
     }
@@ -714,7 +875,7 @@ public class ClassDep {
 	while (type.isType(Constants.TC_ARRAY))
 	    type = type.getElementType();
 	if (type.isType(Constants.TC_CLASS))
-	    process(from, type.getClassName(), false);
+	    process(from, type.getClassName());
     }
 
     /**
@@ -744,9 +905,8 @@ public class ClassDep {
      *
      * @param from the Identifier referenced from <code>id</code>
      * @param id   the Identifier being looked at
-     * @param top ignored
      */
-    private void process(Identifier from, Identifier id, boolean top) {
+    private void process(Identifier from, Identifier id) {
 	/*
  	 * If <code>from</code> is not null see if the "id" that
 	 * references it is in our "tells" container. If there
@@ -787,8 +947,7 @@ public class ClassDep {
 	     */
 	    if (n.charAt(i) == 'L')
 		process(from,
-			Identifier.lookup(n.substring(i + 1, n.length() - 1)),
-			false);
+			Identifier.lookup(n.substring(i + 1, n.length() - 1)));
 	    /*
 	     * Pop out of our recursive path, since the real work
 	     * is being down in another recursive thread.
@@ -855,12 +1014,15 @@ public class ClassDep {
 	    cdef = (BinaryClass)env.getClassDefinition(id);
 	    cdef.loadNested(env);
 	} catch (ClassNotFound e) {
+	    failed = true;
 	    print("classdep.notfound", id);
 	    return;
 	} catch (IllegalArgumentException e) {
+	    failed = true;
 	    print("classdep.illegal", id, e.getMessage());
 	    return;
 	} catch (Exception e) {
+	    failed = true;
 	    print("classdep.failed", id);
 	    e.printStackTrace();
 	    return;
@@ -878,13 +1040,17 @@ public class ClassDep {
 	for (Enumeration deps = cdef.getDependencies();
 	     deps.hasMoreElements(); )
 	{
-	    Identifier dep = ((ClassDeclaration)deps.nextElement()).getName();
+	    ClassDeclaration cd = (ClassDeclaration) deps.nextElement();
 	    /*
 	     * If we dont' want the outer parent class of an inner class
-	     * make this comparison.
+	     * make this comparison, except when it is clear the outer class is
+	     * the super class of the static nested class.
 	     */
-	    if (outer != dep)
-		process(id, dep, false);
+	    if (outer != cd.getName()
+		    || (outer != null && cdef.getSuperClass() == cd)) {
+
+		process(id, cd.getName());
+	    }
 	}
 
 
@@ -920,9 +1086,31 @@ public class ClassDep {
     /**
      * Method that takes the user provided switches that
      * logically define the domain in which to look for
-     * dependencies. 
+     * dependencies.
+     * <p>
+     * Whether a failure has occurred during computing the dependent classes
+     * can be found out with a call to {@link #hasFailed()}.
+     *
+     * @return array containing the dependent classes found in the format as
+     * specified by the options passed in
      */
     public String[] compute() {
+	failed = false;
+
+	if (!newRootDirBehavior) {
+	    if (!insideRoots.isEmpty()) {
+		failed = true;
+		print("classdep.invalidoption", "-newdirbehavior", "-inroot");
+	    }
+	    if (!outsideRoots.isEmpty()) {
+		failed = true;
+		print("classdep.invalidoption", "-newdirbehavior", "-outroot");
+	    }
+	    if (failed) {
+		return new String[0];
+	    }
+	}
+
 	/* sort ins and outs, longest first */
 	Comparator c = new Compare();
 	Collections.sort(inside, c);
@@ -942,16 +1130,19 @@ public class ClassDep {
 	    /*
 	     * Get the classes that we want do to dependency checking on.
 	     */
-	    traverse((String)roots.get(i));
+	    if (newRootDirBehavior) {
+		traverse((String)roots.get(i), (String)roots.get(i));
+	    }
+	    else {
+		traverse((String)roots.get(i));
+	    }
 	}
 	for (int i = 0; i < classes.size(); i++) {
-	    process(null, Identifier.lookup((String)classes.get(i)), true);
+	    process(null, Identifier.lookup((String)classes.get(i)));
 	}
 	if (!tells.isEmpty())
 	    return new String[0];
-	String[] vals = (String[])results.toArray(new String[results.size()]);
-	Arrays.sort(vals);
-	return vals;
+	return (String[])results.toArray(new String[results.size()]);
     }
 
     /**
@@ -1024,6 +1215,10 @@ public class ClassDep {
      * Add an entry into the set of package prefixes
      * that will be skipped as part of the dependency
      * generation.
+     * <p>
+     * This method has no impact if the new behavior is effective for the
+     * interpretation of the root directories for finding class files to
+     * include for dependency checking.
      */
     public void addPrune(String packagePrefix) {
 	String arg = packagePrefix;
@@ -1034,6 +1229,63 @@ public class ClassDep {
 	 */
 	arg = File.separator + arg.replace('.', File.separatorChar);
 	prunes.add(arg);
+    }
+
+    /**
+     * Controls whether the behavior for finding class files in the specified
+     * directories, if any, must be based on the old behavior (the default) or
+     * the new behavior that solves some of the problems with the old behavior.
+     */
+    public void setRootDirBehavior(boolean newBehavior) {
+	newRootDirBehavior = newBehavior;
+    }
+
+    /**
+     * Adds an entry into the set of package prefixes for which classes found
+     * through the specified root directories will be considered for dependency
+     * generation.
+     * <p>
+     * Adding entries without a call to {@link #setRootDirBehavior(boolean)}
+     * with <code>true</code> as the argument will cause {@link #compute()} to
+     * fail.
+     */
+    public void addInsideRoot(String packagePrefix) {
+	String arg = packagePrefix;
+	if (arg.endsWith("."))
+	    arg = arg.substring(0, arg.length() - 1);
+	/*
+	 * Convert dots into File.separator for later usage.
+	 */
+	if (arg.trim().length() == 0)
+	    arg = File.separator;
+	else
+	    arg = File.separator + arg.replace('.', File.separatorChar)
+		  + File.separator;
+	insideRoots.add(arg);
+    }
+
+    /**
+     * Adds an entry into the set of package prefixes for which classes found
+     * through the specified root directories, and that are part of the inside
+     * root namespace, will be skipped as part of the dependency generation.
+     * <p>
+     * Adding entries without a call to {@link #setRootDirBehavior(boolean)}
+     * with <code>true</code> as the argument will cause {@link #compute()} to
+     * fail.
+     */
+    public void addOutsideRoot(String packagePrefix) {
+	String arg = packagePrefix;
+	if (arg.endsWith("."))
+	    arg = arg.substring(0, arg.length() - 1);
+	/*
+	 * Convert dots into File.separator for later usage.
+	 */
+	if (arg.trim().length() == 0)
+	    arg = File.separator;
+	else
+	    arg = File.separator + arg.replace('.', File.separatorChar)
+		  + File.separator;
+	outsideRoots.add(arg);
     }
 
     /**
@@ -1070,8 +1322,8 @@ public class ClassDep {
      * the converse of the rest of the utility and is meant
      * more for debugging purposes.
      */
-    public void addTells(String packagePrefix) {
-	tells.add(packagePrefix);
+    public void addTells(String className) {
+	tells.add(className);
     }
 
     /**
@@ -1097,7 +1349,7 @@ public class ClassDep {
 	classes.add(className);
     }
 
-    /**
+   /**
      * If true classnames will be separated using
      * File.separator, else it will use dots.
      */
@@ -1115,6 +1367,17 @@ public class ClassDep {
     }
 
     /**
+     * Indicates whether computing the dependent classes as result of the last
+     * call to {@link #compute()} resulted in one or more failures.
+     *
+     * @return <code>true</code> in case a failure has happened, such as a
+     * class not being found, <code>false</code> otherwise
+     */
+    public boolean hasFailed() {
+	return failed;
+    }
+
+    /**
      * Convenience method for initializing an instance with specific
      * command line arguments. See the description of this class
      * for a list and description of the acceptable arguments.
@@ -1122,7 +1385,10 @@ public class ClassDep {
     public void setupOptions(String[] args) {
 	for (int i = 0; i < args.length ; i++ ) {
 	    String arg = args[i];
-	    if (arg.equals("-cp")) {
+	    if (args.equals("-newdirbehavior")) {
+		newRootDirBehavior = true;
+	    }
+	    else if (arg.equals("-cp")) {
 		i++;
 		setClassPath(args[i]);
 	    } else if (arg.equals("-files")) {
@@ -1143,6 +1409,12 @@ public class ClassDep {
 	    } else if (arg.equals("-prune")) {
 		i++;
 		addPrune(args[i]);
+	    } else if (arg.equals("-inroot")) {
+		i++;
+		addInsideRoot(args[i]);
+	    } else if (arg.equals("-outroot")) {
+		i++;
+		addOutsideRoot(args[i]);
 	    } else if (arg.equals("-show")) {
 		i++;
 		addShow(args[i]);
