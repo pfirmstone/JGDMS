@@ -38,8 +38,8 @@ import net.jini.url.httpmd.HttpmdUtil;
  *
  * <blockquote>
  * <pre>
- * java -jar <var><b>install_dir</b></var>/lib/computehttpmdcodebase.jar
- *      <var><b>install_dir</b></var>/lib-dl
+ * java -jar <var><b>install_dir</b></var>/lib/computehttpmdcodebase.jar \
+ *      <var><b>install_dir</b></var>/lib-dl \
  *      "httpmd://<var><b>your_host</b></var>:<var><b>http_port</b></var>/sdm-dl.jar;md5=0"
  * </pre>
  * </blockquote>

@@ -31,7 +31,6 @@ import java.io.InputStream;
 import java.net.InetAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.URL;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -116,7 +115,7 @@ import java.util.logging.Logger;
  * <p>
  * An example of running directly from the command line is:
  * <blockquote><pre>
- * % java -jar <var><b>install_dir</b></var>/lib/classserver.jar
+ * % java -jar <var><b>install_dir</b></var>/lib/classserver.jar \
  *        -port 8081 -dir <var><b>install_dir</b></var>/lib-dl -verbose
  * </pre></blockquote>
  * where <var><b>install_dir</b></var>
@@ -128,8 +127,8 @@ import java.util.logging.Logger;
  * <p>
  * An example of running under the Service Starter is:
  * <blockquote><pre>
- * % java -Djava.security.policy=<var><b>start_policy</b></var>
- *        -jar <var><b>install_dir</b></var>/lib/start.jar
+ * % java -Djava.security.policy=<var><b>start_policy</b></var> \
+ *        -jar <var><b>install_dir</b></var>/lib/start.jar \
  *        <a href="#config">httpd.config</a>
  * </pre></blockquote>
  * <p>

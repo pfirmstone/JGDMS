@@ -34,8 +34,8 @@ import net.jini.url.httpmd.HttpmdUtil;
  *
  * <blockquote>
  * <pre>
- * java -jar <var><b>install_dir</b></var>/lib/computedigest.jar
- *      <var><b>install_dir</b></var>/lib/reggie.jar
+ * java -jar <var><b>install_dir</b></var>/lib/computedigest.jar \
+ *      <var><b>install_dir</b></var>/lib/reggie.jar \
  *      SHA-1
  * </pre>
  * </blockquote>

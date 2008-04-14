@@ -48,7 +48,6 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationFile;
 import net.jini.config.ConfigurationProvider;
-import net.jini.config.ConfigurationNotFoundException;
 
 /**
  * Checks the format of the source for a {@link ConfigurationFile}. The source
@@ -125,9 +124,9 @@ import net.jini.config.ConfigurationNotFoundException;
  *
  * <blockquote>
  * <pre>
- * java -jar <var><b>install_dir</b></var>/lib/checkconfigurationfile.jar
- *      -cp <var><b>install_dir</b></var>/lib/norm.jar:<var><b>install_dir</b></var>/lib/jsk-platform.jar
- *      -entries <var><b>install_dir</b></var>/configentry/norm-transient
+ * java -jar <var><b>install_dir</b></var>/lib/checkconfigurationfile.jar \
+ *      -cp <var><b>install_dir</b></var>/lib/norm.jar:<var><b>install_dir</b></var>/lib/jsk-platform.jar \
+ *      -entries <var><b>install_dir</b></var>/configentry/norm-transient \
  *      <var><b>your-norm.config</b></var>
  * </pre>
  * </blockquote>

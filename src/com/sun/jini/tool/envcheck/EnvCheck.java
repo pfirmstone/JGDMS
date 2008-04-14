@@ -19,14 +19,11 @@ package com.sun.jini.tool.envcheck;
 
 import com.sun.jini.resource.Service;
 
-import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.OutputStream;
 import java.io.PrintStream;
 
 import java.lang.reflect.Modifier;
@@ -35,11 +32,8 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-import java.rmi.RMISecurityManager;
-
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Properties;
 import java.util.ResourceBundle;
@@ -47,8 +41,6 @@ import java.util.ResourceBundle;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
-import net.jini.config.EmptyConfiguration;
-import net.jini.config.NoSuchEntryException;
 
 import com.sun.jini.start.ServiceDescriptor;
 import com.sun.jini.start.NonActivatableServiceDescriptor;
@@ -82,14 +74,14 @@ import com.sun.jini.tool.envcheck.Reporter.Message;
  * arguments to the tool. Thus, for a service designed to be run by the
  * service starter having the hypothetical original command line:
  * <blockquote><pre>
- * java -Djava.security.policy=mypolicy 
- *      -jar /jini/lib/start.jar mystart.config
+ * java -Djava.security.policy=<var><b>my_policy</b></var> \
+ *      -jar <var><b>install_dir</b></var>/lib/start.jar mystart.config
  * </pre></blockquote>
  * the simplest invocation of the tool would be:
  * <blockquote><pre>
- * java -jar /jini/lib/envcheck.jar
- *      java -Djava.security.policy=mypolicy 
- *           -jar /jini/lib/start.jar mystart.config
+ * java -jar <var><b>install_dir</b></var>/lib/envcheck.jar \
+ *      java -Djava.security.policy=<var><b>my_policy</b></var> \
+ *           -jar <var><b>install_dir</b></var>/lib/start.jar mystart.config
  * </pre></blockquote>
  * Note that the entire command line, including the <code>java</code> command,
  * is supplied as arguments to the tool. The <code>java</code> command used to
@@ -172,11 +164,11 @@ import com.sun.jini.tool.envcheck.Reporter.Message;
 
  * <p>
  * <blockquote><pre>
- * java -jar /jini/lib/envcheck.jar -level info -explain -traces
- *      /usr/bin/java -cp mylib/myservice.jar:/jini/lib/jsk-platform.jar
- *                    -Djava.security.policy=mypolicy
- *                    -Djava.server.rmi.codebase=http://myhost/myservice-dl.jar
- *                    myservice.MyServiceImpl
+ * java -jar <var><b>install_dir</b></var>/lib/envcheck.jar -level info -explain -traces \
+ *      java -cp <var><b>mylib_dir</b></var>/myservice.jar:/jini/lib/jsk-platform.jar \
+ *           -Djava.security.policy=<var><b>my_policy</b></var> \
+ *           -Djava.server.rmi.codebase=http://myhost/myservice-dl.jar \
+ *           myservice.MyServiceImpl
  * </blockquote></pre>
  * In this case, the tool is limited to performing validity checks on the
  * classpath, policy, and codebase values identified by the system properties
@@ -189,9 +181,9 @@ import com.sun.jini.tool.envcheck.Reporter.Message;
  * starter configuration located in the working directory:
  * <p>
  * <blockquote><pre>
- * java -jar /jini/lib/envcheck.jar -level error
- *      /usr/bin/java -Djava.security.policy=mystarterpolicy
- *                    -jar /jini/lib/start.jar reggie.config
+ * java -jar <var><b>install_dir</b></var>/lib/envcheck.jar -level error \
+ *      java -Djava.security.policy=<var><b>my_starterpolicy</b></var> \
+ *           -jar <var><b>install_dir</b></var>/lib/start.jar reggie.config
  * </blockquote></pre>
  * The tool can perform many more checks in this case because the
  * bundled plugins include built-in knowledge about the service starter
@@ -385,7 +377,7 @@ public class EnvCheck {
      * Search the command line for user supplied plugin definitions
      * and place them in the internal plugin list.
      *
-     * @param cmdline the original command line args
+     * @param cmdLine the original command line args
      */
     private static void findPlugins(String[] cmdLine) {
 	int index = 0;

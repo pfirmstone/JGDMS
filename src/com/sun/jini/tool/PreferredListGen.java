@@ -94,11 +94,11 @@ import java.util.regex.Pattern;
  *
  * To run the tool on UNIX platforms:
  * <blockquote><pre>
- * java -jar <var><b>jsk_install_dir</b></var>/lib/preferredlistgen.jar <var><b>processing_options</b></var> 
+ * java -jar <var><b>install_dir</b></var>/lib/preferredlistgen.jar <var><b>processing_options</b></var>
  * </pre></blockquote>
  * To run the tool on Microsoft Windows platforms:
  * <blockquote><pre>
- * java -jar <var><b>jsk_install_dir</b></var>\lib\preferredlistgen.jar <var><b>processing_options</b></var> 
+ * java -jar <var><b>install_dir</b></var>\lib\preferredlistgen.jar <var><b>processing_options</b></var>
  * </pre></blockquote>
  * <p>
  * Note that the options for this tool can be specified in any order, and
@@ -292,11 +292,11 @@ import java.util.regex.Pattern;
  * <code>com.sun.jini.reggie.ConstrainableAdminProxy</code>.
  * <p>
  * <blockquote><pre>
- * java -jar <var><b>jsk_install_dir</b></var>/lib/preferredlistgen.jar
- *      -cp <var><b>jsk_install_dir</b></var>/lib/jsk-platform.jar
- *      -jar <var><b>jsk_install_dir</b></var>/lib-dl/reggie-dl.jar
- *      -jar <var><b>jsk_install_dir</b></var>/lib-dl/jsk-dl.jar
- *      -proxy com.sun.jini.reggie.ConstrainableRegistrarProxy 
+ * java -jar <var><b>install_dir</b></var>/lib/preferredlistgen.jar \
+ *      -cp <var><b>install_dir</b></var>/lib/jsk-platform.jar \
+ *      -jar <var><b>install_dir</b></var>/lib-dl/reggie-dl.jar \
+ *      -jar <var><b>install_dir</b></var>/lib-dl/jsk-dl.jar \
+ *      -proxy com.sun.jini.reggie.ConstrainableRegistrarProxy \
  *      -proxy com.sun.jini.reggie.ConstrainableAdminProxy 
  * </pre></blockquote>
  * <p>
