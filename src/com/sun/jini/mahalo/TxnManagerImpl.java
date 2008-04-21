@@ -131,7 +131,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
     private transient int taskthreads = 50;
     private transient long tasktimeout = 1000 * 15;
-    private transient float taskload = 3.0f;
+    private transient float taskload = 1.0f;
 
 
     /* Its important here to schedule SettlerTasks on a */

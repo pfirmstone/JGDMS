@@ -19,9 +19,9 @@ package com.sun.jini.mercury;
 
 import java.io.Serializable;
 /**
- * Trival class (struct) that simply holds the current read count
+ * Trivial class (struct) that simply holds the current read count
  * and the associated (next unread) read position. U?sed as the client-side
- * cookie for PersistentLog.
+ * cookie for PersistentEventLog.
  * @since 2.1
  */
 class RemoteEventDataCursor implements Serializable {

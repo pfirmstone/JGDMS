@@ -1,19 +1,9 @@
 <!--
- ! Licensed to the Apache Software Foundation (ASF) under one
- ! or more contributor license agreements.  See the NOTICE file
- ! distributed with this work for additional information
- ! regarding copyright ownership. The ASF licenses this file
- ! to you under the Apache License, Version 2.0 (the
- ! "License"); you may not use this file except in compliance
- ! with the License. You may obtain a copy of the License at
  ! 
- !      http://www.apache.org/licenses/LICENSE-2.0
+ ! Copyright 2005, Sun Microsystems, Inc.
+ ! Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">
+ ! Apache License, Version 2.0</a>.
  ! 
- ! Unless required by applicable law or agreed to in writing, software
- ! distributed under the License is distributed on an "AS IS" BASIS,
- ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- ! See the License for the specific language governing permissions and
- ! limitations under the License.
  !-->
 
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
@@ -43,7 +33,7 @@ Three implementations are available for use with the
 
 <p>
 The JAR file <code>mercury.jar</code>, included in the <code>lib</code>
-subdirectory of the Apache River release
+subdirectory of the Jini(TM) Technology Starter Kit (starter kit)
 installation, contains the classes for the three Mercury service
 implementations. The <code>mercury-dl.jar</code> 
 and <code>jsk-dl.jar</code> files in the <code>lib-dl</code> subdirectory
@@ -373,6 +363,42 @@ new {@link com.sun.jini.landlord.FixedLeasePeriodPolicy}(
       obtained at service start and restart. This entry is only used by
       persistent implementations.
   </table>
+  
+<a name="maxUnexportDelay"></a>
+<table summary="Describes the maxUnexportDelay configuration entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>maxUnexportDelay</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>long</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>120000</code> (2 minutes)
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+
+      Description: <td> How long to retry &#147nice&#148 unexport attempts before
+      forcing the unexport. Part of destroying a Mercury server includes
+      calling {@link net.jini.export.Exporter#unexport
+      Exporter.unexport(boolean force)} on the <code>Exporter</code> used
+      to export the server (see
+      <a href="#serverExporter"><code>serverExporter</code></a>). The initial
+      <code>unexport</code> call passes <code>false</code> for the value of
+      the <code>force</code> parameter. This is done in order to allow the
+      destroy call to return cleanly to the client. If the initial
+      <code>unexport</code> call fails, Mercury will retry calling
+      <code>unexport(false)</code> for up to <code>maxUnexportDelay</code>
+      milliseconds before giving up and calling
+      <code>unexport(true)</code>.  <code>maxUnexportDelay</code> must be a
+      non-negative long value. If <code>maxUnexportDelay</code> is zero
+      then the very first call to <code>unexport</code> passes
+      <code>true</code> for the value of the <code>force</code> parameter,
+      no nice unexport attempt is made. Obtained at service start and
+      restart. Note, the delay between attempted <code>unexport</code>
+      calls is controlled by the <a
+      href="#unexportRetryDelay"><code>unexportRetryDelay</code></a>
+      configuration entry.
+</table>
 
 <a name="notificationsTaskManager"></a>
 <table summary="Describes the notificationsTaskManager configuration entry"
@@ -480,7 +506,7 @@ new {@link com.sun.jini.landlord.FixedLeasePeriodPolicy}(
       prepared by this preparer until they are being recovered.
   </table>
 
-
+<a name="serverExporter"></a>
   <table summary="Describes the serverExporter configuration entry"
          border="0" cellpadding="2">
     <tr valign="top">
@@ -509,7 +535,30 @@ new {@link net.jini.jeri.BasicJeriExporter}(
       the call to <code>getEntry</code> will supply the activation ID in
       the <code>data</code> argument. This entry is obtained at service
       start and restart.
-  </table> <p>
+  </table>
+  
+<a name="unexportRetryDelay"></a>
+<table summary="Describes the unexportRetryDelay configuration entry"
+	 border="0" cellpadding="2">
+    <tr valign="top">
+      <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+      <th scope="col" align="left" colspan="2"> <font size="+1">
+      <code>unexportRetryDelay</code></font>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Type: <td> <code>long</code>
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+      Default: <td> <code>1000</code> (1 second)
+    <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+
+      Description: <td> When destroying a Mercury server how long to
+      wait between unexport attempts. <code>unexportRetryDelay</code> must
+      be a positive long value. When destroying itself Mercury will sleep
+      for <code>unexportRetryDelay</code> milliseconds between {@link
+      net.jini.export.Exporter#unexport Exporter.unexport} calls. Obtained
+      at service start and restart. See <a
+      href="#maxUnexportDelay"><code>maxUnexportDelay</code></a> for
+      additional details.
+  </table> <P>
 
 <a name="access_control">
 <h2>Access Control Permission Targets</h2>
@@ -808,7 +857,7 @@ This section provides examples of running Mercury in various configurations.
      <li> <a href="#persistent_jrmp">Persistent</a>
      <li> <a href="#activatable_jrmp">Activatable</a>
      </ul>
-<li> Jini extensible remote invocation (Jini ERI) configurations
+<li> Jini(TM) extensible remote invocation (Jini ERI) configurations
      <ul>
      <li> <a href="#transient">Transient</a>
      <li> <a href="#persistent">Persistent</a>
@@ -826,7 +875,7 @@ The examples below make the following assumptions: <p>
 <ul>
 <li> The Java(TM) 2 Platform, Standard Edition, (J2SE(TM)) has been
      installed, and its commands are available in the current path
-<li> The Apache River release has been installed in the
+<li> The starter kit has been installed in the
      <var><b>install_dir</b></var> directory
 <li> The example configuration and policy files described below are
      available in the <var><b>config_dir</b></var> directory
@@ -876,7 +925,7 @@ This configuration uses the following files.
 
 Use this security policy file for starting and running all Mercury
 configurations. This file grants all permissions to local code included
-in the <code>lib</code> subdirectory of the Apache River release installation.<p>
+in the <code>lib</code> subdirectory of the starter kit installation.<p>
 
 <blockquote>
 <pre>

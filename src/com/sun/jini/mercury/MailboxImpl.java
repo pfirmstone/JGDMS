@@ -1,19 +1,19 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership. The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
  * 
- *      http://www.apache.org/licenses/LICENSE-2.0
+ * Copyright 2005 Sun Microsystems, Inc.
+ * 
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ * 
+ * 	http://www.apache.org/licenses/LICENSE-2.0
  * 
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
+ * 
  */
 package com.sun.jini.mercury;
 
@@ -448,6 +448,18 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * The variable is guarded by <code>destroyLock</code>.
      */
     private boolean destroySucceeded = false;
+
+    /**
+     * When destroying the space, how long to wait for a clean
+     * unexport (which allows the destroy call to return) before
+     * giving up calling <code>unexport(true)</code>
+     */
+    private long maxUnexportDelay;
+
+    /**
+     * Length of time to sleep between unexport attempts
+     */
+    private long unexportRetryDelay;
     
     /** 
      * Object used to prevent access to this service during the service's
@@ -845,6 +857,12 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    // Start snapshot thread
 	    snapshotter = new SnapshotThread();
 	}
+        
+	maxUnexportDelay = Config.getLongEntry(config, MERCURY, 
+	    "maxUnexportDelay", 2 * MINUTES, 0, Long.MAX_VALUE);
+
+	unexportRetryDelay = Config.getLongEntry(config, MERCURY, 
+	    "unexportRetryDelay", SECONDS, 1, Long.MAX_VALUE);
 
         // Start threads
 	notifier = new Notifier(config);
@@ -2465,7 +2483,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                         }                
                     }
                 }
-                 /* If no events currently availalbe, wait up to timeout and try
+                 /* If no events currently available, wait up to timeout and try
                  * again.
                  * Note: wait(0) means wait until notified (i.e. forever) 
                  */
@@ -3229,9 +3247,6 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      */
     private class DestroyThread extends Thread {
 
-        /** Maximum delay for unexport attempts */
-        private static final long MAX_UNEXPORT_DELAY = 2 * MINUTES;
-
 	/** Create a non-daemon thread */
 	public DestroyThread() {
 	    super("DestroyThread");
@@ -3284,9 +3299,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
    		    }
    	        }
                 
-
-                long endTime =
-                    System.currentTimeMillis() + MAX_UNEXPORT_DELAY;
+                long now = System.currentTimeMillis();
+                long endTime = now + maxUnexportDelay;
                 if (endTime < 0) { // Check for overflow
                     endTime = Long.MAX_VALUE;
                 }
@@ -3294,19 +3308,31 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 /**TODO 
   * - trap IllegalStateException from unexport
   */
-                while ((!unexported) &&
-                       (System.currentTimeMillis() < endTime))
-                {
+                while ((!unexported) && (now < endTime)) {
                     /* wait for any pending operations to complete */
-                    unexported =
-                        exporter.unexport(false);
+                    unexported = exporter.unexport(false);
                     if (!unexported) {
                         if (adminLogger.isLoggable(Level.FINEST)) {
                             adminLogger.log(Level.FINEST, 
                                 "Waiting for in-progress calls to complete");
                         }
                         try {
-                            sleep(1000);
+ 			    /* Sleep for a finite time instead of yield.
+			     * In most VMs yield is a no-op so if 
+			     * unexport(false) is not working (say because
+			     * there is a blocking query in progress) a
+			     * yield here results in a very tight loop
+			     * (plus there may be no other runnable threads)
+			     */
+			    final long sleepTime = 
+				Math.min(unexportRetryDelay, endTime - now);
+
+			    /* sleepTime must > 0, unexportRetryDelay is
+			     * > 0 and if now >= end_time we would have
+			     * fallen out of the loop
+			     */
+			    sleep(sleepTime);
+			    now = System.currentTimeMillis();    
                         } catch (InterruptedException ie) {
                             if (adminLogger.isLoggable(Levels.HANDLED)) {
                                 adminLogger.log(Levels.HANDLED, 
