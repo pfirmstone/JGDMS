@@ -130,7 +130,9 @@ import java.util.regex.Pattern;
  * <code>src2.jar</code>, as well as any transitively referenced JAR files,
  * would be resolved relative to the <code>base_dir</code> directory.  The
  * <code>Class-Path</code> attribute of <code>wrapper.jar</code> would use
- * HTTPMD URLs with SHA-1 digests.
+ * HTTPMD URLs with SHA-1 digests.  If any of the HTTPMD URLs encountered is
+ * found to be invalid and can not be resolved, the <code>JarWrapper</code>
+ * operation will fail.
  * <p>
  * The equivalent programmatic invocation of <code>JarWrapper</code> would be:
  * <blockquote><pre>
