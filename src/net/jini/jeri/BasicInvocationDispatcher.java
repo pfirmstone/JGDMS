@@ -548,14 +548,14 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	} catch (Throwable t) {
 	    if (logger.isLoggable(Levels.FAILED)) {
-		logThrow(impl, t);
+		logLocalThrow(impl, null, t);
 	    }
 	    request.abort();
 	    return;
 	}
 
 	Method method = null;
-	Object returnValue= null;
+	Object returnValue = null;
 	Throwable t = null;
 	boolean fromImpl = false;
 	Util.populateContext(context, integrity);
@@ -638,7 +638,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		createMarshalOutputStream(impl, method, request, context);
 	    if (t != null) {
 		if (logger.isLoggable(Levels.FAILED)) {
-		    logThrow(impl, method, t, fromImpl);
+		    logRemoteThrow(impl, method, t, fromImpl);
 		}
 		if (t instanceof RemoteException) {
 		    t = new ServerException("RemoteException in server thread",
@@ -669,7 +669,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    }
 	    request.abort();
 	    if (logger.isLoggable(Levels.FAILED)) {
-		logThrow(impl, tt);
+		logLocalThrow(impl, method, tt);
 	    }
 	}
     }
@@ -1229,8 +1229,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Log the start of a remote call.
-     */
+     * Logs the start of an inbound call.
+     **/
     private void logCall(Remote impl, Method method, Object[] args) {
 	String msg = "inbound call {0}.{1} to {2} from {3}\nclient {4}";
 	if (logger.isLoggable(Level.FINEST)) {
@@ -1243,15 +1243,15 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    host = Util.getClientHostString();
 	} catch (ServerNotActiveException e) {
 	}
-	logger.log(Level.FINE, msg,
-		   new Object[]{method.getDeclaringClass().getName(),
-				method.getName(), impl, host,
-				prins, Arrays.asList(args)});
+	logger.logp(Level.FINE, this.getClass().getName(), "dispatch", msg,
+		    new Object[]{method.getDeclaringClass().getName(),
+				 method.getName(), impl, host,
+				 prins, Arrays.asList(args)});
     }
 
     /**
-     * Log the return of an inbound call.
-     */
+     * Logs the return of an inbound call.
+     **/
     private void logReturn(Remote impl, Method method, Object res) {
 	String msg = "inbound call {0}.{1} to {2} returns";
 	if (logger.isLoggable(Level.FINEST) &&
@@ -1265,20 +1265,48 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
     }
 
     /**
-     * Log the remote throw of an inbound call.
-     */
-    private void logThrow(Remote impl,
-			  Method method,
-			  Throwable t,
-			  boolean fromImpl)
+     * Logs the remote throw of an inbound call.
+     **/
+    private void logRemoteThrow(Remote impl,
+				Method method,
+				Throwable t,
+				boolean fromImpl)
     {
-	LogRecord lr = new LogRecord(
-	  Levels.FAILED,
-	  fromImpl ?
-	  "inbound call {0}.{1} to {2} remotely throws" :
-	  (logger.isLoggable(Level.FINEST) ?
-	   "inbound call {0}.{1} to {2} dispatch remotely throws\nclient {3}" :
-	   "inbound call {0}.{1} to {2} dispatch remotely throws"));
+	String msg;
+	if (fromImpl) {
+	    msg = "inbound call {0}.{1} to {2} remotely throws";
+	} else {
+	    msg = "inbound call {0}.{1} to {2} dispatch remotely throws";
+	    if (logger.isLoggable(Level.FINEST)) {
+		msg = "inbound call {0}.{1} to {2} dispatch remotely throws" +
+		      "\nclient {3}";
+	    }
+	}
+	logThrow(msg, impl, method, t);
+    }
+
+    /**
+     * Logs the local throw an an inbound call.
+     **/
+    private void logLocalThrow(Remote impl, Method method, Throwable t) {
+	String msg = "inbound call {0}.{1} to {2} dispatch locally throws";
+	if (logger.isLoggable(Level.FINEST)) {
+	    msg = "inbound call {0}.{1} to {2} dispatch locally throws" +
+		  "\nclient {3}";
+	}
+	logThrow(msg, impl, method, t);
+    }
+
+    /**
+     * Logs the throw of an inbound call using the specified message,
+     * whose format elements are mapped to string representations of
+     * the following items: {0} for the method's declaring class, {1}
+     * for the method's name, {2} for the target remote object, and
+     * {3} for the client subject.
+     **/
+    private void logThrow(String msg, Remote impl, Method method, Throwable t)
+    {
+	LogRecord lr = new LogRecord(Levels.FAILED, msg);
 	lr.setLoggerName(logger.getName());
 	lr.setSourceClassName(this.getClass().getName());
 	lr.setSourceMethodName("dispatch");
@@ -1292,22 +1320,6 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	logger.log(lr);
     }
 
-    /**
-     * Log the local throw of an inbound call.
-     */
-    private void logThrow(Remote impl, Throwable t) {
-	LogRecord lr = new LogRecord(Levels.FAILED,
-				     logger.isLoggable(Level.FINEST) ?
-				     "{0} locally throws\nclient {1}" :
-				     "{0} locally throws");
-	lr.setLoggerName(logger.getName());
-	lr.setSourceClassName(this.getClass().getName());
-	lr.setSourceMethodName("dispatch");
-	lr.setParameters(new Object[]{impl, getClientSubject()});
-	lr.setThrown(t);
-	logger.log(lr);
-    }
-    
     /**
      * Return the current client subject or <code>null</code> if not
      * currently executing a remote call.
