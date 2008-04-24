@@ -366,7 +366,8 @@ public final class SelectionManager {
 			throw new InterruptedException();
 		    }
 		} catch (Error e) {
-		    if (e.getMessage().startsWith("POLLNVAL")) {
+		    String message = e.getMessage();
+		    if (message != null && message.startsWith("POLLNVAL")) {
 			Thread.yield();
 			continue;		// work around 4458268
 		    } else {
