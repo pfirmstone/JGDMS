@@ -110,7 +110,7 @@ public final class NewThreadAction implements PrivilegedAction {
      *
      * @param	name the name of the new thread
      *
-     * @param	daemon if true, new hread will be a daemon thread;
+     * @param	daemon if true, new thread will be a daemon thread;
      * if false, new thread will not be a daemon thread
      *
      * @param	user if true, thread will be created in a non-system

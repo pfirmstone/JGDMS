@@ -970,7 +970,7 @@ public final class HttpEndpoint
 	}
 
 	/**
-	 * Returns a new unconnnected socket, using this endpoint's
+	 * Returns a new unconnected socket, using this endpoint's
 	 * socket factory if non-null.
 	 **/
 	private Socket newSocket() throws IOException {

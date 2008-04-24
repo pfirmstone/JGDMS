@@ -82,7 +82,7 @@ abstract class Mux {
 
     /**
      * pool of threads for executing tasks in system thread group:
-     * used for shutting down sessions when a connnection goes down
+     * used for shutting down sessions when a connection goes down
      */
     private static final Executor systemThreadPool =
 	(Executor) AccessController.doPrivileged(

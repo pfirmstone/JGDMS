@@ -567,7 +567,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	}
 
 	/*
-	 * Try remining defaultLoader cases.
+	 * Try remaining defaultLoader cases.
 	 */
 	if (defaultLoader != null) {
 	    boolean tryDL = secEx != null;
@@ -1214,7 +1214,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 
     /**
      * Attempts to load the specified interfaces by name using the
-     * specified loader, and if that is successul, attempts to get a
+     * specified loader, and if that is successful, attempts to get a
      * dynamic proxy class that implements those interfaces.
      *
      * If tryOtherLoaderFirst is true, attempts to get the proxy class
@@ -1676,7 +1676,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     }
 
     /**
-     * Loader table key: a codebaser URL path and a weak reference to
+     * Loader table key: a codebase URL path and a weak reference to
      * a parent class loader (possibly null).  The weak reference is
      * registered with "refQueue" so that the entry can be removed
      * after the loader has become unreachable.
