@@ -30,8 +30,11 @@ import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.constraint.InvocationConstraints;
@@ -125,6 +128,11 @@ public final class ConnectionManager {
     private static final Executor systemThreadPool =
 	(Executor) AccessController.doPrivileged(
 	    new GetThreadPoolAction(false));
+    /**
+     * Set of connection managers with open or pending muxes
+     * (connections), for consideration by the reaper thread.
+     */
+    private static final Set reaperSet = new HashSet();
 
     /**
      * The endpoint.
@@ -155,9 +163,7 @@ public final class ConnectionManager {
     /**
      * Number of pending connect calls.
      */
-    private int pendingConnects = 0;	// REMIND: no longer necessary?
-
-    private Reaper reaper = null;	// non-null if reaper running
+    private int pendingConnects = 0;
 
     /**
      * Creates a new <code>ConnectionManager</code> that manages
@@ -170,13 +176,6 @@ public final class ConnectionManager {
     }
 
     /**
-     * Registers a pending connect call.
-     */
-    synchronized void connectPending() {
-	pendingConnects++;
-    }
-
-    /**
      * Calls connect on the connection endpoint with the active and idle
      * muxes and the specified handle. If no connection is returned, calls
      * connect with the handle. In either case, if a new connection is
@@ -185,7 +184,17 @@ public final class ConnectionManager {
      * along the way.
      */
     OutboundMux connect(OutboundRequestHandle handle) throws IOException {
+	synchronized (this) {
+	    pendingConnects++;
+	}
 	try {
+	    synchronized (reaperSet) {
+		if (reaperSet.isEmpty()) {
+		    systemThreadPool.execute(
+			new Reaper(), "ConnectionManager.Reaper");
+		}
+		reaperSet.add(this);
+	    }
 	    synchronized (this) {
 		active.clear();
 		idle.clear();
@@ -216,11 +225,6 @@ public final class ConnectionManager {
 		    }
 		    OutboundMux mux = newOutboundMux(c);
 		    mux.newRequestPending();
-		    if (reaper == null) {
-			reaper = new Reaper();
-			systemThreadPool.execute(
-			    reaper, "ConnectionManager[" + ep + "].Reaper");
-		    }
 		    muxes.add(mux);
 		    return mux;
 		}
@@ -229,11 +233,6 @@ public final class ConnectionManager {
 	    synchronized (this) {
 		OutboundMux mux = newOutboundMux(c);
 		mux.newRequestPending();
-		if (reaper == null) {
-		    reaper = new Reaper();
-		    systemThreadPool.execute(
-			reaper, "ConnectionManager[" + ep + "].Reaper");
-		}
 		muxes.add(mux);
 		return mux;
 	    }
@@ -250,8 +249,7 @@ public final class ConnectionManager {
      * true, removes the mux and adds it to the idle list. Returns true
      * if no connects are pending and no muxes remain.
      */
-    boolean checkIdle(long now, List idle) {
-	assert Thread.holdsLock(this);
+    synchronized boolean checkIdle(long now, List idle) {
 	for (int i = muxes.size(); --i >= 0; ) {
 	    OutboundMux mux = (OutboundMux) muxes.get(i);
 	    if (mux.checkIdle(now)) {
@@ -569,19 +567,16 @@ public final class ConnectionManager {
     /**
      * Records idle times in muxes and shuts down muxes that have been
      * idle for at least TIMEOUT milliseconds.
-     *
-     * REMIND: It should be possible to have a shared reaper once
-     * again, with some care regarding GC issues.
      */
-    private final class Reaper implements Runnable {
+    private static final class Reaper implements Runnable {
 	Reaper() {
 	}
 
 	/**
-	 * Sleep for TIMEOUT milliseconds.  Then call checkIdle,
-	 * shutdown all of idle muxes that have been collected, and if
-	 * checkIdle returned true, terminate, else repeat (go back to
-	 * sleep).
+	 * Sleep for TIMEOUT milliseconds.  Then call checkIdle on
+	 * each manager with open muxes, shutdown all of idle muxes
+	 * that have been collected, and if no managers with open
+	 * muxes remain terminate, else repeat (go back to sleep).
 	 */
 	public void run() {
 	    List idle = new ArrayList(1);
@@ -593,12 +588,17 @@ public final class ConnectionManager {
 		    return;
 		}
 		long now = System.currentTimeMillis();
-		synchronized (ConnectionManager.this) {
-		    checkIdle(now, idle);
-		    done = muxes.isEmpty();
-		    if (done) {
-			reaper = null;
+		synchronized (reaperSet) {
+		    for (Iterator iter = reaperSet.iterator();
+			 iter.hasNext();)
+		    {
+			ConnectionManager mgr =
+			    (ConnectionManager) iter.next();
+			if (mgr.checkIdle(now, idle)) {
+			    iter.remove();
+			}
 		    }
+		    done = reaperSet.isEmpty();
 		}
 		for (int i = idle.size(); --i >= 0; ) {
 		    ((OutboundMux) idle.get(i)).shutdown("idle");
@@ -650,8 +650,6 @@ public final class ConnectionManager {
 		throw new NoSuchElementException();
 	    }
 	    first = false;
-	    mux = null;
-	    connectPending();
 	    mux = connect(handle);
 	    OutboundRequest req = mux.newRequest();
 	    OutboundRequest sreq = null;
