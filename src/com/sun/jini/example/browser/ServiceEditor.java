@@ -62,7 +62,9 @@ import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.Lease;
+import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceItem;
+import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.export.Exporter;
@@ -125,18 +127,16 @@ class ServiceEditor extends JFrame {
     attrPanel = new AttributeTreePanel();
 
     // setup notify
-    if(admin instanceof JoinAdmin) {
-      try {
-	stmpl = new ServiceTemplate(item.serviceID,
-				    new Class[] { item.service.getClass() },
-				    new Entry[] {});
-	receiver = new NotifyReceiver();
+    try {
+      stmpl = new ServiceTemplate(item.serviceID,
+				  new Class[] { item.service.getClass() },
+				  new Entry[] {});
+      receiver = new NotifyReceiver();
 
-	setupNotify();
-      } catch (Throwable t) {
-	logger.log(Level.INFO, "event registration failed", t);
-	cancelNotify();
-      }
+      setupNotify();
+    } catch (Throwable t) {
+      logger.log(Level.INFO, "event registration failed", t);
+      cancelNotify();
     }
 
     addWindowListener(browser.wrap(new WindowAdapter() {
@@ -226,7 +226,7 @@ class ServiceEditor extends JFrame {
 	public void run() {
 	  if (eventID == ev.getID() && seqNo < ev.getSequenceNumber()) {
 	    seqNo = ev.getSequenceNumber();
-	    attrPanel.receiveNotify();
+	    attrPanel.receiveNotify(((ServiceEvent) ev).getTransition());
 	  }
 	}
       }));
@@ -419,25 +419,45 @@ class ServiceEditor extends JFrame {
     protected Entry[] getEntryArray() {
       if(admin instanceof JoinAdmin) {
 	try {
-	  return ((JoinAdmin) admin).getLookupAttributes();
+	  item.attributeSets = ((JoinAdmin) admin).getLookupAttributes();
 	} catch (Throwable t) {
 	  logger.log(Level.INFO, "obtaining attributes failed", t);
-	  return null;
+	}
+      } else {
+	try{
+	  ServiceMatches matches = registrar.lookup(stmpl, 1);
+	  if(matches.totalMatches != 1)
+	    Browser.logger.log(Level.INFO, "unexpected lookup matches: {0}",
+			       new Integer(matches.totalMatches));
+	  else
+	    item.attributeSets = matches.items[0].attributeSets;
+	} catch (Throwable t) {
+	  Browser.logger.log(Level.INFO, "lookup failed", t);
 	}
       }
       return item.attributeSets;
     }
 
-    protected void receiveNotify() {
-      String[] msg = {"Attributes have been modified by another client or service provider itself.",
-		      "Do you want refresh attributes ?"};
+    protected void receiveNotify(int transition) {
+	String[] msg =
+	    (transition == ServiceRegistrar.TRANSITION_MATCH_NOMATCH) ?
+	    new String[]{
+		"Service has been removed from lookup service.",
+		"Do you want to close the service editor window ?"} :
+	    new String[]{
+		"Attributes have been modified by another client or the service itself.",
+		"Do you want to refresh the attributes ?"};
       int result = JOptionPane.showConfirmDialog(AttributeTreePanel.this,
 						 msg,
 						 "Query",
 						 JOptionPane.YES_NO_OPTION);
 	
-      if(result == JOptionPane.YES_OPTION)
-	refreshPanel();
+      if(result == JOptionPane.YES_OPTION) {
+	  if (transition == ServiceRegistrar.TRANSITION_MATCH_NOMATCH)
+	      cleanup();
+	  else
+	      refreshPanel();
+      }
     }
 
     public void editField(ObjectNode node) {
