@@ -147,6 +147,7 @@ public class Browser extends JFrame {
     transient Configuration config;
     private transient DiscoveryGroupManagement disco;
     private transient ServiceRegistrar lookup = null;
+    private transient Object eventSource = null;
     private transient long eventID = 0;
     private transient long seqNo = Long.MAX_VALUE;
     private transient ActionListener exiter;
@@ -186,7 +187,7 @@ public class Browser extends JFrame {
 	throws ConfigurationException, IOException
     {
 	if (exiter == null)
-	    exiter = wrap(new Exit());
+	    exiter = new Exit();
 	if (config == null)
 	    config = EmptyConfiguration.INSTANCE;
 	init(exiter, config);
@@ -195,9 +196,9 @@ public class Browser extends JFrame {
     private void init(ActionListener exiter, Configuration config)
 	throws ConfigurationException, IOException
     {
-	exiter = (ActionListener)
+	exiter = wrap((ActionListener)
 	    Config.getNonNullEntry(config, BROWSER, "exitActionListener",
-				   ActionListener.class, exiter);
+				   ActionListener.class, exiter));
 	this.exiter = exiter;
 	this.config = config;
 	ctx = Security.getContext();
@@ -300,7 +301,7 @@ public class Browser extends JFrame {
 	exit.addActionListener(exiter);
 	file.add(exit);
 	bar.add(file);
-	addWindowListener(wrap(new Exiter()));
+	addWindowListener(new Exiter());
 	registrars = new JMenu("Registrar");
 	addNone(registrars);
 	bar.add(registrars);
@@ -344,6 +345,7 @@ public class Browser extends JFrame {
 	    getContentPane().add(bpanel, "South");
 	}
 	text = new JTextArea(genText(false), textRows, 40);
+	text.setEditable(false);
 	JScrollPane scroll = new JScrollPane(text);
 	getContentPane().add(scroll, "Center");
 
@@ -364,7 +366,8 @@ public class Browser extends JFrame {
      * life cycle callback. See the package documentation for details
      * of the command line arguments. The default action listener for
      * the Exit menu item calls the {@link #dispose dispose} method of
-     * this instance, unexports any remote event listener, and calls the
+     * this instance, cancels any lookup service event registration lease,
+     * unexports any remote event listener, and calls the
      * {@link LifeCycle#unregister unregister} method of the life cycle
      * callback. The action listener can be overridden by a configuration
      * entry.
@@ -375,14 +378,15 @@ public class Browser extends JFrame {
     public Browser(String[] args, final LifeCycle lc)
 	throws ConfigurationException, LoginException, IOException
     {
-	final ActionListener exiter = wrap(new ActionListener() {
+	final ActionListener exiter = new ActionListener() {
 		public void actionPerformed(ActionEvent ev) {
 		    Browser.this.dispose();
+		    cancelLease();
 		    listen.unexport();
 		    if (lc != null)
 			lc.unregister(Browser.this);
 		}
-	    });
+	    };
 	final Configuration config =
 	    ConfigurationProvider.getInstance(
 				    args, Browser.class.getClassLoader());
@@ -1073,9 +1077,8 @@ public class Browser extends JFrame {
 		public void run() {
 		    if (eventID == ev.getID() &&
 			seqNo < ev.getSequenceNumber() &&
-			lookup != null &&
-			lookup.getServiceID().equals(
-			   ((ServiceRegistrar) ev.getSource()).getServiceID()))
+			eventSource != null &&
+			eventSource.equals(ev.getSource()))
 		    {
 			seqNo = ev.getSequenceNumber();
 			setText(false);
@@ -1256,8 +1259,7 @@ public class Browser extends JFrame {
 	return elts;
     }
 
-    private void update() {
-	setText(false);
+    private void cancelLease() {
 	if (elease != null) {
 	    try {
 		leaseMgr.cancel(elease);
@@ -1265,7 +1267,13 @@ public class Browser extends JFrame {
 		logger.log(Levels.HANDLED, "lease cancellation failed", t);
 	    }
 	    elease = null;
+	    eventSource = null;
 	}
+    }
+
+    private void update() {
+	setText(false);
+	cancelLease();
 	if (lookup == null)
 	    return;
 	try {
@@ -1277,6 +1285,7 @@ public class Browser extends JFrame {
 			      listen.proxy, null, Lease.ANY);
 	    elease = (Lease) leasePreparer.prepareProxy(reg.getLease());
 	    leaseMgr.renewUntil(elease, Lease.ANY, lnotify);
+	    eventSource = reg.getSource();
 	    eventID = reg.getID();
 	    seqNo = reg.getSequenceNumber();
 	} catch (Throwable t) {
@@ -1578,14 +1587,26 @@ public class Browser extends JFrame {
     }
 
     /**
-     * A simple action listener that calls {@link System#exit System.exit}.
+     * An action listener that cancels any lookup service event registration
+     * lease and then calls {@link System#exit System.exit}.
      */
     public static class Exit implements ActionListener {
 
 	/**
-	 * Calls {@link System#exit System.exit}<code>(0)</code>.
+	 * Cancels any lookup service event registration lease and
+	 * calls {@link System#exit System.exit}<code>(0)</code>.
 	 */
 	public void actionPerformed(ActionEvent ev) {
+	    Object src = ev.getSource();
+	    while (!(src instanceof Browser) && src instanceof Component) {
+		if (src instanceof JPopupMenu)
+		    src = ((JPopupMenu) src).getInvoker();
+		else
+		    src = ((Component) src).getParent();
+	    }
+	    if (src instanceof Browser) {
+		((Browser) src).cancelLease();
+	    }
 	    System.exit(0);
 	}
     }
