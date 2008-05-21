@@ -1059,7 +1059,7 @@
       
 		<delete file="${jre-ext-dir}/jsk-policy.jar"/>
       
-		<copy file="${lib-ext}/jsk-policy.jar"	todir="${jre-ext-dir}"/>
+		<copy file="${build.lib-ext}/jsk-policy.jar"	todir="${jre-ext-dir}"/>
       
 	</target>
 
