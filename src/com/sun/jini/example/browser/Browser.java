@@ -1371,9 +1371,16 @@ public class Browser extends JFrame {
 	    if(set.size() == 1) {
 	        Iterator iter = set.iterator();
 	        title = (String) iter.next();
-	    } else
+	    } else {
 	        title = item.service.getClass().getName();
-
+		title += " [";
+		for (Iterator iter = set.iterator(); iter.hasNext();) {
+		    title += (String) iter.next();
+		    if (iter.hasNext())
+			title += ", ";
+		}
+		title += "]";
+	    }
 	    if(! isAccessible)
 	        title += " (Stale service)";
 	    return title;

@@ -6,16 +6,15 @@
  ! to you under the Apache License, Version 2.0 (the
  ! "License"); you may not use this file except in compliance
  ! with the License. You may obtain a copy of the License at
- ! 
+ !
  !      http://www.apache.org/licenses/LICENSE-2.0
- ! 
+ !
  ! Unless required by applicable law or agreed to in writing, software
  ! distributed under the License is distributed on an "AS IS" BASIS,
  ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  ! See the License for the specific language governing permissions and
  ! limitations under the License.
  !-->
-
 <!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0//EN"
         "http://www.w3.org/TR/1998/REC-html40-19980424/strict.dtd">
 <html>
@@ -581,7 +580,9 @@ new String[]{
     area of the main window. If the service proxy implements exactly
     one interface that is not in this list, the name of that interface
     is used to name the service, otherwise the concrete class of the
-    service proxy is used. The value should not be <code>null</code>.
+    service proxy is used appended with all the names of the 'interesting'
+    interfaces implemented by that proxy. The value should not be
+    <code>null</code>.
 </table>
 <p>
 Note that additional entries can also be specified to configure the
@@ -613,13 +614,13 @@ configuration entries:
 plus the following configuration entries for <code>LookupDiscovery</code>
 (if groups are used for discovery):
 <ul>
-<li><code>registrarPreparer</code></a>
-<li><code>discoveryConstraints</code></a>
+<li><code>registrarPreparer</code></li>
+<li><code>discoveryConstraints</code></li>
 </ul>
 and the following configuration entry for <code>LookupLocatorDiscovery</code>
 (if locators are used for discovery):
 <ul>
-<li><code>registrarPreparer</code></a>
+<li><code>registrarPreparer</code></li>
 </ul>
 
 <a name="logging"></a>
