@@ -821,8 +821,17 @@ public final class TcpEndpoint
 
 	private final Socket socket;
 
+	// socket attributes cached to work around 4720952:
+	private final InetSocketAddress inetSocketAddress;
+	private final int socketPort;
+
 	ConnectionImpl(Socket socket) {
+	    assert socket.isConnected();
+
 	    this.socket = socket;
+	    inetSocketAddress =
+		(InetSocketAddress) socket.getRemoteSocketAddress();
+	    socketPort = socket.getPort();
 	}
 
 	Socket getSocket() {
@@ -887,13 +896,13 @@ public final class TcpEndpoint
 	void checkConnectPermission() {
 	    SecurityManager sm = System.getSecurityManager();
 	    if (sm != null) {
-		InetSocketAddress address =
-		    (InetSocketAddress) socket.getRemoteSocketAddress();
-		if (address.isUnresolved()) {
-		    sm.checkConnect(address.getHostName(), socket.getPort());
+		if (inetSocketAddress.isUnresolved()) {
+		    sm.checkConnect(inetSocketAddress.getHostName(),
+				    socketPort);
 		} else {
-		    sm.checkConnect(address.getAddress().getHostAddress(),
-				    socket.getPort());
+		    sm.checkConnect(
+			inetSocketAddress.getAddress().getHostAddress(),
+			socketPort);
 		}
 	    }
 	}
