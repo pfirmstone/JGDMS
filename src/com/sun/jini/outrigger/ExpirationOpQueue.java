@@ -86,8 +86,14 @@ class ExpirationOpQueue extends Thread {
 		
 		server.cancelOp(cookie, true);
 	    } catch (Throwable t) {
-		logger.log(Level.INFO, "ExpirationOpQueue.run encountered " +
-			   t.getClass().getName() + ", continuing", t);
+		try {
+		    logger.log(Level.INFO,
+			       "ExpirationOpQueue.run encountered " +
+			           t.getClass().getName() + ", continuing", 
+			       t);
+		} catch (Throwable tt) {
+		    // don't let a problem in logging kill the thread
+		}
 	    }
 	}
     }

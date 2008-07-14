@@ -455,8 +455,14 @@ class OperationJournal extends Thread {
 		// fin
 		return;
 	    } catch (Throwable t) {
-		logger.log(Level.INFO, "OperationJournal.run encountered " +
-			   t.getClass().getName() + ", continuing", t);
+		try {
+		    logger.log(Level.INFO,
+			       "OperationJournal.run encountered " +
+			           t.getClass().getName() + ", continuing",
+			       t);
+		} catch (Throwable tt) {
+		    // don't let a problem in logging kill the thread
+		}
 	    }
 	}
     }

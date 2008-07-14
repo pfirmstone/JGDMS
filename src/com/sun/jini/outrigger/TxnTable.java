@@ -227,10 +227,15 @@ class TxnTable {
 		    break;
 		}
 	    } catch (Throwable tt) {
-		if (logger.isLoggable(Levels.FAILED))
-		    logger.log(Levels.FAILED, "Encountered " + tt + "while " +
-			"recovering/re-preparing transaction, will retry" +
-			"latter", tt);
+		try {
+		    if (logger.isLoggable(Levels.FAILED))
+			logger.log(Levels.FAILED, "Encountered " + tt + 
+			    "while recovering/re-preparing " +
+			    "transaction, will retry latter",
+				   tt);
+		} catch (Throwable ttt) {
+		    // don't let a problem in logging kill the thread
+		}
 
 		if (t == null)
 		    t = tt;
@@ -374,10 +379,15 @@ class TxnTable {
 	    st = txn.getTransaction(proxyPreparer);
 	} catch (Throwable t) {
 	    // log, but otherwise ignore
-	    if (logger.isLoggable(Levels.FAILED))
-		logger.log(Levels.FAILED, "Encountered " + t + " while " +
-		    "recovering/re-preparing transaction, will retry latter",
-		     t);
+	    try {
+		if (logger.isLoggable(Levels.FAILED))
+		    logger.log(Levels.FAILED, "Encountered " + t + " while " +
+			           "recovering/re-preparing transaction, " +
+			           "will retry latter",
+			       t);
+	    } catch (Throwable tt) {
+		// don't let a problem in logging kill the thread
+	    }
 	}
 
 	if (st == null) {

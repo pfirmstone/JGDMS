@@ -2828,43 +2828,54 @@ public class OutriggerServerImpl
 	    }
 	    
 	    boolean unexported = false;
-	    while ((!unexported) && (now < end_time)) {
-		/* wait for any pending operations to complete */
-		unexported = exporter.unexport(false);
+	    try {
+		while ((!unexported) && (now < end_time)) {
+		    /* wait for any pending operations to complete */
+		    unexported = exporter.unexport(false);
 		
-		if (!unexported) {
-		    try {
-			/* Sleep for a finite time instead of yield.
-			 * In most VMs yield is a no-op so if 
-			 * unexport(false) is not working (say because
-			 * there is a blocking query in progress) a
-			 * yield here results in a very tight loop
-			 * (plus there may be no other runnable threads)
-			 */
-			final long sleepTime = 
-			    Math.min(unexportRetryDelay, end_time - now);
+		    if (!unexported) {
+			try {
+			    /* Sleep for a finite time instead of yield.
+			     * In most VMs yield is a no-op so if 
+			     * unexport(false) is not working (say because
+			     * there is a blocking query in progress) a
+			     * yield here results in a very tight loop
+			     * (plus there may be no other runnable threads)
+			     */
+			    final long sleepTime = 
+				Math.min(unexportRetryDelay, end_time - now);
 
-			/* sleepTime must > 0, unexportRetryDelay is
-			 * > 0 and if now >= end_time we would have
-			 * fallen out of the loop
-			 */
-			sleep(sleepTime);
-			now = System.currentTimeMillis();
-		    } catch (InterruptedException e) {
-			// should never happen, but if it does break
-			// and fall through to force = true case
-			logDestroyProblem("unexport retry delay sleep", e);
-			break;
+			    /* sleepTime must > 0, unexportRetryDelay is
+			     * > 0 and if now >= end_time we would have
+			     * fallen out of the loop
+			     */
+			    sleep(sleepTime);
+			    now = System.currentTimeMillis();
+			} catch (InterruptedException e) {
+			    // should never happen, but if it does break
+			    // and fall through to force = true case
+			    logDestroyProblem("unexport retry delay sleep", e);
+			    break;
+			}
 		    }
 		}
+	    } catch (Throwable t) {
+		logDestroyProblem(
+		    "trying \"nice\" unexport, will try forceful unexport", t);
 	    }
 
 	    // Attempt to forcefully unexport this object, if not
-	    // already done
+	    // already done. We retry even if the nice attempt
+	    // failed with an exception on the assumption that
+	    // a diffrent codepath in unexport might get further
 	    if (!unexported) {
 		/* Attempt to forcefully export the service */
 		logDestroyPhase("unexporting force = true");
-		unexported = exporter.unexport(true);
+		try {
+		    unexported = exporter.unexport(true);
+		} catch (Throwable t) {
+		    logDestroyProblem("trying forceful unexport", t);
+		}
 	    }
 	
 
