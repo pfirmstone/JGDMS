@@ -22,6 +22,7 @@ import com.sun.jini.lookup.entry.LookupAttributes;
 import com.sun.jini.thread.RetryTask;
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
+import com.sun.jini.logging.LogUtil;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -1168,9 +1169,9 @@ public class JoinManager {
         /** Constructor that associates this class with the lookup service
          *  referenced in the given <code>ProxyReg</code> parameter.
          *
-         *  @param proxyReg data structure that references the lookup service
-         *                  on which the sub-tasks referenced in this class
-         *                  will be executed in order
+	 *  @param proxy data structure that references the lookup service on
+	 *               which the sub-tasks referenced in this class will be
+	 *               executed in order
          */
 	public ProxyReg(ServiceRegistrar proxy) {
 	    if(proxy == null)  throw new IllegalArgumentException
@@ -1228,10 +1229,10 @@ public class JoinManager {
                 logger.finest
                           ("JoinManager - ServiceRegistration proxy prepared");
             } catch(Exception e) {
-                logger.log(Level.WARNING,
-                           "failure during preparation of "
-                           +"ServiceRegistration proxy",
-                           e);
+		LogUtil.logThrow(logger, Level.WARNING, ProxyReg.class,
+		    	"register", "JoinManager - failure during " +
+		    	"preparation of ServiceRegistration proxy: {0}",
+		    	new Object[] { tmpSrvcRegistration }, e);
                 throw e; //rethrow the exception since proxy may be unusable
             }
             /* Retrieve and prepare the proxy to the service lease */
@@ -1241,9 +1242,10 @@ public class JoinManager {
                        (Lease)serviceLeasePreparer.prepareProxy(serviceLease);
                 logger.finest("JoinManager - service lease proxy prepared");
             } catch(Exception e) {
-                logger.log(Level.WARNING,
-                           "failure during preparation of service lease proxy",
-                           e);
+		LogUtil.logThrow(logger, Level.WARNING, ProxyReg.class,
+		    	"register", "JoinManager - failure during " +
+		    	"preparation of service lease proxy: {0}",
+		    	new Object[] { serviceLease }, e);
                 throw e; //rethrow the exception since proxy may be unusable
             }
             leaseRenewalMgr.renewUntil(serviceLease, Lease.FOREVER,
@@ -1317,24 +1319,26 @@ public class JoinManager {
          * For more information, refer to Bug 4490355.
          */
 	public void fail(Throwable e) {
-            synchronized(this) {
-                if(bTerminated) {
-                    return;
-                } else {
-                    logger.log(Level.INFO, "JoinManager - failure", e);
-                    try {
-                        discMgr.discard(proxy);
-                    } catch(IllegalStateException e1) {
-                       logger.log(Level.FINEST,
-                                  "JoinManager - cannot discard lookup, "
-                                  +"discovery manager already terminated",
-                                  e1);
-                    }
-                }//endif
-            }//end sync(this)
+	    synchronized(this) {
+		if(bTerminated) {
+		    return;
+		} else {
+		    LogUtil.logThrow(logger, Level.INFO, ProxyReg.class, "fail",
+			"JoinManager - failure for lookup service proxy: {0}",
+			new Object[] { proxy }, e);
+		    try {
+			discMgr.discard(proxy);
+		    } catch(IllegalStateException e1) {
+		       logger.log(Level.FINEST,
+				  "JoinManager - cannot discard lookup, "
+				  +"discovery manager already terminated",
+				  e1);
+		    }
+		}//endif
+	    }//end sync(this)
 	}//end ProxyReg.fail
 
-        /** Returns true if the both objects' associated proxies are equal. */
+	/** Returns true if the both objects' associated proxies are equal. */
 	public boolean equals(Object obj) {
 	    if (obj instanceof ProxyReg) {
 		return proxy.equals( ((ProxyReg)obj).proxy );
@@ -1343,7 +1347,7 @@ public class JoinManager {
             }//endif
 	}//end ProxyReg.equals
 
-        /** Returns the hash code of the proxy referenced in this class. */
+	/** Returns the hash code of the proxy referenced in this class. */
 	public int hashCode() {
 	    return proxy.hashCode();
 	}//end hashCode
@@ -1352,48 +1356,48 @@ public class JoinManager {
 
     /* Listener class for discovery/discard notification of lookup services. */
     private class DiscMgrListener implements DiscoveryListener {
-        /* Invoked when new or previously discarded lookup is discovered. */
+	/* Invoked when new or previously discarded lookup is discovered. */
 	public void discovered(DiscoveryEvent e) {
-            synchronized(joinSet) {
-                ServiceRegistrar[] proxys
-                                       = (ServiceRegistrar[])e.getRegistrars();
-                for(int i=0;i<proxys.length;i++) {
-                    /* Prepare the proxy to the discovered lookup service
-                     * before interacting with it.
-                     */
-                    try {
-                        proxys[i]
-                          = (ServiceRegistrar)registrarPreparer.prepareProxy
-                                                                   (proxys[i]);
-                        logger.log(Level.FINEST, "JoinManager - discovered "
-                                   +"lookup service proxy prepared: {0}",
-                                   proxys[i]);
-                    } catch(Exception e1) {
-                        logger.log(Level.INFO,
-                                   "failure preparing discovered "
-                                   +"ServiceRegistrar proxy",
-                                   e1);
-                        discMgr.discard(proxys[i]);
-                        continue;
-                    }
+	    synchronized(joinSet) {
+		ServiceRegistrar[] proxys
+				       = (ServiceRegistrar[])e.getRegistrars();
+		for(int i=0;i<proxys.length;i++) {
+		    /* Prepare the proxy to the discovered lookup service
+					 * before interacting with it.
+					 */
+		    try {
+			proxys[i]
+			  = (ServiceRegistrar)registrarPreparer.prepareProxy
+								   (proxys[i]);
+			logger.log(Level.FINEST, "JoinManager - discovered "
+				   +"lookup service proxy prepared: {0}",
+				   proxys[i]);
+		    } catch(Exception e1) {
+			LogUtil.logThrow(logger, Level.INFO,
+			    DiscMgrListener.class, "discovered", "failure "
+			    + "preparing discovered ServiceRegistrar proxy: "
+			    + "{0}", new Object[] { proxys[i] }, e1);
+			discMgr.discard(proxys[i]);
+			continue;
+		    }
 		    /* If the serviceItem is a lookup service, don't need to
                      * register it with itself since a well-defined lookup
                      * service will always register with itself.
                      */
-                    if( !proxys[i].equals(serviceItem.service) ) {
-		        ProxyReg proxyReg = new ProxyReg(proxys[i]);
-		        if( !joinSet.contains(proxyReg) ) {
-	                    joinSet.add(proxyReg);
-                            proxyReg.addTask(new RegisterTask
-                                                (proxyReg,
-                                                 (Entry[])lookupAttr.clone()));
-                        }//endif
+		    if( !proxys[i].equals(serviceItem.service) ) {
+			ProxyReg proxyReg = new ProxyReg(proxys[i]);
+			if( !joinSet.contains(proxyReg) ) {
+			    joinSet.add(proxyReg);
+			    proxyReg.addTask(new RegisterTask
+						(proxyReg,
+						 (Entry[])lookupAttr.clone()));
+			}//endif
 		    }//endif
-                }//end loop
-            }//end sync(joinSet)
+		}//end loop
+	    }//end sync(joinSet)
 	}//end discovered
 
-        /* Invoked when previously discovered lookup is discarded. */
+	/* Invoked when previously discovered lookup is discarded. */
 	public void discarded(DiscoveryEvent e) {
             synchronized(joinSet) {
                 ServiceRegistrar[] proxys
