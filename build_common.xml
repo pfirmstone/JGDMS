@@ -837,6 +837,7 @@
 			<package name="com.sun.jini.phoenix"/>
 			<package name="com.sun.jini.proxy"/>
 			<package name="com.sun.jini.reggie"/>
+			<package name="com.sun.jini.reliableLog"/>
 			<package name="com.sun.jini.resource"/>
 			<package name="com.sun.jini.start"/>
 			<package name="com.sun.jini.thread"/>
