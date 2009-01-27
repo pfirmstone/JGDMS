@@ -860,9 +860,13 @@ class TxnManagerImpl /*extends RemoteServer*/
 		TxnManagerImpl.class.getName(), "commit");
 	}
     }
-
-
+    
     public void abort(long id)
+    throws UnknownTransactionException, CannotAbortException {
+    	abort(id, true);
+    }
+    
+    private void abort(long id, final boolean doExpiryCheck)
 	throws UnknownTransactionException, CannotAbortException
     {
         if (operationsLogger.isLoggable(Level.FINER)) {
@@ -872,7 +876,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	}
         readyState.check();
         try {
-            abort(id, 0);
+            abort(id, 0, doExpiryCheck);
         } catch(TimeoutExpiredException tee) {
 	    //Swallow this exception because we only want to
 	    //schedule a settler task
@@ -884,6 +888,12 @@ class TxnManagerImpl /*extends RemoteServer*/
     }
 
     public void abort(long id, long waitFor)
+    throws UnknownTransactionException, CannotAbortException,
+       TimeoutExpiredException {
+    	abort(id, waitFor, true);
+    }
+    
+    private void abort(long id, long waitFor, final boolean doExpiryCheck)
         throws UnknownTransactionException, CannotAbortException,
 	       TimeoutExpiredException
     {
@@ -908,15 +918,23 @@ class TxnManagerImpl /*extends RemoteServer*/
             transactionsLogger.log(Level.FINEST,
             "Retrieved TxnManagerTransaction: {0}", txntr);
 	}
-	/*
-	 * Since lease cancellation process sets expiration to 0 
-	 * and then calls abort, can't reliably check expiration 
-	 * at this point.
-	 */
-//TODO - Change internal, lease logic to call overload w/o expiration check
-//TODO - Add expiration check to abort for external clients     
-	if (txntr == null)
-	    throw new CannotAbortException();
+	
+	if(txntr != null) {		
+		
+		switch(txntr.getState()) {
+			case TransactionConstants.COMMITTED:
+				if(doExpiryCheck && !ensureCurrent(txntr)) {
+					throw new TimeoutExpiredException("Cannot abort, transaction probably expired", true);
+				} else {
+					throw new CannotAbortException("Already committed");
+				}
+			case TransactionConstants.ABORTED :
+				throw new CannotAbortException("Transaction previously aborted");							
+		}	
+		
+	} else {	
+	    throw new NullPointerException("No such transaction ["+id+"]");
+	}
 
 	txntr.abort(waitFor);
 	txns.remove(new Long(id));
@@ -935,7 +953,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     //TransactionManager can recover it's non-transient
     //state in the face of process failure.
 
-    /**
+	/**
      *  This method recovers state changes resulting from
      *  committing a transaction.  This re-creates the
      *  internal representation of the transaction.
@@ -1170,25 +1188,25 @@ class TxnManagerImpl /*extends RemoteServer*/
 
 	int state = txntr.getState();
 
-/**
- * Add this back in once LeaseExpirationManager uses an overloaded version of cancel
- * that doesn't perform an expiration check.  LeaseExpirationManager calls cancel()
- * after the txn has expired, so can't reliably check expiration here.
- *
+
 //TODO - need better locking here. getState and expiration need to be checked atomically	
-        if ( (state == ACTIVE && !ensureCurrent(txntr)) ||
-	     (state != ACTIVE))  
-	    throw new UnknownLeaseException("unknown transaction");
-**/	    
+ 
+        if ((state == ACTIVE && !ensureCurrent(txntr)) || (state != ACTIVE))
+			throw new UnknownLeaseException("unknown transaction");
 
-	if (state == ACTIVE) {
+		if (state == ACTIVE) {
 
-	    synchronized (txntr) {
-	        txntr.setExpiration(0);	// Mark as done
-	    }
+		try {
+		
+			synchronized (txntr) {	    								
+				if(System.currentTimeMillis() > txntr.getExpiration()) {
+					throw new TimeoutExpiredException("Transaction already expired", true);
+				}
+				txntr.setExpiration(0);	// Mark as done
+			}
 
-	    try {
-	        abort(((Long)tid).longValue());
+	    
+	        abort(((Long)tid).longValue(), false);
 	    } catch (TransactionException e) {
 	        throw new
 		    UnknownLeaseException("When canceling abort threw:" +
