@@ -1570,7 +1570,7 @@ public class JoinManager {
      * leases on the given service reference's residency in the lookup 
      * services that have been joined. As with the <code>discoveryMgr</code>
      * parameter, a value of <code>null</code> may be input to this
-     * parameter. When <code>null</null> is input to this parameter,
+     * parameter. When <code>null</code> is input to this parameter,
      * an instance of <code>LeaseRenewalManager</code>, initially managing
      * no <code>Lease</code> objects will be used. This feature allows a
      * service to either use a single entity to manage all of its leases,
@@ -2429,7 +2429,7 @@ public class JoinManager {
      * one-argument form of this method, except with respect to the
      * registration of the given attribute sets.
      * <p>
-     * This form of <code<replaceRegistration</code> takes as its
+     * This form of <code>replaceRegistration</code> takes as its
      * second parameter, an array of <code>Entry</code> objects
      * (<code>attrSets</code>), none of whose elements may be
      * <code>null</code>, that represents the new set of attributes to
