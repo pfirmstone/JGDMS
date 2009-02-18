@@ -1,28 +1,18 @@
+This file describes the steps one can take to build and run the tests
+provided under the 'qatests' directory of the river distribution. Note
+that the steps outlined here assume a unix or linux based system with
+access to the GNU make utility.
 
+Wherever the tokens '<jtskTrunk>' or '<qatestsTrunk>' appear in this
+document, one should take this to represent, respectively, the paths of
+the trunk in the 'jtsk' working directory and the 'qatests' working
+directory under which the river distribution has been checked out from
+subversion.
 
+For example, consider the directory paths used in the first section below,
+in which source checkout is discussed,
 
-
-
-
-
-
-
-     This file describes the steps one can take to build and run
-     the tests provided under the 'qatests' directory of the 
-     river distribution. Note that the steps outlined here assume
-     a unix or linux based system with access to the GNU make
-     utility.
-
-     Wherever the tokens '<jtskTrunk>' or '<qatestsTrunk>' appear
-     in this document, one should take this to represent,
-     respectively, the paths of the trunk in the 'jtsk' working
-     directory and the 'qatests' working directory under which
-     the river distribution has been checked out from subversion.
-
-     For example, consider the directory paths used in the first
-     section below, in which source checkout is discussed,
-
-     1. CHECKOUT
+1. CHECKOUT
 
      Suppose your home directory is /home/myUsername, and suppose you
      checkout the river distribution (including the QA test source)
@@ -43,7 +33,7 @@
      In those commands, '~' is allowable. In all other commands
      shown, the absolute path is required.
 
-     2. Set - JAVA_HOME
+2. Set - JAVA_HOME
 
      > export JAVA_HOME=/usr/lib/j2se/jdk1.6.0
 
@@ -54,7 +44,7 @@
      value used for the location of the Java home directory 
      with the appropriate value for your system.
 
-     3. BUILD - the source
+3. BUILD - the source
 
      > cd ~/river/jtsk/trunk
      > ant clean (optional)
@@ -65,7 +55,7 @@
            directory, ~/river/jtsk/trunk, NOT one level lower
            (~/river/jtsk/trunk/src).
 
-     4. INSTALL - the policy provider
+4. INSTALL - the policy provider
 
      > su [must be root to execute the install.policy target]
 
@@ -79,14 +69,14 @@
 
      -- The Apache River Jini distribution should now be built --
 
-     5. BUILD - the qa tests
+5. BUILD - the qa tests
 
      > cd ~/river/qatests/trunk/source/vob
      > make clean (optional)
      > make
      > make jars
 
-     6. INSTALL - the merged policy provider for the qa tests
+6. INSTALL - the merged policy provider for the qa tests
 
      > su [must be root to install this provider]
 
@@ -98,8 +88,7 @@
      used for the location of the Java home directory with
      the appropriate value for your system.
 
-
-     7. RUNNING - the qa tests
+7. RUNNING - the qa tests
 
      > cd ~/river/qatests/trunk/source/vob/qa/src
 
