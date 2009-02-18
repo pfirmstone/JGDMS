@@ -25,7 +25,7 @@
      taken from the Jini Test harness.
 -->
 
-<project name="RiverIntegrationTests" default="default" basedir=".">
+<project name="RiverIntegrationTests" default="all" basedir=".">
 
     <description>Builds and executes the River test harness</description>
     
