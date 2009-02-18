@@ -1,16 +1,7 @@
 This file describes the steps one can take to build and run the tests
-provided under the 'qatests' directory of the river distribution. Note
+provided under the 'integrationtests' directory of Apache River. Note
 that the steps outlined here assume a unix or linux based system with
 access to the GNU make utility.
-
-Wherever the tokens '<jtskTrunk>' or '<qatestsTrunk>' appear in this
-document, one should take this to represent, respectively, the paths of
-the trunk in the 'jtsk' working directory and the 'qatests' working
-directory under which the river distribution has been checked out from
-subversion.
-
-For example, consider the directory paths used in the first section below,
-in which source checkout is discussed,
 
 1. CHECKOUT
 
@@ -19,14 +10,9 @@ in which source checkout is discussed,
      from the Apache River Project as show below,
 
      > cd ~
-     > svn checkout https://svn.apache.org/repos/asf/incubator/river river
-
-     then <jtskTrunk> represents /home/myUsername/river/jtsk/trunk,
-     and <qatestsTrunk> rerpresents /home/myUsername/river/qatests/trunk
-     in all commands where the corresponding token appears. When
-     using those commands in your own environment, each such token
-     should be replaced with the analogous and appropriate path for
-     your system.
+     > svn checkout \
+           https://svn.apache.org/repos/asf/incubator/river/jtsk/trunk \
+           jtsk-trunk
 
      Note also that there are a number of example commands presented
      in this document that use '~' for the user's home directory.
@@ -46,20 +32,16 @@ in which source checkout is discussed,
 
 3. BUILD - the source
 
-     > cd ~/river/jtsk/trunk
+     > cd ~/jtsk-trunk
      > ant clean (optional)
      > ant
      > ant jars
-
-     NOTE: make sure you run the above command from the top-level
-           directory, ~/river/jtsk/trunk, NOT one level lower
-           (~/river/jtsk/trunk/src).
 
 4. INSTALL - the policy provider
 
      > su [must be root to execute the install.policy target]
 
-     # cd ~/river/jtsk/trunk
+     # cd ~/jtsk-trunk
      # ant install.policy
      # ls -al /usr/lib/j2se/jdk1.6.0/jre/lib/ext
 
@@ -71,7 +53,7 @@ in which source checkout is discussed,
 
 5. BUILD - the qa tests
 
-     > cd ~/river/qatests/trunk/source/vob
+     > cd ~/jtsk-trunk/integrationtests
      > make clean (optional)
      > make
      > make jars
@@ -80,7 +62,7 @@ in which source checkout is discussed,
 
      > su [must be root to install this provider]
 
-     # cd ~/river/qatests/trunk/source/vob/qa/lib
+     # cd ~/jtsk-trunk/integrationtests/qa/lib
      # cp mergedpolicyprovider.jar /usr/lib/j2se/jdk1.6.0/jre/lib/ext
      # exit
 
@@ -90,7 +72,7 @@ in which source checkout is discussed,
 
 7. RUNNING - the qa tests
 
-     > cd ~/river/qatests/trunk/source/vob/qa/src
+     > cd ~/jtsk-trunk/integrationtests/qa/src
 
      NOTE: elements of the command line below are broken
            up below for readability
@@ -102,16 +84,16 @@ in which source checkout is discussed,
      com.sun.jini.test.impl.servicediscovery.event.LookupTaskServiceIdMapRace
 
      > java 
-       -cp  <qatestsTrunk>/source/vob/qa/lib/jiniharness.jar
-           :<jtskTrunk>/lib/jsk-platform.jar
-           :<jtskTrunk>/lib/jsk-lib.jar
+       -cp $HOME/jtsk-trunk/integrationtests/qa/lib/jiniharness.jar
+           :$HOME/jtsk-trunk/lib/jsk-platform.jar
+           :$HOME/jtsk-trunk/lib/jsk-lib.jar
        -Djava.security.policy=
-    <qatestsTrunk>/source/vob/qa/harness/policy/qa.policy
+    $HOME/jtsk-trunk/integrationtests/qa/harness/policy/qa.policy
        -Djava.util.logging.config.file=
-    <qatestsTrunk>/source/vob/qa/src/com/sun/jini/test/resources/qa1.logging
+    $HOME/jtsk-trunk/integrationtests/qa/src/com/sun/jini/test/resources/qa1.logging
     com.sun.jini.qa.harness.QARunner
-    <qatestsTrunk>/source/vob/qa/src/com/sun/jini/test/resources/qaHarness.prop
-    -testJar <qatestsTrunk>/source/vob/qa/lib/jinitests.jar
+    $HOME/jtsk-trunk/integrationtests/qa/src/com/sun/jini/test/resources/qaHarness.prop
+    -testJar $HOME/jtsk-trunk/integrationtests/qa/lib/jinitests.jar
     -tests com/sun/jini/test/spec/joinmanager/Register.td,
            com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td,
            com/sun/jini/test/impl/servicediscovery/event/LookupTaskServiceIdMapRace.td
@@ -121,18 +103,16 @@ in which source checkout is discussed,
                  joinmanager categories:
 
      > java 
-       -cp  <qatestsTrunk>/source/vob/qa/lib/jiniharness.jar
-           :<jtskTrunk>/lib/jsk-platform.jar
-           :<jtskTrunk>/lib/jsk-lib.jar
+       -cp $HOME/jtsk-trunk/integrationtests/qa/lib/jiniharness.jar
+           :$HOME/jtsk-trunk/lib/jsk-platform.jar
+           :$HOME/jtsk-trunk/lib/jsk-lib.jar
        -Djava.security.policy=
-    <qatestsTrunk>/source/vob/qa/harness/policy/qa.policy
+    $HOME/jtsk-trunk/integrationtests/qa/harness/policy/qa.policy
        -Djava.util.logging.config.file=
-    <qatestsTrunk>/source/vob/qa/src
-                                     /com/sun/jini/test/resources/qa1.logging
+    $HOME/jtsk-trunk/integrationtests/qa/src/com/sun/jini/test/resources/qa1.logging
     com.sun.jini.qa.harness.QARunner
-    <qatestsTrunk>/source/vob/qa/src
-                                  /com/sun/jini/test/resources/qaHarness.prop
-    -testJar <qatestsTrunk>/source/vob/qa/lib/jinitests.jar
+    $HOME/jtsk-trunk/integrationtests/qa/src/com/sun/jini/test/resources/qaHarness.prop
+    -testJar $HOME/jtsk-trunk/integrationtests/qa/lib/jinitests.jar
     -categories joinmanager 
     -com.sun.jini.qa.harness.serviceMode transient
 
@@ -160,7 +140,7 @@ in which source checkout is discussed,
             optional, but if it is excluded, then only minimal
             default logging output will be displayed. In the
             examples above, the logging file,
-   <qatestsTrunk>/source/vob/qa/src/com/sun/jini/test/resources/qa1.logging
+   $HOME/jtsk-trunk/integrationtests/qa/src/com/sun/jini/test/resources/qa1.logging
             is used to configure logging for both the test
             harness and the tests themselves. Most loggers
             referenced in the qa1.logging configuration file
