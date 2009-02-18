@@ -1,0 +1,1869 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Mozilla/4.7 [en] (X11; I; SunOS 5.7 sun4u) [Netscape]">
+   <title>JavaSpaces tests</title>
+</head>
+<body>
+&nbsp;
+<table BORDER COLS=4 WIDTH="100%" NOSAVE >
+<tr NOSAVE>
+<td WIDTH="550" NOSAVE>
+<center>
+<dt>
+<b><i>Test Name &amp; Motivation</i></b></dt></center>
+</td>
+
+<td WIDTH="700" NOSAVE>
+<center>
+<dt>
+<b><i>Description</i></b></dt></center>
+</td>
+
+<td WIDTH="50" NOSAVE>
+<center>
+<dt>
+<b><i>Categorization</i></b></dt></center>
+</td>
+
+<td WIDTH="150" NOSAVE>
+<center>
+<dt>
+<b><i>Specification Requirements</i></b></dt></center>
+</td>
+</tr>
+
+<tr NOSAVE>
+<td ALIGN=LEFT VALIGN=TOP NOSAVE>
+<dt>
+<b><font size=+1>WriteTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionWriteTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotWriteTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionWriteTest</font></b></dt>
+<br><br>
+<dt>
+<br>Asserts that write with positive finite lease times without transactions:</dt>
+
+<br>1) Places a copy of an entry into the given JavaSpaces service, even
+if the same Entry object is used in more than one write.
+<br>2) The Entry passed to the write is not affected by this operations.
+<br>3) If a write returns without throwing an exception, that entry is
+committed to the space, possibly within a transaction.
+<br>&nbsp;
+<dt>
+Matrix ID 1, 2, 6</dt>
+</td>
+
+<td ALIGN=LEFT VALIGN=TOP NOSAVE>
+<dt>
+1. Write 1-st sample entry to the space.</dt>
+<br><br>
+<dt>
+2. Assert, that original entry has not been changed.</dt>
+<br><br>
+<dt>
+3. Assert, that written entry is available in the space.</dt>
+<br><br>
+<dt>
+4. Write 2-nd sample entry to the space.</dt>
+<br><br>
+<dt>
+5. Assert, that original entry has not been changed.</dt>
+<br><br>
+<dt>
+6. Assert, that written entry is available in the space.</dt>
+<br><br>
+<dt>
+7. Write 1-st sample entry to the space again.</dt>
+<br><br>
+<dt>
+8. Assert, that original entry has not been changed.</dt>
+<br><br>
+<dt>
+9. Assert, that written entry is available in the space.</dt>
+</td>
+
+<td ALIGN=LEFT VALIGN=TOP NOSAVE>
+<dt>
+A1, M1</dt>
+</td>
+
+<td ALIGN=LEFT VALIGN=TOP NOSAVE>JavaSpaces&nbsp;
+<br>Section 2.3</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td ALIGN=LEFT VALIGN=TOP NOSAVE>
+<dt>
+<b><font size=+1>WriteLeaseANYTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionWriteLeaseANYTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotWriteLeaseANYTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionWriteLeaseANYTest</font></b></dt>
+<br><br>
+<br>Asserts that write with Lease.ANY value for lease time without transactions:
+<br>1) Places a copy of an entry into the given JavaSpaces service, even
+if the same Entry object is used in more than one write.
+<br>2) IllegalArgumentException will not be thrown while this operations.
+<br>3) The Entry passed to the write is not affected by this operations.
+<br>4) If a write returns without throwing an exception, that entry is
+committed to the space, possibly within a transaction.
+<p>Matrix ID 1, 2, 6</td>
+
+<td NOSAVE>
+<dt>
+1. Write 1-st sample entry with Lease.ANY lease time to the space.</dt>
+<br><br>
+<dt>
+2. Assert, that IllegalArgumentException will not be thrown during this
+operation.</dt>
+<br><br>
+<dt>
+3. Assert, that original entry has not been changed.</dt>
+<br><br>
+<dt>
+4. Assert, that written entry is available in the space.</dt>
+<br><br>
+<dt>
+5. Write 2-nd sample entry with Lease.ANY lease time to the space.</dt>
+<br><br>
+<dt>
+6. Assert, that IllegalArgumentException will not be thrown during this
+operation.</dt>
+<br><br>
+<dt>
+7. Assert, that original entry has not been changed.</dt>
+<br><br>
+<dt>
+8. Assert, that written entry is available in the space.</dt>
+<br><br>
+<dt>
+9. Write 1-st sample entry with Lease.ANY lease time to the space again.</dt>
+<br><br>
+<dt>
+10. Assert, that IllegalArgumentException will not be thrown during this
+operation.</dt>
+<br><br>
+<dt>
+11. Assert, that original entry has not been changed.</dt>
+<br><br>
+12. Assert, that written entry is available in the space.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.3</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>WriteLeaseFOREVERTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionWriteLeaseFOREVERTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotWriteLeaseFOREVERTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionWriteLeaseFOREVERTest</font></b></dt>
+<br><br>
+<br>Asserts that write with Lease.FOREVER lease time without transactions:
+<br>1) Places a copy of an entry into the given JavaSpaces service, even
+if the same Entry object is used in more than one write.
+<br>2) The Entry passed to the write is not affected by this operations.
+<br>3) If a write returns without throwing an exception, that entry is
+committed to the space, possibly within a transaction.
+<p>Matrix ID 1, 2, 6</td>
+
+<td NOSAVE>
+<dt>
+1. Write 1-st sample entry with Lease.FOREVER lease time to the space.</dt>
+<br><br>
+<dt>
+2. Assert, that original entry has not been changed.</dt>
+<br><br>
+<dt>
+3. Assert, that written entry is available in the space.</dt>
+<br><br>
+<dt>
+4. Write 2-nd sample entry with Lease.FOREVER lease time to the space.</dt>
+<br><br>
+<dt>
+5. Assert, that original entry has not been changed.</dt>
+<br><br>
+<dt>
+6. Assert, that written entry is available in the space.</dt>
+<br><br>
+<dt>
+7. Write 1-st sample entry with Lease.FOREVER lease time to the space again.</dt>
+<br><br>
+<dt>
+8. Assert, that original entry has not been changed.</dt>
+<br><br>
+9. Assert, that written entry is available in the space.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.3</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>WriteNegativeLeaseTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionWriteNegativeLeaseTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotWriteNegativeLeaseTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionWriteNegativeLeaseTest</font></b></dt>
+<br><br>
+<br>Asserts, that we will get an IllegalArgumentException if the lease
+time requested is negative and is not equal to Lease.ANY.
+<p>Matrix ID 5</td>
+
+<td>1. Try to write an entry with negative lease time other then Lease.ANY.
+<br><br>
+2. Assert, that IllegalArgumentException will be thrown during this
+operation.
+<br><br>
+3. Assert, that original entry has not been changed.
+<br><br>
+4. Assert, that entry, which was used in write request, has not been
+written to the space.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.3</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>ReadTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionReadTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotReadTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionReadTest</font></b></dt>
+<br><br>
+<dt>
+<br>Asserts, that for read with timeouts other then NO_WAIT:</dt>
+
+<br>1) If a match is found by read, a reference to a copy of the matching
+entry is returned.
+<br>2) If no match is found, null is returned.
+<br>3) Passing a null reference for the template will match any entry.
+<p>Matrix ID 9, 10, 11</td>
+
+<td>1. Write 3 sample entries to the space.
+<br><br>
+2. Read 1-st entry from the space using the same one as a template.
+<br><br>
+3. Assert, that a copy of 1-st entry will be returned.
+<br><br>
+4. Read entry from the space using different wrong templates.
+<br><br>
+5. Assert, that read requests will return not less then in specified
+timeouts.
+<br><br>
+6. Assert, that null will be returned after each operation.
+<br><br>
+7. Read entry from the space using null template.
+<br><br>
+8. Assert, that a copy of one of written entries will be returned.
+<br><br>
+9. Read entry from the space using null for different fields.
+<br><br>
+10. Assert, that a copy of matching entry will be returned.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.4</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>ReadIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionReadIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotReadIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionReadIfExistsTest</font></b></dt>
+<br><br>
+<dt>
+<br>Asserts, that for readIfExists with timeouts other then NO_WAIT:</dt>
+
+<br>1) If a match is found by readIfExists, a reference to a copy of the
+matching entry is returned.
+<br>2) If no match is found, null is returned.
+<br>3) Passing a null reference for the template will match any entry.
+<br>4) A readIfExists request will return a matching entry, or null if
+there is currently no matching entry in the space.
+<p>Matrix ID 9, 10, 11, 12</td>
+
+<td>1. Write 3 sample entries to the space.
+<br><br>
+2. ReadIfExists 1-st entry from the space using the same one as a template.
+<br><br>
+3. Assert, that readIfExists request will return immediately.
+<br><br>
+4. Assert, that a copy of 1-st entry will be returned.
+<br><br>
+5. ReadIfExists entry from the space using different wrong templates.
+<br><br>
+6. Assert, that readIfExists requests will return immediately.
+<br><br>
+7. Assert, that null will be returned after each operation.
+<br><br>
+8. ReadIfExists entry from the space using null template.
+<br><br>
+9. Assert, that readIfExists request will return immediately.
+<br><br>
+10. Assert, that a copy of one of written entries will be returned.
+<br><br>
+11. ReadIfExists entry from the space using null for different fields.
+<br><br>
+12. Assert, that readIfExists requests will return immediately.
+<br><br>
+13. Assert, that a copy of matching entry will be returned.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.4</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>ReadNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>ReadIfExistsNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionReadNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionReadIfExistsNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotReadNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotReadIfExistsNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionReadNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionReadIfExistsNO_WAITTest</font></b></dt>
+<br><br>
+<br>Asserts, that for read with NO_WAIT timeout:
+<br>1) A timeout of NO_WAIT means to return immediately, with no waiting,
+which is equivalent to using a zero timeout.
+<br>2) If a match is found by read, a reference to a copy of the matching
+entry is returned.
+<br>3) If no match is found, null is returned.
+<br>4) Passing a null reference for the template will match any entry.
+<p>Matrix ID 9, 10, 11, 16</td>
+
+<td>1. Write 3 sample entries to the space.
+<br><br>
+2. Read 1-st entry from the space with JavaSpace.NO_WAIT timeout value
+using the same one as a template.
+<br><br>
+3. Assert, that read operation will return immediately.
+<br><br>
+4. Assert, that a copy of 1-st entry will be returned.
+<br><br>
+5. Read entry from the space using different wrong templates and JavaSpace.NO_WAIT
+timeout value.
+<br><br>
+6. Assert, that read operation will return immediately.
+<br><br>
+7. Assert, that null will be returned after each operation.
+<br><br>
+8. Read entry from the space using null template and JavaSpace.NO_WAIT
+timeout value.
+<br><br>
+9. Assert, that read operation will return immediately.
+<br><br>
+10. Assert, that a copy of one of written entries will be returned.
+<br><br>
+11. Read entry from the space using null for different fields and JavaSpace.NO_WAIT
+timeout value.
+<br><br>
+12. Assert, that read operation will return immediately.
+<br><br>
+13. Assert, that a copy of matching entry will be returned.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.4</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>TakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionTakeTest</font></b></dt>
+<br><br>
+<br>Asserts, that for take with timeouts other then NO_WAIT:
+<br>1) If a take returns a non-null value, the entry has been removed from
+the space.
+<br>2) If no match is found, null is returned.
+<br>3) Passing a null reference for the template will match any entry.
+<p>Matrix ID 17, 18</td>
+
+<td>1. Write 3 sample entries to the space.
+<br><br>
+2. Take 1-st entry from the space using the same one as a template.
+<br><br>
+3. Assert, that take will return a copy of 1-st entry.
+<br><br>
+4. Assert, that 1-st entry will be removed from the space.
+<br><br>
+5. Write taken entry back to the space.
+<br><br>
+6. Take entry from the space using different wrong templates.
+<br><br>
+7. Assert, that take requests will return not less then in specified
+timeouts.
+<br><br>
+8. Assert, that null will be returned after each operation.
+<br><br>
+9. Take entry from the space using null template.
+<br><br>
+10. Assert, that a copy of one of written entries will be returned.
+<br><br>
+11. Assert, that taken entry will be removed from the space.
+<br><br>
+12. Clean the space and write 3 sample entries again
+<br><br>
+13. Take entry from the space using null for different fields.
+<br><br>
+14. Assert, that a copy of matching entry will be returned.
+<br><br>
+15. Assert, that taken entry will be removed from the space.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.5</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>TakeIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionTakeIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTakeIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionTakeIfExistsTest</font></b></dt>
+<br><br>
+<br>Asserts, that for takeIfExists with timeouts other then NO_WAIT:
+<br>1) If a takeIfExists returns a non-null value, the entry has been removed
+from the space.
+<br>2) If no match is found, null is returned.
+<br>3) Passing a null reference for the template will match any entry.
+<br>4) A takeIfExists request will return a matching entry, or null if
+there is currently no matching entry in the space.
+<p>Matrix ID 17, 18</td>
+
+<td>1. Write 3 sample entries to the space.
+<br><br>
+2. TakeIfExists 1-st entry from the space using the same one as a template.
+<br><br>
+3. Assert, that takeIfExists request will return immediately.
+<br><br>
+4. Assert, that takeIfExists will return a copy of 1-st entry.
+<br><br>
+5. Assert, that 1-st entry will be removed from the space.
+<br><br>
+6. Write taken entry back to the space.
+<br><br>
+7. TakeIfExists entry from the space using different wrong templates.
+<br><br>
+8. Assert, that takeIfExists requests will return immediately.
+<br><br>
+9. Assert, that null will be returned after each operation.
+<br><br>
+10. TakeIfExists entry from the space using null template.
+<br><br>
+11. Assert, that takeIfExists request will return immediately.
+<br><br>
+12. Assert, that a copy of one of written entries will be returned.
+<br><br>
+13. Assert, that taken entry will be removed from the space.
+<br><br>
+14. Clean the space and write 3 sample entries again
+<br><br>
+15. TakeIfExists entry from the space using null for different fields.
+<br><br>
+16. Assert, that takeIfExists requests will return immediately.
+<br><br>
+17. Assert, that a copy of matching entry will be returned.
+<br><br>
+18. Assert, that taken entry will be removed from the space.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.5</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>MultipleTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionMultipleTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotMultipleTakeTest,</font></b></dt>
+
+<br><b><font size=+1>SnapshotTransactionMultipleTakeTest</font></b>
+<br><br>
+<br>Asserts, that for take with timeouts other then NO_WAIT:
+<br>1) If a take returns a non-null value, the entry has been removed from
+the space.
+<br>2) If no match is found, null is returned.
+<br>3) Passing a null reference for the template will match any entry.
+<p>It tests multiple take operations for different templates.
+<p>Matrix ID 17, 18</td>
+
+<td NOSAVE>1. Write 2 sample entries twice to the space.
+<br><br>
+2. Take 1-st entry twice from the space using the same one as a template.
+<br><br>
+3. Assert, that each take will return a copy of 1-st entry.
+<br><br>
+4. Assert, that after 1-st take invocation at lease 1 1-st entry will
+be available in the space.
+<br><br>
+5. Assert, that after 2-nd take invocation there will be no 1-st entries
+in the space.
+<br><br>
+6. Write taken entries back to the space and write 3-rd ample entry
+twice to the space.
+<br><br>
+7. Take entry from the space using null template 6 times to take all
+entries from the space.
+<br><br>
+8. Assert, that a copy of one of written entries will be returned by
+each take operation.
+<br><br>
+9. Assert, that after each except last take operation at least one
+of written entries will be available in the space.
+<br><br>
+10. Assert, that after last take operation there will be no entries
+in the space.
+<br><br>
+11. Write 3 sample entries 2 times again
+<br><br>
+12. Take entry from the space using null for different fields several
+times.
+<br><br>
+13. Assert, that a copy of one of written entries will be returned
+by each take operation.
+<br><br>
+14. Assert, that after each except last take operation at least one
+of written entries matching specified template will be available in the
+space.
+<br><br>
+15. Assert, that after last take operation there will be no entries
+matching specified template in the space.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.5</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>MultipleTakeIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionMultipleTakeIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotMultipleTakeIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionMultipleTakeIfExistsTest</font></b></dt>
+<br><br>
+<br>Asserts, that for takeIfExists with timeouts other then NO_WAIT:
+<br>1) If a takeIfExists returns a non-null value, the entry has been removed
+from the space.
+<br>2) If no match is found, null is returned.
+<br>3) Passing a null reference for the template will match any entry.
+<br>4) A takeIfExists request will return a matching entry, or null if
+there is currently no matching entry in the space.
+<p>It tests multiple takeIfExists operations for different templates.
+<p>Matrix ID 17, 18</td>
+
+<td NOSAVE>1. Write 2 sample entries twice to the space.
+<br><br>
+2. TakeIfExists 1-st entry twice from the space using the same one
+as a template.
+<br><br>
+3. Assert, that takeIfExists requests will return immediately.
+<br><br>
+4. Assert, that each takeIfExists will return a copy of 1-st entry.
+<br><br>
+5. Assert, that after 1-st takeIfExists invocation at lease 1 1-st
+entry will be available in the space.
+<br><br>
+6. Assert, that after 2-nd takeIfExists invocation there will be no
+1-st entries in the space.
+<br><br>
+7. Write taken entries back to the space and write 3-rd ample entry
+twice to the space.
+<br><br>
+8. TakeIfExists entry from the space using null template 6 times to
+take all entries from the space.
+<br><br>
+9. Assert, that takeIfExists requests will return immediately.
+<br><br>
+10. Assert, that a copy of one of written entries will be returned
+by each takeIfExists operation.
+<br><br>
+11. Assert, that after each except last takeIfExists operation at least
+one of written entries will be available in the space.
+<br><br>
+12. Assert, that after last takeIfExists operation there will be no
+entries in the space.
+<br><br>
+13. Write 3 sample entries 2 times again
+<br><br>
+14. TakeIfExists entry from the space using null for different fields
+several times.
+<br><br>
+15. Assert, that takeIfExists requests will return immediately.
+<br><br>
+16. Assert, that a copy of one of written entries will be returned
+by each takeIfExists operation.
+<br><br>
+17. Assert, that after each except last takeIfExists operation at least
+one of written entries matching specified template will be available in
+the space.
+<br><br>
+18. Assert, that after last takeIfExists operation there will be no
+entries matching specified template in the space.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.5</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>TakeNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TakeIfExistsNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionTakeNO_WAITTest</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionTakeIfExistsNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTakeNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTakeIfExistsNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionTakeNO_WAITTest</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionTakeIfExistsNO_WAITTest</font></b></dt>
+<br><br>
+<br>Asserts, that for take with NO_WAIT timeout:
+<br>1) A timeout of NO_WAIT means to return immediately, with no waiting,
+which is equivalent to using a zero timeout.
+<br>2) If a take returns a non-null value, the entry has been removed from
+the space.
+<br>3) If no match is found, null is returned.
+<br>4) Passing a null reference for the template will match any entry.
+<p>Matrix ID 17</td>
+
+<td>1. Write 3 sample entries to the space.
+<br><br>
+2. Take 1-st entry from the space with JavaSpace.NO_WAIT timeout value
+using the same one as a template.
+<br><br>
+3. Assert, that take operation will return immediately.
+<br><br>
+4. Assert, that a copy of 1-st entry will be returned.
+<br><br>
+5. Assert, that taken entry will be removed from the space.
+<br><br>
+6. Write taken entry back to the space.
+<br><br>
+7. Take entry from the space using different wrong templates and JavaSpace.NO_WAIT
+timeout value.
+<br><br>
+8. Assert, that take operation will return immediately.
+<br><br>
+9. Assert, that null will be returned after each operation.
+<br><br>
+10. Take entry from the space using null template and JavaSpace.NO_WAIT
+timeout value.
+<br><br>
+11. Assert, that take operation will return immediately.
+<br><br>
+12. Assert, that a copy of one of written entries will be returned.
+<br><br>
+13. Assert, that taken entry will be removed from the space.
+<br><br>
+14. Clean the space and write 3 sample entries again to the space.
+<br><br>
+15. Take entry from the space using null for different fields and JavaSpace.NO_WAIT
+timeout value.
+<br><br>
+16. Assert, that take operation will return immediately.
+<br><br>
+17. Assert, that a copy of matching entry will be returned.
+<br><br>
+18. Assert, that taken entry will be removed from the space.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.5</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>MultipleTakeNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>MultipleTakeIfExistsNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionMultipleTakeNO_WAITTest</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionMultipleTakeIfExistsNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotMultipleTakeNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotMultipleTakeIfExistsNO_WAITTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionMultipleTakeNO_WAITTest</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionMultipleTakeIfExistsNO_WAITTest</font></b></dt>
+<br><br>
+<br>Asserts, that for take with NO_WAIT timeout:
+<br>1) A timeout of NO_WAIT means to return immediately, with no waiting,
+which is equivalent to using a zero timeout.
+<br>2) If a take returns a non-null value, the entry has been removed from
+the space.
+<br>3) If no match is found, null is returned.
+<br>4) Passing a null reference for the template will match any entry.
+<p>It tests multiple take operations for different templates.
+<p>Matrix ID 17</td>
+
+<td NOSAVE>1. Write 2 sample entries twice to the space.
+<br><br>
+2. Take 1-st entry twice from the space using the same one as a template
+and JavaSpace.NO_WAIT timeout value.
+<br><br>
+3. Assert, that take operation will return immediately.
+<br><br>
+4. Assert, that each take will return a copy of 1-st entry.
+<br><br>
+5. Assert, that after 1-st take invocation at lease 1 1-st entry will
+be available in the space.
+<br><br>
+6. Assert, that after 2-nd take invocation there will be no 1-st entries
+in the space.
+<br><br>
+7. Write taken entries back to the space and write 3-rd ample entry
+twice to the space.
+<br><br>
+8. Take entry from the space using null template and JavaSpace.NO_WAIT
+timeout value 6 times to take all entries from the space.
+<br><br>
+9. Assert, that each take operation will return immediately.
+<br><br>
+10. Assert, that a copy of one of written entries will be returned
+by each take operation.
+<br><br>
+11. Assert, that after each except last take operation at least one
+of written entries will be available in the space.
+<br><br>
+12. Assert, that after last take operation there will be no entries
+in the space.
+<br><br>
+13. Write 3 sample entries 2 times again
+<br><br>
+14. Take entry from the space using null for different fields and JavaSpace.NO_WAIT
+timeout value several times.
+<br><br>
+15. Assert, that each take operation will return immediately.
+<br><br>
+16. Assert, that a copy of one of written entries will be returned
+by each take operation.
+<br><br>
+17. Assert, that after each except last take operation at least one
+of written entries matching specified template will be available in the
+space.
+<br><br>
+18. Assert, that after last take operation there will be no entries
+matching specified template in the space.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.5</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>TransactionTakeReadTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionTakeIfExistsReadTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionTakeReadTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionTakeIfExistsReadTest</font></b></dt>
+<br><br>
+<br>Asserts, that when taken, an entry may not be read or taken by any
+other transaction.
+<p>Matrix ID 36</td>
+
+<td>1. Write entry to the space.
+<br><br>
+2. Create two non null transactions.
+<br><br>
+3. Take written entry within 1-st transaction.
+<br><br>
+4. Assert, that the entry can not be read outside both transactions.
+<br><br>
+5. Assert, that the entry can not be read within 2-nd transaction.
+<br><br>
+6. Assert, that the entry can not be taken outside both transactions.
+<br><br>
+7. Assert, that the entry can not be taken within 2-nd transaction.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 3.1</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>TransactionReadWaitTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionReadWaitTest</font></b></dt>
+
+<br>Asserts, that a read request will wait until a matching entry is found
+or until transactions settle, whichever is longer, up to the timeout period.
+<p>Matrix ID 15</td>
+
+<td>1. Write entry to the space.
+<br><br>
+2. Create the non null transaction with finite lease time.
+<br><br>
+3. Take the entry from the space within the transaction.
+<br><br>
+4. Read the entry from the space with timeout less then transaction's
+lease time.
+<br><br>
+5. Assert, that read request will return null value in time specified
+in read request.
+<br><br>
+6. Commit the transaction and clean the space.
+<br><br>
+7. Write entry again to the space.
+<br><br>
+8. Create the non null transaction with finite lease time.
+<br><br>
+9. Take the entry from the space within the transaction.
+<br><br>
+10. Read the entry from the space with timeout greater then transaction's
+lease time.
+<br><br>
+11. Assert, that read request will return written entry after transaction's
+expiration.
+<br><br>
+12. Clean the space and write entry again to the space.
+<br><br>
+13.&nbsp; Create the non null transaction with finite lease time.
+<br><br>
+14. Take the entry from the space within the transaction.
+<br><br>
+15. Start thread which will write 2-nd sample entry to the space in
+time less then transaction's lease time and read's timeout.
+<br><br>
+16. Read entry with null template from the space withi finite timeout.
+<br><br>
+17. Assert, that read request returns 2-nd written entry before transaction's
+and read's expirations</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.4</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>TransactionCommitTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionCommitTakeIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionCommitTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionCommitTakeIfExistsTest</font></b></dt>
+<br><br>
+<br>Asserts, that a take is considered to be successful only if all enclosing
+transactions commit successfully.
+<p>Matrix ID 20</td>
+
+<td>1. Write an entry to the space.
+<br><br>
+2. Create the non null transaction.
+<br><br>
+3. Take written entry from the space within the transaction.
+<br><br>
+4. Abort the transaction.
+<br><br>
+5. Assert, that taken entry is still available in the space.
+<br><br>
+6. Create the non null transaction with finite lease time.
+<br><br>
+7. Take written entry from the space within the transaction.
+<br><br>
+8. Sleep to let the transaction expire.
+<br><br>
+9. Assert, that taken entry is still available in the space.
+<br><br>
+10. Create the non null transaction again.
+<br><br>
+11. Take written entry from the space within the transaction.
+<br><br>
+12. Make commit operation throws exception.
+<br><br>
+13. Assert, that taken entry is still available in the space.</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces&nbsp;
+<br>Section 2.5</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>ExpirationNotifyTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotExpirationNotifyTest</font></b></dt>
+<br><br>
+<br>Asserts, that the request specified by a successful notify is as persistent
+as the entries of the space. They will be remembered as long as an un-taken
+entry would be, until the lease expires, or until any governing transaction
+completes, whichever is shorter.
+<p>Matrix ID 31</td>
+
+<td>1. Register 5 notification counters with different lease times without
+transactions.
+<br><br>
+2. Create the non null transaction with finite lease time.
+<br><br>
+3. Register 5 notification counters with different lease times within
+the transaction.
+<br><br>
+4. Write sample entry twice to the space.
+<br><br>
+5. Sleep to let counters with the smallest lease times expire.
+<br><br>
+6. Write sample entry twice&nbsp; to the space.
+<br><br>
+7. Sleep to let transaction expires.
+<br><br>
+8. Write sample entry twice to the space.
+<br><br>
+9. Sleep to let next group of counters expires.
+<br><br>
+10. Write sample entry twice to the space.
+<br><br>
+11. Sleep to let next group of counters expires.
+<br><br>
+12. Write sample entry twice to the space.
+<br><br>
+13. Assert, that all counters have got the required number of events.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Section 2.7</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>ExpirationTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionExpirationTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotExpirationTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionExpirationTest</font></b></dt>
+<br><br>
+<br>Asserts, that when the lease expires, the entry is removed from the
+space.
+<p>Matrix ID 4</td>
+
+<td>1. Write 2 sample entries with different finite lease times to the
+space.
+<br><br>
+2. Assert, that returned leases are not equal to null, and that written
+entries are available in the space.
+<br><br>
+3. Sleep to let 1-st lease expires.
+<br><br>
+4. Assert, that 1-st entry is not available in the space.
+<br><br>
+5. Assert, that 2-nd entry is still available in the space.
+<br><br>
+6. Sleep the let 2-nd lease expires.
+<br><br>
+7. Assert, that 2-nd entry is not available in the space.
+<br><br>
+8. Write 1-st sample entry twice to the space with different finite
+lease times.
+<br><br>
+9. Assert, that returned leases are not equal to null.
+<br><br>
+10. Sleep to let the smallest lease expires.
+<br><br>
+11. Assert, that only 1 of written entries is available in the space.
+<br><br>
+12. Write 1-st sample entry twice to the space with different finite
+lease times.
+<br><br>
+13. Assert, that returned leases are not equal to null.
+<br><br>
+14. Sleep to let the largest lease expires.
+<br><br>
+15. Assert, that both entries are not available in the space.</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces&nbsp;
+<br>Section 2.3</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>LeaseTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionLeaseTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotLeaseTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionLeaseTest</font></b></dt>
+<br><br>
+<br>Asserts, that each write invocation returns a Lease object that is
+lease milliseconds long.
+<p>Matrix ID 3</td>
+
+<td>1. Write sample entry with Lease.ANY lease time to the space.
+<br><br>
+2. Assert, that returned lease is not equal to null.
+<br><br>
+3. Assert, that returned expiration time is not less then current time.
+<br><br>
+4. Write sample entry with Lease.FOREVER lease time to the space.
+<br><br>
+5. Assert, that returned lease is not equal to null.
+<br><br>
+6. Assert, that returned expiration time is not less then current time.
+<br><br>
+7. Write 2 sample entries with 2 different finite lease times to the
+space.
+<br><br>
+8. Assert, that returned leases are not equal to null.
+<br><br>
+9. Assert, that returned expiration times satisfied the following formula:
+(expiration time - current time) = specified in write invocation lease
+time (#1).
+<br><br>
+10. Write 1-st sample entry with another finite lease time again to
+the space.
+<br><br>
+11. Assert, that returned lease is not equal to null.
+<br><br>
+12. Assert, that returned expiration time satisfied #1 formula.
+<br><br>
+13. Write 2-nd sample entry with Lease.ANY lease time.
+<br><br>
+14. Assert, that returned lease is not equal to null.
+<br><br>
+15. Assert, that returned expiration time is not less then current
+time.
+<br><br>
+16. Write 1-st sample entry with Lease.FOREVER lease time.
+<br><br>
+17. Assert, that returned lease is not eual toe null.
+<br><br>
+18. Assert, that returned expiration time is not less then current
+time.</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces&nbsp;
+<br>Section 2.3</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>NotifyTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionNotifyTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotNotifyTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionNotifyTest</font></b></dt>
+<br><br>
+<br>Asserts, that for notify with finite lease times:
+<br>1) A notify request's matching is done as it is for read
+<br>2) Writing an entry into a space might generate notifications to registered
+objects.
+<br>3) When matching entries arrive, the specified RemoteEventListener
+will eventually be notified by invoking listener's notify method.
+<p>Matrix ID 8, 25, 26.</td>
+
+<td>1. Register 3 notification counters with 3 sample entries as a template.
+<br><br>
+2. Register 5 notification counters with different wrong templates.
+<br><br>
+3. Register notification counter with null as a template.
+<br><br>
+4. Register 3 notification counters with templates with null for different
+fields.
+<br><br>
+5. Write 3 sample entries 3 times to the space.
+<br><br>
+6. Assert, that counters have got required number of notifications.</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces&nbsp;
+<br>Sections 2.3, 2.7</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>NotifyLeaseANYTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionNotifyLeaseANYTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotNotifyLeaseANYTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionNotifyLeaseANYTest</font></b></dt>
+<br><br>
+<br>Asserts, that for notify with Lease.ANY lease time:
+<br>1) A notify request's matching is done as it is for read
+<br>2) Writing an entry into a space might generate notifications to registered
+objects.
+<br>3) When matching entries arrive, the specified RemoteEventListener
+will eventually be notified by invoking listener's notify method.
+<p>Matrix ID 8, 25, 26.</td>
+
+<td>1. Register 3 notification counters with 3 sample entries as a template
+and Lease.ANY value for lease time.
+<br><br>
+2. Register 5 notification counters with different wrong templates
+and Lease.ANY value for lease time.
+<br><br>
+3. Register notification counter with null as a template and Lease.ANY
+value for lease time.
+<br><br>
+4. Register 3 notification counters with templates with null for different
+fields and Lease.ANY value for lease time.
+<br><br>
+5. Write 3 sample entries 3 times to the space.
+<br><br>
+6. Assert, that counters have got required number of notifications.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Sections 2.3, 2.7</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>NotifyLeaseFOREVERTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionNotifyLeaseFOREVERTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotNotifyLeaseFOREVERTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionNotifyLeaseFOREVERTest</font></b></dt>
+<br><br>
+<br>Asserts, that for notify with Lease.FOREVER lease time:
+<br>1) A notify request's matching is done as it is for read
+<br>2) Writing an entry into a space might generate notifications to registered
+objects.
+<br>3) When matching entries arrive, the specified RemoteEventListener
+will eventually be notified by invoking listener's notify method.
+<p>Matrix ID 8, 25, 26.</td>
+
+<td>1. Register 3 notification counters with 3 sample entries as a template
+and Lease.FOREVER value for lease time.
+<br><br>
+2. Register 5 notification counters with different wrong templates
+and Lease.FOREVER value for lease time.
+<br><br>
+3. Register notification counter with null as a template and Lease.FOREVER
+value for lease time.
+<br><br>
+4. Register 3 notification counters with templates with null for different
+fields and Lease.FOREVER value for lease time.
+<br><br>
+5. Write 3 sample entries 3 times to the space.
+<br><br>
+6. Assert, that counters have got required number of notifications.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces&nbsp;
+<br>Sections 2.3, 2.7</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>NotifyNegativeLeaseTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionNegativeLeaseTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotNotifyNegativeLeaseTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionNegativeLeaseTest</font></b></dt>
+<br><br>
+<br>Asserts, that we will get an IllegalArgumentException if the lease
+time requested is not Lease.ANY and is negative.
+<p>Matrix ID 27.</td>
+
+<td>1. Try to register 12 notification counters with different negative
+lease times.
+<br><br>
+2. Assert, that IllegalArgumentException will be thrown during these
+operations.</td>
+
+<td NOSAVE>A1, M1</td>
+
+<td ALIGN=LEFT VALIGN=TOP NOSAVE>JavaSpaces&nbsp;
+<br>Section 2.7</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>NotifyNonNullTxnParamTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotNotifyNonNullTxnParamTest</font></b></dt>
+<br><br>
+<br>Asserts, that if the transaction parameter is not null, the listener
+will be notified of matching entries written under that transaction in
+addition to the notifications it would receive under a null transaction.
+<p>Matrix ID 30.</td>
+
+<td>1. Create the non null transaction.
+<br><br>
+2. Register 3 notification counters with 3 sample entries as a template
+with non null transaction parameter.
+<br><br>
+3. Register 5 notification counters with different wrong templates
+with non null transaction parameter.
+<br><br>
+4. Register notification counter with null as a template with non null
+transaction parameter.
+<br><br>
+5. Register 3 notification counters with templates with null for different
+fields with non null transaction parameter.
+<br><br>
+6. Write 3 sample entries 3 times to the space without transactions.
+<br><br>
+7. Write 3 sample entries 2 times to the space within the transaction.
+<br><br>
+8. Assert, that counters have got required number of notifications
+both from written without transaction and written within the transaction
+groups of entries.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces
+<br>Section 2.7</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>NotifyNullTxnParamTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotNotifyNullTxnParamTest</font></b></dt>
+<br><br>
+<br>Asserts, that:
+<br>1) If the transaction parameter is null, the listener will be notified
+when matching entries are written either under a null transaction or when
+a transaction commits.
+<br>2) When a transaction commits, any entries that were written under
+the transaction (and not taken) will cause appropriate notifications for
+registrations that were made under a null transaction.
+<p>Matrix ID 28, 37.</td>
+
+<td>1. Create the non null transaction.
+<br><br>
+2. Register 3 notification counters with 3 sample entries as a template
+with null transaction parameter.
+<br><br>
+3. Register 5 notification counters with different wrong templates
+with null transaction parameter.
+<br><br>
+4. Register notification counter with null as a template with null
+transaction parameter.
+<br><br>
+5. Register 3 notification counters with templates with null for different
+fields with null transaction parameter.
+<br><br>
+6. Write 3 sample entries 3 times to the space without transactions.
+<br><br>
+7. Write 3 sample entries 2 times to the space within the transaction.
+<br><br>
+8. Assert, that counters have got required number of notifications
+only from written without transactions entries.
+<br><br>
+9. Commit the transction.
+<br><br>
+10. Assert, that counters have got required number of notifications
+both from written without transaction and written within the transaction
+groups of entries.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces
+<br>Sections 2.7, 3.1</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>TransactionAbortWriteTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionAbortWriteTest</font></b></dt>
+<br><br>
+<br>Asserts, that entries written under a transaction that aborts are discarded.
+<p>Matrix ID 34.</td>
+
+<td>1. Create the non null transaction.
+<br><br>
+2. Write entries with different lease times to the space within the
+transaction.
+<br><br>
+3. Abort the transaction.
+<br><br>
+4. Assert, that there are no entries in the space.</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces
+<br>Section 3.1</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>TransactionCommitWriteTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionCommitWriteTest</font></b></dt>
+<br><br>
+<br>Asserts, that an entry that is written under the non null transaction
+is not visible outside its transaction until the transaction successfully
+commits.
+<p>Matrix ID 32.</td>
+
+<td>1. Create the non null transaction.
+<br><br>
+2. Write entries with different lease times to hte space within the
+transaction.
+<br><br>
+3. Assert, that written entries are visible within the transaction.
+<br><br>
+4. Assert, that written entries are not visible outside the transaction.
+<br><br>
+5. Commit the transaction.
+<br><br>
+6. Assert, that all written entries are available in the space.</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces
+<br>Section 3.1</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>TransactionReadTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionReadIfExistsTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionReadTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionReadIfExistsTakeTest</font></b></dt>
+<br><br>
+<br>Asserts, that when read, an entry may be read in any other transaction
+to which the entry is visible, but cannot be taken in another transaction.
+<p>Matrix ID 35.</td>
+
+<td>1. Write sample entry to the space.
+<br><br>
+2. Create 2 non null transactions.
+<br><br>
+3. Read written entry from the space within 1-st transaction.
+<br><br>
+4. Assert, that we can read written entry within 2-nd transaction.
+<br><br>
+5. Assert, that we can read written entry outside both transactions.
+<br><br>
+6. Assert, that we can not take written entry within 2-nd transaction.
+<br><br>
+7. Assert, that we can not take written entry outside both transactions.</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces
+<br>Section 3.1</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>TransactionTakeWaitTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionTakeWaitTest</font></b></dt>
+<br><br>
+<br>Asserts, that a take request will wait until a matching entry is found
+or until transactions settle, whichever is longer, up to the timeout period.
+<p>Matrix ID 17.</td>
+
+<td>1. Write entry to the space.
+<br><br>
+2. Create the non null transaction with finite lease time.
+<br><br>
+3. Take the entry from the space within the transaction.
+<br><br>
+4. Take the entry from the space with timeout less then transaction's
+lease time.
+<br><br>
+5. Assert, that take request will return null value in time specified
+in take request.
+<br><br>
+6. Commit the transaction and clean the space.
+<br><br>
+7. Write entry again to the space.
+<br><br>
+8. Create the non null transaction with finite lease time.
+<br><br>
+9. Take the entry from the space within the transaction.
+<br><br>
+10. Take the entry from the space with timeout greater then transaction's
+lease time.
+<br><br>
+11. Assert, that take request will return written entry after transaction's
+expiration.
+<br><br>
+12. Clean the space and write entry again to the space.
+<br><br>
+13.&nbsp; Create the non null transaction with finite lease time.
+<br><br>
+14. Take the entry from the space within the transaction.
+<br><br>
+15. Start thread which will write 2-nd sample entry to the space in
+time less then transaction's lease time and take's timeout.
+<br><br>
+16. Take entry with null template from the space withi finite timeout.
+<br><br>
+17. Assert, that take request returns 2-nd written entry before transaction's
+and take's expirations</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces
+<br>Section 2.5</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>TransactionReadIfExistsWaitTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionReadIfExistsWaitTest</font></b></dt>
+<br><br>
+<br>Asserts, that for readIfExists method if the only possible matches
+for the template have conflicting locks from one or more other transactions,
+the timeout value specifies how long the client is willing to wait for
+interfering transactions to settle before returning a values and that if
+at the end of that time no value can be returned that would not interfere
+with transactional state, null is returned.
+<p>Matrix ID 13, 14.</td>
+
+<td>1. Write entry to the space.
+<br><br>
+2. Create the non null transaction with finite lease time.
+<br><br>
+3. Take the entry from the space within the transaction.
+<br><br>
+4. ReadIfExists the entry from the space with timeout less then transaction's
+lease time.
+<br><br>
+5. Assert, that read request will return null value in time specified
+in read request.
+<br><br>
+6. Commit the transaction and clean the space.
+<br><br>
+7. Write entry again to the space.
+<br><br>
+8. Create the non null transaction with finite lease time.
+<br><br>
+9. Take the entry from the space within the transaction.
+<br><br>
+10. ReadIfExists the entry from the space with timeout greater then
+transaction's lease time.
+<br><br>
+11. Assert, that read request will return written entry after transaction's
+expiration.
+<br><br>
+12. Clean the space and write entry again to the space.
+<br><br>
+13.&nbsp; Create the non null transaction with finite lease time.
+<br><br>
+14. Take the entry from the space within the transaction.
+<br><br>
+15. Start thread which will write 2-nd sample entry to the space in
+time less then transaction's lease time and read's timeout.
+<br><br>
+16. ReadIfExists entry with null template from the space withi finite
+timeout.
+<br><br>
+17. Assert, that read request returns 2-nd written entry before transaction's
+and read's expirations</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces
+<br>Section 2.4</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>TransactionTakeIfExistsWaitTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionTakeIfExistsWaitTest</font></b></dt>
+<br><br>
+<br>Asserts, that for takeIfExists method if the only possible matches
+for the template have conflicting locks from one or more other transactions,
+the timeout value specifies how long the client is willing to wait for
+interfering transactions to settle before returning a values and that if
+at the end of that time no value can be returned that would not interfere
+with transactional state, null is returned.
+<p>Matrix ID 17.</td>
+
+<td NOSAVE>1. Write entry to the space.
+<br><br>
+2. Create the non null transaction with finite lease time.
+<br><br>
+3. Take the entry from the space within the transaction.
+<br><br>
+4. TakeIfExists the entry from the space with timeout less then transaction's
+lease time.
+<br><br>
+5. Assert, that take request will return null value in time specified
+in take request.
+<br><br>
+6. Commit the transaction and clean the space.
+<br><br>
+7. Write entry again to the space.
+<br><br>
+8. Create the non null transaction with finite lease time.
+<br><br>
+9. Take the entry from the space within the transaction.
+<br><br>
+10. TakeIfExists the entry from the space with timeout greater then
+transaction's lease time.
+<br><br>
+11. Assert, that take request will return written entry after transaction's
+expiration.
+<br><br>
+12. Clean the space and write entry again to the space.
+<br><br>
+13.&nbsp; Create the non null transaction with finite lease time.
+<br><br>
+14. Take the entry from the space within the transaction.
+<br><br>
+15. Start thread which will write 2-nd sample entry to the space in
+time less then transaction's lease time and take's timeout.
+<br><br>
+16. TakeIfExists entry with null template from the space withi finite
+timeout.
+<br><br>
+17. Assert, that take request returns 2-nd written entry before transaction's
+and take's expirations</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces
+<br>Section 2.5</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td NOSAVE>
+<dt>
+<b><font size=+1>TransactionWriteTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionWriteTakeIfExistsTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionWriteTakeTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionWriteTakeIfExistsTest</font></b></dt>
+<br><br>
+<br>Asserts, that if the entry is written and after that is taken within
+the non null transaction, the entry will never be visible outside the transaction
+and will not be added to the space when the transaction commits.
+<p>Matrix ID 33.</td>
+
+<td>1. Create the non null transaction.
+<br><br>
+2. Write 2 sample entries twice to the space within the transaction.
+<br><br>
+3. Take 2 sample entries twice from the space within the transaction.
+<br><br>
+4. Commit the transaction.
+<br><br>
+5. Assert, that there will be no entries in the space.</td>
+
+<td>A1, M1</td>
+
+<td>JavaSpaces
+<br>Section 3.1</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>TransactionWriteTakeNotifyTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>TransactionWriteTakeIfExistsNotifyTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionWriteTakeNotifyTest,</font></b></dt>
+
+<dt>
+<b><font size=+1>SnapshotTransactionWriteTakeIfExistsNotifyTest</font></b></dt>
+<br><br>
+<br>Asserts, that if an entry is written under a transaction and then taken
+under that same transaction before the transaction is committed, listeners
+registered under a null transaction will not be notified of that entry.
+<p>Matrix ID 29.</td>
+
+<td>1. Register 3 notification counters with 3 sample entries as a template.
+<br><br>
+2. Register 5 notification counters with different wrong templates.
+<br><br>
+3. Register notification counter with null as a template.
+<br><br>
+4. Register 3 notification counters with templates with null for different
+fields.
+<br><br>
+5. Create the non null transaction
+<br><br>
+6. Write 3 sample entries 3 times to the space within the transaction.
+<br><br>
+7. Take 1-st sample entry once, 2-nd - 2 times and 3-rd - 3 times within
+the transaction.
+<br><br>
+8. Commit the transction.
+<br><br>
+9. Assert, that counters have got required number of notifications.&nbsp;</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces
+<br>Sections 2.7, 3.1</td>
+</tr>
+
+<tr ALIGN=LEFT VALIGN=TOP NOSAVE>
+<td>
+<dt>
+<b><font size=+1>SnapshotModifyEntryTest</font></b></dt>
+<br><br>
+<br>Asserts, that:
+<br>1) Modifications to the original entry will not affect the snapshot.
+<br>2) You can snapshot a null template.
+<p>Matrix ID 22, 24.</td>
+
+<td>1. Write 3 sampe entries for further checks.
+<br><br>
+2. Snapshot different templates, including null entry.
+<br><br>
+3. Assert, that each snapshot operation will complete successfully.
+<br><br>
+4. Change original templates to another value which does not match
+any entry written to the space.
+<br><br>
+5. Assert, that if we trying to read entry from the space using created
+snapshots, we'll get non null results which means that snapshot is not
+affected by modification to the original entry.</td>
+
+<td>A1, M1</td>
+
+<td NOSAVE>JavaSpaces
+<br>Section 2.6</td>
+</tr>
+</table>
+
+<p><b><i>Note 1: for pairs &lt;TestName> and Transaction&lt;TestName>,
+Transaction&lt;TestName> tests the same statements as &lt;TestName></i></b>
+<br><b><i>but within the non nulltransactions. All write and check operations
+will be within created non null transaction.</i></b>
+<p><b><i>Note 2:&nbsp; for pairs &lt;Method>&lt;TestName> and &lt;Method>IfExists&lt;TestName>,
+&lt;Method>IfExists&lt;TestName tests the same statements as</i></b>
+<br><b><i>&lt;Method>&lt;TestName> but for &lt;Method>IfExists method.</i></b>
+<p><b><i>Note 3: all tests starting from Snapshot previx except SnapshotModifyEntryTest
+run the same steps as described&nbsp; in "Description"</i></b>
+<br><b><i>column for snapshotted entries to test the following statement:"Using
+the returned snapshot entry is equivalent to using the unmodified original
+entry in alloperations on the same JavaSpaces service.", Matrix ID 21,
+A1, M1, JavaSpaces Section 2.6.</i></b>
+</body>
+</html>

@@ -1,0 +1,3 @@
+testClass=SharedActivatableServiceDescriptorTest2
+testCategories=start,start_impl
+include0=start.properties

@@ -1,0 +1,2 @@
+testClass=ServiceLauncher
+testCategories=scalability

@@ -1,0 +1,7 @@
+testClass=TxnMgrLeaseGrantTest
+testCategories=javaspace,javaspace_impl,javaspace_impl_leasing
+include0=../outrigger.properties
+
+com.sun.jini.test.share.exact=true
+com.sun.jini.test.share.clip=10800000
+com.sun.jini.test.share.duration=forever

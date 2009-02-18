@@ -1,0 +1,1067 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<HTML>
+<HEAD>
+<TITLE>QA Test Methodology Architecture Document</TITLE>
+</HEAD>
+<BODY>
+  <CENTER>
+    <H1>QA Test Methodology Architecture Document</H1>
+    <H3>Author: Steven F. Harris</H3>
+    <H3>Date: August 19, 1999</H3>
+  </CENTER>
+
+  <UL>
+
+  <LI><H3>Purpose</H3></LI>
+  <P>
+  This document talks about a new methodology for writing QA
+  tests. There are two types of QA tests.
+  <OL>
+  <LI>
+  A <EM>conformance test</EM> is one that tests an implementation of a
+  service or other software entity to determine its conformance to some
+  written specification.
+  </LI>
+  <LI>
+  An <EM>implementation test</EM> is one that tests such things as quality of
+  implementation, efficiency, reliability, etc.
+  </LI>
+  </OL>
+  This difference is primarily conceptual and does not have an impact on
+  how the test is written.
+  <P>
+  This methodology is designed to be used in testing Jini only. There is no
+  attempt to make it generally applicable. This document covers all aspects
+  of the methodology but does not go into much detail on who to write or
+  run a test. There is two simpler documents entitled <EM>"Hot to Write a
+  Conformance Test"</EM> and <EM>"How to Run Conformance Tests"</EM> that
+  should also be read.
+  </P>
+
+  <LI><H3>Introduction</H3></LI>
+  <P>
+  As of the date of this writing all tests are written by the software
+  engineers who also write the implementations of the code under test. The
+  tests are written specifically to allow them to be run inside of
+  JavaTest. JavaTest is a powerful set of tools for testing software
+  written in the Java programming language. The effort of creating a new
+  QA Test Methodology is directed towards establishing a single
+  testing strategy that is centered around the TCK. The TCK was written
+  to be simpler than JavaTest and to more directly address the needs of
+  Jini Technology QA testing.
+  </P>
+  <P>
+  Under section 1.3 (entitled <EM>Goals</EM>) "The Harness Specification"
+  of the TCK (see <A Href="http://jini/tck">http://jini/tck</A>) states
+  <EM>"The TCK should test all of the specifications laid out in the Jini
+  Specification. This is known as the Completeness goal."</EM> The
+  establishment and acceptance of the QA Test Methodology
+  described in this document helps to realize this goal.
+  </P>
+
+  <LI><H3>Definition of Terms</H3></LI>
+  <P>
+  The Conformance Test Methodology is an amalgam of elements. Those that
+  have been written specifically to support the Methodology and others that
+  are borrowed from the TCK. Because of this many of the terms used are
+  also borrowed from the TCK and may be unfamiliar to the reader. This
+  section defines each of the terms below:
+  </P>
+  <P>
+  <DL>
+    <DT>
+    <B>TCK Config</B>
+    </DT>
+    <DD>
+    This is a Properties file that contains values used by the TCK. A
+    default file called <TT>qatest.prop</TT> is supplied as part of the
+    methodology. Some of these values might need to be changed. More detail
+    on this subject is supplied in the "How to Write a Test" and "How to
+    Run a Test" documents.
+    </DD>
+    <DT>
+    <B>the Runner</B>
+    </DT>
+    <DD>
+    This refers to the TCK harness in which all tests are run. The class
+    <CODE>com.sun.jini.tck.harness.Runner</CODE> implements the
+    harness. More detail on this is available in the "How to Run a Test"
+    document.
+    </DD>
+    <DT>
+    <B>Test Sets</B>
+    </DT>
+    <DD>
+    The TCK Runner allows tests to be specified on the command line as
+    either class names or test sets. A test set is specified as
+    <CODE>Set:<EM>setName</EM></CODE> where the list of tests associated with
+    <CODE><EM>setName</EM></CODE> is supplied as a comma delimited string
+    in the TCK Config file.
+    </DD>
+  </DL>
+  </P>
+
+  <LI><H3>Overview</H3></LI>
+  <P>
+  The QA Test Methodology consists of three physical components.
+    <OL>
+    <LI>The Framework</LI>
+       <OL>
+       <LI>A base class from which tests are derived.</LI>
+       <LI>A Status object to convey test results to the Harness</LI>
+       <LI>A set of utility methods used as an aid in test writing.</LI>
+       <LI>A text file that serves as a template for creating tests.</LI>
+       <LI>A Properties file <TT>qatest.prop</TT> that defines a minimal
+           set of Property values required by the Runner.</LI>
+       </OL>
+
+    <LI>The TCK Harness</LI>
+       <OL>
+       <LI>Software which provides an environment in which tests are run.</LI>
+       </OL>
+
+    <LI>The Documentation</LI>
+       <OL>
+       <LI>The QA Test Methodology Architecture Document</LI>
+       <LI>How to Write a QA Test</LI>
+       <LI>How to Run QA Tests</LI>
+       </OL>
+    </OL>
+  </P>  
+  <P>
+  A diagram of the Framework and Harness appears below:
+  <PRE>
+                             .---------------------.   is
+         .------------. is   |TCK harness          |started .-------------.
+         | TCK Config | used | class Runner        |<-------|httpd        |
+         | Properties |----->|                     |   by   |Class Server |
+         | file       |  by  |                     |        `-------------'
+         `------------'      `---------------------'          localhost:8080
+          aka qatest.prop               ^ 
+                                        | (is used by)
+                                        |
+                                        |
+                   .---------------------------------------.
+                   |                                       |
+                   |  Framework                            |
+                   |                                       |
+                   |      class QATest                     |
+                   |      class Status                     |
+                   |                                       |
+                   |                                       |
+                   `---------------------------------------'
+                        ^                   ^               
+                        | (implements)      | (implements)   
+                        |                   |                 
+                  .----------------.   .----------------.
+                  |QATest          |   |QATest          |
+                  |   subclass     |   |   subclass     |
+                  `----------------'   `----------------'
+                              ^            ^
+               (is used by)   |            | (is used by)
+                              |            |
+                           .-------------------------.  
+                           |  QATestUtil             |  
+                           `-------------------------'  
+
+  </PRE>
+  </P>
+  <LI><H3>Design Goals</H3></LI>
+  <P>
+  The QA Test Methodology shares many design goals with the TCK.
+  The goals that the Methodology seeks to achieve are:
+  </P>
+
+  <OL>
+ 
+  <LI>The simplicity goal</LI>
+  <P> 
+  The documents <EM>How to Write a Test</EM> and <EM>How to Run
+  a Test</EM> must be short (2-4 pages) and simple. This will allow new
+  engineers and contractors to come up to speed quickly with a minimum of
+  instruction. 
+  </P> 
+
+  <LI>The completeness goal</LI>
+  <P>
+  By providing a standard way for engineers to write tests for the TCK, the
+  TCK provides better coverage of the Jini Specifications.
+  </P>
+
+  <LI>The standardization goal</LI>
+  <P>
+  By providing engineers with a standard methodology for writing tests, better
+  code reuse is achieved. That means a higher degree of reliability and
+  productivity is also achieved. Code becomes easier to comprehend because
+  it is more uniform.
+  </P>
+
+  <LI>The cross-platform goal</LI>
+  <P>
+  A test should run on all supported platforms with no special
+  extra effort on the part of the engineer. 
+  </P>
+
+  </OL>  
+
+  <LI><H3>How to Write a Test</H3></LI>
+  <P>
+  Every QA test subclasses the abstract class
+  <CODE>com.sun.jini.test.harness.QATest</CODE> which implements the
+  <CODE>com.sun.jini.tck.Test</CODE> interface. There are 4 abstract
+  methods that must be implemented.
+  </P>
+  <P>
+  Please note that the <CODE>Status</CODE> object mentioned below belongs
+  to the <CODE>com.sun.jini.tck.harness</CODE> package and has nothing to
+  do directly with the object of the same name implemented by JavaTest.
+  </P>
+     <P>
+     <UL>
+        <LI><CODE>public abstract Status run(String[] args)</CODE></LI>
+	<P>
+	This method contains the actual workings of the individual
+	tests. It must return a Status object indicating the outcome of the
+	test. The argument list passed into this method is for passing test
+	specific information into a test from the command line.
+	</P>
+
+        <LI><CODE>public abstract String getDescription()</CODE></LI>
+	<P>
+	This method returns the name of the particular test as a
+	string. Test descriptions should be unique to each test so that
+	testers can interpret the test results easily.
+	</P>
+
+        <LI><CODE>public abstract String[] getCategories()</CODE></LI>
+	<P>
+	This method returns an array of strings containing all the category
+	names that this test applies to. The returned array will contain at
+	least one known category (see <EM>How to Run Tests</EM>
+	below). This method is called by the TCK Runner harness before the
+	<CODE>setup()</CODE> method and shouldn't rely on
+	<CODE>setup()</CODE> to function. The <CODE>setup()</CODE> method
+	is described below.
+	</P>
+
+        <LI><CODE>public abstract Class[] getRequiredAdmins()</CODE></LI>
+	<P>
+	This method returns an array of Class objects containing all the
+	admin interfaces that an admin implementation needs to implement to
+	work with this test. This method is called before
+	<CODE>setup()</CODE> and shouldn't rely on <CODE>setup()</CODE> to
+	function. Test writer only need to be concerned about this method
+	in the case were they are writing tests for a service. In that case
+	the test writer under is required to create a class that implements the
+	<CODE>com.sun.jini.tck.harness.BasicServiceAdmin</CODE>. The
+	BasicServiceAdmin requirement is discussed in more detail in a
+	later section. Otherwise, this method can just return
+	<CODE>null</CODE>.
+	</P>
+
+     </UL>
+     </P>
+
+     <P>
+     Also there are 4 methods provided with implementations. The setup and
+     tearDown methods will likely be overridden by the derived class and
+     calls to <CODE>super.setup()</CODE> and <CODE>super.tearDown()</CODE>
+     must be the first line when overriding these methods.
+     </P>
+     <P>
+     <UL>
+        <LI><CODE>public void setConfig(Config tCon)</CODE></LI>
+	<P>
+	This method handles the setting of the TCK Config component. The
+	TCK Config, is a component that contains and handles the global
+	configuration information for this run of the TCK (see section
+	<EM>"How to Run a Test"</EM> below). The TCK harness calls setConfig
+	before calling any other methods on the Test. Test writers need not
+	be concerned with this method. In all cases the default
+	implementation will suffice.
+	</P>
+
+	<LI><CODE>public Config getConfig()</CODE></LI>
+	<P>
+	This method handles getting of the TCK Config component. The tests call
+	getConfig.  Test writers need not be concerned with this method. In
+	all cases the default implementation will suffice.
+	</P>
+
+	<LI><CODE>public void setup(String[] args)</CODE></LI>
+	<P>
+	This method should contain test specific actions that need to
+	happen before the test is run. It is called by the TCK harness
+	before the <CODE>run()</CODE> method and after the
+	<CODE>setConfig()</CODE>. All resource intensive startup behaviors
+	should take place in the setup method and not in the constructor.
+	The argument list passed into this method is for passing test
+	specific information gathered from the command line.	
+	</P>
+
+	<LI><CODE>public void tearDown()</CODE></LI>
+	<P>
+	This method should contain any test-specific clean up that needs to
+	be done after the test has been run. It is called by the TCK
+	harness after the run method.
+	</P>
+
+     </UL>
+     </P>
+     <P>
+     Not all tests are written to test services. Some tests will simply
+     test utility classes. In that case no special extra code is
+     required. The test is simply run inside the harness. If, on the other
+     hand, the tests <EM>are</EM> written to test services (or clients)
+     then some extra code must be written to support test automation and
+     plug-ability of the service/client under test.
+     </P>
+     <P>
+     The TCK requires that for each service (product) under test the test
+     writer must create a class that implements the
+     <CODE>com.sun.jini.tck.harness.BasicServiceAdmin</CODE> interface. The
+     BasicServiceAdmin extends the interface
+     <CODE>com.sun.jini.tck.harness.BasicAdmin</CODE>. The interface
+     definitions follow:
+     </P>
+
+
+     <PRE>
+     public interface BasicAdmin { 
+         void setConfig(Config conf); 
+         void start() throws RemoteException;
+	 InetAddress getAddress() throws RemoteException; 
+	 void stop() throws RemoteException; 
+     } 
+     </PRE>
+
+     <P>
+     BasicAdmin's methods have the following functions:
+     </P>
+
+     <P>
+     start: <BR>This starts the service being tested. A test can call this
+     whenever it needs the service started. The implementation of this
+     method should put the service in a state where it is starting the Jini
+     discovery protocols.
+     </P>
+
+     <P>
+     stop: <BR>This stops the service being tested. A test can call this
+     whenever it needs the service stopped. The implementation of this
+     method should completely stop the product, cleaning up any state and
+     resetting the service to its initial state before being started.
+     </P>
+
+     <P>
+     getAddress: <BR>Implementations of this method should return the network
+     address of the service or the hardware the service is running on. This
+     method is often called by low level tests that need to know the
+     network address of the product. If a service is multi-homed one
+     working address should be returned.
+     </P>
+
+     <P>
+      setConfig: <BR>Provides to the admin implementations access to the
+      TCK Config. This method is called by the TCK Config when it creates
+      the BasicAdmin. This is called before any other admin calls except
+      for the constructor.
+     </P>
+
+     <PRE>
+     public interface BasicServiceAdmin extends BasicAdmin {
+      String CATEGORY = service; 
+
+      ServiceItem pickService(ServiceItem[] services) throws RemoteException;
+      ServiceTemplate getTemplate() throws RemoteException; 
+     } 
+     </PRE>
+
+     <P> 
+     BasicServiceAdmin's methods have the following functions:
+     </P>
+
+     <P>
+     pickService: <BR>Given an array of ServiceItem this method should return
+     the ServiceItem of the service being tested or it should return null
+     if the service isn't in the array.
+     </P>
+
+     <P>
+     getTemplate: <BR>Implementations of this method should return a template
+     that matches the service being tested. It doesn't need to be exact but
+     the more exact it is the more efficient the testing is.
+     </P>
+
+     <P>
+     A default abstract implementation of the above interfaces is provided
+     in the class
+     <CODE>com.sun.jini.test.harness.QATestServiceAdmin</CODE>. In most
+     cases the methods provided by this class will be adequate.
+     </P>
+
+     </OL>
+
+     </P>
+
+
+     <P>
+     The Framework has a single object that provides all the utility
+     methods offered to test writers. The class of the object is
+     <CODE>com.sun.jini.test.harness.QATestUtil</CODE>. This class
+     publishes methods for test writers to request services, retrieve test
+     parameters, and perform reporting functions.
+     </P>
+
+     <P>
+     Also provided is a text file that serves as a template from which new
+     tests can written. For more information please read the <EM>How to Write
+     a Test</EM> document.
+     </P>
+
+  </P>
+
+  <LI><H3>How to Run Tests</H3></LI>
+  <P>
+  A QA test is run inside of a test harness that is supplied by the
+  TCK. The harness is implemented by the
+  <CODE>com.sun.jini.tck.harness.Runner</CODE> class and its operation is
+  transparent to the user. The <CODE>Runner</CODE> passes the command line
+  arguments and sets up the list of tests to run. There is a class server
+  integrated into the test harness. The harness starts the class server to
+  serve the class files and then runs the tests. The class server defaults
+  to port 8080 and there is currently no way to change this. The directory
+  defaults to the property com.sun.jini.tck.installDir with the string
+  "/lib/dl" appended. There is no way to prevent the TCK from starting up
+  this class server.
+  </P>
+  <DL>
+  <DT>
+  The structure of the command line used to start the <CODE>Runner</CODE>
+  is as follows:
+  </DT>
+  <DD>
+  java -Djava.security.policy=a com.sun.jini.tck.harness.Runner
+  <EM>ConfigFileName</EM> [-categories a,b] [-tests a,b] [-noduplicates] 
+  </DD>
+  </DL>
+  <P>
+  <UL>
+  <LI><P>ConfigFileName: This is the only mandatory argument. It tells the TCK
+  where to find its Config file.</P></LI>
+
+  <LI><P>categories: This argument specifies what categories the current
+  service being tested is in. The category is a string that should be
+  indicative of the type of entity being tested. For example, a JoinManager
+  test might be under category "joinmanager" since it is a utility
+  class. Outrigger tests should probably be categorized under "javaspaces"
+  and Mahalo tests should be categorized under "transactionmanager" since
+  they are both services that implement those respective interface
+  specifications. 
+  </P>
+  <P>
+  All the characters of a category string must be in lower case. The
+  categories are specified in a comma separated list with no
+  spaces. Categories are returned to the harness by implementing the QATest
+  interface method getCategories() which returns a String of
+  categories. (See section <EM>"How to Write a Test"</EM> earlier in this
+  document.</P></LI>
+
+  <LI><P>tests: This argument specifies the list of tests that the user
+  selects to run. They are specified in a comma separated list. The list
+  can contain both fully qualified class names and test sets that are
+  specified as a Property in the TCK Config file. A test set is simply a comma
+  delimited string of tests that are placed in the TCK Config properties file.
+  Sets are allowed so that tests that test a certain subset of
+  functionality can be grouped by the testers and included as needed, such
+  as discovery related tests or registration related tests. Also using sets
+  allows a notational convenience that allows many tests to be specified on
+  the command line in a compact format. The sets are indicated by starting
+  with Set: (this is not case sensitive). When a set is found in the test
+  list the corresponding property is read in: it is of the same format as
+  the command line, containing either tests or sets. For example:
+  </P>
+  <P>
+  <CODE>
+  -tests com.sun.jini.tck.test.RegistrationTest,Set:my.tests 
+  </CODE>
+  </P>
+  and in the properties file: 
+  <P>
+  <CODE>
+  my.tests=com.sun.jini.tck.test.MultiRegistrationTest 
+  </CODE>
+  </P>
+  <P>
+  would run both the RegistrationTest and the MultiRegistrationTest. This
+  expansion of sets continues until either there are no more sets to expand
+  or the Runner decides that there is an infinite expansion in the sets. An
+  infinite expansion can occur when one set includes another set and vice
+  versa. For examples consider the following properties:
+  <P>
+  my.tests01=com.sun.jini.tck.test.MultiRegistrationTest,Set:my.tests02<BR>
+  my.tests02=com.sun.jini.tck.test.RegistrationTest,Set:my.tests01
+  </P>
+  <P>
+  The above two lines are an error because they will cause an infinite
+  expansion. 
+  </P>
+  <P>
+  If an undefined property is in one of the lists it is skipped.</LI>
+  </P>
+  <LI><P>noduplicates: This flag specifies that each test should be run
+  once even if the test appears more than once on the command line or in
+  the test sets. The default behavior is to have the test run once for each
+  appearance.</P></LI>
+
+  <LI><P>Any other command line arguments at the end are used to override
+  the default values of the test(s) being run.</P></LI>
+
+  </UL>
+  </P>
+
+  <LI><H3>How the List of Tests to be run is determined</H3></LI>
+  <P>
+   The list of tests is determined by checking what tests were specified on
+   the command line. If none were specified on the command line all of the
+   tests for the category are put in the list. Unfortunately, the list of
+   all tests is hard coded in the TCK and includes only the well known TCK
+   tests. Test writers will therefore always include at least one test or
+   test set on the the command line. If some tests were specified on the
+   command line then these tests are checked to make sure that they work
+   for the category. Only tests applicable to the category are added to the
+   list of tests to be run. If a specified test does not apply to the
+   current category a message is displayed saying that the test has been
+   skipped.
+  </P>
+
+  <LI><H3>Support for Parameter Passing</H3></LI>
+  <P>
+  The use of parameter passing when writing tests is encouraged. Tests often
+  encapsulate state variables which determine various operating parameters
+  such as lease request durations, process timeouts, etc. It is recommended
+  that such state variables be initialized via command line parameters
+  rather than hard-coded. This allows test runners (who often are not the
+  test writers) to easily alter the operating parameters if necessary. 
+  </P>
+  <P>
+  Parameters are passed in one of three ways which form a hierarchy. A
+  parameters can be passed into a test from the command line as a
+  <EM><CODE>-keyword value</CODE></EM> pair or the value for a parameter
+  may be stored in a Properties file as <CODE>keyword=value</CODE> or the
+  parameters may be supplied in the code of the test itself. Command line
+  arguments override values in the Properties file which override values
+  passed directly from the test code. The test must have prior knowledge of
+  the keywords it is looking for and must be able to interpret the semantic
+  meaning of the values it retrieves.
+  </P>
+  <P>
+  In addition there is a hierarchy of Properties files. There is the
+  so-called <EM>TCK Config</EM> property file that is associated with each
+  invocation of the TCK Runner. The name of the Config file is passed into
+  the Runner from the command line (See the "How to Run Tests" section
+  above). Also, each test can be associated with its own private property
+  file. The name of this property file is specified in the TCK Config file
+  (see section entitled <EM>Properties Files</EM> below for details). The
+  property values in this "test specific" property file override those
+  values in the TCK Config file.
+  </P>
+  <OL>
+  <LI>Command Line Arguments</LI>
+  <P>
+  A command line argument has the format <CODE><EM>-keyword
+  value</EM></CODE>. The following definitions apply:
+  </P>
+  <DL>
+     <DT>
+     <STRONG>keyword : </STRONG>
+     </DT>
+     <DD>
+     <P>
+     A keyword should be chosen to give some idea about the meaning of its
+     value. For example, LeaseRequestDuration would be a keyword whose
+     associated value would represent the amount of time the test requests
+     for the leases it obtains. No whitespace is allowed to appear in the
+     keyword.
+     </P>
+     </DD>
+     <DT>
+     <STRONG>value : </STRONG>
+     </DT>
+     <DD>
+     <P>
+     The value is a String representation of any valid value which can be
+     assigned to the state variable represented by its keyword. If the
+     value appears in quotes then white space may appear in the value. If
+     the value is not valid an Exception is thrown.
+     </P>
+     </DD>
+  </DL>
+    
+  </P>
+  <LI>Properties files</LI>
+  <P>
+  It is not required that the test writer supply a Properties file for
+  every or even any test. The ability to read test parameters from a
+  Properties file is supplied primarily as a convenience. There are two
+  reasons why Properties files will be used.
+  </P>
+  <P>
+  <OL>
+  <LI>Properties files are required for automating test runs when using the
+  TCK. This automation is the responsibility of QA Engineering and
+  is not of concern to the test writer.</LI> 
+  <LI>Properties files are required when the same test needs to be run
+  several times with a varying set of parameters. The TCK allows only one
+  set of parameters per test per run. To run the same test three times with
+  three different sets of parameters requires three separate invocations of
+  the TCK using three different property files.</LI>
+  </OL>
+  </P>
+  </OL>
+  </P>
+  <P>
+  A test captures parameters by using methods of the
+  <CODE>com.sun.jini.test.harness.QATestUtil</CODE> object. These methods
+  attempt to retrieve parameters first from the command line, and then from
+  the test's private property file, and failing that from the TCK Config
+  file, and failing that from the default value passed into the method from
+  the test code. This object provides the following methods for retrieving
+  QATest parameter values.  The test writer will define his/her own
+  keywords and the test must be written in such a manner as to be able to
+  interpret the semantic meaning of the values of the parameters it
+  captures.
+  </P>
+  <UL>
+
+  <LI>public int getIntParam(String keyword, int defaultVal)</LI>
+  <P>
+  This method will retrieve the value of the test parameter whose name
+  corresponds to the string contained in the input argument
+  <CODE>"keyword"</CODE> and whose value is of type 'int'. If the parameter
+  keyword does not exist, or if the string value of the parameter can not
+  be "cast" to the expected data type, then the default value will be
+  returned.
+  </P>
+
+  <LI>public long getLongParam(String keyword, long defaultVal)</LI>
+  <P>
+  This method will retrieve the value of the test parameter whose name
+  corresponds to the string contained in the input argument
+  <CODE>"keyword"</CODE> and whose value is of type 'long'. If the parameter
+  keyword does not exist, or if the string value of the parameter can not
+  be "cast" to the expected data type, then the default value will be
+  returned.
+  </P>
+
+  <LI>public float getFloatParam(String keyword, float defaultVal)</LI>
+  <P>
+  This method will retrieve the value of the test parameter whose name
+  corresponds to the string contained in the input argument
+  <CODE>"keyword"</CODE> and whose value is of type 'float'. If the parameter
+  keyword does not exist, or if the string value of the parameter can not
+  be "cast" to the expected data type, then the default value will be
+  returned.
+  </P>
+
+  <LI>public double getDoubleParam(String keyword, double defaultVal)</LI>
+  <P>
+  This method will retrieve the value of the test parameter whose name
+  corresponds to the string contained in the input argument
+  <CODE>"keyword"</CODE> and whose value is of type 'double'. If the parameter
+  keyword does not exist, or if the string value of the parameter can not
+  be "cast" to the expected data type, then the default value will be
+  returned.
+  </P>
+
+  <LI>public String getStringParam(String keyword, String defaultVal)</LI>
+  <P>
+  This method will retrieve the value of the test parameter whose name
+  corresponds to the string contained in the input argument
+  <CODE>"keyword"</CODE> and whose value is of type 'String'. If the parameter
+  keyword does not exist, or if the string value of the parameter can not
+  be "cast" to the expected data type, then the default value will be
+  returned.
+  </P>
+
+  <LI>public String getFilenameParam(String keyword, String defaultVal)</LI>
+  <P>
+  This method will retrieve the value of the test parameter whose name
+  corresponds to the path and filename contained in the input argument
+  <CODE>"keyword"</CODE> and whose value is of type 'String'. All path
+  separator characters are substituted appropriately depending upon the
+  operating system in which the JVM is running. On Non-windows platforms,
+  any leading drive specification is striped off. On Windows platforms if
+  there is no drive specification then the current drive is appended by
+  default. If the parameter keyword does not exist, or if the string value
+  of the parameter can not be "cast" to the expected data type, then the
+  default value will be returned.
+  </P>
+
+  <LI>public boolean getBooleanParam(String keyword, boolean defaultVal)</LI>
+  <P>
+  This method will retrieve the value of the test parameter whose name
+  corresponds to the string contained in the input argument
+  <CODE>"keyword"</CODE> and whose value is of type 'boolean'. If the parameter
+  keyword does not exist, or if the string value of the parameter can not
+  be "cast" to the expected data type, then the default value will be
+  returned.
+
+  </P>
+  </UL>
+
+  <P>
+  Each test must supply a default value for each of its test parameters. In
+  other words, every QA test must run without the need to specify
+  any values for its parameters either as command line arguments or in a
+  Properties file. Therefore, it is required that a reasonable default
+  value for each parameter be supplied when using the
+  QATestParameter methods as described above.
+  </P>
+
+  <P>
+  The path and name of a test specific Properties file to be used when
+  running a test is specified in the TCK Config file as a property. The
+  property name is the test's fully qualified class name followed by
+  ".prop". For example given the test
+  <CODE>com.sun.jini.tck.test.MultiCastTest</CODE>, the entry in the
+  Properties file would be :
+
+  <P>
+  <CODE>
+  com.sun.jini.tck.test.MultiCastTest.prop=
+  /vob/qa/src/com/sun/jini/discovery/MCast01.prop
+  </CODE>
+  </P>
+
+  <P>
+  The only naming convention required for QATest Properties files
+  is that the extension be ".prop". The file name is anything that makes
+  logical sense to the creator.
+  </P>
+
+  <P>
+  It is highly recommended that tests be organized into suites. The tests
+  in a suite correspond to a TCK test set. Each TCK Test Set should have a
+  corresponding TCK Config file associated with it. The TCK Config file
+  name should be the same as the Test Set and the extension should be
+  <CODE>".cfg"</CODE>. For example a set of JavaSpaces QA tests might
+  belong to the Set JavaSpacesConfTests and the associated TCK Config file
+  would be JavaSpacesConfTests.cfg. A set of tests that were dependent upon
+  a particular implementation of JavaSpaces might reside in another Set
+  called OutriggerImplTests and the TCK Config file would be
+  OutriggerImplTests.cfg.
+  </P>
+
+  <LI><H3>Selecting a JDK</H3></LI>
+  <P>
+  The JDK with which tests are run is chosen by default from the PATH
+  environment variable. There is a command line keyword called
+  <CODE>jdk</CODE> which can be used to override this default. The value of
+  the argument is the path where the <CODE>bin</CODE> and <CODE>lib</CODE>
+  directories of the JDK reside. For example given:<BR>
+  </P>
+  <P> 
+  <CODE>-jdk /js/files/JDK1.3</CODE></BR> </P><P> the default
+  directories for the JVM and the JDK jar files would be
+  <CODE>/js/files/JDK1.3/bin</CODE> and <CODE>/js/files/JDK1.3/lib</CODE>
+  respectively. This keyword may only be expressed as a command line
+  argument can not be expressed as a property within the TCK Config file.
+  </P>
+  <P>
+  Special reporting functions supplied as part of the framework detect
+  which JDK is being used and print out the JDK version as part of the
+  standard reporting information.
+  </P>
+
+  <LI><H3>Requesting Auxiliary Services</H3></LI>
+  <P>
+  Often, a test will require services other than the entity under test to
+  accomplish its testing function. A test does not know any of the
+  particulars of requesting an auxiliary service. Instead, a test only
+  knows an interface Class which corresponds to the service it wishes to
+  start. The test issues a request to the framework which will ensure that
+  the requested service is started or that the requested service has
+  already been started. The interface Class simply corresponds to a test
+  parameter value which specifies the class name of the service
+  implementation to be started. If the service is unavailable or can not be
+  started an Exception is thrown. Special test parameters are available to
+  control how services are obtained. These parameters appear in the
+  appendix at the end of this document.
+  </P>
+  <P>
+  In order to start and stop services generically, two assumptions are
+  made.
+  <OL>
+  <BR> 
+  <LI>The order of the service's arguments are standard. That is the
+  arguments are passed to the service in the following order:<BR>
+  <CODE>codebase, policyfile, persistencepath, group(s), others
+  ... <BR></CODE></LI>
+
+  <BR> 
+  <LI>The entity under test implements the
+  <CODE>com.sun.jini.admin.DestroyAdmin</CODE> interface.</LI>
+  </P>
+  <P>
+  An auxiliary service is started using the QATestUtil method
+  requestService(Class serviceInterfaceClass). This method takes the
+  interface class of the requested service (for example
+  net.jini.space.JavaSpace.class). The actual implementation class of the
+  service that is started is specified with a command line argument or a
+  property in the test's Properties file. The keyword is (for example)
+  <CODE>com.jini.space.JavaSpace</CODE> and the value is a string
+  expressing the fully specified class name of the service class such as
+  <CODE>com.sun.jini.outrigger.FrontEndSpace</CODE>. So from the command
+  line one would enter</BR>
+  <CODE>-net.jini.space.JavaSpace
+  com.sun.jini.outrigger.FrontEndSpace</CODE>
+  <BR>
+  or from a Properities file:<BR>
+  net.jini.outrigger.JavaSpace=com.sun.jini.outrigger.FrontEndSpace  
+  </P>
+
+  <LI><H3>Cleaning Up Auxiliary Services</H3></LI>
+  <P>
+  The framework supplies a method to clean up auxiliary services when a
+  test has completed. The framework keeps track of all services that the
+  test requests and will clean up all such services when the test
+  completes. There is a special flag that can be passed to tests that is
+  recognized by the framework that prevents the cleanup from happening even
+  though the test requested it. This allows auxiliary services to live
+  across multiple tests. The cleaning up of an auxiliary service requires
+  that the service implement the DestroyAdmin interface. If this interface
+  is not implemented, an Exception is thrown and the test fails. Special
+  test parameters are available to control how services are
+  destroyed. These parameters appear in the appendix at the end of this
+  document.
+  </P>
+
+  <LI><H3>Special Lease Tracking Facilities</H3></LI>
+  <P>
+  One of the more time consuming tasks in writing Jini tests is keeping
+  track of leases. The framework provides methods to keep track of
+  requested leases and then cancels any still active leases automatically
+  when the test exits. This can help to ensure a clean environment for the
+  next test, especially in the case where services have been left up and
+  running. Ensuring the cancellation of leases also saves system resources.
+  </P>
+  <P>
+  The QATest object provides a method trackLease(Lease l) which adds a
+  lease to a special lease tracking list. When the tearDown() method is
+  called by the harness, the cancelTrackedLeases() method is called
+  effectively cancelling all the leases on the tracking list.
+  </P>
+
+  <LI><H3>Reporting Support</H3></LI>
+  <P>
+  There are two types of reporting information. One type which is generated
+  by the framework and the other type which is generated by the test. The
+  framework can be configured to provide pre-test (report header)
+  information and post-test (report footer) information. This information
+  is primarily used by QA engineers and will not be displayed
+  during initial testing by the engineers who are writing the tests.
+  </P>
+  <P>
+  There exist three PrintWriter objects for output of testing
+  information. These are 
+  <UL>
+  <LI><CODE>QATest.log</CODE> (the logging file)</LI>
+  <LI><CODE>QATest.err</CODE> (standard error)</LI>
+  <LI><CODE>QATest.out</CODE> (standard output)</LI>
+  </UL>
+  </P>
+  <P>
+  By default all PrintWriters are assigned as follows:
+  <TABLE BORDER>
+  <TR><TD>QATest.log</TD><TD>System.out</TD></TR>
+  <TR><TD>QATest.out</TD><TD>System.out</TD></TR>
+  <TR><TD>QATest.err</TD><TD>System.err</TD></TR>
+  </TABLE>
+  These default assignments can be redirected to a file by associating a
+  filename with the following test parameters either on the command line or
+  in the TCK Config properties file.
+  <UL>
+  <LI>log</LI>
+  <LI>out</LI>
+  <LI>err</LI>
+  </UL>
+  From the command line one could enter <CODE>-log
+  /files/tmp/temp.txt</CODE> to redirect all output of the PrintWriter log
+  to the file /files/tmp/temp.txt. Likewise this could be accomplished from
+  the TCK Config file by including a line<BR>
+  <CODE>log=/files/tmp/temp.txt</CODE>
+  </P>
+  <P>
+  It is hoped that test writer will be generous in the use of these Writers
+  to aid QA Engineering in the detection of logic faults. As a
+  suggestion, a message denoting the all important events in a test should
+  be output to QATest.log. Any information about error conditions
+  should be output to err. QATest.out should be used for temporary
+  debugging information which is used during test development.
+  </P>
+  <P>
+  The framework provides methods for reporting on the following:
+     <OL>
+     <LI>The command line that was used to start the harness</LI>
+     <LI>The names of all tests run</LI>
+     <LI>Test start date and time</LI>
+     <LI>Command line argument values used by the test</LI>
+     <LI>Version of the JDK</LI>
+     <LI>Operating system on which TCK is running</LI>
+     <LI>Test end date and time</LI>
+     <LI>Total elapsed time for test</LI>
+     </OL>
+  </P>
+  <P>
+  The above information is produced automatically only if the
+  <CODE>fullReporting</CODE> parameter is set to
+  <CODE>true</CODE>. Reporting control parameters are listed in the
+  appendix at the end of this document
+  </P>
+
+  <LI><H3></H3></LI>
+  <P>
+
+  </P>
+
+  </UL>
+
+  <CENTER>
+
+  <H2>Appendix</H2>
+  <P>
+
+  <H3>Parameters for Control of Starting and Stopping Auxiliary Services<H3>
+
+      <TABLE BORDER>
+      <TR BGCOLOR="99CCFF">
+      <TH>Parameter Name</TH><TH>Description</TH><TH>Default</TH>
+      </TR>
+     
+      <TR>
+      <TD><EM>serviceInterfaceClass</EM>.implClass</TD>
+      <TD>The Class that implements the serviceInterfaceClass</TD>
+      <TD>null</TD>
+      </TR>
+     
+      <TR>
+      <TD><EM>serviceInterfaceClass</EM>.codebase</TD><TD>codebase URL</TD>
+      <TD>InetAddress.getLocalHost().getHostName() + ":8080"</TD>
+      </TR>
+     
+      <TR>
+      <TD><EM>serviceInterfaceClass</EM>.classpath</TD>
+      <TD>where service loads classes from</TD>
+      <TD>qaTest.util.getStringArgValue("com.sun.jini.tck.installDir",
+          null) + "/lib"</TD>
+      </TR>
+     
+      <TR>
+      <TD><EM>serviceInterfaceClass</EM>.policyFilePath</TD>
+      <TD>Security policy file location</TD>
+      <TD>qaTest.util.getStringArgValue("com.sun.jini.tck.installDir", null)
+	  + "/config/tck.policy"</TD>
+      </TR>
+     
+      <TR>
+      <TD><EM>serviceInterfaceClass</EM>.persistence</TD>
+      <TD>Where service will store files to support persistency</TD>
+      <TD>randomly generated</TD>
+      </TR>
+     
+      <TR>
+      <TD><EM>serviceInterfaceClass</EM>.group</TD>
+      <TD>Group of the Lookup services to join (should be unique).</TD>
+      <TD>InetAddress.getLocalHost().getHostName()+currentTimeMillis()</TD>
+      </TR>
+     
+      <TR>
+      <TD><EM>serviceInterfaceClass</EM>.cmdLineArgs</TD>
+      <TD>Any additional command line arguments not covered by the above</TD>
+      <TD>new String()</TD>
+      </TR>
+     
+      <TR>
+      <TD>servicesAlreadyStarted</TD>
+      <TD>If the value has been set to true when requesting a service, the
+      utility code assumes that all services have been pre-started and will
+      perform discovery but skip service startup code.</TD>
+      <TD>false</TD>
+      </TR>
+
+      <TR>
+      <TD>belayServiceShutdown</TD>
+      <TD>If set to true, Exec'd services will not be shutdown
+      automatically</TD>
+      <TD>false</TD>
+      </TR>
+     
+      </TR>
+      </TABLE> 
+
+  </P>
+
+  <P>
+
+  <H3>Parameters for Control of Reporting Functions<H3>
+
+      <TABLE BORDER>
+      <TR BGCOLOR="99CCFF">
+      <TH>Parameter Name</TH><TH>Description</TH><TH>Default</TH>
+      </TR>
+     
+      <TR>
+      <TD>fullReporting</TD><TD>Enable output of standard test report
+      headers and footers.</TD>
+      <TD>false</TD>
+      </TR>
+     
+      <TR>
+      <TD>log</TD><TD>File to which output is redirected for the
+      PrintWriter QATest.log</TD>
+      <TD>System.out</TD>
+      </TR>
+     
+      <TR>
+      <TD>out</TD><TD>File to which output is redirected for the
+      PrintWriter QATest.out</TD>
+      <TD>System.out</TD>
+      </TR>
+     
+      <TR>
+      <TD>err</TD><TD>File to which output is redirected for the
+      PrintWriter QATest.err</TD>
+      <TD>System.err</TD>
+      </TR>
+     
+      </TABLE> 
+
+  </P>
+
+  </CENTER>
+
+
+</BODY>
+</HMTL>
+
+
+
+
+

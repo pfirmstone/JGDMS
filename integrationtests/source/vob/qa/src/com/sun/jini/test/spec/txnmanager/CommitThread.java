@@ -1,0 +1,50 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.sun.jini.test.spec.txnmanager;
+import net.jini.core.transaction.*;
+import java.rmi.RemoteException;
+
+
+class CommitThread extends Thread {
+    long timeOut;
+    Transaction tr;
+
+    public CommitThread(Transaction tr) {
+        this.tr = tr;
+    }
+
+    public CommitThread(Transaction tr, long timeOut) {
+        this(tr);
+
+        if (timeOut < 0) {
+            throw new IllegalArgumentException("timeout must be non-negative");
+        }
+        this.timeOut = timeOut;
+    }
+
+    public void run() {
+        try {
+            if (timeOut > 0) {
+                tr.commit(timeOut);
+            } else {
+                tr.commit();
+            }
+        } catch (TransactionException bte) {
+        } catch (RemoteException re) {}
+    }
+}

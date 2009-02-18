@@ -1,0 +1,184 @@
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}phoenix.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.qa.harness.harnessJar}
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+
+};
+
+grant codebase "file:${com.sun.jini.qa.harness.testJar}
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+
+};
+
+//not sure the following is necessary, but just in case
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Norm"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+      permission com.sun.jini.phoenix.ExecOptionPermission "*";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+        // for a start test
+      permission com.sun.jini.phoenix.ExecPermission "/bin/javax";
+
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+     permission com.sun.jini.phoenix.MonitorPermission
+                "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+     permission com.sun.jini.phoenix.MonitorPermission
+                "java.rmi.activation.ActivationMonitor.*";
+
+
+};
+
+
+//Kerberos Principals
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${fiddler}"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${mercury}"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${outrigger}"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${norm}"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
+{
+      permission com.sun.jini.phoenix.ExecOptionPermission "*";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+        // for a start test
+      permission com.sun.jini.phoenix.ExecPermission "/bin/javax";
+
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
+{
+      permission com.sun.jini.phoenix.SystemPermission
+                 "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+      permission com.sun.jini.phoenix.SystemPermission
+                 "java.rmi.activation.ActivationSystem.*";
+     permission com.sun.jini.phoenix.MonitorPermission
+                "net.jini.security.proxytrust.ProxyTrust.getProxyVerifier";
+     permission com.sun.jini.phoenix.MonitorPermission
+                "java.rmi.activation.ActivationMonitor.*";
+
+};
+
+

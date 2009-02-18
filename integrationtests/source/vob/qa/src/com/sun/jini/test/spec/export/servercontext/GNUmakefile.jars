@@ -1,0 +1,42 @@
+#/*
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+# 
+#      http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#*/
+
+QA_NON_NULL_SERVERCONTEXT		=  qa1-export-servercontext-tests/non-null-context
+QA_NULL_SERVERCONTEXT			=  qa1-export-servercontext-tests/null-context
+QA_PROVIDERS_PARSING_SERVERCONTEXT	=  qa1-export-servercontext-tests/providers-parsing
+
+QASERVERCONTEXT_JARS = qa1-export-servercontext-tests-non-null.jar \
+                       qa1-export-servercontext-tests-null.jar \
+                       qa1-export-servercontext-tests-providers-parsing.jar
+
+QAJARS     +=	$(QASERVERCONTEXT_JARS)
+
+qa1-export-servercontext-tests-non-null.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(MANIFESTDIR)/$(QA_NON_NULL_SERVERCONTEXT); $(JAR) cfv $(QAJARSDIR)/$@ -C . `find META-INF ! -name .svn ! -type d | grep -v /.svn`
+
+qa1-export-servercontext-tests-null.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(MANIFESTDIR)/$(QA_NULL_SERVERCONTEXT); $(JAR) cfv $(QAJARSDIR)/$@ -C . `find META-INF ! -name .svn ! -type d | grep -v /.svn`
+
+qa1-export-servercontext-tests-providers-parsing.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(MANIFESTDIR)/$(QA_PROVIDERS_PARSING_SERVERCONTEXT); $(JAR) cfv $(QAJARSDIR)/$@ -C . `find META-INF ! -name .svn ! -type d | grep -v /.svn`

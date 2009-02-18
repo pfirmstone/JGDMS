@@ -1,0 +1,2 @@
+testClass=ConstructorTest
+testCategories=jeri,jeri_spec

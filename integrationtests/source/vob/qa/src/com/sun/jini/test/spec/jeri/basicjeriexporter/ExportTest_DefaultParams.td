@@ -1,0 +1,2 @@
+testClass=ExportTest_DefaultParams
+testCategories=jeri,jeri_spec

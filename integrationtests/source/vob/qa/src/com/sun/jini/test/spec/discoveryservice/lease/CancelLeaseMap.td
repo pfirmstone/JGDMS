@@ -1,0 +1,3 @@
+testClass=CancelLeaseMap
+testCategories=discoveryservice,discoveryservice_spec,discoveryservicelease
+include0=../discoveryservice.properties

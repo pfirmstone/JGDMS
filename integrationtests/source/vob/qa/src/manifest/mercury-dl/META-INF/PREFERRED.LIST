@@ -1,0 +1,25 @@
+PreferredResources-Version: 1.0
+
+Preferred: false
+
+Name: com/sun/jini/landlord/-
+Preferred: true
+
+Name: com/sun/jini/lease/-
+Preferred: true
+
+Name: com/sun/jini/proxy/-
+Preferred: true
+
+Name: com/sun/jini/test/impl/mercury/DisableListenerImpl_Stub.class
+Preferred: true
+
+Name: com/sun/jini/test/impl/mercury/DisableNSOListenerImpl_Stub.class
+Preferred: true
+
+Name: com/sun/jini/test/impl/mercury/TestGeneratorImpl_Stub.class
+Preferred: true
+
+Name: com/sun/jini/test/impl/mercury/TestListenerImpl_Stub.class
+Preferred: true
+

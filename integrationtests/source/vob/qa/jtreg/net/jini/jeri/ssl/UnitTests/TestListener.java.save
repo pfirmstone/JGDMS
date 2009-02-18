@@ -1,0 +1,219 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* test -- Disabled for now.  -tjb[28.Apr.2003]
+ * @summary Test the SecureServerEndpointListener implementation.
+ * @author Tim Blackman
+ * @library ../../../unittestlib
+ * @build UnitTestUtilities BasicTest Test
+ * @build TestUtilities
+ * @run main/othervm/policy=policy TestListener
+ */
+
+import com.sun.jini.temp.davis.core.security.*;
+import com.sun.jini.temp.davis.securejeri.*;
+import com.sun.jini.temp.davis.securejeri.connection.*;
+import java.io.*;
+import java.security.cert.Certificate;
+import java.util.*;
+import javax.security.auth.Subject;
+import javax.security.auth.x500.*;
+
+public class TestListener extends TestUtilities {
+    static final boolean CLIENT_AUTH = true;
+    static final boolean NO_CLIENT_AUTH = false;
+
+    static final boolean OK = true;
+    static final boolean THROWS = false;
+
+    /** All tests */
+    public static Collection tests = new ArrayList();
+
+    /** Run all tests */
+    public static void main(String[] args) {
+	test(tests);
+    }
+
+    static SecureServerEndpointListener getListener(boolean clientAuth,
+						    Subject subject)
+    {
+	try {
+	    SecureServerEndpoint endpoint =
+		createServerEndpoint(clientAuth, subject);
+	    return endpoint.listen(
+		new SecureRequestHandler() {
+		    public void handleRequest(SecureInboundRequest r) { }
+		});
+	} catch (IOException e) {
+	    throw unexpectedException(e);
+	}
+    }
+
+    static SecureEndpoint getEndpoint(boolean clientAuth,
+				      Subject subject)
+    {
+	return getListener(clientAuth, subject).getEndpoint();
+    }
+
+    static abstract class LocalTest implements Test {
+	private String name;
+	boolean clientAuth;
+	Subject subject;
+	SecureServerEndpointListener listener;
+
+	LocalTest(String name, boolean clientAuth, Subject subject) {
+	    this.name = name +
+		"\n  clientAuth=" + clientAuth +
+		"\n  subject=" + subjectString(subject);
+	    this.clientAuth = clientAuth;
+	    this.subject = subject;
+	    tests.add(this);
+	}
+
+	public String name() {
+	    return name;
+	}
+    }
+    
+    /* -- Test close() -- */
+
+    static {
+	tests.add(new TestClose());
+    }
+
+    static class TestClose extends TestUtilities implements Test {
+	private SecureEndpoint endpoint;
+	private final List inboundRequests =
+	    Collections.synchronizedList(new ArrayList());
+	private final List outboundRequests =
+	    Collections.synchronizedList(new ArrayList());
+
+	public static void main(String[] args) {
+	    int count = Integer.getInteger("count", 10).intValue();
+	    while (count-- > 0) {
+		test(new TestClose());
+	    }
+	}
+
+	public String name() {
+	    return "TestClose";
+	}
+
+	public Object run() throws IOException {
+	    SecureServerEndpoint serverEndpoint =
+		createServerEndpoint(NO_CLIENT_AUTH, serverSubject);
+	    SecureServerEndpointListener listener =
+		serverEndpoint.listen(new SecureRequestHandler() {
+		public void handleRequest(SecureInboundRequest request) {
+		    inboundRequests.add(request);
+		}
+	    });
+	    endpoint = listener.getEndpoint();
+
+	    outboundRequests.add(
+		endpoint.newRequest(
+		    endpoint.getCallContext(
+			requirements(
+			    Confidentiality.NO, ServerAuthentication.YES),
+			null)));
+	    outboundRequests.add(
+		endpoint.newRequest(
+		    endpoint.getCallContext(
+			requirements(
+			    Confidentiality.YES, ServerAuthentication.YES),
+			null)));
+	    outboundRequests.add(
+		endpoint.newRequest(
+		    endpoint.getCallContext(
+			requirements(ServerAuthentication.NO), null)));
+
+	    listener.close();
+	    return listener;
+	}
+	
+	public void check(Object result) throws IOException {
+	    for (int i = inboundRequests.size(); --i >= 0; ) {
+		SecureInboundRequest request =
+		    (SecureInboundRequest) inboundRequests.get(i);
+		checkClosed(request.getRequestInputStream(),
+			    "request input stream");
+		checkClosed(request.getResponseOutputStream(),
+			    "response output stream");
+	    }
+	    for (int i = outboundRequests.size(); --i >= 0; ) {
+		SecureOutboundRequest request =
+		    (SecureOutboundRequest) outboundRequests.get(i);
+		checkClosed(request.getRequestOutputStream(),
+			    "request output stream");
+		checkClosed(request.getResponseInputStream(),
+			    "response input stream");
+	    }
+	    SecureCallContext context = endpoint.getCallContext(
+		SecurityConstraints.EMPTY, null);
+	    try {
+		endpoint.newRequest(context);
+		throw new FailedException("Listener is still accepting calls");
+	    } catch (IOException e) {
+		debugPrint(30, "Got exception for newRequest: " + e);
+	    }
+	}
+    }
+
+    /* -- Test getEndpoint() -- */
+
+    static {
+	new TestGetEndpoint(
+	    "null subject", NO_CLIENT_AUTH, null);
+	new TestGetEndpoint(
+	    "subject with credentials", NO_CLIENT_AUTH, serverSubject);
+	new TestGetEndpoint(
+	    "subject with credentials", CLIENT_AUTH, serverSubject);
+    }
+
+    static class TestGetEndpoint extends LocalTest {
+
+	TestGetEndpoint(String name, boolean clientAuth, Subject subject) {
+	    super(name, clientAuth, subject);
+	}
+
+	public Object run() {
+	    listener = getListener(clientAuth, subject);
+	    return listener.getEndpoint();
+	}
+	
+	public void check(Object result) {
+	    try {
+		SecureEndpoint compareTo = listener.getEndpoint();
+		if (!result.equals(compareTo)) {
+		    throw new FailedException("Should equal: " + compareTo);
+		}
+		try {
+		    Object serialized = serialized(result);
+		    if (!compareTo.equals(serialized)) {
+			throw new FailedException(
+			    "Serialized object is not equal: " + serialized);
+		    }
+		} catch (Exception e) {
+		    throw new FailedException("Unexpected exception: " + e);
+		}
+	    } finally {
+		listener.close();
+	    }
+	}
+    }
+}

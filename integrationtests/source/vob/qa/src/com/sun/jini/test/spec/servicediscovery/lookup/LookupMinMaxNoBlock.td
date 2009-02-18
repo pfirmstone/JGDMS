@@ -1,0 +1,4 @@
+testClass=LookupMinMaxNoBlock
+testCategories=servicediscovery,servicediscovery_spec,servicediscoverylookup,specservicediscovery,specservicediscoverylookup
+include0=../servicediscovery.properties
+include1=com/sun/jini/test/share/lookups3_0srvcs11_0attrs0_0.properties

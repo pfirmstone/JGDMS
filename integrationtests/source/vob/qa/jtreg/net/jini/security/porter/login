@@ -1,0 +1,8 @@
+test3 {
+    com.sun.security.auth.module.Krb5LoginModule required
+	principal="testServer1@DAVIS.JINI.SUN.COM"
+	useKeyTab="true"
+	keyTab="${test.src}/keytab"
+	storeKey="true"
+	doNotPrompt="true";
+};

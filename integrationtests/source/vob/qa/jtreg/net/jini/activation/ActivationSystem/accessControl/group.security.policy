@@ -1,0 +1,21 @@
+keystore "file:${test.src}/keystore";
+
+grant codebase "file:${jsk.home}/lib/phoenix-group.jar" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
+  permission java.security.AllPermission;
+};
+
+grant {
+    permission java.net.SocketPermission "*:1024-", "connect,accept";
+    permission net.jini.security.AuthenticationPermission "javax.security.auth.x500.X500Principal \"CN=Server\" peer javax.security.auth.x500.X500Principal \"CN=Server\"", "connect,accept";
+    permission java.lang.RuntimePermission "getClassLoader";
+    // allow remote objects to call monitor's inactive method
+    permission com.sun.jini.phoenix.MonitorPermission "inactiveObject";
+};
+
+grant principal "server" {
+    permission com.sun.jini.phoenix.InstantiatorPermission "newInstance";
+};

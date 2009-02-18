@@ -1,0 +1,10 @@
+testClass=LoadClasses
+testCategories=loader,loader_spec
+loader.isHttp=true
+loader.httpPort=8087
+loader.requireDlPerm=false
+loader.annotator=true
+loader.classAnnotator=QATestClassAnnotation
+testjvmargs=-Djava.rmi.server.RMIClassLoaderSpi=com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider
+com.sun.jini.qa.harness.runkitserver=false 
+com.sun.jini.qa.harness.runjiniserver=false

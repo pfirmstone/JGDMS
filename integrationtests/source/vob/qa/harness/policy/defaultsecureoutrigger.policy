@@ -1,0 +1,123 @@
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}outrigger.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}transient-outrigger.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}outrigger-logstore.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}outrigger-snaplogstore.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}pro.zip" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant {
+    permission java.lang.RuntimePermission
+              "accessClassInPackage.sun.util.logging.resources";
+    permission java.util.PropertyPermission "*", "read";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Norm"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+//Kerberos Principals
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${fiddler}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${mercury}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${outrigger}"
+{
+      permission net.jini.security.AccessPermission "*";
+
+      /* for impl/mercury/InterOpTest */
+      permission net.jini.security.GrantPermission
+          "net.jini.security.AuthenticationPermission \"javax.security.auth.kerberos.KerberosPrincipal \\\"${outrigger}\\\"\", \"connect\"";
+      permission net.jini.security.AuthenticationPermission
+          "javax.security.auth.kerberos.KerberosPrincipal \"${outrigger}\"", "connect,accept";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${norm}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${group}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+
+

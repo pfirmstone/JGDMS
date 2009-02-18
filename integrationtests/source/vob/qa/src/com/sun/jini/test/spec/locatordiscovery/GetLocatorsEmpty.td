@@ -1,0 +1,4 @@
+testClass=GetLocatorsEmpty
+testCategories=locatordiscovery,locatordiscovery_spec,speclocatordiscovery
+include0=locatordiscovery.properties
+# No .prop in locatordiscovery.properties

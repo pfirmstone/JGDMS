@@ -1,0 +1,3 @@
+include0=mahalo.properties
+testClass=PrepareAndCommitExceptionTest5
+testCategories=txnmanager,txnmanager_impl

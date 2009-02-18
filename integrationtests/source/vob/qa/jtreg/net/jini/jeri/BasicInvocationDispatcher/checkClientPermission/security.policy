@@ -1,0 +1,21 @@
+grant codeBase "file:${java.home}/lib/ext/*" {
+	permission java.security.AllPermission;
+};
+
+grant {
+    permission java.lang.RuntimePermission "setSecurityManager";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=bob" {
+    permission java.security.SecurityPermission "foo";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=joe" {
+    permission TestPermission "foo";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=joe",
+      principal javax.security.auth.x500.X500Principal "CN=bob"
+{
+    permission java.security.SecurityPermission "bar";
+};

@@ -1,0 +1,459 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<!doctype html public "-//w3c//dtd html 4.0 transitional//en">
+<html>
+<head>
+   <meta http-equiv="Content-Type" content="text/html; charset=iso-8859-1">
+   <meta name="GENERATOR" content="Mozilla/4.7 [en] (X11; I; SunOS 5.7 sun4u) [Netscape]">
+   <title>JavaSpaces Requirements</title>
+</head>
+<body>
+&nbsp;
+<table BORDER COLS=4 WIDTH="100%" NOSAVE >
+<tr NOSAVE>
+<td WIDTH="20" NOSAVE>
+<center><b><i>ID</i></b></center>
+</td>
+
+<td WIDTH="700" NOSAVE>
+<center><b><i>JavaSpaces Requirements</i></b></center>
+</td>
+
+<td WIDTH="50" NOSAVE>
+<center><b><i>Section</i></b></center>
+</td>
+
+<td>
+<center><b><i>Comments</i></b></center>
+</td>
+</tr>
+
+<tr>
+<td>1.</td>
+
+<td>A write places a copy of an entry into the given JavaSpaces service.
+The Entry passed to the write is not affected by the operation.</td>
+
+<td>2.3</td>
+
+<td>write</td>
+</tr>
+
+<tr>
+<td>2.</td>
+
+<td>Each write operation places a new entry into the specified space, even
+if the same Entry object is used in more than one write.</td>
+
+<td>2.3</td>
+
+<td>write</td>
+</tr>
+
+<tr>
+<td>3.</td>
+
+<td>Each write invocation returns a Lease object that is lease milliseconds
+long.</td>
+
+<td>2.3</td>
+
+<td>write</td>
+</tr>
+
+<tr>
+<td>4.</td>
+
+<td>When the lease expires, the entry is removed from the space.</td>
+
+<td>2.3</td>
+
+<td>write</td>
+</tr>
+
+<tr>
+<td>5.</td>
+
+<td>You will get an IllegalArgumentException if the lease time requested
+is negative and not equal to Lease.ANY.</td>
+
+<td>2.3</td>
+
+<td>write</td>
+</tr>
+
+<tr>
+<td>6.</td>
+
+<td>If a write returns without throwing an exception, that entry is committed
+to the space, possibly within a transaction.</td>
+
+<td>2.3</td>
+
+<td>write</td>
+</tr>
+
+<tr>
+<td>7.</td>
+
+<td>If any other exception rather then RemoteException is thrown, the entry
+was not written into the space.</td>
+
+<td>2.3</td>
+
+<td>(?)*** write</td>
+</tr>
+
+<tr>
+<td>8.</td>
+
+<td>Writing an entry into a space might generate notifications to registered
+objects.</td>
+
+<td>2.3</td>
+
+<td>write, notify</td>
+</tr>
+
+<tr>
+<td>9.</td>
+
+<td>If a match is found by read, a reference to a copy of the matching
+entry is returned.</td>
+
+<td>2.4</td>
+
+<td>read</td>
+</tr>
+
+<tr>
+<td>10.</td>
+
+<td>If no match is found, null is returned.</td>
+
+<td>2.4</td>
+
+<td>read</td>
+</tr>
+
+<tr>
+<td>11.</td>
+
+<td>Passing a null reference for the template will match any entry.</td>
+
+<td>2.4</td>
+
+<td>read, readIfExists</td>
+</tr>
+
+<tr>
+<td>12.</td>
+
+<td>A readIfExists request will return a matching entry, or null if there
+is currently no matching entry in the space.</td>
+
+<td>2.4</td>
+
+<td>readIfExists</td>
+</tr>
+
+<tr>
+<td>13.</td>
+
+<td>If the only possible matches for the template have conflicting locks
+from one or more other transactions, the timeout value specifies how long
+the client is willing to wait for interfering transactions to settle before
+returning a values.</td>
+
+<td>2.4</td>
+
+<td>readIfExists, takeIfExists, transaction</td>
+</tr>
+
+<tr>
+<td>14.</td>
+
+<td>If at the end of that time no value can be returned that would not
+interfere with transactional state, null is returned.</td>
+
+<td>2.4</td>
+
+<td>readIfExists, takeIfExists, transaction</td>
+</tr>
+
+<tr>
+<td>15.</td>
+
+<td>A read request will wait until a matching entry is found or until transactions
+settle, whichever is longer, up to the timeout period.</td>
+
+<td>2.4</td>
+
+<td>read, transaction</td>
+</tr>
+
+<tr>
+<td>16.</td>
+
+<td>In both read methods, a timeout of NO_WAIT means to return immediately,
+with no waiting, which is equivalent to using a zero timeout.</td>
+
+<td>2.4</td>
+
+<td>readIfExists, read</td>
+</tr>
+
+<tr>
+<td>17.</td>
+
+<td>The take, takeIfExists requests perform exactly like the corresponding
+read requests, except that the matching entry is removed from the space.(related
+to IDs: 8, 9, 10, 11, 12, 13, 14, 15)</td>
+
+<td>2.5</td>
+
+<td>take, takeIfExists</td>
+</tr>
+
+<tr>
+<td>18.</td>
+
+<td>If a take returns a non-null value, the entry has been removed from
+the space, possibly within a transaction.</td>
+
+<td>2.5</td>
+
+<td>take, takeIfExists</td>
+</tr>
+
+<tr>
+<td>19.</td>
+
+<td>If any other exception is thrown rather then RemoteException or UnusableEntryException,
+the take did not occur, and no entry was removed from the space</td>
+
+<td>2.5</td>
+
+<td>(?)*** take</td>
+</tr>
+
+<tr>
+<td>20.</td>
+
+<td>A take is considered to be successful only if all enclosing transactions
+commit successfully.</td>
+
+<td>2.5</td>
+
+<td>take, takeIfExists, transaction</td>
+</tr>
+
+<tr>
+<td>21.</td>
+
+<td>Using the returned snapshot entry is equivalent to using the unmodified
+original entry in all operations on the same JavaSpaces service.</td>
+
+<td>2.6</td>
+
+<td>snapshot</td>
+</tr>
+
+<tr>
+<td>22.</td>
+
+<td>Modifications to the original entry will not affect the snapshot.</td>
+
+<td>2.6</td>
+
+<td>snapshot</td>
+</tr>
+
+<tr>
+<td>23.</td>
+
+<td>Using snapshot with any other JavaSpaces service will generate an IllegalArgumentException
+unless the other space can use it because of knowledge about the JavaSpaces
+service that generated the snapshot.</td>
+
+<td>2.6</td>
+
+<td>snapshot</td>
+</tr>
+
+<tr>
+<td>24.</td>
+
+<td>You can snapshot a null template.</td>
+
+<td>2.6</td>
+
+<td>snapshot</td>
+</tr>
+
+<tr>
+<td>25.</td>
+
+<td>A notify request's matching is done as it is for read. (9,10,11)</td>
+
+<td>2.7</td>
+
+<td>notify</td>
+</tr>
+
+<tr>
+<td>26.</td>
+
+<td>When matching entries arrive, the specified RemoteEventListener will
+eventually be notified by invoking listener's notify method.</td>
+
+<td>2.7</td>
+
+<td>notify</td>
+</tr>
+
+<tr>
+<td>27.</td>
+
+<td>You will get an IllegalArgumentException if the lease time requested
+is not Lease.ANY and is negative.</td>
+
+<td>2.7</td>
+
+<td>notify</td>
+</tr>
+
+<tr>
+<td>28.</td>
+
+<td>If the transaction parameter is null, the listener will be notified
+when matching entries are written either under a null transaction or when
+a transaction commits.</td>
+
+<td>2.7</td>
+
+<td>notify, transaction</td>
+</tr>
+
+<tr>
+<td>29.</td>
+
+<td>If an entry is written under a transaction and then taken under that
+same transaction before the transaction is committed, listeners registered
+under a null transaction will not be notified of that entry.</td>
+
+<td>2.7, 3.1</td>
+
+<td>notify, transaction, take, takeIfExists</td>
+</tr>
+
+<tr>
+<td>30.</td>
+
+<td>If the transaction parameter is not null, the listener will be notified
+of matching entries written under that transaction in addition to the notifications
+it would receive under a null transaction.</td>
+
+<td>2.7</td>
+
+<td>notify, transaction</td>
+</tr>
+
+<tr>
+<td>31.</td>
+
+<td>The request specified by a successful notify is as persistent as the
+entries of the space. They will be remembered as long as an un-taken entry
+would be, until the lease expires, or until any governing transaction completes,
+whichever is shorter.</td>
+
+<td>2.7</td>
+
+<td>notify, transaction</td>
+</tr>
+
+<tr>
+<td>32.</td>
+
+<td>An entry that is written under the non null transaction is not visible
+outside its transaction until the transaction successfully commits.</td>
+
+<td>3.1</td>
+
+<td>write, transaction</td>
+</tr>
+
+<tr>
+<td>33.</td>
+
+<td>If the entry is written and after that is taken within the non null
+transaction, the entry will never be visible outside the transaction and
+will not be added to the space when the transaction commits.</td>
+
+<td>3.1</td>
+
+<td>write, take, takeIfExists, transaction</td>
+</tr>
+
+<tr>
+<td>34.</td>
+
+<td>Entries written under a transaction that aborts are discarded.</td>
+
+<td>3.1</td>
+
+<td>write, transaction</td>
+</tr>
+
+<tr>
+<td>35.</td>
+
+<td>When read, an entry may be read in any other transaction to which the
+entry is visible, but cannot be taken in another transaction.</td>
+
+<td>3.1</td>
+
+<td>read, readIfExists, take, transaction</td>
+</tr>
+
+<tr>
+<td>36.</td>
+
+<td>When taken, an entry may not be read or taken by any other transaction.</td>
+
+<td>3.1</td>
+
+<td>take, takeIfExists, read, transaction</td>
+</tr>
+
+<tr>
+<td>37.</td>
+
+<td>When a transaction commits, any entries that were written under the
+transaction (and not taken) will cause appropriate notifications for registrations
+that were made under a null transaction.</td>
+
+<td>3.1</td>
+
+<td>write, notify, transaction</td>
+</tr>
+</table>
+
+<p>(?)***&nbsp; - It is not obvious how to check this essential statement.
+</body>
+</html>

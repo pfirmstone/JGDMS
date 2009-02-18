@@ -1,0 +1,92 @@
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}norm.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Fiddler"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mahalo"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Mercury"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Outrigger"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Reggie"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Norm"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Group"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.x500.X500Principal "CN=Tester"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+//Kerberos Principals
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${fiddler}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${mahalo}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${mercury}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${outrigger}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${reggie}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${norm}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${group}"
+{
+      permission net.jini.security.AccessPermission "*";
+};
+
+grant principal javax.security.auth.kerberos.KerberosPrincipal "${test}"
+{
+      permission net.jini.security.AccessPermission "*";
+};

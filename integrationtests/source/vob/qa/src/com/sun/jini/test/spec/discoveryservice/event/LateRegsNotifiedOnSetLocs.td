@@ -1,0 +1,4 @@
+testClass=LateRegsNotifiedOnSetLocs
+testCategories=discoveryservice,discoveryservice_spec,discoveryserviceevent
+include0=../discoveryservice.properties
+include1=reggie1_0regInfo1_1Locs.properties

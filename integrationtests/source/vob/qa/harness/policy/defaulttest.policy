@@ -1,0 +1,64 @@
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jini-ext.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.qa.harness.harnessJar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.qa.harness.testJar}" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}harness.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-start-tests.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-io-marshalledinstance-test.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-io-marshalinputstream-test.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+// needed by various proxies
+
+grant {
+    permission java.lang.RuntimePermission
+        "accessClassInPackage.sun.util.logging.resources";
+
+    permission java.io.FilePermission
+	"${com.sun.jini.jsk.home}${/}lib${/}-", "read";
+
+    permission java.io.FilePermission
+	"${com.sun.jini.qa.home}${/}lib${/}-", "read";
+
+    permission java.util.PropertyPermission
+        "*", "read";
+};
+
+// needed by some io tests
+
+grant {
+    permission java.lang.RuntimePermission "setFactory";
+    permission java.net.SocketPermission "*:1024-",    "connect,accept";
+    permission java.util.PropertyPermission "com.sun.jini.qa.spec.io.util.FakeIntegrityVerifier.throwException", "write";
+};

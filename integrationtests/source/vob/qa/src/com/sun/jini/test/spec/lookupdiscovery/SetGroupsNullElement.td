@@ -1,0 +1,4 @@
+testClass=SetGroupsNullElement
+testCategories=lookupdiscovery,lookupdiscovery_spec,speclookupdiscovery
+include0=lookupdiscovery.properties
+include1=com/sun/jini/test/share/reggie6_0Ports.properties

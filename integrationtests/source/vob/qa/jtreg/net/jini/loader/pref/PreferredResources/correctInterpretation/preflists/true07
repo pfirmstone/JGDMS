@@ -1,0 +1,10 @@
+PreferredResources-Version: 1.0
+Preferred: false
+
+Name: One.class
+Preferred: false
+
+Name: Four.class
+
+Name: Two.class
+Preferred: true

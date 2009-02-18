@@ -1,0 +1,18 @@
+/*
+ * security policy used by test activation groups
+ */
+grant codebase "file:${jsk.home}/lib/phoenix-group.jar" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
+  permission java.security.AllPermission;
+};
+
+grant {
+  // test needs to communicate with the activation system
+  permission java.net.SocketPermission "*:1024-", "connect,accept,listen";
+
+  // allow getting impl's class loader for export
+  permission java.lang.RuntimePermission "getClassLoader";
+};

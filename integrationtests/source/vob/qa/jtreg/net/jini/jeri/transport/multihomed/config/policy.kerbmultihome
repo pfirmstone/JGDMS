@@ -1,0 +1,19 @@
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission java.lang.RuntimePermission
+	"accessClassInPackage.sun.net.spi.nameservice";
+
+    permission java.util.PropertyPermission "endpointType", "read";
+    permission java.util.PropertyPermission "java.security.krb5.kdc", "read";
+    permission java.util.PropertyPermission "com.sun.jini.jtreg.kerberos.multihome.hostname", "read";
+    permission java.util.PropertyPermission "com.sun.jini.jtreg.kerberos.multihome.hostaddr", "read";
+    permission java.util.PropertyPermission "com.sun.jini.jtreg.kerberos.multihome.kdcaddr", "read";
+    permission java.net.SocketPermission "localhost:1024-", "listen";
+    permission java.net.SocketPermission "*", "connect,accept";
+    permission java.security.SecurityPermission "createAccessControlContext";
+    permission javax.security.auth.AuthPermission "createLoginContext.onePrincipalServer";
+    permission net.jini.security.AuthenticationPermission "* \"*\"", "accept,connect";
+};

@@ -1,0 +1,17 @@
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    // to move classes into separate codebase directories
+    permission java.util.PropertyPermission "test.classes", "read";
+    permission java.util.PropertyPermission "user.dir", "read";
+    permission java.io.FilePermission "${test.classes}", "read,write";
+    permission java.io.FilePermission
+	"${test.classes}${/}-", "read,write,delete";
+    permission java.io.FilePermission ".", "read,write";
+    permission java.io.FilePermission ".${/}-", "read,write,delete";
+
+    // to export remote objects and invoke remote methods
+    permission java.net.SocketPermission "*:1024-", "listen,connect";
+};

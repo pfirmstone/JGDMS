@@ -1,0 +1,2074 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 9">
+<meta name=Originator content="Microsoft Word 9">
+<link rel=File-List href="./jm-req_files/filelist.xml">
+<title>JoinManager Utilility Requirements</title>
+<!--[if gte mso 9]><xml>
+ <o:DocumentProperties>
+  <o:Author>SMI Software</o:Author>
+  <o:LastAuthor>SMI Software</o:LastAuthor>
+  <o:Revision>1</o:Revision>
+  <o:TotalTime>0</o:TotalTime>
+  <o:Created>2000-02-07T13:12:00Z</o:Created>
+  <o:LastSaved>2000-02-07T13:13:00Z</o:LastSaved>
+  <o:Pages>3</o:Pages>
+  <o:Words>1501</o:Words>
+  <o:Characters>8557</o:Characters>
+  <o:Company>Sun Microsystems</o:Company>
+  <o:Lines>71</o:Lines>
+  <o:Paragraphs>17</o:Paragraphs>
+  <o:CharactersWithSpaces>10508</o:CharactersWithSpaces>
+  <o:Version>9.2720</o:Version>
+ </o:DocumentProperties>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:DisplayHorizontalDrawingGridEvery>0</w:DisplayHorizontalDrawingGridEvery>
+  <w:DisplayVerticalDrawingGridEvery>0</w:DisplayVerticalDrawingGridEvery>
+  <w:UseMarginsForDrawingGridOrigin/>
+  <w:Compatibility>
+   <w:FootnoteLayoutLikeWW8/>
+   <w:ShapeLayoutLikeWW8/>
+   <w:AlignTablesRowByRow/>
+   <w:ForgetLastTabAlignment/>
+   <w:LayoutRawTableWidth/>
+   <w:LayoutTableRowsApart/>
+  </w:Compatibility>
+ </w:WordDocument>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+@font-face
+	{font-family:Courier;
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-alt:"Courier New";
+	mso-font-charset:0;
+	mso-generic-font-family:modern;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:3 0 0 0 1 0;}
+@font-face
+	{font-family:Times-Bold;
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-charset:0;
+	mso-generic-font-family:roman;
+	mso-font-format:other;
+	mso-font-pitch:auto;
+	mso-font-signature:3 0 0 0 1 0;}
+ /* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+h1
+	{mso-style-next:Normal;
+	margin-top:12.0pt;
+	margin-right:0in;
+	margin-bottom:3.0pt;
+	margin-left:0in;
+	mso-pagination:widow-orphan;
+	page-break-after:avoid;
+	mso-outline-level:1;
+	font-size:14.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-bidi-font-family:"Times New Roman";
+	mso-font-kerning:14.0pt;
+	mso-bidi-font-weight:normal;}
+h2
+	{mso-style-next:Normal;
+	margin-top:12.0pt;
+	margin-right:0in;
+	margin-bottom:3.0pt;
+	margin-left:0in;
+	mso-pagination:widow-orphan;
+	page-break-after:avoid;
+	mso-outline-level:2;
+	font-size:12.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-bidi-font-family:"Times New Roman";
+	mso-bidi-font-weight:normal;
+	font-style:italic;
+	mso-bidi-font-style:normal;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+ /* List Definitions */
+@list l0
+	{mso-list-id:82999791;
+	mso-list-type:hybrid;
+	mso-list-template-ids:549125712 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l0:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l1
+	{mso-list-id:325282551;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1399275904 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l1:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l2
+	{mso-list-id:331881155;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-760817038 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l2:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l3
+	{mso-list-id:432212075;
+	mso-list-type:hybrid;
+	mso-list-template-ids:522462804 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l3:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l4
+	{mso-list-id:748308491;
+	mso-list-type:hybrid;
+	mso-list-template-ids:177102910 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l4:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l5
+	{mso-list-id:783960421;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-838145742 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l5:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l6
+	{mso-list-id:935135512;
+	mso-list-type:simple;
+	mso-list-template-ids:1056744852;}
+@list l6:level1
+	{mso-level-start-at:0;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;
+	font-family:"Times New Roman";}
+@list l7
+	{mso-list-id:1208103437;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1366416904 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l7:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l8
+	{mso-list-id:1465342668;
+	mso-list-type:hybrid;
+	mso-list-template-ids:632455074 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l8:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l9
+	{mso-list-id:1567568201;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-767907624 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l9:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l10
+	{mso-list-id:1596210429;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-593601176 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l10:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l11
+	{mso-list-id:1767456905;
+	mso-list-type:hybrid;
+	mso-list-template-ids:495624354 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l11:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l12
+	{mso-list-id:2061974651;
+	mso-list-type:hybrid;
+	mso-list-template-ids:210692132 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l12:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l13
+	{mso-list-id:2096978495;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-633017206 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l13:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+ol
+	{margin-bottom:0in;}
+ul
+	{margin-bottom:0in;}
+-->
+</style>
+</head>
+
+<body lang=EN-US style='tab-interval:.5in'>
+
+<div class=Section1>
+
+<h2>JoinManager Utilility Requirements</h2>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<table border=1 cellspacing=0 cellpadding=0 style='border-collapse:collapse;
+ border:none;mso-border-alt:solid windowtext .5pt;mso-padding-alt:0in 5.4pt 0in 5.4pt'>
+ <thead>
+  <tr>
+   <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+   padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>ID<o:p></o:p></b></p>
+   </td>
+   <td width=564 valign=top style='width:423.0pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>JoinManager
+   Utilility</b> <b style='mso-bidi-font-weight:normal'>Requirement<o:p></o:p></b></p>
+   </td>
+   <td width=78 valign=top style='width:58.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Section<o:p></o:p></b></p>
+   </td>
+   <td width=240 valign=top style='width:2.5in;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Comments<o:p></o:p></b></p>
+   </td>
+  </tr>
+ </thead>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>equals </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method for this
+  class returns true if and only if two instances of this class refer to the
+  same object. That is, x and y are equal instances of this class if and only
+  if x == y has the value </span><span style='font-family:Courier;layout-grid-mode:
+  line'>true</span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>.</span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>6.4<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=2 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The first form of the constructor takes the following
+  parameters as input:</span><b style='mso-bidi-font-weight:normal'><span
+  style='font-family:Times-Bold;layout-grid-mode:line'> </span></b><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>A reference to the service requesting the services of the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>JoinManager</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'><o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=3 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The first form of the constructor takes the following
+  parameters as input:</span><b style='mso-bidi-font-weight:normal'><span
+  style='font-family:Times-Bold;layout-grid-mode:line'> </span></b><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>An array containing the service’s attributes<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=4 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The first form of the constructor takes the following
+  parameters as input:</span><b style='mso-bidi-font-weight:normal'><span
+  style='font-family:Times-Bold;layout-grid-mode:line'> </span></b><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>A reference to an object that implements the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>ServiceIDListener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>interface (belonging to the package </span><span style='font-family:
+  Courier;layout-grid-mode:line'>com.sun.jini.lookup</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>)<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=5 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The assignment of a service ID to the service will
+  result in an event notification being sent to the listener object that was
+  passed as the </span><span style='font-family:Courier;layout-grid-mode:line'>ServiceIDListener
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>argument (</span><span style='font-family:Courier;
+  layout-grid-mode:line'>callback</span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>).<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=6 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>If a </span><span style='font-family:Courier;
+  layout-grid-mode:line'>null </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>value is passed in through this
+  argument, then no such notification will be sent.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=7 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The first form of the constructor takes the following
+  parameters as input:</span><b style='mso-bidi-font-weight:normal'><span
+  style='font-family:Times-Bold;layout-grid-mode:line'> </span></b><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>A reference to an object that implements the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>DiscoveryManagement </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>interface<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=8 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>DiscoveryManagement </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>argument
+  may be set to a value of </span><span style='font-family:Courier;layout-grid-mode:
+  line'>null</span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>.If </span><span style='font-family:Courier;
+  layout-grid-mode:line'>null </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>is the value of this argument, then
+  an instance of the </span><span style='font-family:Courier;layout-grid-mode:
+  line'>LookupDiscoveryManager </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>utility class
+  will be constructed to listen for events announcing the discovery of only
+  those lookup services that are members of the public group.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=9 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The first form of the constructor takes the following
+  parameters as input:</span><b style='mso-bidi-font-weight:normal'><span
+  style='font-family:Times-Bold;layout-grid-mode:line'> </span></b><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>An instance of the </span><span style='font-family:Courier;layout-grid-mode:
+  line'>LeaseRenewalManager </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>utility class<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=10 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>LeaseRenewalManager </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>argument
+  may be set to a value of </span><span style='font-family:Courier;layout-grid-mode:
+  line'>null</span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>.If </span><span style='font-family:Courier;
+  layout-grid-mode:line'>null </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>is the value of this argument, an
+  instance of the </span><span style='font-family:Courier;layout-grid-mode:
+  line'>LeaseRenewalManager </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>class will be created, initially
+  managing no </span><span style='font-family:Courier;layout-grid-mode:line'>Lease
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>objects.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=11 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The second form of the constructor takes the same
+  arguments as the first, except that an instance of the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>ServiceID </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>replaces an instance of the </span><span style='font-family:Courier;
+  layout-grid-mode:line'>ServiceIDListener </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>interface.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=12 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The second form of the constructor applies the same
+  semantics to the </span><span style='font-family:Courier;layout-grid-mode:
+  line'>discoveryMgr </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>and </span><span style='font-family:
+  Courier;layout-grid-mode:line'>leaseMgr </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>arguments as is
+  applied by the first form of the constructor.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=13 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>getDiscoveryManager </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method
+  returns the instance of </span><span style='font-family:Courier;layout-grid-mode:
+  line'>DiscoveryManagement </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>that was passed into the constructor
+  by the entity, or which was created as a result of </span><span
+  style='font-family:Courier;layout-grid-mode:line'>null </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>being input to that parameter.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=14 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>getLeaseRenewalManager </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method
+  returns an instance of the </span><span style='font-family:Courier;
+  layout-grid-mode:line'>LeaseRenewalManager </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>class.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=15 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>getJoinSet </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method returns
+  an array of </span><span style='font-family:Courier;layout-grid-mode:line'>ServiceRegistrar
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>objects, each corresponding to a lookup service with
+  which the service has registered (joined). Each time this method is invoked,
+  a new array is returned. This method takes no arguments.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=16 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>getJoinSet </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … Each
+  time this method is invoked, a new array is returned.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=17 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>getAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method returns
+  an array containing the set of attributes currently associated with the
+  service. This method takes no arguments as input, and will return a new array
+  upon each invocation.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=18 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>getAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … will
+  return a new array upon each invocation.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=19 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method
+  associates a new set of attributes with the service, in addition to the
+  service’s current set of attributes. The association of this new set of
+  attributes with the service will be propagated to each lookup service with
+  which the service is registered. This propagation must be performed
+  asynchronously. Because of this, there is no guarantee that the propagation
+  of the attributes to all lookup services with which the service is Registered
+  will have completed upon return from this method.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=20 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The set of attributes consisting of the union of the
+  new set with the old set will be associated with the service in all future
+  join processing.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=21 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … Both
+  forms of this method take as input an argument representing the set of
+  attributes to associate with the service. This set is represented as an array
+  of </span><span style='font-family:Courier;layout-grid-mode:line'>Entry </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>objects, none of whose elements may be </span><span style='font-family:
+  Courier;layout-grid-mode:line'>null</span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=22 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … An
+  invocation of this method with this array containing duplicate elements is
+  equivalent to performing the invocation with the duplicates removed from the
+  array. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=23 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … If </span><span
+  style='font-family:Courier;layout-grid-mode:line'>null </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>is passed in as the value of this parameter, a </span><span
+  style='font-family:Courier;layout-grid-mode:line'>NullPointerException </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>will be thrown. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=24 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
+  second form of this method also takes as input a flag indicating whether or
+  not this method should determine if the attributes in the input set are
+  instances of the </span><span style='font-family:Courier;layout-grid-mode:
+  line'>ServiceControlled </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>interface, which is a marker
+  interface that is used to control which entities may modify a service’s
+  attribute set. If the value of this flag is </span><span style='font-family:
+  Courier;layout-grid-mode:line'>true </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>and at least
+  one of the attributes to be added is an instance of the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>ServiceControlled </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>interface, a </span><span style='font-family:Courier;layout-grid-mode:
+  line'>SecurityException </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>will be thrown and propagated
+  through this method.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=25 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method …<span
+  style="mso-spacerun: yes">  </span>It is for this reason that the effects of
+  modifying the contents of the input array, after this method is invoked, are
+  undefined.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=26 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method replaces
+  the service’s current set of attributes with the given new set of attributes.
+  <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=27 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … This
+  method takes a single argument as input: an array of </span><span
+  style='font-family:Courier;layout-grid-mode:line'>Entry </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>objects, none of whose elements may be </span><span style='font-family:
+  Courier;layout-grid-mode:line'>null</span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>, that
+  represents the set of attributes that will replace the current set of
+  attributes. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=28 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
+  replacement of the service’s current set of attributes with the new set of
+  attributes will be propagated to each lookup service with which the service
+  is registered. This propagation must be performed asynchronously. Because of
+  this, there is no guarantee that the propagation of the attributes to all
+  lookup services with which the service is registered will have completed upon
+  return from this method. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=29 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
+  service’s new set of attributes will be associated with the service in all
+  future join processing. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=30 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method …
+  Invoking this method with an input array that contains duplicate elements is
+  equivalent to performing the invocation with the duplicates removed from the
+  array. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=31 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … If </span><span
+  style='font-family:Courier;layout-grid-mode:line'>null </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>is input to </span><span style='font-family:Courier;layout-grid-mode:
+  line'>setAttributes</span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>,a </span><span style='font-family:
+  Courier;layout-grid-mode:line'>NullPointerException </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>will be thrown. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=32 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>setAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … the
+  effects of modifying the contents of the input array, after </span><span
+  style='font-family:Courier;layout-grid-mode:line'>setAttributes </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>is invoked, are undefined.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=33 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method changes
+  the service’s current set of attributes using the same semantics as the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>modifyAttributes </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>method of the </span><span style='font-family:Courier;layout-grid-mode:
+  line'>ServiceRegistration </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>class (see the Jini™ Lookup Service
+  Specification). <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=34 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … Both
+  forms will take an array of templates in the first argument, and an array of
+  attributes in the second argument. The templates are used to identify which
+  elements to modify from the service’s current set of attributes. The
+  attribute array contains the actual modifications to be made.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=35 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
+  additional argument in the signature of the second form of </span><span
+  style='font-family:Courier;layout-grid-mode:line'>modifyAttributes </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>is a flag indicating whether or not this method should determine if the
+  attributes in the input set are instances of the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>ServiceControlled </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>interface, which is a marker interface used to control which entities
+  may modify a service’s attribute set (see section 4.1 of the Jini™ Lookup
+  Attribute Schema Specification). If the value of this flag is </span><span
+  style='font-family:Courier;layout-grid-mode:line'>true </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>and at least one of the attributes to be modified is an instance of the
+  </span><span style='font-family:Courier;layout-grid-mode:line'>ServiceControlled
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>interface, a </span><span style='font-family:Courier;
+  layout-grid-mode:line'>SecurityException </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>will be
+  thrown and propagated through this method.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=36 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
+  association of the new set of attributes with the service will be propagated
+  to each lookup service with which the service is registered. This propagation
+  must be performed asynchronously. Because of this asynchronous behavior,
+  there is no guarantee that the propagation of the attributes to all lookup
+  services with which the service is registered will have completed upon return
+  from this method.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=37 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
+  set of attributes that results after the modifications have been applied will
+  be associated with the service in all future join processing.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=38 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … If the
+  length of the array containing the templates does not equal the length of the
+  array containing the attributes, an </span><span style='font-family:Courier;
+  layout-grid-mode:line'>IllegalArgumentException </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>will be thrown and propagated through this method.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=39 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>modifyAttributes </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … the
+  effects of modifying the contents of the input array, after </span><span
+  style='font-family:Courier;layout-grid-mode:line'>modifyAttributes </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>is invoked, are undefined.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=40 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … will
+  cancel all leases managed on behalf of the service, and will<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>terminate all threads that have been created.
+  Additionally, if the discovery<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>manager employed by the </span><span style='font-family:
+  Courier;layout-grid-mode:line'>JoinManager </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>was
+  created by the </span><span style='font-family:Courier;layout-grid-mode:line'>JoinManager<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>itself, this method will terminate all discovery
+  processing being performed<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>by that manager object on behalf of the service.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=41 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … will
+  terminate all threads that have been created. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=42 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method …
+  Additionally, if the discovery manager employed by the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>JoinManager </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>was created by the </span><span style='font-family:Courier;layout-grid-mode:
+  line'>JoinManager </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>itself, this method will terminate
+  all discovery processing being performed by that manager object on behalf of
+  the service.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=43 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The </span><span
+  style='font-family:Courier;layout-grid-mode:line'>JoinManager </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>makes certain concurrency guarantees with respect to an invocation of
+  the </span><span style='font-family:Courier;layout-grid-mode:line'>terminate </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>method while other method invocations are in progress. The termination
+  process described above will not begin until completion of all invocations of
+  the methods defined in the public interface of the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>JoinManager</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=44 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method …
+  Furthermore, once the termination process has begun, no remote method
+  invocations will be made by the </span><span style='font-family:Courier;
+  layout-grid-mode:line'>JoinManager</span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>, and all other
+  method invocations on the </span><span style='font-family:Courier;layout-grid-mode:
+  line'>JoinManager </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>will not return until the
+  termination process has completed. Upon completion of the termination
+  process, the semantics of all current and future method invocations on the
+  current instance of the </span><span style='font-family:Courier;layout-grid-mode:
+  line'>JoinManager </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>are undefined.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=45 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method …
+  Furthermore, once the termination process has begun, … all other method
+  invocations on the </span><span style='font-family:Courier;layout-grid-mode:
+  line'>JoinManager </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>will not return until the
+  termination process has completed. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=46 type=1>
+   <li class=MsoNormal style='mso-list:l9 level1 lfo9;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … Upon
+  completion of the termination process, the semantics of all current and
+  future method invocations on the current instance of the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>JoinManager </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>are undefined.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+</table>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+</div>
+
+</body>
+
+</html>

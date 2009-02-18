@@ -1,0 +1,25 @@
+/*
+ * security policy used activation groups
+ */
+grant codebase "file:${jsk.home}/lib/phoenix-group.jar" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
+  permission java.security.AllPermission;
+};
+
+grant {
+  // test needs to communicate with the activation system
+  permission java.net.SocketPermission "*:1024-", "connect,accept,listen";
+
+  // allow exporting object with non-public remote interface
+  permission net.jini.export.ExportPermission "exportRemoteInterface.ActivateMe";
+
+  // allow getting impl's class loader for export
+  permission java.lang.RuntimePermission "getClassLoader";
+
+  // allow remote objects to call monitor's inactive method
+  permission com.sun.jini.phoenix.MonitorPermission "inactiveObject";
+
+};

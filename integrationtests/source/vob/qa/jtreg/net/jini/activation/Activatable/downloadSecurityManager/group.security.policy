@@ -1,0 +1,34 @@
+/*
+ * security policy used by activation groups
+ */
+grant codebase "file:${jsk.home}/lib/phoenix-group.jar" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
+  permission java.security.AllPermission;
+};
+
+grant codeBase "file:customSecurityManager/-" {
+  // grant security manager code all permissions
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:group/-" {
+  // grant group code all permissions
+  permission java.security.AllPermission;
+};
+
+grant {
+  // property tells location from where security manager can be downloaded
+  permission java.util.PropertyPermission "securityManagerCodebaseURL", "read";
+
+  // allow remote objects to be exported on arbitrary ports.
+  permission java.net.SocketPermission "*:1024-", "connect,accept,listen";
+
+  // allow exporting object with non-public remote interface
+  permission net.jini.export.ExportPermission "exportRemoteInterface.ActivateMe";
+
+  // allow getting impl's class loader for export
+  permission java.lang.RuntimePermission "getClassLoader";
+};

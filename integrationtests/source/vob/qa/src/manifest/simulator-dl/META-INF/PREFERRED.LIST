@@ -1,0 +1,18 @@
+PreferredResources-Version: 1.0
+
+Preferred: true
+
+Name: com/sun/jini/start/*
+Preferred: false
+
+Name: com/sun/jini/admin/*
+Preferred: false
+
+Name: com/sun/jini/test/services/lookupsimulator/LookupSimulatorProxyInterface.class
+Preferred: false
+
+Name: com/sun/jini/-
+Preferred: true
+
+Name: net/jini/-
+Preferred: false

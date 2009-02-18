@@ -1,0 +1,48 @@
+
+#/*
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+# 
+#      http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#*/
+
+
+QA1MERCURY_JARS   = qa1-mercury.jar qa1-mercury-dl.jar qa1-mercury-bogusimpl.jar
+
+QAJARS     +=	$(QA1MERCURY_JARS)
+
+mercury_jars: $(QA1MERCURY_JARS) qa1.jar
+
+LOCAL_IMPLS =  com.sun.jini.test.impl.mercury.NSOListenerImpl \
+	       com.sun.jini.test.impl.mercury.REListenerImpl \
+	       com.sun.jini.test.impl.mercury.UEListenerImpl \
+	       com.sun.jini.test.impl.mercury.DisableListenerImpl \
+	       com.sun.jini.test.impl.mercury.DisableNSOListenerImpl
+
+qa1-mercury.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Create $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ `$(QACLASSDEP) -in com.sun.jini.test $(QA1MERCURY.impls) $(LOCAL_IMPLS) $(subst $$,'$$',$(QA1MERCURY.impls:%=%_Stub))`
+	@cd $(JINICLASSES); $(JAR) uf $(QAJARSDIR)/$@ `$(QACLASSDEP) -in com.sun.jini -in net.jini -hide com.sun.jini.test $(LOCAL_IMPLS) $(QA1MERCURY.impls) $(subst $$,'$$',$(QA1MERCURY.impls:%=%_Stub))`
+
+qa1-mercury-dl.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Create $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ -C $(MANIFESTDIR)/mercury-dl META-INF com/sun/jini/test/impl/mercury/MyUnknownEventException.class -C $(JINICLASSES)  net/jini/lookup/entry/Name.class `$(QACLASSDEP) -in com.sun.jini.test $(subst $$,'$$',$(QA1MERCURY.impls:%=%_Stub))`
+	@cd $(JINICLASSES); $(JAR) uf $(QAJARSDIR)/$@ `$(QACLASSDEP) -in com.sun.jini -in net.jini $(JSKPLATFORM.EXCLUDE) -hide com.sun.jini.test  com.sun.jini.landlord.LandlordProxyVerifier com.sun.jini.proxy.BasicProxyTrustVerifier $(subst $$,'$$',$(QA1MERCURY.impls:%=%_Stub))`
+
+qa1-mercury-bogusimpl.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Create $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ `$(QACLASSDEP) -in com.sun.jini.test com.sun.jini.test.impl.mercury.DelayedBasicJeriExporter com.sun.jini.test.impl.mercury.MyLocalRemoteEvent`

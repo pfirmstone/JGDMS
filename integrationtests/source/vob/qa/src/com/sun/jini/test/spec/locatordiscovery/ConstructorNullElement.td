@@ -1,0 +1,3 @@
+testClass=ConstructorNullElement
+testCategories=locatordiscovery,locatordiscovery_spec,speclocatordiscovery
+include0=locatordiscovery.properties

@@ -1,0 +1,15 @@
+/* @summary Test proper functioning when DynamicPolicyProvider is used with a
+ * 	    base policy that is also dynamic.
+ */
+
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission net.jini.security.GrantPermission "java.security.AllPermission";
+    permission java.lang.RuntimePermission "A";
+    permission java.lang.RuntimePermission "accessClassInPackage.*";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.security.SecurityPermission "getProperty.*";
+};

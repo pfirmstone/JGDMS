@@ -1,0 +1,3 @@
+testClass=ReadTakeAbortTest
+testCategories=javaspace,javaspace_impl,javaspace_impl_transaction
+include0=../outrigger.properties

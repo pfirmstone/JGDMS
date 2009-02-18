@@ -1,0 +1,4 @@
+testClass=NormalEventReturnTest
+testCategories=renewalservice,renewalservice_spec
+include0=renewalservice.properties
+testLoggingProperties=<file: tests/logging/normFullLogging.properties>

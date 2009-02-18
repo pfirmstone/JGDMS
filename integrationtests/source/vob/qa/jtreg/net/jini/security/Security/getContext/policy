@@ -1,0 +1,9 @@
+/* @summary Verify basic functionality of Security.getContext() method
+ */
+
+grant {
+    permission java.lang.RuntimePermission "createSecurityManager";
+    permission java.lang.RuntimePermission "setSecurityManager";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "setPolicy";
+};

@@ -1,0 +1,3 @@
+testClass=ModifyAttributesSwap
+testCategories=lookupservice,lookupservice_spec,test_set04
+include0=../lookupservice.properties

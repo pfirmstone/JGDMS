@@ -1,0 +1,400 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<HTML>
+<HEAD>
+<TITLE>How to Write a QA Test</TITLE>
+</HEAD>
+<BODY>
+  <CENTER>
+    <H1>How to Write a QA Test</H1>
+    <H3>Author: Steven F. Harris</H3>
+    <H3>Date: September 28, 1999</H3>
+  </CENTER>
+
+  <UL
+
+  <LI><H3>Introduction</H3></LI>
+  <P>
+  This document explains in step by step fashion how to write a Jini QA
+  test. A Jini QA test is a class that implements the
+  com.sun.jini.tck.harness.Test interface and is thus able to run inside of
+  the TCK (Technology Compatibility Kit) test harness. In general, a Jini
+  QA test will test either a service (such as Lookup Discovery Service) or
+  a utility (such as Client Lookup Manager or Join Manager).
+  </P>
+  <P>
+  It is recommended that each test be written to test one or a related set
+  of assertions. These assertions will either be <EM>specification</EM>
+  based or <EM>implementation</EM> based. In the former case the test is
+  asserting something about conformance to a written Jini specification. In
+  the latter case, the assertion relates to an implementation specific
+  aspect of the entity under test. The requirements for writing these two
+  types of tests differ slightly and that difference is explained later on
+  in this document.
+  </P>
+
+  <LI><H3>QA Test directory structure</H3></LI>
+  <P>
+  All QA Test directories reside under
+  <CODE>/vob/qa/src/com/sun/jini/qa</CODE>. A pictorial view of this
+  structure follows:
+  <PRE>
+
+                        /vob/com/sun/jini/qa                                
+                                 |
+  -------------------------------------------------------------------------
+  |      |         |         |      |                   |
+  +      +         +         +      +                   +
+docs  resource  examples  harness  spec                impl
+                                    |                   |
+                                    `- lookupservice    `- reggie
+                                    |                   |
+                                    `- javaspace        `- outrigger
+                                    |                   |
+                                    `- txnmanager       `- mahalo
+                                    |                   |
+                                    `- discoveryservice `- fiddler
+                                    |                   |
+                                    `- renewalservice   `- norm
+                                    |                   |
+                                    `- eventmailbox     `- mercury
+                                    |                   |
+                                    `- lookupmanager    `- clientlookupmanager
+                                    |                   |
+                                    `- renewalmanager   `- leaserenewalmanager
+                                    |                   |
+                                    `- joinmanager      `- joinmanager
+                                    
+  </PRE>
+  There are two types of tests. Those that test an assertion or set of
+  related assertions based on requirements as laid out in a technical
+  specification and those that test behavior based upon some aspect of the
+  implementation. The former reside in the subdirectory 
+  <CODE>/vob/com/sun/jini/qa/spec</CODE> directory and the latter reside in
+  the subdirectory <CODE>/vob/com/sun/jini/qa/impl</CODE>. There is a
+  one-to-one correspondence between the specification subdirectories and
+  the implementation subdirectories. That is the pair (lookupservice,
+  reggie) represents the subdirectories that contain code that tests
+  conformance to <EM>The Jini Lookup Service Specification</EM> and tests
+  that are only concerned with testing implementation dependent aspects of
+  Sun's Lookup Service called <CODE>reggie</CODE>. It is possible, in
+  theory, that a specification subdirectory could be associated with
+  multiple implementation subdirectories if Sun or some third party decided
+  to produce alternate implementations of the same specification.
+  </P>
+  <P>
+  If you are writing tests for a heretofore untested service or utility,
+  then you should create the appropriate directories as necessary.
+  </P>
+
+  <LI><H3>Setting up the Environment</H3></LI>
+  <P>
+  Make certain that you have the most recent build of the necessary code by 
+  executing the following from the command line :
+  <OL>
+  <LI><CODE>cd /vob/tools/src</CODE></LI>
+  <LI><CODE>gmake clean</CODE></LI>
+  <LI><CODE>gmake</CODE></LI>
+  <LI><CODE>gmake jars</CODE></LI>
+  <LI><CODE>cd /vob/jive/src</CODE></LI>
+  <LI><CODE>gmake clean</CODE></LI>
+  <LI><CODE>gmake</CODE></LI>
+  <LI><CODE>gmake jars</CODE></LI>
+  <LI><CODE>cd /vob/tck/src</CODE></LI>
+  <LI><CODE>gmake clean</CODE></LI>
+  <LI><CODE>gmake</CODE></LI>
+  <LI><CODE>gmake jars</CODE></LI>
+  <LI><CODE>cd /vob/qa/src</CODE></LI>
+  <LI><CODE>gmake clean</CODE></LI>
+  <LI><CODE>gmake</CODE></LI>
+  <LI><CODE>gmake jars</CODE></LI>
+  </OL>
+  <P>
+  Insure that whatever compile process you use includes the following in
+  the CLASSPATH :
+  <OL>
+  <LI><CODE>/vob/jive/lib/qa1.jar</CODE></LI>
+  </OL>
+  </P>
+
+  <LI><H3>Writing a Test Step by Step</H3></LI>
+
+  <OL>
+  <LI>Copy the /vob/qa/src/com/sun/jini/qa/resource/QATestTemplate.txt
+  file into the package directory of the test you are writing.</LI>
+  <LI>Rename QATestTemplate.txt to the name of the test class you are
+  writing.</LI> 
+  <LI>Bring the file up in your favorite editor.</LI>
+  <LI>Search for code buoys and fill in the information as requested.</LI>
+  <P>
+  A <EM>code buoy</EM> is a tag in the code that acts as a placeholder for
+  information (code or comment) that needs to be supplied in the process of
+  writing a Jini QA test. Each code buoy starts with the string "&lt;XXX" and
+  ends with the text "XXX&gt;". What appears in between is a word or phrase
+  indicating the nature of the required information. For example the place
+  holder for the package name is expressed as &lt;XXXpackage_nameXXX&gt;.
+  Each test requires the following information :
+  <OL>
+  <LI>&lt;XXXpackage_nameXXX&gt;</LI>
+  <LI>&lt;XXXclass_descriptionXXX&gt;</LI>
+  <LI>&lt;XXXauthorXXX&gt;</LI>
+  <LI>&lt;XXXclass_nameXXX&gt;</LI>
+  <LI>&lt;XXXdescription_of_the_test_goes_here_XXX&gt;</LI>
+  <LI>&lt;XXXcategory_in_lower_caseXXX&gt;</LI>
+  <LI>&lt;XXXa_generous_description_of_test_objectiveXXX&gt;</LI>
+  <LI>&lt;XXXsuccess_messageXXX&gt;</LI>
+  </OL>
+  </P>
+  <LI>Find the <CODE>setup()</CODE> method and include any required 
+  setup code.</LI>
+  <LI>Find the <CODE>run()</CODE> method and add code to test the required 
+  assertion(s).</LI>
+  <LI>Find the <CODE>tearDown()</CODE> method and add code to clean 
+  up test state.</LI>
+  <LI>Congratulations, you have just written a Jini QA test!</LI>
+  </OL>
+  </P>
+  <P>
+  Test writers are encouraged to log all important actions in a test as an
+  aid to diagnosing logic faults during automated test runs. Please be
+  generous in logging important actions by using the <CODE>log</CODE>
+  PrintWriter. The <CODE>log</CODE> PrintWriter is a public instance
+  variable inherited from the parent QATest class.
+  </P>
+
+  <LI><H3>The <CODE>QATestUtil</CODE> class</H3></LI>
+  <P>
+  All tests are derived from the
+  <CODE>com.sun.jini.qa.harness.QATest</CODE> class. This parent class
+  provides a protected instance member named <CODE>util</CODE> which is an
+  instance of the class
+  <CODE>com.sun.jini.qa.harness.QATestUtil</CODE>. <CODE>QATestUtil</CODE>
+  provides common methods which all Jini QA tests should use as needed to
+  achieve their objectives.
+  </P>
+  <P>
+  <CODE>QATestUtil</CODE> provides methods that can be categorized into
+  three different areas. A summary of these methods are listed in the
+  tables below. For more information see <A
+  Href="file:/net/jini/files/web/qa/methodology/docs/index.html">the
+  QATestUtil java doc</A>.
+  </P>
+
+  <P>
+  <TABLE BORDER="1" CELLPADDING="3" CELLSPACING="0" WIDTH="100%">
+  <TR BGCOLOR="#CCCCFF" CLASS="TableHeadingColor">
+  <TD COLSPAN=2><FONT SIZE="+2">
+  <B>Capturing Test Parameters</B></FONT></TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>&nbsp;boolean</CODE></FONT></TD>
+  <TD><CODE><B>getBooleanArgValue</B>(java.lang.String&nbsp;keyword,
+  boolean&nbsp;defaultValue)</CODE><BR>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Retrieve an
+  boolean argument from command line or failing that, the the test's
+  properties file.
+  </TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>&nbsp;double</CODE></FONT></TD>
+  <TD><CODE><B>getDoubleArgValue</B>(java.lang.String&nbsp;keyword,
+  double&nbsp;defaultValue)</CODE><BR>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Retrieve an
+  double argument from command line or failing that, the the test's
+  properties file.
+  </TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>&nbsp;java.io.File</CODE></FONT></TD>
+  <TD><CODE><B>getFileArgValue</B>(java.lang.String&nbsp;keyword,
+  java.io.File&nbsp;defaultValue)</CODE><BR>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Retrieve an
+  File argument from command line or failing that, the the test's
+  properties file.
+  </TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>&nbsp;float</CODE></FONT></TD>
+  <TD><CODE><B>getFloatArgValue</B>(java.lang.String&nbsp;keyword,
+  float&nbsp;defaultValue)</CODE><BR>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Retrieve an
+  float argument from command line or failing that, the the test's
+  properties file.
+ </TD>
+ </TR>
+
+ <TR BGCOLOR="white" CLASS="TableRowColor">
+ <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+ <CODE>&nbsp;int</CODE></FONT></TD>
+ <TD><CODE><B>getIntArgValue</B>(java.lang.String&nbsp;keyword,
+ int&nbsp;defaultValue)</CODE><BR>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Retrieve an
+ integer argument from command line or failing that, the the test's
+ properties file.
+ </TD>
+ </TR>
+
+ <TR BGCOLOR="white" CLASS="TableRowColor">
+ <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+ <CODE>&nbsp;long</CODE></FONT></TD>
+ <TD><CODE><B>getLongArgValue</B>(java.lang.String&nbsp;keyword,
+ long&nbsp;defaultValue)</CODE><BR>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Retrieve an
+ long argument from command line or failing that, the the test's properties
+ file.
+ </TD>
+ </TR>
+
+ <TR BGCOLOR="white" CLASS="TableRowColor">
+ <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+ <CODE>&nbsp;java.lang.String</CODE></FONT></TD>
+ <TD><CODE><B>getStringArgValue</B>(java.lang.String&nbsp;keyword,
+ java.lang.String&nbsp;defaultValue)</CODE><BR>
+ &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Retrieve an
+ String argument from command line or failing that, the the test's
+ properties file.
+ </TD>
+ </TR>
+
+ </TABLE>
+ </P>
+
+ <P>
+  <TABLE BORDER="1" CELLPADDING="3" CELLSPACING="0" WIDTH="100%">
+  <TR BGCOLOR="#CCCCFF" CLASS="TableHeadingColor">
+  <TD COLSPAN=2><FONT SIZE="+2">
+  <B>Starting/Querying Services</B></FONT></TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>&nbsp;net.jini.core.lookup.ServiceID</CODE></FONT></TD>
+  <TD><CODE><B>getServiceID</B>(java.lang.Object&nbsp;serviceProxy)</CODE><BR>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Return the
+  service id of the service that publishes the supplied proxy.
+  </TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>&nbsp;java.lang.Object</CODE></FONT></TD>
+  <TD><CODE><B>requestService</B>(java.lang.Class&nbsp;interfaceClass)</CODE>
+  <BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Request
+  a service via its interface class.
+  </TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>&nbsp;void</CODE></FONT></TD>
+  <TD><CODE><B>stopAllServices</A></B>()</CODE><BR>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stop all the
+  services started up via the requestService() method
+  </TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>&nbsp;void</CODE></FONT></TD>
+  <TD><CODE><B>stopService</A></B>(java.lang.Object&nbsp;serviceProxy)</CODE>
+  <BR>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Stop a
+  service that has been obtained via the requestService() method.
+  </TD>
+  </TR>
+
+  </TABLE>
+  </P>
+
+  <P>
+  <TABLE BORDER="1" CELLPADDING="3" CELLSPACING="0" WIDTH="100%">
+  <TR BGCOLOR="#CCCCFF" CLASS="TableHeadingColor">
+  <TD COLSPAN=2><FONT SIZE="+2">
+  <B>Modifying Lookup Services</B></FONT></TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>&nbsp;void</CODE></FONT></TD>
+  <TD><CODE><B>setLookupGroups</B>(net.jini.core.lookup.ServiceRegistrar
+  &nbsp;serviceProxy, java.lang.String[]&nbsp;groups)</CODE><BR>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Change the
+  set of groups to which a lookup belongs
+  </TD>
+  </TR>
+
+  </TABLE>
+  </P>
+
+  <P>
+  <TABLE BORDER="1" CELLPADDING="3" CELLSPACING="0" WIDTH="100%">
+  <TR BGCOLOR="#CCCCFF" CLASS="TableHeadingColor">
+  <TD COLSPAN=2><FONT SIZE="+2">
+  <B>File System Support</B></FONT></TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>static&nbsp;java.io.File</CODE></FONT></TD> <TD><CODE><B>
+  createUniqueDirectory</B>(java.lang.String&nbsp;prefix,
+  java.lang.String&nbsp;suffix, java.lang.String&nbsp;path)</CODE><BR>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Creates a
+  directory (folder) that is guaranteed to be unique on the file system and
+  returns it as a java.io.File object.
+  </TD>
+  </TR>
+
+  <TR BGCOLOR="white" CLASS="TableRowColor">
+  <TD ALIGN="right" VALIGN="top" WIDTH="1%"><FONT SIZE="-1">
+  <CODE>static&nbsp;java.lang.String</CODE></FONT></TD>
+  <TD><CODE><B>createUniqueFileName</B>(java.lang.String&nbsp;prefix,
+  java.lang.String&nbsp;suffix, java.lang.String&nbsp;path)</CODE><BR>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Create a
+  filename that is guaranteed to be unique on the file system.
+  </TD>
+  </TR>
+
+  </TABLE>
+  </P>
+
+  <LI><H3>Sample Program</H3></LI>
+  <P>
+  The best way to see how the above utility methods are used is to look at
+  the example <A
+  Href=file:/net/jini/files/web/qa/methodology/src/SampleUtilityTest.java>
+  SampleUtilityTest.java</A>.
+  </P>
+
+  <LI><H3>Additional Information</H3></LI>
+  <P>
+  There are special test parameters that can be used to control various
+  aspects of the testing system.  For a detailed description these and
+  other features of the QA Test Methodology see <A
+  Href=file:/net/jini/files/web/qa/methodology/docs/conMethodWorkArch.html>The
+  Conformance Methodology Architecture Document.</A>
+  </P>
+
+</BODY>
+</HMTL>

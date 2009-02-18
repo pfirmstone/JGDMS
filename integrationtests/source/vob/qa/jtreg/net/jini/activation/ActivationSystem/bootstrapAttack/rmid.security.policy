@@ -1,0 +1,7 @@
+grant codebase "file:${java.class.path}" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
+  permission java.security.AllPermission;
+};

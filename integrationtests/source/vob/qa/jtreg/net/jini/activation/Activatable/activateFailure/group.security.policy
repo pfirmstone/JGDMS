@@ -1,0 +1,10 @@
+/*
+ * security policy used by activation groups
+ */
+grant codebase "file:${jsk.home}/lib/phoenix-group.jar" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
+  permission java.security.AllPermission;
+};

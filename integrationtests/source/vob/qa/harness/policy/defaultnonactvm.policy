@@ -1,0 +1,127 @@
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}nonactivatablegroup.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}start.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.qa.home}${/}lib/harness-killer.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all";
+}; 
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/group.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/sec-jeri-group.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/defaultgroup.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/fiddler.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/defaultfiddler.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/mahalo.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/defaultmahalo.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/mercury.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/sec-jeri-mercury.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/defaultmercury.policy";
+// for a start test
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/norm.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/defaultnorm.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/outrigger.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/defaultoutrigger.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/reggie.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/defaultreggie.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/sharedvm.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/defaultsharedvm.policy";
+};
+
+grant codebase "file:${com.sun.jini.qa.home}${/}lib/harness-killer.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/policy.all";
+}; 
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/group.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/sec-jeri-group.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/defaultgroup.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/fiddler.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/defaultfiddler.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/mahalo.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/defaultmahalo.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/mercury.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/sec-jeri-mercury.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/defaultmercury.policy";
+// for a start test
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/norm.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/defaultnorm.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/outrigger.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/defaultoutrigger.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/reggie.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/defaultreggie.policy";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}/lib/sharedvm.jar" {
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/all.policy";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/policy.all";
+    permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.qa.home}/harness/policy/defaultsharedvm.policy";
+};

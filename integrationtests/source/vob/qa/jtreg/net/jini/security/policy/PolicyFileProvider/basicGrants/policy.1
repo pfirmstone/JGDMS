@@ -1,0 +1,19 @@
+/* @summary Verify that PolicyFileProvider correctly handles basic permission
+ *          grants
+ */
+
+grant {
+    permission java.lang.RuntimePermission "A1";
+};
+
+grant codeBase "file:/foo/*" {
+    permission java.lang.RuntimePermission "B1";
+};
+
+grant codeBase "file:/foo/-" {
+    permission java.lang.RuntimePermission "C1";
+};
+
+grant codeBase "file:/bar.jar" {
+    permission java.lang.RuntimePermission "D1";
+};

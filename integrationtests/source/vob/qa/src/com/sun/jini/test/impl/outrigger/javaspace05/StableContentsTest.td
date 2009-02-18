@@ -1,0 +1,5 @@
+testClass=StableContentsTest
+testCategories=javaspace,javaspace_impl,javaspace_impl_javaspace05
+
+
+

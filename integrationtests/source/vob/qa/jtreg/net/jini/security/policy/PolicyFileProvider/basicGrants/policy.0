@@ -1,0 +1,29 @@
+/* @summary Verify that PolicyFileProvider correctly handles basic permission
+ *          grants
+ */
+
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission java.lang.RuntimePermission "A0";
+    permission java.lang.RuntimePermission "accessClassInPackage.*";
+    permission java.lang.RuntimePermission "setSecurityManager";
+    permission java.util.PropertyPermission
+        "java.security.policy", "read,write";
+    permission java.util.PropertyPermission "test.src", "read";
+    permission java.security.SecurityPermission "getProperty.*";
+};
+
+grant codeBase "file:/foo/*" {
+    permission java.lang.RuntimePermission "B0";
+};
+
+grant codeBase "file:/foo/-" {
+    permission java.lang.RuntimePermission "C0";
+};
+
+grant codeBase "file:/bar.jar" {
+    permission java.lang.RuntimePermission "D0";
+};

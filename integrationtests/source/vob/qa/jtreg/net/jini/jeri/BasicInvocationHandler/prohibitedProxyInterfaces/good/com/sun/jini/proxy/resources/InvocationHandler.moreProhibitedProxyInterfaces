@@ -1,0 +1,14 @@
+# ignore this line ...+-
+   # ignore this line ...+-
+	# ignore this line ...+-
+        
+		
+net.jini.core.transaction.server.TransactionManager
+net.jini.core.transaction.server.TransactionManager# ignore this stuff ...+-
+net.jini.admin.Administrable # ignore this stuff ...+-
+net.jini.space.JavaSpace05	# ignore this stuff ...+-
+   com.sun.jini.admin.DestroyAdmin
+	net.jini.lookup.DiscoveryAdmin
+   net.jini.admin.JoinAdmin   # ignore this stuff ...+-
+	net.jini.space.JavaSpace	# ignore this stuff ...+-
+   ValidProxyInterfaces$Nested	

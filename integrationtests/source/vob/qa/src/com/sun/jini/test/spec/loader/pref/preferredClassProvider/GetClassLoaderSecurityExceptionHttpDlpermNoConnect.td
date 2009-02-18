@@ -1,0 +1,10 @@
+testClass=GetClassLoaderSecurityException
+testCategories=loader,loader_spec
+testPolicyfile=loaderNoConnectToCodebase.policy
+loader.isHttp=true
+loader.httpPort=8087
+loader.requireDlPerm=true
+loader.annotator=true
+testjvmargs=-Djava.rmi.server.RMIClassLoaderSpi=com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider
+com.sun.jini.qa.harness.runkitserver=false 
+com.sun.jini.qa.harness.runjiniserver=false

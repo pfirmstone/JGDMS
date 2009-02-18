@@ -1,0 +1,519 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 9">
+<meta name=Originator content="Microsoft Word 9">
+<link rel=File-List href="./ldm-req_files/filelist.xml">
+<title>LookupDiscoveryManager Utility Requirements</title>
+<!--[if gte mso 9]><xml>
+ <o:DocumentProperties>
+  <o:Author>SMI Software</o:Author>
+  <o:LastAuthor>SMI Software</o:LastAuthor>
+  <o:Revision>1</o:Revision>
+  <o:TotalTime>0</o:TotalTime>
+  <o:Created>2000-02-07T13:09:00Z</o:Created>
+  <o:LastSaved>2000-02-07T13:10:00Z</o:LastSaved>
+  <o:Pages>1</o:Pages>
+  <o:Company>Sun Microsystems</o:Company>
+  <o:Lines>1</o:Lines>
+  <o:Paragraphs>1</o:Paragraphs>
+  <o:Version>9.2720</o:Version>
+ </o:DocumentProperties>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:DisplayHorizontalDrawingGridEvery>0</w:DisplayHorizontalDrawingGridEvery>
+  <w:DisplayVerticalDrawingGridEvery>0</w:DisplayVerticalDrawingGridEvery>
+  <w:UseMarginsForDrawingGridOrigin/>
+  <w:Compatibility>
+   <w:FootnoteLayoutLikeWW8/>
+   <w:ShapeLayoutLikeWW8/>
+   <w:AlignTablesRowByRow/>
+   <w:ForgetLastTabAlignment/>
+   <w:LayoutRawTableWidth/>
+   <w:LayoutTableRowsApart/>
+  </w:Compatibility>
+ </w:WordDocument>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+@font-face
+	{font-family:Courier;
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-alt:"Courier New";
+	mso-font-charset:0;
+	mso-generic-font-family:modern;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:3 0 0 0 1 0;}
+@font-face
+	{font-family:Times-Bold;
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-charset:0;
+	mso-generic-font-family:roman;
+	mso-font-format:other;
+	mso-font-pitch:auto;
+	mso-font-signature:3 0 0 0 1 0;}
+ /* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+h2
+	{mso-style-next:Normal;
+	margin-top:12.0pt;
+	margin-right:0in;
+	margin-bottom:3.0pt;
+	margin-left:0in;
+	mso-pagination:widow-orphan;
+	page-break-after:avoid;
+	mso-outline-level:2;
+	font-size:12.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-bidi-font-family:"Times New Roman";
+	mso-bidi-font-weight:normal;
+	font-style:italic;
+	mso-bidi-font-style:normal;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+ /* List Definitions */
+@list l0
+	{mso-list-id:2096978495;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-633017206 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l0:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+ol
+	{margin-bottom:0in;}
+ul
+	{margin-bottom:0in;}
+-->
+</style>
+</head>
+
+<body lang=EN-US style='tab-interval:.5in'>
+
+<div class=Section1>
+
+<h2>LookupDiscoveryManager Utility Requirements</h2>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<table border=1 cellspacing=0 cellpadding=0 style='border-collapse:collapse;
+ border:none;mso-border-alt:solid windowtext .5pt;mso-padding-alt:0in 5.4pt 0in 5.4pt'>
+ <thead>
+  <tr>
+   <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+   padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>ID<o:p></o:p></b></p>
+   </td>
+   <td width=564 valign=top style='width:423.0pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>LookupDiscoveryManager
+   Utility</b> <b style='mso-bidi-font-weight:normal'>Requirement<o:p></o:p></b></p>
+   </td>
+   <td width=78 valign=top style='width:58.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Section<o:p></o:p></b></p>
+   </td>
+   <td width=240 valign=top style='width:2.5in;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Comments<o:p></o:p></b></p>
+   </td>
+  </tr>
+ </thead>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>equals </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method for this
+  class returns true if and only if two instances of this class refer to the
+  same object. That is, x and y are equal instances of this class if and only
+  if x == y has the value </span><span style='font-family:Courier;layout-grid-mode:
+  line'>true</span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>.</span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>4.4<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=2 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>If the constructor is invoked with a set of group
+  names and a set of locators in which either or both sets contain duplicate
+  elements (where duplicate locators are determined by calling </span><span
+  style='font-family:Courier;layout-grid-mode:line'>LookupLocator.equals</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>), the invocation is equivalent to constructing an instance of </span><span
+  style='font-family:Courier;layout-grid-mode:line'>LookupDiscoveryManager </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>with no duplicates in either set.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=3 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The constructor for the </span><span style='font-family:
+  Courier;layout-grid-mode:line'>LookupDiscoveryManager </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>takes the following arguments as input:</span><b style='mso-bidi-font-weight:
+  normal'><span style='font-family:Times-Bold;layout-grid-mode:line'> </span></b><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>A </span><span style='font-family:Courier;layout-grid-mode:line'>String
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>array, none of whose elements may be </span><span
+  style='font-family:Courier;layout-grid-mode:line'>null</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>, and in which each element is the name of a group whose members are
+  lookup services the entity wishes to be discovered<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Must satisfy LDM2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=4 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>If an empty or </span><span style='font-family:Courier;
+  layout-grid-mode:line'>null </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>array is input to the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>groups </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>argument, no lookup service will be discovered using the Jini multicast
+  discovery protocol.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=5 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The constructor for the </span><span style='font-family:
+  Courier;layout-grid-mode:line'>LookupDiscoveryManager </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>takes the following arguments as input:</span><b style='mso-bidi-font-weight:
+  normal'><span style='font-family:Times-Bold;layout-grid-mode:line'> </span></b><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>An array of </span><span style='font-family:Courier;layout-grid-mode:
+  line'>LookupLocator </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>objects, none of whose elements may
+  be </span><span style='font-family:Courier;layout-grid-mode:line'>null</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>, and in which each element corresponds to a specific lookup service
+  the entity wishes to be discovered<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Must satisfy LDM2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=6 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>If an empty or </span><span style='font-family:Courier;
+  layout-grid-mode:line'>null </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>array is input to the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>locators </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>argument, no lookup service will be discovered using the Jini unicast
+  discovery protocol.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=7 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The constructor for the </span><span style='font-family:
+  Courier;layout-grid-mode:line'>LookupDiscoveryManager </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>takes the following arguments as input:</span><b style='mso-bidi-font-weight:
+  normal'><span style='font-family:Times-Bold;layout-grid-mode:line'> </span></b><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>A reference to a </span><span style='font-family:Courier;layout-grid-mode:
+  line'>DiscoveryListener </span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman";layout-grid-mode:line'>object that will be notified when a
+  targeted lookup service is discovered or discarded<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=8 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The last argument to the constructor is a reference to
+  a listener object that will be registered to receive discovery event
+  notifications. If a </span><span style='font-family:Courier;layout-grid-mode:
+  line'>null </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>reference is input to this argument, then the client
+  will receive no discovery events.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=9 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>This constructor throws </span><span style='font-family:
+  Courier;layout-grid-mode:line'>IOException</span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>. This is
+  because construction of a </span><span style='font-family:Courier;layout-grid-mode:
+  line'>LookupDiscoveryManager </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>may initiate
+  the multicast discovery process, a process that can throw </span><span
+  style='font-family:Courier;layout-grid-mode:line'>IOException</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+</table>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+</div>
+
+</body>
+
+</html>

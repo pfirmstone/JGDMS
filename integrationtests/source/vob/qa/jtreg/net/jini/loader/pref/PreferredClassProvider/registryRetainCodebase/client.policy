@@ -1,0 +1,14 @@
+
+grant codeBase "file:${java.home}${/}lib${/}ext${/}*" {
+  permission java.security.AllPermission;
+};
+
+grant {
+  // workaround RMIClassLoaderSpi not doing a doPrivileged to find spi resource
+  permission java.io.FilePermission "${java.home}${/}lib${/}ext${/}-", "read";
+
+  permission java.lang.RuntimePermission "setFactory";
+  permission java.net.SocketPermission "localhost:2006", "connect,resolve";
+  permission java.net.SocketPermission "localhost:9867", "connect,resolve";
+  permission java.lang.RuntimePermission "getProtectionDomain";
+};

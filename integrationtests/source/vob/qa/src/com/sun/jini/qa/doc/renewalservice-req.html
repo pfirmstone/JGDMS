@@ -1,0 +1,2869 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 9">
+<meta name=Originator content="Microsoft Word 9">
+<link rel=File-List href="./renewalservice-req_files/filelist.xml">
+<title>LeaseRenewalService Requirements</title>
+<!--[if gte mso 9]><xml>
+ <o:DocumentProperties>
+  <o:Author>SMI Software</o:Author>
+  <o:LastAuthor>SMI Software</o:LastAuthor>
+  <o:Revision>2</o:Revision>
+  <o:TotalTime>1467</o:TotalTime>
+  <o:LastPrinted>2000-02-15T18:46:00Z</o:LastPrinted>
+  <o:Created>2000-03-16T21:57:00Z</o:Created>
+  <o:LastSaved>2000-03-16T21:57:00Z</o:LastSaved>
+  <o:Pages>5</o:Pages>
+  <o:Words>1688</o:Words>
+  <o:Characters>9624</o:Characters>
+  <o:Company>Sun Microsystems</o:Company>
+  <o:Lines>80</o:Lines>
+  <o:Paragraphs>19</o:Paragraphs>
+  <o:CharactersWithSpaces>11818</o:CharactersWithSpaces>
+  <o:Version>9.2720</o:Version>
+ </o:DocumentProperties>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:DisplayHorizontalDrawingGridEvery>0</w:DisplayHorizontalDrawingGridEvery>
+  <w:DisplayVerticalDrawingGridEvery>0</w:DisplayVerticalDrawingGridEvery>
+  <w:UseMarginsForDrawingGridOrigin/>
+  <w:Compatibility>
+   <w:FootnoteLayoutLikeWW8/>
+   <w:ShapeLayoutLikeWW8/>
+   <w:AlignTablesRowByRow/>
+   <w:ForgetLastTabAlignment/>
+   <w:LayoutRawTableWidth/>
+   <w:LayoutTableRowsApart/>
+  </w:Compatibility>
+ </w:WordDocument>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+@font-face
+	{font-family:Courier;
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-alt:"Courier New";
+	mso-font-charset:0;
+	mso-generic-font-family:modern;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:3 0 0 0 1 0;}
+@font-face
+	{font-family:Times-Bold;
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-charset:0;
+	mso-generic-font-family:roman;
+	mso-font-format:other;
+	mso-font-pitch:auto;
+	mso-font-signature:3 0 0 0 1 0;}
+ /* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+h2
+	{mso-style-next:Normal;
+	margin-top:12.0pt;
+	margin-right:0in;
+	margin-bottom:3.0pt;
+	margin-left:0in;
+	mso-pagination:widow-orphan;
+	page-break-after:avoid;
+	mso-outline-level:2;
+	font-size:12.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-bidi-font-family:"Times New Roman";
+	mso-bidi-font-weight:normal;
+	font-style:italic;
+	mso-bidi-font-style:normal;}
+@page Section1
+	{size:11.0in 8.5in;
+	mso-page-orientation:landscape;
+	margin:1.25in 1.0in 1.25in 1.0in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+ /* List Definitions */
+@list l0
+	{mso-list-id:82999791;
+	mso-list-type:hybrid;
+	mso-list-template-ids:549125712;}
+@list l0:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l1
+	{mso-list-id:325282551;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1399275904;}
+@list l1:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l2
+	{mso-list-id:331881155;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-760817038;}
+@list l2:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l3
+	{mso-list-id:432212075;
+	mso-list-type:hybrid;
+	mso-list-template-ids:522462804;}
+@list l3:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l4
+	{mso-list-id:748308491;
+	mso-list-type:hybrid;
+	mso-list-template-ids:177102910;}
+@list l4:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l5
+	{mso-list-id:783960421;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-838145742;}
+@list l5:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l6
+	{mso-list-id:935135512;
+	mso-list-type:simple;
+	mso-list-template-ids:1056744852;}
+@list l6:level1
+	{mso-level-start-at:0;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;
+	font-family:"Times New Roman";}
+@list l7
+	{mso-list-id:1208103437;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1366416904;}
+@list l7:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l8
+	{mso-list-id:1465342668;
+	mso-list-type:hybrid;
+	mso-list-template-ids:632455074;}
+@list l8:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l9
+	{mso-list-id:1567568201;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-767907624;}
+@list l9:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l10
+	{mso-list-id:1596210429;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-593601176;}
+@list l10:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l11
+	{mso-list-id:1767456905;
+	mso-list-type:hybrid;
+	mso-list-template-ids:495624354;}
+@list l11:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l12
+	{mso-list-id:2061974651;
+	mso-list-type:hybrid;
+	mso-list-template-ids:210692132;}
+@list l12:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l13
+	{mso-list-id:2096978495;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-633017206;}
+@list l13:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+ol
+	{margin-bottom:0in;}
+ul
+	{margin-bottom:0in;}
+-->
+</style>
+</head>
+
+<body lang=EN-US style='tab-interval:.5in'>
+
+<div class=Section1>
+
+<h2>LeaseRenewalService Requirements</h2>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<table border=1 cellspacing=0 cellpadding=0 style='border-collapse:collapse;
+ border:none;mso-border-alt:solid windowtext .5pt;mso-padding-alt:0in 5.4pt 0in 5.4pt'>
+ <thead>
+  <tr>
+   <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+   padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>ID<o:p></o:p></b></p>
+   </td>
+   <td width=564 valign=top style='width:423.0pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>LeaseRenewalService</b>
+   <b style='mso-bidi-font-weight:normal'>Requirement<o:p></o:p></b></p>
+   </td>
+   <td width=78 valign=top style='width:58.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Section<o:p></o:p></b></p>
+   </td>
+   <td width=240 valign=top style='width:2.5in;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Comments<o:p></o:p></b></p>
+   </td>
+  </tr>
+ </thead>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Two proxy objects are equal (using the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>equals </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>method) if they are proxies for the same renewal service.</span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.4<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=2 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>After the membership duration expires, the lease will
+  be removed from the set without further client intervention.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=3 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The renewal service will never renew a lease for a
+  period that extends beyond its current membership duration expiration.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=4 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>If the lease on a set expires or is cancelled, the
+  renewal service will destroy the set and take no further action with regard
+  to the leases in the set.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=5 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>There is an event associated with each set that occurs
+  at a client-specified time before the lease on the set expires.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=6 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>A registration for this event does not have its own
+  lease, but instead is bundled into the same lease under which the set was
+  granted.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=7 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Each lease renewal set has a renewal failure event
+  associated with it that will occur if any lease in the set expires before its
+  membership duration runs out,<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=8 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Each lease renewal set has a renewal failure event
+  associated with it that will occur … if the renewal service attempts to renew
+  a lease and gets a definite exception.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=9 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>A registration for this event does not have its own
+  lease, but instead is bundled into the same lease under which the set was
+  granted.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=10 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Once placed in a set, a lease will stay there until …
+  The lease on the set itself expires or is cancelled, causing destruction of
+  the set<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=11 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Once placed in a set, a lease will stay there until …
+  The lease is removed by the client<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=12 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Once placed in a set, a lease will stay there until …
+  The lease expires<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=13 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Once placed in a set, a lease will stay there until … </span><b
+  style='mso-bidi-font-weight:normal'><span style='font-size:14.0pt;mso-bidi-font-size:
+  10.0pt;font-family:Times-Bold;layout-grid-mode:line'><span
+  style="mso-spacerun: yes"> </span></span></b><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>The lease’s
+  membership duration expires<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=14 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Once placed in a set, a lease will stay there until … </span><b
+  style='mso-bidi-font-weight:normal'><span style='font-size:14.0pt;mso-bidi-font-size:
+  10.0pt;font-family:Times-Bold;layout-grid-mode:line'><span
+  style="mso-spacerun: yes"> </span></span></b><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>A renewal call
+  results in a definite exception<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=15 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The renewal service will never cancel a lease.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=16 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>the </span><span style='font-family:Courier;
+  layout-grid-mode:line'>createLeaseRenewalSet </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … </span><span
+  style='font-family:Courier;layout-grid-mode:line'>leaseDuration </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>argument specifies how long (in milliseconds) the client wants the
+  set's initial lease duration to be. The initial duration of the set's lease
+  will be equal to or shorter than this request; it will not be longer.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=17 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>This duration must be positive, </span><span
+  style='font-family:Courier;layout-grid-mode:line'>Lease.FOREVER</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>,or </span><span style='font-family:Courier;layout-grid-mode:line'>Lease.ANY;
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>otherwise an </span><span style='font-family:Courier;
+  layout-grid-mode:line'>IllegalArgumentException </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>must be thrown.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=18 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The proxy objects for two sets are equal (using the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>equals </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>method) if they are proxies for the same set created by the same
+  renewal service.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=19 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Any method that communicates with the remote server
+  should throw a </span><span style='font-family:Courier;layout-grid-mode:line'>NoSuchObjectException
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>if the set no longer exists.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=20 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Courier;layout-grid-mode:line'>…
+  addLease </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>method. The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>leaseToRenew </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>argument
+  specifies the lease to be renewed.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=21 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>An </span><span style='font-family:Courier;layout-grid-mode:
+  line'>IllegalArgumentException </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>must be thrown
+  if the lease was granted by the renewal service itself.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=22 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>An </span><span style='font-family:Courier;layout-grid-mode:
+  line'>IllegalArgumentException </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>must also be
+  thrown if the lease is currently a member of another set allocated by the
+  same renewal service.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=23 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>membershipDuration </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>is the
+  initial membership duration for the lease.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=24 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The duration must have a value between 1 and </span><span
+  style='font-family:Courier;layout-grid-mode:line'>Long.MAX_VALUE</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>, inclusive; otherwise the renewal service must throw an </span><span
+  style='font-family:Courier;layout-grid-mode:line'>IllegalArgumentException</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=25 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Calling </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addLease </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>with a lease
+  that is already in the set will associate the existing lease in the set with
+  the new membership duration. The lease is not replaced …<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=26 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Leases are removed from the set using the </span><span
+  style='font-family:Courier;layout-grid-mode:line'>removeLease </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>method.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=27 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The expiration time of the returned lease will reflect
+  either:<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>- The result of the last successful renewal call that
+  the renewal service made<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>or<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>- The expiration time the lease originally had when it
+  was added, if the renewal service has not yet successfully renewed the lease <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=28 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>If the lease is not in the set, </span><span
+  style='font-family:Courier;layout-grid-mode:line'>null </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>will be returned.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=29 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>getLease </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method returns
+  the lease associated with the set itself. (Note this method does not make a
+  remote call.)<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=30 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>setExpirationWarningListener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method
+  allows the client to register for notification of the approaching expiration
+  of the set’s lease. <span style='layout-grid-mode:line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=31 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>listener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>argument
+  specifies what listener should be notified when the lease is about to expire.<span
+  style='layout-grid-mode:line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=32 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  method must throw a </span><span style='font-family:Courier'>NullPointerException
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>if
+  </span><span style='font-family:Courier'>listener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>is </span><span
+  style='font-family:Courier'>null.</span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman"'><o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=33 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>minWarning </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>argument
+  specifies in milliseconds how long before lease expiration the event should
+  be generated. <span style='layout-grid-mode:line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=34 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>This
+  must be zero or a positive number. If it is not, an </span><span
+  style='font-family:Courier'>IllegalArgumentException </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>must be
+  thrown. <span style='layout-grid-mode:line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=35 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  the current expiration of the set’s lease is sooner than </span><span
+  style='font-family:Courier'>minWarning</span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman"'>, the event will occur immediately
+  (though it will take time to propagate to the handler). <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=36 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>handback </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>argument to </span><span
+  style='font-family:Courier'>setExpirationWarningListener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>specifies an
+  object that will be part of the expiration warning event notification. This
+  mechanism is detailed in the Jini™ Distributed Event Specification.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=37 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>setExpirationWarningListener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method
+  returns the event registration for this event. This registration has the same
+  lease as the lease renewal set. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=38 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  event ID returned by the event registration is unique, at least with respect
+  to all other active event registrations created by the given renewal service.
+  <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=39 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  an event handler has already been specified for this event the current registration
+  is replaced with the new one. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=40 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  returned event registration must have the same event ID as the replaced
+  registration. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=41 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Because
+  both registrations are for the same kind of event, the events sent to the new
+  registration must be in the same sequence as the events sent to the old
+  registration.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=42 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>clearExpirationWarningListener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method
+  removes the event registration currently associated with the approaching
+  expiration of the set’s lease.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=43 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>It
+  is acceptable to call this method even if there is no active registration.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=44 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>setRenewalFailureListener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method
+  allows the client to register for the event associated with the failure to
+  renew a lease in the set. These events are generated when a lease expires
+  while it is still in the set, or the service attempted to renew the lease and
+  gets a definite exception. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=45 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>listener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>argument
+  specifies the listener to be notified if a lease could not be renewed.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=46 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>handback </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>argument to </span><span
+  style='font-family:Courier'>setRenewalFailureListener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>specifies an
+  object that will be part of the renewal failure event notification.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=47 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>setRenewalFailureListener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method
+  returns the event registration for this event. This registration has the same
+  lease as the set. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=48 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  event ID returned by the event registration is unique at least with respect
+  to all other active event registrations created by the given renewal service.
+  <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=49 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  method must throw </span><span style='font-family:Courier'>NullPointerException
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>if
+  </span><span style='font-family:Courier'>listener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>is </span><span
+  style='font-family:Courier'>null. </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman"'><o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=50 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  an event handler has already been specified for this event the current
+  registration is replaced with the new one. The returned event registration
+  must have the same event ID as the replaced registration. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=51 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Because
+  both registrations are for the same kind of event, the events sent to the new
+  registration must be in the same sequence as the events sent to the old
+  registration.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=52 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  clearRenewalFailureListener method removes the event registration currently
+  associated with the event for the failure to renew a lease in the set. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=53 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>It
+  is acceptable to call this method even if there is no active registration.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=54 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Courier'>ExpirationWarningEven</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>t objects
+  are passed to the event handlers specified in calls to the </span><span
+  style='font-family:Courier'>LeaseRenewalSet </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman"'>method, </span><span
+  style='font-family:Courier'>setExpirationWarningListener</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>. ... the
+  lease which is about to expire. This state is returned by the </span><span
+  style='font-family:Courier'>getLease </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman"'>method.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=55 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Its
+  expiration will reflect the expiration the lease had when the event occurred.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=56 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Sequence
+  numbers for a given event ID are strictly increasing. If there is no gap
+  between two sequence numbers, no events have been missed; if there is a gap,
+  events might (but might not) have been missed.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=57 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Courier'>RenewalFailureEvent </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>objects are
+  passed to the event handlers specified in calls to the </span><span
+  style='font-family:Courier'>LeaseRenewalSet </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman"'>method, </span><span
+  style='font-family:Courier'>setRenewalFailureListener</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=58 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  lease is returned by the </span><span style='font-family:Courier'>getLease </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method, ...<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=59 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>...
+  and the </span><span style='font-family:Courier'>Throwable </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>by the </span><span
+  style='font-family:Courier'>getThrowable </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman"'>method. .<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=60 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  the </span><span style='font-family:Courier'>Throwable </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>is </span><span
+  style='font-family:Courier'>null </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman"'>it can be assumed that the renewal
+  service was unable to call </span><span style='font-family:Courier'>renew </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>before the
+  lease expired<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=61 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  the renewal service was able to renew the lease before the event occurred,
+  the lease’s expiration will reflect the result of the last successful renewal
+  call. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=62 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>When
+  a renewal failure event is generated for a given lease, that lease is removed
+  from the set.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=63 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Sequence
+  numbers for a given event ID are strictly increasing. If there is no gap between
+  two sequence numbers, no events have been missed; if there is a gap, events
+  might (but might not) have been missed.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=64 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  the current time plus the membership duration is larger than Long.MAX_VALUE,
+  the membership expiration will be Long.MAX_VALUE.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 108<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=65 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  a lease’s current expiration is after the lease’s membership expiration, the
+  renewal service will not renew the lease, it will remain in the set however.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 108<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=66 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  getLeases method returns all the client leases in the set at the time of the
+  call as an array of type Lease.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 112<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=67 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  one or more of the leases in the array can not be deserialized a
+  LeaseUnmarshalException is thrown. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 113<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=68 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  leases that could be successfully deserialized will be returned by the
+  getUnmarshaledLeases method of the exception. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 113<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=69 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  no leases could be deserialized a zero length array will be returned.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 113<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=70 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  leases that could not be deserialized will be returned in the form of
+  MarshalledObjects by the getStillMarshalledLeases method of the exception.
+  For each element of the array returned by the getStillMarshalledLeases
+  method, there will be a corresponding element of the array returned by the
+  getExceptions method thay will hold a Throwable that describes why the given
+  lease could not be deserialized.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 113<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=71 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Each
+  event generated by the lease renewal service has as its source the renewal
+  set that the event is associated with. In the case of an expiration warning
+  event this is the set which is about to expire. In the case of a renewal
+  failure event this is the set the client lease was in when the event
+  occurred.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3.1<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 113<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=72 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Because
+  a given set will only have one expiration warning event registration at a
+  given time all expiration warning events will have the same event ID,
+  LeaseRenewalSet.EXPIRATION_WARNING_EVENT_ID. Similarly, all renewal failure
+  events have the same event ID, LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3.1<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 113<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=73 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  a RemoteListener registered for a renewal failure or an expiration warning
+  event throws an UnknownEventException, this will only clear the specific
+  event registration, it will not cancel<span style="mso-spacerun: yes"> 
+  </span>the lease on the renewal set, or affect any other event registration
+  on the set.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3.1<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 113<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=74 type=1>
+   <li class=MsoNormal style='line-height:200%;mso-list:l5 level1 lfo12;
+       tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  an event listener is replaced, and one or more event delivery attempts on the
+  original listener failed or were indeterminate, implementations may choose to
+  send some or all of these events to the new listener.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3.1<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 114<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=75 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Both
+  the getLease and getThrowable methods are declared to throw IOException and
+  ClassNotFoundException, this delcaration allows implementations to delay
+  unmarshalling this state until it is actually needed. Once either method of a
+  given RenewalFailureEvent object returns normally, future calls on that method
+  must return the same object and may not throw an exception.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3.1<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 116<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=76 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo12;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  RenewalFailureEvent is a subclass of RemoteEvent, adding two additional items
+  of abstract state – the client lease which could not be renewed before
+  expiration and the Throwable object that was thrown by the first failed
+  renewal attempt in the last series of consecutive failures.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>9.3.1<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='color:black'>page 115<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+</table>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<p class=MsoNormal><span style='mso-tab-count:2'>                                </span><span
+style='mso-tab-count:2'>                                </span><span
+style='mso-tab-count:2'>                                </span><span
+style='mso-tab-count:2'>                                </span><span
+style='mso-tab-count:2'>                                </span><span
+style='mso-tab-count:2'>                                </span><span
+style='mso-tab-count:2'>                                </span><span
+style='mso-tab-count:2'>                                </span><span
+style='mso-tab-count:2'>                                </span><span
+style='mso-tab-count:2'>                                </span><span
+style='mso-tab-count:1'>                </span></p>
+
+</div>
+
+</body>
+
+</html>

@@ -1,0 +1,785 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 9">
+<meta name=Originator content="Microsoft Word 9">
+<link rel=File-List href="./ems-req_files/filelist.xml">
+<title>EventMailboxService Requirements</title>
+<!--[if gte mso 9]><xml>
+ <o:DocumentProperties>
+  <o:Author>SMI Software</o:Author>
+  <o:LastAuthor>SMI Software</o:LastAuthor>
+  <o:Revision>1</o:Revision>
+  <o:TotalTime>0</o:TotalTime>
+  <o:Created>2000-02-07T13:18:00Z</o:Created>
+  <o:LastSaved>2000-02-07T13:18:00Z</o:LastSaved>
+  <o:Pages>1</o:Pages>
+  <o:Company>Sun Microsystems</o:Company>
+  <o:Lines>1</o:Lines>
+  <o:Paragraphs>1</o:Paragraphs>
+  <o:Version>9.2720</o:Version>
+ </o:DocumentProperties>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:DisplayHorizontalDrawingGridEvery>0</w:DisplayHorizontalDrawingGridEvery>
+  <w:DisplayVerticalDrawingGridEvery>0</w:DisplayVerticalDrawingGridEvery>
+  <w:UseMarginsForDrawingGridOrigin/>
+  <w:Compatibility>
+   <w:FootnoteLayoutLikeWW8/>
+   <w:ShapeLayoutLikeWW8/>
+   <w:AlignTablesRowByRow/>
+   <w:ForgetLastTabAlignment/>
+   <w:LayoutRawTableWidth/>
+   <w:LayoutTableRowsApart/>
+  </w:Compatibility>
+ </w:WordDocument>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+@font-face
+	{font-family:Courier;
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-alt:"Courier New";
+	mso-font-charset:0;
+	mso-generic-font-family:modern;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:3 0 0 0 1 0;}
+ /* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+h2
+	{mso-style-next:Normal;
+	margin-top:12.0pt;
+	margin-right:0in;
+	margin-bottom:3.0pt;
+	margin-left:0in;
+	mso-pagination:widow-orphan;
+	page-break-after:avoid;
+	mso-outline-level:2;
+	font-size:12.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-bidi-font-family:"Times New Roman";
+	mso-bidi-font-weight:normal;
+	font-style:italic;
+	mso-bidi-font-style:normal;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+ /* List Definitions */
+@list l0
+	{mso-list-id:1596210429;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-593601176 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l0:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+ol
+	{margin-bottom:0in;}
+ul
+	{margin-bottom:0in;}
+-->
+</style>
+</head>
+
+<body lang=EN-US style='tab-interval:.5in'>
+
+<div class=Section1>
+
+<h2>EventMailboxService Requirements</h2>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<table border=1 cellspacing=0 cellpadding=0 width=943 style='width:707.4pt;
+ border-collapse:collapse;border:none;mso-border-alt:solid windowtext .5pt;
+ mso-padding-alt:0in 5.4pt 0in 5.4pt'>
+ <thead>
+  <tr>
+   <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+   padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>ID<o:p></o:p></b></p>
+   </td>
+   <td width=564 valign=top style='width:423.0pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>EventMailboxService</b>
+   <b style='mso-bidi-font-weight:normal'>Requirement<o:p></o:p></b></p>
+   </td>
+   <td width=78 valign=top style='width:58.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Section<o:p></o:p></b></p>
+   </td>
+   <td width=240 valign=top style='width:2.5in;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Comments<o:p></o:p></b></p>
+   </td>
+  </tr>
+ </thead>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The register method has a single parameter of type
+  long. This represents the lease duration for which use of the event mailbox
+  is requested. The register method returns an object of type
+  MailboxRegistration. </span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>10.5<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSIFT, EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT EMSNSOT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=2 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The value passed in as the requested lease duration
+  must be a positive long value. This value represents the duration, in
+  milliseconds, for use of the event mailbox. The special values defined in the
+  Jini™ Distributed Leasing Specification, namely Lease.FOREVER and Lease.ANY,
+  are also valid values. Lease.FOREVER represents a duration of maximum value
+  while Lease.ANY represents a duration whose length is preferred and chosen by
+  the event mailbox. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSIFT EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT EMSNSOT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=3 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>In
+  granting a lease to the caller of the </span><span style='font-family:Courier'>register
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method,
+  the event mailbox may grant either the requested duration or a shorter
+  duration.<span style='layout-grid-mode:line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSIFT EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=4 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>If
+  the </span><span style='font-family:Courier'>register </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method
+  throws a </span><span style='font-family:Courier'>RemoteException</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>, then
+  registration is not guaranteed to have happened. <span style='layout-grid-mode:
+  line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Not testable</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=5 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Each
+  successful invocation of the </span><span style='font-family:Courier'>register
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method
+  produces a new registration object. Thus, the register method is not
+  idempotent.<span style='layout-grid-mode:line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSIFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=6 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>getLease </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method takes
+  no parameters and returns an object of type </span><span style='font-family:
+  Courier'>Lease</span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman"'>.<span style='layout-grid-mode:line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='color:black'>10.6<o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSIFT EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=7 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  </span><span style='font-family:Courier'>getListener </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method takes
+  no parameters and returns an object of type </span><span style='font-family:
+  Courier'>RemoteEventListener</span><span style='font-family:Arial;mso-bidi-font-family:
+  "Times New Roman"'>.<span style='layout-grid-mode:line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT EMSNSOT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=8 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>When
+  the </span><span style='font-family:Courier'>enableDelivery </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method is
+  called, notification of the specified target listener object with the
+  sequence of events collected by the event mailbox is commenced.<span
+  style='layout-grid-mode:line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=9 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Making
+  an </span><span style='font-family:Courier'>enableDelivery </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method call
+  while event delivery has already been enabled updates the target listener as
+  specified in the forwarding target object parameter.<span style='layout-grid-mode:
+  line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=10 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Any
+  new events, arriving at the mailbox while the faucet is on, will be
+  accumulated by the mailbox and eventually delivered to the current forwarding
+  target object.<span style='layout-grid-mode:line'><o:p></o:p></span></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: </p>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=11 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>An
+  event that is successfully delivered to the forwarding target object is
+  removed from event mailbox storage.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Not testable</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=12 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  event mailbox service delivers events to the forwarding target object by
+  calling its </span><span style='font-family:Courier'>notify </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method. ...
+  If this call throws a </span><span style='font-family:Courier'>NoSuchObjectException</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>, event
+  delivery is halted.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Func: EMSNSOT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=13 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  process of sending events continues until the event mailbox has either
+  exhausted its supply of collected events from storage ... <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=14 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>The
+  process of sending events continues until the event mailbox ... is instructed
+  to halt delivery. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=15 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Calling
+  </span><span style='font-family:Courier'>enableDelivery </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>with a </span><span
+  style='font-family:Courier'>null </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman"'>forwarding target object halts event
+  delivery.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=16 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Calling
+  the </span><span style='font-family:Courier'>disableDelivery </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method
+  instructs the mailbox to halt the delivery of events. <o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=17 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Making
+  a </span><span style='font-family:Courier'>disableDelivery </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>method call
+  after delivery has already been disabled has no effect.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=18 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman"'>Use
+  of the event mailbox service is ended when the lease granted by the event
+  mailbox is cancelled or expires.<o:p></o:p></span></p>
+  </td>
+  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
+  style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF: EMSRIFT</p>
+  <p class=MsoNormal>Func: EMSFT</p>
+  </td>
+ </tr>
+</table>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+</div>
+
+</body>
+
+</html>

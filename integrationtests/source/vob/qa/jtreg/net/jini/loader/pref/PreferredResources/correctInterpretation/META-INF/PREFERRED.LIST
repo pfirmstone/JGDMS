@@ -1,0 +1,27 @@
+PreferredResources-Version: 1.0
+Preferred: false
+
+Name: HasInner$Inner1$Inner2$Inner3.class
+Preferred: true
+
+Name: HasInner$Inner1.class
+Preferred: false
+
+Name: HasInner.class
+Preferred: true
+
+Name: One.class
+Preferred: true
+
+Name: Two.class
+Preferred: false
+
+Name: p1/*
+Preferred: true
+
+Name: p/-
+Preferred: false
+
+Name: p/p2/-
+Preferred: true
+

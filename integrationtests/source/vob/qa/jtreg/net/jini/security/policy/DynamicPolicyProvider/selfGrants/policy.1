@@ -1,0 +1,13 @@
+/* @summary Test basic permission grants (to self with no principals, for
+ *          simplicity)
+ */
+
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission net.jini.security.GrantPermission
+        "delim=' java.lang.RuntimePermission 'C'";
+    permission java.lang.RuntimePermission "D";
+};

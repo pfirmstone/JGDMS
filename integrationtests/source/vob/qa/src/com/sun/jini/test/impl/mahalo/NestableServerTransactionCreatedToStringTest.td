@@ -1,0 +1,3 @@
+include0=mahalo.properties
+testClass=NestableServerTransactionCreatedToStringTest
+testCategories=txnmanager,txnmanager_impl

@@ -1,0 +1,14 @@
+PreferredResources-Version: 1.0
+Preferred: true
+
+Name: images/foo.jpg
+Preferred: false
+
+Name:   images/-  
+Preferred: true
+
+Name: looks.like.a.class   
+Preferred: true   
+
+Name: images/people/*
+Preferred:    false

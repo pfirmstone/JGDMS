@@ -1,0 +1,4 @@
+testClass=AddNewDiscoveryListener
+testCategories=discoverymanager,discoverymanager_spec
+include0=discoverymanager.properties
+com/sun/jini/test/share/reggie6_0.properties

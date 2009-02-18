@@ -1,0 +1,3 @@
+testClass=RenewAtTest
+testCategories=renewalservice,renewalservice_impl
+include0=norm.properties

@@ -1,0 +1,9 @@
+testClass=ServiceStarterCreateTransientServiceTest
+testCategories=start,start_impl
+net.jini.core.lookup.ServiceRegistrar.type=transient
+net.jini.discovery.LookupDiscoveryService.type=transient
+net.jini.lease.LeaseRenewalService.type=transient
+net.jini.space.JavaSpace.type=transient
+net.jini.event.EventMailbox.type=transient
+net.jini.core.transaction.server.TransactionManager.type=transient
+include0=start.properties

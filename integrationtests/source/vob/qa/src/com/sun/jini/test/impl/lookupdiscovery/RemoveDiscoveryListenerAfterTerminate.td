@@ -1,0 +1,3 @@
+testClass=RemoveDiscoveryListenerAfterTerminate
+testCategories=lookupdiscovery,lookupdiscovery_impl,impllookupdiscovery
+include0=lookupdiscovery.properties

@@ -1,0 +1,6 @@
+testClass=DelayDiscoveryAfterDiscard
+testCategories=locatordiscovery,locatordiscovery_impl,impllocatordiscovery
+include0=locatordiscovery.properties
+include1=com/sun/jini/test/share/reggie1_0.properties
+com.sun.jini.test.impl.locatordiscovery.discardDelayFirstWait=5000
+com.sun.jini.test.impl.locatordiscovery.discardDelay=30000

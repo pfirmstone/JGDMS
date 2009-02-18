@@ -1,0 +1,4 @@
+testClass=ConstructorNullElement
+testCategories=lookupdiscovery,lookupdiscovery_spec,speclookupdiscovery
+include0=lookupdiscovery.properties
+#No .prop in lookupdiscovery.properties

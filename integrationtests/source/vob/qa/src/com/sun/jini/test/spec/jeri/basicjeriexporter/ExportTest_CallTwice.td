@@ -1,0 +1,2 @@
+testClass=ExportTest_CallTwice
+testCategories=jeri,jeri_spec

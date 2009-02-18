@@ -1,0 +1,167 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<html>
+<title>Extended RMI Example</title>
+
+<body text="#000000" bgcolor="#ffffff" link="#9b37cc" vlink="#cc1877"
+      alink="#ffffff">
+
+<h1><center>Kerberos Tests</center></h1>
+
+<h2>Introduction</h2>
+
+This directory and its sub-directories contain source files and
+scripts used to test the Kerberos secure transport provider.
+
+<h2>Jtreg tests</h2>
+
+There are three <code>jtreg</code> tests, and they can be run as
+following:
+<pre>
+jtreg -va runTestEndpoints.sh
+jtreg -va runTestPerformance.sh
+jtreg -va TestVerifier.java
+</pre>
+
+Note before running the <code>jtreg</code> tests, one need to specify
+which Java<sup><font size=-2>TM</font></sup> installation has the intended <code>overture.jar</code> in
+its extension directory, one way to accomplish this is by setting the
+environment variable <code>JAVA_HOME</code> before running the
+<code>jtreg</code> tests.  In addition a valid
+<code>jgssTests.keytab</code> has to present in the config directory,
+and <code>krb-setenv.sh</code> has to be updated to contain the right
+KDC information.
+
+<h2>Generate jgssTests.keytab</h2>
+
+jgssTests.keytab contains Kerberos keys for the following six principals:
+
+<pre>
+testClient1
+testClient2
+testClient3
+testServer1
+testServer2
+testServer3
+</pre>
+
+These six principal names are hard coded in TestEndpoints.java.  If
+you decide to use principals other then these in the keytab, you will
+need to update TestEndpoints.java, as well as
+config/testEndpoints.login, accordingly.
+
+Beginning in version 1.4.1, the Java<sup><font size=-2>TM</font></sup>
+2 SDK, Standard Edition provides three client-side Kerberos tools:
+<code>kinit</code>, <code>klist</code>, and <code>ktab</code> in its
+Windows and Linux distributions.  Once the six principals are added to
+the KDC, one can use <code>ktab</code> to generate jgssTest.keytab on
+a client machine.
+
+<pre>
+ktab -a &lt;principal_name&gt; &lt;password&gt; -k &lt;keytab_name&gt;
+</pre>
+
+To check what entries are in a keytab file, use:
+
+<pre>
+ktab -l -k &lt;keytab_name&gt;
+</pre>
+
+On Solaris<sup><font size=-2>TM</font></sup> Operating System
+(Solaris OS), <a
+href="http://docs.sun.com/?q=kadmin&p=/doc/816-0211/6m6nc66th&a=view"><code>kadmin</code></a>
+has to be used to generate the keytab file, and <a
+href="http://docs.sun.com/?q=kinit&p=/doc/806-0624/6j9vek58e&a=view"><code>klist</code></a>
+can be used to verify its content.
+
+<h2>Generate TGT caches</h2>
+
+<p>Instead of using <code>kinit</code>, the class
+<code>sun.security.krb5.internal.tools.Kinit</code> packaged in
+<code>jre/lib/rt.jar</code> is used to obtain and cache Kerberos TGTs.
+This allows us to avoid the complications caused by the re-movement of
+<code>kinit</code> from JDK1.4.2 for Solaris OS, and the fact that
+<code>kinit</code> can only get its <code>realm</code> and <code>kdc
+host</code> information from a <code>krb5.conf</code> file.
+
+<p>A script <code>initTGTs.sh</code> is provided in the
+<code>scripts</code> directory to aid TGT caches creation before
+non-jtreg tests can run.
+
+<h2>Kerberos login module documentation</h2>
+
+The Java Authentication and Authorization Service (<a
+href="http://java.sun.com/j2se/1.4.1/docs/guide/security/jaas/JAASRefGuide.html">JAAS</a>)
+login module for Kerberos is <code>Krb5LoginModule</code>.  To find
+out what options it supports and how to setup its configuration file,
+click <a
+href="http://java.sun.com/j2se/1.4.1/docs/guide/security/jaas/spec/com/sun/security/auth/module/Krb5LoginModule.html">here</a>.
+
+<h2>Run endpoint tests concurrently</h2>
+
+<pre>
+source: ConcurrentTests.java
+script to run: scripts/runConcurrent.sh [-c]
+</pre>
+
+When "<code>-c</code>" option is specified, compile the source before
+run.
+
+<h2>Run performance tests</h2>
+
+<pre>
+source: TestPerformance.java
+script to run: scripts/runPerf.sh [-c]
+</pre>
+
+When "<code>-c</code>" option is specified, compile the source before
+run.
+
+<h2>Run endpoint tests</h2>
+
+<pre>
+source: TestEndpoints.java
+script to run: scripts/runTeps.sh [-c]
+</pre>
+
+When "<code>-c</code>" option is specified, compile the source before
+run.
+
+<h2>Run both endpoint tests and verifier tests</h2>
+
+<pre>
+source: TestAll.java
+script to run: scripts/runAll.sh [-c]
+</pre>
+
+When "<code>-c</code>" option is specified, compile the source before
+run.
+
+<h2>Run jgss short message round-trip time measurement test</h2>
+
+<pre>
+source: JgssPerfTest.java
+script to run: scripts/runJgssPerf.sh [-c]
+</pre>
+
+When "<code>-c</code>" option is specified, compile the source before
+run.
+
+</body>
+</html>

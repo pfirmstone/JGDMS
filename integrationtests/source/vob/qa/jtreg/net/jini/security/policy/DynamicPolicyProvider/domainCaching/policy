@@ -1,0 +1,18 @@
+/* @summary Verify proper functioning of principal-based grants.
+ */
+
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "accessClassInPackage.*";
+    permission java.util.PropertyPermission "*", "read";
+    permission java.security.SecurityPermission "getProperty.*";
+    permission java.io.FilePermission ".", "read,write,delete";
+    permission java.io.FilePermission ".${/}-", "read,write,delete";
+    permission java.io.FilePermission "${test.classes}", "read,write,delete";
+    permission java.io.FilePermission 
+        "${test.classes}${/}-", "read,write,delete";
+};

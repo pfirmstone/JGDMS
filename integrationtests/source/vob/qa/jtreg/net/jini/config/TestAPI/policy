@@ -1,0 +1,28 @@
+/* 
+ * Java policy file for running tests in this directory.
+ */
+
+grant codebase "file:${extdir}/*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission java.util.PropertyPermission "*", "read";
+    permission java.util.PropertyPermission "java.security.properties", "write";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "getContextClassLoader";
+    permission java.lang.RuntimePermission "setContextClassLoader";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.io.FilePermission "<<ALL FILES>>", "read,write,delete";
+    permission java.net.SocketPermission "localhost:1024-",
+	"listen,connect,accept";
+    permission java.net.SocketPermission "*", "connect,resolve";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+};

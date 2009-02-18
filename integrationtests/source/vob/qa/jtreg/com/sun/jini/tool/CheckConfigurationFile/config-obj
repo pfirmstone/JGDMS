@@ -1,0 +1,11 @@
+import net.jini.config.EmptyConfiguration;
+
+comp {
+    BooleanEntry =		Boolean.TRUE;
+    IntegerEntry =		new Integer(9);
+
+    MapEntry =			new java.util.HashMap();
+    HashMapEntry =		null;
+
+    ConfigurationEntry =	EmptyConfiguration.INSTANCE;
+}

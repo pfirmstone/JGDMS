@@ -1,0 +1,2088 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 9">
+<meta name=Originator content="Microsoft Word 9">
+<link rel=File-List href="./dm-test_files/filelist.xml">
+<title>Discovery Management Tests</title>
+<!--[if gte mso 9]><xml>
+ <o:DocumentProperties>
+  <o:Author>SMI Software</o:Author>
+  <o:LastAuthor>SMI Software</o:LastAuthor>
+  <o:Revision>1</o:Revision>
+  <o:TotalTime>1</o:TotalTime>
+  <o:Created>2000-02-07T13:34:00Z</o:Created>
+  <o:LastSaved>2000-02-07T13:36:00Z</o:LastSaved>
+  <o:Pages>9</o:Pages>
+  <o:Words>3342</o:Words>
+  <o:Characters>19054</o:Characters>
+  <o:Company>Sun Microsystems</o:Company>
+  <o:Lines>158</o:Lines>
+  <o:Paragraphs>38</o:Paragraphs>
+  <o:CharactersWithSpaces>23399</o:CharactersWithSpaces>
+  <o:Version>9.2720</o:Version>
+ </o:DocumentProperties>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:DisplayHorizontalDrawingGridEvery>0</w:DisplayHorizontalDrawingGridEvery>
+  <w:DisplayVerticalDrawingGridEvery>0</w:DisplayVerticalDrawingGridEvery>
+  <w:UseMarginsForDrawingGridOrigin/>
+  <w:Compatibility>
+   <w:FootnoteLayoutLikeWW8/>
+   <w:ShapeLayoutLikeWW8/>
+   <w:AlignTablesRowByRow/>
+   <w:ForgetLastTabAlignment/>
+   <w:LayoutRawTableWidth/>
+   <w:LayoutTableRowsApart/>
+  </w:Compatibility>
+ </w:WordDocument>
+</xml><![endif]-->
+<style>
+<!--
+ /* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+h1
+	{mso-style-next:Normal;
+	margin-top:12.0pt;
+	margin-right:0in;
+	margin-bottom:3.0pt;
+	margin-left:0in;
+	mso-pagination:widow-orphan;
+	page-break-after:avoid;
+	mso-outline-level:1;
+	font-size:14.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-bidi-font-family:"Times New Roman";
+	mso-font-kerning:14.0pt;
+	mso-bidi-font-weight:normal;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+ /* List Definitions */
+@list l0
+	{mso-list-id:31392684;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-85286440 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l0:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l1
+	{mso-list-id:40785129;
+	mso-list-template-ids:-1100023554;}
+@list l1:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l2
+	{mso-list-id:103506308;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1100023554 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l2:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l3
+	{mso-list-id:109010095;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1017072456 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l3:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l4
+	{mso-list-id:149449792;
+	mso-list-template-ids:-1431402750;}
+@list l4:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l5
+	{mso-list-id:209196879;
+	mso-list-type:simple;
+	mso-list-template-ids:-984217838;}
+@list l5:level1
+	{mso-level-start-at:0;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l6
+	{mso-list-id:214005635;
+	mso-list-type:hybrid;
+	mso-list-template-ids:1435408000 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l6:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l7
+	{mso-list-id:231502033;
+	mso-list-template-ids:-1100023554;}
+@list l7:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l8
+	{mso-list-id:254821388;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1479122236 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l8:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l9
+	{mso-list-id:262962282;
+	mso-list-template-ids:-1100023554;}
+@list l9:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l10
+	{mso-list-id:268466504;
+	mso-list-template-ids:-1100023554;}
+@list l10:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l11
+	{mso-list-id:319619924;
+	mso-list-template-ids:-1100023554;}
+@list l11:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l12
+	{mso-list-id:406922938;
+	mso-list-type:simple;
+	mso-list-template-ids:67698703;}
+@list l12:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l13
+	{mso-list-id:413090513;
+	mso-list-type:hybrid;
+	mso-list-template-ids:735066008 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l13:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l14
+	{mso-list-id:435949008;
+	mso-list-template-ids:-1100023554;}
+@list l14:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l15
+	{mso-list-id:575550626;
+	mso-list-template-ids:-1100023554;}
+@list l15:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l16
+	{mso-list-id:668800652;
+	mso-list-template-ids:-1100023554;}
+@list l16:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l17
+	{mso-list-id:758526531;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-494085338 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l17:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l18
+	{mso-list-id:774132848;
+	mso-list-template-ids:-1100023554;}
+@list l18:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l19
+	{mso-list-id:780884298;
+	mso-list-type:hybrid;
+	mso-list-template-ids:2101911236 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l19:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l20
+	{mso-list-id:832379421;
+	mso-list-template-ids:-1100023554;}
+@list l20:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l21
+	{mso-list-id:835153305;
+	mso-list-template-ids:-1100023554;}
+@list l21:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l22
+	{mso-list-id:836573970;
+	mso-list-type:simple;
+	mso-list-template-ids:67698703;}
+@list l22:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l23
+	{mso-list-id:836768932;
+	mso-list-template-ids:-1100023554;}
+@list l23:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l24
+	{mso-list-id:908425042;
+	mso-list-template-ids:-1100023554;}
+@list l24:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l25
+	{mso-list-id:929658446;
+	mso-list-template-ids:-1100023554;}
+@list l25:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l26
+	{mso-list-id:937058811;
+	mso-list-type:simple;
+	mso-list-template-ids:1710393288;}
+@list l26:level1
+	{mso-level-start-at:7;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l27
+	{mso-list-id:985624502;
+	mso-list-template-ids:-1100023554;}
+@list l27:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l28
+	{mso-list-id:1035540154;
+	mso-list-type:simple;
+	mso-list-template-ids:67698703;}
+@list l28:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l29
+	{mso-list-id:1088039727;
+	mso-list-template-ids:-1100023554;}
+@list l29:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l30
+	{mso-list-id:1110392035;
+	mso-list-template-ids:-1431402750;}
+@list l30:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l31
+	{mso-list-id:1111164506;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1038421246 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l31:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l32
+	{mso-list-id:1142885741;
+	mso-list-template-ids:-1100023554;}
+@list l32:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l33
+	{mso-list-id:1156997083;
+	mso-list-type:simple;
+	mso-list-template-ids:-984217838;}
+@list l33:level1
+	{mso-level-start-at:0;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l34
+	{mso-list-id:1185166420;
+	mso-list-template-ids:-1100023554;}
+@list l34:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l35
+	{mso-list-id:1216816304;
+	mso-list-template-ids:-1100023554;}
+@list l35:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l36
+	{mso-list-id:1237017095;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-669381956 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l36:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l37
+	{mso-list-id:1263028433;
+	mso-list-template-ids:-1100023554;}
+@list l37:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l38
+	{mso-list-id:1278835932;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1887940014 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l38:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l39
+	{mso-list-id:1297640488;
+	mso-list-template-ids:-1100023554;}
+@list l39:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l40
+	{mso-list-id:1312052879;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-847374512 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l40:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l41
+	{mso-list-id:1338194222;
+	mso-list-type:simple;
+	mso-list-template-ids:-984217838;}
+@list l41:level1
+	{mso-level-start-at:0;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l42
+	{mso-list-id:1387485152;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-186060286 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l42:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l43
+	{mso-list-id:1429736725;
+	mso-list-template-ids:-1100023554;}
+@list l43:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l44
+	{mso-list-id:1433823022;
+	mso-list-template-ids:-1100023554;}
+@list l44:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l45
+	{mso-list-id:1446577923;
+	mso-list-template-ids:-1100023554;}
+@list l45:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l46
+	{mso-list-id:1466702504;
+	mso-list-template-ids:-1431402750;}
+@list l46:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l47
+	{mso-list-id:1473063034;
+	mso-list-template-ids:-1100023554;}
+@list l47:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l48
+	{mso-list-id:1486436533;
+	mso-list-template-ids:-1100023554;}
+@list l48:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l49
+	{mso-list-id:1493598172;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-546507534 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l49:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l50
+	{mso-list-id:1536308856;
+	mso-list-type:simple;
+	mso-list-template-ids:-1162213922;}
+@list l50:level1
+	{mso-level-start-at:7;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l51
+	{mso-list-id:1546287145;
+	mso-list-type:hybrid;
+	mso-list-template-ids:699988208 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l51:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l52
+	{mso-list-id:1546673251;
+	mso-list-type:simple;
+	mso-list-template-ids:-984217838;}
+@list l52:level1
+	{mso-level-start-at:0;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l53
+	{mso-list-id:1554927599;
+	mso-list-template-ids:-1100023554;}
+@list l53:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l54
+	{mso-list-id:1573006623;
+	mso-list-template-ids:-1100023554;}
+@list l54:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l55
+	{mso-list-id:1741751998;
+	mso-list-template-ids:-546507534;}
+@list l55:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l56
+	{mso-list-id:1820731572;
+	mso-list-template-ids:-1100023554;}
+@list l56:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l57
+	{mso-list-id:1821578496;
+	mso-list-template-ids:-1100023554;}
+@list l57:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l58
+	{mso-list-id:1991052336;
+	mso-list-template-ids:-1100023554;}
+@list l58:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l59
+	{mso-list-id:2056735181;
+	mso-list-template-ids:-1100023554;}
+@list l59:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l59:level2
+	{mso-level-number-format:alpha-lower;
+	mso-level-tab-stop:.75in;
+	mso-level-number-position:left;
+	margin-left:.75in;
+	text-indent:-.25in;}
+ol
+	{margin-bottom:0in;}
+ul
+	{margin-bottom:0in;}
+-->
+</style>
+</head>
+
+<body lang=EN-US style='tab-interval:.5in'>
+
+<div class=Section1>
+
+<p class=MsoNormal align=center style='text-align:center'><span
+style='font-size:14.0pt;mso-bidi-font-size:10.0pt;font-family:Arial'>Discovery
+Management Tests<o:p></o:p></span></p>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<table border=1 cellspacing=0 cellpadding=0 style='border-collapse:collapse;
+ border:none;mso-border-alt:solid windowtext .5pt;mso-padding-alt:0in 5.4pt 0in 5.4pt'>
+ <thead>
+  <tr>
+   <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+   padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Test Name &amp;
+   Motivation<o:p></o:p></b></p>
+   </td>
+   <td width=372 valign=top style='width:279.0pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Description<o:p></o:p></b></p>
+   </td>
+   <td width=102 valign=top style='width:76.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Categorization<o:p></o:p></b></p>
+   </td>
+   <td width=198 valign=top style='width:148.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Specification
+   Requirements<o:p></o:p></b></p>
+   </td>
+  </tr>
+ </thead>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>DiscoveryManagementIFTest</i>
+  (DMIF) - Only tests interface semantics.</p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Create ClientLookupManager with null arguments [CLM 9,11,12]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getDiscoveryManager() [CLM 50]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add multiple discovery listeners [DMI 1]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add a null discovery listener<span style="mso-spacerun:
+  yes">  </span>[DMI 5]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add duplicate listeners again [DMI TBD]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Remove all listeners<span style="mso-spacerun: yes"> 
+  </span>[DMI 6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Remove null listener [DMI TBD]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Remove all listeners again [DMI 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars and verify that it is empty<span
+  style="mso-spacerun: yes">  </span>[DMI 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars again and verify that you get a new array
+  [DMI 10]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call discard with null<span style="mso-spacerun: yes"> 
+  </span>[DMI 12]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo5;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call terminate [DMI 15]</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>A1, M1</p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>CLM: 9, 11, 12, 50</p>
+  <p class=MsoNormal>DMI: 1, 5, 6, 7, 9, 10, 12, 15, TBD</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>DiscoveryManagementAddRemoveTest</i>
+  (DMAR) - Tests the (default) functional semantics of the DiscoveryManagement
+  interface without relying upon the DiscoveryGroupManagement or
+  DiscoveryLocatorManagement interfaces.</p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>1.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><![endif]>Start
+  N lookup services initially configured to run in no groups</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>2.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><![endif]>Create
+  ClientLookupManager with null arguments (this should create a default
+  LookupDiscoveryManager that is interested in the public group) and call
+  getDiscoveryManager to obtain a DiscoveryManagement reference. [CLM 9, 11,
+  12, 50]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>3.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><![endif]>Call
+  getRegistrars() and verify that no LUS have been discovered [CLM 11] [DMI 9]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>4.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><![endif]>Configure
+  one LUS to the public group via it's admin IF</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>5.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><![endif]>Call
+  getRegistrars() to see when the public LUS is found [CLM 11] [DMI 9]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>6.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><![endif]>Add
+  a listener and verify that a discovery event is sent for the discovered
+  (public) lookup service [DMI 1, 2]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>7.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><![endif]>Call
+  getRegistrars() and verify that the set from prev step matches this set from
+  this step</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>8.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><![endif]>Assert
+  that the array reference from 7 doesn't equal the ref from 5 [DMI 10]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>9.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; </span><![endif]>Configure
+  (N-2) LUS to join the public group</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>10.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Verify
+  that the appropriate number of discovered events occur [DMI 3]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>11.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Call
+  getRegistrars() and verify that the set from prev step matches the set from
+  this step (minus the initial LUS)</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>12.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Discard
+  an LUS and verify that a discard event occurs [DMI 4]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>13.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Call
+  getRegistrars() and verify that the set does not contain this LUS [1]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>14.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Verify
+  that the same LUS is rediscovered</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>15.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Add
+  a null listener and verify that nothing happens [DMI 5]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>16.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Add
+  another listener and verify that a discovered event is sent with the full set
+  of LUS</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>17.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Call
+  getRegistrars() and verify that the two sets match</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>18.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Discard
+  an LUS and verify that a discard event occurs on both listener objects</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>19.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Verify
+  that the same LUS is rediscovered and both listeners are notified</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>20.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Add
+  the 2<sup>nd</sup> listener again [DMI TBD]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>21.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Discard
+  an LUS and verify that a discard event occurs on both listener objects</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>22.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Verify
+  that the same LUS is rediscovered and both listeners are notified</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>23.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Remove
+  one listener [DMI 6]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>24.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Discard
+  a LUS [DMI 14]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>25.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Verify
+  that only the proper listener is notified</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>26.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Discard
+  null argument [DMI 12]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>27.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Verify
+  that no events are generated and the set hasn't changed</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>28.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Remove
+  remaining listener</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>29.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Discard
+  LUS</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>30.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Verify
+  that no listeners are notified</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>31.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Add
+  a listener and verify that the full set is returned in the discovery event</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>32.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Call
+  getRegistrars and verify that the two sets match.</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>33.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Discard
+  a null reference and verify that nothing happens [DMI 12]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>34.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Remove
+  listener</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>35.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Remove
+  listener again [DMI 7]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>36.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Remove
+  null listener [DMI TBD]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>37.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Discard
+  all LUS and verify that no events are generated</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>38.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Discard
+  all LUS again and verify that no events are generated [DMI 13]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>39.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Call
+  getRegistrars and wait until all the LUS are rediscovered</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>40.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Add
+  a listener and verify that the full set is returned in the discovery event(s)</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>41.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Configure
+  1 LUS to leave the public group</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>42.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Verify
+  that the appropriate discard event is generated</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>43.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Call
+  terminate [Note: can no longer call any methods on the DM interface] [DMI 15]</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>44.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Configure
+  the non-public LUS to rejoin the public group</p>
+  <p class=MsoNormal style='margin-left:17.1pt;text-indent:-17.1pt;mso-list:
+  l42 level1 lfo15;tab-stops:list 17.1pt'><![if !supportLists]>45.<span
+  style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp; </span><![endif]>Verify
+  that no discover event is sent</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>A1, M1</p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>CLM: 9, 11, 12, 50</p>
+  <p class=MsoNormal>DMI: 1-7, 9-15, TBD</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal>Assumptions:</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>LUS send announcement packets at a reasonable rate</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>DM impl notifies DL/entity in a timely manner</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Isolated network in order to avoid other &quot;public&quot;
+  groups from affecting the test</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>LUS services behave properly via their admin IF</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l5 level1 lfo9;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>[1] timing dependency -- what's the interval between a
+  discard &amp; rediscovery?</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l5 level1 lfo9;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Need a minimum of 3 LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l5 level1 lfo9;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>- Just tests public groups. Still need one for locators,
+  non-public groups, and mixed mode (command line option?)</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>DiscoveryGroupManagementIFTest</i>
+  (DGMIF) - Only tests interface semantics of the DiscoveryGroupManagement
+  interface</p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Create ClientLookupManager with null arguments (this should
+  create a default LookupDiscoveryManager that is interested in the public
+  group) and call getDiscoveryManager and cast it to a DiscoveryGroupManagement
+  reference [CLM 9, 11, 12, 50]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that that null (public) is
+  returned (default setting for the CLM in step 1) [DGM 5]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with the empty set [DGM 15]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the empty set returned [DGM
+  2, 6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addGroups with an array containing duplicates [DGM 4,
+  8]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that an UnsupportedOperationException is thrown [DGM
+  12]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that it returns the empty set </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the refs from the two prev calls to getGroups
+  are different [DGM 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with an array containing duplicate entries</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that a set containing no
+  duplicates is returned</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addGroups with a null argument and verify that a
+  NullPointerException is thrown [DGM 13]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the returned set matches the
+  set from the prev call to getGroups and that the array refs are different</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addGroups with the empty set [DGM 14]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>14.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the returned set matches the
+  one returned from the previous call to getGroups</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>15.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the refs from the two prev calls to getGroups
+  are different</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>16.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with an array containing a new set of
+  duplicate entries</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>17.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the proper set containing no
+  duplicates is returned </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>18.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with a null [DGM 3]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>19.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that null is returned.</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>20.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with a duplicate set of entries</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>21.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the proper set containing no
+  duplicates is returned </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>22.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeGroups with the empty set [DGM 25]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>23.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the returned set hasn't
+  changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>24.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeGroups with a subset of entries [DGM 22]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>25.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the proper set is returned by getGroups</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>26.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeGroups with the same subset of entries [DGM TBD]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>27.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that getGroups returns the proper set (should match
+  the one from the last call to getGroups)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>28.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeGroups with the remaining entries</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>29.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the empty set is returned</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>30.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeGroups with a set and verify that an
+  UnsupportedOperationException is thrown. [DGM 23]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l46 level1 lfo12;
+  tab-stops:list .25in'><![if !supportLists]>31.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeGroups with a null and verify that a
+  NullPointerException is thrown.[DGM 24]</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>A1, M1</p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>CLM: 9, 11, 12, 50</p>
+  <p class=MsoNormal>DGM: 2-8, 12-15, 22-25</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>- try running with and w/o active services</p>
+  <p class=MsoNormal>- try running with an active listener object</p>
+  <p class=MsoNormal>- try adding sets that contain null elements? What
+  happens?</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>DiscoveryGroupManagementAddRemoveTest1</i>
+  (DGMAR1) - Tests the<span style="mso-spacerun: yes">  </span>functional
+  semantics of the DiscoveryGroupManagement and DiscoveryManagement interfaces
+  in conjunction. In particular, this tests the default semantics using public
+  groups.</p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start N lookup services initially configured to run in no
+  groups</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Create ClientLookupManager with null arguments (this should
+  create a default LookupDiscoveryManager that is interested in the public
+  group), call getDiscoveryManager and cast it to a LookupDiscoveryManager
+  object. [CLM: 9, 11, 12, 50]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups() and verify that null (no set) is returned
+  [DGMI 3,5]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars() and verify that no LUS have been
+  discovered [DMI 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure M (where M &lt; N) LUS to join the public group
+  via its DiscoveryAdmin IF</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars() to see when the M LUS are discovered</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add a listener and verify that a discovery event(s) is sent
+  that contains the discovered LUS [DMI 1, 2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars() and verify that the set from prev step
+  matches this set from this step</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Assert that the array reference from step 8 doesn't equal
+  the ref from step 6 [DMI 10]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure remaining LUS to join the public group</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that discovered event(s) occur, which contain the
+  remaining LUS [DMI 3]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars() and verify that the set from prev step
+  matches the set from this step (minus the original LUS set)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add a null listener and verify that nothing happens [DMI 5]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>14.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add another listener and verify that a discovered event is
+  sent with the full LUS set </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>15.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars() and verify that the two sets match</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>16.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard an LUS and verify that a discard event occurs on
+  both listener objects [DMI 11, 14]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>17.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the same LUS is rediscovered and both listeners
+  are notified [DMI 4]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>18.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add the same listener again [DMI TBD]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>19.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard an LUS and verify that a discard event occurs on
+  both listener objects</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>20.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the same LUS is rediscovered and both listeners
+  are notified</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>21.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Remove one listener [DMI 6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>22.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard a LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>23.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that only the proper listener is notified</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>24.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Wait for the LUS to be rediscovered</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>25.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with a null argument [DGM 18]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>26.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no discovery events are sent (since all the LUS
+  should already be discovered)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>27.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Remove remaining listener</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>28.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>29.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no listeners are notified</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>30.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars to ensure that the discarded LUS is
+  rediscovered</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>31.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add a listener and verify that the full LUS set is returned
+  in the discovery event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>32.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars and verify that the two sets match.</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>33.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard a null reference and verify that nothing happens
+  [DMI 12]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>34.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Remove listener</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>35.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Remove listener again [DMI 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>36.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Remove null listener [DMI TBD]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>37.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard all LUS and verify that no events are generated</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>38.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars to ensure that the discarded LUS are
+  rediscovered</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>39.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add a listener and verify that the full LUS set is returned
+  in the discovery event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>40.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with the empty set [DGM 19]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>41.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard all LUS and verify that the proper discard events
+  are generated</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>42.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no discovery events occur and that getRegistrars
+  returns the empty set</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>43.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure all LUS to leave the public group</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>44.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with null </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>45.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure M LUS to join the public group</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>46.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the M LUS are discovered</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>47.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call terminate [DMI 15]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>48.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure remaining LUS to join the public group</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l49 level1 lfo11;
+  tab-stops:list .25in'><![if !supportLists]>49.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no discovery events are sent</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>A1, M1</p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>CLM: 9, 11, 12, 50</p>
+  <p class=MsoNormal>DMI: 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 14, 15, TBD</p>
+  <p class=MsoNormal>DGM:3, 5, 18, 19</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal>Assumptions:</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>LUS send announcement packets at a reasonable rate</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>DM impl notifies DL/entity in a timely manner</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Isolated network in order to avoid other &quot;public&quot;
+  groups from affecting the test</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>LUS services behave properly via their admin IF</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l5 level1 lfo9;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>[1] timing dependency -- what's the interval between a
+  discard &amp; rediscovery?</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l5 level1 lfo9;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>[3] LookupDiscoveryManager does not actively poll its
+  Registrars. Therefore will not get discard events for LUS that go down or are
+  reconfigured. This is implementation specific, though, since it is possible
+  to create your own LDM.</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal>- Need to test against public, unique, and mixed groups</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>DiscoveryGroupManagementAddRemoveTest2</i>
+  (DGMAR2) - Tests the<span style="mso-spacerun: yes">  </span>functional
+  semantics of the DiscoveryGroupManagement and DiscoveryManagement interfaces
+  in conjunction.<span style="mso-spacerun: yes">  </span>In particular, this
+  tests the IF semantics using public and non-public groups.</p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start N lookup services initially configured to each run in
+  a unique, non-public group </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Create ClientLookupManager with null arguments (this should
+  create a default LookupDiscoveryManager that is interested in the public
+  group), call getDiscoveryManager and cast it to a LookupDiscoveryManager
+  object. [CLM: 9, 11, 12, 50]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that null (no set) is returned
+  [DGM 3,5]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars and verify that no LUS have been
+  discovered [DMI 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add a listener [DM 1]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addGroups with M (where M &lt; N) groups and duplicates
+  [DGM 4, 8, 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the proper discovery events occur [DM 3] [1]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the proper set is returned
+  (w/o duplicates) [DGM 5]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars and verify that the two sets match</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add the same set of groups again </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no events are sent</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and getRegistrars and verify that the two
+  sets match and haven't changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the two references<span style="mso-spacerun:
+  yes">  </span>returned from getGroups and getRegistrars are different [DMI
+  10] [DGM 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>14.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add the empty set [DGM 14]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>15.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no events are sent</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>16.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and getRegistrars and verify that the two
+  sets match and haven't changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>17.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add a null entry [DGM 13]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>18.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a NullPointerException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>19.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no events are sent</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>20.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and getRegistrars and verify that the two
+  sets match and haven't changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>21.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure the M LUS to join the public group</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>22.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no discovery events occur (since they are
+  already discovered)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>23.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add another listener</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>24.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the full set of M LUS is sent to the second
+  listener [DM 2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>25.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add a null listener [DMI 5]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>26.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that nothing happens</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>27.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add the remaining groups (with duplicate entries) [DGM 4]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>28.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that both listeners are notified with the proper set
+  of discovery events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>29.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the proper set is returned
+  (w/o duplicates)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>30.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard one LUS [DM 11]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>31.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the proper discard event is sent on both
+  listeners [DM 4, 14]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>32.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the proper (re)discovery event occurs on both
+  listeners</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>33.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Remove one listener [DM 6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>34.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard one LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>35.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the proper discard event is sent to the proper
+  listener</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>36.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the proper (re)discovery event occurs on the
+  proper listener</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>37.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Remove listener again [DM 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>38.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard LUS again</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>39.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the proper discard event is sent to the proper
+  listener</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>40.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the proper (re)discovery event occurs on the
+  proper listener</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>41.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>&lt;Remove null listener?&gt;</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>42.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard a null listener [DM 12]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>43.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no events are sent </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>44.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the LUS set hasn't changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>45.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure one LUS to leave all groups</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>46.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard this LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>47.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a discard event is sent</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>48.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a discovery event is not sent</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>49.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard this LUS again [DMI 13]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>50.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no discard or discovery event occurs</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>51.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars and verify that the LUS is not in the set</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>52.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the LUS group is still in the
+  set</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>53.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure LUS to rejoin its initial group(s)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>54.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a discovery event occurs</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>55.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeGroups with all &quot;named&quot; groups (with
+  duplicates) [DGM 4, 22]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>56.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that N-M discard events are sent (since M LUS are
+  still in the public group) [DGM 26]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>57.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that null (no groups) is returned</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>58.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeGroups with null [DGM 24]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>59.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a NullPointerException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>60.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that null (no groups) is returned</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>61.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with M named groups </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>62.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no discovery events are sent</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>63.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addGroups with remaining N-M named groups</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>64.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the proper N-M discovery events are sent</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>65.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with null [DGM 15, 16, 18, 26]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>66.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that N-M discard events are sent (since you are
+  discarding the LUS set that aren't in the public group)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>67.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that null is returned</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>68.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars and verify that the set of M LUS is
+  present</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>69.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Discard an LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>70.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a discard and discovery event is generated [DGM
+  17]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>71.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with the empty set [DGM 19]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>72.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the proper M discard events are sent</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>73.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no discovery event is sent</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>74.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeGroups with a named group [DGM 23]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>75.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that an UnsupportedException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>76.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addGroups with a named group [DGM 12]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>77.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that an UnsupportedException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>78.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getGroups and verify that the empty set is returned (ie
+  hasn't changed) [DGM 6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>79.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeGroups with the empty set [DGM 2, 25]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>80.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no events are sent and the groups haven't
+  changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>81.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure one LUS to leave its group(s)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>82.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups to add the group for that LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>83.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call terminate [DMI 15]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>84.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure LUS to join its original groups</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>85.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no discovery event occurs</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>86.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>[Can't call any IF methods after terminate]</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>A1, M1</p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>CLM: 9, 11, 12, 50</p>
+  <p class=MsoNormal>DMI: 1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15</p>
+  <p class=MsoNormal>DGMI: 2, 3, 4, 5, 6, 7, 8, 9, 12, 13, 14, 15, 16, 17, 18,
+  19, 22, 23, 24, 25, 26</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal>Assumptions:</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>LUS send announcement packets at a reasonable rate</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>DM impl notifies DL/entity in a timely manner</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Isolated network in order to avoid other &quot;public&quot;
+  groups from affecting the test</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l52 level1 lfo8;
+  tab-stops:list .25in'><![if !supportLists]>-<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>LUS services behave properly via their admin IF</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>DiscoveryGroupManagementPermissionTest<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l4 level1 lfo17;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Run test application without a policy file and no running
+  services</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l55 level1 lfo18;
+  tab-stops:list .25in'><![if !supportLists]>87.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Create ClientLookupManager with null arguments (this should
+  create a default LookupDiscoveryManager that is interested in the public
+  group), call getDiscoveryManager and cast it to a LookupDiscoveryManager
+  object. [CLM: 9, 11, 12, 50]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l4 level1 lfo17;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that an AccessControlException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l4 level1 lfo17;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>[How do we test add/setGroups functionality if we don't get
+  past this point?] [DGM 10] [DGM 20]</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>A1, M1</p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>CLM: 9, 11, 12, 50</p>
+  <p class=MsoNormal>DGM: 10, 20</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal>Comments: Not sure if the SecurityException gets
+  propagated outside the constructor argument.<span style="mso-spacerun: yes"> 
+  </span>If not, then the test needs to be changed so that it accesses the DGM
+  interface and calls add/setGroups</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>DiscoveryGroupManagementIOTest<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Run test application with a policy file that 1) restricts
+  socket connections, 2) allows DiscoveryPermission on all groups and no
+  running services</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Create ClientLookupManager with null arguments (this should
+  create a default LookupDiscoveryManager that is interested in the public
+  group), call getDiscoveryManager and cast it to a LookupDiscoveryManager
+  object. [CLM: 9, 11, 12, 50]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that an IOException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>[How do we test add/setGroups functionality if we don't get
+  past this point?] [DGM 11] [DGM 21]</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>A1, M1</p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>CLM: 9, 11, 12, 50</p>
+  <p class=MsoNormal>DGM: 11, 21</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>DiscoveryLocatorManagementIFTest</i>
+  (DLMIF) - Only tests interface semantics of the DiscoveryLocatorManagement
+  interface</p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Create ClientLookupManager with null arguments (this should
+  create a default LookupDiscoveryManager that is configured with no locators)
+  and call getDiscoveryManager() and cast it to a DiscoveryLocatorManagement
+  reference</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the empty set (empty array)
+  is returned [DLM 3, 4]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addLocators with an array containing duplicates [DLM 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that an UnsupportedOperationException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that it returns the empty set</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the refs from the two prev calls to getLocators
+  are different[DLM 5]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setLocators with an array containing duplicate entries
+  [DLM 2, 10]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that a set containing no
+  duplicates is returned</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addLocators with a null argument and verify that a
+  NullPointerException is thrown [DLM 8]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>14.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the returned set matches
+  the set from the prev call to getLocators and that the array refs are
+  different</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>15.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addLocators with the empty set [DLM 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>16.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the returned set matches
+  the one returned from the previous call to getLocators </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>17.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the refs from the two prev calls to getLocators
+  are different</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>18.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setLocators with an array containing a new set of
+  duplicate entries [DLM 2, 6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>19.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the proper set containing
+  no duplicates is returned </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>20.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addLocators with a duplicate set of entries</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>21.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the augmented set contains
+  the proper entries and has no duplicates</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>22.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setLocators with a null argument [DLM 11]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>23.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a NullPointerException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>24.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the set hasn't changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>25.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeLocators with a null argument [DLM 15]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>26.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a NullPointerException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>27.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the set hasn't changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>28.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeLocators with an empty set [DLM 16]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>29.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the set hasn't changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>30.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeLocators with a set containing the existing
+  managed set plus duplicates [DLM 2, 13]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>31.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the empty set is returned</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>32.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeLocators with a set containing the existing
+  managed set plus duplicates (again) [DLM 14]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l30 level1 lfo19;
+  tab-stops:list .25in'><![if !supportLists]>33.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that an UnsupportedOperationException is thrown</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>A1, M1</p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>CLM: 9, 11, 12, 50</p>
+  <p class=MsoNormal>DLM: 1-16</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>- try running w/ and w/o active LUS</p>
+  <p class=MsoNormal>- try running with an active listener object</p>
+  <p class=MsoNormal>- try adding sets that contain null elements? What
+  happens?</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>DiscoveryLocatorManagementAddRemoveTest</i>
+  (DLMAR) - Tests the functional semantics of the DiscoveryLocatorManagement
+  and DiscoveryManagement interfaces in conjunction.</p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Create ClientLookupManager with null arguments (this should
+  create a default LookupDiscoveryManager that is configured with no locators)
+  and call getDiscoveryManager() and cast it to a DiscoveryLocatorManagement
+  reference [CLM 9 11 12 50]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start N LUS configured to join no groups</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Obtain the unicast port numbers of each LUS via its
+  DiscoveryAdmin IF</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the empty set is returned
+  [DLM 3, 4]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars and verify that no LUS have been
+  discovered [DM 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setLocators with M (M &lt; N) locators containing
+  duplicate entries [DLM 2, 10]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getRegistrars and wait until all the desired LUS are
+  discovered</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add a listener and verify that a discovery event(s) is sent
+  that contains the discovered LUS [DM 1, 2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the two sets match and contain no duplicates</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with the empty array [DLM 12]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the sets from getRegistrars and getLocators
+  hasn't changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addLocators with the same M locators as before [DLM 2,
+  6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and getRegistrars and verify that the set
+  hasn't changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>14.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the the array references are different [DLM 5]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>15.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no discovery events occur either.</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>16.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addLocators with the empty set and verify that the set
+  doesn't change and that no discovery events are sent [DLM 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>17.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addLocators with a null argument [DLM 8]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>18.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a NullExceptionPointer is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>19.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addLocators with the remaining set of locators (w/
+  duplicates) [DM 3]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>20.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the appropriate number of discovery events occur</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>21.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and getRegistrars and verify that the
+  appropriate sets are returned and they match</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>22.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setLocators with the original set of M locators</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>23.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the appropriate number of discard events are
+  sent [DM 4] [DLM 17]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>24.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and getRegistrars and verify that the
+  appropriate sets are returned and they match</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>25.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call setGroups with a null argument [DLM 11]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>26.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that that a NullPointerException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>27.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeLocators with the remaining (N-M) set of locators</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>28.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the set doesn't change and no events are sent</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>29.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add another listener and verify that the proper set of LUS
+  is sent via discovery event(s) [DM 2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>30.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeLocators with a null argument [DLM 15]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>31.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a NullPointerException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>32.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeLocators with aan empty set [DLM 16]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>33.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that nothing happens</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>34.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that nothing has changed</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>35.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeLocators with the original set of M locators and
+  verify that the appropriate number of discard events is sent to both
+  listeners [DLM 13]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>36.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call getLocators and verify that the empty set is returned</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>37.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call removeLocators with any locator [DLM 14]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>38.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that an UnsupportedOperationException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>39.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call addLocators with a Locator [DLM 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>40.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that an UnsupportedOperationException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>41.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Add a locator using a non-configured port </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>42.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call terminate</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>43.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Configure LUS to use desired port number</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l2 level1 lfo16;
+  tab-stops:list .25in'><![if !supportLists]>44.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no discovery event occurs</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>A1, M1</p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>CLM: 9, 11, 12, 50</p>
+  <p class=MsoNormal>DM: 1, 2, 3, 4, 9</p>
+  <p class=MsoNormal>DLM: 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,
+  17</p>
+  </td>
+ </tr>
+</table>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+</div>
+
+</body>
+
+</html>

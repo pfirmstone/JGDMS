@@ -1,0 +1,10 @@
+testClass=GetClassLoaderSecurityException
+testCategories=loader,loader_spec
+testPolicyfile=loaderNoGetClassLoader.policy
+loader.isHttp=false
+loader.requireDlPerm=false
+loader.annotator=true
+loader.classAnnotator=QATestClassAnnotation
+testjvmargs=-Djava.rmi.server.RMIClassLoaderSpi=com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider
+com.sun.jini.qa.harness.runkitserver=false 
+com.sun.jini.qa.harness.runjiniserver=false

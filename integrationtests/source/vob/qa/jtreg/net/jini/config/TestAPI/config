@@ -1,0 +1,115 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+/* Common configuration source file for tests in this directory. */
+
+comp {
+
+    static booleanEntry = true;
+
+    static byteEntry = Byte.MIN_VALUE;
+    static byteEntry3 = Byte.parseByte("3");
+    static byteConstant3 = (byte) 3;
+    static byteConstantNeg3 = (byte) -3;
+
+    static charEntry = Character.toLowerCase('c');
+    static charConstant3 = (char) 3;
+    static charConstant300 = (char) 300;
+    static charConstantFFFF = '\uffff';
+
+    static shortEntry = Short.MAX_VALUE;
+    static shortEntry3 = Short.parseShort("3");
+    static shortConstant3 = (short) 3;
+    static shortConstantNeg3 = (short) -3;
+    static shortConstant300 = (short) 300;
+
+    static intEntry = Integer.parseInt("3");
+    static intConstant3 = 3;
+    static intConstantNeg3 = -3;
+    static intConstant300 = 300;
+    static intConstantFFFF = (int) '\uffff';
+    static intConstant100K = 100000;
+    static intConstantNeg100K = -1000000;
+
+    static longEntry = Long.parseLong("33");
+    static longConstant = 33L;
+
+    static floatEntry = Float.parseFloat("3.1");
+    static floatConstant = 3.1f;
+
+    static doubleEntry = Double.parseDouble("33.3");
+    static doubleConstant = 33.3;
+
+    static nullEntry = null;
+
+    static BooleanEntry = Boolean.TRUE;
+
+    static ByteEntry = new Byte(Byte.MIN_VALUE);
+
+    static CharacterEntry = new Character('c');
+
+    static ShortEntry = new Short(Short.MAX_VALUE);
+
+    static IntegerEntry = new Integer(3);
+
+    static LongEntry = new Long(33);
+
+    static FloatEntry = new Float(3.1f);
+
+    static DoubleEntry = new Double(33.3);
+
+    static ArrayEntry = new Object[] { null, new Integer(3) };
+
+    private privateEntry = null;
+
+    static staticBadEntry = new UnknownClass();
+
+    badEntry = UnknownClass.unknownMethod(3);
+
+    static classLoaderDefinedEntry = ClassLoaderDefined.get();
+
+    pkgProtClass = net.jini.export.ServerContext.class;
+    pkgProtConstructor = new net.jini.export.ExportPermission("foo");
+    pkgProtField = net.jini.loader.pref.PreferredClassLoader.PREF_NAME;
+    pkgProtMethod = net.jini.export.ServerContext.getServerContext();
+}
+
+cchar {
+    e = "cchar.e";
+}
+charc {
+    e = "charc.e";
+}
+c {
+    eint = "c.eint";
+    inte = "c.inte";
+}
+c1 {
+    e1 = "c1.e1";
+    e2 = "c1.e2";
+}
+c2 {
+    e1 = "c2.e1";
+    e2 = "c2.e2";
+}
+
+data {
+    data = $data;
+    stringValueOfData = String.valueOf($data);
+    parseInt = Integer.parseInt(stringValueOfData);
+}

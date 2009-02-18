@@ -1,0 +1,4 @@
+testClass=TerminateLeases
+testCategories=joinmanager,joinmanager_spec
+include0=joinmanager.properties
+include1=com/sun/jini/test/share/lookups3_0srvcs1_0.properties

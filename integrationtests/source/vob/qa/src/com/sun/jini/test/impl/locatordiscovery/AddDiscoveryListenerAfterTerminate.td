@@ -1,0 +1,3 @@
+testClass=AddDiscoveryListenerAfterTerminate
+testCategories=locatordiscovery,locatordiscovery_impl,impllocatordiscovery
+include0=locatordiscovery.properties

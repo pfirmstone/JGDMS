@@ -1,0 +1,2 @@
+Manifest-Version: 1.0
+Class-Path: a.jar;md5=152c17ed9cf9aaf78a3bcdcdab6f887b

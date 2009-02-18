@@ -1,0 +1,9 @@
+testClass=LoaderSplitPolicyProviderTest
+testCategories=start,start_impl
+testClasspath=<harnessJar>$:<file:lib/qa1-start-tests.jar>$:${com.sun.jini.jsk.home}$/lib$/jsk-platform.jar$:${com.sun.jini.jsk.home}$/lib$/jsk-lib.jar
+testPolicyfile=<url:harness/policy/defaulttest.policy>
+ldrPolicyfile=<url:LoaderSplitPolicyProviderTest.loader.policy>
+defPolicyfile=<url:/LoaderSplitPolicyProviderTest.default.policy>
+fooJarFile=<file:lib/qa1-start-cb1.jar>
+barJarFile=<file:lib/qa1-start-cb2.jar>
+include0=../start.properties

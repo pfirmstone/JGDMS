@@ -1,0 +1,3 @@
+testClass=ExpiredEventLeaseRenew
+testCategories=lookupservice,lookupservice_spec,test_set02
+include0=../lookupservice.properties

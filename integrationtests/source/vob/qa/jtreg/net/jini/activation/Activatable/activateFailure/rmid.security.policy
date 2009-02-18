@@ -1,0 +1,13 @@
+grant codebase "file:${java.class.path}" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
+  permission java.security.AllPermission;
+};
+
+grant {
+  permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.manager=default";
+  permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.policy=*";
+  permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.rmi.server.codebase=file:${test.classes}${/}";
+};

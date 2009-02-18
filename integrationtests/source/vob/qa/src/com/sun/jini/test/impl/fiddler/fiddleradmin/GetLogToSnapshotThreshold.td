@@ -1,0 +1,3 @@
+testClass=GetLogToSnapshotThreshold
+testCategories=discoveryservice,discoveryservice_impl,fiddleradmin,fiddlerfiddleradmin
+include0=../fiddler.properties

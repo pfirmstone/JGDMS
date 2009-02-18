@@ -1,0 +1,10 @@
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+    permission java.io.FilePermission "${test.classes}${/}-", "write";
+    permission java.lang.RuntimePermission "*";
+    permission java.util.PropertyPermission "*", "read,write";
+};

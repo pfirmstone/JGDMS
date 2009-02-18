@@ -1,0 +1,4 @@
+testClass=SetAttributesProp
+testCategories=joinmanager,joinmanager_spec
+include0=joinmanager.properties
+include1=com/sun/jini/test/share/prop_lookups3_0srvcs1_0attrs3_2.properties

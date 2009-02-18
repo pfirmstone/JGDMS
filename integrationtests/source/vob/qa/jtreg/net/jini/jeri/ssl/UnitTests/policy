@@ -1,0 +1,66 @@
+/* 
+ * Java policy file for running tests in this directory.
+ */
+
+grant codebase "file:${extdir}/*" {
+    permission java.security.AllPermission;
+};
+
+grant codeBase "file:${java.home}/lib/ext/*" {
+	permission java.security.AllPermission;
+};
+
+grant {
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+    permission java.net.SocketPermission "localhost", "connect,accept,resolve";
+    permission java.net.SocketPermission "localhost:1024-", "listen,resolve";
+    permission java.net.SocketPermission "*", "resolve";
+
+    // Limit these permissions so that I can do tests for principals for which
+    // I don't have permission.
+    permission net.jini.security.AuthenticationPermission
+	"javax.security.auth.x500.X500Principal \"CN=clientRSA1,C=US\" javax.security.auth.x500.X500Principal \"CN=clientRSA2\" javax.security.auth.x500.X500Principal \"CN=clientDSA\" javax.security.auth.x500.X500Principal \"CN=clientDSA2\" peer javax.security.auth.x500.X500Principal \"CN=serverDSA,C=US\"",
+	"connect";
+    permission net.jini.security.AuthenticationPermission
+	"javax.security.auth.x500.X500Principal \"CN=clientRSA1,C=US\" javax.security.auth.x500.X500Principal \"CN=clientRSA2\" javax.security.auth.x500.X500Principal \"CN=clientDSA\" javax.security.auth.x500.X500Principal \"CN=clientDSA2\" peer javax.security.auth.x500.X500Principal \"CN=serverRSA\"",
+	"connect";
+    permission net.jini.security.AuthenticationPermission
+	"javax.security.auth.x500.X500Principal \"CN=clientRSA1,C=US\" javax.security.auth.x500.X500Principal \"CN=clientRSA2\" javax.security.auth.x500.X500Principal \"CN=clientDSA\" javax.security.auth.x500.X500Principal \"CN=clientDSA2\" peer javax.security.auth.x500.X500Principal \"CN=serverRSA2\"",
+	"connect";
+    permission net.jini.security.AuthenticationPermission
+	"javax.security.auth.x500.X500Principal \"*\"", "accept";
+    permission net.jini.security.AuthenticationPermission
+	"javax.security.auth.x500.X500Principal \"CN=serverDSA,C=US\"",
+	"connect";
+    permission net.jini.security.AuthenticationPermission
+	"javax.security.auth.x500.X500Principal \"CN=serverRSA\"",
+	"connect";
+    permission net.jini.security.AuthenticationPermission
+	"javax.security.auth.x500.X500Principal \"CN=serverRSA2\"",
+	"connect";
+    permission net.jini.security.AuthenticationPermission
+	"TestUtilities$TestPrincipal \"*\"", "connect,accept";
+
+    permission java.security.SecurityPermission "insertProvider.*";
+    permission java.security.SecurityPermission "putProviderProperty.*";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission javax.security.auth.AuthPermission "modifyPrincipals";
+    permission javax.security.auth.AuthPermission "modifyPrivateCredentials";
+    permission javax.security.auth.AuthPermission "modifyPublicCredentials";
+    permission javax.security.auth.AuthPermission "setReadOnly";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission javax.security.auth.PrivateCredentialPermission
+	"* * \"*\"", "read";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "modifyThread";
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission net.jini.io.context.ContextPermission
+	"net.jini.io.context.ClientSubject.getClientSubject";
+    permission net.jini.export.ExportPermission "exportRemoteInterface.*";
+};

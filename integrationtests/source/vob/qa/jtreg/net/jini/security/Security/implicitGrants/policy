@@ -1,0 +1,30 @@
+/* @summary Verify proper basic functionality of Security.grant(Class, Class)
+ */
+
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission net.jini.security.GrantPermission
+        "delim=' java.lang.RuntimePermission 'A'";
+    permission net.jini.security.GrantPermission
+        "delim=' java.lang.RuntimePermission 'B'";
+    permission java.io.FilePermission "${test.classes}", "read,write,delete";
+    permission java.io.FilePermission 
+        "${test.classes}${/}-", "read,write,delete";
+    permission java.io.FilePermission ".", "read,write,delete";
+    permission java.io.FilePermission ".${/}-", "read,write,delete";
+    permission java.lang.RuntimePermission "accessClassInPackage.*";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "setSecurityManager";
+    permission java.security.SecurityPermission "getProperty.*";
+    permission java.security.SecurityPermission "setPolicy";
+    permission java.util.PropertyPermission "*", "read";
+    permission javax.security.auth.AuthPermission "doAs";
+};
+
+grant codeBase "file:.${/}cb3${/}" {
+    permission java.security.AllPermission;
+};

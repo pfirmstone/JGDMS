@@ -1,0 +1,16 @@
+/* 
+ * Java policy file for running TestParser.
+ */
+
+grant {
+    permission java.util.PropertyPermission "alias", "read";
+    permission java.util.PropertyPermission "Undefined property", "read";
+    permission java.util.PropertyPermission "hello", "read";
+    permission java.util.PropertyPermission "keystore", "read";
+    permission java.util.PropertyPermission "test.src", "read";
+    permission java.util.PropertyPermission "//", "read";
+    permission java.io.FilePermission "<<ALL FILES>>", "read";
+    permission java.net.SocketPermission "*", "resolve";
+    permission javax.security.auth.AuthPermission "getSubject";
+    permission java.lang.RuntimePermission "getClassLoader";
+};

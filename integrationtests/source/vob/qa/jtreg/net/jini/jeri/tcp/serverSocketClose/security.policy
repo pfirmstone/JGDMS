@@ -1,0 +1,10 @@
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission java.util.PropertyPermission "endpointType", "read";
+
+    permission java.net.SocketPermission "localhost:1024-", "listen";
+    permission java.net.SocketPermission "*", "resolve";
+};

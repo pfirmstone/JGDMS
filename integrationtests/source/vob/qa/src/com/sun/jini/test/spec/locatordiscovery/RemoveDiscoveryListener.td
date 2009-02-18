@@ -1,0 +1,4 @@
+testClass=RemoveDiscoveryListener
+testCategories=locatordiscovery,locatordiscovery_spec,speclocatordiscovery
+include0=locatordiscovery.properties
+include1=com/sun/jini/test/share/reggie3_2Ports.properties

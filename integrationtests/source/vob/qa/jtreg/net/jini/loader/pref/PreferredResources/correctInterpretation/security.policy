@@ -1,0 +1,52 @@
+/*  */
+
+/*
+ * security policy used by the test process
+ */
+
+grant codeBase "file:${java.home}${/}lib${/}ext${/}*" {
+  permission java.security.AllPermission;
+};
+
+grant {
+  // workaround RMIClassLoaderSpi not doing a doPrivileged to find spi resource
+  permission java.io.FilePermission "${java.home}${/}lib${/}ext${/}-", "read";
+
+  // permit reading and writing of out of classpath resources
+  permission java.io.FilePermission "${user.dir}${/}non-class-resources", "read,write,delete";
+  permission java.io.FilePermission "${user.dir}${/}non-class-resources${/}-", "read,write,delete";
+  permission java.io.FilePermission "${user.dir}${/}p", "read,write,delete";
+  permission java.io.FilePermission "${user.dir}${/}p${/}-", "read,write,delete";
+  permission java.io.FilePermission "${user.dir}${/}p1", "read,write,delete";
+  permission java.io.FilePermission "${user.dir}${/}p1${/}-", "read,write,delete";
+
+  // permit reading of test.src and above
+  permission java.io.FilePermission "${test.src}${/}-", "read";
+  permission java.io.FilePermission "${test.src}${/}", "read";
+
+  // need to get a class loader to load test resources
+  permission java.lang.RuntimePermission "getClassLoader";
+
+  // need to create a class loader to load test resources
+  permission java.lang.RuntimePermission "createClassLoader";
+
+  // need to set context class loader to control RMI delegation
+  permission java.lang.RuntimePermission "setContextClassLoader";
+
+  // need to get protection domain to print codesource location
+  permission java.lang.RuntimePermission "getProtectionDomain";
+
+  // test library uses for suggestSecurityManager
+  permission java.util.PropertyPermission "java.security.policy", "read";
+  permission java.util.PropertyPermission "java.security.manager", "read";
+
+  // used by TestLibrary to determine test environment 
+  permission java.util.PropertyPermission "java.rmi.server.codebase", "write";
+  permission java.util.PropertyPermission "test.classes", "read";
+  permission java.util.PropertyPermission "test.src", "read";
+  permission java.util.PropertyPermission "user.dir", "read";
+  permission java.util.PropertyPermission "java.home", "read";
+
+  // configure test logging
+  permission java.util.PropertyPermission "java.util.logging.config.file", "write";
+};

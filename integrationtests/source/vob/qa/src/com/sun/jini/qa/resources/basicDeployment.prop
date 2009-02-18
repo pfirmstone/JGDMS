@@ -1,0 +1,152 @@
+#
+# This file contains the property values which define the installation
+# and behavioral characteristics of the test harness. 
+#
+# The file system path separator required by the underlying operating system
+# should be used when paths are defined. Alternatively,
+# the sequence $/ will be interpreted as the platform dependent separator.
+# If DOS-style separators are used, then they must "escaped"; that is, a
+# DOUBLE backslash must be used ('\\'). 
+# 
+# NOTE:
+# com.sun.jini.qa.harness.testhosts is the only user defined
+# property which MUST BE DEFINED AS A SYSTEM PROPERTY
+# on the test harness command line rather than in this file.
+# The value of this property is the list of participating
+# hosts when running distributed. 
+#
+
+######################################################
+#
+# INSTALLATION PROPERTIES
+#
+#  edit these properties to reflect the locations of 
+#  the starter kit and harness kit
+#
+######################################################
+
+# location of the JSK installation
+com.sun.jini.jsk.home=/vob/jive
+
+# Location of the QA installation
+com.sun.jini.qa.home=/vob/qa
+
+######################################################
+#
+# CLASS SERVER PROPERTIES
+#
+#  in most cases, these properties should not require changes
+#
+######################################################
+
+# enable the JSK class server
+com.sun.jini.qa.harness.runjiniserver=true
+
+# http port of the JSK download JAR files
+com.sun.jini.jsk.port=8080
+
+# download directory for JSK JAR files
+com.sun.jini.qa.harness.dldir.8080=${com.sun.jini.jsk.home}$/lib-dl
+
+# enable the QA class server 
+com.sun.jini.qa.harness.runkitserver=true
+
+# http port of the QA download JAR files
+com.sun.jini.qa.port=8081
+
+# download directory for QA JAR files
+com.sun.jini.qa.harness.dldir.8081=${com.sun.jini.qa.home}$/lib
+
+# automatically start/stop the activation system for each test
+com.sun.jini.qa.harness.runactivation=true
+
+# run services in shared service groups by default
+com.sun.jini.qa.harness.shared=true
+
+#
+# the default service mode is 'activatable'. Alternative values
+# are 'transient' and 'persistent'
+#
+com.sun.jini.qa.harness.serviceMode=activatable
+
+######################################################
+#
+# KERBEROS PROPERTIES
+#
+#  if the kerberos configuration is to be used, these
+#  properties must be edited to reflect the local
+#  kerberos environment. See the JavaDoc overview
+#  for details.
+#
+######################################################
+
+#
+# The following set of properties are used to specify the kerberos
+# environment for tests that need to access a kdc and kerberos principals
+#
+com.sun.jini.qa.harness.kerberos.realm=DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.kdc=jiniautot.east.sun.com
+com.sun.jini.qa.harness.kerberos.clientPasswordFile=${com.sun.jini.qa.home}$/src$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabClient
+com.sun.jini.qa.harness.kerberos.serverPasswordFile=${com.sun.jini.qa.home}$/src$/com$/sun$/jini$/qa$/impl$/end2end$/resources$/keytabServer
+com.sun.jini.qa.harness.kerberos.aggregatePasswordFile=${com.sun.jini.qa.home}$/trust$/aggregateKeytab
+com.sun.jini.qa.harness.kerberos.clientPrincipal=qa-e2e-client@DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.serverPrincipal=qa-e2e-server@DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.reggiePrincipal=qa-reggie@DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.mahaloPrincipal=qa-mahalo@DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.outriggerPrincipal=qa-outrigger@DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.mercuryPrincipal=qa-mercury@DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.normPrincipal=qa-norm@DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.phoenixPrincipal=qa-phoenix@DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.testPrincipal=qa-test@DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.fiddlerPrincipal=qa-fiddler@DAVIS.JINI.SUN.COM
+com.sun.jini.qa.harness.kerberos.groupPrincipal=qa-group@DAVIS.JINI.SUN.COM
+
+######################################################
+#
+# TEST EXECUTION PROPERTIES
+#
+#  the configs property will generally be edited or overridden
+#  on the command line to select the test configuration. The
+#  other properties in this section would only be edited for
+#  debugging purposes, or for supporting automated production
+#  test runs.
+#  
+######################################################
+
+# do not automatically rerun failed tests 
+com.sun.jini.qa.harness.rerunFailedTests=false
+
+#
+# display all test output in the log. If changed to true,
+# most output of passing tests is discarded
+#
+com.sun.jini.qa.harness.discardOKOutput=false
+
+# when running distributed, pipe all test log output
+# to the master host logger. If changed to false, each participating
+# host will log output separately.
+#
+com.sun.jini.qa.harness.slavepipe=true
+
+#
+# when running distributed, use the roundrobin
+# host selection policy. Other legal values are 'random', 
+# 'remoterandom', and 'remoteroundrobin'
+#
+com.sun.jini.qa.harness.servicehostpolicy=roundrobin
+
+# if defined, the value of this property is a command to be exec'd
+# after each test is run. The example would run the unix 'ps' command.
+#
+#com.sun.jini.qa.harness.runCommandAfterEachTest=ps
+
+# Disable test timeouts
+com.sun.jini.qa.harness.timeout=0
+
+# the comma-separated list of configurations to run. 
+# Any combination of jrmp,jeri,jsse,http,https,kerberos,none
+#
+com.sun.jini.qa.harness.configs=none
+
+# current domain
+com.sun.jini.jsk.domain=east.sun.com

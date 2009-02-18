@@ -1,0 +1,513 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 9">
+<meta name=Originator content="Microsoft Word 9">
+<link rel=File-List href="./lds-test_files/filelist.xml">
+<title>LookupDiscovery Tests</title>
+<!--[if gte mso 9]><xml>
+ <o:DocumentProperties>
+  <o:Author>SMI Software</o:Author>
+  <o:LastAuthor>SMI Software</o:LastAuthor>
+  <o:Revision>1</o:Revision>
+  <o:TotalTime>0</o:TotalTime>
+  <o:Created>2000-02-07T13:39:00Z</o:Created>
+  <o:LastSaved>2000-02-07T13:39:00Z</o:LastSaved>
+  <o:Pages>3</o:Pages>
+  <o:Words>756</o:Words>
+  <o:Characters>4312</o:Characters>
+  <o:Company>Sun Microsystems</o:Company>
+  <o:Lines>35</o:Lines>
+  <o:Paragraphs>8</o:Paragraphs>
+  <o:CharactersWithSpaces>5295</o:CharactersWithSpaces>
+  <o:Version>9.2720</o:Version>
+ </o:DocumentProperties>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:DisplayHorizontalDrawingGridEvery>0</w:DisplayHorizontalDrawingGridEvery>
+  <w:DisplayVerticalDrawingGridEvery>0</w:DisplayVerticalDrawingGridEvery>
+  <w:UseMarginsForDrawingGridOrigin/>
+  <w:Compatibility>
+   <w:FootnoteLayoutLikeWW8/>
+   <w:ShapeLayoutLikeWW8/>
+   <w:AlignTablesRowByRow/>
+   <w:ForgetLastTabAlignment/>
+   <w:LayoutRawTableWidth/>
+   <w:LayoutTableRowsApart/>
+  </w:Compatibility>
+ </w:WordDocument>
+</xml><![endif]-->
+<style>
+<!--
+ /* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+ /* List Definitions */
+@list l0
+	{mso-list-id:31392684;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-85286440 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l0:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l1
+	{mso-list-id:758526531;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-494085338 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l1:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l2
+	{mso-list-id:780884298;
+	mso-list-type:hybrid;
+	mso-list-template-ids:2101911236 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l2:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l3
+	{mso-list-id:1111164506;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1038421246 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l3:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l4
+	{mso-list-id:1278835932;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1887940014 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l4:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+ol
+	{margin-bottom:0in;}
+ul
+	{margin-bottom:0in;}
+-->
+</style>
+</head>
+
+<body lang=EN-US style='tab-interval:.5in'>
+
+<div class=Section1>
+
+<p class=MsoNormal align=center style='text-align:center'><span
+style='font-size:14.0pt;mso-bidi-font-size:10.0pt;font-family:Arial'>LookupDiscovery
+Tests<o:p></o:p></span></p>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<table border=1 cellspacing=0 cellpadding=0 style='border-collapse:collapse;
+ border:none;mso-border-alt:solid windowtext .5pt;mso-padding-alt:0in 5.4pt 0in 5.4pt'>
+ <thead>
+  <tr>
+   <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+   padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Test Name &amp;
+   Motivation<o:p></o:p></b></p>
+   </td>
+   <td width=372 valign=top style='width:279.0pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Description<o:p></o:p></b></p>
+   </td>
+   <td width=102 valign=top style='width:76.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Categorization<o:p></o:p></b></p>
+   </td>
+   <td width=198 valign=top style='width:148.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Specification
+   Requirements<o:p></o:p></b></p>
+   </td>
+  </tr>
+ </thead>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>LookupDiscoverServiceEqualityTest
+  (LDSET)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Start
+       LUS1 and LUS2</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Start
+       LDS1 and LDS2 that join both LUS1 &amp; 2</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Get
+       reference to LDS1 (LDS1R1) from LUS1</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Get
+       reference to LDS1 (LDS1R2) from LUS2</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS1R1.equals(LDS1R1) returns true [LDS 1]</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS1R2.equals(LDS1R2) returns true</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS1R1.equals(LDS1R2) returns true</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS1R2.equals(LDS1R1) returns true</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Get
+       reference to LDS2 (LDS2R1) from LUS1</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Get
+       reference to LDS2 (LDS2R2) from LUS2</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS2R1.equals(LDS2R1) returns true</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS2R2.equals(LDS2R2) returns true</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS2R1.equals(LDS2R2) returns true</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS2R2.equals(LDS2R1) returns true</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS1R1.equals(LDS2R1) returns false</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS1R1.equals(LDS2R2) returns false</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS1R2.equals(LDS2R1) returns false</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS1R2.equals(LDS2R2) returns false</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS2R1.equals(LDS1R1) returns false</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS2R1.equals(LDS1R2) returns false</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS2R2.equals(LDS1R1) returns false</li>
+   <li class=MsoNormal style='mso-list:l4 level1 lfo1;tab-stops:list .5in'>Verify
+       that LDS2R2.equals(LDS1R2) returns false</li>
+  </ol>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>LookupDiscoverServiceInterfaceTest
+  (LDSIFT)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Start
+       LUS </li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Start
+       LDS that joins LUS</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Obtain
+       reference to LDS</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Pass
+       LDS lease to a LeaseRenewalManager (LRM)</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Call
+       LDS.register(null, null, REL, null, Lease.FOREVER) [LDS 2, 5, 8, 10, 12,
+       13, 15, 16]</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Verify
+       that a LookupDiscoveryServiceRegistration (LDR) object is returned [LDSR
+       19]</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Call
+       LDS.register(ARRAY, null, REL, null, Lease.FOREVER) where ARRAY contains
+       null entries [LDS 6]</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Verify
+       that an IllegalArgumentException is thrown [1]</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Call
+       LDS.register(ARRAY, null, REL, null, Lease.FOREVER) where ARRAY contains
+       duplicate entries [LDS 11]</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Verify
+       that an LDSR object is returned</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Call
+       LDS.register(null, ARRAY, REL, null, Lease.FOREVER) where ARRAY contains
+       null entries [LDS 10]</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Verify
+       that an IllegalArgumentException is thrown [1]</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Call
+       LDS.register( null, ARRAY, REL, null, Lease.FOREVER) where ARRAY
+       contains duplicate entries</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Verify
+       that an LDSR object is returned</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Call
+       LDS.register( null, null, null, null, Lease.FOREVER) </li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Verify
+       that a NullPointerException is thrown [LDS 14]</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Call
+       LDS.register( null, null, REL, null, -123) </li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Verify
+       that a IllegalArgumentException is thrown [LDS 18]</li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Call
+       LDS.register( null, null, REL, null, Lease.ANY) </li>
+   <li class=MsoNormal style='mso-list:l2 level1 lfo2;tab-stops:list .5in'>Verify
+       that an LDSR object is returned</li>
+  </ol>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[1] Not specified behavior</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>LookupDiscoverRegistrationEqualityTest
+  (LDSRET)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Start
+       LUS</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Start
+       LDS1 and LDS2 to join LUS</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Get
+       reference to LDS1 (LDS1R1) and LDS2 (LDS2R1)</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Call
+       LDS1.register(null, null, REL, null, Lease.ANY) (LDSR1)</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Verify
+       that LDSR1.equals(LDSR1) returns true [LDS 29]</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Call
+       LDS1.register(null, null, REL, null, Lease.ANY) (LDSR2)</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Verify
+       that LDSR1.equals(LDSR2) returns false</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Verify
+       that LDSR2.equals(LDSR1) returns false</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Verify
+       that LDSR2.equals(LDSR2) returns true</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Call
+       LDS2.register(null, null, REL, null, Lease.ANY) (LDSR3)</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Verify
+       that LDSR3.equals(LDSR3) returns true</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Verify
+       that LDSR3.equals(LDSR1) returns false</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Verify
+       that LDSR3.equals(LDSR2) returns false</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Verify
+       that LDSR1.equals(LDSR3) returns false</li>
+   <li class=MsoNormal style='mso-list:l1 level1 lfo3;tab-stops:list .5in'>Verify
+       that LDSR2.equals(LDSR3) returns false</li>
+  </ol>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>LookupDiscoverRegistrationLocalInterfaceTest
+  (LDSRLIFT)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo4;tab-stops:list .5in'>Start
+       LUS</li>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo4;tab-stops:list .5in'>Start
+       LDS that joins LUS</li>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo4;tab-stops:list .5in'>Get
+       a reference to LDS</li>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo4;tab-stops:list .5in'>Call
+       LDS.register(null, null, REL, null, Lease.FOREVER) (LDSR) where REL is a
+       no-op</li>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo4;tab-stops:list .5in'>Verify
+       that LDSR.getEventRegistration returns an EventRegistration (ER) object
+       [LDS 31]</li>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo4;tab-stops:list .5in'>Verify
+       that LDSR.getLease() returns a Lease object [LDS 32]</li>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo4;tab-stops:list .5in'>Verify
+       that lease objects from LDSR.getLease() and ER.getLease() reference the
+       same object [LDS 33]</li>
+  </ol>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>LookupDiscoverRegistrationGroupInterfaceTest
+  (LDSRGIFT)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Start
+       LUS</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Start
+       LDS that joins LUS</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Get
+       reference to LDS</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       LDS.register([], [], REL, null, Lease.FOREVER) (LDSR) where REL is a
+       no-op and [] denotes an empty array</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that LDSR.getRegistrars returns the empty set [LDS 34]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that LDS.getGroups returns the empty set [LDS 35, 36]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       setGroups(LD.NO_GROUPS) [LDS 41, 42]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that getGroups returns the empty set</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       addGroups(LIST) where LIST contains duplicate entries [LDS 44, 45, 48]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that an UnsupportedOperationException is thrown</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       addGroups(null)</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that a NullPointerException is thrown [LDS 49]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       setGroups(LIST)</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that getGroups returns a set without duplicate entries from LIST [LDS
+       46]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       addGroups(LIST2) where LIST2 contains duplicate entries and entries from
+       LIST</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that getGroups returns the proper set without duplicates</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       addGroups([empty]) [LDS 50]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that getGroups returns an unmodified set</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       setGroups(LIST)</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that getGroups returns the appropriate set w/o duplicates [LDS 51]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       setGroups(null) [LDS 43, 53]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that getGroups returns null [LDS 37]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       setGroups(LIST2)</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that getGroups returns the appropriate set w/o duplicates</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       removeGroups(LIST) [LDS 55]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that the appropriate subset is returned</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       removeGroups([empty])</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that getGroups returns an unmodified set [LDS 58]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       removeGroups(null) [LDS 57]</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that a NullPointerException is thrown </li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       removeGroups(LIST2)</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that getGroups returns the empty set</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Call
+       removeGroups(LIST2)</li>
+   <li class=MsoNormal style='mso-list:l3 level1 lfo5;tab-stops:list .5in'>Verify
+       that an UnsupportedOperationException is thrown [LDS 56]</li>
+  </ol>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+</table>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+</div>
+
+</body>
+
+</html>

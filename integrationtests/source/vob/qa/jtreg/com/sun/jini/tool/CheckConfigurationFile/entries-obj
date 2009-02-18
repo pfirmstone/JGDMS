@@ -1,0 +1,10 @@
+comp.BooleanEntry	java.lang.Boolean
+comp.IntegerEntry	java.lang.Integer
+
+comp.MapEntry		java.util.Map
+comp.HashMapEntry	java.util.HashMap
+
+comp.UnknownTypeEntry	foo.bar.Baz
+comp.ConfigurationEntry	net.jini.config.Configuration
+comp.ObjectEntry	java.lang.Object
+comp.StringEntry	java.lang.String

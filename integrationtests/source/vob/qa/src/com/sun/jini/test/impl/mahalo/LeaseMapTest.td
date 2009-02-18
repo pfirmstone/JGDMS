@@ -1,0 +1,3 @@
+include0=mahalo.properties
+testClass=LeaseMapTest
+testCategories=txnmanager,txnmanager_impl

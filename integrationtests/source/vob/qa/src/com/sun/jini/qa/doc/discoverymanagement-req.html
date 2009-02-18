@@ -1,0 +1,723 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 9">
+<meta name=Originator content="Microsoft Word 9">
+<link rel=File-List href="./DMI_files/filelist.xml">
+<title>DiscoveryManagement Interface Requirements DM</title>
+<!--[if gte mso 9]><xml>
+ <o:DocumentProperties>
+  <o:Author>SMI Software</o:Author>
+  <o:LastAuthor>SMI Software</o:LastAuthor>
+  <o:Revision>1</o:Revision>
+  <o:TotalTime>2</o:TotalTime>
+  <o:Created>2000-02-07T12:35:00Z</o:Created>
+  <o:LastSaved>2000-02-07T12:37:00Z</o:LastSaved>
+  <o:Pages>1</o:Pages>
+  <o:Company>Sun Microsystems</o:Company>
+  <o:Lines>1</o:Lines>
+  <o:Paragraphs>1</o:Paragraphs>
+  <o:Version>9.2720</o:Version>
+ </o:DocumentProperties>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:DisplayHorizontalDrawingGridEvery>0</w:DisplayHorizontalDrawingGridEvery>
+  <w:DisplayVerticalDrawingGridEvery>0</w:DisplayVerticalDrawingGridEvery>
+  <w:UseMarginsForDrawingGridOrigin/>
+  <w:Compatibility>
+   <w:FootnoteLayoutLikeWW8/>
+   <w:ShapeLayoutLikeWW8/>
+   <w:AlignTablesRowByRow/>
+   <w:ForgetLastTabAlignment/>
+   <w:LayoutRawTableWidth/>
+   <w:LayoutTableRowsApart/>
+  </w:Compatibility>
+ </w:WordDocument>
+</xml><![endif]-->
+<style>
+<!--
+ /* Font Definitions */
+@font-face
+	{font-family:Courier;
+	panose-1:0 0 0 0 0 0 0 0 0 0;
+	mso-font-alt:"Courier New";
+	mso-font-charset:0;
+	mso-generic-font-family:modern;
+	mso-font-format:other;
+	mso-font-pitch:fixed;
+	mso-font-signature:3 0 0 0 1 0;}
+ /* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+h2
+	{mso-style-next:Normal;
+	margin-top:12.0pt;
+	margin-right:0in;
+	margin-bottom:3.0pt;
+	margin-left:0in;
+	mso-pagination:widow-orphan;
+	page-break-after:avoid;
+	mso-outline-level:2;
+	font-size:12.0pt;
+	mso-bidi-font-size:10.0pt;
+	font-family:Arial;
+	mso-bidi-font-family:"Times New Roman";
+	mso-bidi-font-weight:normal;
+	font-style:italic;
+	mso-bidi-font-style:normal;}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+ /* List Definitions */
+@list l0
+	{mso-list-id:1208103437;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1366416904 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l0:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+ol
+	{margin-bottom:0in;}
+ul
+	{margin-bottom:0in;}
+-->
+</style>
+</head>
+
+<body lang=EN-US style='tab-interval:.5in'>
+
+<div class=Section1>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<h2>DiscoveryManagement Interface Requirements DM</h2>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<table border=1 cellspacing=0 cellpadding=0 width=943 style='width:707.4pt;
+ border-collapse:collapse;border:none;mso-border-alt:solid windowtext .5pt;
+ mso-padding-alt:0in 5.4pt 0in 5.4pt'>
+ <thead>
+  <tr>
+   <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+   padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>ID<o:p></o:p></b></p>
+   </td>
+   <td width=552 valign=top style='width:5.75in;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>DiscoveryManagement
+   Interface</b> <b style='mso-bidi-font-weight:normal'>Requirement<o:p></o:p></b></p>
+   </td>
+   <td width=54 valign=top style='width:40.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Section<o:p></o:p></b></p>
+   </td>
+   <td width=282 valign=top style='width:211.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Comments<o:p></o:p></b></p>
+   </td>
+  </tr>
+ </thead>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addDiscoveryListener </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method
+  adds a listener to the set of objects listening for discovery events (</span><span
+  style='font-family:Courier;layout-grid-mode:line'>DiscoveryEvent</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>). This method takes a single argument as input: the listener (</span><span
+  style='font-family:Courier;layout-grid-mode:line'>DiscoveryListener</span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>) to add to the set.</span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-size:9.0pt;mso-bidi-font-size:10.0pt;
+  font-family:Arial;mso-bidi-font-family:"Times New Roman";color:black;
+  layout-grid-mode:line'>2.3.1</span><span style='color:black'><o:p></o:p></span></p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: DMIF</p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=2 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addDiscoveryListener … </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>Once a
+  listener is registered, <b style='mso-bidi-font-weight:normal'>it will be
+  notified of all lookup services discovered to date</b>, and will then be
+  notified as new lookup services are discovered or existing lookup services
+  are discarded.</span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: </p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=3 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addDiscoveryListener … </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>Once a
+  listener is registered, it will be notified of all lookup services discovered
+  to date, <b style='mso-bidi-font-weight:normal'>and will then be notified as
+  new lookup services are discovered</b> or existing lookup services are
+  discarded.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: </p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=4 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addDiscoveryListener … </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>Once a
+  listener is registered, it will be notified of all lookup services discovered
+  to date, and will then be notified as new lookup services are discovered <b
+  style='mso-bidi-font-weight:normal'>or existing lookup services are discarded</b>.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: </p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=5 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>addDiscoveryListener </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>…If </span><span
+  style='font-family:Courier;layout-grid-mode:line'>null </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>is input to this method, no action will be taken.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: DMIF</p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=6 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>removeDiscoveryListener </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method
+  removes a listener from the set of objects listening for discovery events.
+  This method takes a single argument as input: the listener to remove from the
+  set.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: DMIF</p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=7 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>removeDiscoveryListener … </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>If the listener object input to this method does not exist in the set
+  of listeners maintained by the implementation class, then this method will
+  take no action.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: DMIF</p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=8 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>removeDiscoveryListener … </span><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>Once an invocation of </span><span style='font-family:Courier;
+  layout-grid-mode:line'>removeDiscoveryListener </span><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>returns,
+  it is guaranteed that none of the removed listener(s) will receive any
+  pending notification events.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: </p>
+  <p class=MsoNormal>Func. Tests: </p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=9 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>getRegistrars </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method returns
+  an array of </span><span style='font-family:Courier;layout-grid-mode:line'>ServiceRegistrar<o:p></o:p></span></p>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>objects, each corresponding to a lookup service that
+  has been discovered.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: DMIF</p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=10 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>getRegistrars … </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>Each time this
+  method is invoked, a new array is returned. This method takes no arguments as
+  input.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: DMIF</p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=11 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>discard </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method removes
+  a particular lookup service from the managed set of lookup services, and
+  makes that lookup service eligible to be re-discovered. This method takes a
+  single argument as input: the proxy to the lookup service to discard.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: </p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=12 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>discard … </span><b style='mso-bidi-font-weight:normal'><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>If the proxy input to this method is </span></b><b style='mso-bidi-font-weight:
+  normal'><span style='font-family:Courier;layout-grid-mode:line'>null</span></b><span
+  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
+  line'>, or if it matches none of the lookup services in the managed set, this
+  method takes no action.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: DMIF</p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=13 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>discard … </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>If the proxy
+  input to this method is </span><span style='font-family:Courier;layout-grid-mode:
+  line'>null</span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>, <b style='mso-bidi-font-weight:normal'>or if it
+  matches none of the lookup services in the managed set</b>, this method takes
+  no action.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: </p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=14 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>Invoking the </span><span style='font-family:Courier;
+  layout-grid-mode:line'>discard </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method defined
+  by the </span><span style='font-family:Courier;layout-grid-mode:line'>DiscoveryManagement
+  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>interface will result in the flushing of the lookup
+  service from the appropriate cache, <b style='mso-bidi-font-weight:normal'>ultimately
+  causing a discard notification to be sent to all </b></span><b
+  style='mso-bidi-font-weight:normal'><span style='font-family:Courier;
+  layout-grid-mode:line'>DiscoveryListener </span></b><b style='mso-bidi-font-weight:
+  normal'><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>objects registered</span></b><span style='font-family:
+  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'> with the
+  implementation object.<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: </p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=55 valign=top style='width:41.4pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
+  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
+  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
+  mso-bidi-language:AR-SA'>
+  <ol style='margin-top:0in' start=15 type=1>
+   <li class=MsoNormal style='mso-list:l0 level1 lfo1;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
+  </ol>
+  </span></td>
+  <td width=552 valign=top style='width:5.75in;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
+  layout-grid-mode:line'>The </span><span style='font-family:Courier;
+  layout-grid-mode:line'>terminate </span><span style='font-family:Arial;
+  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method ends all
+  discovery processing being performed on behalf of the entity … no new lookup
+  services will be discovered,<o:p></o:p></span></p>
+  </td>
+  <td width=54 valign=top style='width:40.5pt;border-top:none;border-left:none;
+  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>2.3.1</p>
+  </td>
+  <td width=282 valign=top style='width:211.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>IF Tests: DMIF</p>
+  <p class=MsoNormal>Func. Tests: DMAR, DGMAR1, DGMAR2</p>
+  </td>
+ </tr>
+</table>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+</div>
+
+</body>
+
+</html>

@@ -1,0 +1,20 @@
+server {
+    com.sun.security.auth.module.KeyStoreLoginModule required
+	keyStoreAlias="server"
+	keyStoreURL="file:${test.src}/keystore"
+	keyStorePasswordURL="file:${test.src}/keypass";
+};
+
+client1 {
+    com.sun.security.auth.module.KeyStoreLoginModule required
+	keyStoreAlias="client1"
+	keyStoreURL="file:${test.src}/keystore"
+	keyStorePasswordURL="file:${test.src}/keypass";
+};
+
+client2 {
+    com.sun.security.auth.module.KeyStoreLoginModule required
+	keyStoreAlias="client2"
+	keyStoreURL="file:${test.src}/keystore"
+	keyStorePasswordURL="file:${test.src}/keypass";
+};

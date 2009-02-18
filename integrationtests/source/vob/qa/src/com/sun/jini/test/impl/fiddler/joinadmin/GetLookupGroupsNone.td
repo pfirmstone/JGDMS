@@ -1,0 +1,4 @@
+testClass=GetLookupGroupsNone
+testCategories=discoveryservice,discoveryservice_impl,fiddlerjoinadmin
+include0=../fiddler.properties
+include1=GetLookupGroupsNone.properties

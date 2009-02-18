@@ -1,0 +1,6 @@
+/* @summary Verify proper general functioning of LoaderSplitPolicyProvider
+ */
+
+grant {
+        permission java.lang.RuntimePermission "defaultPolicyStatic";
+};

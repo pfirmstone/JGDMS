@@ -1,0 +1,1933 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<html xmlns:o="urn:schemas-microsoft-com:office:office"
+xmlns:w="urn:schemas-microsoft-com:office:word"
+xmlns="http://www.w3.org/TR/REC-html40">
+
+<head>
+<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
+<meta name=ProgId content=Word.Document>
+<meta name=Generator content="Microsoft Word 9">
+<meta name=Originator content="Microsoft Word 9">
+<link rel=File-List href="./ems-test_files/filelist.xml">
+<title>EventMailbox Tests</title>
+<!--[if gte mso 9]><xml>
+ <o:DocumentProperties>
+  <o:Author>SMI Software</o:Author>
+  <o:LastAuthor>SMI Software</o:LastAuthor>
+  <o:Revision>2</o:Revision>
+  <o:TotalTime>21</o:TotalTime>
+  <o:Created>2000-02-07T15:10:00Z</o:Created>
+  <o:LastSaved>2000-02-07T15:10:00Z</o:LastSaved>
+  <o:Pages>7</o:Pages>
+  <o:Words>1936</o:Words>
+  <o:Characters>11038</o:Characters>
+  <o:Company>Sun Microsystems</o:Company>
+  <o:Lines>91</o:Lines>
+  <o:Paragraphs>22</o:Paragraphs>
+  <o:CharactersWithSpaces>13555</o:CharactersWithSpaces>
+  <o:Version>9.2720</o:Version>
+ </o:DocumentProperties>
+</xml><![endif]--><!--[if gte mso 9]><xml>
+ <w:WordDocument>
+  <w:DisplayHorizontalDrawingGridEvery>0</w:DisplayHorizontalDrawingGridEvery>
+  <w:DisplayVerticalDrawingGridEvery>0</w:DisplayVerticalDrawingGridEvery>
+  <w:UseMarginsForDrawingGridOrigin/>
+  <w:Compatibility>
+   <w:FootnoteLayoutLikeWW8/>
+   <w:ShapeLayoutLikeWW8/>
+   <w:AlignTablesRowByRow/>
+   <w:ForgetLastTabAlignment/>
+   <w:LayoutRawTableWidth/>
+   <w:LayoutTableRowsApart/>
+  </w:Compatibility>
+ </w:WordDocument>
+</xml><![endif]-->
+<style>
+<!--
+ /* Style Definitions */
+p.MsoNormal, li.MsoNormal, div.MsoNormal
+	{mso-style-parent:"";
+	margin:0in;
+	margin-bottom:.0001pt;
+	mso-pagination:widow-orphan;
+	font-size:10.0pt;
+	font-family:"Times New Roman";
+	mso-fareast-font-family:"Times New Roman";}
+@page Section1
+	{size:8.5in 11.0in;
+	margin:1.0in 1.25in 1.0in 1.25in;
+	mso-header-margin:.5in;
+	mso-footer-margin:.5in;
+	mso-paper-source:0;}
+div.Section1
+	{page:Section1;}
+ /* List Definitions */
+@list l0
+	{mso-list-id:31392684;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-85286440 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l0:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l1
+	{mso-list-id:40785129;
+	mso-list-template-ids:-1100023554;}
+@list l1:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l2
+	{mso-list-id:103506308;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1100023554 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l2:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l3
+	{mso-list-id:109010095;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1017072456 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l3:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l4
+	{mso-list-id:121536390;
+	mso-list-type:hybrid;
+	mso-list-template-ids:515517358 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l4:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l5
+	{mso-list-id:134883139;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-782710274 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l5:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l6
+	{mso-list-id:149449792;
+	mso-list-template-ids:-1431402750;}
+@list l6:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l7
+	{mso-list-id:209196879;
+	mso-list-type:simple;
+	mso-list-template-ids:-984217838;}
+@list l7:level1
+	{mso-level-start-at:0;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l8
+	{mso-list-id:214005635;
+	mso-list-type:hybrid;
+	mso-list-template-ids:1435408000 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l8:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l9
+	{mso-list-id:231502033;
+	mso-list-template-ids:-1100023554;}
+@list l9:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l10
+	{mso-list-id:254821388;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1479122236 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l10:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l11
+	{mso-list-id:262962282;
+	mso-list-template-ids:-1100023554;}
+@list l11:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l12
+	{mso-list-id:268466504;
+	mso-list-template-ids:-1100023554;}
+@list l12:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l13
+	{mso-list-id:319619924;
+	mso-list-template-ids:-1100023554;}
+@list l13:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l14
+	{mso-list-id:370110303;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1521292262 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l14:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l15
+	{mso-list-id:406922938;
+	mso-list-type:simple;
+	mso-list-template-ids:67698703;}
+@list l15:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l16
+	{mso-list-id:413090513;
+	mso-list-type:hybrid;
+	mso-list-template-ids:735066008 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l16:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l17
+	{mso-list-id:435949008;
+	mso-list-template-ids:-1100023554;}
+@list l17:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l18
+	{mso-list-id:575550626;
+	mso-list-template-ids:-1100023554;}
+@list l18:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l19
+	{mso-list-id:668800652;
+	mso-list-template-ids:-1100023554;}
+@list l19:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l20
+	{mso-list-id:706224480;
+	mso-list-type:hybrid;
+	mso-list-template-ids:791566092 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l20:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l21
+	{mso-list-id:758526531;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-494085338 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l21:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l22
+	{mso-list-id:774132848;
+	mso-list-template-ids:-1100023554;}
+@list l22:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l23
+	{mso-list-id:780884298;
+	mso-list-type:hybrid;
+	mso-list-template-ids:2101911236 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l23:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l24
+	{mso-list-id:832379421;
+	mso-list-template-ids:-1100023554;}
+@list l24:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l25
+	{mso-list-id:835153305;
+	mso-list-template-ids:-1100023554;}
+@list l25:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l26
+	{mso-list-id:836573970;
+	mso-list-type:simple;
+	mso-list-template-ids:67698703;}
+@list l26:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l27
+	{mso-list-id:836768932;
+	mso-list-template-ids:-1100023554;}
+@list l27:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l28
+	{mso-list-id:908425042;
+	mso-list-template-ids:-1100023554;}
+@list l28:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l29
+	{mso-list-id:929658446;
+	mso-list-template-ids:-1100023554;}
+@list l29:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l30
+	{mso-list-id:937058811;
+	mso-list-type:simple;
+	mso-list-template-ids:1710393288;}
+@list l30:level1
+	{mso-level-start-at:7;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l31
+	{mso-list-id:979067633;
+	mso-list-template-ids:-1100023554;}
+@list l31:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l32
+	{mso-list-id:985624502;
+	mso-list-template-ids:-1100023554;}
+@list l32:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l33
+	{mso-list-id:1035540154;
+	mso-list-type:simple;
+	mso-list-template-ids:67698703;}
+@list l33:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l34
+	{mso-list-id:1088039727;
+	mso-list-template-ids:-1100023554;}
+@list l34:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l35
+	{mso-list-id:1110392035;
+	mso-list-template-ids:-1431402750;}
+@list l35:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l36
+	{mso-list-id:1111164506;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1038421246 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l36:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l37
+	{mso-list-id:1142885741;
+	mso-list-template-ids:-1100023554;}
+@list l37:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l38
+	{mso-list-id:1156997083;
+	mso-list-type:simple;
+	mso-list-template-ids:-984217838;}
+@list l38:level1
+	{mso-level-start-at:0;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l39
+	{mso-list-id:1185166420;
+	mso-list-template-ids:-1100023554;}
+@list l39:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l40
+	{mso-list-id:1216816304;
+	mso-list-template-ids:-1100023554;}
+@list l40:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l41
+	{mso-list-id:1237017095;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-669381956 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l41:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l42
+	{mso-list-id:1263028433;
+	mso-list-template-ids:-1100023554;}
+@list l42:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l43
+	{mso-list-id:1278835932;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-1887940014 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l43:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l44
+	{mso-list-id:1292395370;
+	mso-list-type:hybrid;
+	mso-list-template-ids:1846202840 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l44:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l45
+	{mso-list-id:1297640488;
+	mso-list-template-ids:-1100023554;}
+@list l45:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l46
+	{mso-list-id:1312052879;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-847374512 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l46:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l47
+	{mso-list-id:1338194222;
+	mso-list-type:simple;
+	mso-list-template-ids:-984217838;}
+@list l47:level1
+	{mso-level-start-at:0;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l48
+	{mso-list-id:1387485152;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-186060286 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l48:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l49
+	{mso-list-id:1429736725;
+	mso-list-template-ids:-1100023554;}
+@list l49:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l50
+	{mso-list-id:1433823022;
+	mso-list-template-ids:-1100023554;}
+@list l50:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l51
+	{mso-list-id:1446577923;
+	mso-list-template-ids:-1100023554;}
+@list l51:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l52
+	{mso-list-id:1466702504;
+	mso-list-template-ids:-1431402750;}
+@list l52:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l53
+	{mso-list-id:1473063034;
+	mso-list-template-ids:-1100023554;}
+@list l53:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l54
+	{mso-list-id:1486436533;
+	mso-list-template-ids:-1100023554;}
+@list l54:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l55
+	{mso-list-id:1493598172;
+	mso-list-type:hybrid;
+	mso-list-template-ids:-546507534 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
+@list l55:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l56
+	{mso-list-id:1536308856;
+	mso-list-type:simple;
+	mso-list-template-ids:-1162213922;}
+@list l56:level1
+	{mso-level-start-at:7;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l57
+	{mso-list-id:1546287145;
+	mso-list-type:hybrid;
+	mso-list-template-ids:699988208 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l57:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l58
+	{mso-list-id:1546673251;
+	mso-list-type:simple;
+	mso-list-template-ids:-984217838;}
+@list l58:level1
+	{mso-level-start-at:0;
+	mso-level-number-format:bullet;
+	mso-level-text:-;
+	mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l59
+	{mso-list-id:1554927599;
+	mso-list-template-ids:-1100023554;}
+@list l59:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l60
+	{mso-list-id:1573006623;
+	mso-list-template-ids:-1100023554;}
+@list l60:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l61
+	{mso-list-id:1614706265;
+	mso-list-type:hybrid;
+	mso-list-template-ids:500571080 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
+@list l61:level1
+	{mso-level-tab-stop:.5in;
+	mso-level-number-position:left;
+	text-indent:-.25in;}
+@list l62
+	{mso-list-id:1741751998;
+	mso-list-template-ids:-546507534;}
+@list l62:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l63
+	{mso-list-id:1760171690;
+	mso-list-template-ids:-1100023554;}
+@list l63:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l64
+	{mso-list-id:1820731572;
+	mso-list-template-ids:-1100023554;}
+@list l64:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l65
+	{mso-list-id:1821578496;
+	mso-list-template-ids:-1100023554;}
+@list l65:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l66
+	{mso-list-id:1991052336;
+	mso-list-template-ids:-1100023554;}
+@list l66:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l67
+	{mso-list-id:2056735181;
+	mso-list-template-ids:-1100023554;}
+@list l67:level1
+	{mso-level-tab-stop:.25in;
+	mso-level-number-position:left;
+	margin-left:.25in;
+	text-indent:-.25in;}
+@list l67:level2
+	{mso-level-number-format:alpha-lower;
+	mso-level-tab-stop:.75in;
+	mso-level-number-position:left;
+	margin-left:.75in;
+	text-indent:-.25in;}
+ol
+	{margin-bottom:0in;}
+ul
+	{margin-bottom:0in;}
+-->
+</style>
+</head>
+
+<body lang=EN-US style='tab-interval:.5in'>
+
+<div class=Section1>
+
+<p class=MsoNormal align=center style='text-align:center'><span
+style='font-size:14.0pt;mso-bidi-font-size:10.0pt;font-family:Arial'>EventMailbox
+Tests<o:p></o:p></span></p>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+<table border=1 cellspacing=0 cellpadding=0 width=877 style='width:657.9pt;
+ border-collapse:collapse;border:none;mso-border-alt:solid windowtext .5pt;
+ mso-padding-alt:0in 5.4pt 0in 5.4pt'>
+ <thead>
+  <tr>
+   <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+   padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Test Name &amp;
+   Motivation<o:p></o:p></b></p>
+   </td>
+   <td width=372 valign=top style='width:279.0pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Description<o:p></o:p></b></p>
+   </td>
+   <td width=102 valign=top style='width:76.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Categorization<o:p></o:p></b></p>
+   </td>
+   <td width=198 valign=top style='width:148.5pt;border:solid windowtext .5pt;
+   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Specification
+   Requirements<o:p></o:p></b></p>
+   </td>
+  </tr>
+ </thead>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceInterfaceTest
+  (EMSIFT)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP1</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Get EMS reference</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(DELAY) [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the obtained lease is &lt;= DELAY [EMS 3,6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(-DELAY)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that an IllegalArgumentException is thrown [1]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(Lease.FOREVER)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the obtained lease &lt;= FOREVER</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(Lease.ANY)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the obtained lease &gt;= 0, &lt;= FOREVER</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l65 level1 lfo39;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that all MailboxRegistration objects are different
+  (both '==' and 'equals()') [EMS 5]</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Note:</p>
+  <p class=MsoNormal>[1] Not specified yet</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceRegistrationInterfaceTest
+  (EMSRIFT) <o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP1</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Get EMS reference</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(DELAY) and obtain MR [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that granted lease &lt;= DELAY [EMS 3,6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass lease to LeaseRenewalManager, if necessary (LRM)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.getListener to obtain the mailbox provided listener
+  (MREL)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the returned object is of type
+  RemoteEventListener [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(MREL) and verify that an
+  IllegalArgumentException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) where REL counts the # of
+  received events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events [EMS 8]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) again [EMS 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>14.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(NULL) [EMS 15]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>15.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>16.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.disableDelivery() [EMS 16,17]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>17.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>18.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) again</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>19.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>20.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.disableDelivery() </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>21.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>22.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Cancel MR lease [EMS 18]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>23.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceRegistrationInterfaceTest2
+  (EMSRIFT2)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP1</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Get EMS reference</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>24.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(DELAY) and obtain MR1 [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>25.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that granted lease &lt;= DELAY [EMS 3,6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>26.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(DELAY) and obtain MR2 [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l60 level1 lfo40;
+  tab-stops:list .25in'><![if !supportLists]>27.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that granted lease &lt;= DELAY [EMS 3,6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass leases to LeaseRenewalManager, if necessary (LRM)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR1.getListener to obtain the mailbox provided listener
+  (MREL1)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the returned object is of type
+  RemoteEventListener [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR2.getListener to obtain the mailbox provided listener
+  (MREL2)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that the returned object is of type
+  RemoteEventListener [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR1.enableDelivery(MREL1) and verify that an
+  IllegalArgumentException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR1.enableDelivery(MREL2) and verify that an
+  IllegalArgumentException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR2.enableDelivery(MREL1) and verify that an
+  IllegalArgumentException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR2.enableDelivery(MREL2) and verify that an
+  IllegalArgumentException is thrown</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR1.enableDelivery(REL) where REL counts the # of
+  received events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>14.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events [EMS 8]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>15.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR2.enableDelivery(REL) </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>16.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events [EMS 8]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>17.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR2.enableDelivery(REL) again [EMS 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>18.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>19.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR1.enableDelivery(REL) again [EMS 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>20.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>21.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR1.enableDelivery(NULL) [EMS 15]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>22.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>23.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR2.enableDelivery(NULL) [EMS 15]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>24.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>25.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR1.enableDelivery(NULL) [EMS 15]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>26.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>27.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR1.disableDelivery() [EMS 16,17]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>28.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>29.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR2.disableDelivery() [EMS 16,17]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>30.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>31.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR1.enableDelivery(REL)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>32.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>33.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR2.enableDelivery(REL)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>34.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>35.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR1.disableDelivery() </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>36.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>37.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR2.disableDelivery() </p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>38.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>39.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Cancel EMS leases [EMS 18]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l11 level1 lfo60;
+  tab-stops:list .25in'><![if !supportLists]>40.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceFunctionalTest
+  (EMSFT)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Get EMS reference</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(Lease.DELAY) [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that granted lease &lt;= DELAY, &gt;= 0 [EMS 3,6]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass lease to LeaseRenewalManager (LRM), if necessary</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Create an event generator (EG) and pass it the ref to EMSL
+  [1]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events to the EMS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) where REL keeps count of
+  received events [EMS 8, 13]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives 5 events and in order [2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) again</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no new events are received</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>14.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>15.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives 5 events [EMS 10]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>16.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL2) [EMS 9]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>17.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>18.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL2 receives 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>19.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Create EG2 and pass it a ref to EMSL</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>20.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG2 to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>21.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL2 receives 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>22.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.disableDelivery() [EMS 14, 16]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>23.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG2 to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>24.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>25.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL &amp; REL2 receive no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>26.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>27.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives 10 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>28.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(NULL) [EMS 15]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>29.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send an event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>30.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL &amp; REL2 receive no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>31.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL2)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>32.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL2 gets an event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>33.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.disableDelivery</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>34.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send an event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>35.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.disableDelivery [EMS 17]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>36.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG2 to send an event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>37.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL2 receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>38.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL2)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>39.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL2 receives two events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>40.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Cancel MR's lease [EMS 18]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>41.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send an event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>42.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG2 to send an event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l22 level1 lfo41;
+  tab-stops:list .25in'><![if !supportLists]>43.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that no events are received</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[1] Event generator is a local object that produces events
+  with strictly increasing Ids</p>
+  <p class=MsoNormal>[2] Ordering not specified yet</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceNoSuchObjectTest
+  (EMSNSOT)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(Lease.DELAY) [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass lease to LeaseRenewalManager (LRM), if necessary</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass EMSL reference to Event Generator (EG)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) where REL throws
+  NoSuchObjectException</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL doesn't get called more than once [EMS 12]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send another event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL2) where REL2 counts the number of
+  events received</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l45 level1 lfo43;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that all the events are received</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceRemoteExceptionTest
+  (EMSRET)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(Lease.DELAY) [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass lease to LeaseRenewalManager (LRM), if necessary</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass EMSL reference to Event Generator (EG)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) where REL throws RemoteException</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Wait DELAY2 ms in order to give MB a chance to redeliver
+  event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL only received the first event (since the
+  retry attempts should deliver the same event each time upto (perhaps) some
+  implementation dependent retry count).</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL2) where REL2 counts the number of
+  events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL2 receives 5 events [1]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Generate another event</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l18 level1 lfo45;
+  tab-stops:list .25in'><![if !supportLists]>14.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL2 receives the event</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[1] Not a specified requirement</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceShutdownTest
+  (EMSST)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(Lease.FOREVER) [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass lease to LeaseRenewalManager (LRM)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass EMSL reference to Event Generator (EG)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Kill EMS service/process (via admin?) [1]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Wait for process to restart (via activation?) [2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) where REL counts received events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l39 level1 lfo47;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives all the events [3]</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[1] Assumes admin or test harness support </p>
+  <p class=MsoNormal>[2] Assumes test harness or activatable support</p>
+  <p class=MsoNormal>[3] This requirement isn't specified</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceShutdownTest2
+  (EMSS2T)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(Lease.FOREVER) [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass lease to LeaseRenewalManager (LRM)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass EMSL reference to Event Generator (EG)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Kill EMS service/process (via admin?) [1]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Wait DEALY until mailbox registration expires</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) where REL counts received events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l63 level1 lfo67;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a NoSuchObjectException is thrown</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceShutdownTest3
+  (EMSST3)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(Lease.FOREVER) [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass lease to LeaseRenewalManager (LRM)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass EMSL reference to Event Generator (EG)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Cancel the registration</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Kill EMS service/process (via admin?) [1]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Wait for process to restart (via activation?) [2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) where REL counts received events
+  (sometime before the original registration lease would have expired.)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l31 level1 lfo68;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that a NoSuchObjectException is thrown</p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceLeaseExpirationTest
+  (EMSLET)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>1.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>2.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>3.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(Lease.DELAY) [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>4.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass lease to LeaseRenewalManager (LRM), if necessary</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>5.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>6.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass EMSL reference to Event Generator (EG)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>7.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>8.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) where REL counts the number of
+  received events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>9.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>10.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Wait until lease expires</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>11.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>12.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>13.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use MR.enableDelivery(REL)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>14.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that NoSuchObjectException is thrown [1]</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[1] This requirement is not specified</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceLeaseCancellationTest
+  (EMSLCT)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>15.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start LUS in GROUP</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>16.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Start EventMailboxService (EMS) and join LUS</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>17.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call EMS.register(Lease.DELAY) [EMS 1,2]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>18.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass lease to LeaseRenewalManager (LRM), if necessary</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>19.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>20.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Pass EMSL reference to Event Generator (EG)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>21.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>22.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Call MR.enableDelivery(REL) where REL counts the number of
+  received events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>23.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>24.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Cancel MR's lease</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>25.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use EG to send 5 events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>26.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that REL receives no events</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>27.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Use MR.enableDelivery(REL)</p>
+  <p class=MsoNormal style='margin-left:.25in;text-indent:-.25in;mso-list:l37 level1 lfo48;
+  tab-stops:list .25in'><![if !supportLists]>28.<span style='font:7.0pt "Times New Roman"'>&nbsp;&nbsp;&nbsp;&nbsp;
+  </span><![endif]>Verify that NoSuchObjectException is thrown [1]</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[1] This requirement is not specified</p>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceLoadStressTest
+  (EMSLST)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l57 level1 lfo53;tab-stops:list .5in'>Start
+       LUS in GROUP</li>
+   <li class=MsoNormal style='mso-list:l57 level1 lfo53;tab-stops:list .5in'>Start
+       EventMailboxService (EMS) and join LUS</li>
+   <li class=MsoNormal style='mso-list:l57 level1 lfo53;tab-stops:list .5in'>Call
+       EMS.register(Lease.FOREVER) [EMS 1,2]</li>
+   <li class=MsoNormal style='mso-list:l57 level1 lfo53;tab-stops:list .5in'>Pass
+       lease to LeaseRenewalManager (LRM)</li>
+   <li class=MsoNormal style='mso-list:l57 level1 lfo53;tab-stops:list .5in'>Call
+       (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</li>
+   <li class=MsoNormal style='mso-list:l57 level1 lfo53;tab-stops:list .5in'>Start
+       N EG threads and pass EMSL to them and # of events to produce</li>
+   <li class=MsoNormal style='mso-list:l57 level1 lfo53;tab-stops:list .5in'>Call
+       MR.enableDelivery(REL) where REL counts the number of events received</li>
+   <li class=MsoNormal style='mso-list:l57 level1 lfo53;tab-stops:list .5in'>Wait
+       until all the events have been successfully received</li>
+   <li class=MsoNormal style='mso-list:l57 level1 lfo53;tab-stops:list .5in'>Verify
+       that REL received all the events [1]</li>
+  </ol>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[1] Requirement not specified</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceLoadStressTest2
+  (EMSLST2)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l61 level1 lfo64;tab-stops:list .5in'>Start
+       LUS in GROUP</li>
+   <li class=MsoNormal style='mso-list:l61 level1 lfo64;tab-stops:list .5in'>Start
+       EventMailboxService (EMS) and join LUS</li>
+   <li class=MsoNormal style='mso-list:l61 level1 lfo64;tab-stops:list .5in'>Call
+       EMS.register(Lease.FOREVER) [EMS 1,2]</li>
+   <li class=MsoNormal style='mso-list:l61 level1 lfo64;tab-stops:list .5in'>Pass
+       lease to LeaseRenewalManager (LRM)</li>
+   <li class=MsoNormal style='mso-list:l61 level1 lfo64;tab-stops:list .5in'>Call
+       (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</li>
+   <li class=MsoNormal style='mso-list:l61 level1 lfo64;tab-stops:list .5in'>Start
+       N EG threads and pass EMSL to them and # of events to produce</li>
+   <li class=MsoNormal style='mso-list:l61 level1 lfo64;tab-stops:list .5in'>Call
+       MR.enableDelivery(REL) where REL counts the number of events received</li>
+   <li class=MsoNormal style='mso-list:l61 level1 lfo64;tab-stops:list .5in'>Shutdown
+       EMS after DELAY or after approp # of writes</li>
+   <li class=MsoNormal style='mso-list:l61 level1 lfo64;tab-stops:list .5in'>Wait
+       until all the events have been successfully received</li>
+   <li class=MsoNormal style='mso-list:l61 level1 lfo64;tab-stops:list .5in'>Verify
+       that REL received all the events [1]</li>
+  </ol>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[1] Requirement not specified</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceLoadStressTes3t
+  (EMSLST3)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo65;tab-stops:list .5in'>Start
+       LUS in GROUP</li>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo65;tab-stops:list .5in'>Start
+       EventMailboxService (EMS) and join LUS</li>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo65;tab-stops:list .5in'>Call
+       EMS.register(Lease.FOREVER) [EMS 1,2]</li>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo65;tab-stops:list .5in'>Pass
+       lease to LeaseRenewalManager (LRM)</li>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo65;tab-stops:list .5in'>Call
+       (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</li>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo65;tab-stops:list .5in'>Start
+       N EG threads and pass EMSL to them and # of events to produce</li>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo65;tab-stops:list .5in'>Wait
+       until EG threads are done</li>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo65;tab-stops:list .5in'>Call
+       MR.enableDelivery(REL) where REL counts the number of events received</li>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo65;tab-stops:list .5in'>Wait
+       until all the events have been successfully received</li>
+   <li class=MsoNormal style='mso-list:l5 level1 lfo65;tab-stops:list .5in'>Verify
+       that REL received all the events [1]</li>
+  </ol>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[1] Requirement not specified</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceLoadStressTes4t
+  (EMSLS4T)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Start
+       LUS in GROUP</li>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Start
+       EventMailboxService (EMS) and join LUS</li>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Call
+       EMS.register(Lease.FOREVER) [EMS 1,2]</li>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Pass
+       lease to LeaseRenewalManager (LRM)</li>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Call
+       (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</li>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Start
+       N EG threads and pass EMSL to them and # of events to produce</li>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Wait
+       until EG threads are done</li>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Shutdown
+       EMS</li>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Call
+       MR.enableDelivery(REL) where REL counts the number of events received</li>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Wait
+       until all the events have been successfully received</li>
+   <li class=MsoNormal style='mso-list:l44 level1 lfo66;tab-stops:list .5in'>Verify
+       that REL received all the events [1]</li>
+  </ol>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Notes:</p>
+  <p class=MsoNormal>[1] Requirement not specified</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceConcurrencyTest
+  (EMSCT)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=1 type=1>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Start
+       LUS in GROUP</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Start
+       EventMailboxService (EMS) and join LUS</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Call
+       EMS.register(Lease.FOREVER) [EMS 1,2]</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Pass
+       lease to LeaseRenewalManager (LRM)</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Call
+       (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Pass
+       EMSL reference to Event Generator (EG)</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Use
+       EG to send 2 events</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Call
+       MR.enableDelivery(REL) where REL calls MR.disableDelivery() and
+       MR.enable(null)</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Verify
+       that only 1 event is received [1]</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Verify
+       that the callback doesn't deadlock</li>
+  </ol>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Note:</p>
+  <p class=MsoNormal>[1] Requirement for stopping pending delivery isn't specified</p>
+  </td>
+ </tr>
+ <tr>
+  <td width=205 valign=top style='width:153.9pt;border:solid windowtext .5pt;
+  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><i style='mso-bidi-font-style:normal'>EventMailboxServiceConcurrencyExceptionTest
+  (EMSCET)<o:p></o:p></i></p>
+  </td>
+  <td width=372 valign=top style='width:279.0pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <ol style='margin-top:0in' start=11 type=1>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Start
+       LUS in GROUP</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Start
+       EventMailboxService (EMS) and join LUS</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Call
+       EMS.register(Lease.FOREVER) [EMS 1,2]</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Pass
+       lease to LeaseRenewalManager (LRM)</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Call
+       (MR) MailboxRegistration.getListener() (EMSL) [EMS 7]</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Pass
+       EMSL reference to Event Generator (EG)</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Use
+       EG to send 2 events</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Call
+       MR.enableDelivery(REL) where REL calls MR.disableDelivery() and throws a
+       NoSuchObjectException</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Verify
+       that only 1 event is received [1]</li>
+   <li class=MsoNormal style='mso-list:l46 level1 lfo52;tab-stops:list .5in'>Verify
+       that the callback doesn't deadlock</li>
+  </ol>
+  </td>
+  <td width=102 valign=top style='width:76.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+  </td>
+  <td width=198 valign=top style='width:148.5pt;border-top:none;border-left:
+  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
+  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
+  padding:0in 5.4pt 0in 5.4pt'>
+  <p class=MsoNormal>Note:</p>
+  <p class=MsoNormal>[1] Requirement for stopping pending delivery isn't
+  specified</p>
+  </td>
+ </tr>
+</table>
+
+<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
+
+</div>
+
+</body>
+
+</html>

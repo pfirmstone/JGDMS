@@ -1,0 +1,3 @@
+include0=mahalo.properties
+testClass=LeaseExpireCancelTest
+testCategories=txnmanager,txnmanager_impl

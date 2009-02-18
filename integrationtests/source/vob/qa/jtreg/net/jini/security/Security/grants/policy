@@ -1,0 +1,18 @@
+/* 
+ * Base dynamic security policy file.
+ */
+
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission net.jini.security.GrantPermission
+        "java.security.AllPermission";
+    permission java.lang.RuntimePermission "accessClassInPackage.*";
+    permission java.security.SecurityPermission "getPolicy";
+    permission java.security.SecurityPermission "getProperty.*";
+    permission java.security.SecurityPermission "setPolicy";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission javax.security.auth.AuthPermission "doAsPrivileged";
+};

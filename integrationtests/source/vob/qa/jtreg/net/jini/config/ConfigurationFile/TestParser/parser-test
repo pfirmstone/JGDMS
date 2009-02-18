@@ -1,0 +1,2957 @@
+# 
+# Parser tests
+#
+# This file contains data for running TestParser tests for ConfigurationFile.
+#
+# Lines that begin with a '#' are treated as comments.  Lines that begin
+# with '$' are EOF markers to mark the end of a multi-line entry.
+#
+# For each test, the lines up to the first EOF are the contents of the
+# configuration file, and the lines up to the second EOF are the string
+# value of the exception or the return value.
+#
+######################################################################
+# Imports
+######################################################################
+import
+$
+ConfigurationException: Line 2: expected import package or type, found end of file
+$
+################
+import import;
+$
+ConfigurationException: Line 1: expected import package or type, found 'import'
+$
+################
+import long;
+$
+ConfigurationException: Line 1: expected import package or type, found 'long'
+$
+################
+import Foo;
+$
+ConfigurationException: Line 1: import from unnamed package
+$
+################
+import .Foo;
+comp.x = new .Foo();
+$
+ConfigurationException: Line 1: expected import package or type, found '.Foo'
+$
+################
+import *;
+$
+ConfigurationException: Line 1: expected import package or type, found '*'
+$
+################
+import .*;
+$
+ConfigurationException: Line 1: expected import package or type, found '.*'
+$
+################
+import +;
+$
+ConfigurationException: Line 1: expected import package or type, found '+'
+$
+################
+import this;
+$
+ConfigurationException: Line 1: expected import package or type, found 'this'
+$
+################
+import { a.b = 3; }
+$
+ConfigurationException: Line 1: expected import package or type, found '{'
+$
+################
+import java.lang.*;
+comp {
+    x = Boolean.TRUE;
+}
+$
+comp {
+    x = true;
+}
+$
+################
+import java.lang.Boolean;
+comp {
+    x = Boolean.FALSE;
+}
+$
+comp {
+    x = false;
+}
+$
+################
+import java.util.*;
+import java.util.*;
+comp {
+    x = Collections.EMPTY_SET;
+}
+$
+comp {
+    x = [];
+}
+$
+################
+import java.util.Collections;
+import java.util.Collections;
+comp {
+    x = Collections.EMPTY_SET;
+}
+$
+comp {
+    x = [];
+}
+$
+################
+import java.util.Collections;
+import java.util.*;
+comp {
+    x = Collections.EMPTY_SET;
+}
+$
+comp {
+    x = [];
+}
+$
+################
+import javax.naming.Reference;
+import java.lang.ref.Reference;
+$
+ConfigurationException: Line 2: conflicting imports: javax.naming.Reference and java.lang.ref.Reference
+$
+################
+import javax.naming.*;
+import java.lang.ref.*;
+comp {
+    x = new Reference();
+}
+$
+ConfigurationException: Line 4: ambiguous class: Reference
+$
+################
+import javax.naming.*;
+import java.lang.ref.Reference;
+comp {
+    x = Reference.class;
+}
+$
+comp {
+    x = class java.lang.ref.Reference;
+}
+$
+################
+import a.b.c.unknown.*;
+comp {
+    x = Boolean.class;
+}
+$
+comp {
+    x = class java.lang.Boolean;
+}
+$
+################
+import a.b.c.Unknown;
+comp {
+    x = Integer.class;
+}
+$
+ConfigurationException: Line 1: class not found: a.b.c.Unknown
+$
+################
+import a.b.c.Unknown;
+comp {
+    x = Unknown.FIELD;
+}
+$
+ConfigurationException: Line 1: class not found: a.b.c.Unknown
+$
+################
+import a.b.c.Unknown.*;
+comp {
+    x = Unknown.X.class;
+}
+$
+ConfigurationException: Line 3: class not found: Unknown.X
+$
+################
+# Nested classes
+################
+comp {
+    x = new java.util.Map.Entry[] { };
+}
+$
+comp {
+    x = java.util.Map$Entry[] { };
+}
+$
+################
+import java.util.*;
+comp {
+    x = new Map.Entry[] { };
+}
+$
+comp {
+    x = java.util.Map$Entry[] { };
+}
+$
+################
+import java.util.*;
+comp {
+    x = new Map$Entry[] { };
+}
+$
+comp {
+    x = java.util.Map$Entry[] { };
+}
+$
+################
+import java.util.Map;
+comp {
+    x = new Map.Entry[] { };
+}
+$
+comp {
+    x = java.util.Map$Entry[] { };
+}
+$
+################
+import java.util.Map$Entry;
+comp {
+    x = new Map$Entry[] { };
+}
+$
+comp {
+    x = java.util.Map$Entry[] { };
+}
+$
+################
+import java.util.Map.Entry;
+comp {
+    x = new Entry[] { };
+}
+$
+comp {
+    x = java.util.Map$Entry[] { };
+}
+$
+################
+import java.util.Map.*;
+comp {
+    x = new Entry[] { };
+}
+$
+comp {
+    x = java.util.Map$Entry[] { };
+}
+$
+################
+# Order of imports and entries
+################
+comp {
+    x = null;
+}
+import java.util.*;
+$
+ConfigurationException: Line 4: import follows entry
+$
+################
+import java.util.Set;
+comp { x = null; }
+import java.util.Collection;
+$
+ConfigurationException: Line 3: import follows entry
+$
+################
+# Imports with spaces in names
+################
+import java .util.Hashtable;
+import java. util.HashSet;
+import java . util.HashMap;
+import java . util . Vector;
+comp {
+    x = new Hashtable();
+    y = new HashSet();
+    z = new HashMap();
+    w = new Vector();
+}
+$
+comp {
+    w = [];
+    x = {};
+    y = [];
+    z = {};
+}
+$
+################
+import java.util. *;
+comp {
+    x = new HashSet();
+}
+$
+comp {
+    x = [];
+}
+$
+################
+import java.util .*;
+comp {
+    x = new HashSet();
+}
+$
+comp {
+    x = [];
+}
+$
+################
+import java.util . *;
+comp {
+    x = new HashSet();
+}
+$
+comp {
+    x = [];
+}
+$
+######################################################################
+# Components
+######################################################################
+$
+$
+################
+
+$
+$
+################
+{ }
+$
+ConfigurationException: Line 1: expected keyword 'import', 'static' or 'private', or component, found '{'
+$
+################
+3 { }
+$
+ConfigurationException: Line 1: invalid component: '3'
+$
+################
+int { }
+$
+ConfigurationException: Line 1: invalid component: 'int'
+$
+################
+assert { }
+$
+ConfigurationException: Line 1: invalid component: 'assert'
+$
+################
+. { }
+$
+ConfigurationException: Line 1: invalid component: '.'
+$
+################
+comp. { }
+$
+ConfigurationException: Line 1: invalid component: 'comp.'
+$
+################
+.comp { }
+$
+ConfigurationException: Line 1: invalid component: '.comp'
+$
+################
+comp1.comp2. { }
+$
+ConfigurationException: Line 1: invalid component: 'comp1.comp2.'
+$
+################
+comp1..comp2 { }
+$
+ConfigurationException: Line 1: invalid component: 'comp1..comp2'
+$
+################
+comp1.2 { }
+$
+ConfigurationException: Line 1: invalid component: 'comp1.2'
+$
+################
+comp
+$
+ConfigurationException: Line 2: expected '{', found end of file
+$
+################
+comp foo { }
+$
+ConfigurationException: Line 1: expected '{', found 'foo'
+$
+################
+comp }
+$
+ConfigurationException: Line 1: expected '{', found '}'
+$
+################
+comp {
+$
+ConfigurationException: Line 2: expected '}', keyword 'static' or 'private', or entry name, found end of file
+$
+################
+comp {
+    a = 1;
+    b = 2;
+}
+comp {
+    c = 3;
+    b = 4;
+}
+$
+ConfigurationException: Line 7: duplicate entry name: b
+$
+################
+comp {
+    a = 1;
+    private x = 2;
+}
+comp {
+    b = x;
+}
+$
+comp {
+    a = 1;
+    b = 2;
+}
+$
+################
+a . b. c .d {
+    x = 3;
+}
+$
+a.b.c.d {
+    x = 3;
+}
+$
+######################################################################
+# Entries
+######################################################################
+comp {
+    foo = Boolean.TRUE;
+    = Boolean.FALSE;
+}
+$
+ConfigurationException: Line 3: expected '}', keyword 'static' or 'private', or entry name, found '='
+$
+################
+comp { null = null; }
+$
+ConfigurationException: Line 1: illegal entry name: null
+$
+################
+comp { true = null; }
+$
+ConfigurationException: Line 1: illegal entry name: true
+$
+################
+comp { false = null; }
+$
+ConfigurationException: Line 1: illegal entry name: false
+$
+################
+comp { char = null; }
+$
+ConfigurationException: Line 1: illegal entry name: char
+$
+################
+comp { assert = null; }
+$
+ConfigurationException: Line 1: illegal entry name: assert
+$
+################
+comp { this = null; }
+$
+ConfigurationException: Line 1: illegal entry name: this
+$
+################
+comp { foo.class = null; }
+$
+ConfigurationException: Line 1: illegal entry name: foo.class
+$
+################
+comp { foo.int.bar = null; }
+$
+ConfigurationException: Line 1: illegal entry name: foo.int.bar
+$
+################
+comp {
+    foo = Boolean.TRUE;
+    foo = Boolean.TRUE;
+}
+$
+ConfigurationException: Line 3: duplicate entry name: foo
+$
+################
+comp {
+    foo = Boolean.TRUE;
+    foo = Boolean.FALSE;
+}
+$
+ConfigurationException: Line 3: duplicate entry name: foo
+$
+################
+comp {
+    private foo = Boolean.TRUE;
+    foo = Boolean.FALSE;
+}
+$
+ConfigurationException: Line 3: duplicate entry name: foo
+$
+################
+comp {
+    private foo = Boolean.TRUE;
+    static foo = Boolean.FALSE;
+}
+$
+ConfigurationException: Line 3: duplicate entry name: foo
+$
+################
+comp {
+    foo = Boolean.TRUE;
+    foo = null;
+}
+$
+ConfigurationException: Line 3: duplicate entry name: foo
+$
+################
+comp { foo
+$
+ConfigurationException: Line 2: expected '=', found end of file
+$
+################
+comp { foo =
+$
+ConfigurationException: Line 2: expected expression, found end of file
+$
+################
+comp { foo = ; }
+$
+ConfigurationException: Line 1: expected expression, found ';'
+$
+################
+comp {
+    foo = null
+    bar = null;
+}
+$
+ConfigurationException: Line 3: expected ';', found 'bar'
+$
+################
+comp { foo = null
+$
+ConfigurationException: Line 2: expected ';', found end of file
+$
+################
+comp {
+    foo = null;
+}
+$
+comp {
+    foo = null;
+}
+$
+################
+comp { foo. = "hi"; }
+$
+ConfigurationException: Line 1: illegal entry name: foo.
+$
+################
+comp { .foo = "lo"; }
+$
+ConfigurationException: Line 1: illegal entry name: .foo
+$
+################
+comp { .. = "lo"; }
+$
+ConfigurationException: Line 1: illegal entry name: ..
+$
+################
+comp {
+    foo = this;
+}
+$
+comp {
+    foo = ConfigurationFile;
+}
+$
+################
+comp {
+    foo = new net.jini.config.ConfigurationFile[] { this };
+    goo = new Object[] { comp.foo };
+}
+$
+comp {
+    foo = net.jini.config.ConfigurationFile[] { ConfigurationFile };
+    goo = java.lang.Object[] { net.jini.config.ConfigurationFile[] { ConfigurationFile } };
+}
+$
+################
+comp {
+    foo = String.valueOf(this);
+}
+$
+comp {
+    foo = ConfigurationFile@...
+$
+################
+comp {
+    foo = new java.util.EventObject(this);
+}
+$
+comp {
+    foo = java.util.EventObject[source=ConfigurationFile@...
+$
+################
+comp {
+    foo = "Hello";
+    goo = X.getConfigEntry(this, "comp", "foo", String.class);
+}
+$
+comp {
+    foo = Hello;
+    goo = Hello;
+}
+$
+################
+comp {
+    static foo = X.getConfigEntry(this, "comp", "bar", Object.class);
+    static bar = X.getConfigEntry(this, "comp", "foo", Object.class);
+}
+$
+ConfigurationException: Line 3: problem invoking method X.getConfigEntry; caused by:
+	ConfigurationException: Line 2: problem invoking method X.getConfigEntry; caused by:
+	ConfigurationException: Line 3: entry with circular reference: comp.bar
+$
+################
+comp {
+    static foo = X.getConfigEntry(this, "comp", "bar", String.class);
+    static bar = "Hello";
+}
+$
+comp {
+    bar = Hello;
+    foo = Hello;
+}
+$
+################
+# Static entry refers to non-static
+comp {
+    static bar = foo;
+    foo = "a";
+}
+$
+comp {
+    bar = a;
+    foo = a;
+}
+$
+################
+comp { foo = this.getEntry("foo"); }
+$
+ConfigurationException: Line 1: illegal method name: this.getEntry
+$
+################
+comp { foo = this.entries; }
+$
+ConfigurationException: Line 1: illegal field or entry name: this.entries
+$
+################
+comp { foo = /; }
+$
+ConfigurationException: Line 1: expected expression, found '/'
+$
+################
+comp { char x = null; }
+$
+ConfigurationException: Line 1: illegal entry name: char
+$
+################
+comp {
+    private x = null;
+    x = null;
+}
+$
+ConfigurationException: Line 3: duplicate entry name: x
+$
+################
+comp {
+    x = null;
+    static x = null;
+}
+$
+ConfigurationException: Line 3: duplicate entry name: x
+$
+################
+comp {
+    private x = "x";
+    y = "y";
+}
+$
+comp {
+    y = y;
+}
+$
+################
+comp { private private x = 3; }
+$
+ConfigurationException: Line 1: duplicate 'private'
+$
+################
+comp { static static x = 3; }
+$
+ConfigurationException: Line 1: duplicate 'static'
+$
+################
+comp { private static private x = 3; }
+$
+ConfigurationException: Line 1: duplicate 'private'
+$
+################
+comp {
+    private x = 3;
+    private static y = 3;
+    z = new Integer(x);
+}
+$
+comp {
+    z = 3;
+}
+$
+################
+# Check non-static is evaled repeatedly, but static only once
+comp {
+    private x = X.count(1);
+    private static y = X.count(10);
+    a = new Integer(x);
+    b = new Integer(comp.x);
+    c = new Integer(y);
+    d = new Integer(comp.y);
+}
+$
+comp {
+    a = 1;
+    b = 2;
+    c = 12;
+    d = 12;
+}
+$
+################
+# Check references to entries with dotted names
+a { 
+    b = "a.b"; 
+}
+b { 
+    c = a.b; 
+}
+$
+a {
+    b = a.b;
+}
+b {
+    c = a.b;
+}
+$
+################
+# Reference to name not found
+comp { a = b; }
+$
+ConfigurationException: Line 1: entry not found: b
+$
+################
+# Reference to unknown field of known class
+comp { a = Integer.b; }
+$
+ConfigurationException: Line 1: b is not a public field of class Integer
+$
+################
+# Reference to unknown field of unknown class
+comp { a = a.b; }
+$
+ConfigurationException: Line 1: entry or field not found: a.b
+$
+################
+# Entry overriding field value
+java.lang.Integer {
+    private MAX_VALUE = 3;
+}
+Integer {
+    private MAX_VALUE = "hi";
+}
+comp {
+    a = java.lang.Integer.MAX_VALUE;
+    b = Integer.MAX_VALUE;
+}
+$
+comp {
+    a = 3;
+    b = hi;
+}
+$
+################
+# Primitives
+################
+# boolean
+comp {
+    x = true;
+}
+$
+comp {
+    x = true;
+}
+$
+################
+# byte
+comp {
+    x = Byte.MIN_VALUE;
+}
+$
+comp {
+    x = -128;
+}
+$
+################
+# char
+comp {
+    x = 'c';
+}
+$
+comp {
+    x = c;
+}
+$
+################
+# short
+comp {
+    x = Short.MAX_VALUE;
+}
+$
+comp {
+    x = 32767;
+}
+$
+################
+# int
+comp {
+    x = 3;
+}
+$
+comp {
+    x = 3;
+}
+$
+################
+# long
+comp {
+    x = 33L;
+}
+$
+comp {
+    x = 33;
+}
+$
+################
+# float
+comp {
+    x = 3.1f;
+}
+$
+comp {
+    x = 3.1;
+}
+$
+################
+# double
+comp {
+    x = 33.3;
+}
+$
+comp {
+    x = 33.3;
+}
+$
+################
+# Circular references
+################
+comp { a = comp.a; }
+$
+ConfigurationException: Line 1: entry with circular reference: comp.a
+$
+################
+comp {
+    a = new Object[] { b };
+    b = new java.util.ref.WeakReference(a);
+}
+$
+ConfigurationException: Line 2: entry with circular reference: comp.a
+$
+######################################################################
+# Literals
+######################################################################
+comp {
+    x = new boolean[] { true, false };
+}
+$
+comp {
+    x = boolean[] { true, false };
+}
+$
+################
+comp {
+    x = new boolean[] {
+	true,
+	3
+    };
+}
+$
+ConfigurationException: Line 4: array element 1 has incorrect type
+$
+################
+# Numeric and character conversions
+################
+comp {
+    x = new byte[] { 3, 'a', Byte.MIN_VALUE };
+}
+$
+comp {
+    x = byte[] { 3, 97, -128 };
+}
+$
+################
+comp { x = new byte[] { 1000 }; }
+$
+ConfigurationException: Line 1: array element 0 has incorrect type
+$
+################
+comp { x = new byte[] { 1L }; }
+$
+ConfigurationException: Line 1: array element 0 has incorrect type
+$
+################
+comp {
+    x = new char[] { 0x4a, 'a', Character.toLowerCase('B') };
+}
+$
+comp {
+    x = char[] { J, a, b };
+}
+$
+################
+comp { x = new char[] { 1234567 }; }
+$
+ConfigurationException: Line 1: array element 0 has incorrect type
+$
+################
+comp { x = new char[] { 1.2f }; }
+$
+ConfigurationException: Line 1: array element 0 has incorrect type
+$
+################
+comp {
+    x = new short[] { 4, 'A', Byte.MAX_VALUE, Short.MAX_VALUE };
+}
+$
+comp {
+    x = short[] { 4, 65, 127, 32767 };
+}
+$
+################
+comp { x = new short[] { 0x10000 }; }
+$
+ConfigurationException: Line 1: array element 0 has incorrect type
+$
+################
+comp { x = new short[] { 1.2 }; }
+$
+ConfigurationException: Line 1: array element 0 has incorrect type
+$
+################
+comp {
+    x = new int[] { 3, 'a', Byte.MAX_VALUE, Short.parseShort("33") };
+}
+$
+comp {
+    x = int[] { 3, 97, 127, 33 };
+}
+$
+################
+comp { x = new int[] { 3L }; }
+$
+ConfigurationException: Line 1: array element 0 has incorrect type
+$
+################
+comp {
+    x = new long[] { 3, 'a', Byte.MAX_VALUE, Short.parseShort("33"),
+		     0X123456789ABCL };
+}
+$
+comp {
+    x = long[] { 3, 97, 127, 33, 20015998343868 };
+}
+$
+################
+comp { x = new long[] { 1.3f }; }
+$
+ConfigurationException: Line 1: array element 0 has incorrect type
+$
+################
+comp { x = new long[] { 1.4 }; }
+$
+ConfigurationException: Line 1: array element 0 has incorrect type
+$
+################
+comp {
+    x = new float[] { 
+	3, 'a', Byte.MAX_VALUE, Short.parseShort("33"), 4L, 1.3f };
+}
+$
+comp {
+    x = float[] { 3.0, 97.0, 127.0, 33.0, 4.0, 1.3 };
+}
+$
+################
+comp { x = new float[] { 1.4 }; }
+$
+ConfigurationException: Line 1: array element 0 has incorrect type
+$
+################
+comp {
+    x = new double[] { 
+	3, 'a', Byte.MAX_VALUE, Short.parseShort("33"), 4L, 1.0f, 1.4 };
+}
+$
+comp {
+    x = double[] { 3.0, 97.0, 127.0, 33.0, 4.0, 1.0, 1.4 };
+}
+$
+################
+# Character syntax
+################
+comp {
+    x = new char[] { 'a', 'b', 'c', '\112', '\t', '\\' };
+}
+$
+comp {
+    x = char[] { a, b, c, J, 	, \ };
+}
+$
+################
+# Check for multiple characters
+comp { x = new char[] { 'ab' }; }
+$
+ConfigurationException: Line 1: invalid character: 'ab'
+$
+################
+# Bad escape -- I'd like to produce an error for this one, but I would
+# need StreamTokenizer to do that.  -tjb[4.May.2001]
+comp {
+    x = new char[] { '\+' };
+}
+$
+comp {
+    x = char[] { + };
+}
+$
+################
+comp { x = '\u'; }
+$
+ConfigurationException: problem reading configuration file; caused by:
+	java.io.IOException: illegal Unicode escape: \u'; }
+$
+################
+comp { x = '\u-333'; }
+$
+ConfigurationException: problem reading configuration file; caused by:
+	java.io.IOException: illegal Unicode escape: \u-333
+$
+################
+comp { x = '\\uabcd'; }
+$
+ConfigurationException: Line 1: invalid character: '\uabcd'
+$
+################
+comp {
+    x = Integer.toHexString('\u0000');
+    y = '\uuuuu0061';
+    z = Integer.toHexString('\uf72a');
+}
+$
+comp {
+    x = 0;
+    y = a;
+    z = f72a;
+}
+$
+################
+# String literals
+################
+comp {
+    x = "Hi there";
+}
+$
+comp {
+    x = Hi there;
+}
+$
+################
+comp { x = "${}"; }
+$
+ConfigurationException: Line 1: problem expanding system property ''
+$
+################
+comp { x = "${//}"; }
+$
+ConfigurationException: Line 1: problem expanding system property '//'
+$
+################
+# The alias system property should be set to "client"
+comp {
+    x = "${alias}";
+    y = "abc${alias}def";
+}
+$
+comp {
+    x = client;
+    y = abcclientdef;
+}
+$
+################
+comp {
+    x = "${abc";
+    y = "${abc${def";
+}
+$
+comp {
+    x = ${abc;
+    y = ${abc${def;
+}
+$
+################
+comp {
+    x = "abc\n";
+}
+$
+comp {
+    x = abc
+;
+}
+$
+################
+comp {
+    x = "\141\142\143";
+}
+$
+comp {
+    x = abc;
+}
+$
+################
+comp { x = "\u34"; }
+$
+ConfigurationException: problem reading configuration file; caused by:
+	java.io.IOException: illegal Unicode escape: \u34";
+$
+################
+comp { x = "abc\uxyzw22"; }
+$
+ConfigurationException: problem reading configuration file; caused by:
+	java.io.IOException: illegal Unicode escape: \uxyzw
+$
+################
+comp {
+    x = "\\uu\uu004a\u0069\u006e\u0069:";
+}
+$
+comp {
+    x = \uuJini:;
+}
+$
+################
+# Bad numeric literals
+################
+comp { private i = -; }
+$
+ConfigurationException: Line 1: bad numeric literal: -
+$
+################
+comp { private i = 0xr; }
+$
+ConfigurationException: Line 1: bad numeric literal: 0xr
+$
+################
+comp { private i = 0a; }
+$
+ConfigurationException: Line 1: bad numeric literal: 0a
+$
+################
+comp { private i = 3.0z; }
+$
+ConfigurationException: Line 1: bad numeric literal: 3.0z
+$
+################
+comp { private i = 3.2.1; }
+$
+ConfigurationException: Line 1: bad numeric literal: 3.2.1
+$
+######################################################################
+# Expressions
+######################################################################
+# Multi-dimensional array not supported
+comp { x = new int[][] { }; }
+$
+ConfigurationException: Line 1: expected '{', found '['
+$
+################
+# Array without initializer not supported
+comp { x = new int[3]; }
+$
+ConfigurationException: Line 1: expected ']', found '3'
+$
+################
+# Instance of anonymous class
+comp {
+    x = new Thread("foo") {
+	    void foo() { }
+	};
+}
+$
+ConfigurationException: Line 2: expected ';', found '{'
+$
+################
+# Instance method invocation on instance
+comp { x = Boolean.TRUE.toString(); }
+$
+ConfigurationException: Line 1: declaring class: Boolean.TRUE, for method: Boolean.TRUE.toString was not found
+$
+################
+# Static method invocation on instance
+comp { x = Boolean.FALSE.valueOf("true"); }
+$
+ConfigurationException: Line 1: declaring class: Boolean.FALSE, for method: Boolean.FALSE.valueOf was not found
+$
+################
+# Instance method invocation
+comp { x = Integer.toString(); }
+$
+ConfigurationException: Line 1: no applicable public static method found: java.lang.Integer.toString()
+$
+################
+# Method returning a primitive
+comp {
+    x = Integer.parseInt("1");
+}
+$
+comp {
+    x = 1;
+}
+$
+################
+# Constructor called as method
+comp {
+    x = java.util.ArrayList(0);
+}
+$
+ConfigurationException: Line 2: declaring class: java.util, for method: java.util.ArrayList was not found
+$
+################
+# Constructor called as method, with import
+import java.util.ArrayList;
+comp {
+    x = ArrayList(0);
+}
+$
+ConfigurationException: Line 3: expected method name, found '('
+$
+################
+# New abstract class
+comp { x = new java.io.InputStream(); }
+$
+ConfigurationException: Line 1: calling constructor for abstract class: java.io.InputStream
+$
+################
+# New interface class
+comp { x = new java.util.Collection(); }
+$
+ConfigurationException: Line 1: calling constructor for interface class: java.util.Collection
+$
+################
+# New primitive class
+comp { x = new char(); }
+$
+ConfigurationException: Line 1: calling constructor for primitive class: char
+$
+################
+# New unknown class
+comp { x = new Unknown(); }
+$
+ConfigurationException: Line 1: class not found: Unknown
+$
+################
+# Constructor that throws
+comp { x = new java.util.HashSet(null); }
+$
+ConfigurationException: Line 1: problem invoking constructor for java.util.HashSet; caused by:
+	java.lang.NullPointerException
+$
+################
+# Method that throws
+comp { x = Integer.valueOf("abc"); }
+$
+ConfigurationException: Line 1: problem invoking method Integer.valueOf; caused by:
+	java.lang.NumberFormatException: ...
+$
+################
+# Method returns null
+comp {
+    x = System.getProperty("Undefined property");
+}
+$
+comp {
+    x = null;
+}
+$
+################
+# Void method
+comp { x = System.gc(); }
+$
+ConfigurationException: Line 1: method has void return type: System.gc
+$
+################
+# Array of void
+comp { x = new void[] { }; }
+$
+ConfigurationException: Line 1: class not found: void
+$
+################
+# Dollar sign in nested class name, with package import
+import net.jini.constraint.*;
+comp {
+    x = new BasicMethodConstraints$MethodDesc("foo", null);
+}
+$
+comp {
+    x = MethodDesc[foo => null];
+}
+$
+################
+# Dollar sign in nested class name, with fully qualified class name
+comp {
+    x = new net.jini.constraint.BasicMethodConstraints$MethodDesc(
+	    "foo", null);
+}
+$
+comp {
+    x = MethodDesc[foo => null];
+}
+$
+################
+# Dollar sign in nested class name, with class import
+import net.jini.constraint.BasicMethodConstraints;
+comp { x = new BasicMethodConstraints$MethodDesc("foo", null); }
+$
+ConfigurationException: Line 2: class not found: BasicMethodConstraints$MethodDesc
+$
+################
+# Nested class name, with class import
+import net.jini.constraint.BasicMethodConstraints;
+comp {
+    x = new BasicMethodConstraints.MethodDesc("foo", null);
+}
+$
+comp {
+    x = MethodDesc[foo => null];
+}
+$
+################
+comp { x = X.throwObject(new Throwable()); }
+$
+ConfigurationException: Line 1: problem invoking method X.throwObject; caused by:
+	java.lang.Throwable
+$
+################
+comp { x = X.throwObject(new Exception("Exception message")); }
+$
+ConfigurationException: Line 1: problem invoking method X.throwObject; caused by:
+	java.lang.Exception: Exception message
+$
+################
+comp { x = X.throwObject(new RuntimeException()); }
+$
+ConfigurationException: Line 1: problem invoking method X.throwObject; caused by:
+	java.lang.RuntimeException
+$
+################
+comp { x = X.throwObject(new Error()); }
+$
+java.lang.Error
+$
+################
+comp { x = new X.Throw(new Throwable("throwable")); }
+$
+ConfigurationException: Line 1: problem invoking constructor for X.Throw; caused by:
+	java.lang.Throwable: throwable
+$
+################
+comp { x = new X.Throw(new Exception("exception")); }
+$
+ConfigurationException: Line 1: problem invoking constructor for X.Throw; caused by:
+	java.lang.Exception: exception
+$
+################
+comp { x = new X.Throw(new RuntimeException("runtime exception")); }
+$
+ConfigurationException: Line 1: problem invoking constructor for X.Throw; caused by:
+	java.lang.RuntimeException: runtime exception
+$
+################
+comp { x = new X.Throw(new Error("error")); }
+$
+java.lang.Error: error
+$
+################
+# Non-public field
+comp { x = X.packageField; }
+$
+ConfigurationException: Line 1: packageField is not a public field of class X
+$
+################
+# Non-public constructor
+comp { x = new X(null); }
+$
+ConfigurationException: Line 1: no public constructor found: X(null)
+$
+################
+# Ambiguous constructor
+comp { x = new X("hi", "there"); }
+$
+ConfigurationException: Line 1: ambiguous constructor invocation: X(java.lang.String, java.lang.String)
+$
+################
+# Ambiguous constructor
+comp { x = new X(null, null); }
+$
+ConfigurationException: Line 1: ambiguous constructor invocation: X(null, null)
+$
+################
+# Non-ambiguous constructor -- one is not public
+comp {
+    x = new X(null, null, null);
+}
+$
+comp {
+    x = X;
+}
+$
+################
+# Non-public method
+comp { x = X.nonPublic(); }
+$
+ConfigurationException: Line 1: no applicable public static method found: X.nonPublic()
+$
+################
+# Ambiguous method
+comp { x = X.ambiguous(null, null); }
+$
+ConfigurationException: Line 1: ambiguous method invocation: X.ambiguous(null, null)
+$
+################
+# Non-ambiguous method -- one is not public
+comp {
+    x = X.notAmbiguous(null, null);
+}
+$
+comp {
+    x = notAmbiguous(Object, String);
+}
+$
+################
+# Non-ambiguous because argument types are identical
+comp {
+    x = X.notAmbiguous2(null);
+}
+$
+comp {
+    x = X.notAmbiguous2;
+}
+$
+################
+# Ambiguous method because of inheritance
+comp { x = X.N.ambiguous(null, null); }
+$
+ConfigurationException: Line 1: ambiguous method invocation: X$N.ambiguous(null, null)
+$
+################
+# Not ambiguous through multiple inheritence
+comp {
+    x = X.notAmbiguous3(new java.util.HashSet());
+}
+$
+comp {
+    x = HashSet;
+}
+$
+################
+# Reference to class in protected package
+comp { 
+    x = net.jini.export.ServerContext.class;
+}
+$
+ConfigurationException: Line 2: problem getting type of entry for component comp, name x; caused by:
+	java.security.AccessControlException: access denied (java.lang.RuntimePermission accessClassInPackage.net.jini.export)
+$
+################
+# Reference to constructor in protected package
+comp { 
+    x = new net.jini.export.ExportPermission("foo");
+}
+$
+ConfigurationException: Line 2: problem getting type of entry for component comp, name x; caused by:
+	java.security.AccessControlException: access denied (java.lang.RuntimePermission accessClassInPackage.net.jini.export)
+$
+################
+# Reference to field in protected package
+comp {
+    x = net.jini.loader.pref.PreferredClassLoader.PREF_NAME;
+}
+$
+ConfigurationException: Line 2: problem getting type of entry for component comp, name x; caused by:
+	java.security.AccessControlException: access denied (java.lang.RuntimePermission accessClassInPackage.net.jini.loader.pref)
+$
+################
+# Reference to method in protected package
+comp {
+    x = net.jini.export.ServerContext.getServerContext();
+}
+$
+ConfigurationException: Line 2: problem getting type of entry for component comp, name x; caused by:
+	java.security.AccessControlException: access denied (java.lang.RuntimePermission accessClassInPackage.net.jini.export)
+$
+################
+# Reference to prohibited method
+import java.security.AccessController;
+import com.sun.jini.action.GetPropertyAction;
+comp { x = AccessController.doPrivileged(new GetPropertyAction("cant.read")); }
+$
+ConfigurationException: Line 3: call to method prohibited: AccessController.doPrivileged
+$
+################
+# Reference to prohibited method
+import com.sun.jini.action.GetPropertyAction;
+import net.jini.security.Security;
+comp { x = Security.doPrivileged(new GetPropertyAction("cant.read")); }
+$
+ConfigurationException: Line 3: call to method prohibited: Security.doPrivileged
+$
+################
+# Reference to prohibited method through subclass
+comp { x = X.MyClassLoader.getSystemClassLoader(); }
+$
+ConfigurationException: Line 1: call to method prohibited: X.MyClassLoader.getSystemClassLoader
+$
+######################################################################
+# Casts
+######################################################################
+################
+# Syntax
+################
+comp { x = () 1; }
+$
+ConfigurationException: Line 1: expected type, found ')'
+$
+################
+comp { x = ( 1; }
+$
+ConfigurationException: Line 1: expected ')', found ';'
+$
+################
+comp { x = (int char) 2; }
+$
+ConfigurationException: Line 1: expected ')', found 'char'
+$
+################
+comp { x = ((int) 3); }
+$
+ConfigurationException: Line 1: expected type, found '('
+$
+################
+comp {
+    x = (java . lang . Object) java . lang . System . err ;
+}
+$
+comp {
+    x = PrintStream;
+}
+$
+################
+# Primitive types
+################
+comp {
+    x = (boolean) true;
+}
+$
+comp {
+    x = true;
+}
+$
+################
+comp { x = (boolean) Boolean.TRUE; }
+$
+ConfigurationException: Line 1: cannot convert 'java.lang.Boolean' to 'boolean'
+$
+################
+comp { x = (boolean) null; }
+$
+ConfigurationException: Line 1: cannot convert 'null' to 'boolean'
+$
+################
+comp { x = (boolean) 3; }
+$
+ConfigurationException: Line 1: cannot convert 'int' to 'boolean'
+$
+################
+comp {
+    x = (int) 3;
+}
+$
+comp {
+    x = 3;
+}
+$
+################
+comp {
+    x = (int) 3.3;
+}
+$
+comp {
+    x = 3;
+}
+$
+################
+comp {
+    x = (int) 'c';
+}
+$
+comp {
+    x = 99;
+}
+$
+################
+comp { x = (int) new Integer(3); }
+$
+ConfigurationException: Line 1: cannot convert 'java.lang.Integer' to 'int'
+$
+################
+comp { x = (int) true; }
+$
+ConfigurationException: Line 1: cannot convert 'boolean' to 'int'
+$
+################
+comp { x = (int) null; }
+$
+ConfigurationException: Line 1: cannot convert 'null' to 'int'
+$
+################
+comp { x = (Integer) 1; }
+$
+ConfigurationException: Line 1: cannot convert 'int' to 'java.lang.Integer'
+$
+################
+comp { x = (java.util.Set) 1; }
+$
+ConfigurationException: Line 1: cannot convert 'int' to 'java.util.Set'
+$
+################
+comp { x = (Integer[]) 1; }
+$
+ConfigurationException: Line 1: cannot convert 'int' to 'java.lang.Integer[]'
+$
+################
+comp {
+    x = (char) 'c';
+}
+$
+comp {
+    x = c;
+}
+$
+################
+comp {
+    x = (char) 99;
+}
+$
+comp {
+    x = c;
+}
+$
+################
+comp { x = (char) new Character('c'); }
+$
+ConfigurationException: Line 1: cannot convert 'java.lang.Character' to 'char'
+$
+################
+comp { x = (char) null; }
+$
+ConfigurationException: Line 1: cannot convert 'null' to 'char'
+$
+################
+comp {
+    x = (int) (short) (byte) 0x12345678;
+}
+$
+comp {
+    x = 120;
+}
+$
+################
+# Array types
+################
+comp {
+    x = (int[]) new int[] { 1 };
+}
+$
+comp {
+    x = int[] { 1 };
+}
+$
+################
+comp {
+    x = ( Object [ ] ) new Thread [ ] { null } ;
+}
+$
+comp {
+    x = java.lang.Thread[] { null };
+}
+$
+################
+# Make sure array elements are checked in order at resolve time
+comp {
+    x = new int[] {
+	3,
+	null,
+	4,
+	null };
+}
+$
+ConfigurationException: Line 4: array element 1 has incorrect type
+$
+################
+# Make sure array elements are checked in order at eval time
+comp {
+    x = new int[] {
+        Integer.parseInt("abcd"),
+	Short.parseShort("xyz") };
+}
+$
+ConfigurationException: Line 3: problem invoking method Integer.parseInt; caused by:
+	java.lang.NumberFormatException: For input string: "abcd"
+$
+################
+# Class and interface types
+################
+comp { x = (Object) 3; }
+$
+ConfigurationException: Line 1: cannot convert 'int' to 'java.lang.Object'
+$
+################
+comp { x = (Object) (long) 3; }
+$
+ConfigurationException: Line 1: cannot convert 'long' to 'java.lang.Object'
+$
+################
+comp {
+    x = (Object) null;
+}
+$
+comp {
+    x = null;
+}
+$
+################
+comp {
+    x = X.ambiguous((Object) null, (String) null);
+}
+$
+comp {
+    x = ambiguous(Object, String);
+}
+$
+################
+# Test reference casts from JSL section 5.5, pages 73 & 74
+################
+################
+# Source is class
+################
+# (superclass) subclass
+import java.util.*;
+comp {
+    x = (Hashtable) X.propertiesMethod(new Properties());
+}
+$
+comp {
+    x = {};
+}
+$
+################
+# (subclass) superclass
+import java.util.*;
+comp {
+    x = (Properties) X.hashtableMethod(new Properties());
+}
+$
+comp {
+    x = {};
+}
+$
+################
+# Not descendents of each other
+comp { x = (Exception) new Error(); }
+$
+ConfigurationException: Line 1: cannot convert 'java.lang.Error' to 'java.lang.Exception'
+$
+################
+# (interface) non-final class
+comp {
+    x = (java.util.Set) X.propertiesMethod(null);
+}
+$
+comp {
+    x = null;
+}
+$
+################
+# (interface) final class
+comp { x = (java.util.Set) Integer.getInteger("a"); }
+$
+ConfigurationException: Line 1: cannot convert 'java.lang.Integer' to 'java.util.Set'
+$
+################
+# Source is interface
+################
+# (array type) interface, implemented by array.
+comp {
+    x = (Integer[]) X.serializableMethod(new Integer[] { null });
+}
+$
+comp {
+    x = java.lang.Integer[] { null };
+}
+$
+################
+# (array type) interface, not implemented by array.
+comp { x = (Integer[]) X.mapMethod(new java.util.Hashtable()); }
+$
+ConfigurationException: Line 1: cannot convert 'java.util.Map' to 'java.lang.Integer[]'
+$
+################
+# (non-final class) interface
+comp {
+    x = (Thread) X.mapMethod(null);
+}
+$
+comp {
+    x = null;
+}
+$
+################
+# (interface) interface with incompatible method
+comp { x = (Runnable) X.actionMethod(null); }
+$
+ConfigurationException: Line 1: cannot convert 'java.security.PrivilegedAction' to 'java.lang.Runnable'
+$
+################
+# (interface) interface with no incompatible methods
+comp {
+    x = (Runnable) X.mapMethod(null);
+}
+$
+comp {
+    x = null;
+}
+$
+################
+# Source is array
+################
+# (class not Object) array
+comp { x = (String) new Object[] { null }; }
+$
+ConfigurationException: Line 1: cannot convert 'java.lang.Object[]' to 'java.lang.String'
+$
+################
+# (Object) array
+comp {
+    x = (Object) new Object[] { null };
+}
+$
+comp {
+    x = java.lang.Object[] { null };
+}
+$
+################
+# (interface Serializable) array
+comp {
+    x = (java.io.Serializable) new int[] { 1, 2 };
+}
+$
+comp {
+    x = int[] { 1, 2 };
+}
+$
+################
+# (interface Cloneable) array
+comp {
+    x = (Cloneable) new char[] { 'h', 'i' };
+}
+$
+comp {
+    x = char[] { h, i };
+}
+$
+################
+# (interface) array
+comp { x = (Comparable) new Object[] { }; }
+$
+ConfigurationException: Line 1: cannot convert 'java.lang.Object[]' to 'java.lang.Comparable'
+$
+################
+# (primitive array) another primitive array
+comp { x = (int[]) new byte[] { }; }
+$
+ConfigurationException: Line 1: cannot convert 'byte[]' to 'int[]'
+$
+################
+# (primitive array) same primitive array
+comp {
+    x = (long[]) new long[] { 1, 2 };
+}
+$
+comp {
+    x = long[] { 1, 2 };
+}
+$
+################
+# compatible reference arrays
+comp {
+    x = (Object[]) new String[] { "hi" };
+}
+$
+comp {
+    x = java.lang.String[] { hi };
+}
+$
+################
+# incompatible reference arrays
+comp { x = (java.util.Map[]) new String[] { "hi" }; }
+$
+ConfigurationException: Line 1: cannot convert 'java.lang.String[]' to 'java.util.Map[]'
+$
+################
+# Additional runtime checks
+################
+# (Object[]) interface[]
+comp {
+    x = (Object[]) X.objectMethod(new java.util.Map[] { null });
+}
+$
+comp {
+    x = java.util.Map[] { null };
+}
+$
+################
+# (non-Object class[]) interface[]
+import java.util.*;
+comp { x = (Hashtable[]) X.objectMethod(new Map[] { null }); }
+$
+ConfigurationException: Line 2: cannot convert 'java.util.Map[]' to 'java.util.Hashtable[]'
+$
+################
+# (Object) array
+comp {
+    x = (Object) X.objectMethod(new int[] { 1 });
+}
+$
+comp {
+    x = int[] { 1 };
+}
+$
+################
+# (non-Object class) array
+comp { x = (Thread) X.objectMethod(new Object[] { }); }
+$
+ConfigurationException: Line 1: cannot convert 'java.lang.Object[]' to 'java.lang.Thread'
+$
+################
+# (Seriablizable) array
+comp {
+    x = (java.io.Serializable) X.objectMethod(new Object[] { });
+}
+$
+comp {
+    x = java.lang.Object[] { };
+}
+$
+################
+# (Cloneable) array
+comp {
+    x = (Cloneable) X.objectMethod(new int[] { 1 });
+}
+$
+comp {
+    x = int[] { 1 };
+}
+$
+################
+# (other interface) array
+comp { x = (Comparable) X.objectMethod(new boolean[] { true }); }
+$
+ConfigurationException: Line 1: cannot convert 'boolean[]' to 'java.lang.Comparable'
+$
+################
+# (primitive array) primitive array
+comp {
+    x = (int[]) X.objectMethod(new int[] { 1 });
+}
+$
+comp {
+    x = int[] { 1 };
+}
+$
+################
+# (primitive array) different primitive array
+comp { x = (int[]) X.objectMethod(new byte[] { Byte.MIN_VALUE }); }
+$
+ConfigurationException: Line 1: cannot convert 'byte[]' to 'int[]'
+$
+################
+# (ref array) compatible ref array
+comp {
+    x = (Number[]) X.objectMethod(new Integer[] { new Integer(1) });
+}
+$
+comp {
+    x = java.lang.Integer[] { 1 };
+}
+$
+################
+# (ref array) incompatible ref array
+comp { x = (Number[]) X.objectMethod(new Character[] { new Character('c') }); }
+$
+ConfigurationException: Line 1: cannot convert 'java.lang.Character[]' to 'java.lang.Number[]'
+$
+######################################################################
+# References to $data
+######################################################################
+comp {
+    static foo =
+        $data;
+}
+$
+ConfigurationException: Line 3: cannot use '$data' in a static entry
+$
+################
+comp {
+    static a1 = b;
+    a2 = b;
+    b = Integer.parseInt(c);
+    c = String.valueOf($data);
+}
+$
+ConfigurationException: Line 2: static entry 'comp.a1' cannot refer to entry 'comp.b', which uses '$data'
+$
+################
+comp {
+    foo = 
+        $data;
+}
+$
+ConfigurationException: Line 3: no data specified for '$data'
+$
+################
+a {
+    foo = b.$data;
+}
+b {
+    $data = 33;
+}
+c {
+    $data = 44;
+    bar = c.$data;
+}
+$
+a {
+    foo = 33;
+}
+b {
+    $data = 33;
+}
+c {
+    $data = 44;
+    bar = 44;
+}
+$
+################
+# This test currently fails, because ConfigurationFile assumes that
+# $data is not an entry and doesn't permit a static reference to it.
+# Fix this at some point.  -tjb[13.Feb.2003]
+# a {
+#     static $data = 33;
+#     static foo = $data;
+# }
+# $
+# a {
+#     $data = 33;
+#     foo = 33;
+# }
+# $     
+################
+# Checks for an earlier bug where $data was being detected incorrectly!
+X {
+    a = b;
+    private static b = c;
+    private static c = d;
+    private static d = "abc";
+}
+$
+X {
+    a = abc;
+}
+$
+################
+# Test entry named $loader
+comp {
+    $loader = true;
+}
+$
+comp {
+    $loader = true;
+}
+$
+################
+# Test reference to $loader special entry
+comp {
+    foo = $loader;
+}
+$
+comp {
+    foo = Launcher$AppClassLoader;
+}
+$
+######################################################################
+# Names
+######################################################################
+# Non-public classes
+################
+import a.U;
+comp { x = U.class; }
+$
+ConfigurationException: Line 1: class not public: a.U
+$
+################
+import a.*;
+comp { x = U.class; }
+$
+ConfigurationException: Line 2: class not public: a.U
+$
+################
+import a.U.V;
+comp { x = V.class; }
+$
+ConfigurationException: Line 1: class not public: a.U.V
+$
+################
+import a.U.W;
+comp { x = W.class; }
+$
+ConfigurationException: Line 1: class a.U.W is not accessible: declaring class a.U is not public
+$
+################
+import a.U.*;
+comp { x = W.class; }
+$
+ConfigurationException: Line 1: class not public: a.U
+$
+################
+comp { x = a.U.W.class; }
+$
+ConfigurationException: Line 1: class a.U.W is not accessible: declaring class a.U is not public
+$
+################
+# Unamed package
+################
+import X;
+$
+ConfigurationException: Line 1: import from unnamed package
+$
+################
+import X.Y;
+$
+ConfigurationException: Line 1: import from unnamed package
+$
+################
+import *;
+$
+ConfigurationException: Line 1: expected import package or type, found '*'
+$
+################
+import .*;
+$
+ConfigurationException: Line 1: expected import package or type, found '.*'
+$
+################
+import X.*;
+$
+ConfigurationException: Line 1: import from unnamed package
+$
+################
+# Imports versus classes in unnamed package
+################
+import a.Y;
+comp {
+    x = Y.class;
+}
+$
+comp {
+    x = class a.Y;
+}
+$
+################
+import a.*;
+comp {
+    x = Y.class;
+}
+$
+comp {
+    x = class Y;
+}
+$
+################
+# Ambiguous imports
+################
+import a.Y;
+import a.b.Y;
+$
+ConfigurationException: Line 2: conflicting imports: a.Y and a.b.Y
+$
+################
+import a.Y;
+import a.X.Y;
+$
+ConfigurationException: Line 2: conflicting imports: a.Y and a.X.Y
+$
+################
+import a.*;
+import a.b.*;
+comp { x = Z.class; }
+$
+ConfigurationException: Line 3: ambiguous class: Z
+$
+################
+import a.*;
+import a.b.*;
+comp { x = Z.XX; }
+$
+ConfigurationException: Line 3: ambiguous class: Z
+$
+################
+import a.*;
+import a.b.*;
+comp { x = Z.XX.x; }
+$
+ConfigurationException: Line 3: ambiguous class: Z.XX
+$
+################
+import a.*;
+import a.Y.*;
+comp { x = Z.class; }
+$
+ConfigurationException: Line 3: ambiguous class: Z
+$
+################
+# Spaces in names
+################
+comp {
+    x = a . Y . class;
+}
+$
+comp {
+    x = class a.Y;
+}
+$
+################
+comp {
+    x = a . Y .class;
+}
+$
+comp {
+    x = class a.Y;
+}
+$
+################
+comp {
+    x = a . Y. class;
+}
+$
+comp {
+    x = class a.Y;
+}
+$
+################
+comp {
+    x = a . Y.class;
+}
+$
+comp {
+    x = class a.Y;
+}
+$
+################
+comp {
+    x = a .Y . class;
+}
+$
+comp {
+    x = class a.Y;
+}
+$
+################
+comp { x = a . Y . char; }
+$
+ConfigurationException: Line 1: illegal field or entry name: a.Y.char
+$
+################
+comp { x = import . class; }
+$
+ConfigurationException: Line 1: illegal field or entry name: import
+$
+################
+comp { x = foo.char . class; }
+$
+ConfigurationException: Line 1: illegal class name: foo.char
+$
+################
+comp {
+    x = char . class;
+}
+$
+comp {
+    x = char;
+}
+$
+################
+# Other imports and references
+################
+comp {
+    x = a.Y.Z.class;
+}
+$
+comp {
+    x = class a.Y$Z;
+}
+$
+################
+import a.X;
+comp {
+    x = X.Y.Z;
+}
+$
+comp {
+    x = a.X$Y.Z;
+}
+$
+################
+import a.X.Y;
+comp {
+    y = Y.class;
+}
+$
+comp {
+    y = class a.X$Y;
+}
+$
+################
+import a.b.Z.*;
+comp {
+    y = XX.x;
+    z = XX.class;
+}
+$
+comp {
+    y = a.b.Z$XX.x;
+    z = class a.b.Z$XX;
+}
+$
+################
+import a.b.Z;
+comp {
+    y = Z.XX.x;
+    z = Z.XX.class;
+}
+$
+comp {
+    y = a.b.Z$XX.x;
+    z = class a.b.Z$XX;
+}
+$
+################
+import a.b.Z.XX;
+comp {
+    y = XX.x;
+    z = XX.class;
+}
+$
+comp {
+    y = a.b.Z$XX.x;
+    z = class a.b.Z$XX;
+}
+$
+################
+comp {
+    x = int[].class;
+}
+$
+comp {
+    x = class [I;
+}
+$
+################
+comp {
+    x = java . lang . Object [ ] . class ;
+}
+$
+comp {
+    x = class [Ljava.lang.Object;;
+}
+$
+################
+comp { x = 123.class; }
+$
+ConfigurationException: Line 1: bad numeric literal: 123.class
+$
+################
+comp { x = a.class.class; }
+$
+ConfigurationException: Line 1: illegal class name: a.class
+$
+################
+comp { x = int[.class; }
+$
+ConfigurationException: Line 1: expected ']', found '.class'
+$
+################
+comp { x = int[][].class; }
+$
+ConfigurationException: Line 1: expected '.class', found '['
+$
+################
+comp { x = int[]; }
+$
+ConfigurationException: Line 1: expected '.class', found ';'
+$
+################
+comp { x = int[] foo; }
+$
+ConfigurationException: Line 1: expected '.class', found 'foo'
+$
+################
+comp { x = int[].class.bar; }
+$
+ConfigurationException: Line 1: expected '.class', found '.class.bar'
+$
+################
+comp { x = int.bar[].class; }
+$
+ConfigurationException: Line 1: illegal class name: int.bar
+$
+################
+comp { x = int . bar[].class; }
+$
+ConfigurationException: Line 1: illegal class name: int.bar
+$
+######################################################################
+# Keystore tests
+######################################################################
+# Missing keystore file
+import com.sun.jini.config.KeyStores;
+comp { 
+    static keystore = 
+	KeyStores.getKeyStore("file:/Not a file", null); 
+}
+$
+ConfigurationException: Line 4: problem invoking method KeyStores.getKeyStore; caused by:
+	java.io.FileNotFoundException: ...
+$
+################
+# Undefined property for location
+import com.sun.jini.config.KeyStores;
+comp { static keystore = KeyStores.getKeyStore("${hello}", null); }
+$
+ConfigurationException: Line 2: problem expanding system property 'hello'
+$
+################
+import com.sun.jini.config.KeyStores;
+comp { static keystore = KeyStores.getKeyStore(null, null); }
+$
+ConfigurationException: Line 2: problem invoking method KeyStores.getKeyStore; caused by:
+	java.lang.NullPointerException: location cannot be null
+$
+################
+import com.sun.jini.config.KeyStores;
+comp {
+    static keystore = KeyStores.getKeyStore("file:${keystore}", null);
+}
+$
+comp {
+    keystore = KeyStore;
+}
+$
+################
+import com.sun.jini.config.KeyStores;
+comp {
+    static keystore = KeyStores.getKeyStore("file:${keystore}", "baz");
+}
+$
+ConfigurationException: Line 3: problem invoking method KeyStores.getKeyStore; caused by:
+	java.security.KeyStoreException: baz not found
+$
+################
+import com.sun.jini.config.KeyStores;
+comp { 
+    static keystore = KeyStores.getKeyStore(
+	"file:${test.src}${/}TestParser.java", null);
+}
+$
+ConfigurationException: Line 3: problem invoking method KeyStores.getKeyStore; caused by:
+	java.io.IOException: Invalid keystore format
+$
+################
+import com.sun.jini.config.KeyStores;
+comp {
+    static keystore = KeyStores.getKeyStore("file:${keystore}", null);
+    static x = KeyStores.getX500Principal(null, comp.keystore);
+}
+$
+ConfigurationException: Line 4: problem invoking method KeyStores.getX500Principal; caused by:
+	java.lang.NullPointerException: alias is null
+$
+################
+import com.sun.jini.config.KeyStores;
+comp { static x = KeyStores.getX500Principal("a", null); }
+$
+ConfigurationException: Line 2: problem invoking method KeyStores.getX500Principal; caused by:
+	java.lang.NullPointerException: keystore is null
+$
+################
+import com.sun.jini.config.KeyStores;
+comp {
+    private static keystore =
+	KeyStores.getKeyStore("file:${keystore}", null);
+    static x = KeyStores.getX500Principal("unknown", comp.keystore);
+}
+$
+comp {
+    x = null;
+}
+$
+################
+import com.sun.jini.config.KeyStores;
+comp {
+    private static keystore =
+	KeyStores.getKeyStore("file:${keystore}", null);
+    static x = KeyStores.getX500Principal("${alias}", comp.keystore);
+}
+$
+comp {
+    x = CN=Client, OU=RMI Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US;
+}
+$
+######################################################################
+# InvocationConstraints
+######################################################################
+# Constraint using keystore
+import com.sun.jini.config.KeyStores;
+import net.jini.core.constraint.*;
+
+comp {
+    private static keystore = KeyStores.getKeyStore(
+	"file:${keystore}", null);
+
+    foo = new InvocationConstraints(
+	      new ServerMinPrincipal(
+	          KeyStores.getX500Principal(
+		      "${alias}", comp.keystore)),
+	      null);
+}
+$
+comp {
+    foo = InvocationConstraints[reqs: {ServerMinPrincipal{CN=Client, OU=RMI Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US}}, prefs: {}];
+}
+$
+################
+# Misc constraints
+import net.jini.core.constraint.*;
+comp {
+    c1 = new InvocationConstraints(
+	     ServerAuthentication.YES, ClientAuthentication.YES);
+    c2 = InvocationConstraints.combine(
+             c1, new InvocationConstraints(Delegation.NO, null));
+}
+$
+comp {
+    c1 = InvocationConstraints[reqs: {ServerAuthentication.YES}, prefs: {ClientAuthentication.YES}];
+    c2 = InvocationConstraints[reqs: {Delegation.NO, ServerAuthentication.YES}, prefs: {ClientAuthentication.YES}];
+}
+$
+######################################################################
+# BasicMethodConstraints
+######################################################################
+# Method constraints with nested static method invocation
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+comp {
+    c = new BasicMethodConstraints(
+	    new InvocationConstraints(
+		ConstraintAlternatives.create(
+		    new InvocationConstraint[] {
+			Confidentiality.YES,
+			Confidentiality.NO }),
+		null));
+}
+$
+comp {
+    c = BasicMethodConstraints{default => InvocationConstraints[reqs: {ConstraintAlternatives{Confidentiality.NO, Confidentiality.YES}}, prefs: {}]};
+}
+$
+################
+# Misc BasicMethodConstraints
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+
+comp {
+    c = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    "foo",
+		    new Class[] { int.class, String.class },
+		    new InvocationConstraints(ClientAuthentication.YES, null)),
+		new BasicMethodConstraints.MethodDesc(
+		    new InvocationConstraints(null, Delegation.NO))
+	    });
+
+    d = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    "bar*",
+		    new InvocationConstraints(ServerAuthentication.YES, null))
+	    });
+}
+$
+comp {
+    c = BasicMethodConstraints{foo(int, java.lang.String) => InvocationConstraints[reqs: {ClientAuthentication.YES}, prefs: {}], default => InvocationConstraints[reqs: {}, prefs: {Delegation.NO}]};
+    d = BasicMethodConstraints{bar* => InvocationConstraints[reqs: {ServerAuthentication.YES}, prefs: {}]};
+}
+$
+################
+# More misc BasicMethodConstraints
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+import net.jini.jeri.ssl.ConfidentialityStrength;
+
+comp {
+    c = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    "f", new Class[] { java.util.Map.Entry.class },
+		    new InvocationConstraints(Confidentiality.YES, null)),
+		new BasicMethodConstraints.MethodDesc(
+		    "*thisIsALongMethodNameWithNumbers1234",
+		    new InvocationConstraints(ConfidentialityStrength.WEAK, null))
+	    });
+}
+$
+comp {
+    c = BasicMethodConstraints{f(java.util.Map$Entry) => InvocationConstraints[reqs: {Confidentiality.YES}, prefs: {}], *thisIsALongMethodNameWithNumbers1234 => InvocationConstraints[reqs: {ConfidentialityStrength.WEAK}, prefs: {}]};
+}
+$
+################
+# BasicMethodConstraints with illegal method name
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+comp {
+    c = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    "foo.bar",
+		    new InvocationConstraints(Confidentiality.YES, null)) });
+}
+$
+ConfigurationException: Line 6: problem invoking constructor for BasicMethodConstraints.MethodDesc; caused by:
+	java.lang.IllegalArgumentException: invalid method name
+$
+################
+# Basic MethodConstraints with illegal middle asterisk
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+comp {
+    c = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    "foo*bar",
+		    new InvocationConstraints(Confidentiality.YES, null)) });
+}
+$
+ConfigurationException: Line 6: problem invoking constructor for BasicMethodConstraints.MethodDesc; caused by:
+	java.lang.IllegalArgumentException: invalid method name
+$
+################
+# Basic MethodConstraints with two asterisks
+# Basic MethodConstraints with illegal middle asterisk
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+comp {
+    c = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    "*foo*",
+		    new InvocationConstraints(Confidentiality.YES, null)) });
+}
+$
+ConfigurationException: Line 6: problem invoking constructor for BasicMethodConstraints.MethodDesc; caused by:
+	java.lang.IllegalArgumentException: invalid method name
+$
+################
+# Basic MethodConstraints with wildcard and type
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+comp {
+    c = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    "foo*", new Class[] { int.class },
+		    new InvocationConstraints(Confidentiality.YES, null)) });
+}
+$
+ConfigurationException: Line 6: problem invoking constructor for BasicMethodConstraints.MethodDesc; caused by:
+	java.lang.IllegalArgumentException: invalid method name
+$
+################
+# Basic MethodConstraints with type after no type
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+comp {
+    c = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    "foo",
+		    new InvocationConstraints(Confidentiality.YES, null)),
+		new BasicMethodConstraints.MethodDesc(
+		    "foo", new Class[] { int.class },
+		    new InvocationConstraints(ClientAuthentication.YES, null)) });
+}
+$
+ConfigurationException: Line 4: problem invoking constructor for BasicMethodConstraints; caused by:
+	java.lang.IllegalArgumentException: foo cannot precede foo(int)
+$
+################
+# Basic MethodConstraints with default not last
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+comp {
+    c = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    new InvocationConstraints(Confidentiality.YES, null)),
+		new BasicMethodConstraints.MethodDesc(
+		    "foo", new Class[] { int.class },
+		    new InvocationConstraints(ClientAuthentication.YES, null)) });
+}
+$
+ConfigurationException: Line 4: problem invoking constructor for BasicMethodConstraints; caused by:
+	java.lang.IllegalArgumentException: default descriptor must be last
+$
+################
+# Basic MethodConstraints with two defaults
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+comp {
+    c = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    new InvocationConstraints(Confidentiality.YES, null)),
+		new BasicMethodConstraints.MethodDesc(
+		    new InvocationConstraints(ClientAuthentication.YES, null)) });
+}
+$
+ConfigurationException: Line 4: problem invoking constructor for BasicMethodConstraints; caused by:
+	java.lang.IllegalArgumentException: default descriptor must be last
+$
+################
+# Basic MethodConstraints with empty MethodDesc array
+import net.jini.constraint.*;
+comp {
+    c = new BasicMethodConstraints(new BasicMethodConstraints.MethodDesc[] { });
+}
+$
+ConfigurationException: Line 3: problem invoking constructor for BasicMethodConstraints; caused by:
+	java.lang.IllegalArgumentException: must have at least one descriptor
+$
+################
+# Misc basic MethodConstraints
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+comp {
+    c = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc(
+		    "foo", new Class[] { int.class, String.class },
+		    new InvocationConstraints(ClientAuthentication.YES, null)),
+		new BasicMethodConstraints.MethodDesc(
+		    new InvocationConstraints(null, Delegation.NO)) });
+    private static serverAuth =
+	new InvocationConstraints(ServerAuthentication.YES, null);
+    d = new BasicMethodConstraints(
+	    new BasicMethodConstraints.MethodDesc[] {
+		new BasicMethodConstraints.MethodDesc("baz", comp.serverAuth),
+		new BasicMethodConstraints.MethodDesc(
+		    "bar*", comp.serverAuth) });
+}
+$
+comp {
+    c = BasicMethodConstraints{foo(int, java.lang.String) => InvocationConstraints[reqs: {ClientAuthentication.YES}, prefs: {}], default => InvocationConstraints[reqs: {}, prefs: {Delegation.NO}]};
+    d = BasicMethodConstraints{baz => InvocationConstraints[reqs: {ServerAuthentication.YES}, prefs: {}], bar* => InvocationConstraints[reqs: {ServerAuthentication.YES}, prefs: {}]};
+}
+$
+######################################################################
+# Exporters
+######################################################################
+# Exporter with misc invocation layer factory
+import net.jini.jeri.*;
+import net.jini.jeri.tcp.*;
+comp {
+    e = new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory(), true, false);
+}
+$
+comp {
+    e = BasicJeriExporter {
+	endpoint: TcpServerEndpoint
+	ilFactory: BasicILFactory[null]
+	enableDGC: true
+	keepAlive: false
+	objID: Uuid
+    };
+}
+$
+################
+# Secure exporter with misc refFactory
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+import net.jini.jeri.*;
+import net.jini.jeri.ssl.*;
+comp {
+    e = new BasicJeriExporter(
+	    SslServerEndpoint.getInstance(0),
+	    new BasicILFactory(
+		new BasicMethodConstraints(
+		    new InvocationConstraints(Integrity.YES, null)),
+		TestPermission.class),
+	    true, false, null);
+}
+$
+comp {
+    e = BasicJeriExporter {
+	endpoint: SslServerEndpoint
+	ilFactory: BasicILFactory[BasicMethodConstraints{default => InvocationConstraints[reqs: {Integrity.YES}, prefs: {}]}, TestPermission]
+	enableDGC: true
+	keepAlive: false
+	objID: Uuid
+    };
+}
+$
+################
+# Invalid permission class.
+import net.jini.jeri.*;
+comp {
+    ilf = new BasicILFactory(
+	    null,
+	    java.security.Permission.class);
+}
+$
+ConfigurationException: Line 3: problem invoking constructor for BasicILFactory; caused by:
+	java.lang.IllegalArgumentException: bad permission class
+$
+################
+# Secure Exporter with misc method constraints
+import com.sun.jini.config.KeyStores;
+import net.jini.constraint.*;
+import net.jini.core.constraint.*;
+import net.jini.jeri.*;
+import net.jini.jeri.ssl.*;
+
+comp {
+    private static keystore =
+	KeyStores.getKeyStore("file:${keystore}", null);
+
+    e = new BasicJeriExporter(
+	    SslServerEndpoint.getInstance(0),
+	    new BasicILFactory(
+		new BasicMethodConstraints(
+		    new InvocationConstraints(
+			new ServerMinPrincipal(
+			    KeyStores.getX500Principal(
+				"${alias}", comp.keystore)),
+			null)),
+		null),
+	    true, false, null);
+}
+$
+comp {
+    e = BasicJeriExporter {
+	endpoint: SslServerEndpoint
+	ilFactory: BasicILFactory[BasicMethodConstraints{default => InvocationConstraints[reqs: {ServerMinPrincipal{CN=Client, OU=RMI Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US}}, prefs: {}]}]
+	enableDGC: true
+	keepAlive: false
+	objID: Uuid
+    };
+}
+$
+################
+# Exporter with TcpServerEndpoint
+import net.jini.jeri.*;
+import net.jini.jeri.tcp.*;
+comp {
+    e = new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory());
+}
+$
+comp {
+    e = BasicJeriExporter {
+	endpoint: TcpServerEndpoint
+	ilFactory: BasicILFactory[null]
+	enableDGC: false
+	keepAlive: true
+	objID: Uuid
+    };
+}
+$
+################
+# Exporter with objID
+import net.jini.id.*;
+import net.jini.jeri.*;
+import net.jini.jeri.tcp.*;
+comp {
+    e = new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory(), true, false, UuidFactory.create("d81f9cea-273c-11b2-b7f7-080020c9e4a1"));
+}
+$
+comp {
+    e = BasicJeriExporter {
+	endpoint: TcpServerEndpoint
+	ilFactory: BasicILFactory[null]
+	enableDGC: true
+	keepAlive: false
+	objID: Uuid
+    };
+}
+$
+######################################################################

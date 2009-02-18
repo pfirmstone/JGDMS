@@ -1,0 +1,59 @@
+/** This policy file is used by multiple SslServerEndpoint and
+ *  HttpsServerEndpoint tests.  The tests are concerned with
+ *  net.jini.security.AuthenticationPermission, so it is ok to
+ *  specify a permissive policy for codebases.  AuthenticationPermission
+ *  should only be granted to specific principals.  An implementation
+ *  implication of the server endpoint classes requires
+ *  java.net.SocketPermission not be as permissive when granted to codebases.
+ */
+keystore "${keyStoreURL}";
+
+/**
+ * The following two grants grant permissions to the test harness and the
+ * tests
+ */
+grant codebase "file:${com.sun.jini.qa.harness.harnessJar}" {
+    permission java.util.logging.LoggingPermission "control";
+    permission java.io.FilePermission "<<ALL FILES>>", "read,write";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission javax.security.auth.AuthPermission "*";
+    permission java.lang.RuntimePermission "createSecurityManager";
+};
+
+grant codebase "file:${com.sun.jini.qa.harness.testJar}" {
+    permission java.util.logging.LoggingPermission "control";
+    permission java.io.FilePermission "<<ALL FILES>>", "read,write";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission javax.security.auth.AuthPermission "*";
+    permission java.lang.RuntimePermission "createSecurityManager";
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib/jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+/**
+ * Grant permissions to the code when executing as a principal.  These are the
+ * grants relevant to the tests.
+ */
+grant principal "server" {
+    permission java.net.SocketPermission "*", "connect,accept";
+    permission net.jini.security.AuthenticationPermission
+        "* \"*\" peer javax.security.auth.x500.X500Principal \"server\"",
+        "accept,connect";
+};
+
+/**
+ * The following grant is only used during test development when the
+ * tests do not reside inside qa1.jar
+ */
+grant codebase "file:/vob/qa/classes/" {
+    permission java.util.logging.LoggingPermission "control";
+    permission java.io.FilePermission "<<ALL FILES>>", "read,write";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission javax.security.auth.AuthPermission "*";
+    permission java.lang.RuntimePermission "createSecurityManager";
+};
+
+
+

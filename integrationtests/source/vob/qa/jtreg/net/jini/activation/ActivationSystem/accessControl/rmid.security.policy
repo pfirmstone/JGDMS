@@ -1,0 +1,48 @@
+keystore "file:${test.src}/keystore";
+
+grant codebase "file:${java.class.path}" {
+  permission java.security.AllPermission;
+};
+
+grant codebase "file:${jsk.home}/lib/jsk-lib.jar" {
+  permission java.security.AllPermission;
+};
+
+grant {
+    permission java.util.PropertyPermission "*", "read";
+    permission com.sun.jini.phoenix.SystemPermission "getServerSubject";
+};
+
+grant principal "client1" {
+    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
+    permission com.sun.jini.phoenix.SystemPermission "registerGroup";
+    permission com.sun.jini.phoenix.SystemPermission "getActivationGroupDesc";
+    permission com.sun.jini.phoenix.SystemPermission "registerObject";
+    permission com.sun.jini.phoenix.SystemPermission "getActivationDesc";
+    permission com.sun.jini.phoenix.SystemPermission "unregisterObject";
+    permission com.sun.jini.phoenix.ActivatorPermission "activate";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.auth.login.config=${test.src}${/}login";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djavax.net.ssl.trustStore=${test.src}${/}keystore";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-Djava.security.policy=${test.src}${/}group.security.policy";
+};
+
+grant principal "client2" {
+    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
+    permission com.sun.jini.phoenix.SystemPermission "registerObject";
+    permission com.sun.jini.phoenix.SystemPermission "getActivationDesc";
+    permission com.sun.jini.phoenix.SystemPermission "unregisterObject";
+    permission com.sun.jini.phoenix.ActivatorPermission "getProxyVerifier";
+    permission com.sun.jini.phoenix.SystemPermission "setActivationDesc";
+    permission com.sun.jini.phoenix.SystemPermission "setActivationGroupDesc";
+    permission com.sun.jini.phoenix.ExecPermission "foobar";
+    permission com.sun.jini.phoenix.ExecOptionPermission "-baz";
+};
+
+grant principal "server" {
+    permission com.sun.jini.phoenix.SystemPermission "getProxyVerifier";
+    permission com.sun.jini.phoenix.SystemPermission "shutdown";
+    permission com.sun.jini.phoenix.SystemPermission "activeGroup";
+    permission com.sun.jini.phoenix.MonitorPermission "activeObject";
+    permission com.sun.jini.phoenix.MonitorPermission "inactiveGroup";
+    permission com.sun.jini.phoenix.MonitorPermission "inactiveObject";
+};

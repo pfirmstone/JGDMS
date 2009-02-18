@@ -1,0 +1,32 @@
+/* 
+ * @summary Verify basic functionality of Security.doPrivileged() methods.
+ */
+
+grant codeBase "file:${java.home}/lib/ext/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission java.io.FilePermission "${test.classes}", "read,write,delete";
+    permission java.io.FilePermission 
+        "${test.classes}${/}-", "read,write,delete";
+    permission java.io.FilePermission ".", "read,write,delete";
+    permission java.io.FilePermission ".${/}-", "read,write,delete";
+    permission java.lang.RuntimePermission "A";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.util.PropertyPermission "*", "read";
+    permission javax.security.auth.AuthPermission "doAs";
+    permission javax.security.auth.AuthPermission "getSubject";
+};
+
+grant codeBase "file:.${/}cb1${/}" {
+    permission java.lang.RuntimePermission "B";
+};
+
+grant codeBase "file:.${/}cb1${/}", principal StringPrincipal "foo" {
+    permission java.lang.RuntimePermission "C";
+};
+
+grant codeBase "file:.${/}cb2${/}" {
+    permission java.security.AllPermission;
+};

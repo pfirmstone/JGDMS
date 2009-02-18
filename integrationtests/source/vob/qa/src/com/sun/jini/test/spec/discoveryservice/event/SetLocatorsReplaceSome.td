@@ -1,0 +1,4 @@
+testClass=SetLocatorsReplaceSome
+testCategories=discoveryservice,discoveryservice_spec,discoveryserviceevent
+include0=../discoveryservice.properties
+include1=simReg6_0regInfo4_0.properties

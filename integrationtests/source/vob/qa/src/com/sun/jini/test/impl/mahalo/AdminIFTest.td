@@ -1,0 +1,3 @@
+include0=mahalo.properties
+testClass=AdminIFTest
+testCategories=txnmanager,txnmanager_impl

@@ -1,0 +1,3 @@
+testClass=ManyParticipantsTest
+testCategories=txnmanager,txnmanager_spec
+include0=txnmanager.properties

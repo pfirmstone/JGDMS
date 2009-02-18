@@ -1,0 +1,3 @@
+include0=mahalo.properties
+testClass=MahaloCreateShutdownTest
+testCategories=txnmanager,txnmanager_impl

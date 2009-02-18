@@ -1,0 +1,170 @@
+
+#/*
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+# 
+#      http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#*/
+
+
+# Individual classes that need to be placed in the downloadable jar file
+
+QASTART_PROBE_JARS = qa1-start-probe-dl.jar \
+		     qa1-start-probe.jar
+
+QAJARS     +=	$(QASTART_PROBE_JARS)
+
+
+qa1-start-probe-dl.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		`$(QACLASSDEP) -in com.sun.jini.test $(subst $$,'$$',$(QASTARTPROBE.impls:%=%_Stub))`
+
+qa1-start-probe.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		`$(QACLASSDEP) -in com.sun.jini.test $(QASTARTPROBE.impls) $(QASTARTDUMMYPROBE) $(subst $$,'$$',$(QASTARTPROBE.impls:%=%_Stub))`
+	@cd $(JINICLASSES); $(JAR) uf $(QAJARSDIR)/$@ \
+		`$(QACLASSDEP) -in com.sun.jini -in net.jini $(JSKPLATFORM.EXCLUDE) -hide com.sun.jini.test $(QASTARTPROBE.impls) $(QASTARTDUMMYPROBE) $(subst $$,'$$',$(QASTARTPROBE.impls:%=%_Stub))`
+
+
+
+QASTART_TESTSERVICE_JARS = 	qa1-start-tests.jar \
+			 	qa1-start-testservice1.jar \
+				qa1-start-testservice1-dl.jar \
+				qa1-start-testservice2.jar \
+				qa1-start-testservice2-dl.jar \
+				qa1-start-testservicenocons.jar \
+				qa1-start-testservicenocons-dl.jar \
+				qa1-start-testservice-common.jar \
+				qa1-start-testservice-common-dl.jar \
+				qa1-start-cb1.jar \
+				qa1-start-cb2.jar \
+				qa1-start-cb3.jar
+
+QAJARS	+=	$(QASTART_TESTSERVICE_JARS)
+
+qa1-start-tests.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		com/sun/jini/test/impl/start/ClassLoaderTest.class \
+		com/sun/jini/test/impl/start/ClasspathTest.class \
+		com/sun/jini/test/impl/start/CodebaseTest.class \
+		com/sun/jini/test/impl/start/SecurityTest.class \
+		com/sun/jini/test/impl/start/SecurityTestNonActivatable.class \
+		com/sun/jini/test/impl/start/loadersplitpolicyprovider/LoaderSplitPolicyProviderTest.class \
+		com/sun/jini/test/impl/start/aggregatepolicyprovider/GetContextTest.class \
+		com/sun/jini/test/impl/start/aggregatepolicyprovider/MainPolicyNotFoundTest.class \
+		com/sun/jini/test/impl/start/aggregatepolicyprovider/NullCasesTest.class \
+		com/sun/jini/test/impl/start/aggregatepolicyprovider/SubPoliciesTest.class \
+		com/sun/jini/test/impl/start/aggregatepolicyprovider/UntrustedGetContextClassLoader.class
+	@cd $(CLASSDIR); $(JAR) uf $(QAJARSDIR)/$@ \
+		`$(QACLASSDEP) -in com.sun.jini -out com.sun.jini.harness -out com.sun.jini.qa.harness com.sun.jini.test.impl.start.ClassLoaderTest com.sun.jini.test.impl.start.ClasspathTest com.sun.jini.test.impl.start.CodebaseTest com.sun.jini.test.impl.start.SecurityTest com.sun.jini.test.impl.start.SecurityTestNonActivatable`
+
+qa1-start-testservice1.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		`$(QACLASSDEP) -in com.sun.jini.test com.sun.jini.test.impl.start.TestServiceImpl` \
+		com/sun/jini/test/impl/start/TestServiceImpl_Stub.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass0.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass1.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass2.class
+	@cd $(JINICLASSES); $(JAR) uf $(QAJARSDIR)/$@ \
+		`$(QACLASSDEP) -in com.sun.jini -hide com.sun.jini.test $(QATESTSERVICE.impls) $(subst $$,'$$',$(QATESTSERVICE.impls:%=%_Stub))` \
+		com/sun/jini/start/resources
+
+qa1-start-testservice1-dl.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		com/sun/jini/test/impl/start/TestService.class \
+		com/sun/jini/test/impl/start/TestServiceImpl_Stub.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass0.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass1.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass2.class
+
+qa1-start-testservice2.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		`$(QACLASSDEP) -in com.sun.jini.test com.sun.jini.test.impl.start.TestServiceImpl` \
+		com/sun/jini/test/impl/start/TestServiceImpl.class \
+		com/sun/jini/test/impl/start/TestServiceImpl_Stub.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass0.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass1.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass3.class
+	@cd $(JINICLASSES); $(JAR) uf $(QAJARSDIR)/$@ \
+		`$(QACLASSDEP) -in com.sun.jini -hide com.sun.jini.test $(QATESTSERVICE.impls) $(subst $$,'$$',$(QATESTSERVICE.impls:%=%_Stub))` \
+		com/sun/jini/start/resources
+
+qa1-start-testservice2-dl.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		com/sun/jini/test/impl/start/TestService.class \
+		com/sun/jini/test/impl/start/TestServiceImpl_Stub.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass0.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass1.class \
+		com/sun/jini/test/impl/start/TestServiceDummyClass3.class
+
+qa1-start-testservice-common.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		`$(QACLASSDEP) -in com.sun.jini.test com.sun.jini.test.impl.start.TestServiceDummyClass0 com.sun.jini.test com.sun.jini.test.impl.start.TestServiceSharedMap`
+
+qa1-start-testservice-common-dl.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		`$(QACLASSDEP) -in com.sun.jini.test com.sun.jini.test.impl.start.TestServiceDummyClass0`
+
+
+qa1-start-testservicenocons.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		com/sun/jini/test/impl/start/TestServiceNoConsImpl.class  
+
+qa1-start-testservicenocons-dl.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		com/sun/jini/test/impl/start/TestService.class 
+
+qa1-start-cb1.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		com/sun/jini/test/impl/start/loadersplitpolicyprovider/Foo.class \
+		com/sun/jini/test/impl/start/aggregatepolicyprovider/GetContext*.class
+
+qa1-start-cb2.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		com/sun/jini/test/impl/start/loadersplitpolicyprovider/Bar.class \
+		com/sun/jini/test/impl/start/aggregatepolicyprovider/RestoreContext*.class
+
+qa1-start-cb3.jar: jartools
+	rm -f $(QAJARSDIR)/$@
+	@echo Creating $@
+	@cd $(CLASSDIR); $(JAR) cf $(QAJARSDIR)/$@ \
+		com/sun/jini/test/impl/start/aggregatepolicyprovider/CheckContextAction.class
+
+start_jars: $(QASTART_PROBE_JARS) $(QASTART_TESTSERVICE_JARS) qa1.jar qa1-jini-latest.jar

@@ -1,0 +1,246 @@
+
+#/*
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership. The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License. You may obtain a copy of the License at
+# 
+#      http://www.apache.org/licenses/LICENSE-2.0
+# 
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#*/
+
+include GNUmakefile
+
+#VERBOSE_FLAG		= v
+VERBOSE_FLAG		=
+CPIO			= /bin/cpio -dumpL$(VERBOSE_FLAG)
+ZIP			= zip
+ZIPFLAGS		= -q
+UNZIP			= unzip
+UNZIP_LIST		= $(UNZIP) -l
+CHECKSUM		= /usr/bin/sum
+VERBOSE			=
+
+VOB_JIVE		= $(VIEW_ROOT)/vob/jive
+VOB_QA			= $(VIEW_ROOT)/vob/qa
+VOB_TCK			= $(VIEW_ROOT)/vob/tck
+
+REL_TOP			= /tmp
+REL_DIR			= $(REL_TOP)/$(PRODNAME)
+
+KIT_TOP			= $(VOB_JIVE)/kit
+KIT_QA			= $(KIT_TOP)/qa_tools
+
+CONFIG_SPEC_TAG		= _JINI_QA_HARNESS_1_0_JAR_FILE_CONFIG_SPEC_
+
+HARNESS_VERSION_SUFFIX	=
+HARNESS_VERSION		= 1.0
+HARNESS_VERSTRING	= $(subst .,_,$(HARNESS_VERSION))
+HARNESS_JDCVERSTRING	= $(subst .,,$(HARNESS_VERSION))
+HARNESS_PROD		= harness
+HARNESS_PRODNAME	= $(HARNESS_PROD)$(HARNESS_VERSTRING)
+HARNESS_REL_TOP		= $(REL_TOP)
+HARNESS_REL_DIR		= $(REL_TOP)/$(HARNESS_PRODNAME)
+HARNESS_ZIPFLAGS	= -q -n .class
+HARNESS.jar		= $(VOB_JIVE)/lib/$(HARNESS_PROD).jar
+HARNESS.zip		= $(KIT_QA)/$(HARNESS_PROD)$(HARNESS_JDCVERSTRING).zip
+HARNESS.zip.list	= $(HARNESS.zip).list
+HARNESS_ZIP_CHKSUM	= $(HARNESS.zip).checksum
+HARNESS_FILE_LIST	= $(VOB_QA)/src/GNUmakefile						\
+			  $(VOB_QA)/src/GNUmakefile.allinc					\
+			  $(VOB_QA)/src/com/sun/jini/qa/admin/GNUmakefile			\
+			  $(VOB_QA)/src/com/sun/jini/qa/admin/LookupServiceAdmin.java		\
+			  $(VOB_QA)/src/com/sun/jini/qa/admin/ServiceAdmin.java			\
+			  $(VOB_QA)/src/com/sun/jini/qa/harness/QAConfig.java			\
+			  $(VOB_QA)/src/com/sun/jini/qa/harness/QARunner.java			\
+			  $(VOB_QA)/src/com/sun/jini/qa/harness/QAStartArgs.java		\
+			  $(VOB_QA)/src/com/sun/jini/qa/harness/QATest.java			\
+			  $(VOB_QA)/src/com/sun/jini/qa/harness/QATestException.java		\
+			  $(VOB_QA)/src/com/sun/jini/qa/harness/QATestParameter.java		\
+			  $(VOB_QA)/src/com/sun/jini/qa/harness/QATestServiceAdmin.java		\
+			  $(VOB_QA)/src/com/sun/jini/qa/harness/QATestServiceRequester.java	\
+			  $(VOB_QA)/src/com/sun/jini/qa/harness/QATestUtil.java			\
+			  $(VOB_QA)/src/com/sun/jini/qa/share/GNUmakefile			\
+			  $(VOB_QA)/src/com/sun/jini/qa/share/GNUmakefile.jars			\
+			  $(VOB_QA)/src/com/sun/jini/qa/share/GNUmakefile.stubs			\
+			  $(VOB_QA)/src/com/sun/jini/qa/share/JoinAdminUtil.java		\
+												\
+			  $(VOB_JIVE)/src/com/sun/jini/start/ClassLoaderUtil.java		\
+			  $(VOB_JIVE)/src/com/sun/jini/start/HTTPDStatus.java			\
+			  $(VOB_JIVE)/src/com/sun/jini/start/GNUmakefile			\
+			  $(VOB_JIVE)/src/com/sun/jini/start/ParsedArgs.java			\
+			  $(VOB_JIVE)/src/com/sun/jini/start/ServiceDestroyer.java		\
+			  $(VOB_JIVE)/src/com/sun/jini/start/ServiceStarter.java		\
+			  $(VOB_JIVE)/src/com/sun/jini/start/StartUtil.java			\
+			  $(VOB_JIVE)/src/com/sun/jini/start/resources/GNUmakefile		\
+			  $(VOB_JIVE)/src/com/sun/jini/start/resources/GNUmakefile.inc		\
+			  $(VOB_JIVE)/src/com/sun/jini/start/resources/lookup.properties	\
+			  $(VOB_JIVE)/src/com/sun/jini/start/resources/service.properties	\
+												\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/AbstractRunner.java		\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/BasicAdmin.java		\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/BasicClientAdmin.java		\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/BasicLookupAdmin.java		\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/BasicServiceAdmin.java	\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/Config.java			\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/ConfigProperties.java		\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/DefaultAdmin.java		\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/DefaultClientAdmin.java	\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/DefaultLookupAdmin.java	\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/DefaultServiceAdmin.java	\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/DefaultTest.java		\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/DownloadEvent.java		\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/DownloadListener.java		\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/InstrumentedClassServer.java	\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/Status.java			\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/SysConfig.java		\
+			  $(VOB_TCK)/src/com/sun/jini/tck/harness/Test.java
+
+
+##~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+harness.all: verify_config_spec build_jive build_tck build_harness harness.jar harness.zip
+
+verify_config_spec:
+
+	@echo "+-------------------------------------------+"
+	@echo "|                                           |"
+	@echo "|    Building Harness Jar-File              |"
+	@echo "|                                           |"
+	@echo "+-------------------------------------------+"
+
+	##
+	## If the following command fails to grep the tag from
+	## the config-spec, the grep command will fail and cause
+	## the make process to exit with an error status:
+	##
+
+	cleartool catcs | fgrep "$(CONFIG_SPEC_TAG)"
+
+	cleartool catcs
+
+
+harness.jar: jartools
+
+	@echo "+-------------------------------------------+"
+	@echo "|                                           |"
+	@echo "|    Building Harness Jar-File              |"
+	@echo "|                                           |"
+	@echo "+-------------------------------------------+"
+
+	rm -f $(JARSDIR)/$@
+
+	cd $(CLASSDIR);							\
+		$(JAR) cf $(JARSDIR)/$@					\
+		com/sun/jini/qa/admin/LookupServiceAdmin*		\
+		com/sun/jini/qa/admin/ServiceAdmin*			\
+		com/sun/jini/qa/harness/QAConfig*			\
+		com/sun/jini/qa/harness/QARunner*			\
+		com/sun/jini/qa/harness/QAStartArgs*			\
+		com/sun/jini/qa/harness/QATest*				\
+		com/sun/jini/qa/harness/QATestException*		\
+		com/sun/jini/qa/harness/QATestParameter*		\
+		com/sun/jini/qa/harness/QATestServiceAdmin*		\
+		com/sun/jini/qa/harness/QATestServiceRequester*		\
+		com/sun/jini/qa/harness/QATestUtil*			\
+		com/sun/jini/qa/share/JoinAdminUtil*
+
+	cd $(VOB_JIVE)/classes;						\
+		$(JAR) uf $(JARSDIR)/$@					\
+		com/sun/jini/start/ClassLoaderUtil*			\
+		com/sun/jini/start/HTTPDStatus*				\
+		com/sun/jini/start/ParsedArgs*				\
+		com/sun/jini/start/ServiceDestroyer*			\
+		com/sun/jini/start/ServiceStarter*			\
+		com/sun/jini/start/StartUtil*				\
+		com/sun/jini/start/resources/lookup.properties		\
+		com/sun/jini/start/resources/service.properties
+
+	cd $(VOB_TCK)/classes;						\
+		$(JAR) uf $(JARSDIR)/$@					\
+		com/sun/jini/tck/harness/AbstractRunner*		\
+		com/sun/jini/tck/harness/BasicAdmin*			\
+		com/sun/jini/tck/harness/BasicClientAdmin*		\
+		com/sun/jini/tck/harness/BasicLookupAdmin*		\
+		com/sun/jini/tck/harness/BasicServiceAdmin*		\
+		com/sun/jini/tck/harness/Config*			\
+		com/sun/jini/tck/harness/ConfigProperties*		\
+		com/sun/jini/tck/harness/DefaultAdmin*			\
+		com/sun/jini/tck/harness/DefaultClientAdmin*		\
+		com/sun/jini/tck/harness/DefaultLookupAdmin*		\
+		com/sun/jini/tck/harness/DefaultServiceAdmin*		\
+		com/sun/jini/tck/harness/DefaultTest*			\
+		com/sun/jini/tck/harness/DownloadEvent*			\
+		com/sun/jini/tck/harness/DownloadListener*		\
+		com/sun/jini/tck/harness/InstrumentedClassServer*	\
+		com/sun/jini/tck/harness/Status*			\
+		com/sun/jini/tck/harness/SysConfig*			\
+		com/sun/jini/tck/harness/Test.*
+
+build_jive:
+
+	@echo "+-------------------------------------------+"
+	@echo "|                                           |"
+	@echo "|    Building JINI                          |"
+	@echo "|                                           |"
+	@echo "+-------------------------------------------+"
+
+	cd $(VOB_JIVE)/src;					\
+	gmake clean;						\
+	gmake
+	gmake jars
+
+build_tck:
+
+	@echo "+-------------------------------------------+"
+	@echo "|                                           |"
+	@echo "|    Building the TCK                       |"
+	@echo "|                                           |"
+	@echo "+-------------------------------------------+"
+
+	cd $(VOB_TCK)/src;					\
+	gmake clean;						\
+	gmake
+
+build_harness:
+
+	@echo "+-------------------------------------------+"
+	@echo "|                                           |"
+	@echo "|    Building QA Harness                    |"
+	@echo "|                                           |"
+	@echo "+-------------------------------------------+"
+
+	cd $(VOB_QA)/src/com/sun/jini/qa/harness;		\
+	gmake clean;						\
+	gmake
+
+harness.zip:
+
+	@echo "+-------------------------------------------+"
+	@echo "|                                           |"
+	@echo "|    Building the QA Harness Zip-File       |"
+	@echo "|                                           |"
+	@echo "+-------------------------------------------+"
+
+	rm    -rf $(HARNESS_REL_DIR)
+	mkdir -p  $(HARNESS_REL_DIR)/lib					\
+		  $(HARNESS_REL_DIR)/src
+
+	-cp -p $(HARNESS.jar) $(HARNESS_REL_DIR)/lib
+
+	-find $(HARNESS_FILE_LIST) -depth -print			      | \
+		$(CPIO) $(HARNESS_REL_DIR)/src/
+
+	cd $(HARNESS_REL_TOP);							\
+	$(ZIP) -r $(HARNESS_ZIPFLAGS) $(HARNESS.zip) $(HARNESS_PRODNAME);	\
+	$(UNZIP_LIST) $(HARNESS.zip) > $(HARNESS.zip.list)
+	
+

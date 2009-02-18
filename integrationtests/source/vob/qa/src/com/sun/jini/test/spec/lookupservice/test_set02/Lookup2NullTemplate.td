@@ -1,0 +1,3 @@
+testClass=Lookup2NullTemplate
+testCategories=lookupservice,lookupservice_spec,test_set02
+include0=../lookupservice.properties

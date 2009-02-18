@@ -1,0 +1,10 @@
+comp {
+    booleanEntry =	true;
+    byteEntry =		(byte) 3;
+    charEntry =		'a';
+    shortEntry =	(short) 4;
+    intEntry =		5;
+    longEntry =		6L;
+    floatEntry =	(float) 7.0;
+    doubleEntry =	8.0;
+}
