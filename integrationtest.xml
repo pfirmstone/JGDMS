@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!-- Apache River Integration Tests -->
+
+<!-- 
+     This Ant scripts provides numerous tasks to run the integration tests 
+     taken from the Jini Test harness.
+-->
+
+<project name="RiverIntegrationTests" default="all.integrationtests" basedir=".">
+
+	<import file="build.xml"/>
+	
+	<description>Builds and executes the River test harness</description>
+
+	<property name="distribution.classes"    		value="./classes" />
+	<property name="distribution.lib" 				value="./lib" />
+	<property name="distribution.lib.dl" 			value="./lib-dl" />
+	<property name="distribution.lib.ext" 			value="./lib-ext" />
+	<property name="qatests.home" 					value="./integrationtests/qa" />
+	<property name="qatests.src" 					value="${qatests.home}/src" />
+	<property name="qatests.lib" 					value="${qatests.home}/lib" />
+	<property name="qatests.classes" 				value="${qatests.home}/classes" />
+	<property name="qatests.tmp.jiniqa2_1" 			value="/tmp/jiniqa2_1" />
+	<property name="qatests.tmp.jiniqa2_1_har" 		value="/tmp/jiniqa2_1_har" />
+	<property name="qatests.tmp.jiniqa2_1_harness" 	value="/tmp/jiniqa2_1_harness" />
+	<property name="qatests.tmp.jiniqa2_1_tests" 	value="/tmp/jiniqa2_1_tests" />
+	<property name="qatests.tmp.jiniqa2_1_src" 		value="/tmp/jiniqa2_1_src" />
+	<property name="qatests.tmp.jiniqa2_1_jtreg" 	value="/tmp/jiniqa2_1_jtreg" />
+
+	<path id="river.classpath">
+		<fileset dir="${distribution.lib}"     includes="**/*.jar" />
+		<fileset dir="${distribution.lib.dl}"  includes="**/*.jar" />
+		<fileset dir="${distribution.lib.ext}" includes="**/*.jar" />
+	</path>
+		
+	<target name="make.release">
+		<antcall target="clean"/>
+		<antcall target="build.release"/>
+		<antcall target="install.policy"/>
+	</target>
+	
+	<target name="install.merged.policy.provider">
+	<!--
+	cp $WORKSPACE/qatests/trunk/source/vob/qa/lib/mergedpolicyprovider.jar $JAVA_HOME/jre/lib/ext
+	-->
+	</target>
+	
+	<!-- clean old directories -->
+	<target name="clean.qa">
+		<delete dir="${qatests.classes}" />
+		<mkdir dir="${qatests.classes}" />
+
+		<delete dir="${qatests.lib}" />
+		<mkdir dir="${qatests.lib}" />
+	</target>
+
+	<!-- build the required jars -->
+	<target name="build.qa" depends="clean.qa">
+		<javac 	srcdir="${qatests.src}" 
+			   	destdir="${qatests.classes}" 
+			   	source="1.4" 
+				classpathref="river.classpath" 
+				deprecation="yes" 
+				debuglevel="lines,source,vars" />
+		
+	<!-- 
+    	following files are hardcoded in because;
+    	
+    	1) on my default install they are the only ones that the original make file builds
+    	2) can't make head nor tail of the make file to find out how it builds the list
+    	
+    	also, not sure that the generated files are correct, some file sizes are different when
+    	generated from ant rather than the original make file
+    	-->
+		<rmic 	base="${qatests.classes}" 
+				iiop="true" 
+				classpath="${qatests.classes}" 
+				classname="com.sun.jini.test.spec.iiop.util.TestRemoteObject" 
+				compiler="sun" 
+				stubversion="1.2" />
+		<rmic 	base="${qatests.classes}" 
+				iiop="true" 
+				classpath="${qatests.classes}" 
+				classname="com.sun.jini.test.spec.jrmp.util.TestRemoteObject" 
+				compiler="sun" 
+				stubversion="1.2" />
+
+		<jar destfile="${qatests.lib}/jiniharness.jar">
+			<fileset dir="${qatests.classes}" 
+					 includes="**/*.class" />
+			<fileset dir="${qatests.src}" 
+					 excludes="**/*.java" />
+			<fileset  dir="${distribution.classes}"
+						    includes="com/sun/jini/**"/>
+		</jar>
+	</target>
+	
+	<!-- tasks to execute the test by category -->
+	<target name="run.test" depends="build.qa">
+		<java classname="com.sun.jini.qa.harness.QARunner" 
+			  fork="yes">
+			<jvmarg value="-Djava.security.policy=${qatests.home}/harness/policy/qa.policy" />
+			<jvmarg value="-Djava.util.logging.config.file=${qatests.home}/src/com/sun/jini/test/resources/qa1.logging" />
+			<arg value="${qatests.home}/src/com/sun/jini/test/resources/qaHarness.prop" />
+			<arg value="-testJar"/><arg value="${qatests.lib}/jiniharness.jar" />
+			<arg value="-categories"/><arg value="joinmanager" />
+			<arg value="-com.sun.jini.qa.harness.serviceMode"/><arg value="transient" />
+			<classpath>
+				<fileset dir="${qatests.lib}">
+					<include name="**/*.jar"/>
+				</fileset>
+				<fileset dir="${distribution.lib}">
+					<include name="**/*.jar"/>
+				</fileset>
+			</classpath>
+		</java>
+	</target>
+
+	<!-- examples of tasks to execute specific-named tests -->
+
+	<!-- <target name="all.integrationtests" depends="clean, build.release, install.policy, jars, clean.qa, build.qa, run.test" /> -->
+	<target name="all.integrationtests" depends="clean.qa, build.qa, run.test" />
+	
+</project>
