@@ -24,12 +24,12 @@
      integration tests, taken from the Jini Test harness.
 -->
 <project name="QA" default="all.qa" basedir=".">
-	<description>Builds and executes the River test harness</description>
+    <description>Builds and executes the River test harness</description>
     <property environment="env"/>
     <property file="build.properties" />
-	<path id="river.classpath">
-        <fileset dir="${build.lib}" includes="**/*.jar" />
-	</path>
+    <path id="river.classpath">
+        <fileset dir="${lib}" includes="**/*.jar" />
+    </path>
     <condition property="jdk-tools-jar" value="${env.JAVA_HOME}/lib/dt.jar">
         <and>
             <os family="mac"/>
@@ -50,18 +50,17 @@
         <pathelement path="${qatests.src}"/>
         <pathelement location="${jdk-tools-jar}"/>
     </path>
-		
     <target name="clean.qa" depends="clean.build.qa, clean.lib.qa, clean.trust.qa" />
-    
     <target name="clean.build.qa">
         <delete dir="${qatests.build}" />
-	</target>
-	
+    </target>
     <target name="clean.lib.qa">
         <delete dir="${qatests.lib}" />
         <delete dir="${qatests.lib-ext}" />
-	</target>
-	
+    </target>
+    <target name="clean.doc.qa">
+        <delete dir="${qatests.doc.api}" />
+    </target>
     <target name="clean.trust.qa">
         <delete>
             <fileset dir="${qatests.trust}">
@@ -78,59 +77,118 @@
         <mkdir dir="${qatests.build}" />
         <mkdir dir="${qatests.classes}" />
         <mkdir dir="${qatests.deps}" />
-		<mkdir dir="${qatests.lib}" />
+        <mkdir dir="${qatests.lib}" />
         <mkdir dir="${qatests.lib-ext}" />
-	</target>
+    </target>
 
     <!-- build classes -->
     <target name="build.qa" depends="prep.qa">
-		<javac 	srcdir="${qatests.src}" 
+        <javac 	srcdir="${qatests.src}"
 			   	destdir="${qatests.classes}" 
-			   	source="1.4" 
+			   	source="1.4"
                 target="1.4"
 				classpathref="river.classpath" 
                 deprecation="yes">
-                <patternset includes="**/*.java"/>
+            <patternset includes="**/*.java"/>
         </javac>
-	</target>
+    </target>
 	
     <!-- execute the tests (by category) -->
-    <target name="run.qa" depends="jars.qa, trust.qa">
+    <target name="run.qa" depends="jars.qa">
+        <path id="ext-dirs">
+            <pathelement path="${qatests.lib-ext}" />
+            <pathelement path="${lib-ext}" />
+            <pathelement path="${env.JAVA_HOME}/jre/lib/ext" />
+        </path>
+        <path id="jsk-home">
+            <pathelement path="${basedir}" />
+        </path>
+        <path id="qa-home">
+            <pathelement path="${qatests}" />
+        </path>
+        <path id="test-home">
+            <pathelement path="${qatests}" />
+        </path>
+        <path id="log-config">
+            <pathelement path="${qatests.src}/com/sun/jini/test/resources/qa1.logging" />
+        </path>
+        <path id="security-policy">
+            <pathelement path="${qatests}/harness/policy/qa.policy" />
+        </path>
+        <property name="ext.dirs" refid="ext-dirs" />
+        <property name="jsk.home" refid="jsk-home" />
+        <property name="qa.home" refid="qa-home" />
+        <property name="test.home" refid="test-home" />
+        <property name="log.config" refid="log-config" />
+        <property name="security.policy" refid="security-policy" />
         <java classname="com.sun.jini.qa.harness.QARunner" fork="yes">
-            <!-- JDK extension directories -->
-            <jvmarg value="-Djava.ext.dirs=${qatests.lib-ext}${path.separator}${build.lib-ext}${path.separator}${env.JAVA_HOME}/jre/lib/ext" />
-            <jvmarg value="-Djava.security.policy=${qatests}/harness/policy/qa.policy" />
-            <jvmarg value="-Djava.util.logging.config.file=${qatests.src}/com/sun/jini/test/resources/qa1.logging" />
-            <jvmarg value="-Dcom.sun.jini.jsk.home=${basedir}/build" />
-            <jvmarg value="-Dcom.sun.jini.qa.home=${qatests}" />
-            <jvmarg value="-Dcom.sun.jini.test.home=${qatests}" />
-            <jvmarg value="-Dcom.sun.jini.qa.harness.configs=jrmp,jeri,jsse,http,https" />
-            <arg value="${qatests.src}/com/sun/jini/test/resources/qaHarness.prop" />
+            <!-- JDK extension directories (include our lib-ext dirs, for the custom policy providers) -->
+            <jvmarg value="-Djava.ext.dirs=${ext.dirs}" />
+            <jvmarg value="-Djava.security.policy=${security.policy}" />
+            <jvmarg value="-Djava.util.logging.config.file=${log.config}" />
+            <jvmarg value="-Dcom.sun.jini.jsk.home=${jsk.home}" />
+            <jvmarg value="-Dcom.sun.jini.qa.home=${qa.home}" />
+            <jvmarg value="-Dcom.sun.jini.test.home=${test.home}" />
+            <jvmarg value="-Dcom.sun.jini.qa.harness.configs=${qatests.harness.configs}" />
+            <!-- VM args for each test run: include our JDK extension directories -->
+            <jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Dcom.sun.jini.test.home=$${com.sun.jini.test.home},-Dcom.sun.jini.test.port=$${com.sun.jini.test.port},-Dcom.sun.jini.qa.harness.policies=&lt;url: com/sun/jini/test/resources/jinitest.policy&gt;,-Djava.ext.dirs=${ext.dirs}"/>
+            <arg path="${qatests.src}/com/sun/jini/test/resources/qaHarness.prop" />
             <arg value="-testJar"/>
-            <arg value="${qatests.lib}/jinitests.jar" />
+            <arg path="${qatests.lib}/jinitests.jar" />
+            <!-- Run specific test(s) -->
+            <!--<arg value="-tests"/>
+            <arg value="com/sun/jini/test/impl/discoverymanager/RemoveGroupsLocsDiscard.td" />-->
+            <!-- Run one or more test categories -->
             <arg value="-categories"/>
-            <arg value="discoverymanager"/>
-            <!--<arg value="activation,config,constraint"/>-->
-            <!--<arg value="url,id,loader,activation,config,constraint,joinmanager" />-->
-            <!-- these tests seem to hang -->
-            <!--<arg value="reliability,scalability"/>-->
+            <arg value="joinmanager"/>
+            <!--<arg value="activation,config,constraint,discoverymanager,discoveryproviders,discoveryservice,eventmailbox,end2end,export,fiddler,id,iiop,io"/>-->
             <!-- categories can be found under packages com.sun.jini.test.impl and com.sun.jini.test.spec, some of them: -->
             <!--<arg value="id,loader,policyprovider,locatordiscovery,activation,config,constraint,discoverymanager,discoveryservice,joinmanager,url,eventmailbox,jeri,iiop,jrmp,reliability,scalability,thread,renewalservice"/>-->
             <arg value="-com.sun.jini.qa.harness.serviceMode"/>
             <arg value="transient" />
-			<classpath>
-				<fileset dir="${qatests.lib}">
+            <classpath>
+                <fileset dir="${qatests.lib}">
                     <include name="jiniharness.jar"/>
-				</fileset>
-                <fileset dir="${build.lib}">
+                </fileset>
+                <fileset dir="${lib}">
                     <include name="jsk-platform.jar"/>
                     <include name="jsk-lib.jar"/>
-				</fileset>
-			</classpath>
-		</java>
-	</target>
-    <target name="all.qa" depends="clean.qa, build.qa, run.qa" />
-    <target name="jars.qa" depends="build.qa, stubs.qa,
+                </fileset>
+            </classpath>
+        </java>
+    </target>
+    <target name="doc.qa"
+		description="Generates the javadoc."
+		depends="build.qa">
+        <delete dir="${qatests.doc.api}" quiet="true"/>
+        <mkdir  dir="${qatests.doc.api}"/>
+        <javadoc author="true"
+			 bottom="${api-copyright}"
+			 breakiterator="yes"
+			 destdir="${qatests.doc.api}"
+			 doctitle="${qatests-doc-title}"
+			 linkoffline="${jdk-doc-url} ${jdk-packages}"
+			 serialwarn="yes"
+			 source="1.4"
+			 use="true"
+			 version="true"
+			 windowtitle="${qatests-win-title}"
+             maxmemory="92M">
+            <tag name="com.sun.jini.impl"
+			     enabled="true"
+			     scope="packages,types"
+			     description="Implementation Specifics:"/>
+            <classpath refid="path.apidoc"/>
+            <sourcepath>
+                <pathelement path="${qatests.src}"/>
+            </sourcepath>
+            <package name="com.sun.jini.qa.*"/>
+            <package name="com.sun.jini.test.*"/>
+            <package name="com.sun.jini.tool.*"/>
+        </javadoc>
+    </target>
+    <target name="all.qa" depends="clean.qa, run.qa" />
+    <target name="jars.qa" depends="build.qa, stubs.qa, trust.qa,
         harness-killer.jar, 
         harness-killer-dl.jar, 
         nonactivatablegroup.jar, 
@@ -190,7 +248,7 @@
         ld.jar,
         qa1-loader-pref.jar,
         qa1-policy-provider.jar"/>
-    <target name="stubs.qa" depends="harness-killer.stubs, 
+    <target name="stubs.qa" depends="harness-killer.stubs,
         nonactivatablegroup.stubs, 
         qa1-fiddler.stubs, 
         qa1-joinmanager.stubs, 
@@ -211,12 +269,12 @@
         <element name="cd-elements" implicit="yes" />
         <sequential>
             <java classname="com.sun.jini.tool.ClassDep" failonerror="true" output="@{output}">
-            <classpath refid="path.classdep"/>
-            <arg value="-cp"/>
-            <arg path="${qatests.classes}:${build.classes}"/>
-            <arg value="-files"/>
-            <cd-elements />
-        </java>
+                <classpath refid="path.classdep"/>
+                <arg value="-cp"/>
+                <arg path="${qatests.classes}:${build.classes}"/>
+                <arg value="-files"/>
+                <cd-elements />
+            </java>
         </sequential>
     </macrodef>
     <target name="harness-killer.stubs"
@@ -227,6 +285,7 @@
     </target>
     <target name="harness-killer.jar" depends="build.qa, harness-killer.stubs">
         <property name="harness-killer.deps" location="${qatests.deps}/harness-killer.deps" />
+        <delete file="${qatests.lib}/harness-killer.jar" quiet="true"/>
         <classdep output="${harness-killer.deps}">
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
@@ -241,6 +300,7 @@
     </target>
     <target name="harness-killer-dl.jar" depends="build.qa, harness-killer.stubs">
         <property name="harness-killer-dl.deps" location="${qatests.deps}/harness-killer-dl.deps" />
+        <delete file="${qatests.lib}/harness-killer-dl.jar" quiet="true"/>
         <classdep output="${harness-killer-dl.deps}">
             <arg line="-in com.sun.jini"/>
             <arg value="com.sun.jini.qa.harness.VMKiller"/>
@@ -259,6 +319,7 @@
     </target>
     <target name="nonactivatablegroup.jar" depends="build.qa, nonactivatablegroup.stubs">
         <property name="nonactivatablegroup.deps" location="${qatests.deps}/nonactivatablegroup.deps" />
+        <delete file="${qatests.lib}/nonactivatablegroup.jar" quiet="true"/>
         <classdep output="${nonactivatablegroup.deps}">
             <arg line="-in com.sun.jini"/>
             <arg line="${jskplatform.exclude}"/>
@@ -273,6 +334,7 @@
     </target>
     <target name="nonactivatablegroup-dl.jar" depends="build.qa, nonactivatablegroup.stubs">
         <property name="nonactivatablegroup-dl.deps" location="${qatests.deps}/nonactivatablegroup-dl.deps" />
+        <delete file="${qatests.lib}/nonactivatablegroup-dl.jar" quiet="true"/>
         <classdep output="${nonactivatablegroup-dl.deps}">
             <arg line="-in com.sun.jini"/>
             <arg value="com.sun.jini.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>
@@ -284,6 +346,7 @@
     </target>
     <target name="mergedpolicyprovider.jar" depends="build.qa">
         <property name="mergedpolicyprovider.deps" location="${qatests.deps}/mergedpolicyprovider.deps" />
+        <delete file="${qatests.lib}/mergedpolicyprovider-dl.jar" quiet="true"/>
         <classdep output="${mergedpolicyprovider.deps}">
             <arg line="-in com.sun.jini.qa"/>
             <arg value="com.sun.jini.qa.harness.MergedPolicyProvider"/>
@@ -294,6 +357,7 @@
         </jar>
     </target>
     <target name="qa1-end2end.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-end2end.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-end2end.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/impl/end2end/e2etest/**/*" />
@@ -301,6 +365,7 @@
         </jar>
     </target>
     <target name="qa1-wrapper.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-wrapper.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-wrapper.jar" index="false">
             <metainf dir="${qatests.src}/com/sun/jini/test/impl/end2end/META-INF/">
                 <include name="**/*" />
@@ -319,6 +384,7 @@
     </target>
     <target name="qa1-fiddler-dl.jar" depends="build.qa, qa1-fiddler.stubs">
         <property name="qa1-fiddler-dl.deps" location="${qatests.deps}/qa1-fiddler-dl.deps" />
+        <delete file="${qatests.lib}/qa1-fiddler-dl.jar" quiet="true"/>
         <classdep output="${qa1-fiddler-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.share.AttributesUtil$$TestAttr00"/>
@@ -341,6 +407,7 @@
     </target>
     <target name="qa1-joinmanager-dl.jar" depends="build.qa, qa1-joinmanager.stubs">
         <property name="qa1-joinmanager-dl.deps" location="${qatests.deps}/qa1-joinmanager-dl.deps" />
+        <delete file="${qatests.lib}/qa1-joinmanager-dl.jar" quiet="true"/>
         <classdep output="${qa1-joinmanager-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.spec.joinmanager.AbstractBaseTest$$TestService"/>
@@ -357,6 +424,7 @@
         </jar>
     </target>
     <target name="qa1-mahalo-dl.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-mahalo-dl.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-mahalo-dl.jar" index="false" >
             <fileset dir="${build.classes}">
                 <include name="net/jini/lookup/entry/Name.class"/>
@@ -375,17 +443,21 @@
     </target>
     <target name="qa1-mercury.jar" depends="build.qa, qa1-mercury.stubs">
         <property name="qa1-mercury.deps" location="${qatests.deps}/qa1-mercury.deps" />
+        <delete file="${qatests.lib}/qa1-mercury.jar" quiet="true"/>
         <classdep output="${qa1-mercury.deps}">
             <arg line="-in com.sun.jini.test"/>
-            <arg value="com.sun.jini.test.impl.mercury.NSOListenerImp"/>
+            <arg value="com.sun.jini.test.impl.mercury.NSOListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.REListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.UEListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl_Stub"/>
             <arg value="com.sun.jini.test.impl.mercury.DisableNSOListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
+            <arg value="com.sun.jini.test.impl.mercury.TestListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.TestListenerImpl_Stub"/>
+            <arg value="com.sun.jini.test.impl.mercury.TestPullListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.TestPullListenerImpl_Stub"/>
+            <arg value="com.sun.jini.test.impl.mercury.TestGeneratorImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.TestGeneratorImpl_Stub"/>
         </classdep>
         <jar destfile="${qatests.lib}/qa1-mercury.jar" index="false" >
@@ -417,6 +489,7 @@
     </target>
     <target name="qa1-mercury-dl.jar" depends="build.qa, qa1-mercury.stubs">
         <property name="qa1-mercury-dl.deps" location="${qatests.deps}/qa1-mercury-dl.deps" />
+        <delete file="${qatests.lib}/qa1-mercury-dl.jar" quiet="true"/>
         <classdep output="${qa1-mercury-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl_Stub"/>
@@ -458,6 +531,7 @@
     </target>
     <target name="qa1-mercury-bogusimpl.jar" depends="build.qa">
         <property name="qa1-mercury-bogusimpl.deps" location="${qatests.deps}/qa1-mercury-bogusimpl.deps" />
+        <delete file="${qatests.lib}/qa1-mercury-bogusimpl.jar" quiet="true"/>
         <classdep output="${qa1-mercury-bogusimpl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.impl.mercury.DelayedBasicJeriExporter"/>
@@ -476,6 +550,7 @@
     </target>
     <target name="qa1-norm-dl.jar" depends="build.qa, qa1-norm.stubs">
         <property name="qa1-norm-dl.deps" location="${qatests.deps}/qa1-norm-dl.deps" />
+        <delete file="${qatests.lib}/qa1-norm-dl.jar" quiet="true"/>
         <classdep output="${qa1-norm-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.impl.norm.LocalLease"/>
@@ -516,6 +591,7 @@
     </target>
     <target name="qa1-outrigger-dl.jar" depends="build.qa, qa1-outrigger.stubs">
         <property name="qa1-outrigger-dl.deps" location="${qatests.deps}/qa1-outrigger-dl.deps" />
+        <delete file="${qatests.lib}/qa1-outrigger-dl.jar" quiet="true"/>
         <classdep output="${qa1-outrigger-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.impl.outrigger.transaction.SimpleEventListener"/>
@@ -540,6 +616,7 @@
         </jar>
     </target>
     <target name="qa1-multihomedmetainf.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-multihomedmetainf.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-multihomedmetainf.jar" index="false" >
             <metainf dir="${qatests.src}/com/sun/jini/test/impl/reggie/META-INF">
                 <include name="**/*" />
@@ -551,11 +628,12 @@
     </target>
     <target name="jinitests.jar" depends="build.qa, stubs.qa">
         <property name="jinitests.deps" location="${qatests.deps}/jinitests.deps" />
+        <delete file="${qatests.lib}/jinitests.jar" quiet="true"/>
         <classdep output="${jinitests.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="-in com.sun.jini.fiddler"/>
             <arg line="${jskprivate.include}" />
-            <arg line="${qatests.classes}/com/sun/jini/test/impl"/>
+            <arg path="${qatests.classes}/com/sun/jini/test/impl"/>
         </classdep>
         <jar destfile="${qatests.lib}/jinitests.jar" index="false" >
             <metainf dir="${qatests.src}/manifest/qa1/META-INF">
@@ -564,17 +642,20 @@
             <fileset dir="${qatests.classes}" includesfile="${jinitests.deps}" />
             <fileset dir="${build.classes}" includesfile="${jinitests.deps}" />
             <fileset dir="${qatests.src}">
+                <include name="com/sun/jini/test/**/resources/**/*" />
                 <include name="com/sun/jini/test/**/*.td" />
                 <include name="com/sun/jini/test/**/*.properties" />
                 <include name="com/sun/jini/test/**/*.policy" />
                 <include name="com/sun/jini/test/**/*.config" />
+                <include name="com/sun/jini/test/**/*.logging" />
+                <include name="com/sun/jini/test/**/*.prop" />
             </fileset>
         </jar>
         <classdep output="${jinitests.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="-in com.sun.jini.fiddler"/>
             <arg line="${jskprivate.include}" />
-            <arg line="${qatests.classes}/com/sun/jini/test/spec"/>
+            <arg path="${qatests.classes}/com/sun/jini/test/spec"/>
         </classdep>
         <jar destfile="${qatests.lib}/jinitests.jar" index="false" update="true">
             <fileset dir="${qatests.classes}" includesfile="${jinitests.deps}" />
@@ -584,11 +665,11 @@
             <arg line="-in com.sun.jini.test"/>
             <arg line="-in com.sun.jini.fiddler"/>
             <arg line="${jskprivate.include}" />
-            <arg line="${qatests.classes}/com/sun/jini/test/share"/>
-            <arg line="${qatests.classes}/com/sun/jini/test/support"/>
-            <arg line="${qatests.classes}/com/sun/jini/test/services/lookupsimulator/LookupSimulatorProxyInterface.class"/>
-            <arg line="${qatests.classes}/com/sun/jini/fiddler/FiddlerAdmin.class"/>
-            <arg line="${qatests.classes}/com/sun/jini/fiddler/JavaSpaceAdmin.class"/>
+            <arg path="${qatests.classes}/com/sun/jini/test/share"/>
+            <arg path="${qatests.classes}/com/sun/jini/test/support"/>
+            <arg path="${qatests.classes}/com/sun/jini/test/services/lookupsimulator/LookupSimulatorProxyInterface.class"/>
+            <arg path="${qatests.classes}/com/sun/jini/fiddler/FiddlerAdmin.class"/>
+            <arg path="${qatests.classes}/com/sun/jini/fiddler/JavaSpaceAdmin.class"/>
         </classdep>
         <jar destfile="${qatests.lib}/jinitests.jar" index="false" update="true">
             <fileset dir="${qatests.classes}" includesfile="${jinitests.deps}" />
@@ -604,6 +685,7 @@
     </target>
     <target name="qa1-mainwrapper.jar" depends="build.qa">
         <property name="qa1-mainwrapper.deps" location="${qatests.deps}/qa1-mainwrapper.deps" />
+        <delete file="${qatests.lib}/qa1-mainwrapper.jar" quiet="true"/>
         <classdep output="${qa1-mainwrapper.deps}">
             <arg line="-in com.sun.jini"/>
             <arg line="com.sun.jini.qa.harness.MainWrapper"/>
@@ -615,8 +697,9 @@
     </target>
     <target name="jiniharness.jar" depends="build.qa">
         <property name="jiniharness.deps" location="${qatests.deps}/jiniharness.deps" />
+        <delete file="${qatests.lib}/jiniharness.jar" quiet="true"/>
         <classdep output="${jiniharness.deps}">
-            <arg line="${qatests.classes}/com/sun/jini/qa/harness"/>
+            <arg path="${qatests.classes}/com/sun/jini/qa/harness"/>
             <arg line="${jskprivate.include}" />
             <arg line="-in com.sun.jini.start"/>
             <arg line="-in com.sun.jini.qa"/>
@@ -639,6 +722,7 @@
     <!-- where is this used? -->
     <target name="qaman.jar" depends="build.qa">
         <property name="qaman.deps" location="${qatests.deps}/qaman.deps" />
+        <delete file="${qatests.lib}/qaman.jar" quiet="true"/>
         <classdep output="${qaman.deps}">
             <arg line="-in com.sun.jini"/>
             <arg line="-show com.sun.jini.test"/>
@@ -667,6 +751,7 @@
     </target>
     <target name="qa1-start-probe-dl.jar" depends="build.qa, qa1-start.stubs">
         <property name="qa1-start-probe-dl.deps" location="${qatests.deps}/qa1-start-probe-dl.deps" />
+        <delete file="${qatests.lib}/qa1-start-probe-dl.jar" quiet="true"/>
         <classdep output="${qa1-start-probe-dl.deps}">
             <arg line="-in com.sun.jini"/>
             <arg line="com.sun.jini.test.impl.start.ProbeImpl"/>
@@ -681,6 +766,7 @@
     </target>
     <target name="qa1-start-probe.jar" depends="build.qa, qa1-start.stubs">
         <property name="qa1-start-probe.deps" location="${qatests.deps}/qa1-start-probe.deps" />
+        <delete file="${qatests.lib}/qa1-start-probe.jar" quiet="true"/>
         <classdep output="${qa1-start-probe.deps}">
             <arg line="-in com.sun.jini"/>
             <arg line="com.sun.jini.test.impl.start.ProbeImpl"/>
@@ -713,6 +799,7 @@
     </target>
     <target name="qa1-start-tests.jar" depends="build.qa, qa1-start.stubs">
         <property name="qa1-start-tests.deps" location="${qatests.deps}/qa1-start-tests.deps" />
+        <delete file="${qatests.lib}/qa1-start-tests.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-start-tests.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/impl/start/ClassLoaderTest.class" />
@@ -745,6 +832,7 @@
     </target>
     <target name="qa1-start-testservice1.jar" depends="build.qa, qa1-start.stubs">
         <property name="qa1-start-testservice1.deps" location="${qatests.deps}/qa1-start-testservice1.deps" />
+        <delete file="${qatests.lib}/qa1-start-testservice1.jar" quiet="true"/>
         <classdep output="${qa1-start-testservice1.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
@@ -772,6 +860,7 @@
         </jar>
     </target>
     <target name="qa1-start-testservice1-dl.jar" depends="build.qa, qa1-start.stubs">
+        <delete file="${qatests.lib}/qa1-start-testservice1-dl.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-start-testservice1-dl.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/impl/start/TestService.class" />
@@ -784,6 +873,7 @@
     </target>
     <target name="qa1-start-testservice2.jar" depends="build.qa, qa1-start.stubs">
         <property name="qa1-start-testservice2.deps" location="${qatests.deps}/qa1-start-testservice2.deps" />
+        <delete file="${qatests.lib}/qa1-start-testservice2.jar" quiet="true"/>
         <classdep output="${qa1-start-testservice2.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
@@ -811,6 +901,7 @@
         </jar>
     </target>
     <target name="qa1-start-testservice2-dl.jar" depends="build.qa, qa1-start.stubs">
+        <delete file="${qatests.lib}/qa1-start-testservice2-dl.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-start-testservice2-dl.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/impl/start/TestService.class" />
@@ -823,6 +914,7 @@
     </target>
     <target name="qa1-start-testservice-common.jar" depends="build.qa, qa1-start.stubs">
         <property name="qa1-start-testservice-common.deps" location="${qatests.deps}/qa1-start-testservice-common.deps" />
+        <delete file="${qatests.lib}/qa1-start-testservice-common.jar" quiet="true"/>
         <classdep output="${qa1-start-testservice-common.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceDummyClass0"/>
@@ -836,6 +928,7 @@
     </target>
     <target name="qa1-start-testservice-common-dl.jar" depends="build.qa, qa1-start.stubs">
         <property name="qa1-start-testservice-common-dl.deps" location="${qatests.deps}/qa1-start-testservice-common-dl.deps" />
+        <delete file="${qatests.lib}/qa1-start-testservice-common-dl.jar" quiet="true"/>
         <classdep output="${qa1-start-testservice-common-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceDummyClass0"/>
@@ -846,6 +939,7 @@
         </jar>
     </target>
     <target name="qa1-start-testservicenocons.jar" depends="build.qa, qa1-start.stubs">
+        <delete file="${qatests.lib}/qa1-start-testservicenocons.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-start-testservicenocons.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/impl/start/TestServiceNoConsImpl.class" />
@@ -853,6 +947,7 @@
         </jar>
     </target>
     <target name="qa1-start-testservicenocons-dl.jar" depends="build.qa, qa1-start.stubs">
+        <delete file="${qatests.lib}/qa1-start-testservicenocons-dl.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-start-testservicenocons-dl.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/impl/start/TestService.class" />
@@ -860,6 +955,7 @@
         </jar>
     </target>
     <target name="qa1-start-cb1.jar" depends="build.qa, qa1-start.stubs">
+        <delete file="${qatests.lib}/qa1-start-cb1.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-start-cb1.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/impl/start/loadersplitpolicyprovider/Foo.class" />
@@ -868,6 +964,7 @@
         </jar>
     </target>
     <target name="qa1-start-cb2.jar" depends="build.qa, qa1-start.stubs">
+        <delete file="${qatests.lib}/qa1-start-cb2.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-start-cb2.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/impl/start/loadersplitpolicyprovider/Bar.class" />
@@ -876,6 +973,7 @@
         </jar>
     </target>
     <target name="qa1-start-cb3.jar" depends="build.qa, qa1-start.stubs">
+        <delete file="${qatests.lib}/qa1-start-cb3.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-start-cb3.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/CheckContextAction.class" />
@@ -890,6 +988,7 @@
     </target>
     <target name="qa1-lookup-simulator.jar" depends="build.qa, qa1-lookup-simulator.stubs">
         <property name="qa1-lookup-simulator.deps" location="${qatests.deps}/qa1-lookup-simulator.deps" />
+        <delete file="${qatests.lib}/qa1-lookup-simulator.jar" quiet="true"/>
         <classdep output="${qa1-lookup-simulator.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl"/>
@@ -912,6 +1011,7 @@
     </target>
     <target name="qa1-lookup-simulator-dl.jar" depends="build.qa, qa1-lookup-simulator.stubs">
         <property name="qa1-lookup-simulator-dl.deps" location="${qatests.deps}/qa1-lookup-simulator-dl.deps" />
+        <delete file="${qatests.lib}/qa1-lookup-simulator-dl.jar" quiet="true"/>
         <classdep output="${qa1-lookup-simulator-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorProxy"/>
@@ -950,6 +1050,7 @@
     </target>
     <target name="qa1-share-dl.jar" depends="build.qa, qa1-share.stubs">
         <property name="qa1-share-dl.deps" location="${qatests.deps}/qa1-share-dl.deps" />
+        <delete file="${qatests.lib}/qa1-share-dl.jar" quiet="true"/>
         <classdep output="${qa1-share-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.share.reggie.RegistrarProxy"/>
@@ -1004,6 +1105,7 @@
     </target>
     <target name="qa1-reggie-race.jar" depends="build.qa, qa1-share.stubs">
         <property name="qa1-reggie-race.deps" location="${qatests.deps}/qa1-reggie-race.deps" />
+        <delete file="${qatests.lib}/qa1-reggie-race.jar" quiet="true"/>
         <classdep output="${qa1-reggie-race.deps}">
             <arg line="-in net.jini"/>
             <arg line="-in com.sun.jini"/>
@@ -1025,6 +1127,7 @@
     </target>
     <target name="qa1-reggie-race-dl.jar" depends="build.qa, qa1-share.stubs">
         <property name="qa1-reggie-race-dl.deps" location="${qatests.deps}/qa1-reggie-race-dl.deps" />
+        <delete file="${qatests.lib}/qa1-reggie-race-dl.jar" quiet="true"/>
         <classdep output="${qa1-reggie-race-dl.deps}">
             <arg line="-in net.jini"/>
             <arg line="-in com.sun.jini"/>
@@ -1050,6 +1153,7 @@
     </target>
     <target name="fullloggingfilter.jar" depends="build.qa">
         <property name="fullloggingfilter.deps" location="${qatests.deps}/fullloggingfilter.deps" />
+        <delete file="${qatests.lib}/fullloggingfilter.jar" quiet="true"/>
         <classdep output="${fullloggingfilter.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.support.FullLoggingFilter"/>
@@ -1069,6 +1173,7 @@
     </target>
     <target name="qa1-discoveryservice-dl.jar" depends="build.qa, qa1-discoveryservice.stubs">
         <property name="qa1-discoveryservice-dl.deps" location="${qatests.deps}/qa1-discoveryservice-dl.deps" />
+        <delete file="${qatests.lib}/qa1-discoveryservice-dl.jar" quiet="true"/>
         <classdep output="${qa1-discoveryservice-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
@@ -1086,6 +1191,7 @@
         </jar>
     </target>
     <target name="qa1-export-servercontext-tests-non-null.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-export-servercontext-tests-non-null.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-export-servercontext-tests-non-null.jar" index="false">
             <metainf dir="${qatests.src}/manifest/qa1-export-servercontext-tests/non-null-context/META-INF">
                 <include name="**/*" />
@@ -1093,6 +1199,7 @@
         </jar>
     </target>
     <target name="qa1-export-servercontext-tests-null.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-export-servercontext-tests-null.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-export-servercontext-tests-null.jar" index="false">
             <metainf dir="${qatests.src}/manifest/qa1-export-servercontext-tests/null-context/META-INF">
                 <include name="**/*" />
@@ -1100,6 +1207,7 @@
         </jar>
     </target>
     <target name="qa1-export-servercontext-tests-providers-parsing.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-export-servercontext-tests-providers-parsing.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-export-servercontext-tests-providers-parsing.jar" index="false">
             <metainf dir="${qatests.src}/manifest/qa1-export-servercontext-tests/providers-parsing/META-INF">
                 <include name="**/*" />
@@ -1113,6 +1221,7 @@
         </rmic>
     </target>
     <target name="qa1-io-util-dl.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-io-util-dl.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-io-util-dl.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/spec/io/util/FakeArgument.class" />
@@ -1122,6 +1231,7 @@
     </target>
     <target name="qa1-io-marshalinputstream-test.jar" depends="build.qa">
         <property name="qa1-io-marshalinputstream-test.deps" location="${qatests.deps}/qa1-io-marshalinputstream-test.deps" />
+        <delete file="${qatests.lib}/qa1-io-marshalinputstream-test.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-io-marshalinputstream-test.jar" index="false">
             <metainf dir="${qatests.src}/manifest/qa1-io-tests/META-INF">
                 <include name="**/*" />
@@ -1138,7 +1248,7 @@
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
             <arg line="com.sun.jini.test.spec.io.util.FakeIntegrityVerifier"/>
-            <arg line="${qatests.classes}/com/sun/jini/test/spec/io/marshalinputstream"/>
+            <arg path="${qatests.classes}/com/sun/jini/test/spec/io/marshalinputstream"/>
         </classdep>
         <jar destfile="${qatests.lib}/qa1-io-marshalinputstream-test.jar" index="false" update="true">
             <fileset dir="${qatests.classes}" includesfile="${qa1-io-marshalinputstream-test.deps}"/>
@@ -1146,6 +1256,7 @@
     </target>
     <target name="qa1-io-marshalledinstance-test.jar" depends="build.qa">
         <property name="qa1-io-marshalledinstance-test.deps" location="${qatests.deps}/qa1-io-marshalledinstance-test.deps" />
+        <delete file="${qatests.lib}/qa1-io-marshalledinstance-test.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-io-marshalledinstance-test.jar" index="false">
             <metainf dir="${qatests.src}/manifest/qa1-io-tests/META-INF">
                 <include name="**/*" />
@@ -1160,7 +1271,7 @@
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
             <arg line="com.sun.jini.test.spec.io.util.FakeIntegrityVerifier"/>
-            <arg line="${qatests.classes}/com/sun/jini/test/spec/io/marshalledinstance"/>
+            <arg path="${qatests.classes}/com/sun/jini/test/spec/io/marshalledinstance"/>
         </classdep>
         <jar destfile="${qatests.lib}/qa1-io-marshalledinstance-test.jar" index="false" update="true">
             <fileset dir="${qatests.classes}" includesfile="${qa1-io-marshalledinstance-test.deps}"/>
@@ -1176,6 +1287,7 @@
     </target>
     <target name="qa1-javaspace-dl.jar" depends="build.qa, qa1-javaspace.stubs">
         <property name="qa1-javaspace-dl.deps" location="${qatests.deps}/qa1-javaspace-dl.deps" />
+        <delete file="${qatests.lib}/qa1-javaspace-dl.jar" quiet="true"/>
         <classdep output="${qa1-javaspace-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.spec.javaspace.conformance.ParticipantImpl_Stub"/>
@@ -1229,6 +1341,7 @@
     </target>
     <target name="qa1-lookupservice-dl.jar" depends="build.qa, qa1-lookupservice.stubs">
         <property name="qa1-lookupservice-dl.deps" location="${qatests.deps}/qa1-lookupservice-dl.deps" />
+        <delete file="${qatests.lib}/qa1-lookupservice-dl.jar" quiet="true"/>
         <classdep output="${qa1-lookupservice-dl.deps}">
             <arg line="-in com.sun.jini.test.spec"/>
             <arg line="com.sun.jini.test.spec.lookupservice.test_set00.EvntLeaseExpiration$$Listener_Stub"/>
@@ -1277,6 +1390,7 @@
     </target>
     <target name="qa1-renewalservice-dl.jar" depends="build.qa, qa1-renewalservice.stubs">
         <property name="qa1-renewalservice-dl.deps" location="${qatests.deps}/qa1-renewalservice-dl.deps" />
+        <delete file="${qatests.lib}/qa1-renewalservice-dl.jar" quiet="true"/>
         <classdep output="${qa1-renewalservice-dl.deps}">
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.share.LeaseBackEndImpl$$VerifierImpl"/>
@@ -1303,6 +1417,7 @@
         </jar>
     </target>
     <target name="qa1-securityDoPrivileged.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-securityDoPrivileged.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-securityDoPrivileged.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/spec/security/security/DoPrivilegedTest.class" />
@@ -1311,6 +1426,7 @@
         </jar>
     </target>
     <target name="qa1-securityUtil.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-securityUtil.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-securityUtil.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/spec/security/util/FakeCaller.class" />
@@ -1319,6 +1435,7 @@
     </target>
     <target name="qa1-servicediscovery-dl.jar" depends="build.qa">
         <property name="qa1-servicediscovery-dl.deps" location="${qatests.deps}/qa1-servicediscovery-dl.deps" />
+        <delete file="${qatests.lib}/qa1-servicediscovery-dl.jar" quiet="true"/>
         <classdep output="${qa1-servicediscovery-dl.deps}">
             <arg line="-in net.jini.lookup"/>
             <arg line="-in com.sun.jini.test"/>
@@ -1351,6 +1468,7 @@
         </jar>
     </target>
     <target name="qa1-httpmd.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-httpmd.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-httpmd.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/spec/url/httpmd/*/*.class" />
@@ -1358,9 +1476,11 @@
         </jar>
     </target>
     <target name="qa1-httpmd-same.jar" depends="build.qa, qa1-httpmd.jar">
+        <delete file="${qatests.lib}/qa1-httpmd-same.jar" quiet="true"/>
         <copy file="${qatests.lib}/qa1-httpmd.jar" tofile="${qatests.lib}/qa1-httpmd-same.jar" />
     </target>
     <target name="qa1-httpmd-another.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-httpmd-another.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-httpmd-another.jar" index="false">
             <fileset dir="${qatests.classes}">
                 <include name="com/sun/jini/test/spec/url/httpmd/handler/*.class" />
@@ -1368,6 +1488,7 @@
         </jar>
     </target>
     <target name="ld.jar" depends="build.qa">
+        <delete file="${qatests.lib}/ld.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/ld.jar" index="false">
             <metainf dir="${qatests.src}/com/sun/jini/test/impl/lookupdiscovery/util/META-INF">
                 <include name="**/*" />
@@ -1378,6 +1499,7 @@
         </jar>
     </target>
     <target name="qa1-loader-pref.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-loader-pref.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-loader-pref.jar" index="false">
             <metainf dir="${qatests.src}/com/sun/jini/test/spec/loader/util/classes/META-INF">
                 <include name="**/*" />
@@ -1389,6 +1511,7 @@
         </jar>
     </target>
     <target name="qa1-policy-provider.jar" depends="build.qa">
+        <delete file="${qatests.lib}/qa1-policy-provider.jar" quiet="true"/>
         <jar destfile="${qatests.lib}/qa1-policy-provider.jar" index="false">
             <metainf dir="${qatests.src}/com/sun/jini/test/spec/policyprovider/util/classes/META-INF">
                 <include name="**/*" />
@@ -1398,32 +1521,30 @@
             </fileset>
         </jar>
     </target>
-
     <target name="trust.qa" depends="keystores.qa, password.qa, truststore.qa" />
-    <target name="keystores.qa" depends="tester.keystore, reggie.keystore, phoenix.keystore, mercury.keystore, norm.keystore, outrigger.keystore, mahalo.keystore, fiddler.keystore, group.keystore" />   
+    <target name="keystores.qa" depends="tester.keystore, reggie.keystore, phoenix.keystore, mercury.keystore, norm.keystore, outrigger.keystore, mahalo.keystore, fiddler.keystore, group.keystore" />
     <macrodef name="keystore">
         <attribute name="target" />
         <attribute name="dname" />
         <sequential>
             <genkey keypass="@{target}pw" keystore="${qatests.trust}/@{target}.keystore" validity="1800" alias="@{target}" storepass="@{target}pw" dname="CN=@{dname}" />
             <exec executable="keytool" failonerror="true">
-                 <arg value="-export"/>
-                 <arg value="-alias" />
-                 <arg value="@{target}" />
-                 <arg value="-keystore" />
-                 <arg value="${qatests.trust}/@{target}.keystore" />
-                 <arg value="-keypass" />
-                 <arg value="@{target}" />
-                 <arg value="-dname"/>
-                 <arg value="@{dname}" />
-                 <arg value="-storepass"/>
-                 <arg value="@{target}pw" />
-                 <arg value="-file"/>
-                 <arg value="${qatests.trust}/@{target}.cert" />
+                <arg value="-export"/>
+                <arg value="-alias" />
+                <arg value="@{target}" />
+                <arg value="-keystore" />
+                <arg value="${qatests.trust}/@{target}.keystore" />
+                <arg value="-keypass" />
+                <arg value="@{target}" />
+                <arg value="-dname"/>
+                <arg value="@{dname}" />
+                <arg value="-storepass"/>
+                <arg value="@{target}pw" />
+                <arg value="-file"/>
+                <arg value="${qatests.trust}/@{target}.cert" />
             </exec>
         </sequential>
     </macrodef>
-
     <target name="tester.keystore">
         <delete file="${qatests.trust}/tester.keystore" quiet="true"/>
         <keystore target="tester" dname="Tester" />
@@ -1460,7 +1581,6 @@
         <delete file="${qatests.trust}/group.keystore" quiet="true"/>
         <keystore target="group" dname="Group" />
     </target>
-	
     <target name="password.qa" depends="tester.password, reggie.password, phoenix.password, mercury.password, norm.password, outrigger.password, mahalo.password, fiddler.password, group.password" />
     <target name="tester.password">
         <delete file="${qatests.trust}/tester.password" quiet="true"/>
@@ -1502,18 +1622,18 @@
         <attribute name="target" />
         <sequential>
             <exec executable="keytool" failonerror="true">
-                 <arg value="-import"/>
-                 <arg value="-alias" />
-                 <arg value="@{target}" />
-                 <arg value="-keystore" />
-                 <arg value="${qatests.trust}/truststore" />
-                 <arg value="-keypass" />
-                 <arg value="trustpw" />
-                 <arg value="-storepass"/>
-                 <arg value="trustpw" />
-                 <arg value="-noprompt"/>
-                 <arg value="-file"/>
-                 <arg value="${qatests.trust}/@{target}.cert" />
+                <arg value="-import"/>
+                <arg value="-alias" />
+                <arg value="@{target}" />
+                <arg value="-keystore" />
+                <arg value="${qatests.trust}/truststore" />
+                <arg value="-keypass" />
+                <arg value="trustpw" />
+                <arg value="-storepass"/>
+                <arg value="trustpw" />
+                <arg value="-noprompt"/>
+                <arg value="-file"/>
+                <arg value="${qatests.trust}/@{target}.cert" />
             </exec>
         </sequential>
     </macrodef>
