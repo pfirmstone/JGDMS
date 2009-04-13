@@ -23,16 +23,13 @@ import com.sun.jini.logging.Levels;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
-import java.awt.Frame;
 import java.awt.Rectangle;
-import java.awt.Toolkit;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
-import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
@@ -49,12 +46,14 @@ import javax.swing.JMenuBar;
 import javax.swing.JMenuItem;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
+import javax.swing.JPopupMenu;
 import javax.swing.JScrollPane;
 import javax.swing.JTree;
 import javax.swing.SwingUtilities;
+import javax.swing.event.PopupMenuEvent;
+import javax.swing.event.PopupMenuListener;
 import javax.swing.tree.TreePath;
 import net.jini.admin.JoinAdmin;
-import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
@@ -71,11 +70,9 @@ import net.jini.export.Exporter;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
-import net.jini.lease.LeaseListener;
-import net.jini.lease.LeaseRenewalEvent;
-import net.jini.lease.LeaseRenewalManager;
 import net.jini.lookup.DiscoveryAdmin;
-import net.jini.security.ProxyPreparer;
+import net.jini.lookup.entry.UIDescriptor;
+import net.jini.lookup.ui.factory.JFrameFactory;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
@@ -413,6 +410,8 @@ class ServiceEditor extends JFrame {
       if(admin instanceof JoinAdmin) {
 	tree.addMouseListener(browser.wrap(new DoubleClicker(this)));
       }
+      tree.addMouseListener(browser.wrap(new MouseReceiver(item, uiDescriptorPopup())));
+
       refreshPanel();
     }
 
@@ -439,6 +438,16 @@ class ServiceEditor extends JFrame {
     }
 
     protected void receiveNotify(int transition) {
+
+      if (browser.isAutoConfirm()) {
+        if (transition == ServiceRegistrar.TRANSITION_MATCH_NOMATCH)
+          cleanup();
+        else
+          refreshPanel();
+
+        return;
+      }
+
 	String[] msg =
 	    (transition == ServiceRegistrar.TRANSITION_MATCH_NOMATCH) ?
 	    new String[]{
@@ -849,6 +858,10 @@ class ServiceEditor extends JFrame {
     }
 
     protected void initListModel() {
+	if (!(admin instanceof JoinAdmin)) {
+	    return;
+	}
+
       try {
 	String[] groups = ((JoinAdmin) admin).getLookupGroups();
 	for(int i = 0; i < groups.length; i++) {
@@ -989,6 +1002,10 @@ class ServiceEditor extends JFrame {
     }
 
     protected void initListModel() {
+	if (!(admin instanceof JoinAdmin)) {
+	    return;
+	}
+
       try {
 	LookupLocator[] locators = ((JoinAdmin) admin).getLookupLocators();
 	for(int i = 0; i < locators.length; i++) {
@@ -1051,4 +1068,146 @@ class ServiceEditor extends JFrame {
       }
     }
   }
+
+    // provides support for ServiceUI
+    public class UIDescriptorPopup extends JPopupMenu implements ActionListener,
+	PopupMenuListener {
+
+	protected transient JMenuItem showUIItem;
+	protected transient ServiceItem serviceItem;
+
+	public UIDescriptorPopup() {
+	    super();
+
+	    showUIItem = new JMenuItem("Show UI");
+
+	    showUIItem.addActionListener(this);
+	    showUIItem.setActionCommand("showUI");
+	    add(showUIItem);
+
+	    addPopupMenuListener(this);
+	    setOpaque(true);
+	    setLightWeightPopupEnabled(true);
+	}
+
+	public void actionPerformed(ActionEvent anEvent) {
+
+	    UIDescriptor uiDescriptor = getSelectedUIDescriptor();
+
+	    if (uiDescriptor == null) {
+		return;
+	    }
+
+	    try {
+		JFrameFactory uiFactory = (JFrameFactory)
+		    uiDescriptor.getUIFactory(Thread.currentThread().getContextClassLoader());
+		JFrame frame = uiFactory.getJFrame(serviceItem);
+
+		frame.validate();
+		frame.setVisible(true);
+	    }
+	    catch (Exception e) {
+		e.printStackTrace();
+
+		return;
+	    }
+	}
+
+	public void popupMenuWillBecomeVisible(PopupMenuEvent ev) {
+	}
+
+	public void popupMenuWillBecomeInvisible(PopupMenuEvent ev) {
+	}
+
+	public void popupMenuCanceled(PopupMenuEvent ev) {
+	}
+
+	public void setServiceItem(ServiceItem anItem) {
+	    serviceItem = anItem;
+	}
+    }
+
+    class MouseReceiver extends MouseAdapter {
+
+	private ServiceEditor.UIDescriptorPopup popup;
+	private ServiceItem serviceItem;
+
+	public MouseReceiver(ServiceItem aServiceItem,
+			ServiceEditor.UIDescriptorPopup popup) {
+		this.popup = popup;
+		serviceItem = aServiceItem;
+	}
+
+	public void mouseReleased(MouseEvent ev) {
+
+	    higlightSelection(ev);
+
+	    if (!ev.isPopupTrigger()) {
+		return;
+	    }
+
+	    UIDescriptor selectedDescriptor = getSelectedUIDescriptor();
+
+	    if (selectedDescriptor == null) {
+		return;
+	    }
+
+	    if (!"javax.swing".equals(selectedDescriptor.toolkit)) {
+		return;
+	    }
+
+	    popup.setServiceItem(serviceItem);
+	    popup.show(ev.getComponent(), ev.getX(), ev.getY());
+	}
+
+	public void mousePressed(MouseEvent ev) {
+
+	    higlightSelection(ev);
+
+	    if (!ev.isPopupTrigger()) {
+		return;
+	    }
+
+	    UIDescriptor selectedDescriptor = getSelectedUIDescriptor();
+
+	    if (selectedDescriptor == null) {
+		return;
+	    }
+
+	    if (!"javax.swing".equals(selectedDescriptor.toolkit)) {
+		return;
+	    }
+
+	    popup.setServiceItem(serviceItem);
+	    popup.show(ev.getComponent(), ev.getX(), ev.getY());
+	}
+    }
+
+    private UIDescriptor getSelectedUIDescriptor() {
+
+	ObjectNode selectedNode =
+		(ObjectNode) attrPanel.tree.getLastSelectedPathComponent();
+
+	if (selectedNode == null) {
+	    return null;
+	}
+
+	Object selectedObject = selectedNode.getObject();
+
+	try {
+	    return (UIDescriptor) selectedObject;
+	}
+	catch (ClassCastException e) {
+	    return null;
+	}
+    }
+
+    private void higlightSelection(MouseEvent event) {
+	attrPanel.tree.setSelectionPath(attrPanel.tree.getPathForLocation(
+	    event.getX(), event.getY()));
+    }
+
+    private ServiceEditor.UIDescriptorPopup uiDescriptorPopup() {
+	return new ServiceEditor.UIDescriptorPopup();
+    }
 }

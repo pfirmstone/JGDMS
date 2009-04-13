@@ -41,7 +41,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
-import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.security.AccessController;
 import java.security.PrivilegedActionException;
@@ -61,7 +60,6 @@ import javax.security.auth.login.LoginException;
 import javax.swing.BorderFactory;
 import javax.swing.DefaultListModel;
 import javax.swing.Icon;
-import javax.swing.ImageIcon;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
@@ -77,7 +75,6 @@ import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.ListCellRenderer;
 import javax.swing.SwingUtilities;
-import javax.swing.UIManager;
 import javax.swing.border.TitledBorder;
 import javax.swing.event.MenuEvent;
 import javax.swing.event.MenuListener;
@@ -118,7 +115,8 @@ import net.jini.lease.LeaseListener;
 import net.jini.lease.LeaseRenewalEvent;
 import net.jini.lease.LeaseRenewalManager;
 import net.jini.lookup.DiscoveryAdmin;
-import net.jini.lookup.entry.ServiceControlled;
+import net.jini.lookup.ui.factory.JFrameFactory;
+import net.jini.lookup.entry.UIDescriptor;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
@@ -168,6 +166,7 @@ public class Browser extends JFrame {
     private transient JCheckBoxMenuItem ssuper;
     private transient JCheckBoxMenuItem sclass;
     private transient boolean isAdmin;
+    private volatile transient boolean autoConfirm;
     private transient JList list;
     private transient DefaultListModel listModel;
     private transient DefaultListModel dummyModel = new DefaultListModel();
@@ -233,8 +232,11 @@ public class Browser extends JFrame {
 			    "java.rmi.Remote",
 			    "net.jini.admin.Administrable",
 			    "net.jini.core.constraint.RemoteMethodControl",
-			    "net.jini.id.ReferentUuid"}));
-
+			    "net.jini.id.ReferentUuid",
+			    "net.jini.security.proxytrust.TrustEquivalence"}));
+	autoConfirm = ((Boolean) config.getEntry(
+					BROWSER, "autoConfirm", boolean.class,
+	    				Boolean.FALSE)).booleanValue();
 	listen = new Listener();
 	try {
 	    DiscoveryManagement disco = (DiscoveryManagement)
@@ -716,6 +718,20 @@ public class Browser extends JFrame {
 	public void menuCanceled(MenuEvent ev) {
 	    menu.removeAll();
 	}
+    }
+
+    /**
+     * Indicates whether auto confirm is enabled to prevent from the user
+     * having to click the 'Yes' button in the a popup window to confirm a
+     * modification to the service browser pane is allowed to take place as
+     * result of a service being removed, or its lookup attributes being
+     * changed.
+     *
+     * @return <code>true</code> in case no popup is required to have the user
+     *         confirm the modifications, <code>false</code> otherwise
+     */
+    boolean isAutoConfirm() {
+	return autoConfirm;
     }
 
     ActionListener wrap(ActionListener l) {
@@ -1420,16 +1436,25 @@ public class Browser extends JFrame {
 		     getAdmin() instanceof JavaSpaceAdmin));
 	}
 
+	private boolean isUI() {
+	    Entry[] attrs = item.attributeSets;
+	    if ((attrs != null) && (attrs.length != 0)) {
+		for (int i = 0; i < attrs.length; i++) {
+		    if (attrs[i] instanceof UIDescriptor) {
+			return true;
+		    }
+		}
+	    }
+
+	    return false;
+	}
+
         public ServiceItem getServiceItem() {
 	    return item;
 	}
 
         public Entry[] getAttributes() {
 	    return item.attributeSets;
-	}
-
-        private boolean isControllable(int i){
-	  return !(item.attributeSets[i] instanceof ServiceControlled);
 	}
 
         public Icon getIcon() {
@@ -1501,6 +1526,7 @@ public class Browser extends JFrame {
         protected JMenuItem adminItem;
         protected JMenuItem spaceItem;
 	protected ServiceListItem listItem;
+	protected JMenuItem uiItem;
         protected ServiceItem item;
 
         public ServiceListPopup() {
@@ -1527,6 +1553,11 @@ public class Browser extends JFrame {
 	    spaceItem.setActionCommand("browseEntry");
 	    add(spaceItem);
 
+	    uiItem = new JMenuItem("Show UI");
+	    uiItem.addActionListener(me);
+	    uiItem.setActionCommand("showUI");
+	    add(uiItem);
+
 	    addPopupMenuListener(this);
 	    setOpaque(true);
 	    setLightWeightPopupEnabled(true);
@@ -1539,6 +1570,7 @@ public class Browser extends JFrame {
 	    browseItem.setEnabled(listItem.isAccessible());
 	    adminItem.setEnabled(listItem.isAdministrable());
 	    spaceItem.setEnabled(listItem.isSpaceBrowsable());
+	    uiItem.setEnabled(listItem.isUI());
 	}
 
         public void actionPerformed(ActionEvent ev) {
@@ -1572,6 +1604,31 @@ public class Browser extends JFrame {
 				 item.service : listItem.getAdmin(),
 				 Browser.this).setVisible(true);
 	    }
+	    else if(command.equals("showUI")){
+		UIDescriptor uiDescriptor = getSelectedUIDescriptor();
+
+		if (uiDescriptor == null) {
+		    return;
+		}
+
+		try {
+		    JFrameFactory uiFactory = (JFrameFactory)
+			uiDescriptor.getUIFactory(
+			    Thread.currentThread().getContextClassLoader());
+		    JFrame frame = uiFactory.getJFrame(item);
+
+		    frame.validate();
+		    frame.setVisible(true);
+		}
+		catch (Exception e) {
+		    logger.log(Level.INFO, "show ui failed", e);
+		    JOptionPane.showMessageDialog(Browser.this,
+						  e.getMessage(),
+						  e.getClass().getName(),
+						  JOptionPane.WARNING_MESSAGE);
+		    return;
+		}
+	    }
 	}
 
         public void popupMenuWillBecomeVisible(PopupMenuEvent ev) {
@@ -1581,6 +1638,27 @@ public class Browser extends JFrame {
 	}
 
         public void popupMenuCanceled(PopupMenuEvent ev) {
+	}
+
+        private UIDescriptor getSelectedUIDescriptor() {
+
+	    if (!(new ServiceListItem(item)).isUI()) {
+		return null;
+	    }
+
+	    Entry[] attrs = item.attributeSets;
+	    if ((attrs != null) && (attrs.length != 0)) {
+		for (int i = 0; i < attrs.length; i++) {
+		    if (attrs[i] instanceof UIDescriptor) {
+			UIDescriptor desc = (UIDescriptor) attrs[i];
+			if (!"javax.swing".equals(desc.toolkit)) {
+				continue;
+			}
+			return desc;
+		    }
+		}
+	    }
+	    return null;
 	}
     }
 

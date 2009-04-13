@@ -24,7 +24,7 @@
 <body text="#000000" bgcolor="#ffffff" link="#9b37cc"
       vlink="#cc1877" alink="#ffffff">
 A visualization tool for exploring Jini Network Technology
-communities (<i>djinns</i>). The Service Browser
+communities (<i>djinns</i>) with support for ServiceUI. The Service Browser
 lets you discover lookup services and inspect the various
 services registered within those lookup services. This tool
 is provided as an example program within the Apache River release
@@ -572,7 +572,8 @@ new String[]{
     "java.rmi.Remote",
     "net.jini.admin.Administrable",
     "net.jini.core.constraint.RemoteMethodControl",
-    "net.jini.id.ReferentUuid"}
+    "net.jini.id.ReferentUuid"
+    "net.jini.security.proxytrust.TrustEquivalence"}
 </pre>
   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
     Description: <td> Supplies the set of interface names that are not
@@ -583,6 +584,26 @@ new String[]{
     service proxy is used appended with all the names of the 'interesting'
     interfaces implemented by that proxy. The value should not be
     <code>null</code>.
+</table>
+
+<a name="autoConfirm"></a>
+<table summary="Describes the autoConfirm configuration entry"
+       border="0" cellpadding="2">
+  <tr valign="top">
+    <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+    <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+    autoConfirm</code></font>
+  <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+    Type: <td> <code>boolean</code>
+  <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+    Default: <td> <code>false</code>
+  <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+    Description: <td> Controls whether a confirmation window must popup that
+    requires a confirmation for the update or removal of the service editor
+    window. In case set to <code>true</code> closing of the service editor
+    window will occur automatically in case a service is removed, in case of
+    modifications to the lookup attributes of a service the service editor
+    window will be updated.
 </table>
 <p>
 Note that additional entries can also be specified to configure the
