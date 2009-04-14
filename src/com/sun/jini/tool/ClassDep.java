@@ -1385,7 +1385,7 @@ public class ClassDep {
     public void setupOptions(String[] args) {
 	for (int i = 0; i < args.length ; i++ ) {
 	    String arg = args[i];
-	    if (args.equals("-newdirbehavior")) {
+	    if (arg.equals("-newdirbehavior")) {
 		newRootDirBehavior = true;
 	    }
 	    else if (arg.equals("-cp")) {
