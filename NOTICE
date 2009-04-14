@@ -23,3 +23,6 @@ The original two releases of the ServiceUI API, including specifications
 and code, are available from:
 
     http://www.artima.com/jini/serviceui/index.html
+
+Copyright (c) 2000-2005 INRIA, France Telecom
+This product includes the ASM library (http://asm.ow2.org/)
