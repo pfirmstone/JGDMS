@@ -17,37 +17,22 @@
  */
 package com.sun.jini.tool;
 
-import sun.tools.java.BinaryClass;
-import sun.tools.java.ClassDeclaration;
-import sun.tools.java.ClassFile;
-import sun.tools.java.ClassNotFound;
-import sun.tools.java.ClassPath;
-import sun.tools.java.Constants;
-import sun.tools.java.Environment;
-import sun.tools.java.Identifier;
-import sun.tools.java.MemberDefinition;
-import sun.tools.java.Package;
-import sun.tools.java.Type;
-
+import com.sun.jini.tool.classdepend.ClassDepend;
+import com.sun.jini.tool.classdepend.ClassDependParameters;
+import com.sun.jini.tool.classdepend.ClassDependParameters.CDPBuilder;
 import java.text.MessageFormat;
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.MissingResourceException;
 import java.util.ResourceBundle;
-import java.util.StringTokenizer;
 import java.util.SortedSet;
 import java.util.TreeSet;
-
-import java.io.BufferedInputStream;
-import java.io.DataInputStream;
 import java.io.File;
 import java.io.IOException;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * Tool used to analyze a set of classes and determine on what other classes
@@ -462,14 +447,8 @@ import java.io.IOException;
  * @author Sun Microsystems, Inc.
  */
 public class ClassDep {
-    /**
-     * Container for all the classes that we have seen.
-     */
-    private final HashSet seen = new HashSet();
-    /**
-     * Object used to load our classes.
-     */
-    private Env env;
+    private ClassDepend cd;
+     
     /**
      * If true class names are printed using
      * the system's File.separator, else the 
@@ -507,6 +486,9 @@ public class ClassDep {
      * on doing work with the output of this utility. It does
      * not impact this utility, but the work done on its 
      * generated output  may have an impact. 
+     * 
+     * This will have to be implemented in ClassDepend note the above
+     * description conflicts with the variable name.
      */
     private  boolean ignoreOuter = true;
     /**
@@ -593,6 +575,7 @@ public class ClassDep {
      * Constructor that takes command line arguments and fills in the
      * appropriate fields. See the description of this class
      * for a list and description of the acceptable arguments.
+     * @param cmdLine 
      */
     public ClassDep(String[] cmdLine){
 	setupOptions(cmdLine);
@@ -616,54 +599,13 @@ public class ClassDep {
      *
      */
     private static void add(String arg, ArrayList elts) {
-	if (!arg.endsWith("."))
+	if (!arg.endsWith(".")) {
 	    arg = arg + '.';
-	if (".".equals(arg))
+        }
+	if (".".equals(arg)) {
 	    arg = null;
+        }
 	elts.add(arg);
-    }
-
-    /**
-     * See if the provided name is covered by package prefixes.
-     *
-     * @param n    the name
-     * @param elts the list of package prefixes
-     *
-     * @return the length of the first matching package prefix
-     * 
-     */
-    private static int matches(String n, ArrayList elts) {
-	for (int i = 0; i < elts.size(); i++) {
-	    String elt = (String)elts.get(i);
-	    /*
-	     * If we get a null element then see if we are looking
-	     * at an anonymous package.
-	     */
-	    if (elt == null) {
-		int j = n.indexOf('.');
-		/*
-		 * If we did not find a dot, or we have a space 
-		 * at the beginning then we have an anonymous package.
-		 */
-		if (j < 0 || n.charAt(j + 1) == ' ')
-		    return 0;
-	    } else if (n.startsWith(elt))
-		return elt.length();
-	}
-	return -1;
-    }
-
-    /**
-     * See if a name is covered by in but not excluded by out.
-     *
-     * @param n   the name
-     * @param in  the package prefixes to include
-     * @param out the package prefixes to exclude
-     * @return true if covered by in but not excluded by out
-     */
-    private static boolean matches(String n, ArrayList in, ArrayList out) {
-	int i = in.isEmpty() ? 0 : matches(n, in);
-	return i >= 0 && matches(n, out) < i;
     }
 
     /**
@@ -683,15 +625,17 @@ public class ClassDep {
 	 * is unique for the matching that we are going to do
 	 * next. 
 	 */
-	if (!apath.startsWith(File.separator))
+	if (!apath.startsWith(File.separator)) {
 	    apath = File.separator + apath;
+        }
 	for (int i = 0; i < prunes.size(); i++) {
 	    /*
 	     * If we are on a root path that needs to be 
 	     * pruned leave this current recursive thread.
 	     */
-	    if (apath.endsWith((String)prunes.get(i)))
+	    if (apath.endsWith((String)prunes.get(i))) {
 		return;
+	}
 	}
 
 	/*
@@ -699,15 +643,16 @@ public class ClassDep {
 	 * we are in. If there are no files then leave this current
 	 * recursive thread.
 	 */
-	String[] files = new File(path).list();
-	if (files == null)
+	String[] files_ = new File(path).list();
+	if (files_ == null) {
 	    return;
+        }
     outer:
 	/*
  	 * Now, take the found list of files and iterate over them.
 	 */
-	for (int i = 0; i < files.length; i++) {
-	    String file = files[i];
+	for (int i = 0; i < files_.length; i++) {
+	    String file = files_[i];
 	    /*
 	     * Now see if we have a ".class" file.
 	     * If we do not then we lets call ourselves again.
@@ -739,16 +684,18 @@ public class ClassDep {
 		for (int j = 0; j < skips.size(); j++) {
 		    String skip = (String)skips.get(j);
 		    int k = file.indexOf(skip);
-		    if (k < 0)
-			continue;//leave this current loop.
+		    if (k < 0) {
+                        continue; 
+                    }//leave this current loop.
 		    k += skip.length();
 		    /*
 		     * If we matched the entire class or if we have
 		     * a class with an inner class, skip it and go
 		     * on to the next outer loop.
 		     */
-		    if (file.length() == k || file.charAt(k) == '$')
+		    if (file.length() == k || file.charAt(k) == '$') {
 			continue outer;
+		}
 		}
 		/*
 		 * things to do:
@@ -759,8 +706,9 @@ public class ClassDep {
 		 * If so add them to our working list "classes".
 		 */
 		for (int j = 0; j < inside.size(); j++) {
-		    if (inside.get(j) == null)
+		    if (inside.get(j) == null) {
 			continue;
+                    }
 		    int k = file.indexOf(File.separatorChar +
 					 ((String)inside.get(j)).replace(
 						     '.', File.separatorChar));
@@ -790,17 +738,18 @@ public class ClassDep {
     private void traverse(String path, String rootPath) {
 	// get the current list of files at the current directory we are in. If
 	// there are no files then leave this current recursive thread.
-	String[] files = new File(path).list();
-	if (files == null)
+	String[] files_ = new File(path).list();
+	if (files_ == null) {
 	    return;
+        }
 
 	// determine the package name in File.Separators notation
 	String packageName = path.substring(rootPath.length(), path.length())
 				+ File.separatorChar;
     outer:
 	//take the found list of files and iterate over them
-	for (int i = 0; i < files.length; i++) {
-	    String file = files[i];
+	for (int i = 0; i < files_.length; i++) {
+	    String file = files_[i];
 	    // see if we have a ".class" file. If not then we call ourselves
 	    // again, assuming it is a directory, if not the call will return.
 	    if (!file.endsWith(".class")) {
@@ -847,8 +796,9 @@ public class ClassDep {
 		    // if we matched the entire class or if we have a class with
 		    // an inner class, skip it and go on to the next outer loop
 		    if (className.length() == skip.length()
-			    || className.charAt(skip.length()) == '$')
+			    || className.charAt(skip.length()) == '$') {
 			continue outer;
+		}
 		}
 
 		// we found a class that satisfy all the criteria, convert it
@@ -859,26 +809,8 @@ public class ClassDep {
 	}
     }
 
-    /**
-     * Depending on the part of the class file
-     * that we are on the class types that we are
-     * looking for can come in several flavors.
-     * They can be embedded in arrays, they can
-     * be labeled as Identifiers, or they can be
-     * labeled as Types. This method handles 
-     * Types referenced by Identifiers. It'll take
-     * the Type and proceed to get its classname 
-     * and then continue with the processing it
-     * for dependencies.
-     */
-    private void process(Identifier from, Type type) {
-	while (type.isType(Constants.TC_ARRAY))
-	    type = type.getElementType();
-	if (type.isType(Constants.TC_CLASS))
-	    process(from, type.getClassName());
-    }
 
-    /**
+    /*
      * Depending on the part of the class file
      * that we are on the class types that we are
      * looking for can come in several flavors.
@@ -905,182 +837,19 @@ public class ClassDep {
      *
      * @param from the Identifier referenced from <code>id</code>
      * @param id   the Identifier being looked at
-     */
-    private void process(Identifier from, Identifier id) {
-	/*
- 	 * If <code>from</code> is not null see if the "id" that
-	 * references it is in our "tells" container. If there
-	 * is a match show the class. This is for debugging purposes,
-	 * in case you want to find out what classes use a particular class.
-	 */	
-	if (from != null) {
-	    for (int i = 0; i < tells.size(); i++) {
-		if (id.toString().equals((String)tells.get(i))) {
-		    if (tells.size() > 1)
-			print("classdep.cause", id, from);
-		    else
-			print("classdep.cause1", from);
-		}
-	    }
-	}
-
-	/*
- 	 * Having taken care of the "-tells" switch, lets
-	 * proceed with the rest by getting the id's string
-	 * representation.
-	 */	
-	String n = id.toString();
-
-	/*
- 	 * Remove any array definitions so we can get to the
-	 * fully qualified class name that we are seeking.
-	 */
-	if (n.charAt(0) == '[') {
-	    int i = 1;
-	    while (n.charAt(i) == '[')
-		i++;
-	    /*
-	     * Now that we have removed possible array information 
-	     * see if we have a Class definition e.g Ljava/lang/Object;.
-	     * If so, remove the 'L' and ';' and call ourselves
-	     * with this newly cleaned up Identifier.
-	     */
-	    if (n.charAt(i) == 'L')
-		process(from,
-			Identifier.lookup(n.substring(i + 1, n.length() - 1)));
-	    /*
-	     * Pop out of our recursive path, since the real work
-	     * is being down in another recursive thread.
-	     */
-	    return;
-	}
-
-	/*
- 	 * If we have already seen the current Identifier, end this
-	 * thread of recursion.
-	 */	
-	if (seen.contains(id))
-	    return;
-
-	/*
- 	 * See if we have an empty set OR the Identifier is in our
-	 * "inside" set and the matched Identifier is not on the
-	 * "outside" set.
 	 *
-	 * If we are not in the "inside" set and we are not asking
-	 * for edges then pop out of this recursive thread.
+     * The above was for the old process(Identifier from, Identifier id) method.
 	 */	
-	boolean in = matches(n, inside, outside);
-	if (!in && !edges)
-	    return;
-
-	/*
- 	 * We have an actual Identifier, so at this point mark it
-	 * as seen, so we don't create another recursive thread if
-	 * we see it again.
-	 */	
-	seen.add(id);
-
-	/*
-	 * This is the test that decides whether this current
-	 * Identifier needs to be added to the list of dependencies
-	 * to save.
-	 *
- 	 * "in" can be true in the following cases:
-	 * <ul>
-	 *   <li>the in set is empty
-	 *   <li>the Identifier is in the "in" set and not on the "out" set.
-	 * </ul>
-	 */       
-	if (in != edges && matches(n, shows, hides))
-	    results.add(Type.mangleInnerType(id).toString());
-
-	/*
- 	 * If we are not in the "inside" set and we want edges
-	 * pop out of our recursive thread.
-	 */	
-	if (!in && edges)
-	    return;
-
-	/*
- 	 * At this point we have either added an Identifier
-	 * to our save list, or we have not. In either case
-	 * we need get the package qualified name of this so
-	 * we can see if it has any nested classes.
-	 */	
-	id = env.resolvePackageQualifiedName(id);
-	BinaryClass cdef;
-	try {
-	    cdef = (BinaryClass)env.getClassDefinition(id);
-	    cdef.loadNested(env);
-	} catch (ClassNotFound e) {
-	    failed = true;
-	    print("classdep.notfound", id);
-	    return;
-	} catch (IllegalArgumentException e) {
-	    failed = true;
-	    print("classdep.illegal", id, e.getMessage());
-	    return;
-	} catch (Exception e) {
-	    failed = true;
-	    print("classdep.failed", id);
-	    e.printStackTrace();
-	    return;
-	}
-
-	/*
- 	 * If the user asked to keep the outer parent for an
-	 * inner class then we'll get the list of dependencies
-	 * the inner class may have and iterate over then by
-	 * "processing" them as well.
-	 */
-	Identifier outer = null;
-	if (ignoreOuter && cdef.isInnerClass() && cdef.isStatic())
-	    outer = cdef.getOuterClass().getName();
-	for (Enumeration deps = cdef.getDependencies();
-	     deps.hasMoreElements(); )
-	{
-	    ClassDeclaration cd = (ClassDeclaration) deps.nextElement();
-	    /*
-	     * If we dont' want the outer parent class of an inner class
-	     * make this comparison, except when it is clear the outer class is
-	     * the super class of the static nested class.
-	     */
-	    if (outer != cd.getName()
-		    || (outer != null && cdef.getSuperClass() == cd)) {
-
-		process(id, cd.getName());
-	    }
-	}
-
-
-	/*
- 	 * Now we are going to walk the rest of the class file and see
-	 * if we can find any other class references.
-	 */
-	for (MemberDefinition mem = cdef.getFirstMember();
-	     mem != null;
-	     mem = mem.getNextMember())
-	{
-	    if (mem.isVariable()) {
-		process(id, mem.getType());
-	    } else if (mem.isMethod() || mem.isConstructor()) {
-		Type[] args = mem.getType().getArgumentTypes();
-		for (int i = 0; i < args.length; i++) {
-		    process(id, args[i]);
-		}
-		process(id, mem.getType().getReturnType());
-	    }
-	}
-    }
 
     private static class Compare implements Comparator {
 	public int compare(Object o1, Object o2) {
-	    if (o1 == null)
+	    if (o1 == null) {
 		return o2 == null ? 0 : 1;
-	    else
+            }
+	    else {
 		return o2 == null ? -1 : ((Comparable) o2).compareTo(o1);
 	}
+    }
     }
 
     /**
@@ -1117,11 +886,6 @@ public class ClassDep {
 	Collections.sort(outside, c);
 	Collections.sort(shows, c);
 	Collections.sort(hides, c);
-	/*
- 	 * Create the environment from which we are going to be
-	 * loading classes from.
-	 */
-	env = new Env(classpath);
 
 	/*
  	 * Traverse the roots i.e the set of handed directories.
@@ -1137,14 +901,68 @@ public class ClassDep {
 		traverse((String)roots.get(i));
 	    }
 	}
+        // Now use ClassDepend to perform dependency computation
+        Iterator itr = classes.iterator();
+        
+        //System.out.println("Classes to include:");
+        while (itr.hasNext()){
+            System.out.println(itr.next());
+        }
+        
+        //Ready the Parameter Builder for ClassDepend
+        CDPBuilder cdpb = new CDPBuilder();
+       
+        cdpb.addOutsidePackagesOrClasses(addClassesRecursively(outside))
+                .addOutsidePackagesOrClasses(skips)
+                .addInsidePackages(addClassesRecursively(inside))
+                .addShowPackages(addClassesRecursively(shows))
+                .addHidePackages(addClassesRecursively(hides));
+        
+        if (classpath.length() == 0) { classpath = null; }
+        try {
+            cd = ClassDepend.newInstance(classpath, "JDK 1.4", true);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        ClassDependParameters cdp = cdpb.addRootClasses(classes)
+                .recurse(true)
+                .excludePlatformClasses(false)
+                .build();
+        
+        try{
+            results.addAll(cd.compute(cdp));
+        }catch (ClassNotFoundException e){
+            e.printStackTrace();
+        }catch (IOException e) {
+            e.printStackTrace();
+        }
+         
+        /*
 	for (int i = 0; i < classes.size(); i++) {
-	    process(null, Identifier.lookup((String)classes.get(i)));
+	    process(null, (String)classes.get(i));
 	}
-	if (!tells.isEmpty())
+        */
+        
+        /* the -tells option needs to be handled by ClassDepend somehow
+         */
+        
+	if (!tells.isEmpty()) {
 	    return new String[0];
+        }
 	return (String[])results.toArray(new String[results.size()]);
     }
 
+    /**
+     * Add all classes in Packages and subpackages recursively by appending **
+     * as per the syntax requirements of the ClassDepend API.
+     */
+    private List addClassesRecursively(List list){
+        for ( int i = 0, l = list.size() ; i < l ; i++){
+            list.set(i , list.get(i) + "**");
+        }
+        return list;
+    }
+    
     /**
      * Print out the usage for this utility.
      */
@@ -1154,6 +972,7 @@ public class ClassDep {
 
     /**
      * Set the classpath to use for finding our class definitions.
+     * @param classpath 
      */
     public void setClassPath(String classpath) {
 	this.classpath = classpath;
@@ -1165,6 +984,7 @@ public class ClassDep {
      * <code>File.separator</code>, else <code>.</code>'s
      * will be used. 
      * If not set the default is <code>false</code>.
+     * @param files 
      */
     public void setFiles(boolean files) {
 	this.files = files;
@@ -1173,6 +993,7 @@ public class ClassDep {
     /**
      * Add an entry into the set of package prefixes that
      * are to remain hidden from processing.
+     * @param packagePrefix 
      */
     public void addHides(String packagePrefix) {
 	add(packagePrefix, hides);
@@ -1181,6 +1002,7 @@ public class ClassDep {
     /**
      * Add an entry into the working set of package prefixes 
      * that will make up the working domain space.
+     * @param packagePrefix 
      */
     public void addInside(String packagePrefix) {
 	add(packagePrefix, inside);
@@ -1196,6 +1018,7 @@ public class ClassDep {
      * <p>
      * <b>Note:</b> These edge classes must included
      * in the classpath for this utility.
+     * @param edges 
      */
     public void setEdges(boolean edges) {
 	this.edges = edges;
@@ -1206,6 +1029,7 @@ public class ClassDep {
      * that will bypassed during dependency checking.
      * These entries should be subsets of the contents
      * on the inside set.
+     * @param packagePrefix 
      */
     public void addOutside(String packagePrefix) {
 	add(packagePrefix, outside);
@@ -1219,11 +1043,13 @@ public class ClassDep {
      * This method has no impact if the new behavior is effective for the
      * interpretation of the root directories for finding class files to
      * include for dependency checking.
+     * @param packagePrefix 
      */
     public void addPrune(String packagePrefix) {
 	String arg = packagePrefix;
-	if (arg.endsWith(".")) 
+	if (arg.endsWith(".")) {
 	    arg = arg.substring(0, arg.length() - 1);
+        }
 	/*
 	 * Convert dots into File.separator for later usage.
 	 */
@@ -1235,6 +1061,7 @@ public class ClassDep {
      * Controls whether the behavior for finding class files in the specified
      * directories, if any, must be based on the old behavior (the default) or
      * the new behavior that solves some of the problems with the old behavior.
+     * @param newBehavior 
      */
     public void setRootDirBehavior(boolean newBehavior) {
 	newRootDirBehavior = newBehavior;
@@ -1248,19 +1075,22 @@ public class ClassDep {
      * Adding entries without a call to {@link #setRootDirBehavior(boolean)}
      * with <code>true</code> as the argument will cause {@link #compute()} to
      * fail.
+     * @param packagePrefix 
      */
     public void addInsideRoot(String packagePrefix) {
 	String arg = packagePrefix;
-	if (arg.endsWith("."))
+	if (arg.endsWith(".")) {
 	    arg = arg.substring(0, arg.length() - 1);
+        }
 	/*
 	 * Convert dots into File.separator for later usage.
 	 */
-	if (arg.trim().length() == 0)
+	if (arg.trim().length() == 0) {
 	    arg = File.separator;
-	else
-	    arg = File.separator + arg.replace('.', File.separatorChar)
-		  + File.separator;
+        }
+	else {
+            arg = File.separator + arg.replace('.', File.separatorChar) + File.separator;
+        }
 	insideRoots.add(arg);
     }
 
@@ -1272,19 +1102,22 @@ public class ClassDep {
      * Adding entries without a call to {@link #setRootDirBehavior(boolean)}
      * with <code>true</code> as the argument will cause {@link #compute()} to
      * fail.
+     * @param packagePrefix 
      */
     public void addOutsideRoot(String packagePrefix) {
 	String arg = packagePrefix;
-	if (arg.endsWith("."))
+	if (arg.endsWith(".")) {
 	    arg = arg.substring(0, arg.length() - 1);
+        }
 	/*
 	 * Convert dots into File.separator for later usage.
 	 */
-	if (arg.trim().length() == 0)
+	if (arg.trim().length() == 0) {
 	    arg = File.separator;
-	else
-	    arg = File.separator + arg.replace('.', File.separatorChar)
-		  + File.separator;
+        }
+	else {
+            arg = File.separator + arg.replace('.', File.separatorChar) + File.separator;
+        }
 	outsideRoots.add(arg);
     }
 
@@ -1294,6 +1127,7 @@ public class ClassDep {
      * This applies only to the final output, so this
      * set should be a subset of the inside set with
      * edges, if that was indicated.
+     * @param packagePrefix 
      */
     public void addShow(String packagePrefix) {
 	add(packagePrefix, shows);
@@ -1302,13 +1136,19 @@ public class ClassDep {
     /**
      * Add an entry into the set of classes that
      * should be skipped during dependency generation.
+     * @param packagePrefix 
      */
     public void addSkip(String packagePrefix){
 	String arg = packagePrefix;
-	if (arg.endsWith("."))
+	if (arg.endsWith(".")) {
 	    arg = arg.substring(0, arg.length() - 1);
-	else
+        }
+        /* No Longer required as ClassDepend will be passed the skips array
+	else {
 	    seen.add(Identifier.lookup(arg));
+        }
+         */
+        
 	/*
 	 * Convert dots into File.separator for later usage.
 	 */
@@ -1321,6 +1161,7 @@ public class ClassDep {
      * that lie with the inside set are listed. This in
      * the converse of the rest of the utility and is meant
      * more for debugging purposes.
+     * @param className 
      */
     public void addTells(String className) {
 	tells.add(className);
@@ -1332,11 +1173,13 @@ public class ClassDep {
      * the working domain space as defined by the
      * intersection of the following sets:
      * inside,outside,prune,show, and hide.
+     * @param rootName 
      */
     public void addRoots(String rootName) {
-	if (rootName.endsWith(File.separator))
+	if (rootName.endsWith(File.separator)) {
 	    //remove trailing File.separator
 	    rootName = rootName.substring(0, rootName.length() - 1);
+        }
 	//these are directories.
 	roots.add(rootName);
     }
@@ -1344,6 +1187,7 @@ public class ClassDep {
     /**
      * Add an entry into the set of classes that
      * dependencies are going to be computed on.
+     * @param className 
      */
     public void addClasses(String className) {
 	classes.add(className);
@@ -1352,6 +1196,7 @@ public class ClassDep {
    /**
      * If true classnames will be separated using
      * File.separator, else it will use dots.
+    * @return true or false
      */
     public boolean getFiles() {
 	return files;
@@ -1359,6 +1204,7 @@ public class ClassDep {
 
     /**
      * Accessor method for the found dependencies.
+     * @return String[] dependencies
      */
     public String[] getResults() {
 	String[] vals = (String[])results.toArray(new String[results.size()]);
@@ -1381,6 +1227,7 @@ public class ClassDep {
      * Convenience method for initializing an instance with specific
      * command line arguments. See the description of this class
      * for a list and description of the acceptable arguments.
+     * @param args 
      */
     public void setupOptions(String[] args) {
 	for (int i = 0; i < args.length ; i++ ) {
@@ -1432,7 +1279,6 @@ public class ClassDep {
 		addClasses(arg);
 	    }
 	}
-
     }
 
     private static ResourceBundle resources;
@@ -1465,8 +1311,9 @@ public class ClassDep {
      */
     private static void print(String key, Object val) {
 	String fmt = getString(key);
-	if (fmt == null)
+	if (fmt == null) {
 	    fmt = "no text found: \"" + key + "\" {0}";
+        }
 	System.err.println(MessageFormat.format(fmt, new Object[]{val}));
     }
 
@@ -1475,8 +1322,9 @@ public class ClassDep {
      */
     private static void print(String key, Object val1, Object val2) {
 	String fmt = getString(key);
-	if (fmt == null)
+	if (fmt == null) {
 	    fmt = "no text found: \"" + key + "\" {0} {1}";
+        }
 	System.err.println(MessageFormat.format(fmt,
 						new Object[]{val1, val2}));
     }
@@ -1495,191 +1343,15 @@ public class ClassDep {
 	//boolean files = false;
 	dep.setupOptions(args);
 	String[] vals = dep.compute();
+       
 	for (int i = 0; i < vals.length; i++) {
-	    if (dep.getFiles())
-		System.out.println(vals[i].replace('.', File.separatorChar) +
-				   ".class");
-	    else
+	    if (dep.getFiles()) {
+                System.out.println(vals[i].replace('.', File.separatorChar) + ".class");
+            }
+	    else {
 		System.out.println(vals[i]);
 	}
     }
-
-    /**
-     * Private class to load classes, resolve class names and report errors. 
-     *
-     * @see sun.tools.java.Environment
-     */
-    private static class Env extends Environment {
-	private final ClassPath noPath = new ClassPath("");
-	private final ClassPath path;
-	private final HashMap packages = new HashMap();
-	private final HashMap classes = new HashMap();
-
-	public Env(String classpath) {
-	    for (StringTokenizer st =
-		     new StringTokenizer(System.getProperty("java.ext.dirs"),
-					 File.pathSeparator);
-		 st.hasMoreTokens(); )
-	    {
-		String dir = st.nextToken();
-		String[] files = new File(dir).list();
-		if (files != null) {
-		    if (!dir.endsWith(File.separator)) {
-			dir += File.separator;
 		    }
-		    for (int i = files.length; --i >= 0; ) {
-			classpath =
-			    dir + files[i] + File.pathSeparator + classpath;
-		    }
-		}
-	    }
-	    path = new ClassPath(System.getProperty("sun.boot.class.path") +
-				 File.pathSeparator + classpath);
-	}
 
-	/**
- 	 * We don't use flags so we override Environments and
-	 * simply return 0.
-	 */
-	public int getFlags() {
-	    return 0;
 	}
-	/**
-	 * Take the identifier and see if the class that represents exists.
-	 * <code>true</code> if the identifier is found, <code>false</code>
-	 * otherwise.
-	 */
-	public boolean classExists(Identifier id) {
-	    if (id.isInner())
-		id = id.getTopName();
-	    Type t = Type.tClass(id);
-	    try {
-		ClassDeclaration c = (ClassDeclaration)classes.get(t);
-		if (c == null) {
-		    Package pkg = getPackage(id.getQualifier());
-		    return pkg.getBinaryFile(id.getName()) != null;
-		}
-		return c.getName().equals(id);
-	    } catch (IOException e) {
-		return false;
-	    }
-	}
-
-	public ClassDeclaration getClassDeclaration(Identifier id) {
-	    return getClassDeclaration(Type.tClass(id));
-	}
-
-	public ClassDeclaration getClassDeclaration(Type t) {
-	    ClassDeclaration c = (ClassDeclaration)classes.get(t);
-	    if (c == null) {
-		c = new ClassDeclaration(t.getClassName());
-		classes.put(t, c);
-	    }
-	    return c;
-	}
-
-	public Package getPackage(Identifier pkg) throws IOException {
-	    Package p = (Package)packages.get(pkg);
-	    if (p == null) {
-		p = new Package(noPath, path, pkg);
-		packages.put(pkg, p);
-	    }
-	    return p;
-	}
-
-	BinaryClass loadFile(ClassFile file) throws IOException {
-	    DataInputStream in =
-		new DataInputStream(new BufferedInputStream(
-						     file.getInputStream()));
-	    try {
-		return BinaryClass.load(new Environment(this, file), in,
-					ATT_ALLCLASSES);
-	    } catch (ClassFormatError e) {
-		throw new IllegalArgumentException("ClassFormatError: " +
-						   file.getPath());
-	    } catch (Exception e) {
-		e.printStackTrace();
-		return null;
-	    } finally {
-		in.close();
-	    }
-	}
-
-	/**
- 	 * Overridden method from Environment
-	 */
-	public void loadDefinition(ClassDeclaration c) {
-	    Identifier id = c.getName();
-	    if (c.getStatus() != CS_UNDEFINED)
-		throw new IllegalArgumentException("No file for: " + id);
-	    Package pkg;
-	    try {
-		pkg = getPackage(id.getQualifier());
-	    } catch (IOException e) {
-		throw new IllegalArgumentException("IOException: " +
-						   e.getMessage());
-	    }
-	    ClassFile file = pkg.getBinaryFile(id.getName());
-	    if (file == null)
-		throw new IllegalArgumentException("No file for: " +
-						   id.getName());
-	    BinaryClass bc;
-	    try {
-		bc = loadFile(file);
-	    } catch (IOException e) {
-		throw new IllegalArgumentException("IOException: " +
-						   e.getMessage());
-	    }
-	    if (bc == null)
-		throw new IllegalArgumentException("No class in: " +
-						   file);
-	    if (!bc.getName().equals(id))
-		throw new IllegalArgumentException("Wrong class in: " +
-						   file);
-	    c.setDefinition(bc, CS_BINARY);
-	    bc.loadNested(this, ATT_ALLCLASSES);
-	}
-
-	private static ResourceBundle resources;
-	private static boolean resinit = false;
-
-	/**
-	 * Get the strings from javac resource localization bundle.
-	 */
-	private static synchronized String getString(String key) {
-	    if (!resinit) {
-		try {
-		    resources = ResourceBundle.getBundle
-			("sun.tools.javac.resources.javac");
-		    resinit = true;
-		} catch (MissingResourceException e) {
-		    e.printStackTrace();
-		}
-	    }
-	    if (key.startsWith("warn."))
-		key = key.substring(5);
-	    try {
-		return resources.getString("javac.err." + key);
-	    } catch (MissingResourceException e) {
-		return null;
-	    }
-	}
-
-	public void error(Object source,
-			  long where,
-			  String err,
-			  Object arg1,
-			  Object arg2,
-			  Object arg3)
-	{
-	    String fmt = getString(err);
-	    if (fmt == null)
-		fmt = "no text found: \"" + err + "\" {0} {1} {2}";
-	    output(MessageFormat.format(fmt, new Object[]{arg1, arg2, arg3}));
-	}
-
-	public void output(String msg) {
-	    System.err.println(msg);
-	}
-    }
-}

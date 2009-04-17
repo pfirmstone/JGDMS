@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ !
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ !
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+<project name="common" default="" basedir=".">
+
+    <!-- Product version info -->
+    <property name="version" value="2.1.1"/>
+    <property name="product.name" value="apache-river-${version}-incubating"/>
+
+    <!--## Private package inclusions for use with classdep; the
+        ## classes in these packages are both not part of the JSK
+        ## platform and not public (have generated javadoc).
+        ## The -skip for logging classes is because LogManager is in
+        ## jsk-pllatform.jar and Levels is in jsk-lib.jar.
+        ## The -in com.sun.jini.outrigger is there in order to catch
+        ## any use of the following deprecated APIs:
+        ##       com.sun.jini.outrigger.AdminIterator
+        ##       com.sun.jini.outrigger.ConstrainableJavaSpaceAdmin
+        ##       com.sun.jini.outrigger.JavaSpaceAdmin
+        ## Once these APIs have been removed, the outrigger include
+        ## can be removed -->
+    <property name="jskprivate.include" value="-in com.sun.jini.action -in com.sun.jini.collection -in com.sun.jini.constants -in com.sun.jini.system -in com.sun.jini.logging -skip com.sun.jini.logging.LogManager -skip com.sun.jini.logging.Levels -in com.sun.jini.outrigger"/>
+    <!-- Common packages to exclude within ClassDep -->
+    <property name="jskplatform.exclude" value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager"/>
+
+    <property name="api-copyright" value="Copyright 2007, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
+
+    <patternset id="java.source">
+        <include name="**/*.java"/>
+    </patternset>
+    
+    <property name="jre.ext.dir" location="${java.home}/jre/lib/ext"/>
+
+    <macrodef name="javac-cmd" description="Run javac">
+        <attribute name="source.pat" default="java.source"/>
+        <attribute name="source.dir"/>
+        <attribute name="dest.dir"/>
+        <attribute name="debug" default="lines,source,vars"/>
+        <element name="javac-cmd-elements" implicit="true" optional="true"/>
+        <sequential>
+            <javac fork="yes"
+                    debug="yes"
+                    debuglevel="@{debug}"
+                    deprecation="yes"
+                    destdir="@{dest.dir}"
+                    nowarn="no"
+                    source="1.4"
+                    srcdir="@{source.dir}"
+                    target="1.4"
+                    verbose="no">
+                <patternset refid="@{source.pat}"/>
+                <javac-cmd-elements/>
+            </javac>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="preferredlistgen" description="Run PreferredListGen">
+        <element name="plg-elements" implicit="true"/>
+        <sequential>
+            <java classname="com.sun.jini.tool.PreferredListGen"
+			      failonerror="true"
+			      fork="true">
+                <plg-elements/>
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="classdep" description="Run ClassDep">
+        <attribute name="output"/>
+        <attribute name="cp" default="build/classes"/>
+        <element name="cd-elements" implicit="yes" />
+        <sequential>
+            <java classname="com.sun.jini.tool.ClassDep" 
+                  failonerror="true"
+                  output="@{output}">
+                <arg value="-cp"/>
+                <arg path="@{cp}"/>
+                <arg value="-files"/>
+                <cd-elements />
+            </java>
+        </sequential>
+    </macrodef>
+
+    <target name="diagnostics" description="Run Ant Diagnostics">
+        <diagnostics/>
+    </target>
+
+</project>
