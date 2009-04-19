@@ -1405,7 +1405,7 @@
     </target>
 
     <target name="jrmp.stubs" depends="compile">
-        <rmic base="${classes.dir}" iiop="true" classpathref="river.classpath">
+        <rmic base="${build.classes.dir}" iiop="true" classpathref="river.classpath">
             <include name="com/sun/jini/test/spec/jrmp/util/TestRemoteObject.class" />
         </rmic>
     </target>
