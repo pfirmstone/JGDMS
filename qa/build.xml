@@ -79,23 +79,23 @@
     <property name="resources" value="**/resources/**, **/*.td, **/*.properties,
         **/*.policy, **/*.config, **/*.logging, **/*.prop" />
 
-    <target name="clean" depends="clean.build, clean.lib, clean.trust, clean.doc"
+    <target name="clean" depends="clean-build, clean-lib, clean-trust, clean-doc"
         description="Clean up build" />
 
-    <target name="clean.build">
+    <target name="clean-build">
         <delete dir="${build.dir}" />
     </target>
 
-    <target name="clean.lib">
+    <target name="clean-lib">
         <delete dir="${lib.dir}" />
         <delete dir="${lib-ext.dir}" />
     </target>
 
-    <target name="clean.doc">
+    <target name="clean-doc">
         <delete dir="${doc.api.dir}" />
     </target>
 
-    <target name="clean.trust">
+    <target name="clean-trust">
         <delete>
             <fileset dir="${trust.dir}">
                 <include name="*.cert" />
@@ -141,6 +141,7 @@
                 <jvmarg value="-Dcom.sun.jini.qa.harness.configs=${harness.configs}" />
                 <!-- VM args for each test run: include our JDK extension directories
                 $${com.sun.jini.qa.harness.globalvmargs},-Dcom.sun.jini.test.home=$${com.sun.jini.test.home},-Dcom.sun.jini.test.port=$${com.sun.jini.test.port},-Dcom.sun.jini.qa.harness.policies=&lt;url: com/sun/jini/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
+                <!--<jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>-->
                 <jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs}"/>
                 <arg path="${src.dir}/com/sun/jini/test/resources/qaHarness.prop" />
                 <arg value="-testJar"/>
@@ -289,11 +290,11 @@
         qa1-lookup-simulator.stubs,
         qa1-share.stubs,
         qa1-discoveryservice.stubs,
-        iiop.stubs,
         qa1-javaspace.stubs,
-        jrmp.stubs,
         qa1-lookupservice.stubs,
-        qa1-renewalservice.stubs"
+        qa1-renewalservice.stubs,
+        jrmp.stubs,
+        iiop.stubs"
         description="Compile stubs"/>
 
     <target name="harness-killer.stubs" depends="compile">
@@ -1404,8 +1405,8 @@
     </target>
 
     <target name="jrmp.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.classpath">
-            <include name="com/sun/jini/test/spec/iiop/util/TestRemoteObject.class" />
+        <rmic base="${classes.dir}" iiop="true" classpathref="river.classpath">
+            <include name="com/sun/jini/test/spec/jrmp/util/TestRemoteObject.class" />
         </rmic>
     </target>
 

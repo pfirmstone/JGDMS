@@ -18,8 +18,8 @@
  !-->
 <project name="common" default="" basedir=".">
 
-    <!-- Root of the River source distribution, override this in subprojects -->
-    <property name="root" value="${basedir}"/>
+    <!-- User specific settings -->
+    <property file="build.properties" />
 
     <!-- Product version info -->
     <property name="version" value="2.1.1"/>
@@ -107,8 +107,7 @@
         <element name="plg-elements" implicit="true"/>
         <sequential>
             <java classname="com.sun.jini.tool.PreferredListGen"
-			      failonerror="true"
-			      fork="true">
+			      failonerror="true" fork="true" >
                 <plg-elements/>
             </java>
         </sequential>
