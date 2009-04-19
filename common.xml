@@ -18,9 +18,45 @@
  !-->
 <project name="common" default="" basedir=".">
 
+    <!-- Root of the River source distribution, override this in subprojects -->
+    <property name="root" value="${basedir}"/>
+
     <!-- Product version info -->
     <property name="version" value="2.1.1"/>
     <property name="product.name" value="apache-river-${version}-incubating"/>
+    <property name="product.title" value="Apache River v${version}"/>
+
+    <!-- Standard directory names -->
+    <property name="doc" value="doc"/>
+    <property name="src" value="src"/>
+    <property name="configentry" value="configentry"/>
+    <property name="lib" value="lib"/>
+    <property name="lib-dl" value="lib-dl"/>
+    <property name="lib-ext" value="lib-ext"/>
+    <property name="doc.spec.api" value="${doc}/specs/api"/>
+    <property name="doc.api" value="${doc}/api"/>
+    <property name="dist" value="dist"/>
+
+    <!-- Standard directory locations -->
+    <property name="doc.api.dir" location="${doc.api}"/>
+    <property name="doc.spec.api.dir" location="${doc.spec.api}"/>
+    <property name="src.dir" location="${src}"/>
+    <property name="src.manifest.dir" location="${src}/manifest"/>
+    <property name="src.configentry.dir" location="${src}/configentry"/>
+    <property name="build.dir" location="build"/>
+    <property name="build.classes.dir" location="${build.dir}/classes"/>
+    <property name="build.deps.dir" location="${build.dir}/deps"/>
+    <property name="configentry.dir" location="${configentry}"/>
+    <property name="dist.dir" location="dist"/>
+    <property name="lib.dir" location="${lib}"/>
+    <property name="lib-dl.dir" location="${lib-dl}"/>
+    <property name="lib-ext.dir" location="${lib-ext}"/>
+
+    <!-- Standard javadoc options and settings -->
+    <property name="jdk.doc.url" value="http://java.sun.com/j2se/1.4.2/docs/api"/>
+    <property name="jdk.packages" location="${root}/${doc}/j2se"/>
+    <property name="api.copyright" value="Copyright 2007, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
+
 
     <!--## Private package inclusions for use with classdep; the
         ## classes in these packages are both not part of the JSK
@@ -38,13 +74,11 @@
     <!-- Common packages to exclude within ClassDep -->
     <property name="jskplatform.exclude" value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager"/>
 
-    <property name="api-copyright" value="Copyright 2007, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
-
     <patternset id="java.source">
         <include name="**/*.java"/>
     </patternset>
     
-    <property name="jre.ext.dir" location="${java.home}/jre/lib/ext"/>
+    <property name="jre.ext.dir" location="${java.home}/lib/ext"/>
 
     <macrodef name="javac-cmd" description="Run javac">
         <attribute name="source.pat" default="java.source"/>

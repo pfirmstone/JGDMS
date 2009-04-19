@@ -32,45 +32,19 @@
         and advancement of Jini technology.</description>
 
     <!-- import common settings and macros -->
-    <import file="common.xml" optional="true"/>
-
-    <!-- distribution settings -->
-    <property name="doc" value="doc"/>
-    <property name="src" value="src"/>
-    <property name="configentry" value="configentry"/>
-    <property name="lib" value="lib"/>
-    <property name="lib-dl" value="lib-dl"/>
-    <property name="lib-ext" value="lib-ext"/>
-    <property name="doc.spec.api" value="${doc}/specs/api"/>
-    <property name="doc.api" value="${doc}/api"/>
-    <property name="dist" value="dist"/>
+    <import file="common.xml"/>
+    
+    <!-- Distribution settings -->
     <property name="bin.tar.bundle" location="${dist}/${product.name}-bin.tar.gz"/>
     <property name="bin.zip.bundle" location="${dist}/${product.name}-bin.zip"/>
     <property name="src.tar.bundle" location="${dist}/${product.name}-src.tar.gz"/>
     <property name="src.zip.bundle" location="${dist}/${product.name}-src.zip"/>
 
-    <!-- directory settings -->
-    <property name="doc.api.dir" location="${doc.api}"/>
-    <property name="doc.spec.api.dir" location="${doc.spec.api}"/>
-    <property name="src.dir" location="${src}"/>
-    <property name="src.manifest.dir" location="${src}/manifest"/>
-    <property name="src.configentry.dir" location="${src}/configentry"/>
-    <property name="build.dir" location="build"/>
-    <property name="build.classes.dir" location="${build.dir}/classes"/>
-    <property name="build.deps.dir" location="${build.dir}/deps"/>
-    <property name="configentry.dir" location="${configentry}"/>
-    <property name="dist.dir" location="dist"/>
-    <property name="lib.dir" location="${lib}"/>
-    <property name="lib-dl.dir" location="${lib-dl}"/>
-    <property name="lib-ext.dir" location="${lib-ext}"/>
-
     <!-- javadoc options -->
-    <property name="jdk-doc-url" value="http://java.sun.com/j2se/1.4.2/docs/api"/>
-    <property name="jdk-packages" value="${build.doc}/j2se"/>
-    <property name="api-doc-title" value="Apache River v${version} API Documentation"/>
-    <property name="api-win-title" value="${api-doc-title}"/>
-    <property name="spec-doc-title" value="Apache River v${version} Specifications"/>
-    <property name="spec-win-title" value="${spec-doc-title}"/>
+    <property name="javadoc.doc-title" value="${product.title} API Documentation"/>
+    <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
+    <property name="javadoc.spec.doc-title" value="${product.title} Specification-only API Documentation"/>
+    <property name="javadoc.spec.win-title" value="${javadoc.spec.doc-title}"/>
 
     <path id="river.classpath">
         <pathelement path="${build.classes.dir}"/>
@@ -280,18 +254,18 @@
         <javadoc author="true"
 			 breakiterator="yes"
 			 destdir="${doc.api.dir}"
-			 doctitle="${api-doc-title}"
-			 linkoffline="${jdk-doc-url} ${jdk-packages}"
+			 doctitle="${javadoc.doc-title}"
+			 linkoffline="${jdk.doc.url} ${jdk.packages}"
 			 serialwarn="yes"
 			 source="1.4"
 			 use="true"
 			 version="true"
-			 windowtitle="${api-win-title}">
+			 windowtitle="${javadoc.win-title}">
             <tag name="com.sun.jini.impl"
 			     enabled="true"
 			     scope="packages,types"
 			     description="Implementation Specifics:"/>
-            <bottom><![CDATA[${api-copyright}]]></bottom>
+            <bottom><![CDATA[${api.copyright}]]></bottom>
             <classpath refid="javadoc.classpath"/>
             <sourcepath>
                 <pathelement path="${src.dir}"/>
@@ -324,6 +298,7 @@
             <package name="com.sun.jini.thread"/>
             <package name="com.sun.jini.tool"/>
             <package name="com.sun.jini.tool.envcheck"/>
+            <package name="com.sun.jini.tool.classdepend"/>
             <package name="net.jini.activation"/>
             <package name="net.jini.admin"/>
             <package name="net.jini.config"/>
@@ -374,16 +349,15 @@
         <delete dir="${doc.spec.api.dir}" quiet="true"/>
         <mkdir  dir="${doc.spec.api.dir}"/>
         <javadoc author="true"
-			 bottom="${api-copyright}"
 			 breakiterator="yes"
 			 destdir="${doc.spec.api.dir}"
-			 doctitle="${spec-doc-title}"
-			 linkoffline="${jdk-doc-url} ${jdk-packages}"
+			 doctitle="${javadoc.spec.doc-title}"
+			 linkoffline="${jdk.doc.url} ${jdk.packages}"
 			 serialwarn="yes"
 			 source="1.4"
 			 use="true"
 			 version="true"
-			 windowtitle="${spec-win-title}">
+			 windowtitle="${javadoc.spec.win-title}">
             <tag name="com.sun.jini.impl"
 			     enabled="false"
 			     description="ignore"/>
