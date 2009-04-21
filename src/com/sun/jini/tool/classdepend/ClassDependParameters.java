@@ -1,6 +1,19 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.sun.jini.tool.classdepend;
 
@@ -24,32 +37,17 @@ public class ClassDependParameters {
      * or package patterns, that should be excluded from the computation */
 
     private final String[] outsidePackagesOrClasses;
-    private final String[] rootClasses; // classes were interested in finding dependencies for.
     private final String[] insidePackages; // package scope to search for dependencies in.
     private final String[] showPackages; //Show only the dependencies found in these Packages.
     private final String[] hidePackages; //Hide these packages from output, the dependencies are still calculated.
-    /*
-     * Specifies the fully qualified name of a class for which dependency
-     * information is desired. This option causes the tool to display
-     * information about every class in the dependency graph that references
-     * the specified class. This information is sent to the error stream of
-     * the tool, not to the normal output stream. This option can be specified
-     * zero or more times. If this option is used, all other output options
-     * are ignored, and the normal class output is not produced. 
-     * This option is useful for debugging.  
-     * Originally concieved in the original ClassDep as the -tells option.
-     */
-    private final String[] printErrStreamInfoOfClassesDependantOn;
-    private final boolean ignoreOuterParentClass; // For internal classes
-    private final boolean recurse;
+    private final boolean ignoreOuterParentClass; // For internal classes to ignore their parent class.
     private final boolean excludePlatformClasses;
+    private final boolean edges;
 
     private ClassDependParameters(CDPBuilder builder) {
 
         outsidePackagesOrClasses = (String[]) builder.outsidePackagesOrClasses.toArray(
                 new String[builder.outsidePackagesOrClasses.size()]);
-        rootClasses = (String[]) builder.rootClasses.toArray(
-                new String[builder.rootClasses.size()]);
         insidePackages = (String[]) builder.insidePackages.toArray(
                 new String[builder.insidePackages.size()]);
         showPackages = (String[]) builder.showPackages.toArray(
@@ -57,11 +55,8 @@ public class ClassDependParameters {
         hidePackages = (String[]) builder.hidePackages.toArray(
                 new String[builder.hidePackages.size()]);
         ignoreOuterParentClass = builder.ignoreOuterParentClass;
-        recurse = builder.recurse;
         excludePlatformClasses = builder.excludePlatformClasses;
-        printErrStreamInfoOfClassesDependantOn = (String[]) 
-                builder.printErrStreamInfoOfClassesDependantOn.toArray(
-                new String[builder.printErrStreamInfoOfClassesDependantOn.size()]);
+        edges = builder.edges;
 
     }
 
@@ -87,10 +82,6 @@ public class ClassDependParameters {
         return cloneArraytoList(outsidePackagesOrClasses);
     }
 
-    public List rootClasses() {
-        return cloneArraytoList(rootClasses);
-    }
-
     public List insidePackages() {
         return cloneArraytoList(insidePackages);
     }
@@ -103,28 +94,16 @@ public class ClassDependParameters {
         return cloneArraytoList(hidePackages);
     }
     
-    public List printErrStreamInfoOfClassesDependantOn() {
-        return cloneArraytoList(printErrStreamInfoOfClassesDependantOn);
-    }
-
     public boolean ignoreOuterParentClass() {
         return ignoreOuterParentClass;
-    }
-    /* recurse if <code>true</code>, compute dependencies recursively;
-     * if <code>false</code>, only include classes directly referenced
-     * by classes in <code>roots</code>
-     */
-
-    public boolean recurse() {
-        return recurse;
     }
 
     public boolean excludePlatformClasses() {
         return excludePlatformClasses;
     }
 
-    public String[] getPrintErrStreamInfoOfClassesDependantOn() {
-        return printErrStreamInfoOfClassesDependantOn;
+    public boolean edges() {
+        return edges;
     }
 
     /**
@@ -145,14 +124,12 @@ public class ClassDependParameters {
          */
 
         private List outsidePackagesOrClasses = new ArrayList();
-        private List rootClasses = new ArrayList();
         private List insidePackages = new ArrayList();
         private List showPackages = new ArrayList();
         private List hidePackages = new ArrayList();
-        private List printErrStreamInfoOfClassesDependantOn = new ArrayList();
         private boolean ignoreOuterParentClass = false;
-        private boolean recurse = true;
         private boolean excludePlatformClasses = false;
+        private boolean edges = false;
 
         public CDPBuilder() {
         }
@@ -188,23 +165,7 @@ public class ClassDependParameters {
             return this;
         }
 
-        public CDPBuilder addRootClass(String rootClass) {
-            rootClasses.add(rootClass);
-            return this;
-        }
 
-        public CDPBuilder addRootClasses(String[] rootClasses) {
-            int l = rootClasses.length;
-            for (int i = 0; i < l; i++) {
-                this.rootClasses.add(rootClasses[i]);
-            }
-            return this;
-        }
-
-        public CDPBuilder addRootClasses(List classes) {
-            rootClasses.addAll(classes);
-            return this;
-        }
 
         /**
          * Inside packages limit the scope of the dependency search to
@@ -272,69 +233,8 @@ public class ClassDependParameters {
             return this;
         }
         
-        /**
-         * Specifies the fully qualified name of a class for which dependency
-         * information is desired. This option causes the tool to display
-         * information about every class in the dependency graph that references
-         * the specified class. This information is sent to the error stream of
-         * the tool, not to the normal output stream. This option can be specified
-         * zero or more times. If this option is used, all other output options
-         * are ignored, and the normal class output is not produced. 
-         * This option is useful for debugging.  
-         * Originally concieved in the original ClassDep as the -tells option.
-         *
-         * @param clas A fully qualified class name for which dependent classes
-         *              will print information to the error stream.
-         * @return this
-         */
-        public CDPBuilder printErrStreamInfoOfClassesDependantOn(String clas) {
-            printErrStreamInfoOfClassesDependantOn.add(clas);
-            return this;
-        }
-        /**
-         * Print information to the error stream for all classes
-         * that depend on those in <code>classes</code>, the normal class
-         * output is not produced.
-         * @param classes
-         * @return
-         */
-        public CDPBuilder printErrStreamInfoOfClassesDependantOn(String [] classes){
-            int l = classes.length;
-            for (int i = 0; i < l; i++){
-                this.printErrStreamInfoOfClassesDependantOn.add(classes[i]);
-            }
-            return this;
-        }
-        /**
-         * Print information to the error stream for all classes
-         * that depend on those in <code>classes</code>, the normal class
-         * output is not produced.
-         * @param classes
-         * @return
-         */
-        public CDPBuilder printErrStreamInfoOfClassesDependantOn(List classes) {
-            printErrStreamInfoOfClassesDependantOn.addAll(classes);
-            return this;
-        }
-        
-        
-
         public CDPBuilder ignoreOuterParentClass(boolean b) {
             ignoreOuterParentClass = b;
-            return this;
-        }
-
-        /**
-         * This option causes ClassDepend to inspect class files for dependencies,
-         * if true.  If false, ClassDepend doesn't inspect class files, it simply
-         * gathers the names of class files from within Package directories and 
-         * JAR files.
-         * 
-         * @param b
-         * @return
-         */
-        public CDPBuilder recurse(boolean b) {
-            recurse = b;
             return this;
         }
 
@@ -349,6 +249,11 @@ public class ClassDependParameters {
          */
         public CDPBuilder excludePlatformClasses(boolean b) {
             excludePlatformClasses = b;
+            return this;
+        }
+
+        public CDPBuilder edges(boolean e){
+            edges = e;
             return this;
         }
 

@@ -20,6 +20,7 @@ package com.sun.jini.tool;
 import com.sun.jini.tool.classdepend.ClassDepend;
 import com.sun.jini.tool.classdepend.ClassDependParameters;
 import com.sun.jini.tool.classdepend.ClassDependParameters.CDPBuilder;
+import com.sun.jini.tool.classdepend.ClassDependencyRelationship;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -33,6 +34,8 @@ import java.io.File;
 import java.io.IOException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * Tool used to analyze a set of classes and determine on what other classes
@@ -809,38 +812,6 @@ public class ClassDep {
 	}
     }
 
-
-    /*
-     * Depending on the part of the class file
-     * that we are on the class types that we are
-     * looking for can come in several flavors.
-     * This method handles Identifiers and 
-     * Identifiers referenced from other Identifiers.
-     * <p>
-     * Several actions happen here with the goal of 
-     * generating the list of dependencies within the domain
-     * space provided by the user.
-     * These actions are:
-     * <ul>
-     *    <li> printing out "-tell" output if user asks for it.
-     *    <li> extracting class types from the class file.
-     *         <ul>
-     *             <li> either in arrays or by
-     *             <li> themselves
-     *         </ul>
-     *    <li> noting classes we have already seen.
-     *    <li> traversing the remainder of the class file.
-     *    <li> resolving and looking for dependencies in
-     *         inner classes.
-     *    <li> saving found results for later use.
-     * </ul>
-     *
-     * @param from the Identifier referenced from <code>id</code>
-     * @param id   the Identifier being looked at
-	 *
-     * The above was for the old process(Identifier from, Identifier id) method.
-	 */	
-
     private static class Compare implements Comparator {
 	public int compare(Object o1, Object o2) {
 	    if (o1 == null) {
@@ -901,54 +872,67 @@ public class ClassDep {
 		traverse((String)roots.get(i));
 	    }
 	}
+        
         // Now use ClassDepend to perform dependency computation
-        Iterator itr = classes.iterator();
-        
-        //System.out.println("Classes to include:");
-        while (itr.hasNext()){
-            System.out.println(itr.next());
-        }
-        
-        //Ready the Parameter Builder for ClassDepend
-        CDPBuilder cdpb = new CDPBuilder();
-       
-        cdpb.addOutsidePackagesOrClasses(addClassesRecursively(outside))
-                .addOutsidePackagesOrClasses(skips)
-                .addInsidePackages(addClassesRecursively(inside))
-                .addShowPackages(addClassesRecursively(shows))
-                .addHidePackages(addClassesRecursively(hides));
-        
         if (classpath.length() == 0) { classpath = null; }
         try {
-            cd = ClassDepend.newInstance(classpath, "JDK 1.4", true);
+            cd = ClassDepend.newInstance(classpath, null, true);
         } catch (IOException e) {
             e.printStackTrace();
         }
-        ClassDependParameters cdp = cdpb.addRootClasses(classes)
-                .recurse(true)
-                .excludePlatformClasses(false)
-                .build();
-        
+        Map classDependencyRelationMap = null;
         try{
-            results.addAll(cd.compute(cdp));
+            classDependencyRelationMap = cd.getDependencyRelationshipMap(classes, true); // get the reference to Collection<Class>
         }catch (ClassNotFoundException e){
             e.printStackTrace();
         }catch (IOException e) {
             e.printStackTrace();
         }
          
-        /*
-	for (int i = 0; i < classes.size(); i++) {
-	    process(null, (String)classes.get(i));
+        if (tells.isEmpty()){
+            // Here's where we should build the parameter list and call the filter
+            //Ready the Parameter Builder for ClassDepend
+            // .ignoreOuterParentClass(ignoreOuter) isn't implemented in ClassDepend yet.
+            CDPBuilder cdpb = new CDPBuilder();
+            ClassDependParameters cdp = cdpb.addOutsidePackagesOrClasses(addClassesRecursively(outside))
+                    .addOutsidePackagesOrClasses(skips)
+                    .addInsidePackages(addClassesRecursively(inside))
+                    .addShowPackages(addClassesRecursively(shows))
+                    .addHidePackages(addClassesRecursively(hides))
+                    .ignoreOuterParentClass(ignoreOuter)                   
+                    .excludePlatformClasses(false)
+                    .edges(edges)
+                    .build();
+            Set result = cd.filterClassDependencyRelationShipMap
+                    (classDependencyRelationMap, cdp);
+            Iterator itr = result.iterator();
+            while (itr.hasNext()) {
+                results.add(itr.next().toString());
 	}
-        */
+        }else{
         
-        /* the -tells option needs to be handled by ClassDepend somehow
-         */
-        
-	if (!tells.isEmpty()) {
-	    return new String[0];
+            Iterator iter = tells.iterator();
+            while (iter.hasNext()){
+                String name = (String) iter.next();
+                if ( classDependencyRelationMap.containsKey(name)){
+                    ClassDependencyRelationship provider = (ClassDependencyRelationship) classDependencyRelationMap.get(name);
+                    Set dependants = provider.getDependants();
+                    if (!dependants.isEmpty()) {
+                        Iterator it = dependants.iterator();
+                        while (it.hasNext()) {
+                            ClassDependencyRelationship dependant = (ClassDependencyRelationship) it.next();
+                            if (tells.size() > 1) {
+                                print("classdep.cause", provider, dependant);
         }
+                            else {
+                                print("classdep.cause1", dependant);
+                            }                 
+                        }
+                    }
+                }
+            }
+        }
+        // cannot change the return type or we break the API backward compatibility.
 	return (String[])results.toArray(new String[results.size()]);
     }
 
@@ -1353,5 +1337,4 @@ public class ClassDep {
 	}
     }
 		    }
-
 	}

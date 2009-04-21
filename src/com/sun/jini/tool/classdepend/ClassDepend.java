@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 package com.sun.jini.tool.classdepend;
 
 import com.sun.jini.tool.classdepend.ClassDependParameters.CDPBuilder;
@@ -10,8 +27,10 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
@@ -109,6 +128,8 @@ public class ClassDepend {
             CDPBuilder cdpb = new CDPBuilder();
 	    String classpath = null;
 	    String platform = null;
+            Set rootClasses = new HashSet();
+            boolean recurse = true;
 	    boolean warn = false; //supress exceptions, print to error, warn instead
 	    boolean files = false; //print class with file path separator
 	    for (int i = 0; i < args.length; i++) {
@@ -120,7 +141,7 @@ public class ClassDepend {
 		} else if (arg.equals("-exclude")) {
 		    cdpb.addOutsidePackageOrClass(args[++i]);
 		} else if (arg.equals("-norecurse")) {
-		    cdpb.recurse(false);
+		    recurse = false;
 		} else if (arg.equals("-warn")) {
 		    warn = true;
 		} else if (arg.equals("-files")) {
@@ -128,12 +149,18 @@ public class ClassDepend {
 		} else if (arg.startsWith("-")) {
 		    throw new IllegalArgumentException("Bad option: " + arg);
 		} else {
-		    cdpb.addRootClass(arg);
+		    rootClasses.add(arg);
 		}
 	    }
             ClassDependParameters cdp = cdpb.build();          
 	    ClassDepend classDepend = ClassDepend.newInstance(classpath, platform, warn);
-	    String[] dependencies = (String[]) classDepend.compute(cdp).toArray(new String[0]);
+            
+            
+	    String[] dependencies = (String[]) classDepend
+                    .filterClassDependencyRelationShipMap(
+                    classDepend.getDependencyRelationshipMap(rootClasses, recurse),
+                    cdp)
+                    .toArray(new String[0]);
 	    Arrays.sort(dependencies);
             int l = dependencies.length;
 	    for ( int i = 0 ; i < l ; i++) {
@@ -193,72 +220,54 @@ public class ClassDepend {
     }
 
     /**
+     * This method builds the entire DependencyRelationShipMap that can be
+     * used to analyse class dependencies.
+     * 
      * Computes information about class dependencies.  The computation of
      * dependencies starts with the classes that match the names in
-     * <code>roots</code>.  Classes are found in a URL class loader by the
-     * <code>classpath</code> specified in the constructor.  Classes that can
-     * be found in the class loader specified by the <code>platform</code>
-     * argument to the constructor are excluded from the computation.  Classes
-     * that match names in <code>excludes</code> are excluded from the
-     * computation.  Dependencies will be computed recursively if
-     * <code>recurse</code> is <code>true</code>; otherwise, only classes
-     * directly referenced by classes named in <code>roots</code> will be
-     * included.
+     * <code>rootClasses</code>.  Classes are found in a URL class loader by the
+     * <code>classpath</code> specified in the constructor. 
      *
-     * @param   cdp The immutable parameter class.
-     * @see ClassDependParameters, CDPBuilder
-     * @return	a set of the dependent classes
-     * @throws	ClassNotFoundException if a class is not found and this
-     *		exception is thrown by {@link #noteClassNotFound
-     *		noteClassNotFound}
-     * @throws	IOException if an I/O error occurs while reading class
-     *		bytecodes and this exception is thrown by {@link
-     *		#noteClassLoadingFailed noteClassLoadingFailed}
+     * @param rootClasses 
+     * @param recurse If true, this option causes ClassDepend to inspect class 
+     * files for dependencies.
+     * If false, ClassDepend doesn't inspect class files, it simply
+     * gathers the names of class files from within Package directories and 
+     * JAR files.
+     * @return result
+     * @throws java.io.IOException
+     * @throws java.lang.ClassNotFoundException
+     * @see ClassDependencyRelationship
      */
-    public Set compute(ClassDependParameters cdp)
-	throws ClassNotFoundException, IOException
-    {
-	// Collection roots, Collection excludes, boolean recurse
-        Set compute = computeClasses(cdp.rootClasses()); // Discovers all root classes including those in packages
-	Pattern excludePattern = createPattern(cdp.outsidePackagesOrClasses());     
-        Pattern includePattern = createPattern(cdp.insidePackages());
-        Pattern hidePattern = createPattern(cdp.hidePackages());
-        Pattern showPattern = createPattern(cdp.showPackages());
-	Set result = new HashSet();
+    public Map getDependencyRelationshipMap(Collection rootClasses, boolean recurse) 
+            throws IOException, ClassNotFoundException {
+        Map result = new HashMap(); // May be changed to ConcurrentHashMap for Java 5
         Set seen = new HashSet();
-        
+        Set compute = computeClasses(rootClasses);      
 	while (!compute.isEmpty()) {
-	    Set computeNext = new HashSet(); //built from 
+            Set computeNext = new HashSet(); //built from discovered dependencies
             Iterator computeIterator = compute.iterator();            
 	    while (computeIterator.hasNext()) {
                 String name = (String) computeIterator.next();
-                // filter out the crap
-                if (!seen.contains(name) &&
-		    ( !cdp.excludePlatformClasses() || !classPresent(name, platformLoader) ) &&
-		    !matches(name, excludePattern) && 
-                    ( cdp.insidePackages().size() == 0 || matches(name, includePattern)))
-		{
-		     /* If we have shows or hides, we don't want to add these to
-                     * the result, however we don't want to drop out of the
-                     * dependency search either
-                     */
+                if ( !seen.contains(name)){
                     seen.add(name);
-                    if(( cdp.hidePackages().size() == 0 || !matches(name,hidePattern) )
-                            && ( cdp.showPackages().size() == 0 || matches(name, showPattern)))
-                    {
-                        result.add(name); //Add the result after filtering
+                    if (rootClasses.contains(name)){
+                        // Put all root classes into ClassDependencyRelationship containers
+                        ClassDependencyRelationship rootClass = new ClassDependencyRelationship(name, true);
+                        result.put(name, rootClass);
                     }
+                    Set providerClassNames = new HashSet();
 		    String resource = getResourceName(name);
-		    if (cdp.recurse()) {
+                    if (recurse) {
 			InputStream in = loader.getResourceAsStream(resource);
 			if (in == null) {
 			    noteClassNotFound(name);
 			} else {
 			    try {
                                 // Discover the referenced classes by loading classfile and inspecting
-				computeNext.addAll(
-				    ReferencedClasses.compute(
-					new BufferedInputStream(in)));
+                                providerClassNames = ReferencedClasses.compute(
+                                        new BufferedInputStream(in));
+                                computeNext.addAll(providerClassNames);
 			    } catch (IOException e) {
 				noteClassLoadingFailed(name, e);
 			    } finally {
@@ -271,11 +280,112 @@ public class ClassDepend {
 		    } else if (loader.getResource(resource) == null) {
 			noteClassNotFound(name);
 		    }
+                    /* Now we add all the provider classes to the dependant
+                     * this is useful for edges or classes of interest where 
+                     * we my want to pick points to recurse through dependents 
+                     * instead of providers.
+                     */
+                   Iterator iter = providerClassNames.iterator();
+                    while (iter.hasNext()){
+                        String provider = (String) iter.next();
+                        ClassDependencyRelationship providerClass;
+                        if (!result.containsKey(provider)){
+                            providerClass = new ClassDependencyRelationship(provider);
+                            result.put(provider, providerClass);
+                        }else{
+                            providerClass = (ClassDependencyRelationship) result.get(provider);
 		}
+                        ((ClassDependencyRelationship) result.get(name)).addProvider(providerClass);
 	    }
+                }
+            }
+            /* The old list is exhausted, lets iterate through our newly
+             * discovered collection.
+             */
 	    compute = computeNext;
 	}
 	return result;
+    }
+
+    /**
+     * This method applies optional filters to provide methods to support the
+     * original API of ClassDep.
+     * @param dependencyRelationShipMap The initial map before filtering.
+     * @param cdp The parameters for filtration.
+     * @see ClassDependParameters, ClassDependencyRelationship
+     * @return Set<ClassDependencyRelationShip> result The result after filtration.
+     */
+    public Set filterClassDependencyRelationShipMap(Map dependencyRelationShipMap, ClassDependParameters cdp){
+        Set result = new HashSet(); // final result
+        Set preliminaryResult = new HashSet();
+        
+        Pattern excludePattern = createPattern(cdp.outsidePackagesOrClasses());     
+        Pattern includePattern = createPattern(cdp.insidePackages());
+        Pattern hidePattern = createPattern(cdp.hidePackages());
+        Pattern showPattern = createPattern(cdp.showPackages());      
+        Collection classRelations = dependencyRelationShipMap.values();
+        // get the root class set.
+        Set rootClasses = new HashSet();
+        {
+            Iterator itr = classRelations.iterator();
+            while (itr.hasNext()){
+                ClassDependencyRelationship cdr = (ClassDependencyRelationship) itr.next();
+                if (cdr.isRootClass()){
+                    rootClasses.add(cdr);
+                }
+            }
+        }
+        // traverse the tree from root dependant to providers
+        while ( !rootClasses.isEmpty() ){
+            Set computeNext = new HashSet();
+            Iterator computeIterator = rootClasses.iterator();
+            while (computeIterator.hasNext()){
+                ClassDependencyRelationship cdr = (ClassDependencyRelationship) computeIterator.next();
+                String name = cdr.toString();
+                    // filter out the classes as requested
+                    if ( !preliminaryResult.contains(cdr) && 
+                        ( !cdp.excludePlatformClasses() || !classPresent(name, platformLoader) ) &&
+                        !matches(name, excludePattern) && 
+                        ( cdp.insidePackages().size() == 0 || matches(name, includePattern)))
+                    {
+                        // TODO remove the outer parent class if requested
+                        preliminaryResult.add(cdr);
+                        computeNext.addAll(cdr.getProviders());
+                    }
+            }
+            rootClasses = computeNext;
+        }
+        // populate the result with the edge classes if requested
+        if (cdp.edges()){
+            Iterator itr = preliminaryResult.iterator();
+            while (itr.hasNext()) {
+                ClassDependencyRelationship cdr = (ClassDependencyRelationship) itr.next();
+                result.addAll(cdr.getProviders());
+            }
+            /* edge classes aren't in the filtered preliminary result set ;), 
+             * so remove it just in case some classes from the preliminary
+             * result set snuck back in via the provider Sets;
+             */
+            result.removeAll(preliminaryResult); 
+        }else{
+            result = preliminaryResult;
+        }
+        
+        /* If we have shows or hides, we want to remove these from
+         * the result Collection, under certain conditions.
+         */
+        Set remove = new HashSet();
+        Iterator itr = result.iterator();
+        while (itr.hasNext()){
+            ClassDependencyRelationship cdr = (ClassDependencyRelationship) itr.next();
+            String name = cdr.toString();
+            if(( matches(name,hidePattern)|| ( showPattern != null && !matches(name, showPattern))))
+            {
+                remove.add(cdr);
+            }
+        }
+        result.removeAll(remove);
+        return result;
     }
 
     /**
@@ -364,8 +474,10 @@ public class ClassDepend {
      * argument.  Returns null if the argument is empty.  xNames that end in
      * '.*' match classes in the package, names that end in '.**' match classes
      * in the package and it's subpackage.  Other names match the class.
+     * @param names
+     * @return 
      */
-    private Pattern createPattern(Collection names) {
+    public Pattern createPattern(Collection names) {
 	if (names.isEmpty()) {
 	    return null;
 	}
@@ -397,8 +509,11 @@ public class ClassDepend {
     /**
      * Checks if the string matches the pattern, returning false if the pattern
      * is null.
+     * @param string
+     * @param pattern
+     * @return 
      */
-    private boolean matches(String string, Pattern pattern) {
+    public boolean matches(String string, Pattern pattern) {
 	return pattern != null && pattern.matcher(string).matches();
     }
     
