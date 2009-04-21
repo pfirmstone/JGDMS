@@ -98,14 +98,14 @@
                 <include name="${configentry}/**"/>
                 <include name="tools/**"/>
             </zipfileset>
-            <zipfileset dir="${basedir}/qa" prefix="${product.name}/qa">
+            <!-- TODO create separate bin distribution for the qa tests -->
+            <!--<zipfileset dir="${basedir}/qa" prefix="${product.name}/qa">
                 <include name="${lib}/**"/>
                 <include name="${lib-ext}/**"/>
                 <include name="${doc}/**"/>
-                <!-- is this needed? -->
                 <include name="harness/**"/>
                 <include name="README.txt"/>
-            </zipfileset>
+            </zipfileset>-->
         </zip>
         <delete file="${bin.tar.bundle}"/>
         <tar destfile="${bin.tar.bundle}" compression="gzip" longfile="gnu">
@@ -131,14 +131,14 @@
                 <include name="${configentry}/**"/>
                 <include name="tools/**"/>
             </tarfileset>
-            <tarfileset dir="${basedir}/qa" prefix="${product.name}/qa">
+            <!-- TODO create separate bin distribution for the qa tests -->
+            <!--<tarfileset dir="${basedir}/qa" prefix="${product.name}/qa">
                 <include name="${lib}/**"/>
                 <include name="${lib-ext}/**"/>
                 <include name="${doc}/**"/>
-                <!-- is this needed? -->
                 <include name="harness/**"/>
                 <include name="README.txt"/>
-            </tarfileset>
+            </tarfileset>-->
         </tar>
     </target>
 
@@ -172,10 +172,10 @@
 				    prefix="${product.name}"
 				    includes="${src}/**/*.sh"
 				    filemode="755"/>
+            <!-- TODO investigate the source under the jtreg directory -->
             <zipfileset dir="${basedir}/qa" prefix="${product.name}/qa">
                 <include name="${src}/**"/>
                 <include name="harness/**"/>
-                <!-- TODO investigate the source under this directory -->
                 <include name="jtreg/**"/>
                 <include name="${doc}/**"/>
                 <exclude name="${doc}/api"/>
@@ -208,10 +208,10 @@
                 <include name="${src}/**"/>
                 <include name="tools/**"/>
             </tarfileset>
+            <!-- TODO investigate the source under the jtreg directory -->
             <tarfileset dir="${basedir}/qa" prefix="${product.name}/qa">
                 <include name="${src}/**"/>
                 <include name="harness/**"/>
-                <!-- TODO investigate the source under this directory -->
                 <include name="jtreg/**"/>
                 <include name="${doc}/**"/>
                 <exclude name="${doc}/api"/>
