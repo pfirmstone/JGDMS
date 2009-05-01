@@ -24,7 +24,7 @@ import java.lang.reflect.InvocationTargetException;
 import net.jini.core.transaction.server.TransactionManager;
 import junit.framework.TestCase;
 
-import static org.easymock.classextension.EasyMock.*;
+import static org.mockito.Mockito.*;
 
 public class TxnTableTest extends TestCase {
 
@@ -47,11 +47,9 @@ public class TxnTableTest extends TestCase {
 	@SuppressWarnings("unchecked")
 	public void testKeyEquals() throws Exception {
 		
-		TxnTable mockTxnTable = createNiceMock(TxnTable.class);
-		replay(mockTxnTable);
+		TxnTable mockTxnTable = mock(TxnTable.class);
 		
-		TransactionManager mockTransactionManager = createNiceMock(TransactionManager.class);
-		replay(mockTransactionManager);
+		TransactionManager mockTransactionManager = mock(TransactionManager.class);
 		
 		final long id = 1000L;
 		final boolean isPrepared = true;
