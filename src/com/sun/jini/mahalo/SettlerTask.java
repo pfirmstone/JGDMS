@@ -149,7 +149,7 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
 	
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(SettlerTask.class.getName(), 
-	        "tryOnce", Boolean.valueOf(true));
+	        "tryOnce", Boolean.TRUE);
 	}
 
 	return true;

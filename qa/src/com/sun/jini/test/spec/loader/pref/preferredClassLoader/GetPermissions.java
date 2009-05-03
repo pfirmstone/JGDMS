@@ -21,27 +21,16 @@ import java.util.logging.Level;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QAConfig;
-
-// com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
-import com.sun.jini.qa.harness.QAConfig;
 
 // java.io
-import java.io.IOException;
 import java.io.FilePermission;
 
 // java.net
-import java.net.URL;
 import java.net.SocketPermission;
 import java.net.InetAddress;
 
 // java.util
 import java.util.Enumeration;
-
-// java.util.logging
-import java.util.logging.Logger;
-import java.util.logging.Level;
 
 // java.security
 import java.security.ProtectionDomain;
@@ -49,11 +38,7 @@ import java.security.PermissionCollection;
 import java.security.Permission;
 import java.security.CodeSource;
 
-// davis packages
-import net.jini.loader.pref.PreferredClassLoader;
-
 // instrumented preferred class loader
-import com.sun.jini.test.spec.loader.util.Item;
 import com.sun.jini.test.spec.loader.util.Util;
 import com.sun.jini.test.spec.loader.util.QATestPreferredClassLoader;
 
@@ -370,10 +355,10 @@ public class GetPermissions extends AbstractTestBase {
                 // Fast fail approach
                 throw new TestException(message);
             }
-            Enumeration enum = pc.elements();
+            Enumeration permissions = pc.elements();
 
-            while (enum.hasMoreElements()) {
-                Permission p = (Permission) enum.nextElement();
+            while (permissions.hasMoreElements()) {
+                Permission p = (Permission) permissions.nextElement();
                 logger.log(Level.FINE, "Permission: " + p.toString());
 
                 if (isHttp) {

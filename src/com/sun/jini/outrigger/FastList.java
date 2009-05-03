@@ -332,8 +332,7 @@ class FastList {
 	    Node traversalGuard = (Node)FastList.DynamicGuard.get();
 	    if (traversalGuard == null)
 		this.list.panic("Unguarded FastList traversal - 345");
-
-	    if (traversalGuard.list != this.list)
+	    else if (traversalGuard.list != this.list)
 		this.list.panic("Illegal traversal of 2 FastLists");
 
 	    /* When this thread last synchronized, Node.guardSet on

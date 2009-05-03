@@ -120,7 +120,7 @@ class PendingTxn implements Serializable {
 	// Both pending writes and pending takes are stored in the table.
 	// We only interested in entries from pending writes.
 	//
-	if ((po != null) & (po instanceof WriteOp))
+	if (po instanceof WriteOp)
 	    return ((WriteOp)po).entry;
 
 	return null;

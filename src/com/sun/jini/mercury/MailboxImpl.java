@@ -4802,7 +4802,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         if (logger.isLoggable(level)) {
 	    if (attrs == null)
 	        logger.log(level, "<null>");
-	    if (attrs.length == 0)
+	    else if (attrs.length == 0)
 	        logger.log(level, "<EMPTY>");
 	    else {
 	        logger.log(level, 

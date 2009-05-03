@@ -559,7 +559,7 @@ public final class GrantPermission extends Permission {
 	for (int i = 0; i < pa.length; i++) {
 	    Permission p = pa[i];
 	    if (p instanceof UnresolvedPermission) {
-		sb.append(p + "; ");
+		sb.append(p).append("; ");
 	    } else {
 		Class cl = p.getClass();
 		int nargs = maxConsArgs(cl);
