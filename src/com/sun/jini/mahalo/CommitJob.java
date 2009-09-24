@@ -154,7 +154,7 @@ public class CommitJob extends Job implements TransactionConstants {
         //stop, so that no further attempts are made.
  
 	try {
-            if (attempt(who) > maxtries) {
+            if (attempt(who) >= maxtries) {
                 return new Integer(COMMITTED);
             }
 	} catch (JobException je) {

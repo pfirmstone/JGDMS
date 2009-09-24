@@ -241,7 +241,7 @@ public final class PreferredResources {
     {
 	isEmpty = false;
 	
-	if ((name.length() == 0) || (name == null)) {
+	if ((name == null) || (name.length() == 0)) {
 	    throw new IOException("no name specified in preference" +
 				  " expression");
 	}

@@ -942,7 +942,6 @@ class TxnManagerTransaction
 			CannotAbortException("Transaction already COMMITTED");
 	    }
 
-            Enumeration joined = joinvec.elements();
             int numparts = joinvec.size();
             ParticipantHandle[] phs = new ParticipantHandle[numparts];
             joinvec.copyInto(phs);
