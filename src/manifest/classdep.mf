@@ -1,2 +1,2 @@
 Manifest-Version: 1.0
-Main-Class: com.sun.jini.tool.ClassDepLoader
+Main-Class: com.sun.jini.tool.ClassDep
