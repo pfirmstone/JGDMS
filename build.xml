@@ -51,8 +51,8 @@
     </path>
 
     <path id="compile.classpath">
-        <pathelement location="tools/asm-3.1.jar"/>
-        <pathelement location="tools/asm-commons-3.1.jar"/>
+        <pathelement location="tools/asm-3.2.jar"/>
+        <pathelement location="tools/asm-commons-3.2.jar"/>
     </path>
 
     <path id="classdep.classpath">
