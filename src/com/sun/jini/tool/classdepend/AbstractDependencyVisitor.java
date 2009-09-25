@@ -179,7 +179,7 @@ abstract class AbstractDependencyVisitor extends AbstractVisitor {
 
     public void visitTypeVariable(String name) {
         /* XXX: Need to do something? */
-        System.out.println(name);
+        //System.out.println(name);
     }
 
     public void visitClassType(String name) {
