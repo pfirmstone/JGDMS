@@ -30,6 +30,8 @@ package com.sun.jini.tool.classdepend;
  * THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.objectweb.asm.AnnotationVisitor;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
@@ -126,11 +128,28 @@ abstract class AbstractDependencyVisitor extends AbstractVisitor {
         addNameInternal(owner);
         addDesc(desc);
     }
-
+    
+    String pattern = "^\\[{0,2}L{0,1}(\\w+[/.]{1}[\\w$\\d/.]+);{0,1}$";
+    Pattern arrayOfObjects = Pattern.compile(pattern);
     public void visitMethodInsn(int opcode, String owner, String name,
 				String desc)
     {
-        addNameInternal(owner);
+        /* This filters out Generic's and primitive owners.
+         *
+         * Also when the owner is an array, containing Objects and
+         * the method name is clone(), (I think it's got something to do
+         * with cloning array's, this must be a new java 5 language feature
+         * I tested 1.4 code without this ever occurring)      
+         * we can't get the Object's type
+         * using Type.getType(owner) due to the nature of 
+         * the ASM Core API requiring bytecode be read sequentially.
+         * This only occurs with clone() which returns java.lang.Object
+         */
+        Matcher match = arrayOfObjects.matcher(owner);
+        while (match.find()){
+            String object = match.group(1);
+            addNameInternal(object);
+        } 
         addMethodDesc(desc);
     }
 
@@ -187,7 +206,7 @@ abstract class AbstractDependencyVisitor extends AbstractVisitor {
     }
 
     public void visitInnerClassType(String name) {
-        addNameInternal(name);
+        // This is not a fully qualified class name, ignore.
     }
 
     /* -- Utilities -- */
