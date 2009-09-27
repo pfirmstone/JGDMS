@@ -57,7 +57,7 @@
 
     <path id="javadoc.classpath">
         <path refid="river.classpath"/>
-        <path location="${build.classes}"/>
+        <path location="${build.classes.dir}"/>
     </path>
 
     <path id="ext.dirs.path">

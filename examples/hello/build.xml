@@ -1,0 +1,220 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<project name="hello" basedir="." default="jars">
+
+    <description>This Ant scripts provides numerous tasks to build the
+        the Hello Example</description>
+
+    <!-- Root of the River source distribution -->
+    <property name="root" location="../.." />
+
+    <!-- Import common settings and macros -->
+    <import file="${root}/common.xml"/>
+
+    <!-- Override this to run QA tests against an external River installation -->
+    <property name="river.home" location="${root}"/>
+
+    <property name="river.lib.dir" location="${river.home}/lib"/>
+    <property name="river.lib-ext.dir" location="${river.home}/lib-ext"/>
+    <property name="river.classes.dir" location="${river.home}/build/classes"/>
+    <property name="river.src.dir" location="${river.home}/src"/>
+
+    <!-- directory settings -->
+    <property name="trust.dir" location="harness/trust"/>
+
+    <!-- javadoc setings -->
+    <property name="javadoc.doc-title" value="Apache River v${version} Hello Example API Documentation"/>
+    <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
+
+    <!-- classpath containing River distribution -->
+    <!-- TODO: investigate exact classpath requirements for this build -->
+    <path id="river.classpath">
+        <fileset dir="${river.lib.dir}" includes="**/*.jar" />
+    </path>
+
+    <!-- classpath for use by ClassDep in this build -->
+    <path id="classdep.classpath">
+        <pathelement path="${river.lib.dir}/classdep.jar"/>
+        <pathelement location="${river.home}/tools/asm-3.1.jar"/>
+        <pathelement location="${river.home}/tools/asm-commons-3.1.jar"/>
+    </path>
+
+    <!-- classpath for use by ClassDep in this build -->
+    <path id="classdep.cp">
+        <path refid="river.classpath"/>
+        <path location="${build.classes.dir}"/>
+    </path>
+
+    <path id="javadoc.classpath">
+        <path refid="river.classpath"/>
+        <path location="${build.classes.dir}"/>
+    </path>
+    
+	<property name="config.dir" location="config"/>
+      
+	<target name="clean" depends=""
+		description="Removes all files and dirs created by the build">
+        <delete dir="${build.dir}" quiet="true"/>
+        <delete dir="${lib.dir}"	quiet="true"/>
+    </target>
+
+    <target name="compile" depends="prep" description="Build classes">
+        <javac-cmd source.dir="${src.dir}" dest.dir="${build.classes.dir}">
+            <classpath refid="river.classpath"/>
+        </javac-cmd>
+    </target>
+      
+      
+	<target name="prep" description="Prepare the build">
+        <mkdir dir="${build.dir}" />
+        <mkdir dir="${build.classes.dir}" />
+        <mkdir dir="${build.deps.dir}" />
+        <mkdir dir="${lib.dir}" />
+    </target>
+      
+	<target name="jars"
+		depends="client.jar,
+			 mdprefld.jar,
+			 server.jar,
+			 server-act.jar,
+			 server-dl.jar">
+      
+	</target>
+      
+      
+	<target name="client.jar" depends="stubs">
+        <property name="example-client.deps" location="${build.deps.dir}/example-client.deps"/>
+        <java classname="com.sun.jini.tool.ClassDep"
+		      failonerror="true" logError="true"
+		      output="${example-client.deps}">
+            <classpath refid="classdep.classpath"/>
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="-in net.jini"/>
+            <arg line="-in com.sun.jini"/>
+            <arg value="com.sun.jini.example.hello.Client"/>
+        </java>
+        <delete file="${lib.dir}/client.jar" quiet="true"/>
+        <jar destfile="${lib.dir}/client.jar"
+		     index="false"
+		     manifest="client.mf">
+            <fileset dir="${build.classes.dir}" includesfile="${example-client.deps}"/>
+        </jar>
+    </target>
+
+    <target name="mdprefld.jar"	depends="compile">
+        <delete file="${lib.dir}/mdprefld.jar" quiet="true"/>
+        <jar destfile="${lib.dir}/mdprefld.jar"
+		     index="false">
+            <fileset dir="${build.classes.dir}"
+				 includes="com/sun/jini/example/hello/MdClassAnnotationProvider.class"/>
+        </jar>
+    </target>
+
+    <target name="server.jar" depends="stubs">
+        <property name="example-server.deps" location="${build.deps.dir}/example-server.deps"/>
+        <java classname="com.sun.jini.tool.ClassDep"
+		      failonerror="true" logError="true"
+		      output="${example-server.deps}">
+            <classpath refid="classdep.classpath"/>
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="-in net.jini"/>
+            <arg line="-in com.sun.jini"/>
+            <arg value="com.sun.jini.example.hello.Server"/>
+            <arg value="com.sun.jini.example.hello.Server_Stub"/>
+            <arg value="com.sun.jini.example.hello.ConfirmingILFactory"/>
+            <arg value="com.sun.jini.example.hello.ConfirmingInvocationHandler"/>
+            <arg value="com.sun.jini.example.hello.ServerPermission"/>
+        </java>
+        <delete file="${lib.dir}/server.jar" quiet="true"/>
+        <jar destfile="${lib.dir}/server.jar"
+		     index="false"
+		     manifest="server.mf">
+            <fileset dir="${build.classes.dir}"  includesfile="${example-server.deps}"/>
+        </jar>
+    </target>
+
+    <target name="server-act.jar" depends="stubs">
+        <property name="example-server-act.deps" location="${build.deps.dir}/example-server-act.deps"/>
+        <java classname="com.sun.jini.tool.ClassDep"
+		      failonerror="true" logError="true"
+		      output="${example-server-act.deps}">
+            <classpath refid="classdep.classpath"/>
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="-in net.jini"/>
+            <arg line="-in com.sun.jini"/>
+            <arg value="com.sun.jini.example.hello.ActivatableServer"/>
+            <arg value="com.sun.jini.example.hello.ConfirmingILFactory"/>
+            <arg value="com.sun.jini.example.hello.ConfirmingInvocationHandler"/>
+            <arg value="com.sun.jini.example.hello.Server"/>
+            <arg value="com.sun.jini.example.hello.Server_Stub"/>
+            <arg value="com.sun.jini.example.hello.ServerPermission"/>
+        </java>
+        <delete file="${lib.dir}/server-act.jar" quiet="true"/>
+        <jar destfile="${lib.dir}/server-act.jar"
+		     index="false"
+		     manifest="server-act.mf">
+            <fileset dir="${build.classes.dir}" includesfile="${example-server-act.deps}"/>
+        </jar>
+    </target>
+
+    <target name="server-dl.jar" depends="stubs">
+        <property name="example-server-dl.deps" location="${build.deps.dir}/example-server-dl.deps"/>
+        <java classname="com.sun.jini.tool.ClassDep"
+		      failonerror="true" logError="true"
+		      output="${example-server-dl.deps}">
+            <classpath refid="classdep.classpath"/>
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
+            <arg line="${jskplatform.exclude}"/>
+            <arg line="-in net.jini"/>
+            <arg line="-in com.sun.jini"/>
+            <arg value="com.sun.jini.example.hello.ConfirmingInvocationHandler"/>
+            <arg value="com.sun.jini.example.hello.Hello"/>
+            <arg value="com.sun.jini.example.hello.Proxy"/>
+            <arg value="com.sun.jini.example.hello.Server_Stub"/>
+            <arg value="com.sun.jini.example.hello.ServerPermission"/>
+
+        </java>
+        <delete file="${lib.dir}/server-dl.jar" quiet="true"/>
+        <jar destfile="${lib.dir}/server-dl.jar"
+		     index="false">
+            <fileset dir="${build.classes.dir}"  includesfile="${example-server-dl.deps}"/>
+            <metainf dir="${config.dir}/META-INF"/>
+        </jar>
+    </target>
+
+    <target name="stubs" depends="compile">
+        <rmic base="${build.classes.dir}" stubversion="1.2">
+            <classpath refid="river.classpath"/>
+            <include name="com/sun/jini/example/hello/Server.class"/>
+        </rmic>
+    </target>
+
+</project>
+

@@ -75,7 +75,7 @@
 		depends="all">
         <mkdir dir="${dist.dir}"/>
         <delete file="${bin.zip.bundle}"/>
-        <zip destfile="${bin.zip.bundle}">
+        <zip destfile="${bin.zip.bundle}" roundup="yes">
             <zipfileset dir="${basedir}" prefix="${product.name}">
                 <include name="index.html"/>
                 <include name="DISCLAIMER"/>
@@ -98,6 +98,17 @@
                 <include name="${configentry}/**"/>
                 <include name="tools/**"/>
             </zipfileset>
+            <zipfileset dir="${basedir}/examples" prefix="${product.name}/examples">
+                <include name="**/lib/**"/>
+                <include name="**/config/**"/>
+                <include name="**/prebuiltkeys/**"/>
+                <include name="**/scripts/**"/>
+                <include name="**/*.html"/>
+            </zipfileset>
+            <zipfileset dir="${basedir}/examples"
+				    prefix="${product.name}/examples"
+				    includes="**/*.sh"
+				    filemode="755"/>
             <!-- TODO create separate bin distribution for the qa tests -->
             <!--<zipfileset dir="${basedir}/qa" prefix="${product.name}/qa">
                 <include name="${lib}/**"/>
@@ -131,6 +142,17 @@
                 <include name="${configentry}/**"/>
                 <include name="tools/**"/>
             </tarfileset>
+            <tarfileset dir="${basedir}/examples" prefix="${product.name}/examples">
+                <include name="**/lib/**"/>
+                <include name="**/config/**"/>
+                <include name="**/prebuiltkeys/**"/>
+                <include name="**/scripts/**"/>
+                <include name="**/*.html"/>
+            </tarfileset>
+            <tarfileset dir="${basedir}/examples"
+				    prefix="${product.name}/examples"
+				    includes="**/*.sh"
+				    filemode="755"/>
             <!-- TODO create separate bin distribution for the qa tests -->
             <!--<tarfileset dir="${basedir}/qa" prefix="${product.name}/qa">
                 <include name="${lib}/**"/>
@@ -145,7 +167,7 @@
     <target name="release-src" description="Create a source release">
         <mkdir dir="${dist.dir}"/>
         <delete file="${src.zip.bundle}"/>
-        <zip destfile="${src.zip.bundle}">
+        <zip destfile="${src.zip.bundle}" roundup="yes">
             <zipfileset dir="${basedir}" prefix="${product.name}" >
                 <include name="index.html"/>
                 <include name="build.xml"/>
@@ -168,9 +190,14 @@
                 <exclude name="${src}/**/*.sh"/>
                 <include name="tools/**"/>
             </zipfileset>
-            <zipfileset dir="${basedir}"
-				    prefix="${product.name}"
-				    includes="${src}/**/*.sh"
+            <zipfileset dir="${basedir}/examples" prefix="${product.name}/examples">
+                <include name="**"/>
+                <exclude name="**/lib/"/>
+                <exclude name="**/build/"/>
+            </zipfileset>
+            <zipfileset dir="${basedir}/examples"
+				    prefix="${product.name}/examples"
+				    includes="**/*.sh"
 				    filemode="755"/>
             <!-- TODO investigate the source under the jtreg directory -->
             <zipfileset dir="${basedir}/qa" prefix="${product.name}/qa">
@@ -208,6 +235,15 @@
                 <include name="${src}/**"/>
                 <include name="tools/**"/>
             </tarfileset>
+            <tarfileset dir="${basedir}/examples" prefix="${product.name}/examples">
+                <include name="**"/>
+                <exclude name="**/lib/"/>
+                <exclude name="**/build/"/>
+            </tarfileset>
+            <tarfileset dir="${basedir}/examples"
+				    prefix="${product.name}/examples"
+				    includes="**/*.sh"
+				    filemode="755"/>
             <!-- TODO investigate the source under the jtreg directory -->
             <tarfileset dir="${basedir}/qa" prefix="${product.name}/qa">
                 <include name="${src}/**"/>
@@ -400,7 +436,7 @@
 		depends="river.jars,
             toolswrappers.jars,
             services.jars,
-            examples.jars" />
+            browser.jars" />
 
     <target name="river.jars" depends="stubs,
             jini-core.jar,
@@ -438,14 +474,9 @@
             sharedvm.jar,
             start.jar" />
 
-    <target name="examples.jars" depends="services.jars,
+    <target name="browser.jars" depends="services.jars,
             browser.jar,
-            browser-dl.jar,
-            client.jar,
-			mdprefld.jar,
-			server.jar,
-			server-act.jar,
-			server-dl.jar" />
+            browser-dl.jar" />
 
     <target name="compile" description="Build classes"
 		depends="copy-resources">
@@ -467,7 +498,7 @@
     <target name="stubs" description="Generate stubs"
 		depends="compile, browser.stubs, fiddler.stubs, mahalo.stubs, 
             mercury.stubs, norm.stubs, outrigger.stubs, phoenix.stubs,
-            reggie.stubs, sdm.stubs, start.stubs, hello.stubs">
+            reggie.stubs, sdm.stubs, start.stubs">
     </target>
 
     <target name="clean" depends="clean-dist, clean-jars"
@@ -2133,124 +2164,6 @@
         </preferredlistgen>
     </target>
 
-    <target name="client.jar" depends="stubs">
-        <property name="example-client.deps" location="${build.deps.dir}/example-client.deps"/>
-        <java classname="com.sun.jini.tool.ClassDep"
-		      failonerror="true"
-		      output="${example-client.deps}">
-            <classpath refid="classdep.classpath"/>
-            <arg value="-cp"/>
-            <arg path="${build.classes.dir}"/>
-            <arg value="-files"/>
-            <arg line="${jskplatform.exclude}"/>
-            <arg line="-in net.jini"/>
-            <arg line="-in com.sun.jini"/>
-            <arg value="com.sun.jini.example.hello.Client"/>
-        </java>
-        <delete file="${lib.dir}/client.jar" quiet="true"/>
-        <jar destfile="${lib.dir}/client.jar"
-		     index="false"
-		     manifest="${src.dir}/com/sun/jini/example/hello/client.mf">
-            <fileset dir="${build.classes.dir}" includesfile="${example-client.deps}"/>
-        </jar>
-    </target>
-
-    <target name="mdprefld.jar"	depends="compile">
-        <delete file="${lib.dir}/mdprefld.jar" quiet="true"/>
-        <jar destfile="${lib.dir}/mdprefld.jar"
-		     index="false">
-            <fileset dir="${build.classes.dir}"
-				 includes="com/sun/jini/example/hello/MdClassAnnotationProvider.class"/>
-        </jar>
-    </target>
-
-    <target name="server.jar" depends="stubs">
-        <property name="example-server.deps" location="${build.deps.dir}/example-server.deps"/>
-        <java classname="com.sun.jini.tool.ClassDep"
-		      failonerror="true"
-		      output="${example-server.deps}">
-            <classpath refid="classdep.classpath"/>
-            <arg value="-cp"/>
-            <arg path="${build.classes.dir}"/>
-            <arg value="-files"/>
-            <arg line="${jskplatform.exclude}"/>
-            <arg line="-in net.jini"/>
-            <arg line="-in com.sun.jini"/>
-            <arg value="com.sun.jini.example.hello.Server"/>
-            <arg value="com.sun.jini.example.hello.Server_Stub"/>
-            <arg value="com.sun.jini.example.hello.ConfirmingILFactory"/>
-            <arg value="com.sun.jini.example.hello.ConfirmingInvocationHandler"/>
-            <arg value="com.sun.jini.example.hello.ServerPermission"/>
-        </java>
-        <delete file="${lib.dir}/server.jar" quiet="true"/>
-        <jar destfile="${lib.dir}/server.jar"
-		     index="false"
-		     manifest="${src.dir}/com/sun/jini/example/hello/server.mf">
-            <fileset dir="${build.classes.dir}"  includesfile="${example-server.deps}"/>
-        </jar>
-    </target>
-
-    <target name="server-act.jar" depends="stubs">
-        <property name="example-server-act.deps" location="${build.deps.dir}/example-server-act.deps"/>
-        <java classname="com.sun.jini.tool.ClassDep"
-		      failonerror="true"
-		      output="${example-server-act.deps}">	      
-            <classpath refid="classdep.classpath"/>
-            <arg value="-cp"/>
-            <arg path="${build.classes.dir}"/>
-            <arg value="-files"/>
-            <arg line="${jskplatform.exclude}"/>
-            <arg line="-in net.jini"/>
-            <arg line="-in com.sun.jini"/>
-            <arg value="com.sun.jini.example.hello.ActivatableServer"/>
-            <arg value="com.sun.jini.example.hello.ConfirmingILFactory"/>
-            <arg value="com.sun.jini.example.hello.ConfirmingInvocationHandler"/>
-            <arg value="com.sun.jini.example.hello.Server"/>
-            <arg value="com.sun.jini.example.hello.Server_Stub"/>
-            <arg value="com.sun.jini.example.hello.ServerPermission"/>
-        </java>
-        <delete file="${lib.dir}/server-act.jar" quiet="true"/>
-        <jar destfile="${lib.dir}/server-act.jar"
-		     index="false"
-		     manifest="${src.dir}/com/sun/jini/example/hello/server-act.mf">
-            <fileset dir="${build.classes.dir}" includesfile="${example-server-act.deps}"/>
-        </jar>
-    </target>
-
-    <target name="server-dl.jar" depends="stubs">
-        <property name="example-server-dl.deps" location="${build.deps.dir}/example-server-dl.deps"/>
-        <java classname="com.sun.jini.tool.ClassDep"
-		      failonerror="true"
-		      output="${example-server-dl.deps}">
-            <classpath refid="classdep.classpath"/>
-            <arg value="-cp"/>
-            <arg path="${build.classes.dir}"/>
-            <arg value="-files"/>
-            <arg line="${jskplatform.exclude}"/>
-            <arg line="-in net.jini"/>
-            <arg line="-in com.sun.jini"/>
-            <arg value="com.sun.jini.example.hello.ConfirmingInvocationHandler"/>
-            <arg value="com.sun.jini.example.hello.Hello"/>
-            <arg value="com.sun.jini.example.hello.Proxy"/>
-            <arg value="com.sun.jini.example.hello.Server_Stub"/>
-            <arg value="com.sun.jini.example.hello.ServerPermission"/>
-	    
-        </java>
-        <delete file="${lib.dir}/server-dl.jar" quiet="true"/>
-        <jar destfile="${lib.dir}/server-dl.jar"
-		     index="false">
-            <fileset dir="${build.classes.dir}"  includesfile="${example-server-dl.deps}"/>
-            <metainf dir="${src.dir}/com/sun/jini/example/hello/config/META-INF"/>
-        </jar>
-    </target>
-    
-    <target name="hello.stubs">
-        <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath"/>
-            <include name="com/sun/jini/example/hello/Server.class"/>
-        </rmic>
-    </target>
-
     <!-- You can specify the following properties (see qa/build.xml):
         run.categories
         harness.configs
@@ -2271,12 +2184,16 @@
             description="Clean all, including subcomponents">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="clean" inheritall="false" />
+        <!-- Call examples subcomponent build -->
+        <ant dir="examples/hello" target="clean" inheritall="false" />
     </target>
 
     <target name="all.compile" depends="jars"
             description="Compile all, including subcomponents">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="compile" inheritall="false" />
+        <!-- Call examples subcomponent build -->
+        <ant dir="examples/hello" target="compile" inheritall="false" />
     </target>
 
     <target name="all.doc" depends="doc,spec-doc,jars"
@@ -2289,6 +2206,8 @@
             description="Generate JAR files for all, including subcomponents">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="jars" inheritall="false" />
+        <!-- Call examples subcomponent build -->
+        <ant dir="examples/hello" target="jars" inheritall="false" />
     </target>
 
 </project>
