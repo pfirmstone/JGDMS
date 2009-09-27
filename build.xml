@@ -2044,7 +2044,7 @@
         <classdep output="${tools.deps}">
             <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
-            <arg path="${build.classes.dir}"/>
+            <arg pathref="classdep.classpath"/>
             <arg value="-files"	/>
             <arg line="${jskprivate.include}"/>
             <arg line="-in com.sun.jini.tool"/>

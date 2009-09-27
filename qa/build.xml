@@ -1556,14 +1556,14 @@
             <include name="com/sun/jini/test/spec/lookupservice/test_set00/NotifyOnSrvcLeaseExpiration$$Listener.class" />
             <include name="com/sun/jini/test/spec/lookupservice/test_set00/MultipleEvntLeaseRenewals$$Listener.class" />
             <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrAddNull$$Listener.class" />
-            <include name="com.sun.jini.test.spec.lookupservice.test_set01/NotifyOnComboAttrAddNonNull$$Listener" />
+            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrAddNonNull$$Listener.class" />
             <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrModNull$$Listener.class" />
             <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrModNonNull$$Listener.class" />
             <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrDelNull$$Listener.class" />
             <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboAttrDelNonNull$$Listener.class" />
             <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboSrvcReg$$Listener.class" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboSrvcLeaseExp$$Listener" />
-            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnEntrySrvcReg$$Listener" />
+            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnComboSrvcLeaseExp$$Listener.class" />
+            <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnEntrySrvcReg$$Listener.class" />
             <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnEntryAttrAddNull$$Listener.class" />
             <include name="com/sun/jini/test/spec/lookupservice/test_set01/NotifyOnEntryAttrAddNonNull$$Listener.class" />
             <include name="com/sun/jini/test/spec/lookupservice/test_set02/LeaseMapRenew$$Listener.class" />
