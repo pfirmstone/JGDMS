@@ -142,7 +142,9 @@
         <property name="jtreg.home" location="/opt/jtreg" />
         <taskdef name="jtreg" classname="com.sun.javatest.regtest.Main$$Ant"
                 classpath="${jtreg.home}/lib/jtreg.jar" />
-        <jtreg dir="${jtreg.dir}" verbose="all" >
+        <jtreg dir="${jtreg.dir}" verbose="all"
+                reportdir="${jtreg.dir}/JTreport"
+                workdir="${jtreg.dir}/JTwork">
             <!--<arg value="-cpa:${jtreg.classpath}" />-->
             <!--<arg value="-check" />-->
             <arg value="-Xbootclasspath/a:${jtreg.classpath}" />
