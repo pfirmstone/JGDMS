@@ -51,8 +51,8 @@
     <!-- classpath for use by ClassDep in this build -->
     <path id="classdep.classpath">
         <pathelement path="${river.lib.dir}/classdep.jar"/>
-        <pathelement location="${river.home}/tools/asm-3.1.jar"/>
-        <pathelement location="${river.home}/tools/asm-commons-3.1.jar"/>
+        <pathelement location="${river.home}/tools/asm-3.2.jar"/>
+        <pathelement location="${river.home}/tools/asm-commons-3.2.jar"/>
     </path>
 
     <path id="javadoc.classpath">
