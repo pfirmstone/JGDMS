@@ -1,3 +1,11 @@
+===============================================
+PLEASE NOTE THAT BELOW INFO IS (VERY) OUTDATED!
+It is only kept for reference while updated documentation is under develoment.
+Meanwhile, please refer to:
+<river home>/build.xml ('qa.run' task) e.g. 'ant qa.run'
+<river home>/qa/build.xml ('run-categories', 'run-tests', 'jtreg' tasks) e.g. 'ant jtreg'
+===============================================
+
 This file describes the steps one can take to build and run the tests
 provided under the 'integrationtests' directory of Apache River. Note
 that the steps outlined here assume a unix or linux based system with
