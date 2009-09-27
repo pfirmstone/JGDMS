@@ -68,13 +68,13 @@ When run under any of the configurations provided in this example,
 the application simply says, "Hello, world!". 
 <p>
 This example also demonstrates the use of the 
-<a href="../../../../../../../doc/specs/api/net/jini/config/Configuration.html"><code>Configuration</code></a>,
-<a href="../../../../../../../doc/specs/api/net/jini/export/Exporter.html"><code>Exporter</code></a>,
+<a href="../../doc/specs/api/net/jini/config/Configuration.html"><code>Configuration</code></a>,
+<a href="../../doc/specs/api/net/jini/export/Exporter.html"><code>Exporter</code></a>,
 and 
-<a href="../../../../../../../doc/specs/api/net/jini/security/ProxyPreparer.html"><code>ProxyPreparer</code></a>
+<a href="../../doc/specs/api/net/jini/security/ProxyPreparer.html"><code>ProxyPreparer</code></a>
 interfaces to configure the client, server, lookup service, and 
 activation system 
-(<a href="../../../../../../../doc/api/com/sun/jini/phoenix/package-summary.html"><i>Phoenix</i></a>) 
+(<a href="../../doc/api/com/sun/jini/phoenix/package-summary.html"><i>Phoenix</i></a>) 
 for the desired remote communication and security. Additionally, 
 references to the source files for the application as well as the 
 various configuration and policy files that can be used to run the 
@@ -133,9 +133,9 @@ or the Kerberos provider through the
 <a href="http://java.sun.com/j2se/1.4.2/docs/guide/security/jgss/tutorials">Java GSS-API</a>.
 Additionally, when run under any of the secure configurations, this 
 example exploits the 
-<a href="../../../../../../../doc/specs/api/net/jini/security/policy/DynamicPolicyProvider.html">dynamic permission granting</a>
+<a href="../../doc/specs/api/net/jini/security/policy/DynamicPolicyProvider.html">dynamic permission granting</a>
 features of the 
-<a href="../../../../../../../doc/specs/api/net/jini/security/policy/package-summary.html">security policy provider</a>
+<a href="../../doc/specs/api/net/jini/security/policy/package-summary.html">security policy provider</a>
 included in the Apache River release. 
 
 <h4>SSL setup</h4>
@@ -223,12 +223,12 @@ For instructions on how to create keytab files and TGT caches, see
 <h4>Installing the security policy provider for dynamic permission granting</h4>
 
 In order to enable 
-<a href="../../../../../../../doc/specs/api/net/jini/security/policy/DynamicPolicyProvider.html">dynamic permission granting</a>,
+<a href="../../doc/specs/api/net/jini/security/policy/DynamicPolicyProvider.html">dynamic permission granting</a>,
 the 
-<a href="../../../../../../../doc/specs/api/net/jini/security/policy/package-summary.html">security policy provider</a>
+<a href="../../doc/specs/api/net/jini/security/policy/package-summary.html">security policy provider</a>
 included in the Apache River release must be installed as an extension 
 in the Java 2 SDK (or JRE) used to run this example. Although the
-<a href="../../../../../../../doc/info-index.html#install">top level documentation</a>
+<a href="../../doc/info-index.html#install">top level documentation</a>
 of the Apache River release discusses two different strategies for installing 
 the policy provider, the strategy that this example <b>requires</b> 
 is the strategy in which the JAR file <code>jsk-policy.jar</code> 
@@ -261,7 +261,7 @@ This example can be run on a single machine or distributed among
 multiple machines. The client, server, and lookup service can each
 be run on separate machines if desired, but the activatable form 
 of the server and the activation system 
-(<a href="../../../../../../../doc/api/com/sun/jini/phoenix/package-summary.html">Phoenix</a>) 
+(<a href="../../doc/api/com/sun/jini/phoenix/package-summary.html">Phoenix</a>)
 must run on the
 same machine. Note also that when the example is distributed among
 multiple machines, a class server must be run on each machine 
@@ -305,11 +305,11 @@ Upon opening the five command windows described above, in each
 window, change the directory to the hello directory. That is,
 
 <pre>
-  a. >> cd <<code>jiniDir</code>>/source/src/com/sun/jini/example/hello
-  b. >> cd <<code>jiniDir</code>>/source/src/com/sun/jini/example/hello
-  c. >> cd <<code>jiniDir</code>>/source/src/com/sun/jini/example/hello
-  d. >> cd <<code>jiniDir</code>>/source/src/com/sun/jini/example/hello
-  e. >> cd <<code>jiniDir</code>>/source/src/com/sun/jini/example/hello
+  a. >> cd <<code>riverDir</code>>/examples/hello
+  b. >> cd <<code>riverDir</code>>/examples/hello
+  c. >> cd <<code>riverDir</code>>/examples/hello
+  d. >> cd <<code>riverDir</code>>/examples/hello
+  e. >> cd <<code>riverDir</code>>/examples/hello
 </pre>
 
 <h3>Running the class server</h3>
@@ -318,7 +318,7 @@ To run this example under any of the possible configurations, a single
 class server should be started to serve up files from both the example's
 <code>lib</code> directory and the Apache River release <code>lib-dl</code>
 directory. The 
-<a href="../../../../../../../doc/api/com/sun/jini/tool/ClassServer.html">class server</a>
+<a href="../../doc/api/com/sun/jini/tool/ClassServer.html">class server</a>
 provided in the Apache River release is used for this purpose. Note that once 
 started, there is no need to shut down the class server (cntrl-c) until 
 it is no longer needed. This is because that single class server can be 
@@ -652,12 +652,9 @@ recompile the source and rebuild the JAR files:
   </li>
 </ul>
 
-To use <code>build.xml</code>, two environment variables must be
-set: <code>JAVA_HOME</code> and <code>ANT_HOME</code>. These 
-environment variables must each be set to reference a valid version 
-of the Java 2 SDK (or JRE) and Ant respectively. The version of the
-Java operating environment referenced must be at least 1.4. The 
-version of Ant referenced must be at least 1.6.2.
+For running <code>build.xml</code>, the version of the
+Java operating environment used must be at least 1.4 and the
+version of Ant used must be at least 1.6.2.
 <p>
 Note that all operations shown below are performed from the 
 <code>hello</code> directory of the example, and assume a UNIX,
@@ -674,7 +671,7 @@ example, typing the following will cause the appropriate file(s)
 to be automatically recompiled:
 
 <pre>
-  >> $ANT_HOME/bin/ant
+  >> $ANT_HOME/bin/ant compile
 </pre>
 
 <h4>Generating the JAR files</h4>
@@ -703,7 +700,7 @@ Finally, the following command will generate all of the
 JAR files of the example in a single command:
 
 <pre>
-  >> $ANT_HOME/bin/ant this.jars
+  >> $ANT_HOME/bin/ant jars
 </pre>
 
 <h4>Clean builds</h4>
@@ -713,8 +710,15 @@ generate all of the JAR files of the example, type the following:
 
 <pre>
   >> $ANT_HOME/bin/ant clean
-  >> $ANT_HOME/bin/ant
-  >> $ANT_HOME/bin/ant this.jars
+  >> $ANT_HOME/bin/ant jars
+</pre>
+
+<h4>Generating Javadoc</h4>
+
+To create Javadoc documentation for the example, type the following:
+
+<pre>
+  >> $ANT_HOME/bin/ant doc
 </pre>
 
 <hr>
@@ -891,10 +895,10 @@ that implements the <code>Hello</code> interface, which is the
 service type the client requests from the lookup service.
 
 <ul>
-  <li><code><a href="Hello.java">Hello.java</a></code> - the interface which represents the service type</li>
-  <li><code><a href="Server.java">Server.java</a></code> - the server component that exports the remote object</li>
-  <li><code><a href="Proxy.java">Proxy.java</a></code> - the proxy object obtained by the client from the lookup service</li>
-  <li><code><a href="Client.java">Client.java</a></code> - the client component</li>
+  <li><code><a href="src/com/sun/jini/example/hello/Hello.java">Hello.java</a></code> - the interface which represents the service type</li>
+  <li><code><a href="src/com/sun/jini/example/hello/Server.java">Server.java</a></code> - the server component that exports the remote object</li>
+  <li><code><a href="src/com/sun/jini/example/hello/Proxy.java">Proxy.java</a></code> - the proxy object obtained by the client from the lookup service</li>
+  <li><code><a href="src/com/sun/jini/example/hello/Client.java">Client.java</a></code> - the client component</li>
 </ul>
 
 <h3>Understanding the configurations</h3>
@@ -971,23 +975,23 @@ provided.
   </ul>
 
 Recall that remote objects must be 
-<a href="../../../../../../../doc/specs/api/net/jini/export/package-summary.html"><i>exported</i></a>. 
+<a href="../../doc/specs/api/net/jini/export/package-summary.html"><i>exported</i></a>.
 The process of 
 exporting a remote object results in the creation of a <i>proxy</i> 
 object, which is passed to other components so that those other
 components may communicate with (make remote calls on) the component
 that was exported. When examining the configuration files above, notice
 that the configuration files for the lookup service 
-(<a href="../../../../../../../doc/api/com/sun/jini/reggie/package-summary.html"><code>Reggie</code></a>) 
+(<a href="../../doc/api/com/sun/jini/reggie/package-summary.html"><code>Reggie</code></a>)
 and the server each specifies an 
-<a href="../../../../../../../doc/specs/api/net/jini/export/Exporter.html"><i>exporter</i></a>.
+<a href="../../doc/specs/api/net/jini/export/Exporter.html"><i>exporter</i></a>.
 From this, one can conclude that the lookup service as well as the
 server each export a remote object. Note that although the client's 
 configuration file doesn't specify an exporter, it happens that a remote
 object actually is exported by the client component. Upon examining 
 the client's configuration file, one can see that the client specifies 
 a 
-<a href="../../../../../../../doc/api/net/jini/lookup/ServiceDiscoveryManager.html"><code>ServiceDiscoveryManager</code> (SDM)</a>.
+<a href="../../doc/api/net/jini/lookup/ServiceDiscoveryManager.html"><code>ServiceDiscoveryManager</code> (SDM)</a>.
 The SDM utility exports a remote listener object, using a default 
 exporter if no exporter is specified in the configuration. Of course, 
 the client configuration file above could have explicitly specified an 
@@ -1033,7 +1037,7 @@ use of JRMP or Jini ERI by configuring either a "JRMP exporter" or a
 "Jini ERI exporter" respectively. As will be further demonstrated in the
 <a href="#secure-config-files">Secure configuration files</a> section
 below, when using a 
-<a href="../../../../../../../doc/specs/api/net/jini/jeri/BasicJeriExporter.html"><code>BasicJeriExporter</code></a>,
+<a href="../../doc/specs/api/net/jini/jeri/BasicJeriExporter.html"><code>BasicJeriExporter</code></a>,
 one has additional flexibility with respect to the <i>transport</i> over
 which communication will occur. Through the <code>endPoint</code> 
 parameter of <code>BasicJeriExporter</code>, one can specify non-secure
@@ -1060,10 +1064,10 @@ With respect to the example's server component, each of that
 component's secure configurations employs a specially defined
 <code><a href="MdClassAnnotationProvider.java">preferred class provider</a></code>,
 which uses 
-<a href="../../../../../../../doc/specs/api/net/jini/url/httpmd/package-summary.html"><i>HTTPMD URL</i>s</a>
+<a href="../../doc/specs/api/net/jini/url/httpmd/package-summary.html"><i>HTTPMD URL</i>s</a>
 to ensure integrity of data and downloaded 
 code. Additionally, each secure configuration of the server component
-specifies a <code><a href="ServerPermission.java">ServerPermission</a></code>
+specifies a <code><a href="src/com/sun/jini/example/hello/ServerPermission.java">ServerPermission</a></code>
 to control access to the resource(s) the server provides.
 
 <h4>Principals</h4>
@@ -1077,7 +1081,7 @@ in the case of SSL, or a
 <a href="http://java.sun.com/j2se/1.4.2/docs/api/javax/security/auth/kerberos/KerberosPrincipal.html">KerberosPrincipal</a>
 in the case of Kerberos. A principal essentially represents a
 component's identity; that is, "who" the component is. 
-<a href="../../../../../../../doc/specs/api/net/jini/constraint/package-summary.html">Constraints</a>
+<a href="../../doc/specs/api/net/jini/constraint/package-summary.html">Constraints</a>
 can then be imposed and permissions can be granted based on a
 component's identity. 
 
@@ -1207,7 +1211,7 @@ Note that whether viewing constraints from the point of view of an
 exported remote object, or from the point of view of a component 
 that receives and uses the proxy associated with a remote object,
 when a set of constraints specify integrity 
-(<a href="../../../../../../../doc/specs/api/net/jini/core/constraint/Integrity.html"><code>Integrity.YES</code></a>)
+(<a href="../../doc/specs/api/net/jini/core/constraint/Integrity.html"><code>Integrity.YES</code></a>)
 on the remote calls between a proxy and its remote object,
 the integrity of both the data and any downloaded code must be 
 verified. That is, during the execution of a remote call in which 
@@ -1220,7 +1224,7 @@ Whereas security requirements are specified through an exporter
 for a remote object's communication, the security requirements 
 for communication through a proxy are specified through what is 
 referred to as a 
-<a href="../../../../../../../doc/specs/api/net/jini/security/ProxyPreparer.html"><i>proxy preparer</i></a>.
+<a href="../../doc/specs/api/net/jini/security/ProxyPreparer.html"><i>proxy preparer</i></a>.
 Thus, while examining the contents of the secure configuration
 files above, you will notice not only exporters being specified,
 but also proxy preparers. For a particular configuration file,
@@ -1269,7 +1273,7 @@ invocation layer factory, specifies that when a component
 attempts to invoke a remote method on the exported object, 
 integrity must be enforced, and the component must have 
 permission - specifically, a 
-<a href="ServerPermission.java"><code>ServerPermission</code></a> - 
+<a href="src/com/sun/jini/example/hello/ServerPermission.java"><code>ServerPermission</code></a> -
 to access the particular method on which the invocation is
 being attempted.
 <p>
@@ -1281,7 +1285,7 @@ for remote server objects. Rather than using additional
 constraints to enforce access control, the strategy demonstrated 
 here is to exploit the standard Java security policy mechanism 
 to control access to the exported object's remote methods using 
-a <a href="ServerPermission.java"><code>ServerPermission</code></a>. 
+a <a href="src/com/sun/jini/example/hello/ServerPermission.java"><code>ServerPermission</code></a>.
 The second thing to note is that to change the above SSL exporter 
 to a Kerberos exporter, one merely has to change the endpoint 
 to a Kerberos endpoint. That is,
@@ -1322,19 +1326,19 @@ model for proxy preparation:
 
 <ul>
   <li>Integrity must be enforced - 
-      <a href="../../../../../../../doc/specs/api/net/jini/core/constraint/Integrity.html"><code>Integrity.YES</code></a>
+      <a href="../../doc/specs/api/net/jini/core/constraint/Integrity.html"><code>Integrity.YES</code></a>
   </li>
   <li>The client must tell the server not only "who" it is when it attempts
       to communicate with the server, but must also <i>prove</i> to the
       server that it is who it says it is - 
-      <a href="../../../../../../../doc/specs/api/net/jini/core/constraint/ClientAuthentication.html"><code>ClientAuthentication.YES</code></a>
+      <a href="../../doc/specs/api/net/jini/core/constraint/ClientAuthentication.html"><code>ClientAuthentication.YES</code></a>
   <li>Likewise, the server must tell the client who it is and prove it - 
-      <a href="../../../../../../../doc/specs/api/net/jini/core/constraint/ServerAuthentication.html"><code>ServerAuthentication.YES</code></a>
+      <a href="../../doc/specs/api/net/jini/core/constraint/ServerAuthentication.html"><code>ServerAuthentication.YES</code></a>
   </li>
   <li>Although the server may prove itself to be multiple principals
       when the server proves who it is to the client, one of those 
       principals must be the principal named <code>serverUser</code> - 
-      <a href="../../../../../../../doc/specs/api/net/jini/core/constraint/ServerMinPrincipal.html"><code>ServerMinPrincipal(serverUser)</code></a>
+      <a href="../../doc/specs/api/net/jini/core/constraint/ServerMinPrincipal.html"><code>ServerMinPrincipal(serverUser)</code></a>
   </li>
 </ul>
 
@@ -1382,8 +1386,8 @@ custom dispatcher, and the custom invocation handler are implemented,
 examine the contents of the following source files.
 
 <ul>
-  <li><code><a href="ConfirmingILFactory.java">ConfirmingILFactory.java</a></code> - custom IL factory with dispatcher</li>
-  <li><code><a href="ConfirmingInvocationHandler.java">ConfirmingInvocationHandler.java</a></code> - custom invocation handler</li>
+  <li><code><a href="src/com/sun/jini/example/hello/ConfirmingILFactory.java">ConfirmingILFactory.java</a></code> - custom IL factory with dispatcher</li>
+  <li><code><a href="src/com/sun/jini/example/hello/ConfirmingInvocationHandler.java">ConfirmingInvocationHandler.java</a></code> - custom invocation handler</li>
 </ul>
 
 Note that the call confirming configurations span both the basic 
@@ -1410,7 +1414,7 @@ distinguishing feature of the activatable configurations is that
 the server component is 
 <a href="http://java.sun.com/j2se/1.4.2/docs/api/java/rmi/activation/Activatable.html"><i>activatable</i></a>; 
 that is, the server is configured to be executed by the 
-<a href="../../../../../../../doc/api/com/sun/jini/phoenix/package-summary.html">Phoenix</a>
+<a href="../../doc/api/com/sun/jini/phoenix/package-summary.html">Phoenix</a>
 implementation of the 
 <a href="http://java.sun.com/j2se/1.4.2/docs/api/java/rmi/activation/ActivationSystem.html"><i>activation system</i></a>.
 <p>
@@ -1435,8 +1439,8 @@ to the remote object that was exported, or the component that
 performed the export and holds the remote object. Given this 
 terminology, it should come as no surprise then that this 
 example provides a class named 
-<a href="Client.java"><code>Client</code></a> and a class 
-named <a href="Server.java"><code>Server</code></a>.
+<a href="src/com/sun/jini/example/hello/Client.java"><code>Client</code></a> and a class
+named <a href="src/com/sun/jini/example/hello/Server.java"><code>Server</code></a>.
 <p>
 With the above terms in mind, one way to view the activation system 
 is as a "container" that can be used to execute server back ends in
@@ -1452,11 +1456,11 @@ server component. To support the server component's interaction
 with activation, the following class is provided:
 
 <ul>
-  <li><a href="ActivatableServer.java"><code>ActivatableServer.java</code></a></li>
+  <li><a href="src/com/sun/jini/example/hello/ActivatableServer.java"><code>ActivatableServer.java</code></a></li>
 </ul>
 
-<a href="ActivatableServer.java"><code>ActivatableServer</code></a>
-extends <a href="Server.java"><code>Server</code></a>, providing 
+<a href="src/com/sun/jini/example/hello/ActivatableServer.java"><code>ActivatableServer</code></a>
+extends <a href="src/com/sun/jini/example/hello/Server.java"><code>Server</code></a>, providing
 additional functionality for registering the server with the 
 activation system. Thus, <code>ActivatableServer</code> acts as 
 both the server component of this example and the mechanism used 
@@ -1466,9 +1470,9 @@ registration mechanism is just one possible strategy for
 implementing the activatable form of the server component. 
 Another common strategy is to provide a separate registration 
 mechanism (for example, the class
-<a href="../../../../../../../doc/api/com/sun/jini/start/SharedActivatableServiceDescriptor.html"><code>SharedActivatableServiceDescriptor</code></a>
+<a href="../../doc/api/com/sun/jini/start/SharedActivatableServiceDescriptor.html"><code>SharedActivatableServiceDescriptor</code></a>
 from the Apache River release's
-<a href="../../../../../../../doc/api/com/sun/jini/start/package-summary.html"><i>service starter framework</i></a>).
+<a href="../../doc/api/com/sun/jini/start/package-summary.html"><i>service starter framework</i></a>).
 <p>
 As with the confirming configurations, the activatable configurations 
 associated with <code>ActivatableServer</code> span both the 
@@ -1478,7 +1482,7 @@ see the configurations with IDs B-4, B-5, C-8, and D-11 from the
 contents of the following configuration files:
 <p>
 
-<b><i>Configuration files for <a href="ActivatableServer.java">ActivatableServer</a></i></b>
+<b><i>Configuration files for <a href="src/com/sun/jini/example/hello/ActivatableServer.java">ActivatableServer</a></i></b>
   <ul>
     <li><code><a href="config/start-activatable-jeri-server.config">config/start-activatable-jeri-server.config</a></code></li>
     <li><code><a href="config/start-activatable-ssl-server.config">config/start-activatable-ssl-server.config</a></code></li>
@@ -1542,12 +1546,12 @@ activatable scenarios. This pattern often occurs whenever any sort
 of container-type facility is used to initiate the execution of 
 another component. For example, consider the lookup service 
 implementation employed in this example 
-(<a href="../../../../../../../doc/api/com/sun/jini/reggie/package-summary.html"><code>Reggie</code></a>). 
+(<a href="../../doc/api/com/sun/jini/reggie/package-summary.html"><code>Reggie</code></a>).
 To start Reggie under any of the configurations of this example, 
 a container-type application, referred to as the 
-<a href="../../../../../../../doc/api/com/sun/jini/start/package-summary.html"><i>service starter framework</i></a>,
+<a href="../../doc/api/com/sun/jini/start/package-summary.html"><i>service starter framework</i></a>,
 is used. As when Phoenix, through the
-<code><a href="ActivatableServer.java">ActivatableServer</a></code>
+<code><a href="src/com/sun/jini/example/hello/ActivatableServer.java">ActivatableServer</a></code>
 class, is used to start the activatable form of the server
 component of this example, when the service starter framework is 
 used to start a server such as Reggie, each configuration is 
@@ -1781,10 +1785,10 @@ the policy file for both the
 <a href="config/ssl-reggie.policy">SSL configuration</a> of Reggie
 from the <a href="#all-policy-files">lists below</a>. In both files, 
 you will see that "all permissions" is granted to the JAR files from only
-the <a href="../../../../../../../lib"><code>lib</code></a> directory
+the <a href="../../lib"><code>lib</code></a> directory
 of the Apache River release, with no entries granting "all permissions" to  
 <code>http: URL</code>s referencing any of the JAR files from the 
-<a href="../../../../../../../lib-dl"><code>lib-dl</code></a> directory.
+<a href="../../lib-dl"><code>lib-dl</code></a> directory.
 Recall that files such as <code>jsk-platform.jar</code>, 
 <code>reggie.jar</code>, etc. are contained in the Apache River release's 
 <code>lib</code> directory whereas only <i>downloadable</i> JAR 
@@ -1822,7 +1826,7 @@ A concrete example of the third principle above can be seen in the
 <a href="config/phoenix.policy">policy file</a> for the basic 
 configuration of Phoenix. In that file you will notice an 
 entry that grants various instances of
-<a href="../../../../../../../doc/api/com/sun/jini/phoenix/ExecOptionPermission.html"><code>ExecOptionPermission</code></a>
+<a href="../../doc/api/com/sun/jini/phoenix/ExecOptionPermission.html"><code>ExecOptionPermission</code></a>
 to all parties. To understand the need for that permission, recall
 that Phoenix spawns a VM, referred to as an 
 <a href="http://java.sun.com/j2se/1.4.2/docs/api/java/rmi/activation/ActivationGroup.html"><i>activation group</i></a>,
@@ -1834,7 +1838,7 @@ group under the basic configuration, examine the contents of the
 for the class that is used to start the activatable form of the 
 server under Jini ERI. To see how those options and properties 
 are actually set, take a look at the code in 
-<a href="ActivatableServer.java"><code>ActivatableServer.java</code></a>. 
+<a href="src/com/sun/jini/example/hello/ActivatableServer.java"><code>ActivatableServer.java</code></a>.
 <p>
 In order to register the server with Phoenix for activation, a 
 proxy to the activation system is obtained and, through the remote
@@ -1851,7 +1855,7 @@ annotate the server's classes. Thus, after identifying the options and
 properties specified in the 
 <a href="config/start-activatable-jeri-server.config">configuration file</a>,
 and then examining the contents of Phoenix's <a href="config/phoenix.policy">policy file</a> 
-as well as the source from <a href="ActivatableServer.java"><code>ActivatableServer.java</code></a>, 
+as well as the source from <a href="src/com/sun/jini/example/hello/ActivatableServer.java"><code>ActivatableServer.java</code></a>,
 the role of <code>ExecOptionPermission</code> should be apparent. Using 
 <code>ExecOptionPermission</code>, Phoenix expresses the access control 
 policy for what activation group descriptors can be registered. That is, 
@@ -1883,11 +1887,11 @@ in light of the third principle is why, in the file
 <a href="config/jeri-phoenix-group.config"><code>config/jeri-phoenix-group.config</code></a>, 
 is the Phoenix activation group configured to export 
 its <code>ActivationInstantiator</code> with an 
-<a href="../../../../../../../doc/api/com/sun/jini/phoenix/AccessILFactory.html"><code>AccessILFactory</code></a>
+<a href="../../doc/api/com/sun/jini/phoenix/AccessILFactory.html"><code>AccessILFactory</code></a>
 rather than a 
-<a href="../../../../../../../doc/specs/api/net/jini/jeri/BasicILFactory.html"><code>BasicILFactory</code></a>?
+<a href="../../doc/specs/api/net/jini/jeri/BasicILFactory.html"><code>BasicILFactory</code></a>?
 As explained in the 
-<a href="../../../../../../../doc/api/com/sun/jini/phoenix/package-summary.html">Phoenix documentation</a>,
+<a href="../../doc/api/com/sun/jini/phoenix/package-summary.html">Phoenix documentation</a>,
 by default, the activation group exports itself as a JRMP unicast 
 remote object, which is a limitation of the existing activation 
 system design. If the configuration for the activation group 
@@ -2005,7 +2009,7 @@ the client side.
 <p>
 The next thing to consider when examining the grant entries above
 is the 
-<a href="../../../../../../../doc/api/net/jini/security/AccessPermission.html"><code>AccessPermission</code></a>
+<a href="../../doc/api/net/jini/security/AccessPermission.html"><code>AccessPermission</code></a>
 class. That class represents permission to invoke the remote method
 whose name is indicated in the target component of the permission.
 In the client snippet above, there is a single entry in which
@@ -2024,9 +2028,9 @@ policy uses <code>AccessPermission</code> to control who can invoke
 the client's remote methods, both the server and the lookup service 
 enforce that control using their own custom subclasses of 
 <code>AccessPermission</code> (the subclasses 
-<a href="ServerPermission.java"><code>ServerPermission</code></a>
+<a href="src/com/sun/jini/example/hello/ServerPermission.java"><code>ServerPermission</code></a>
 and
-<a href="../../../../../../../doc/api/com/sun/jini/reggie/RegistrarPermission.html"><code>RegistrarPermission</code></a>
+<a href="../../doc/api/com/sun/jini/reggie/RegistrarPermission.html"><code>RegistrarPermission</code></a>
 respectively).
 Using a simple subclass of 
 <code>AccessPermission</code> such as those used in this example 
@@ -2081,17 +2085,17 @@ configurations, before using a proxy, that proxy should be
 <i>prepared</i>; where the first step in proxy preparation is 
 verifying that the proxy can be trusted. A fundamental element 
 of trust verification is an object referred to as a 
-<a href="../../../../../../../doc/api/net/jini/security/TrustVerifier.html"><i>trust verifier</i></a>.
+<a href="../../doc/api/net/jini/security/TrustVerifier.html"><i>trust verifier</i></a>.
 With respect to the remote object that provides the proxy, the 
 trust verification mechanism defined in the Jini technology 
 security model requires that some means be provided for 
 other parties to verify that the proxy can be trusted. In this 
 example, each remote object provides that means through the 
 implementation of the 
-<a href="../../../../../../../doc/api/net/jini/security/proxytrust/ProxyTrust.html"><code>ProxyTrust</code></a>
+<a href="../../doc/api/net/jini/security/proxytrust/ProxyTrust.html"><code>ProxyTrust</code></a>
 interface, which requires the remote object to implement the 
 remote method
-<a href="../../../../../../../doc/api/net/jini/security/proxytrust/ProxyTrust.html#getProxyVerifier()"><code>getProxyVerifier</code></a>.
+<a href="../../doc/api/net/jini/security/proxytrust/ProxyTrust.html#getProxyVerifier()"><code>getProxyVerifier</code></a>.
 Thus, each component that exports a remote object must grant
 permission to call that method to any parties that are expected
 to attempt to verify trust in the resulting proxy. 
@@ -2140,7 +2144,7 @@ the various configurations of this example follows:
   <ul>
     <li><code><a href="config/start.policy">config/start.policy</a></code></li>
   </ul>
-<b><i>Policy files for <a href="ActivatableServer.java">ActivatableServer</a> that registers server with activation system</i></b>
+<b><i>Policy files for <a href="src/com/sun/jini/example/hello/ActivatableServer.java">ActivatableServer</a> that registers server with activation system</i></b>
   <ul>
     <li><code><a href="config/start-activatable-server.policy">config/start-activatable-server.policy</a></code></li>
     <li><code><a href="config/start-activatable-ssl-server.policy">config/start-activatable-ssl-server.policy</a></code></li>
@@ -2176,11 +2180,11 @@ the various configurations of this example follows:
 The downloadable JAR file of the server component of this example 
 (<code>server-dl.jar</code>) specifies preferred classes to be
 recognized by a
-<a href="../../../../../../../doc/specs/api/net/jini/loader/pref/package-summary.html"><i>preferred class loader</i></a>
+<a href="../../doc/specs/api/net/jini/loader/pref/package-summary.html"><i>preferred class loader</i></a>
 implementation to ensure that the downloaded versions of invocation 
 handlers and proxy classes are used. The loader implementation employed
 in this example is the 
-<a href="../../../../../../../doc/specs/api/net/jini/loader/pref/PreferredClassLoader.html"><code>PreferredClassLoader</code></a>
+<a href="../../doc/specs/api/net/jini/loader/pref/PreferredClassLoader.html"><code>PreferredClassLoader</code></a>
 class, and the preferred settings are specified by the following file:
 
 <ul>
