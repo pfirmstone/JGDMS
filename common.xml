@@ -18,8 +18,11 @@
  !-->
 <project name="common" default="" basedir=".">
 
+    <!-- Root of the River source distribution -->
+    <property name="root" location="." />
+
     <!-- User specific settings -->
-    <property file="build.properties" />
+    <property file="${root}/build.properties" />
 
     <!-- Product version info -->
     <property name="version" value="2.1.1"/>
