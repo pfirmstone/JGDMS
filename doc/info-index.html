@@ -61,9 +61,11 @@ should contain most if not all of the following items.
      	The directory where the download JAR files for the services are located
      <dt><b>lib-ext</b><dd>
      	The directory where the dynamic security policy provider is located
-     <dt><b>source</b><dd>
+     <dt><b>src</b><dd>
      	The directory where source code may be located if installed via the separate source release, which is only available as a separate download.
-  </dl>
+     <dt><b>examples/hello</b><dd>
+        The directory where the Hello example is located
+</dl>
 </blockquote>
 
 
@@ -103,14 +105,14 @@ permission grant is not needed.
 <a name="example"><LI><B>Example program documentation</B></a>
 <p>
 	<ul>
-	<li>The hello example is only included in the source release, which is available
-	as a separate download.  Once the source release is downloaded and unarchived,
+	<li>The hello example is included in both the source and binary releases.
+     Once the release is downloaded and unarchived,
 	the example documentation will be located:
 	<p>
-	&lt;install_dir&gt;/source/src/com/sun/jini/example/hello/index.html
+	&lt;install_dir&gt;/examples/hello/index.html
 
         <li>Additional examples may be found at
-            <a href="http://starterkit-examples.jini.org">starterkit-examples.jini.org</a>.
+            <a href="http://starterkit-examples.jini.org">starterkit-examples.jini.org (link dead)</a>.
         </li>
 	</ul>
 <p>
@@ -122,19 +124,19 @@ permission grant is not needed.
 	download the source release, unarchive it, and refer to the build instructions,
 	located:
 	<p>
-	&lt;install_dir&gt;/source/doc/build.html
+	&lt;install_dir&gt;/doc/build.html
 	</UL
 <p>
 <a name="background"><LI><B>Background Material</B></a>
 <p>
 	<UL>
-	<LI><a href="../doc/release-notes/activation.html">Notes on Java(TM) RMI Activation and 
+	<LI><a href="release-notes/activation.html">Notes on Java(TM) RMI Activation and 
 	    How it is Used in the Apache River release</a>
-	<LI><a href="../doc/release-notes/execpolicy.html">Security Requirements on Activation 
+	<LI><a href="release-notes/execpolicy.html">Security Requirements on Activation 
 	    Group Descriptors used with <code>phoenix</code> or <code>rmid</code></a>
-	<LI><a href="../doc/release-notes/evseqnums.html">Note on JavaSpaces Technology, 
+	<LI><a href="release-notes/evseqnums.html">Note on JavaSpaces Technology, 
 	    Persistent Outrigger Services, and Event Sequence Numbers</a>
-        <LI><a href= "../doc/specs/html/devicearch-spec.html">Device Architecture</a>
+        <LI><a href= "specs/html/devicearch-spec.html">Device Architecture</a>
 	</UL>
 <p>
 <a name="help"><LI><B>Getting Help</B></a>
@@ -150,19 +152,19 @@ permission grant is not needed.
 	<LI>The best place to discuss things about the Apache River project right
 	now is on the developer mail list (river-dev).  You can subscribe or view the
 	archives from the project <a href="http://incubator.apache.org/river/mailing.html">
-	mailing lists</a> page.  In addition, the jini-users and javaspaces-users mailing
-	lists are a resource to find out more about general use of Jini technology and
-	JavaSpaces technology.  <a href="http://www.jini.org/wiki/Mailing_Lists">Search
-	or Join</a>those lists to get involved.</LI>
+	mailing lists</a> page.  In addition, the river-user mailing
+	list is a resource to find out more about general use of Jini technology and
+	JavaSpaces technology.  <a href="http://incubator.apache.org/river/RIVER/mailing-lists.html">Search
+	or Join</a> those lists to get involved.</LI>
 	<p>
 	<LI>Search the archives<br>
-            If you would like to view past threads on these aliases, you may go to 
+            If you would like to view past threads on the old Jini/Javaspaces mailing lists, you may go to
             <a href="http://archives.java.sun.com/archives/jini-users.html">
             http://archives.java.sun.com/archives/jini-users.html</a>, or 
             <a href="http://archives.java.sun.com/archives/javaspaces-users.html">
             http://archives.java.sun.com/archives/javaspaces-users.html</a>
-         <p>   
-        <LI><a href="http://developer.java.sun.com/developer/bugParade/index.jshtml">Submit<a> a bug or RFE
+         <p>
+        <LI><a href="https://issues.apache.org/jira/secure/CreateIssue!default.jspa?pid=12310600">Submit<a> a bug or RFE
 	</UL>
 	<p>
 
