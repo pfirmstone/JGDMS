@@ -1804,74 +1804,49 @@
             fiddler.keystore,
             group.keystore" />
 
-    <macrodef name="keystore">
-        <attribute name="target" />
-        <attribute name="dname" />
-        <sequential>
-            <genkey keypass="@{target}pw" keystore="${trust.dir}/@{target}.keystore"
-                validity="1800" alias="@{target}" storepass="@{target}pw"
-                dname="CN=@{dname}" />
-            <exec executable="keytool" failonerror="true">
-                <arg value="-export"/>
-                <arg value="-alias" />
-                <arg value="@{target}" />
-                <arg value="-keystore" />
-                <arg value="${trust.dir}/@{target}.keystore" />
-                <arg value="-keypass" />
-                <arg value="@{target}" />
-                <arg value="-dname"/>
-                <arg value="@{dname}" />
-                <arg value="-storepass"/>
-                <arg value="@{target}pw" />
-                <arg value="-file"/>
-                <arg value="${trust.dir}/@{target}.cert" />
-            </exec>
-        </sequential>
-    </macrodef>
-
     <target name="tester.keystore">
         <delete file="${trust.dir}/tester.keystore" quiet="true"/>
-        <keystore target="tester" dname="Tester" />
+        <keystore target="tester" dir="${trust.dir}" dname="Tester" />
     </target>
 
     <target name="reggie.keystore">
         <delete file="${trust.dir}/reggie.keystore" quiet="true"/>
-        <keystore target="reggie" dname="Reggie" />
+        <keystore target="reggie" dir="${trust.dir}" dname="Reggie" />
     </target>
 
     <target name="phoenix.keystore">
         <delete file="${trust.dir}/phoenix.keystore" quiet="true"/>
-        <keystore target="phoenix" dname="Phoenix" />
+        <keystore target="phoenix" dir="${trust.dir}" dname="Phoenix" />
     </target>
 
     <target name="mercury.keystore">
         <delete file="${trust.dir}/mercury.keystore" quiet="true"/>
-        <keystore target="mercury" dname="Mercury" />
+        <keystore target="mercury" dir="${trust.dir}" dname="Mercury" />
     </target>
 
     <target name="norm.keystore">
         <delete file="${trust.dir}/norm.keystore" quiet="true"/>
-        <keystore target="norm" dname="Norm" />
+        <keystore target="norm" dir="${trust.dir}" dname="Norm" />
     </target>
 
     <target name="outrigger.keystore">
         <delete file="${trust.dir}/outrigger.keystore" quiet="true"/>
-        <keystore target="outrigger" dname="Outrigger" />
+        <keystore target="outrigger" dir="${trust.dir}" dname="Outrigger" />
     </target>
 
     <target name="mahalo.keystore">
         <delete file="${trust.dir}/mahalo.keystore" quiet="true"/>
-        <keystore target="mahalo" dname="Mahalo" />
+        <keystore target="mahalo" dir="${trust.dir}" dname="Mahalo" />
     </target>
 
     <target name="fiddler.keystore">
         <delete file="${trust.dir}/fiddler.keystore" quiet="true"/>
-        <keystore target="fiddler" dname="Fiddler" />
+        <keystore target="fiddler" dir="${trust.dir}" dname="Fiddler" />
     </target>
 
     <target name="group.keystore">
         <delete file="${trust.dir}/group.keystore" quiet="true"/>
-        <keystore target="group" dname="Group" />
+        <keystore target="group" dir="${trust.dir}" dname="Group" />
     </target>
     
     <target name="password" depends="tester.password,
@@ -1929,37 +1904,17 @@
         <echo file="${trust.dir}/group.password" message="grouppw"  />
     </target>
 
-    <macrodef name="truststore">
-        <attribute name="target" />
-        <sequential>
-            <exec executable="keytool" failonerror="true">
-                <arg value="-import"/>
-                <arg value="-alias" />
-                <arg value="@{target}" />
-                <arg value="-keystore" />
-                <arg value="${trust.dir}/truststore" />
-                <arg value="-keypass" />
-                <arg value="trustpw" />
-                <arg value="-storepass"/>
-                <arg value="trustpw" />
-                <arg value="-noprompt"/>
-                <arg value="-file"/>
-                <arg value="${trust.dir}/@{target}.cert" />
-            </exec>
-        </sequential>
-    </macrodef>
-
     <target name="truststore">
         <delete file="${trust.dir}/truststore" quiet="true" />
-        <truststore target="tester" />
-        <truststore target="reggie" />
-        <truststore target="mercury" />
-        <truststore target="norm" />
-        <truststore target="phoenix" />
-        <truststore target="outrigger" />
-        <truststore target="mahalo" />
-        <truststore target="fiddler" />
-        <truststore target="group" />
+        <truststore target="tester" dir="${trust.dir}" />
+        <truststore target="reggie" dir="${trust.dir}" />
+        <truststore target="mercury" dir="${trust.dir}" />
+        <truststore target="norm" dir="${trust.dir}" />
+        <truststore target="phoenix" dir="${trust.dir}" />
+        <truststore target="outrigger" dir="${trust.dir}" />
+        <truststore target="mahalo" dir="${trust.dir}" />
+        <truststore target="fiddler" dir="${trust.dir}" />
+        <truststore target="group" dir="${trust.dir}" />
     </target>
 
 </project>

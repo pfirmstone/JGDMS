@@ -128,6 +128,53 @@
         </sequential>
     </macrodef>
 
+    <macrodef name="truststore">
+        <attribute name="target" />
+        <attribute name="dir" default="trust" />
+        <sequential>
+            <exec executable="keytool" failonerror="true">
+                <arg value="-import"/>
+                <arg value="-alias" />
+                <arg value="@{target}" />
+                <arg value="-keystore" />
+                <arg value="@{dir}/truststore" />
+                <arg value="-keypass" />
+                <arg value="trustpw" />
+                <arg value="-storepass"/>
+                <arg value="trustpw" />
+                <arg value="-noprompt"/>
+                <arg value="-file"/>
+                <arg value="@{dir}/@{target}.cert" />
+            </exec>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="keystore">
+        <attribute name="target" />
+        <attribute name="dname" />
+        <attribute name="dir" default="trust" />
+        <sequential>
+            <genkey keypass="@{target}pw" keystore="@{dir}/@{target}.keystore"
+                validity="1800" alias="@{target}" storepass="@{target}pw"
+                dname="CN=@{dname}" />
+            <exec executable="keytool" failonerror="true">
+                <arg value="-export"/>
+                <arg value="-alias" />
+                <arg value="@{target}" />
+                <arg value="-keystore" />
+                <arg value="@{dir}/@{target}.keystore" />
+                <arg value="-keypass" />
+                <arg value="@{target}" />
+                <arg value="-dname"/>
+                <arg value="@{dname}" />
+                <arg value="-storepass"/>
+                <arg value="@{target}pw" />
+                <arg value="-file"/>
+                <arg value="@{dir}/@{target}.cert" />
+            </exec>
+        </sequential>
+    </macrodef>
+
     <target name="diagnostics" description="Run Ant Diagnostics">
         <diagnostics/>
     </target>
