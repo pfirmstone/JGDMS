@@ -80,11 +80,14 @@
     
     <property name="jre.ext.dir" location="${java.home}/lib/ext"/>
 
+    <!-- Possible values for 'debug': lines,source,vars -->
+    <property name="debug" value="none"/>
+
     <macrodef name="javac-cmd" description="Run javac">
         <attribute name="source.pat" default="java.source"/>
         <attribute name="source.dir"/>
         <attribute name="dest.dir"/>
-        <attribute name="debug" default="lines,source,vars"/>
+        <attribute name="debug" default="${debug}"/>
         <element name="javac-cmd-elements" implicit="true" optional="true"/>
         <sequential>
             <javac fork="yes"
