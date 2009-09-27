@@ -1,4 +1,0 @@
-Manifest-Version: 1.0
-Main-Class: com.sun.jini.example.hello.Client
-Class-path: ../../../../../../../../lib/jsk-platform.jar ../../../../../../../../lib/jsk-lib.jar mdprefld.jar
-
