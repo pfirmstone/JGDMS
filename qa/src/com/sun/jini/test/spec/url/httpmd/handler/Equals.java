@@ -42,7 +42,7 @@ import java.net.URL;
  * Test Cases:
  *   This test tries to compare two HTTPMD URL objects using
  *   {@link URL#equals(Object)} method. {@link URL#equals(Object)} method
- *   invokes {@link Handler#equals(URL,URL) method inherited
+ *   invokes {@link Handler#equals(URL,URL)} method inherited
  *   from {@link URLStreamHandler} class.
  *   {@link URLStreamHandler#equals(URL,URL)} method uses
  *   {@link Handler#sameFile(URL,URL)} method to compare

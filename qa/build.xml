@@ -55,6 +55,13 @@
         <pathelement location="${river.home}/tools/asm-commons-3.2.jar"/>
     </path>
 
+    <!-- classpath for use by ClassDep in this build -->
+    <path id="classdep.cp">
+        <path refid="river.classpath"/>
+        <pathelement location="${build.classes.dir}"/>
+        <!--<pathelement location="${river.classes.dir}"/>-->
+    </path>
+
     <path id="javadoc.classpath">
         <path refid="river.classpath"/>
         <path location="${build.classes.dir}"/>
@@ -129,7 +136,7 @@
     <macrodef name="testrun">
         <element name="tr-elements" optional="true" implicit="true"/>
         <sequential>
-            <java classname="com.sun.jini.qa.harness.QARunner" fork="yes" >
+            <java classname="com.sun.jini.qa.harness.QARunner" fork="yes">
                 <!-- JDK extension directories (include our lib-ext dirs, for the custom policy providers) -->
                 <jvmarg value="-Djava.ext.dirs=${ext.dirs}" />
                 <jvmarg value="-Djava.security.policy=${security.policy}" />
@@ -306,7 +313,10 @@
     <target name="harness-killer.jar" depends="harness-killer.stubs">
         <property name="harness-killer.deps" location="${build.deps.dir}/harness-killer.deps" />
         <delete file="${lib.dir}/harness-killer.jar" quiet="true"/>
-        <classdep output="${harness-killer.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${harness-killer.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
@@ -323,7 +333,10 @@
     <target name="harness-killer-dl.jar" depends="harness-killer.stubs">
         <property name="harness-killer-dl.deps" location="${build.deps.dir}/harness-killer-dl.deps" />
         <delete file="${lib.dir}/harness-killer-dl.jar" quiet="true"/>
-        <classdep output="${harness-killer-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${harness-killer-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+             <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg value="com.sun.jini.qa.harness.VMKiller"/>
             <arg value="com.sun.jini.qa.harness.KillerImpl_Stub"/>
@@ -344,7 +357,10 @@
     <target name="nonactivatablegroup.jar" depends="nonactivatablegroup.stubs">
         <property name="nonactivatablegroup.deps" location="${build.deps.dir}/nonactivatablegroup.deps" />
         <delete file="${lib.dir}/nonactivatablegroup.jar" quiet="true"/>
-        <classdep output="${nonactivatablegroup.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${nonactivatablegroup.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="${jskplatform.exclude}"/>
             <arg line="-out com.sun.jini.start"	/>
@@ -361,7 +377,10 @@
     <target name="nonactivatablegroup-dl.jar" depends="nonactivatablegroup.stubs">
         <property name="nonactivatablegroup-dl.deps" location="${build.deps.dir}/nonactivatablegroup-dl.deps" />
         <delete file="${lib.dir}/nonactivatablegroup-dl.jar" quiet="true"/>
-        <classdep output="${nonactivatablegroup-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${nonactivatablegroup-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg value="com.sun.jini.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>
             <classpath refid="classdep.classpath"/>
@@ -375,7 +394,10 @@
     <target name="mergedpolicyprovider.jar" depends="compile">
         <property name="mergedpolicyprovider.deps" location="${build.deps.dir}/mergedpolicyprovider.deps" />
         <delete file="${lib.dir}/mergedpolicyprovider-dl.jar" quiet="true"/>
-        <classdep output="${mergedpolicyprovider.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${mergedpolicyprovider.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.qa"/>
             <arg value="com.sun.jini.qa.harness.MergedPolicyProvider"/>
             <classpath refid="classdep.classpath"/>
@@ -417,7 +439,10 @@
     <target name="qa1-fiddler-dl.jar" depends="qa1-fiddler.stubs">
         <property name="qa1-fiddler-dl.deps" location="${build.deps.dir}/qa1-fiddler-dl.deps" />
         <delete file="${lib.dir}/qa1-fiddler-dl.jar" quiet="true"/>
-        <classdep output="${qa1-fiddler-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-fiddler-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.share.AttributesUtil$$TestAttr00"/>
             <arg value="com.sun.jini.test.share.AttributesUtil$$TestAttrSC00"/>
@@ -442,7 +467,10 @@
     <target name="qa1-joinmanager-dl.jar" depends="qa1-joinmanager.stubs">
         <property name="qa1-joinmanager-dl.deps" location="${build.deps.dir}/qa1-joinmanager-dl.deps" />
         <delete file="${lib.dir}/qa1-joinmanager-dl.jar" quiet="true"/>
-        <classdep output="${qa1-joinmanager-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-joinmanager-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.spec.joinmanager.AbstractBaseTest$$TestService"/>
             <arg value="com.sun.jini.test.impl.joinmanager.LeaseRenewDurRFE$$TestServiceProxy$$ConstrainableTestServiceProxy"/>
@@ -481,7 +509,10 @@
     <target name="qa1-mercury.jar" depends="qa1-mercury.stubs">
         <property name="qa1-mercury.deps" location="${build.deps.dir}/qa1-mercury.deps" />
         <delete file="${lib.dir}/qa1-mercury.jar" quiet="true"/>
-        <classdep output="${qa1-mercury.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-mercury.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.impl.mercury.NSOListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.REListenerImpl"/>
@@ -502,11 +533,14 @@
             <fileset dir="${build.classes.dir}" includesfile="${qa1-mercury.deps}" />
             <fileset dir="${river.classes.dir}" includesfile="${qa1-mercury.deps}" />
         </jar>
-        <classdep output="${qa1-mercury.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-mercury.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="-hide com.sun.jini.test"/>
-            <arg value="com.sun.jini.test.impl.mercury.NSOListenerImp"/>
+            <arg value="com.sun.jini.test.impl.mercury.NSOListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.REListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.UEListenerImpl"/>
             <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl"/>
@@ -530,7 +564,10 @@
     <target name="qa1-mercury-dl.jar" depends="qa1-mercury.stubs">
         <property name="qa1-mercury-dl.deps" location="${build.deps.dir}/qa1-mercury-dl.deps" />
         <delete file="${lib.dir}/qa1-mercury-dl.jar" quiet="true"/>
-        <classdep output="${qa1-mercury-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-mercury-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.impl.mercury.DisableListenerImpl_Stub"/>
             <arg value="com.sun.jini.test.impl.mercury.DisableNSOListenerImpl_Stub"/>
@@ -552,7 +589,10 @@
                 <include name="net/jini/lookup/entry/Name.class"/>
             </fileset>
         </jar>
-        <classdep output="${qa1-mercury-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-mercury-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
@@ -575,7 +615,10 @@
     <target name="qa1-mercury-bogusimpl.jar" depends="compile">
         <property name="qa1-mercury-bogusimpl.deps" location="${build.deps.dir}/qa1-mercury-bogusimpl.deps" />
         <delete file="${lib.dir}/qa1-mercury-bogusimpl.jar" quiet="true"/>
-        <classdep output="${qa1-mercury-bogusimpl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-mercury-bogusimpl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.impl.mercury.DelayedBasicJeriExporter"/>
             <arg value="com.sun.jini.test.impl.mercury.MyLocalRemoteEvent"/>
@@ -596,7 +639,10 @@
     <target name="qa1-norm-dl.jar" depends="qa1-norm.stubs">
         <property name="qa1-norm-dl.deps" location="${build.deps.dir}/qa1-norm-dl.deps" />
         <delete file="${lib.dir}/qa1-norm-dl.jar" quiet="true"/>
-        <classdep output="${qa1-norm-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-norm-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.impl.norm.LocalLease"/>
             <arg value="com.sun.jini.test.impl.norm.ConstrainableLocalLease"/>
@@ -639,7 +685,10 @@
     <target name="qa1-outrigger-dl.jar" depends="qa1-outrigger.stubs">
         <property name="qa1-outrigger-dl.deps" location="${build.deps.dir}/qa1-outrigger-dl.deps" />
         <delete file="${lib.dir}/qa1-outrigger-dl.jar" quiet="true"/>
-        <classdep output="${qa1-outrigger-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-outrigger-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg value="com.sun.jini.test.impl.outrigger.transaction.SimpleEventListener"/>
             <arg value="com.sun.jini.test.impl.outrigger.matching.ARemoteInterfaceImpl"/>
@@ -679,7 +728,10 @@
     <target name="jinitests.jar" depends="stubs">
         <property name="jinitests.deps" location="${build.deps.dir}/jinitests.deps" />
         <delete file="${lib.dir}/jinitests.jar" quiet="true"/>
-        <classdep output="${jinitests.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${jinitests.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="-in com.sun.jini.fiddler"/>
             <arg line="${jskprivate.include}" />
@@ -695,7 +747,10 @@
             <fileset dir="${build.classes.dir}" includes="${resources}"
                 excludes="com/sun/jini/qa*, com/sun/jini/tool*" />
         </jar>
-        <classdep output="${jinitests.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${jinitests.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="-in com.sun.jini.fiddler"/>
             <arg line="${jskprivate.include}" />
@@ -706,7 +761,10 @@
             <fileset dir="${build.classes.dir}" includesfile="${jinitests.deps}" />
             <fileset dir="${river.classes.dir}" includesfile="${jinitests.deps}" />
         </jar>
-        <classdep output="${jinitests.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${jinitests.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="-in com.sun.jini.fiddler"/>
             <arg line="${jskprivate.include}" />
@@ -733,7 +791,10 @@
     <target name="qa1-mainwrapper.jar" depends="compile">
         <property name="qa1-mainwrapper.deps" location="${build.deps.dir}/qa1-mainwrapper.deps" />
         <delete file="${lib.dir}/qa1-mainwrapper.jar" quiet="true"/>
-        <classdep output="${qa1-mainwrapper.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-mainwrapper.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="com.sun.jini.qa.harness.MainWrapper"/>
             <classpath refid="classdep.classpath"/>
@@ -747,7 +808,10 @@
     <target name="jiniharness.jar" depends="compile">
         <property name="jiniharness.deps" location="${build.deps.dir}/jiniharness.deps" />
         <delete file="${lib.dir}/jiniharness.jar" quiet="true"/>
-        <classdep output="${jiniharness.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${jiniharness.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg path="${build.classes.dir}/com/sun/jini/qa/harness"/>
             <arg line="${jskprivate.include}" />
             <arg line="-in com.sun.jini.start"/>
@@ -772,7 +836,10 @@
     <target name="qaman.jar" depends="compile">
         <property name="qaman.deps" location="${build.deps.dir}/qaman.deps" />
         <delete file="${lib.dir}/qaman.jar" quiet="true"/>
-        <classdep output="${qaman.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qaman.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-show com.sun.jini.test"/>
             <arg line="-show com.sun.jini.qa"/>
@@ -803,7 +870,10 @@
     <target name="qa1-start-probe-dl.jar" depends="qa1-start.stubs">
         <property name="qa1-start-probe-dl.deps" location="${build.deps.dir}/qa1-start-probe-dl.deps" />
         <delete file="${lib.dir}/qa1-start-probe-dl.jar" quiet="true"/>
-        <classdep output="${qa1-start-probe-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-start-probe-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="com.sun.jini.test.impl.start.ProbeImpl"/>
             <arg line="com.sun.jini.test.impl.start.BadServiceProxyAccessorImpl"/>
@@ -820,7 +890,10 @@
     <target name="qa1-start-probe.jar" depends="qa1-start.stubs">
         <property name="qa1-start-probe.deps" location="${build.deps.dir}/qa1-start-probe.deps" />
         <delete file="${lib.dir}/qa1-start-probe.jar" quiet="true"/>
-        <classdep output="${qa1-start-probe.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-start-probe.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="com.sun.jini.test.impl.start.ProbeImpl"/>
             <arg line="com.sun.jini.test.impl.start.BadServiceProxyAccessorImpl"/>
@@ -834,7 +907,10 @@
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-probe.deps}"/>
             <fileset dir="${river.classes.dir}" includesfile="${qa1-start-probe.deps}"/>
         </jar>
-        <classdep output="${qa1-start-probe.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-start-probe.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}" />
@@ -871,7 +947,10 @@
                 <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/UntrustedGetContextClassLoader.class" />
             </fileset>
         </jar>
-        <classdep output="${qa1-start-tests.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-start-tests.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-out com.sun.jini.harness"/>
             <arg line="-out com.sun.jini.qa.harness"/>
@@ -891,7 +970,10 @@
     <target name="qa1-start-testservice1.jar" depends="qa1-start.stubs">
         <property name="qa1-start-testservice1.deps" location="${build.deps.dir}/qa1-start-testservice1.deps" />
         <delete file="${lib.dir}/qa1-start-testservice1.jar" quiet="true"/>
-        <classdep output="${qa1-start-testservice1.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-start-testservice1.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
             <classpath refid="classdep.classpath"/>
@@ -905,7 +987,10 @@
                 <include name="com/sun/jini/test/impl/start/TestServiceDummyClass2.class"/>
             </fileset>
         </jar>
-        <classdep output="${qa1-start-testservice1.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-start-testservice1.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-hide com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
@@ -936,7 +1021,10 @@
     <target name="qa1-start-testservice2.jar" depends="qa1-start.stubs">
         <property name="qa1-start-testservice2.deps" location="${build.deps.dir}/qa1-start-testservice2.deps" />
         <delete file="${lib.dir}/qa1-start-testservice2.jar" quiet="true"/>
-        <classdep output="${qa1-start-testservice2.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-start-testservice2.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
             <classpath refid="classdep.classpath"/>
@@ -950,7 +1038,10 @@
                 <include name="com/sun/jini/test/impl/start/TestServiceDummyClass3.class"/>
             </fileset>
         </jar>
-        <classdep output="${qa1-start-testservice2.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-start-testservice2.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-hide com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
@@ -981,10 +1072,12 @@
     <target name="qa1-start-testservice-common.jar" depends="qa1-start.stubs">
         <property name="qa1-start-testservice-common.deps" location="${build.deps.dir}/qa1-start-testservice-common.deps" />
         <delete file="${lib.dir}/qa1-start-testservice-common.jar" quiet="true"/>
-        <classdep output="${qa1-start-testservice-common.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-start-testservice-common.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceDummyClass0"/>
-            <arg line="com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceSharedMap"/>
             <classpath refid="classdep.classpath"/>
         </classdep>
@@ -997,7 +1090,10 @@
     <target name="qa1-start-testservice-common-dl.jar" depends="qa1-start.stubs">
         <property name="qa1-start-testservice-common-dl.deps" location="${build.deps.dir}/qa1-start-testservice-common-dl.deps" />
         <delete file="${lib.dir}/qa1-start-testservice-common-dl.jar" quiet="true"/>
-        <classdep output="${qa1-start-testservice-common-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-start-testservice-common-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceDummyClass0"/>
             <classpath refid="classdep.classpath"/>
@@ -1064,7 +1160,10 @@
     <target name="qa1-lookup-simulator.jar" depends="qa1-lookup-simulator.stubs">
         <property name="qa1-lookup-simulator.deps" location="${build.deps.dir}/qa1-lookup-simulator.deps" />
         <delete file="${lib.dir}/qa1-lookup-simulator.jar" quiet="true"/>
-        <classdep output="${qa1-lookup-simulator.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-lookup-simulator.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl"/>
             <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl_Stub"/>
@@ -1073,7 +1172,10 @@
         <jar destfile="${lib.dir}/qa1-lookup-simulator.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-lookup-simulator.deps}"/>
         </jar>
-        <classdep output="${qa1-lookup-simulator.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-lookup-simulator.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
@@ -1091,7 +1193,10 @@
     <target name="qa1-lookup-simulator-dl.jar" depends="qa1-lookup-simulator.stubs">
         <property name="qa1-lookup-simulator-dl.deps" location="${build.deps.dir}/qa1-lookup-simulator-dl.deps" />
         <delete file="${lib.dir}/qa1-lookup-simulator-dl.jar" quiet="true"/>
-        <classdep output="${qa1-lookup-simulator-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-lookup-simulator-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorProxy"/>
             <arg line="com.sun.jini.test.services.lookupsimulator.LookupSimulatorConstrainableProxy"/>
@@ -1106,7 +1211,10 @@
             </metainf>
             <fileset dir="${build.classes.dir}" includesfile="${qa1-lookup-simulator-dl.deps}"/>
         </jar>
-        <classdep output="${qa1-lookup-simulator-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-lookup-simulator-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
@@ -1134,7 +1242,10 @@
     <target name="qa1-share-dl.jar" depends="qa1-share.stubs">
         <property name="qa1-share-dl.deps" location="${build.deps.dir}/qa1-share-dl.deps" />
         <delete file="${lib.dir}/qa1-share-dl.jar" quiet="true"/>
-        <classdep output="${qa1-share-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-share-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.share.reggie.RegistrarProxy"/>
             <arg line="com.sun.jini.test.share.reggie.RegistrarAdminProxy"/>
@@ -1162,7 +1273,10 @@
             <fileset dir="${build.classes.dir}" includesfile="${qa1-share-dl.deps}"/>
             <fileset dir="${river.classes.dir}" includesfile="${qa1-share-dl.deps}"/>
         </jar>
-        <classdep output="${qa1-share-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-share-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
@@ -1192,7 +1306,10 @@
     <target name="qa1-reggie-race.jar" depends="qa1-share.stubs">
         <property name="qa1-reggie-race.deps" location="${build.deps.dir}/qa1-reggie-race.deps" />
         <delete file="${lib.dir}/qa1-reggie-race.jar" quiet="true"/>
-        <classdep output="${qa1-reggie-race.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-reggie-race.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in net.jini"/>
             <arg line="-in com.sun.jini"/>
             <arg line="com.sun.jini.test.share.reggie.RegistrarImpl"/>
@@ -1216,7 +1333,10 @@
     <target name="qa1-reggie-race-dl.jar" depends="qa1-share.stubs">
         <property name="qa1-reggie-race-dl.deps" location="${build.deps.dir}/qa1-reggie-race-dl.deps" />
         <delete file="${lib.dir}/qa1-reggie-race-dl.jar" quiet="true"/>
-        <classdep output="${qa1-reggie-race-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-reggie-race-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in net.jini"/>
             <arg line="-in com.sun.jini"/>
             <arg line="com.sun.jini.test.share.reggie.RegistrarProxy"/>
@@ -1244,7 +1364,10 @@
     <target name="fullloggingfilter.jar" depends="compile">
         <property name="fullloggingfilter.deps" location="${build.deps.dir}/fullloggingfilter.deps" />
         <delete file="${lib.dir}/fullloggingfilter.jar" quiet="true"/>
-        <classdep output="${fullloggingfilter.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${fullloggingfilter.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.support.FullLoggingFilter"/>
             <classpath refid="classdep.classpath"/>
@@ -1266,7 +1389,10 @@
     <target name="qa1-discoveryservice-dl.jar" depends="qa1-discoveryservice.stubs">
         <property name="qa1-discoveryservice-dl.deps" location="${build.deps.dir}/qa1-discoveryservice-dl.deps" />
         <delete file="${lib.dir}/qa1-discoveryservice-dl.jar" quiet="true"/>
-        <classdep output="${qa1-discoveryservice-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-discoveryservice-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.share.DiscoveryServiceUtil$$BasicEventListener_Stub"/>
             <arg line="com.sun.jini.test.spec.discoveryservice.lease.LeaseExpiration$$ServiceEventListener_Stub"/>
@@ -1338,7 +1464,10 @@
                 <include name="com/sun/jini/test/spec/io/marshalinputstream/*.class"/>
             </fileset>
         </jar>
-        <classdep output="${qa1-io-marshalinputstream-test.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-io-marshalinputstream-test.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="-out com.sun.jini.test.harness"/>
             <arg line="-out com.sun.jini.test.spec.io.util.FakeArgument"/>
@@ -1365,7 +1494,10 @@
                 <include name="com/sun/jini/test/spec/io/marshalledinstance/*.class"/>
             </fileset>
         </jar>
-        <classdep output="${qa1-io-marshalledinstance-test.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-io-marshalledinstance-test.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="-out com.sun.jini.test.harness"/>
             <arg line="-in net.jini"/>
@@ -1390,7 +1522,10 @@
     <target name="qa1-javaspace-dl.jar" depends="qa1-javaspace.stubs">
         <property name="qa1-javaspace-dl.deps" location="${build.deps.dir}/qa1-javaspace-dl.deps" />
         <delete file="${lib.dir}/qa1-javaspace-dl.jar" quiet="true"/>
-        <classdep output="${qa1-javaspace-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-javaspace-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.spec.javaspace.conformance.ParticipantImpl_Stub"/>
             <arg line="com.sun.jini.test.spec.javaspace.conformance.NotifyCounter_Stub"/>
@@ -1446,7 +1581,10 @@
     <target name="qa1-lookupservice-dl.jar" depends="qa1-lookupservice.stubs">
         <property name="qa1-lookupservice-dl.deps" location="${build.deps.dir}/qa1-lookupservice-dl.deps" />
         <delete file="${lib.dir}/qa1-lookupservice-dl.jar" quiet="true"/>
-        <classdep output="${qa1-lookupservice-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-lookupservice-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test.spec"/>
             <arg line="com.sun.jini.test.spec.lookupservice.test_set00.EvntLeaseExpiration$$Listener_Stub"/>
             <arg line="com.sun.jini.test.spec.lookupservice.test_set00.NotifyOnAttrAdd$$Listener_Stub"/>
@@ -1497,7 +1635,10 @@
     <target name="qa1-renewalservice-dl.jar" depends="qa1-renewalservice.stubs">
         <property name="qa1-renewalservice-dl.deps" location="${build.deps.dir}/qa1-renewalservice-dl.deps" />
         <delete file="${lib.dir}/qa1-renewalservice-dl.jar" quiet="true"/>
-        <classdep output="${qa1-renewalservice-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-renewalservice-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.share.LeaseBackEndImpl$$VerifierImpl"/>
             <arg line="com.sun.jini.test.share.LeaseBackEndImpl_Stub"/>
@@ -1513,7 +1654,10 @@
                 <include name="com/sun/jini/test/spec/io/marshalledinstance/*.class"/>
             </fileset>
         </jar>
-        <classdep output="${qa1-renewalservice-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-renewalservice-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
@@ -1547,7 +1691,10 @@
     <target name="qa1-servicediscovery-dl.jar" depends="compile">
         <property name="qa1-servicediscovery-dl.deps" location="${build.deps.dir}/qa1-servicediscovery-dl.deps" />
         <delete file="${lib.dir}/qa1-servicediscovery-dl.jar" quiet="true"/>
-        <classdep output="${qa1-servicediscovery-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-servicediscovery-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in net.jini.lookup"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="-hide net.jini.lookup"/>
@@ -1563,7 +1710,10 @@
             </metainf>
             <fileset dir="${build.classes.dir}" includesfile="${qa1-servicediscovery-dl.deps}"/>
         </jar>
-        <classdep output="${qa1-servicediscovery-dl.deps}" cp="${build.classes.dir}:${river.classes.dir}">
+        <classdep output="${qa1-servicediscovery-dl.deps}">
+            <arg value="-cp"/>
+            <arg pathref="classdep.cp"/>
+            <arg value="-files"/>
             <arg line="-in net.jini.lookup"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in com.sun.jini.test"/>

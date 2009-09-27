@@ -115,15 +115,11 @@
 
     <macrodef name="classdep" description="Run ClassDep">
         <attribute name="output"/>
-        <attribute name="cp" default="build/classes"/>
         <element name="cd-elements" implicit="yes" />
         <sequential>
             <java classname="com.sun.jini.tool.ClassDep" 
-                  failonerror="true"
+                  failonerror="true" logError="true"
                   output="@{output}">
-                <arg value="-cp"/>
-                <arg path="@{cp}"/>
-                <arg value="-files"/>
                 <cd-elements />
             </java>
         </sequential>

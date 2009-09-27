@@ -35,9 +35,6 @@
     <property name="river.classes.dir" location="${river.home}/build/classes"/>
     <property name="river.src.dir" location="${river.home}/src"/>
 
-    <!-- directory settings -->
-    <property name="trust.dir" location="harness/trust"/>
-
     <!-- javadoc setings -->
     <property name="javadoc.doc-title" value="Apache River v${version} Hello Example API Documentation"/>
     <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
@@ -58,20 +55,21 @@
     <!-- classpath for use by ClassDep in this build -->
     <path id="classdep.cp">
         <path refid="river.classpath"/>
-        <path location="${build.classes.dir}"/>
+        <pathelement location="${build.classes.dir}"/>
     </path>
 
     <path id="javadoc.classpath">
         <path refid="river.classpath"/>
-        <path location="${build.classes.dir}"/>
+        <pathelement location="${build.classes.dir}"/>
     </path>
     
 	<property name="config.dir" location="config"/>
       
 	<target name="clean" depends=""
 		description="Removes all files and dirs created by the build">
-        <delete dir="${build.dir}" quiet="true"/>
-        <delete dir="${lib.dir}"	quiet="true"/>
+        <delete dir="${build.dir}"/>
+        <delete dir="${lib.dir}"/>
+        <delete dir="${doc.dir}"/>
     </target>
 
     <target name="compile" depends="prep" description="Build classes">
@@ -80,12 +78,40 @@
         </javac-cmd>
     </target>
       
-      
 	<target name="prep" description="Prepare the build">
         <mkdir dir="${build.dir}" />
         <mkdir dir="${build.classes.dir}" />
         <mkdir dir="${build.deps.dir}" />
         <mkdir dir="${lib.dir}" />
+    </target>
+
+    <target name="doc" depends="compile"
+		description="Generate javadoc documentation">
+        <delete dir="${doc.api.dir}" quiet="true"/>
+        <mkdir  dir="${doc.api.dir}"/>
+
+        <!-- TODO: find out why this takes so much memory on Windows -->
+        <javadoc author="true"
+			 breakiterator="yes"
+			 destdir="${doc.api.dir}"
+			 doctitle="${javadoc.doc-title}"
+			 serialwarn="false"
+			 source="1.4"
+             linkoffline="${jdk.doc.url} ${jdk.packages}"
+			 use="true"
+			 version="true"
+			 windowtitle="${javadoc.win-title}"
+             maxmemory="96M">
+            <bottom><![CDATA[${api.copyright}]]></bottom>
+            <classpath refid="javadoc.classpath"/>
+            <sourcepath>
+                <pathelement path="${src.dir}"/>
+            </sourcepath>
+            <package name="com.sun.jini.example.hello.*"/>
+        </javadoc>
+
+        <mkdir dir="${doc.api.dir}/doc-files"/>
+        <copy file="${root}/NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE"/>
     </target>
       
 	<target name="jars"
@@ -97,12 +123,9 @@
       
 	</target>
       
-      
 	<target name="client.jar" depends="stubs">
         <property name="example-client.deps" location="${build.deps.dir}/example-client.deps"/>
-        <java classname="com.sun.jini.tool.ClassDep"
-		      failonerror="true" logError="true"
-		      output="${example-client.deps}">
+        <classdep output="${example-client.deps}">
             <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -111,7 +134,7 @@
             <arg line="-in net.jini"/>
             <arg line="-in com.sun.jini"/>
             <arg value="com.sun.jini.example.hello.Client"/>
-        </java>
+        </classdep>
         <delete file="${lib.dir}/client.jar" quiet="true"/>
         <jar destfile="${lib.dir}/client.jar"
 		     index="false"
@@ -131,9 +154,7 @@
 
     <target name="server.jar" depends="stubs">
         <property name="example-server.deps" location="${build.deps.dir}/example-server.deps"/>
-        <java classname="com.sun.jini.tool.ClassDep"
-		      failonerror="true" logError="true"
-		      output="${example-server.deps}">
+        <classdep output="${example-server.deps}">
             <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -146,7 +167,7 @@
             <arg value="com.sun.jini.example.hello.ConfirmingILFactory"/>
             <arg value="com.sun.jini.example.hello.ConfirmingInvocationHandler"/>
             <arg value="com.sun.jini.example.hello.ServerPermission"/>
-        </java>
+        </classdep>
         <delete file="${lib.dir}/server.jar" quiet="true"/>
         <jar destfile="${lib.dir}/server.jar"
 		     index="false"
@@ -157,9 +178,7 @@
 
     <target name="server-act.jar" depends="stubs">
         <property name="example-server-act.deps" location="${build.deps.dir}/example-server-act.deps"/>
-        <java classname="com.sun.jini.tool.ClassDep"
-		      failonerror="true" logError="true"
-		      output="${example-server-act.deps}">
+        <classdep output="${example-server-act.deps}">
             <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -173,7 +192,7 @@
             <arg value="com.sun.jini.example.hello.Server"/>
             <arg value="com.sun.jini.example.hello.Server_Stub"/>
             <arg value="com.sun.jini.example.hello.ServerPermission"/>
-        </java>
+        </classdep>
         <delete file="${lib.dir}/server-act.jar" quiet="true"/>
         <jar destfile="${lib.dir}/server-act.jar"
 		     index="false"
@@ -184,9 +203,7 @@
 
     <target name="server-dl.jar" depends="stubs">
         <property name="example-server-dl.deps" location="${build.deps.dir}/example-server-dl.deps"/>
-        <java classname="com.sun.jini.tool.ClassDep"
-		      failonerror="true" logError="true"
-		      output="${example-server-dl.deps}">
+        <classdep output="${example-server-dl.deps}">
             <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -199,8 +216,7 @@
             <arg value="com.sun.jini.example.hello.Proxy"/>
             <arg value="com.sun.jini.example.hello.Server_Stub"/>
             <arg value="com.sun.jini.example.hello.ServerPermission"/>
-
-        </java>
+        </classdep>
         <delete file="${lib.dir}/server-dl.jar" quiet="true"/>
         <jar destfile="${lib.dir}/server-dl.jar"
 		     index="false">

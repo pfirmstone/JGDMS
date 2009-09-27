@@ -85,7 +85,7 @@ import java.net.URL;
  *   This test tries to create various HTTPMD URL objects using the following
  *   constructors:
  *     {@link URL#URL(String)}
- *     {@link URL#URL(URL,String)
+ *     {@link URL#URL(URL,String)}
  *   {@link Handler#parseURL(URL,String,int,int)} method
  *   is invoked while HTTPMD URL object is being created.
  *   The cases:
