@@ -24,42 +24,24 @@
     <!-- Root of the River source distribution -->
     <property name="root" location="../.." />
 
-    <!-- Import common settings and macros -->
-    <import file="${root}/common.xml"/>
-
-    <!-- Override this to run hello example against an external River installation -->
+    <!-- Override this to build/run hello example against an external River installation -->
     <property name="river.home" location="${root}"/>
 
-    <property name="river.lib.dir" location="${river.home}/lib"/>
-    <property name="river.lib-ext.dir" location="${river.home}/lib-ext"/>
-    <property name="river.classes.dir" location="${river.home}/build/classes"/>
-    <property name="river.src.dir" location="${river.home}/src"/>
+    <!-- Import common settings and macros -->
+    <import file="${root}/common.xml"/>
 
     <!-- javadoc setings -->
     <property name="javadoc.doc-title" value="Apache River v${version} Hello Example API Documentation"/>
     <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
 
-    <!-- classpath containing River distribution -->
-    <!-- TODO: investigate exact classpath requirements for this build -->
-    <path id="river.classpath">
-        <fileset dir="${river.lib.dir}" includes="**/*.jar" />
-    </path>
-
-    <!-- classpath for use by ClassDep in this build -->
-    <path id="classdep.classpath">
-        <pathelement path="${river.lib.dir}/classdep.jar"/>
-        <pathelement location="${river.home}/tools/asm-3.2.jar"/>
-        <pathelement location="${river.home}/tools/asm-commons-3.2.jar"/>
-    </path>
-
-    <!-- classpath for use by ClassDep in this build -->
+    <!-- classpath searched by ClassDep -->
     <path id="classdep.cp">
-        <path refid="river.classpath"/>
+        <path refid="river.jars"/>
         <pathelement location="${build.classes.dir}"/>
     </path>
 
     <path id="javadoc.classpath">
-        <path refid="river.classpath"/>
+        <path refid="river.jars"/>
         <pathelement location="${build.classes.dir}"/>
     </path>
     
@@ -74,7 +56,7 @@
 
     <target name="compile" depends="prep" description="Build classes">
         <javac-cmd source.dir="${src.dir}" dest.dir="${build.classes.dir}">
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </javac-cmd>
     </target>
       
@@ -124,7 +106,6 @@
 	<target name="client.jar" depends="stubs">
         <property name="example-client.deps" location="${build.deps.dir}/example-client.deps"/>
         <classdep output="${example-client.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
@@ -153,7 +134,6 @@
     <target name="server.jar" depends="stubs">
         <property name="example-server.deps" location="${build.deps.dir}/example-server.deps"/>
         <classdep output="${example-server.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
@@ -177,7 +157,6 @@
     <target name="server-act.jar" depends="stubs">
         <property name="example-server-act.deps" location="${build.deps.dir}/example-server-act.deps"/>
         <classdep output="${example-server-act.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
@@ -201,8 +180,7 @@
 
     <target name="server-dl.jar" depends="stubs">
         <property name="example-server-dl.deps" location="${build.deps.dir}/example-server-dl.deps"/>
-        <classdep output="${example-server-dl.deps}">
-            <classpath refid="classdep.classpath"/>
+        <classdep output="${example-server-dl.deps}"> 
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
@@ -225,7 +203,7 @@
 
     <target name="stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
             <include name="com/sun/jini/example/hello/Server.class"/>
         </rmic>
     </target>

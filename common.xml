@@ -38,6 +38,8 @@
     <property name="lib-ext" value="lib-ext"/>
     <property name="doc.spec.api" value="${doc}/specs/api"/>
     <property name="doc.api" value="${doc}/api"/>
+    <property name="build" value="build"/>
+    <property name="build.classes" value="${build}/classes"/>
     <property name="dist" value="dist"/>
 
     <!-- Standard directory locations -->
@@ -46,8 +48,8 @@
     <property name="src.dir" location="${src}"/>
     <property name="src.manifest.dir" location="${src}/manifest"/>
     <property name="src.configentry.dir" location="${src}/configentry"/>
-    <property name="build.dir" location="build"/>
-    <property name="build.classes.dir" location="${build.dir}/classes"/>
+    <property name="build.dir" location="${build}"/>
+    <property name="build.classes.dir" location="${build.classes}"/>
     <property name="build.deps.dir" location="${build.dir}/deps"/>
     <property name="configentry.dir" location="${configentry}"/>
     <property name="dist.dir" location="dist"/>
@@ -80,7 +82,42 @@
     <patternset id="java.source">
         <include name="**/*.java"/>
     </patternset>
-    
+
+    <property name="river.home" location="${root}"/>
+    <property name="river.lib.dir" location="${river.home}/${lib}"/>
+    <property name="river.lib-ext.dir" location="${river.home}/${lib-ext}"/>
+    <property name="river.classes.dir" location="${river.home}/${build.classes}"/>
+    <property name="river.src.dir" location="${river.home}/${src}"/>
+
+    <!-- classpath containing River distribution -->
+    <!-- TODO: split into multiple paths -->
+    <path id="river.jars">
+        <fileset dir="${river.lib.dir}" includes="**/*.jar" />
+    </path>
+
+    <path id="river.classes">
+        <pathelement path="${river.classes.dir}"/>
+    </path>
+
+    <path id="asm.classpath">
+        <pathelement path="${river.home}/tools/asm-3.2.jar"/>
+        <pathelement path="${river.home}/tools/asm-commons-3.2.jar"/>
+    </path>
+
+    <path id="classdep.classes.classpath">
+        <path refid="river.classes"/>
+        <path refid="asm.classpath"/>
+    </path>
+
+    <path id="classdep.jar.classpath">
+        <pathelement location="${river.lib.dir}/classdep.jar"/>
+        <path refid="asm.classpath" />
+    </path>
+
+    <path id="classdep.classpath">
+        <path refid="classdep.jar.classpath" />
+    </path>
+
     <property name="jre.ext.dir" location="${java.home}/lib/ext"/>
 
     <!-- Possible values for 'debug': lines,source,vars -->
@@ -121,11 +158,13 @@
 
     <macrodef name="classdep" description="Run ClassDep">
         <attribute name="output"/>
+        <attribute name="classpathref" default="classdep.classpath" />
         <element name="cd-elements" implicit="yes" />
         <sequential>
             <java classname="com.sun.jini.tool.ClassDep" 
                   failonerror="true" logError="true"
                   output="@{output}">
+                <classpath refid="@{classpathref}"/>
                 <cd-elements />
             </java>
         </sequential>

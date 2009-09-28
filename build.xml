@@ -30,7 +30,7 @@
 
     <description>Apache River is a project furthering the development
         and advancement of Jini technology.</description>
-
+        
     <!-- import common settings and macros -->
     <import file="common.xml"/>
     
@@ -46,21 +46,7 @@
     <property name="javadoc.spec.doc-title" value="${product.title} Specification-only API Documentation"/>
     <property name="javadoc.spec.win-title" value="${javadoc.spec.doc-title}"/>
 
-    <path id="river.classpath">
-        <pathelement path="${build.classes.dir}"/>
-    </path>
-
-    <path id="compile.classpath">
-        <pathelement location="tools/asm-3.2.jar"/>
-        <pathelement location="tools/asm-commons-3.2.jar"/>
-    </path>
-
-    <path id="classdep.classpath">
-        <path refid="river.classpath"/>
-        <path refid="compile.classpath"/>
-    </path>
-
-    <path id="javadoc.classpath" refid="classdep.classpath"/>
+    <path id="javadoc.classpath" refid="river.classes"/>
 
     <target name="copy-resources"
 		description="Copies various resources directories to the classes dir."
@@ -248,7 +234,6 @@
 				    prefix="${product.name}/examples"
 				    includes="**/*.sh"
 				    filemode="755"/>
-            <!-- TODO investigate the source under the jtreg directory -->
             <tarfileset dir="${basedir}/qa" prefix="${product.name}/qa">
                 <include name="${src}/**"/>
                 <include name="harness/**"/>
@@ -485,7 +470,7 @@
     <target name="compile" description="Build classes"
 		depends="copy-resources">
         <javac-cmd source.dir="${src.dir}" dest.dir="${build.classes.dir}">
-            <classpath refid="compile.classpath" />
+            <classpath refid="asm.classpath" />
         </javac-cmd>
     </target>
 
@@ -665,8 +650,8 @@
 
     <target name="jini-ext.jar" depends="stubs">
         <property name="jini-ext.deps" location="${build.deps.dir}/jini-ext.deps"/>
-        <classdep output="${jini-ext.deps}">
-            <classpath refid="classdep.classpath"/>
+        <classdep output="${jini-ext.deps}"
+                classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -687,8 +672,8 @@
 
     <target name="jsk-debug-policy.jar" depends="stubs">
         <property name="jsk-debug-policy.deps" location="${build.deps.dir}/jsk-debug-policy.deps"/>
-        <classdep output="${jsk-debug-policy.deps}">
-            <classpath refid="classdep.classpath"/>
+        <classdep output="${jsk-debug-policy.deps}"
+                classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -706,8 +691,8 @@
 
     <target name="jsk-dl.jar" depends="stubs">
         <property name="jsk-dl.deps" location="${build.deps.dir}/jsk-dl.deps"/>
-        <classdep output="${jsk-dl.deps}">
-            <classpath refid="classdep.classpath"/>
+        <classdep output="${jsk-dl.deps}"
+                classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -755,8 +740,8 @@
 
     <target name="jsk-lib.jar" depends="stubs">
         <property name="jsk-lib.deps" location="${build.deps.dir}/jsk-lib.deps"/>
-        <classdep output="${jsk-lib.deps}">
-            <classpath refid="classdep.classpath"/>
+        <classdep output="${jsk-lib.deps}"
+                classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -790,14 +775,14 @@
             <arg path="${build.classes.dir}"/>
             <arg line="-api com.sun.jini.start.LifeCycle"/>
             <arg line="-api com.sun.jini.start.ServiceProxyAccessor"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.classes"/>
         </preferredlistgen>
     </target>
 
     <target name="jsk-platform.jar"	depends="jsk-resources.jar">
         <property name="jsk-platform.deps" location="${build.deps.dir}/jsk-platform.deps"/>
-        <classdep output="${jsk-platform.deps}">
-            <classpath refid="classdep.classpath"/>
+        <classdep output="${jsk-platform.deps}"
+                classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -859,14 +844,14 @@
             <arg line="-api com.sun.jini.config.ConfigUtil"/>
             <arg line="-api com.sun.jini.config.KeyStores"/>
             <arg line="-api com.sun.jini.logging.LogManager"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.classes"/>
         </preferredlistgen>
     </target>
 
     <target name="jsk-policy.jar" depends="stubs">
         <property name="jsk-policy.deps" location="${build.deps.dir}/jsk-policy.deps"/>
-        <classdep output="${jsk-policy.deps}">
-            <classpath refid="classdep.classpath"/>
+        <classdep output="${jsk-policy.deps}"
+                classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -897,8 +882,8 @@
 
     <target name="sun-util.jar"	depends="stubs">
         <property name="sun-util.deps" location="${build.deps.dir}/sun-util.deps"/>
-        <classdep output="${sun-util.deps}">
-            <classpath refid="classdep.classpath"/>
+        <classdep output="${sun-util.deps}"
+                classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -936,7 +921,6 @@
     <target name="sdm-dl.jar" depends="stubs">
         <property name="sdm-dl.deps" location="${build.deps.dir}/sdm-dl.deps"/>
         <classdep output="${sdm-dl.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -959,13 +943,13 @@
             <arg line="-jar"/>
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
             <arg line="-proxy net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="sdm.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
             <include name="net/jini/lookup/ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener.class"/>
         </rmic>
     </target>
@@ -1256,7 +1240,6 @@
     <target name="browser.jar" depends="stubs">
         <property name="browser.deps" location="${build.deps.dir}/browser.deps"/>
         <classdep output="${browser.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -1277,7 +1260,6 @@
     <target name="browser-dl.jar" depends="stubs">
         <property name="browser-dl.deps" location="${build.deps.dir}/browser-dl.deps"/>
         <classdep output="${browser-dl.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -1300,13 +1282,13 @@
             <arg line="-jar"/>
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
             <arg line="-proxy com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="browser.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
             <include name="com/sun/jini/example/browser/Browser$$Listener.class"/>
             <include name="com/sun/jini/example/browser/ServiceEditor$$NotifyReceiver.class"/>
         </rmic>
@@ -1315,7 +1297,6 @@
     <target name="fiddler.jar" depends="stubs">
         <property name="fiddler.deps" location="${build.deps.dir}/fiddler.deps" />
         <classdep output="${fiddler.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1339,14 +1320,13 @@
             <arg line="-jar"/>
             <arg path="${lib.dir}/fiddler.jar"/>
             <arg line="-default true" />
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="fiddler-dl.jar" depends="stubs">
         <property name="fiddler-dl.deps" location="${build.deps.dir}/fiddler-dl.deps" />
         <classdep output="${fiddler-dl.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1377,13 +1357,13 @@
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
             <arg line="-proxy com.sun.jini.fiddler.FiddlerProxy"/>
             <arg line="-proxy com.sun.jini.fiddler.FiddlerAdminProxy"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="fiddler.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath" />
+            <classpath refid="river.jars" />
             <include name="com/sun/jini/fiddler/FiddlerImpl.class" />
         </rmic>
     </target>
@@ -1391,7 +1371,6 @@
     <target name="mahalo.jar" depends="stubs">
         <property name="mahalo.deps" location="${build.deps.dir}/mahalo.deps" />
         <classdep output="${mahalo.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1414,14 +1393,13 @@
             <arg line="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg line="-default true" />
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="mahalo-dl.jar" depends="stubs">
         <property name="mahalo-dl.deps" location="${build.deps.dir}/mahalo-dl.deps" />
         <classdep output="${mahalo-dl.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1451,13 +1429,13 @@
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
             <arg line="-proxy com.sun.jini.mahalo.TxnMgrAdminProxy"	/>
             <arg line="-proxy com.sun.jini.mahalo.TxnMgrProxy"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="mahalo.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath" />
+            <classpath refid="river.jars" />
             <include name="com/sun/jini/mahalo/TxnManagerImpl.class" />
         </rmic>
     </target>
@@ -1465,7 +1443,6 @@
     <target name="mercury.jar" depends="stubs">
         <property name="mercury.deps" location="${build.deps.dir}/mercury.deps" />
         <classdep output="${mercury.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1488,14 +1465,13 @@
             <arg line="-cp"	/>
             <arg path="${build.classes.dir}"/>
             <arg line="-default true" />
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="mercury-dl.jar" depends="stubs">
         <property name="mercury-dl.deps" location="${build.deps.dir}/mercury-dl.deps" />
         <classdep output="${mercury-dl.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1529,13 +1505,13 @@
             <arg line="-proxy com.sun.jini.mercury.ListenerProxy"/>
             <arg line="-proxy com.sun.jini.mercury.MailboxAdminProxy"/>
             <arg line="-proxy com.sun.jini.mercury.MailboxProxy"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="mercury.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath" />
+            <classpath refid="river.jars" />
             <include name="com/sun/jini/mercury/MailboxImpl.class" />
         </rmic>
     </target>
@@ -1543,7 +1519,6 @@
     <target name="norm.jar" depends="stubs">
         <property name="norm.deps" location="${build.deps.dir}/norm.deps" />
         <classdep output="${norm.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1567,14 +1542,13 @@
             <arg line="-jar"/>
             <arg path="${lib.dir}/norm.jar"	/>
             <arg line="-default true" />
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="norm-dl.jar"  depends="stubs">
         <property name="norm-dl.deps" location="${build.deps.dir}/norm-dl.deps" />
         <classdep output="${norm-dl.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1606,13 +1580,13 @@
             <arg line="-proxy com.sun.jini.norm.AdminProxy"/>
             <arg line="-proxy com.sun.jini.norm.NormProxy"/>
             <arg line="-proxy com.sun.jini.norm.SetProxy"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="norm.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath" />
+            <classpath refid="river.jars" />
             <include name="com/sun/jini/norm/NormServerBaseImpl.class" />
         </rmic>
     </target>
@@ -1620,7 +1594,6 @@
     <target name="outrigger-snaplogstore.jar" depends="stubs">
         <property name="outrigger-snaplogstore.deps" location="${build.deps.dir}/outrigger-snaplogstore.deps" />
         <classdep output="${outrigger-snaplogstore.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1638,7 +1611,6 @@
     <target name="outrigger.jar" depends="stubs,outrigger-snaplogstore.jar">
         <property name="outrigger.deps" location="${build.deps.dir}/outrigger.deps" />
         <classdep output="${outrigger.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1660,7 +1632,6 @@
     <target name="outrigger-dl.jar" depends="compile">
         <property name="outrigger-dl.deps" location="${build.deps.dir}/outrigger-dl.deps" />
         <classdep output="${outrigger-dl.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1691,13 +1662,13 @@
             <arg line="-proxy com.sun.jini.outrigger.ConstrainableIteratorProxy"/>
             <arg line="-proxy com.sun.jini.outrigger.ConstrainableParticipantProxy"/>
             <arg line="-proxy com.sun.jini.outrigger.ConstrainableSpaceProxy2"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="outrigger.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath" />
+            <classpath refid="river.jars" />
             <include name="com/sun/jini/outrigger/OutriggerServerWrapper.class" />
         </rmic>
     </target>
@@ -1705,7 +1676,6 @@
     <target name="phoenix.jar" depends="tools.jar">
         <property name="phoenix.deps" location="${build.deps.dir}/phoenix.deps" />
         <classdep output="${phoenix.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -1741,7 +1711,6 @@
     <target name="phoenix-dl.jar" depends="stubs">
         <property name="phoenix-dl.deps" location="${build.deps.dir}/phoenix-dl.deps" />
         <classdep output="${phoenix-dl.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -1772,14 +1741,13 @@
             <arg line="-jar"/>
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
             <arg line="-proxy com.sun.jini.phoenix.AbstractSystem_Stub"	/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="phoenix-group.jar" depends="stubs">
         <property name="phoenix-group.deps" location="${build.deps.dir}/phoenix-group.deps" />
         <classdep output="${phoenix-group.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -1802,7 +1770,6 @@
     <target name="phoenix-init.jar" depends="stubs">
         <property name="phoenix-init.deps" location="${build.deps.dir}/phoenix-init.deps" />
         <classdep output="${phoenix-init.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1819,14 +1786,14 @@
 
     <target name="phoenix.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath" />
+            <classpath refid="river.jars" />
             <include name="com/sun/jini/phoenix/AbstractActivator.class" />
             <include name="com/sun/jini/phoenix/AbstractMonitor.class" />
             <include name="com/sun/jini/phoenix/AbstractSystem.class" />
             <include name="com/sun/jini/phoenix/AbstractInstantiator.class" />
         </rmic>
         <rmic base="${build.classes.dir}" stubversion="1.1">
-            <classpath refid="river.classpath" />
+            <classpath refid="river.jars" />
             <include name="com/sun/jini/phoenix/AbstractRegistry.class" />
         </rmic>
     </target>
@@ -1834,7 +1801,6 @@
     <target name="reggie.jar" depends="stubs">
         <property name="reggie.deps" location="${build.deps.dir}/reggie.deps" />
         <classdep output="${reggie.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1856,14 +1822,13 @@
             <arg line="-jar"/>
             <arg path="${lib.dir}/reggie.jar"/>
             <arg line="-default true" />
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="reggie-dl.jar" depends="stubs">
         <property name="reggie-dl.deps" location="${build.deps.dir}/reggie-dl.deps" />
         <classdep output="${reggie-dl.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1894,13 +1859,13 @@
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
             <arg line="-proxy com.sun.jini.reggie.ConstrainableRegistrarProxy"/>
             <arg line="-proxy com.sun.jini.reggie.ConstrainableAdminProxy"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="reggie.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath" />
+            <classpath refid="river.jars" />
             <include name="com/sun/jini/reggie/RegistrarImpl.class" />
         </rmic>
     </target>
@@ -1918,7 +1883,6 @@
     <target name="destroy.jar" depends="stubs">
         <property name="destroy.deps" location="${build.deps.dir}/destroy.deps" />
         <classdep output="${destroy.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -1938,7 +1902,6 @@
     <target name="group.jar" depends="stubs">
         <property name="group.deps" location="${build.deps.dir}/group.deps" />
         <classdep output="${group.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1956,7 +1919,6 @@
     <target name="group-dl.jar" depends="stubs">
         <property name="group-dl.deps" location="${build.deps.dir}/group-dl.deps" />
         <classdep output="${group-dl.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"	/>
@@ -1977,14 +1939,13 @@
             <arg line="-jar"/>
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
             <arg line="-proxy com.sun.jini.start.SharedGroupImpl_Stub"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
     <target name="sharedvm.jar" depends="stubs">
         <property name="sharedvm.deps" location="${build.deps.dir}/sharedvm.deps" />
         <classdep output="${sharedvm.deps}">
-            <classpath refid="classdep.classpath"/>
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -2001,8 +1962,8 @@
 
     <target name="start.jar" depends="stubs">
         <property name="start.deps" location="${build.deps.dir}/start.deps" />
-        <classdep output="${start.deps}">
-            <classpath refid="classdep.classpath"/>
+        <classdep output="${start.deps}"
+                classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
@@ -2024,7 +1985,7 @@
 
     <target name="start.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.classpath" />
+            <classpath refid="river.jars" />
             <include name="com/sun/jini/start/SharedGroupImpl.class" />
         </rmic>
     </target>
@@ -2041,10 +2002,10 @@
 
     <target name="tools.jar" depends="river.jars">
         <property name="tools.deps" location="${build.deps.dir}/tools.deps" />
-        <classdep output="${tools.deps}">
-            <classpath refid="classdep.classpath"/>
+        <classdep output="${tools.deps}"
+                classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
-            <arg pathref="classdep.classpath"/>
+            <arg pathref="river.classes"/>
             <arg value="-files"	/>
             <arg line="${jskprivate.include}"/>
             <arg line="-in com.sun.jini.tool"/>
@@ -2098,7 +2059,7 @@
             <arg path="${build.classes.dir}"/>
             <arg line="-jar"/>
             <arg path="${lib.dir}/tools.jar"/>
-            <classpath refid="river.classpath"/>
+            <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
