@@ -703,16 +703,6 @@ JAR files of the example in a single command:
   >> $ANT_HOME/bin/ant jars
 </pre>
 
-<h4>Clean builds</h4>
-
-To remove all class files, recompile all source files, and then
-generate all of the JAR files of the example, type the following:
-
-<pre>
-  >> $ANT_HOME/bin/ant clean
-  >> $ANT_HOME/bin/ant jars
-</pre>
-
 <h4>Generating Javadoc</h4>
 
 To create Javadoc documentation for the example, type the following:
@@ -722,6 +712,26 @@ To create Javadoc documentation for the example, type the following:
 </pre>
 
 <hr>
+
+<h4>Generating prebuilt keys</h4>
+
+To generate keys and certificates for the example, type the following:
+
+<pre>
+  >> $ANT_HOME/bin/ant trust
+</pre>
+
+<hr>
+
+<h4>Clean builds</h4>
+
+To remove all class files, recompile all source files, and then
+generate all of the JAR files of the example, type the following:
+
+<pre>
+  >> $ANT_HOME/bin/ant clean
+  >> $ANT_HOME/bin/ant
+</pre>
 
 <a name="troubleshooting">
 <h2>Troubleshooting</h2>

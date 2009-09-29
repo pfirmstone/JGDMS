@@ -26,7 +26,7 @@
 <!-- ##	building the Apache River source distribution.                  -->
 <!-- ##                                                                 -->
 <!-- ################################################################## -->
-<project name="river" basedir="." default="all">
+<project name="river" basedir="." default="all.build">
 
     <description>Apache River is a project furthering the development
         and advancement of Jini technology.</description>
@@ -58,7 +58,7 @@
     </target>
 
     <target name="release-bin" description="Create a binary release"
-		depends="all">
+		depends="all.build">
         <mkdir dir="${dist.dir}"/>
         <delete file="${bin.zip.bundle}"/>
         <zip destfile="${bin.zip.bundle}" roundup="yes">
@@ -87,6 +87,7 @@
             <zipfileset dir="${basedir}/examples" prefix="${product.name}/examples">
                 <include name="**/${lib}/**"/>
                 <include name="**/config/**"/>
+                <exclude name="**/config/META-INF/"/>
                 <include name="**/prebuiltkeys/**"/>
                 <include name="**/scripts/**"/>
                 <include name="**/${doc}/**"/>
@@ -132,7 +133,7 @@
             <tarfileset dir="${basedir}/examples" prefix="${product.name}/examples">
                 <include name="**/${lib}/**"/>
                 <include name="**/config/**"/>
-                <include name="**/prebuiltkeys/**"/>
+                <exclude name="**/config/META-INF/"/>
                 <include name="**/scripts/**"/>
                 <include name="**/${doc}/**"/>
                 <include name="**/*.html"/>
@@ -182,27 +183,26 @@
                 <include name="**"/>
                 <exclude name="**/${lib}/"/>
                 <exclude name="**/${build}/"/>
-                <exclude name="**/${doc.api}/"/>
+                <exclude name="**/prebuiltkeys/"/>
+                <exclude name="**/${doc}/"/>
             </zipfileset>
             <zipfileset dir="${basedir}/examples"
 				    prefix="${product.name}/examples"
 				    includes="**/*.sh"
 				    filemode="755"/>
-            <!-- TODO investigate the source under the jtreg directory -->
             <zipfileset dir="${basedir}/qa" prefix="${product.name}/qa">
                 <include name="${src}/**"/>
                 <include name="harness/**"/>
                 <include name="jtreg/**"/>
                 <include name="${doc}/**"/>
-                <exclude name="${doc}/api"/>
-                <exclude name="${doc}/api/**"/>
+                <exclude name="${doc.api}/"/>
                 <include name="build.xml"/>
                 <include name="README.txt"/>
             </zipfileset>
         </zip>
         <delete file="${src.tar.bundle}"/>
         <tar destfile="${src.tar.bundle}" compression="gzip" longfile="gnu">
-            <tarfileset dir="${basedir}" prefix="${install.dir}">
+            <tarfileset dir="${basedir}" prefix="${product.name}">
                 <include name="index.html"/>
                 <include name="build.xml"/>
                 <include name="common.xml"/>
@@ -228,7 +228,8 @@
                 <include name="**"/>
                 <exclude name="**/${lib}/"/>
                 <exclude name="**/${build}/"/>
-                <exclude name="**/${doc.api}/"/>
+                <exclude name="**/prebuiltkeys/"/>
+                <exclude name="**/${doc}/"/>
             </tarfileset>
             <tarfileset dir="${basedir}/examples"
 				    prefix="${product.name}/examples"
@@ -239,8 +240,7 @@
                 <include name="harness/**"/>
                 <include name="jtreg/**"/>
                 <include name="${doc}/**"/>
-                <exclude name="${doc}/api"/>
-                <exclude name="${doc}/api/**"/>
+                <exclude name="${doc.api}/"/>
                 <include name="build.xml"/>
                 <include name="README.txt"/>
             </tarfileset>
@@ -2076,14 +2076,21 @@
         </ant>
     </target>
 
-    <target name="all" depends="all.jars,configentry,all.doc"
-            description="Build all, including subcomponents"/>
+    <target name="build" depends="configentry,jars,doc,spec-doc"/>
+
+    <target name="all.build" depends="build"
+            description="Build all, including subcomponents">
+            <!-- Call qa subcomponent build -->
+        <ant dir="qa" target="build" inheritall="false" />
+        <!-- Call examples/hello subcomponent build -->
+        <ant dir="examples/hello" target="build" inheritall="false" />
+    </target>
 
     <target name="all.clean" depends="clean" 
             description="Clean all, including subcomponents">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="clean" inheritall="false" />
-        <!-- Call examples subcomponent build -->
+        <!-- Call examples/hello subcomponent build -->
         <ant dir="examples/hello" target="clean" inheritall="false" />
     </target>
 
@@ -2095,7 +2102,7 @@
         <ant dir="examples/hello" target="compile" inheritall="false" />
     </target>
 
-    <target name="all.doc" depends="doc,spec-doc,jars"
+    <target name="all.doc" depends="jars,doc,spec-doc"
             description="Generate javadoc for all, including subcomponents">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="doc" inheritall="false" />

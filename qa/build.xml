@@ -16,7 +16,7 @@
  ! See the License for the specific language governing permissions and
  ! limitations under the License.
  !-->
-<project name="qa" default="jars" basedir=".">
+<project name="qa" basedir="." default="build" >
     
     <description>This Ant scripts provides numerous tasks to build and run the
         the River QA test harness and tests</description>
@@ -113,6 +113,8 @@
             <classpath refid="river.jars"/>
         </javac-cmd>
     </target>
+
+    <target name="build" depends="jars,doc" />
 
     <target name="jtreg" depends="" description="Run jtreg tests">
         <!-- TODO: refine classpath -->

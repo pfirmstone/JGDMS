@@ -16,7 +16,7 @@
  ! limitations under the License.
  !-->
 
-<project name="hello" basedir="." default="jars">
+<project name="hello" basedir="." default="build">
 
     <description>This Ant scripts provides numerous tasks to build the
         the Hello Example</description>
@@ -46,12 +46,14 @@
     </path>
     
 	<property name="config.dir" location="config"/>
+    <property name="trust.dir" location="prebuiltkeys"/>
       
 	<target name="clean" depends=""
 		description="Removes all files and dirs created by the build">
         <delete dir="${build.dir}"/>
         <delete dir="${lib.dir}"/>
         <delete dir="${doc.dir}"/>
+        <delete dir="${trust.dir}"/>
     </target>
 
     <target name="compile" depends="prep" description="Build classes">
@@ -65,6 +67,7 @@
         <mkdir dir="${build.classes.dir}" />
         <mkdir dir="${build.deps.dir}" />
         <mkdir dir="${lib.dir}" />
+        <mkdir dir="${trust.dir}" />
     </target>
 
     <target name="doc" depends="compile"
@@ -207,6 +210,70 @@
             <include name="com/sun/jini/example/hello/Server.class"/>
         </rmic>
     </target>
+
+    <target name="trust" depends="prep,keystores,password,truststore"
+        description="Generate keys, passwords and certificates"/>
+
+    <target name="keystores" depends="client.keystore,
+            reggie.keystore,
+            phoenix.keystore,
+            server.keystore" />
+
+    <target name="client.keystore">
+        <delete file="${trust.dir}/client.keystore" quiet="true"/>
+        <keystore target="client" dir="${trust.dir}" dname="Client" />
+    </target>
+
+    <target name="reggie.keystore">
+        <delete file="${trust.dir}/reggie.keystore" quiet="true"/>
+        <keystore target="reggie" dir="${trust.dir}" dname="Reggie" />
+    </target>
+
+    <target name="phoenix.keystore">
+        <delete file="${trust.dir}/phoenix.keystore" quiet="true"/>
+        <keystore target="phoenix" dir="${trust.dir}" dname="Phoenix" />
+    </target>
+
+    <target name="server.keystore">
+        <delete file="${trust.dir}/server.keystore" quiet="true"/>
+        <keystore target="server" dir="${trust.dir}" dname="Server" />
+    </target>
+
+    <target name="password" depends="client.password,
+            reggie.password,
+            phoenix.password,
+            server.password" />
+
+    <target name="client.password">
+        <delete file="${trust.dir}/client.password" quiet="true"/>
+        <echo file="${trust.dir}/client.password" message="clientpw" />
+    </target>
+
+    <target name="reggie.password">
+        <delete file="${trust.dir}/reggie.password" quiet="true"/>
+        <echo file="${trust.dir}/reggie.password" message="reggiepw" />
+    </target>
+
+    <target name="phoenix.password">
+        <delete file="${trust.dir}/phoenix.password" quiet="true"/>
+        <echo file="${trust.dir}/phoenix.password" message="phoenixpw" />
+    </target>
+
+    <target name="server.password">
+        <delete file="${trust.dir}/server.password" quiet="true"/>
+        <echo file="${trust.dir}/server.password" message="serverpw" />
+    </target>
+
+    <target name="truststore">
+        <delete file="${trust.dir}/truststore" quiet="true" />
+        <truststore target="client" dir="${trust.dir}" />
+        <truststore target="reggie" dir="${trust.dir}" />
+        <truststore target="phoenix" dir="${trust.dir}" />
+        <truststore target="server" dir="${trust.dir}" />
+    </target>
+
+    <target name="build" depends="trust,jars,doc"
+            description="Build all"/>
 
 </project>
 
