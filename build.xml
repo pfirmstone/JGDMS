@@ -26,7 +26,8 @@
 <!-- ##	building the Apache River source distribution.                  -->
 <!-- ##                                                                 -->
 <!-- ################################################################## -->
-<project name="river" basedir="." default="all.build">
+<project name="river" basedir="." default="all.build"
+        xmlns:artifact="antlib:org.apache.maven.artifact.ant">
 
     <description>Apache River is a project furthering the development
         and advancement of Jini technology.</description>
@@ -2116,6 +2117,49 @@
         <ant dir="qa" target="jars" inheritall="false" />
         <!-- Call examples/hello subcomponent build -->
         <ant dir="examples/hello" target="jars" inheritall="false" />
+    </target>
+
+    <!-- TODO cleanup and find out where exactly to publish to -->
+    <!-- Note that you need the Maven Ant tasks (http://maven.apache.org/ant-tasks/)
+        installed to use this task -->
+    <target name="deploy-artifacts" depends="build">
+        <!--<artifact:install-provider artifactId="wagon-file" version="1.0-beta-2"/>
+        <artifact:install-provider artifactId="wagon-http" version="1.0-beta-2"/>
+        <artifact:install-provider artifactId="wagon-ssh" version="1.0-beta-2"/>-->
+        <property name="m2.repository" value="file:///home/jonathan/maven" />
+        <macrodef name="deploy">
+            <attribute name="file" />
+            <attribute name="pom" />
+            <sequential>
+                <artifact:deploy file="@{file}" >
+                    <remoteRepository url="${m2.repository}"/>
+                    <pom refid="@{pom}"/>
+                </artifact:deploy>
+            </sequential>
+        </macrodef>
+        <artifact:pom id="parent" file="${src.poms.dir}/pom.xml" />
+        <artifact:pom id="jini-core" file="${src.poms.dir}/jini-core/pom.xml" />
+        <artifact:pom id="jini-ext" file="${src.poms.dir}/jini-ext/pom.xml" />
+        <artifact:pom id="jsk-lib" file="${src.poms.dir}/jsk-lib/pom.xml" />
+        <artifact:pom id="jsk-dl" file="${src.poms.dir}/jsk-dl/pom.xml" />
+        <artifact:pom id="jsk-resources" file="${src.poms.dir}/jsk-resources/pom.xml" />
+        <artifact:pom id="jsk-platform" file="${src.poms.dir}/jsk-platform/pom.xml" />
+        <artifact:pom id="jsk-policy" file="${src.poms.dir}/jsk-policy/pom.xml" />
+        <artifact:pom id="serviceui" file="${src.poms.dir}/serviceui/pom.xml" />
+        <artifact:pom id="sun-util" file="${src.poms.dir}/sun-util/pom.xml" />
+        <artifact:pom id="start" file="${src.poms.dir}/start/pom.xml" />
+        <artifact:pom id="tools" file="${src.poms.dir}/tools/pom.xml" />
+        <deploy file="${lib.dir}/jini-core.jar" pom="jini-core" />
+        <deploy file="${lib.dir}/jini-ext.jar" pom="jini-ext" />
+        <deploy file="${lib.dir}/jsk-lib.jar" pom="jsk-lib" />
+        <deploy file="${lib-dl.dir}/jsk-dl.jar" pom="jsk-dl" />
+        <deploy file="${lib.dir}/jsk-resources.jar" pom="jsk-resources" />
+        <deploy file="${lib.dir}/jsk-platform.jar" pom="jsk-platform" />
+        <deploy file="${lib-ext.dir}/jsk-policy.jar" pom="jsk-policy" />
+        <deploy file="${lib.dir}/serviceui.jar" pom="serviceui" />
+        <deploy file="${lib.dir}/sun-util.jar" pom="sun-util" />
+        <deploy file="${lib.dir}/start.jar" pom="start" />
+        <deploy file="${lib.dir}/tools.jar" pom="tools" />
     </target>
 
 </project>

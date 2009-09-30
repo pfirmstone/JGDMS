@@ -70,27 +70,29 @@ required in dynamic computing environments.</description>
 		<system>Jira</system>
 		<url>https://issues.apache.org/jira/browse/RIVER</url>
 	</issueManagement>
-	<distributionManagement>
+    <!-- TODO: Need rest of path below -->
+    <!-- this section needs to be commented or errors are thrown -->
+	<!--<distributionManagement>
 		<repository>
 			<id>apache-releases</id>
-			<!-- TODO: Need rest of path below -->
+			
 			<url>/www/people.apache.org/repo/m2-ibiblio-rsync-repository</url>
 		</repository>
 		<snapshotRepository>
 			<id>apache-snapshots</id>
 		</snapshotRepository>
 		<downloadUrl>http://incubator.apache.org/river/RIVER/downloads.html</downloadUrl>
-	</distributionManagement>
+	</distributionManagement>-->
 	<scm>
 		<connection>scm:svn:http://svn.apache.org/repos/asf/incubator/river/jtsk/trunk</connection>
 		<developerConnection>scm:svn:https://svn.apache.org/repos/asf/incubator/river/jtsk/trunk</developerConnection>
 		<url>http://svn.apache.org/viewvc/incubator/river/</url>
 	</scm>
-	<repositories>
-		<!--
+    <!--
 			TODO: Use Nexus repositories instead? See:
 			https://issues.apache.org/jira/browse/INFRA-1896
 		-->
+	<repositories>
 		<repository>
 			<id>apache-releases</id>
 			<name>Apache Foundation Release Repository</name>

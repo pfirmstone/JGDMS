@@ -32,6 +32,7 @@
     <!-- Standard directory names -->
     <property name="doc" value="doc"/>
     <property name="src" value="src"/>
+    <property name="src.poms" value="${src}/poms"/>
     <property name="configentry" value="configentry"/>
     <property name="lib" value="lib"/>
     <property name="lib-dl" value="lib-dl"/>
@@ -48,6 +49,7 @@
     <property name="src.dir" location="${src}"/>
     <property name="src.manifest.dir" location="${src}/manifest"/>
     <property name="src.configentry.dir" location="${src}/configentry"/>
+    <property name="src.poms.dir" location="${src.poms}"/>
     <property name="build.dir" location="${build}"/>
     <property name="build.classes.dir" location="${build.classes}"/>
     <property name="build.deps.dir" location="${build.dir}/deps"/>
