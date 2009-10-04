@@ -1,5 +1,22 @@
-grant codeBase "file:${java.home}/lib/ext/*" {
+grant codeBase "file:${java.home}/lib/ext/*" { 
+        permission java.security.AllPermission; 
+}; 
+
+grant codeBase "file:${jtlib.tmp}/jsk-policy.jar" {
 	permission java.security.AllPermission;
+};
+
+grant codeBase "file:${jtlib.tmp}/jsk-lib.jar" {
+    permission java.security.AllPermission;
+};
+grant codeBase "file:${jtlib.tmp}/jsk-platform.jar" {
+    permission java.security.AllPermission;
+};
+grant codeBase "file:${jtlib.tmp}/jsk-resources.jar" {
+    permission java.security.AllPermission;
+};
+grant codeBase "file:${jtlib.tmp}/phoenix-init.jar" {
+    permission java.security.AllPermission;
 };
 
 grant {
