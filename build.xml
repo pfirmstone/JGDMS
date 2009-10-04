@@ -54,197 +54,144 @@
 		depends="start.copy-resources, tools.copy-resources">
     </target>
 
-    <target name="release" description="Create a release"
+    <target name="release" description="Create source and binary release packages"
 		depends="release-src, release-bin">
     </target>
+
+    <fileset id="river.bin.files" dir="${basedir}">
+        <include name="index.html"/>
+        <include name="DISCLAIMER"/>
+        <include name="LICENSE"/>
+        <include name="NOTICE"/>
+        <include name="${doc}/arch2_0.html"/>
+        <include name="${doc}/info-index.html"/>
+        <include name="${doc}/manpages-index.html"/>
+        <include name="${doc}/proxypreparation.pdf"/>
+        <include name="${doc}/release-notes/**"/>
+        <exclude name="${doc}/release-notes/new.html"/>
+        <include name="${doc}/simpleproxyverification.pdf"/>
+        <include name="${doc}/smartproxyverification.pdf"/>
+        <include name="${doc}/spec-index.html"/>
+        <include name="${doc}/specs/**"/>
+        <include name="${doc.api}/**"/>
+        <include name="${lib}/**"/>
+        <include name="${lib-dl}/**"/>
+        <include name="${lib-ext}/**"/>
+        <include name="${configentry}/**"/>
+        <include name="tools/**"/>
+    </fileset>
+
+    <fileset id="examples.bin.files" dir="${basedir}/examples">
+        <include name="**/${lib}/**"/>
+        <include name="**/config/**"/>
+        <exclude name="**/config/META-INF/"/>
+        <include name="**/prebuiltkeys/**"/>
+        <include name="**/scripts/*.bat"/>
+        <include name="**/${doc}/**"/>
+        <include name="**/*.html"/>
+    </fileset>
+    
+    <fileset id="examples.bin.exec.files" dir="${basedir}/examples">
+        <include name="**/scripts/*.sh"/>
+    </fileset>
+
+    <!-- TODO create separate bin distribution for the qa tests? -->
+    <!--<fileset id="qa.bin.files" dir="${basedir}/qa">
+        <include name="${lib}/**"/>
+        <include name="${lib-ext}/**"/>
+        <include name="${doc}/**"/>
+        <include name="harness/**"/>
+        <include name="README.txt"/>
+    </fileset>-->
 
     <target name="release-bin" description="Create a binary release"
 		depends="all.build">
         <mkdir dir="${dist.dir}"/>
         <delete file="${bin.zip.bundle}"/>
         <zip destfile="${bin.zip.bundle}" roundup="yes">
-            <zipfileset dir="${basedir}" prefix="${product.name}">
-                <include name="index.html"/>
-                <include name="DISCLAIMER"/>
-                <include name="LICENSE"/>
-                <include name="NOTICE"/>
-                <include name="${doc}/arch2_0.html"/>
-                <include name="${doc}/info-index.html"/>
-                <include name="${doc}/manpages-index.html"/>
-                <include name="${doc}/proxypreparation.pdf"/>
-                <include name="${doc}/release-notes/**"/>
-                <exclude name="${doc}/release-notes/new.html"/>
-                <include name="${doc}/simpleproxyverification.pdf"/>
-                <include name="${doc}/smartproxyverification.pdf"/>
-                <include name="${doc}/spec-index.html"/>
-                <include name="${doc}/specs/**"/>
-                <include name="${doc.api}/**"/>
-                <include name="${lib}/**"/>
-                <include name="${lib-dl}/**"/>
-                <include name="${lib-ext}/**"/>
-                <include name="${configentry}/**"/>
-                <include name="tools/**"/>
-            </zipfileset>
-            <zipfileset dir="${basedir}/examples" prefix="${product.name}/examples">
-                <include name="**/${lib}/**"/>
-                <include name="**/config/**"/>
-                <exclude name="**/config/META-INF/"/>
-                <include name="**/prebuiltkeys/**"/>
-                <include name="**/scripts/**"/>
-                <include name="**/${doc}/**"/>
-                <include name="**/*.html"/>
-            </zipfileset>
-            <zipfileset dir="${basedir}/examples"
-				    prefix="${product.name}/examples"
-				    includes="**/*.sh"
-				    filemode="755"/>
-            <!-- TODO create separate bin distribution for the qa tests -->
-            <!--<zipfileset dir="${basedir}/qa" prefix="${product.name}/qa">
-                <include name="${lib}/**"/>
-                <include name="${lib-ext}/**"/>
-                <include name="${doc}/**"/>
-                <include name="harness/**"/>
-                <include name="README.txt"/>
-            </zipfileset>-->
+            <zipfileset prefix="${product.name}" refid="river.bin.files" />
+            <zipfileset prefix="${product.name}/examples" refid="examples.bin.files" />
+            <zipfileset prefix="${product.name}/examples"
+                refid="examples.bin.exec.files" filemode="755"/>
+            <!--<zipfileset prefix="${product.name}/qa" refid="qa.bin.files" />-->
         </zip>
         <delete file="${bin.tar.bundle}"/>
         <tar destfile="${bin.tar.bundle}" compression="gzip" longfile="gnu">
-            <tarfileset dir="${basedir}" prefix="${product.name}">
-                <include name="index.html"/>
-                <include name="DISCLAIMER"/>
-                <include name="LICENSE"/>
-                <include name="NOTICE"/>
-                <include name="${doc}/arch2_0.html"/>
-                <include name="${doc}/info-index.html"/>
-                <include name="${doc}/manpages-index.html"/>
-                <include name="${doc}/proxypreparation.pdf"/>
-                <include name="${doc}/release-notes/**"/>
-                <exclude name="${doc}/release-notes/new.html"/>
-                <include name="${doc}/simpleproxyverification.pdf"/>
-                <include name="${doc}/smartproxyverification.pdf"/>
-                <include name="${doc}/spec-index.html"/>
-                <include name="${doc}/specs/**/*"/>
-                <include name="${doc.api}/**"/>
-                <include name="${lib}/**"/>
-                <include name="${lib-dl}/**"/>
-                <include name="${lib-ext}/**"/>
-                <include name="${configentry}/**"/>
-                <include name="tools/**"/>
-            </tarfileset>
-            <tarfileset dir="${basedir}/examples" prefix="${product.name}/examples">
-                <include name="**/${lib}/**"/>
-                <include name="**/config/**"/>
-                <exclude name="**/config/META-INF/"/>
-                <include name="**/scripts/**"/>
-                <include name="**/${doc}/**"/>
-                <include name="**/*.html"/>
-            </tarfileset>
-            <tarfileset dir="${basedir}/examples"
-				    prefix="${product.name}/examples"
-				    includes="**/*.sh"
-				    filemode="755"/>
-            <!-- TODO create separate bin distribution for the qa tests -->
-            <!--<tarfileset dir="${basedir}/qa" prefix="${product.name}/qa">
-                <include name="${lib}/**"/>
-                <include name="${lib-ext}/**"/>
-                <include name="${doc}/**"/>
-                <include name="harness/**"/>
-                <include name="README.txt"/>
-            </tarfileset>-->
+            <tarfileset prefix="${product.name}" refid="river.bin.files" />
+            <tarfileset prefix="${product.name}/examples" refid="examples.bin.files" />
+            <tarfileset prefix="${product.name}/examples"
+                refid="examples.bin.exec.files" filemode="755"/>
+            <!--<tarfileset prefix="${product.name}/qa" refid="qa.bin.files" />-->
         </tar>
     </target>
+
+    <fileset id="river.src.files" dir="${basedir}">
+        <include name="index.html"/>
+        <include name="build.xml"/>
+        <include name="common.xml"/>
+        <include name="DISCLAIMER"/>
+        <include name="LICENSE"/>
+        <include name="NOTICE"/>
+        <include name="${doc}/info-index.html"/>
+        <include name="${doc}/build.html"/>
+        <include name="${doc}/j2se/**"/>
+        <include name="${doc}/manpages-index.html"/>
+        <include name="${doc}/proxypreparation.pdf"/>
+        <include name="${doc}/release-notes/**"/>
+        <exclude name="${doc}/release-notes/new.html"/>
+        <include name="${doc}/simpleproxyverification.pdf"/>
+        <include name="${doc}/smartproxyverification.pdf"/>
+        <include name="${doc}/spec-index.html"/>
+        <include name="${doc}/specs/html/**"/>
+        <include name="${src}/**"/>
+        <exclude name="${src}/**/*.sh"/>
+        <include name="tools/**"/>
+        <include name="${poms}/**"/>
+        <include name="${test.src}/**"/>
+        <include name="${test.lib}/**"/>
+    </fileset>
+
+    <fileset id="examples.src.files" dir="${basedir}/examples">
+        <include name="**"/>
+        <exclude name="**/${lib}/"/>
+        <exclude name="**/${build}/"/>
+        <exclude name="**/prebuiltkeys/"/>
+        <exclude name="**/${doc}/"/>
+    </fileset>
+
+    <fileset id="examples.src.exec.files" dir="${basedir}/examples">
+        <include name="**/scripts/*.sh"/>
+    </fileset>
+
+    <fileset id="qa.src.files" dir="${basedir}/qa">
+        <include name="${src}/**"/>
+        <include name="harness/**"/>
+        <include name="jtreg/**"/>
+        <exclude name="jtreg/JT*"/>
+        <include name="${doc}/**"/>
+        <exclude name="${doc.api}/"/>
+        <include name="build.xml"/>
+        <include name="README*.txt"/>
+    </fileset>
 
     <target name="release-src" description="Create a source release">
         <mkdir dir="${dist.dir}"/>
         <delete file="${src.zip.bundle}"/>
         <zip destfile="${src.zip.bundle}" roundup="yes">
-            <zipfileset dir="${basedir}" prefix="${product.name}" >
-                <include name="index.html"/>
-                <include name="build.xml"/>
-                <include name="common.xml"/>
-                <include name="DISCLAIMER"/>
-                <include name="LICENSE"/>
-                <include name="NOTICE"/>
-                <include name="${doc}/info-index.html"/>
-                <include name="${doc}/build.html"/>
-                <include name="${doc}/j2se/**"/>
-                <include name="${doc}/manpages-index.html"/>
-                <include name="${doc}/proxypreparation.pdf"/>
-                <include name="${doc}/release-notes/**"/>
-                <exclude name="${doc}/release-notes/new.html"/>
-                <include name="${doc}/simpleproxyverification.pdf"/>
-                <include name="${doc}/smartproxyverification.pdf"/>
-                <include name="${doc}/spec-index.html"/>
-                <include name="${doc}/specs/html/**"/>
-                <include name="${src}/**"/>
-                <exclude name="${src}/**/*.sh"/>
-                <include name="tools/**"/>
-            </zipfileset>
-            <zipfileset dir="${basedir}/examples" prefix="${product.name}/examples">
-                <include name="**"/>
-                <exclude name="**/${lib}/"/>
-                <exclude name="**/${build}/"/>
-                <exclude name="**/prebuiltkeys/"/>
-                <exclude name="**/${doc}/"/>
-            </zipfileset>
-            <zipfileset dir="${basedir}/examples"
-				    prefix="${product.name}/examples"
-				    includes="**/*.sh"
-				    filemode="755"/>
-            <zipfileset dir="${basedir}/qa" prefix="${product.name}/qa">
-                <include name="${src}/**"/>
-                <include name="harness/**"/>
-                <include name="jtreg/**"/>
-                <include name="${doc}/**"/>
-                <exclude name="${doc.api}/"/>
-                <include name="build.xml"/>
-                <include name="README.txt"/>
-            </zipfileset>
+            <zipfileset prefix="${product.name}" refid="river.src.files"/>
+            <zipfileset prefix="${product.name}/examples" refid="examples.src.files"/>
+            <zipfileset prefix="${product.name}/examples"
+                    refid="examples.src.exec.files" filemode="755"/>
+            <zipfileset prefix="${product.name}/qa" refid="qa.src.files" />
         </zip>
         <delete file="${src.tar.bundle}"/>
         <tar destfile="${src.tar.bundle}" compression="gzip" longfile="gnu">
-            <tarfileset dir="${basedir}" prefix="${product.name}">
-                <include name="index.html"/>
-                <include name="build.xml"/>
-                <include name="common.xml"/>
-                <include name="DISCLAIMER"/>
-                <include name="LICENSE"/>
-                <include name="NOTICE"/>
-                <include name="${doc}/arch2_0.html"/>
-                <include name="${doc}/build.html"/>
-                <include name="${doc}/info-index.html"/>
-                <include name="${doc}/j2se/**"/>
-                <include name="${doc}/manpages-index.html"/>
-                <include name="${doc}/proxypreparation.pdf"/>
-                <include name="${doc}/release-notes/**"/>
-                <exclude name="${doc}/release-notes/new.html"/>
-                <include name="${doc}/simpleproxyverification.pdf"/>
-                <include name="${doc}/smartproxyverification.pdf"/>
-                <include name="${doc}/spec-index.html"/>
-                <include name="${doc}/specs/html/**"/>
-                <include name="${src}/**"/>
-                <include name="tools/**"/>
-            </tarfileset>
-            <tarfileset dir="${basedir}/examples" prefix="${product.name}/examples">
-                <include name="**"/>
-                <exclude name="**/${lib}/"/>
-                <exclude name="**/${build}/"/>
-                <exclude name="**/prebuiltkeys/"/>
-                <exclude name="**/${doc}/"/>
-            </tarfileset>
-            <tarfileset dir="${basedir}/examples"
-				    prefix="${product.name}/examples"
-				    includes="**/*.sh"
-				    filemode="755"/>
-            <tarfileset dir="${basedir}/qa" prefix="${product.name}/qa">
-                <include name="${src}/**"/>
-                <include name="harness/**"/>
-                <include name="jtreg/**"/>
-                <include name="${doc}/**"/>
-                <exclude name="${doc.api}/"/>
-                <include name="build.xml"/>
-                <include name="README.txt"/>
-            </tarfileset>
+            <tarfileset prefix="${product.name}" refid="river.src.files" />
+            <tarfileset prefix="${product.name}/examples"
+                    refid="examples.src.files" />
+            <tarfileset prefix="${product.name}/examples"
+                    refid="examples.src.exec.files" filemode="755"/>
+            <tarfileset prefix="${product.name}/qa" refid="qa.src.files" />
         </tar>
     </target>
 
@@ -497,7 +444,6 @@
         <delete dir="${configentry.dir}" quiet="true"/>
         <delete dir="${doc.api.dir}" quiet="true"/>
         <delete dir="${doc.spec.api.dir}" quiet="true"/>
-        <delete dir="${src.dir}/com/sun/jini/example/hello/lib"	quiet="true"/>
     </target>
 
     <target name="clean-dist"
@@ -514,6 +460,7 @@
 
     <target name="toolswrappers.jars" description="Generate tools JARS"
 		depends="tools.jar,
+             jarwrapper.jar,
 			 checkconfigurationfile.jar,
 			 checkser.jar,
 			 classdep.jar,
@@ -521,117 +468,98 @@
 			 computedigest.jar,
 			 computehttpmdcodebase.jar,
 			 jsk-debug-policy.jar,
-			 jarwrapper.jar,
 			 preferredlistgen.jar,
 			 envcheck.jar">
     </target>
 
     <target name="checkconfigurationfile.jar"
-		depends="tools.jar,start.jar">
+		depends="jarwrapper.jar,start.jar">
         <delete file="${lib.dir}/checkconfigurationfile.jar" quiet="true"/>
-        <java classname="com.sun.jini.tool.JarWrapper"
-		      classpath="${build.classes.dir}"
-		      failonerror="true">
+        <jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/checkconfigurationfile.mf"/>
             <arg path="${lib.dir}/checkconfigurationfile.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </java>
+        </jarwrapper>
     </target>
 
-    <target name="checkser.jar"	depends="tools.jar">
+    <target name="checkser.jar"	depends="jarwrapper.jar">
         <delete file="${lib.dir}/checkser.jar" quiet="true"/>
-        <java classname="com.sun.jini.tool.JarWrapper"
-		      classpath="${build.classes.dir}"
-		      failonerror="true">
+        <jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/checkser.mf"/>
             <arg path="${lib.dir}/checkser.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </java>
+        </jarwrapper>
     </target>
 
-    <target name="classdep.jar"	depends="tools.jar">
+    <target name="classdep.jar"	depends="jarwrapper.jar">
         <delete file="${lib.dir}/classdep.jar" quiet="true"/>
-        <java classname="com.sun.jini.tool.JarWrapper"
-		      classpath="${build.classes.dir}"
-		      failonerror="true">
+        <jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/classdep.mf"/>
             <arg path="${lib.dir}/classdep.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </java>
+        </jarwrapper>
     </target>
 
-    <target name="classserver.jar" depends="tools.jar">
+    <target name="classserver.jar" depends="jarwrapper.jar">
         <delete file="${lib.dir}/classserver.jar" quiet="true"/>
-        <java classname="com.sun.jini.tool.JarWrapper"
-		      classpath="${build.classes.dir}"
-		      failonerror="true">
+        <jarwrapper>
             <arg path="${lib.dir}/classserver.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </java>
+        </jarwrapper>
     </target>
 
-    <target name="computedigest.jar" depends="tools.jar">
+    <target name="computedigest.jar" depends="jarwrapper.jar">
         <delete file="${lib.dir}/computedigest.jar" quiet="true"/>
-        <java classname="com.sun.jini.tool.JarWrapper"
-		      classpath="${build.classes.dir}"
-		      failonerror="true">
+        <jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/computedigest.mf"/>
             <arg path="${lib.dir}/computedigest.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </java>
+        </jarwrapper>
     </target>
 
-    <target name="computehttpmdcodebase.jar" depends="tools.jar">
+    <target name="computehttpmdcodebase.jar" depends="jarwrapper.jar">
         <delete file="${lib.dir}/computehttpmdcodebase.jar" quiet="true"/>
-        <java classname="com.sun.jini.tool.JarWrapper"
-		      classpath="${build.classes.dir}"
-		      failonerror="true">
+        <jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/computehttpmdcodebase.mf"/>
             <arg path="${lib.dir}/computehttpmdcodebase.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </java>
+        </jarwrapper>
     </target>
 
     <target name="jarwrapper.jar" depends="tools.jar">
         <delete file="${lib.dir}/jarwrapper.jar" quiet="true"/>
-        <java classname="com.sun.jini.tool.JarWrapper"
-		      classpath="${build.classes.dir}"
-		      failonerror="true">
+        <jarwrapper classpathref="jarwrapper.classes.classpath">
             <arg value="-manifest=${src.manifest.dir}/jarwrapper.mf"/>
             <arg path="${lib.dir}/jarwrapper.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </java>
+        </jarwrapper>
     </target>
 
-    <target name="preferredlistgen.jar" depends="tools.jar">
+    <target name="preferredlistgen.jar" depends="jarwrapper.jar">
         <delete file="${lib.dir}/preferredlistgen.jar" quiet="true"/>
-        <java classname="com.sun.jini.tool.JarWrapper"
-		      classpath="${build.classes.dir}"
-		      failonerror="true">
+        <jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/preferredlistgen.mf"/>
             <arg path="${lib.dir}/preferredlistgen.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </java>
+        </jarwrapper>
     </target>
 
-    <target name="envcheck.jar"	depends="tools.jar">
+    <target name="envcheck.jar"	depends="jarwrapper.jar">
         <delete file="${lib.dir}/envcheck.jar" quiet="true"/>
-        <java classname="com.sun.jini.tool.JarWrapper"
-		      classpath="${build.classes.dir}"
-		      failonerror="true">
+        <jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/envcheck.mf"/>
             <arg path="${lib.dir}/envcheck.jar"/>
             <arg path="${lib.dir}"/>
             <arg value="tools.jar"/>
-        </java>
+        </jarwrapper>
         <jar destfile="${lib.dir}/envcheck.jar"
 	       update="true"
 	       index="false">
@@ -2073,11 +2001,15 @@
     <target name="qa.run" depends="" description="Run QA tests">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="run-categories" inheritall="false">
-            <property name="run.categories" value="joinmanager"/>
+            <!-- these run OK -->
+            <property name="run.categories" value="id,loader,policyprovider,
+                locatordiscovery,activation,config,discoverymanager,
+                discoveryservice,joinmanager,url,iiop,jrmp,reliability,
+                thread"/>
         </ant>
     </target>
 
-    <target name="build" depends="configentry,jars,doc,spec-doc"/>
+    <target name="build" depends="configentry,test,jars,doc,spec-doc"/>
 
     <target name="all.build" depends="build"
             description="Build all, including subcomponents">
@@ -2087,7 +2019,7 @@
         <ant dir="examples/hello" target="build" inheritall="false" />
     </target>
 
-    <target name="all.clean" depends="clean" 
+    <target name="all.clean" depends="clean,clean-tests"
             description="Clean all, including subcomponents">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="clean" inheritall="false" />
@@ -2122,10 +2054,11 @@
     <!-- TODO cleanup and find out where exactly to publish to -->
     <!-- Note that you need the Maven Ant tasks (http://maven.apache.org/ant-tasks/)
         installed to use this task -->
-    <target name="deploy-artifacts" depends="build">
+    <target name="deploy-artifacts" depends="jars">
         <!--<artifact:install-provider artifactId="wagon-file" version="1.0-beta-2"/>
         <artifact:install-provider artifactId="wagon-http" version="1.0-beta-2"/>
         <artifact:install-provider artifactId="wagon-ssh" version="1.0-beta-2"/>-->
+        <!-- Override this in <river src distr. home>/build.properties to try out -->
         <property name="m2.repository" value="file:///home/jonathan/maven" />
         <macrodef name="deploy">
             <attribute name="file" />
@@ -2137,18 +2070,18 @@
                 </artifact:deploy>
             </sequential>
         </macrodef>
-        <artifact:pom id="parent" file="${src.poms.dir}/pom.xml" />
-        <artifact:pom id="jini-core" file="${src.poms.dir}/jini-core/pom.xml" />
-        <artifact:pom id="jini-ext" file="${src.poms.dir}/jini-ext/pom.xml" />
-        <artifact:pom id="jsk-lib" file="${src.poms.dir}/jsk-lib/pom.xml" />
-        <artifact:pom id="jsk-dl" file="${src.poms.dir}/jsk-dl/pom.xml" />
-        <artifact:pom id="jsk-resources" file="${src.poms.dir}/jsk-resources/pom.xml" />
-        <artifact:pom id="jsk-platform" file="${src.poms.dir}/jsk-platform/pom.xml" />
-        <artifact:pom id="jsk-policy" file="${src.poms.dir}/jsk-policy/pom.xml" />
-        <artifact:pom id="serviceui" file="${src.poms.dir}/serviceui/pom.xml" />
-        <artifact:pom id="sun-util" file="${src.poms.dir}/sun-util/pom.xml" />
-        <artifact:pom id="start" file="${src.poms.dir}/start/pom.xml" />
-        <artifact:pom id="tools" file="${src.poms.dir}/tools/pom.xml" />
+        <artifact:pom id="parent" file="${poms.dir}/pom.xml" />
+        <artifact:pom id="jini-core" file="${poms.dir}/jini-core/pom.xml" />
+        <artifact:pom id="jini-ext" file="${poms.dir}/jini-ext/pom.xml" />
+        <artifact:pom id="jsk-lib" file="${poms.dir}/jsk-lib/pom.xml" />
+        <artifact:pom id="jsk-dl" file="${poms.dir}/jsk-dl/pom.xml" />
+        <artifact:pom id="jsk-resources" file="${poms.dir}/jsk-resources/pom.xml" />
+        <artifact:pom id="jsk-platform" file="${poms.dir}/jsk-platform/pom.xml" />
+        <artifact:pom id="jsk-policy" file="${poms.dir}/jsk-policy/pom.xml" />
+        <artifact:pom id="serviceui" file="${poms.dir}/serviceui/pom.xml" />
+        <artifact:pom id="sun-util" file="${poms.dir}/sun-util/pom.xml" />
+        <artifact:pom id="start" file="${poms.dir}/start/pom.xml" />
+        <artifact:pom id="tools" file="${poms.dir}/tools/pom.xml" />
         <deploy file="${lib.dir}/jini-core.jar" pom="jini-core" />
         <deploy file="${lib.dir}/jini-ext.jar" pom="jini-ext" />
         <deploy file="${lib.dir}/jsk-lib.jar" pom="jsk-lib" />
@@ -2160,6 +2093,34 @@
         <deploy file="${lib.dir}/sun-util.jar" pom="sun-util" />
         <deploy file="${lib.dir}/start.jar" pom="start" />
         <deploy file="${lib.dir}/tools.jar" pom="tools" />
+    </target>
+
+    <target name="prep-tests" depends="">
+        <mkdir dir="${test.classes.dir}"/>
+        <mkdir dir="${test.results.dir}"/>
+    </target>
+
+    <target name="clean-tests" depends="">
+        <delete dir="${test.classes.dir}" quiet="true"/>
+        <delete dir="${test.results.dir}" quiet="true"/>
+    </target> 
+    
+    <target name="compile-tests" depends="compile,prep-tests">
+        <javac-cmd source.dir="${test.src.dir}" dest.dir="${test.classes.dir}"
+                source="5" target="5">
+            <classpath refid="test.compile.classpath" />
+        </javac-cmd>
+    </target>
+
+    <target name="test" depends="compile-tests">
+        <junit printsummary="false">
+            <classpath refid="test.classpath"/>
+            <formatter type="brief" usefile="false"/>
+            <formatter type="xml" />
+            <batchtest todir="${test.results.dir}">
+                <fileset dir="${test.classes.dir}" includes="**/*Test.class" />
+            </batchtest>
+        </junit>
     </target>
 
 </project>

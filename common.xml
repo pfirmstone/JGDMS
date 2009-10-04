@@ -25,14 +25,14 @@
     <property file="${root}/build.properties" />
 
     <!-- Product version info -->
-    <property name="version" value="2.1.1"/>
+    <property name="version" value="2.2-SNAPSHOT"/>
     <property name="product.name" value="apache-river-${version}-incubating"/>
     <property name="product.title" value="Apache River v${version}"/>
 
     <!-- Standard directory names -->
     <property name="doc" value="doc"/>
     <property name="src" value="src"/>
-    <property name="src.poms" value="${src}/poms"/>
+    <property name="poms" value="poms"/>
     <property name="configentry" value="configentry"/>
     <property name="lib" value="lib"/>
     <property name="lib-dl" value="lib-dl"/>
@@ -42,6 +42,11 @@
     <property name="build" value="build"/>
     <property name="build.classes" value="${build}/classes"/>
     <property name="dist" value="dist"/>
+    <property name="test" value="test"/>
+    <property name="test.src" value="${test}/src"/>
+    <property name="test.lib" value="${test}/lib"/>
+    <property name="test.classes" value="${test}/classes"/>
+    <property name="test.results" value="${test}/results"/>
 
     <!-- Standard directory locations -->
     <property name="doc.api.dir" location="${doc.api}"/>
@@ -49,7 +54,7 @@
     <property name="src.dir" location="${src}"/>
     <property name="src.manifest.dir" location="${src}/manifest"/>
     <property name="src.configentry.dir" location="${src}/configentry"/>
-    <property name="src.poms.dir" location="${src.poms}"/>
+    <property name="poms.dir" location="${poms}"/>
     <property name="build.dir" location="${build}"/>
     <property name="build.classes.dir" location="${build.classes}"/>
     <property name="build.deps.dir" location="${build.dir}/deps"/>
@@ -58,6 +63,11 @@
     <property name="lib.dir" location="${lib}"/>
     <property name="lib-dl.dir" location="${lib-dl}"/>
     <property name="lib-ext.dir" location="${lib-ext}"/>
+    <property name="test.dir" value="${test}"/>
+    <property name="test.src.dir" value="${test.src}"/>
+    <property name="test.lib.dir" value="${test.lib}"/>
+    <property name="test.classes.dir" value="${test.classes}"/>
+    <property name="test.results.dir" value="${test.results}"/>
 
     <!-- Standard javadoc options and settings -->
     <property name="jdk.doc.url" value="http://java.sun.com/j2se/1.4.2/docs/api"/>
@@ -120,6 +130,30 @@
         <path refid="classdep.jar.classpath" />
     </path>
 
+    <path id="jarwrapper.classes.classpath">
+        <path refid="river.classes"/>
+    </path>
+
+    <path id="jarwrapper.jar.classpath">
+        <pathelement location="${river.lib.dir}/jarwrapper.jar"/>
+    </path>
+
+    <path id="jarwrapper.classpath">
+        <path refid="jarwrapper.jar.classpath" />
+    </path>
+
+    <path id="test.compile.classpath">
+        <path location="${build.classes.dir}"/>
+        <fileset dir="${test.lib.dir}">
+            <include name="*.jar"/>
+        </fileset>
+    </path>
+
+    <path id="test.classpath">
+        <path location="${test.classes.dir}"/>
+        <path refid="test.compile.classpath"/>
+    </path>
+
     <property name="jre.ext.dir" location="${java.home}/lib/ext"/>
 
     <!-- Possible values for 'debug': lines,source,vars -->
@@ -130,6 +164,8 @@
         <attribute name="source.dir"/>
         <attribute name="dest.dir"/>
         <attribute name="debug" default="${debug}"/>
+        <attribute name="source" default="1.4"/>
+        <attribute name="target" default="1.4"/>
         <element name="javac-cmd-elements" implicit="true" optional="true"/>
         <sequential>
             <javac fork="yes"
@@ -138,9 +174,9 @@
                     deprecation="yes"
                     destdir="@{dest.dir}"
                     nowarn="no"
-                    source="1.4"
+                    source="@{source}"
                     srcdir="@{source.dir}"
-                    target="1.4"
+                    target="@{target}"
                     verbose="no">
                 <patternset refid="@{source.pat}"/>
                 <javac-cmd-elements/>
@@ -168,6 +204,18 @@
                   output="@{output}">
                 <classpath refid="@{classpathref}"/>
                 <cd-elements />
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="jarwrapper" description="Run JarWrapper">
+        <attribute name="classpathref" default="jarwrapper.classpath" />
+        <element name="jw-elements" implicit="yes" />
+        <sequential>
+            <java classname="com.sun.jini.tool.JarWrapper"
+                    failonerror="true">
+                <classpath refid="@{classpathref}"/>
+                <jw-elements />
             </java>
         </sequential>
     </macrodef>
