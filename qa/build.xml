@@ -36,6 +36,18 @@
     <!-- javadoc setings -->
     <property name="javadoc.doc-title" value="Apache River v${version} QA Harness and Test API Documentation"/>
     <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
+    
+    <!-- jtreg environment setup -->
+    <property environment="env"/>        
+    <!-- location of the River jtreg tests -->
+    <property name="jtreg.dir" location="jtreg" />
+    <!-- location of the jtreg distribution, override in <river root>/build.properties -->
+    <!-- changed to an environment variable to avoid accidental svn oploads of build.properties -->
+    <property name="jtreg.home" location="${env.JT_HOME}" />
+    <!-- probably should rename the environment variable, to enable using the correct -->
+    <!-- jdk version for the jtreg tests which depend on jdk1.5 -->
+    <property name="jdk1.5.home" location="${env.JAVA_HOME}"/>
+    <property name="jtlib.tmp" location="${jtreg.dir}/JTlib-tmp"/>
 
     <!-- classpath for use by ClassDep in this build -->
     <path id="classdep.cp">
@@ -115,25 +127,48 @@
     </target>
 
     <target name="build" depends="jars,doc" />
-
-    <target name="jtreg" depends="" description="Run jtreg tests">
-        <!-- TODO: refine classpath -->
-        <property name="jtreg.classpath" refid="river.jars" />
-        <!-- location of the River jtreg tests -->
-        <property name="jtreg.dir" location="jtreg" />
-        <!-- location of the jtreg distribution, override in <river root>/build.properties -->
-        <property name="jtreg.home" location="/opt/jtreg" />
+   
+    
+    <target name="jtreg-setup" depends="" description="Move libraries">
+        <mkdir dir="${jtreg.dir}/JTlib-tmp" />
+        <move todir="${jtreg.dir}/JTlib-tmp">
+            <filelist dir="${river.home}/lib">
+                <file name="jsk-lib.jar"/>
+                <file name="jsk-platform.jar"/>
+                <file name="jsk-resources.jar"/>
+                <file name="phoenix-init.jar"/>
+                </filelist>
+        </move>
+        <move file="${river.home}/lib-ext/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>
+    </target>
+    
+    <target name="jtreg" depends="jtreg-setup" description="Run jtreg tests">
         <taskdef name="jtreg" classname="com.sun.javatest.regtest.Main$$Ant"
                 classpath="${jtreg.home}/lib/jtreg.jar" />
-        <jtreg dir="${jtreg.dir}" verbose="all"
+        <jtreg dir="${jtreg.dir}" verbose="all,nopass"
                 reportdir="${jtreg.dir}/JTreport"
-                workdir="${jtreg.dir}/JTwork">
-            <!--<arg value="-cpa:${jtreg.classpath}" />-->
-            <!--<arg value="-check" />-->
-            <arg value="-Xbootclasspath/a:${jtreg.classpath}" />
-            <!-- add any number of directory names -->
-            <!--<arg value="net/jini/url" />-->
-        </jtreg>
+                workdir="${jtreg.dir}/JTwork"
+                jdk="${jdk1.5.home}">
+                    <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar:${jtlib.tmp}/jsk-lib.jar:${jtlib.tmp}/jsk-platform.jar:${jtlib.tmp}/jsk-resources.jar:${jtlib.tmp}/phoenix-init.jar"/>
+                    <arg value="-Djsk.home=${river.home}"/>
+                    <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
+                    <arg value="-Djava.security.debug=access,failure"/>
+                    <arg value="-Djavatest.maxOutputSize=500000"/>
+                <!-- arg line="-verbose:all,nopass -workDir:${jtreg.dir}/JTwork -reportDir:${jtreg.dir}/JTreport -cpa:${jtreg.dir}/JTlib-tmp/* -Djsk.home=${river.home} -Djtreg.dir=${jtreg.dir} ${jtreg.dir}" /-->
+        </jtreg>  
+    </target>
+    
+    <target name="jtreg-teardown" depends="" description="Move libaries back">
+        <move todir="${river.home}/lib">
+            <filelist dir="${jtreg.dir}/JTlib-tmp">
+                <file name="jsk-lib.jar"/>
+                <file name="jsk-platform.jar"/>
+                <file name="jsk-resources.jar"/>
+                <file name="phoenix-init.jar"/>
+                </filelist>
+        </move>
+        <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.home}/lib-ext"/>
+        <delete dir="${jtreg.dir}/JTlib-tmp"/>
     </target>
 
     <macrodef name="testrun">
