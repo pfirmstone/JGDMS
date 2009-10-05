@@ -2,6 +2,10 @@ grant codeBase "file:${java.home}/lib/ext/*" {
     permission java.security.AllPermission;
 };
 
+grant codeBase "file:${jtlib.tmp}/*" {
+    permission java.security.AllPermission;
+};
+
 // only allow classes coming from the bar directory to be loaded
 grant codebase "file:${user.dir}/barcb/-" {
     permission net.jini.loader.DownloadPermission;

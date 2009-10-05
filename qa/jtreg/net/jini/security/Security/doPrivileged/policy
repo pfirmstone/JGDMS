@@ -6,6 +6,10 @@ grant codeBase "file:${java.home}/lib/ext/*" {
     permission java.security.AllPermission;
 };
 
+grant codeBase "file:${jtlib.tmp}/*" {
+    permission java.security.AllPermission;
+};
+
 grant {
     permission java.io.FilePermission "${test.classes}", "read,write,delete";
     permission java.io.FilePermission 

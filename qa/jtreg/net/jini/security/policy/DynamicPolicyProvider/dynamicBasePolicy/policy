@@ -6,6 +6,10 @@ grant codeBase "file:${java.home}/lib/ext/*" {
     permission java.security.AllPermission;
 };
 
+grant codeBase "file:${jtlib.tmp}/*" {
+    permission java.security.AllPermission;
+};
+
 grant {
     permission net.jini.security.GrantPermission "java.security.AllPermission";
     permission java.lang.RuntimePermission "A";

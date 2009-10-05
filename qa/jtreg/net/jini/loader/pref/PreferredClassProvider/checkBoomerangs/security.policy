@@ -5,10 +5,13 @@
 grant codeBase "file:${java.home}${/}lib${/}ext${/}*" {
 	permission java.security.AllPermission;
 };
+grant codeBase "file:${jtlib.tmp}/*" {
+        permission java.security.AllPermission;
+};
 
 grant {
   // standard test activation permissions
-  permission java.io.FilePermission "..${/}..${/}test.props", "read";
+    permission java.util.PropertyPermission "jsk.home", "read";   permission java.util.PropertyPermission "jsk.port", "read"; permission java.util.PropertyPermission "jcov.options", "read";
 
   // workaround RMIClassLoaderSpi not doing a doPrivileged to find spi resource
   permission java.io.FilePermission "${java.home}${/}lib${/}ext${/}-", "read";

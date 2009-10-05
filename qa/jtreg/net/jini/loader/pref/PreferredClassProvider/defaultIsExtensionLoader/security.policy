@@ -2,6 +2,10 @@ grant codeBase "file:${java.home}${/}lib${/}ext${/}*" {
   permission java.security.AllPermission;
 };
 
+grant codeBase "file:${jtlib.tmp}/*" {
+    permission java.security.AllPermission;
+}
+
 grant {
   // workaround RMIClassLoaderSpi not doing a doPrivileged to find spi resource
   permission java.io.FilePermission "${java.home}${/}lib${/}ext${/}-", "read";
