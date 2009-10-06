@@ -159,7 +159,7 @@
             <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar:${jtlib.tmp}/jsk-lib.jar:${jtlib.tmp}/jsk-platform.jar:${jtlib.tmp}/jsk-resources.jar:${jtlib.tmp}/phoenix-init.jar"/>
             <arg value="-Djsk.home=${river.home}"/>
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
-            <arg value="-Djava.security.debug=access,failure"/>
+            <!--<arg value="-Djava.security.debug=access,failure"/>--> 
             <arg value="-Djavatest.maxOutputSize=500000"/>
             <!--<arg value="-Djsk.port=8081"/>-->
             <!--<arg value="net/jini/activation/Activatable/inactiveGroup" />-->

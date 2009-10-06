@@ -401,7 +401,7 @@ mesg(dstFile);
      * @param defaultVal
      * @return
      */
-    public static String getExtraProperty(String property, String defaultVal) {
+    public static String getExtraProperty(String property, String defaultVal) { 
 	/*Properties p = (Properties) AccessController.doPrivileged(
 	    new PrivilegedAction() {
 		public Object run() {

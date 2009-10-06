@@ -12,7 +12,7 @@ grant codeBase "file:${jtlib.tmp}/*" {
 
 grant {
   permission java.io.FilePermission "<<ALL FILES>>", "read";
-
+  permission java.util.PropertyPermission "jsk.home", "read";   permission java.util.PropertyPermission "jsk.port", "read"; permission java.util.PropertyPermission "jcov.options", "read";
   // need to move some classes out of the tests classpath; specific to this test
   permission java.io.FilePermission "${test.classes}", "read,write,delete";
   permission java.io.FilePermission "${test.classes}${/}-", "read,write,delete";
