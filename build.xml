@@ -78,7 +78,6 @@
         <include name="${lib-dl}/**"/>
         <include name="${lib-ext}/**"/>
         <include name="${configentry}/**"/>
-        <include name="tools/**"/>
     </fileset>
 
     <fileset id="examples.bin.files" dir="${basedir}/examples">
@@ -145,7 +144,7 @@
         <include name="${doc}/specs/html/**"/>
         <include name="${src}/**"/>
         <exclude name="${src}/**/*.sh"/>
-        <include name="tools/**"/>
+        <include name="${lib}/${asm.jars.pattern}"/>
         <include name="${poms}/**"/>
         <include name="${test.src}/**"/>
         <include name="${test.lib}/**"/>
@@ -203,7 +202,6 @@
         <mkdir dir="${configentry.dir}"/>
         <mkdir dir="${doc.api.dir}"/>
         <mkdir dir="${doc.spec.api.dir}"/>
-        <mkdir dir="${lib.dir}"/>
         <mkdir dir="${lib-dl.dir}"/>
         <mkdir dir="${lib-ext.dir}"/>
     </target>
@@ -424,7 +422,7 @@
 
     <target name="install-policy"
 		description="Installs jsk-policy.jar into the JRE extensions directory.">
-        <copy file="${lib-ext.dir}/jsk-policy.jar"	todir="${jre.ext.dir}"/>
+        <copy file="${lib-ext.dir}/jsk-policy.jar" todir="${jre.ext.dir}"/>
     </target>
     
     <target name="uninstall-policy"
@@ -453,7 +451,9 @@
 
     <target name="clean-jars"
 		description="Deletes the lib, lib-dl, and lib-ext directories.">
-        <delete dir="${lib.dir}" quiet="true"/>
+        <delete dir="${lib.dir}" quiet="true">
+            <exclude name="${asm.jars.pattern}"/>
+        </delete>
         <delete dir="${lib-dl.dir}"	quiet="true"/>
         <delete dir="${lib-ext.dir}" quiet="true"/>
     </target>
@@ -1934,11 +1934,12 @@
         <classdep output="${tools.deps}"
                 classpathref="classdep.classes.classpath">
             <arg value="-cp"/>
-            <arg pathref="river.classes"/>
+            <arg pathref="classdep.classes.classpath"/>
             <arg value="-files"	/>
             <arg line="${jskprivate.include}"/>
             <arg line="-in com.sun.jini.tool"/>
             <arg line="-in com.sun.jini.start"/>
+            <arg line="-out org.objectweb.asm"/>
             <arg value="com.sun.jini.tool.CheckConfigurationFile"/>
             <arg value="com.sun.jini.tool.CheckSer"/>
             <arg value="com.sun.jini.tool.ClassDep"/>
@@ -2001,11 +2002,8 @@
     <target name="qa.run" depends="" description="Run QA tests">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="run-categories" inheritall="false">
-            <!-- these run OK -->
-            <property name="run.categories" value="id,loader,policyprovider,
-                locatordiscovery,activation,config,discoverymanager,
-                discoveryservice,joinmanager,url,iiop,jrmp,reliability,
-                thread"/>
+            <property name="run.categories"
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread"/>
         </ant>
     </target>
 

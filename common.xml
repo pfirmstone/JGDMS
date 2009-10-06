@@ -74,7 +74,6 @@
     <property name="jdk.packages" location="${root}/${doc}/j2se"/>
     <property name="api.copyright" value="Copyright 2007, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
 
-
     <!--## Private package inclusions for use with classdep; the
         ## classes in these packages are both not part of the JSK
         ## platform and not public (have generated javadoc).
@@ -91,29 +90,34 @@
     <!-- Common packages to exclude within ClassDep -->
     <property name="jskplatform.exclude" value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager"/>
 
-    <patternset id="java.source">
-        <include name="**/*.java"/>
-    </patternset>
-
     <property name="river.home" location="${root}"/>
     <property name="river.lib.dir" location="${river.home}/${lib}"/>
     <property name="river.lib-ext.dir" location="${river.home}/${lib-ext}"/>
     <property name="river.classes.dir" location="${river.home}/${build.classes}"/>
     <property name="river.src.dir" location="${river.home}/${src}"/>
 
+    <property name="asm.jars.pattern" value="asm*.jar" />
+
+    <patternset id="java.source">
+        <include name="**/*.java"/>
+    </patternset>
+
     <!-- classpath containing River distribution -->
     <!-- TODO: split into multiple paths -->
     <path id="river.jars">
-        <fileset dir="${river.lib.dir}" includes="**/*.jar" />
+        <fileset dir="${river.lib.dir}" includes="**/*.jar" excludes="${asm.jars.pattern}" />
     </path>
 
     <path id="river.classes">
         <pathelement path="${river.classes.dir}"/>
     </path>
 
+    <fileset id="asm.jars" dir="${river.lib.dir}">
+        <include name="${asm.jars.pattern}"/>
+    </fileset>
+
     <path id="asm.classpath">
-        <pathelement path="${river.home}/tools/asm-3.2.jar"/>
-        <pathelement path="${river.home}/tools/asm-commons-3.2.jar"/>
+        <fileset refid="asm.jars" />
     </path>
 
     <path id="classdep.classes.classpath">
@@ -123,7 +127,7 @@
 
     <path id="classdep.jar.classpath">
         <pathelement location="${river.lib.dir}/classdep.jar"/>
-        <path refid="asm.classpath" />
+        <!--<path refid="asm.classpath" />-->
     </path>
 
     <path id="classdep.classpath">

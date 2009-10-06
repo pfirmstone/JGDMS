@@ -91,7 +91,10 @@
         **/*.policy, **/*.config, **/*.logging, **/*.prop" />
 
     <target name="clean" depends="clean-build, clean-lib, clean-trust, clean-doc"
-        description="Clean up build" />
+            description="Clean up build">
+        <delete dir="${jtreg.dir}/JTwork"/>
+        <delete dir="${jtreg.dir}/JTreport"/>
+    </target>
 
     <target name="clean-build">
         <delete dir="${build.dir}" />
@@ -175,19 +178,6 @@
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <fail if="jtreg.fail"/>
-    </target>
-    
-    <target name="jtreg-teardown" depends="" description="Move libaries back">
-        <move todir="${river.home}/lib">
-            <filelist dir="${jtreg.dir}/JTlib-tmp">
-                <file name="jsk-lib.jar"/>
-                <file name="jsk-platform.jar"/>
-                <file name="jsk-resources.jar"/>
-                <file name="phoenix-init.jar"/>
-                </filelist>
-        </move>
-        <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.home}/lib-ext"/>
-        <delete dir="${jtreg.dir}/JTlib-tmp"/>
     </target>
 
     <macrodef name="testrun">
