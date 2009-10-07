@@ -180,6 +180,20 @@
         <fail if="jtreg.fail"/>
     </target>
 
+    <!-- Run this in case the jtreg target got cancelled somehow before moving the JARs back -->
+    <target name="jtreg-teardown" depends="" description="Move back JARs">
+        <move todir="${river.lib.dir}">
+            <filelist dir="${jtreg.dir}/JTlib-tmp">
+                <file name="jsk-lib.jar"/>
+                <file name="jsk-platform.jar"/>
+                <file name="jsk-resources.jar"/>
+                <file name="phoenix-init.jar"/>
+            </filelist>
+        </move>
+        <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
+        <delete dir="${jtreg.dir}/JTlib-tmp"/>
+    </target>
+
     <macrodef name="testrun">
         <element name="tr-elements" optional="true" implicit="true"/>
         <sequential>
