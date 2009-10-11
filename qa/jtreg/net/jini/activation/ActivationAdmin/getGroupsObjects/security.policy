@@ -12,10 +12,9 @@ grant codeBase "file:${jtlib.tmp}/*" {
 
 grant {
   // standard test activation permissions
-  permission java.util.PropertyPermission "jsk.home", "read";   permission java.util.PropertyPermission "jsk.port", "read"; permission java.util.PropertyPermission "jcov.options", "read";
-//  permission java.io.FilePermission "..${/}..${/}test.props", "read";
+  permission java.io.FilePermission "..${/}..${/}test.props", "read";
   permission java.io.FilePermission "${test.src}${/}..${/}..${/}..${/}..${/}..${/}..${/}..${/}..${/}TEST.ROOT", "read";
-//  permission java.io.FilePermission "${test.src}${/}..${/}..${/}..${/}..${/}..${/}..${/}..${/}..${/}..${/}build${/}test${/}test.props", "read";
+  permission java.io.FilePermission "${test.src}${/}..${/}..${/}..${/}..${/}..${/}..${/}..${/}..${/}..${/}build${/}test${/}test.props", "read";
 
   // for HTTPD
   permission java.lang.RuntimePermission "createClassLoader";

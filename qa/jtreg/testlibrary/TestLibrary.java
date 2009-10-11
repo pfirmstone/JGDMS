@@ -394,22 +394,14 @@ mesg(dstFile);
 	}
 	return props;
     }
-    /**
-     * All properties are now set using -Dproperty="value" using jtreg from the
-     * command line or the build file.
-     * @param property
-     * @param defaultVal
-     * @return
-     */
+    
     public static String getExtraProperty(String property, String defaultVal) { 
-	/*Properties p = (Properties) AccessController.doPrivileged(
+	Properties p = (Properties) AccessController.doPrivileged(
 	    new PrivilegedAction() {
 		public Object run() {
 		    return getExtraProperties();
 		}
 	    });
 	return p.getProperty(property, defaultVal);
-         */
-        return getProperty(property, defaultVal);
     }
 }

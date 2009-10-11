@@ -145,6 +145,11 @@
     <target name="jtreg" depends="" description="Run jtreg tests">
         <taskdef name="jtreg" classname="com.sun.javatest.regtest.Main$$Ant"
                 classpath="${jtreg.home}/lib/jtreg.jar" />
+        <echo file="${jtreg.dir}/test.props" message="jsk.home=${river.home}"/>
+        <!--Change the httpd port number here-->
+        <!--<echo file="${jtreg.dir}/test.props" message="jsk.port=8081" append="true"/>-->
+        <!--Code Coverage Options-->
+        <!--<echo file="${jtreg.dir}/test.props" message="jcov.options=" append="true"/>-->
         <mkdir dir="${jtreg.dir}/JTlib-tmp" />
         <move todir="${jtreg.dir}/JTlib-tmp">
             <filelist dir="${river.lib.dir}">
@@ -155,16 +160,16 @@
             </filelist>
         </move>
         <move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>
-        <jtreg dir="${jtreg.dir}" verbose="all,nopass" failonerror="false"
+        <jtreg  dir="${jtreg.dir}" verbose="all,nopass" failonerror="false"
                 errorproperty="jtreg.fail" failureproperty="jtreg.fail"
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk1.5.home}">
             <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar:${jtlib.tmp}/jsk-lib.jar:${jtlib.tmp}/jsk-platform.jar:${jtlib.tmp}/jsk-resources.jar:${jtlib.tmp}/phoenix-init.jar"/>
-            <arg value="-Djsk.home=${river.home}"/>
+            <!--<arg value="-Djsk.home=${river.home}"/>-->
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
+            <!--<arg value="-status:fail"/>-->
             <!--<arg value="-Djava.security.debug=access,failure"/>--> 
             <arg value="-Djavatest.maxOutputSize=500000"/>
-            <!--<arg value="-Djsk.port=8081"/>-->
             <!--<arg value="net/jini/activation/Activatable/inactiveGroup" />-->
         </jtreg>
         <move todir="${river.lib.dir}">
@@ -177,6 +182,7 @@
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
+        <delete file="${jtreg.dir}/test.props"/>
         <fail if="jtreg.fail"/>
     </target>
 
@@ -192,6 +198,7 @@
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
+        <delete file="${jtreg.dir}/test.props"/>
     </target>
 
     <macrodef name="testrun">
