@@ -21,7 +21,7 @@
  *
  * @library ../../../../../testlibrary
  * @build  UseProxyAccessor UseProxyAccessor_Stub
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic UseProxyAccessor
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic UseProxyAccessor
  */
 
 import java.io.*;

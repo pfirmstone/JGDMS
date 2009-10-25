@@ -20,11 +20,12 @@
  * 
  * @summary test that code downloading is disabled for registry
  * @author Bob Scheifler
+ * 
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID
  * @build BootstrapAttack
  * @build Foo
- * @run main/othervm/policy=security.policy/timeout=240 BootstrapAttack
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 BootstrapAttack
  */
 import java.lang.reflect.Method;
 import java.net.URL;

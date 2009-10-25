@@ -1,0 +1,10 @@
+/*
+ * security policy used by the test process
+ * Added after creation of JTlib-tmp directory to replace use of
+ * jre/lib/ext/ directory, this test seemed to fail. Requires confirmation
+ * that this was the cause of the new permission required.
+ */
+
+grant {
+    permission java.lang.RuntimePermission "getClassLoader";
+};

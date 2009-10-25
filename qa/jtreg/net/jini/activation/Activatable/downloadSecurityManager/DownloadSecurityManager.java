@@ -30,9 +30,9 @@
  * @build CustomRMISecurityManager
  * @build DownloadSecurityManager DownloadSecurityManager_Stub
  *
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default DownloadSecurityManager
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic DownloadSecurityManager
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp DownloadSecurityManager
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default DownloadSecurityManager
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic DownloadSecurityManager
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp DownloadSecurityManager
  */
 
 import java.io.*;

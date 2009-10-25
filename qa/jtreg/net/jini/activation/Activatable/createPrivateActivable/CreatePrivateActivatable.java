@@ -25,9 +25,9 @@
  * @build ActivateMe
  * @build CreatePrivateActivatable$PrivateActivatable_Stub
  * @build CreatePrivateActivatable
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default CreatePrivateActivatable
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic CreatePrivateActivatable
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp CreatePrivateActivatable
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default CreatePrivateActivatable
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic CreatePrivateActivatable
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp CreatePrivateActivatable
  */
 
 import java.io.*;

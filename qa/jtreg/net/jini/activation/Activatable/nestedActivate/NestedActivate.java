@@ -26,9 +26,9 @@
  * @build ActivateMe
  * @build NestedActivate
  * @build NestedActivate_Stub
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default NestedActivate
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic NestedActivate
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp NestedActivate
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default NestedActivate
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic NestedActivate
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp NestedActivate
  */
 
 import java.io.*;

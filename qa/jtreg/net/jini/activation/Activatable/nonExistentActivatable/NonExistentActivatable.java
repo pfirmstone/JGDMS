@@ -27,9 +27,9 @@
  * @build ActivateMe
  * @build NonExistentActivatable
  * @build NonExistentActivatable_Stub
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default NonExistentActivatable
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic NonExistentActivatable
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp NonExistentActivatable
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default NonExistentActivatable
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic NonExistentActivatable
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp NonExistentActivatable
  */
 
 import java.io.*;

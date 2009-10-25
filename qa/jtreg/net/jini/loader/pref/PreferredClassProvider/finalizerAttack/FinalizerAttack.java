@@ -24,7 +24,7 @@
  * dangerous protected methods can be invoked.
  *
  * @build FinalizerAttack
- * @run main/othervm FinalizerAttack
+ * @run main/othervm/policy=security.policy FinalizerAttack
  */
 
 import java.net.URL;

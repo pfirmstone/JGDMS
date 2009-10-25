@@ -27,9 +27,9 @@
  * @build ActivateMe
  * @build UnregisterInactive
  * @build UnregisterInactive_Stub
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default UnregisterInactive
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic UnregisterInactive
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp UnregisterInactive
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default UnregisterInactive
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic UnregisterInactive
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp UnregisterInactive
  */
 
 import java.io.*;

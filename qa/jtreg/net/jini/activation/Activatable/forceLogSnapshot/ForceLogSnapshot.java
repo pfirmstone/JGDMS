@@ -25,8 +25,8 @@
  * @build ActivateMe
  * @build ForceLogSnapshot
  * @build ForceLogSnapshot_Stub
- * @run main/othervm/policy=security.policy/timeout=700 -Dtest.rmi.exportType=default ForceLogSnapshot
- * @run main/othervm/policy=security.policy/timeout=700 -Dtest.rmi.exportType=basic ForceLogSnapshot
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=700 -Dtest.rmi.exportType=default ForceLogSnapshot
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=700 -Dtest.rmi.exportType=basic ForceLogSnapshot
  */
 
 import java.io.*;

@@ -28,7 +28,7 @@
  * @build UnregisterGroup
  * @build UnregisterGroup_Stub
  * @build Callback_Stub
- * @run main/othervm/policy=security.policy/timeout=120 UnregisterGroup
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=120 UnregisterGroup
  */
 
 import java.io.*;

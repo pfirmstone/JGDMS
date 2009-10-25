@@ -27,9 +27,9 @@
  * @build ActivateMe
  * @build InactiveGroup
  * @build InactiveGroup_Stub
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default InactiveGroup
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic InactiveGroup
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp InactiveGroup
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default InactiveGroup
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic InactiveGroup
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp InactiveGroup
  */
 
 import java.io.*;

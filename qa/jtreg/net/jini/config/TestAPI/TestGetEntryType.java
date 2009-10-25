@@ -20,7 +20,7 @@
  * @author Tim Blackman
  * @library ../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test TestGetEntryType
- * @run shell run-java.sh TestGetEntryType
+ * @run shell classpath.sh shell run-java.sh TestGetEntryType
  */
 
 import java.io.File;

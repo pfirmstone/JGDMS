@@ -22,7 +22,7 @@
  * @build TestParser MultiReader X Y TestPermission
  * @build a.X a.Y a.Z a.U
  * @build a.b.X a.b.Y a.b.Z a.b.U a.b.V
- * @run shell run-java.sh TestParser
+ * @run shell classpath.sh shell run-java.sh TestParser
  */
 
 import java.io.File;

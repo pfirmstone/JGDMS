@@ -25,7 +25,7 @@
  *
  * @build Overlocking
  * @build AbstractSocketFactory
- * @run main/othervm Overlocking
+ * @run main/othervm/policy=security.policy Overlocking
  */
 
 import java.io.IOException;

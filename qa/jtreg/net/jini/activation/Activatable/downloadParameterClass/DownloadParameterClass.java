@@ -31,9 +31,9 @@
  * @build FooReceiverImpl
  * @build FooReceiverImpl_Stub
  * @build Bar
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default DownloadParameterClass
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic DownloadParameterClass
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp DownloadParameterClass
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default DownloadParameterClass
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic DownloadParameterClass
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp DownloadParameterClass
  */
 
 import java.io.*;

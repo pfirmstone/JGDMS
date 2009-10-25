@@ -26,9 +26,9 @@
  * @build ActivateMe
  * @build RestartService
  * @build RestartService_Stub
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default RestartService
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic RestartService
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp RestartService
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default RestartService
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic RestartService
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp RestartService
  */
 
 import java.io.*;

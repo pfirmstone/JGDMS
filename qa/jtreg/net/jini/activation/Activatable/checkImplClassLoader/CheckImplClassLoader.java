@@ -26,9 +26,9 @@
  * @build MyRMI
  * @build CheckImplClassLoader ActivatableImpl
  * @build ActivatableImpl ActivatableImpl_Stub
- * @run main/othervm/policy=security.policy/timeout=150 -Dtest.rmi.exportType=default CheckImplClassLoader
- * @run main/othervm/policy=security.policy/timeout=150 -Dtest.rmi.exportType=basic CheckImplClassLoader
- * @run main/othervm/policy=security.policy/timeout=150 -Dtest.rmi.exportType=jrmp CheckImplClassLoader
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=150 -Dtest.rmi.exportType=default CheckImplClassLoader
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=150 -Dtest.rmi.exportType=basic CheckImplClassLoader
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=150 -Dtest.rmi.exportType=jrmp CheckImplClassLoader
  */
 
 import java.io.*;

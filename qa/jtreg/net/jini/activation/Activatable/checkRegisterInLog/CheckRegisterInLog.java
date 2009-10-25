@@ -23,9 +23,9 @@
  * @library ../../../../../testlibrary
  * @build ActivationLibrary TestLibrary RMID
  * @build ActivateMe CheckRegisterInLog CheckRegisterInLog_Stub
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic CheckRegisterInLog
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default CheckRegisterInLog
- * @run main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp CheckRegisterInLog
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=basic CheckRegisterInLog
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=default CheckRegisterInLog
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 -Dtest.rmi.exportType=jrmp CheckRegisterInLog
  */
 
 import java.io.*;

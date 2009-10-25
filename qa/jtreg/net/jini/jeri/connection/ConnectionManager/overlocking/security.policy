@@ -1,0 +1,19 @@
+/*
+ * security policy used by the test process
+ * Added after creation of JTlib-tmp directory to replace use of
+ * jre/lib/ext/ directory, this test seemed to fail. Requires confirmation
+ * that this was the cause of the new permission required.
+ * It doesn't seem logical that that is actually the case?
+ */
+
+grant codeBase "file:${jtlib.tmp}/*" {
+    permission java.security.AllPermission;
+};
+
+grant {
+    permission java.lang.RuntimePermission "modifyThreadGroup";
+    permission java.lang.RuntimePermission "createSecurityManager";
+    permission java.lang.RuntimePermission "setSecurityManager";
+    permission com.sun.jini.thread.ThreadPoolPermission "getSystemThreadPool";
+    permission java.net.SocketPermission "localhost:1024-", "listen,resolve";
+};

@@ -22,7 +22,7 @@
  * @build TestLibrary RMID ActivationLibrary
  * @build ActivateMe
  * @build TerminateGroup
- * @run main/othervm/policy=security.policy/timeout=240 TerminateGroup
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 TerminateGroup
  */
 
 import java.io.*;

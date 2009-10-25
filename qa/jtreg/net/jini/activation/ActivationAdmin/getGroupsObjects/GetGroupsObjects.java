@@ -22,7 +22,7 @@
  * @library ../../../../../testlibrary
  * @build ActivationLibrary RMID
  * @build GetGroupsObjects
- * @run main/othervm/timeout=240/policy=security.policy GetGroupsObjects
+ * @run shell classpath.sh main/othervm/timeout=240/policy=security.policy GetGroupsObjects
  */
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;

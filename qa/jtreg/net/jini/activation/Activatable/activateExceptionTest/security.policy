@@ -43,3 +43,9 @@ grant {
   // allow getting impl's class loader for export
   permission java.lang.RuntimePermission "getClassLoader";
 };
+
+// permissions that needed to be granted after creating JTlib.tmp
+grant {
+    permission java.util.PropertyPermission "user.timezone", "write"; 
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
+};

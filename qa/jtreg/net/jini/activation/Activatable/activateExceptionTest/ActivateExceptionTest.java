@@ -26,7 +26,7 @@
  * @build TestLibrary ActivationLibrary RMID
  * @build ActivateMe
  * @build ActivateExceptionTest
- * @run main/othervm/policy=security.policy/timeout=240 ActivateExceptionTest
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 ActivateExceptionTest
  */
 
 import java.rmi.*;

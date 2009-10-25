@@ -36,28 +36,17 @@
     <!-- javadoc setings -->
     <property name="javadoc.doc-title" value="Apache River v${version} QA Harness and Test API Documentation"/>
     <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
-    
-    <!-- jtreg environment setup -->
-    <property environment="env"/>        
-    <!-- location of the River jtreg tests -->
-    <property name="jtreg.dir" location="jtreg" />
-    <!-- location of the jtreg distribution, override in <river root>/build.properties -->
-    <!-- changed to an environment variable to avoid accidental svn oploads of build.properties -->
-    <property name="jtreg.home" location="${env.JT_HOME}" />
-    <!-- probably should rename the environment variable, to enable using the correct -->
-    <!-- jdk version for the jtreg tests which depend on jdk1.5 -->
-    <property name="jdk1.5.home" location="${env.JAVA_HOME}"/>
-    <property name="jtlib.tmp" location="${jtreg.dir}/JTlib-tmp"/>
 
     <!-- jtreg environment setup -->
     <property environment="env"/>
     <!-- location of the River jtreg tests -->
     <property name="jtreg.dir" location="jtreg" />
     <!-- location of the jtreg distribution, override in <river root>/build.properties -->
+    <!-- or override in <river root>/qa/build.properties -->
     <property name="jtreg.home" location="${env.JT_HOME}" />
     <!-- probably should rename the environment variable, to enable using the correct -->
     <!-- jdk version for the jtreg tests which depend on jdk1.5 -->
-    <property name="jdk1.5.home" location="${env.JAVA_HOME}"/>
+    <property name="jdk1.5.home" location="/usr/jdk/jdk1.5.0_15"/>
     <property name="jtlib.tmp" location="${jtreg.dir}/JTlib-tmp"/>
 
     <!-- classpath for use by ClassDep in this build -->
@@ -168,9 +157,10 @@
             <!--<arg value="-Djsk.home=${river.home}"/>-->
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <!--<arg value="-status:fail"/>-->
-            <!--<arg value="-Djava.security.debug=access,failure"/>--> 
+            <!--<arg value="-Djava.security.debug=access,failure"/>-->
             <arg value="-Djavatest.maxOutputSize=500000"/>
-            <!--<arg value="net/jini/activation/Activatable/inactiveGroup" />-->
+            <!--<arg value="-Bug:6307813"/>-->
+            <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
         </jtreg>
         <move todir="${river.lib.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">

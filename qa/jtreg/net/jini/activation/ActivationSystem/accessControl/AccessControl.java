@@ -20,10 +20,11 @@
  * 
  * @summary test basic permission-based access control for a secure rmid
  * @author Bob Scheifler
+ * 
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID
  * @build AccessControl
- * @run main/othervm/timeout=240/policy=security.policy
+ * @run shell classpath.sh main/othervm/timeout=240/policy=security.policy
  * -Djava.protocol.handler.pkgs=net.jini.url AccessControl
  */
 import java.io.File;

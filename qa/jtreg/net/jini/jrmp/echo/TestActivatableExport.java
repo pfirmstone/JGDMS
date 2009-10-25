@@ -21,7 +21,7 @@
  * @build TestActivatableExport TestActivatableExport_Stub 
  * @build CountedSocketFactory Echo 
  * @build RMID ActivationLibrary
- * @run main/othervm/policy=security.policy TestActivatableExport
+ * @run shell classpath.sh main/othervm/policy=security.policy TestActivatableExport
  */
 
 import java.io.File;

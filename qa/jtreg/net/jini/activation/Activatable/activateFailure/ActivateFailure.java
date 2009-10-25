@@ -23,7 +23,7 @@
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID ActivationLibrary
  * @build ActivateFailure
- * @run main/othervm/policy=security.policy/timeout=120 ActivateFailure
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=120 ActivateFailure
  */
 import java.io.File;
 import java.rmi.*;

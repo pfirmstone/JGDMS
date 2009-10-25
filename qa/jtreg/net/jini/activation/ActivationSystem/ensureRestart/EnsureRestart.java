@@ -21,7 +21,7 @@
  * @library ../../../../../testlibrary
  * @build ActivationLibrary RMID
  * @build EnsureRestart
- * @run main/othervm/policy=security.policy/timeout=240 EnsureRestart
+ * @run shell classpath.sh main/othervm/policy=security.policy/timeout=240 EnsureRestart
  */
 import java.io.File;
 import java.io.Serializable;
