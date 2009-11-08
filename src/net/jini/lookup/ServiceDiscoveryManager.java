@@ -892,7 +892,7 @@ public class ServiceDiscoveryManager {
                     synchronized(serviceIdMap) {
                         /* Cancel the lease if the cache has been terminated */
                         if(bCacheTerminated) {
-                            cancelLease(eventReg.lease); 
+                            cancelLease(eventReg.lease);
                         } else {
                             eventRegMap.put(reg, eventReg);
                         }//endif
@@ -1126,9 +1126,29 @@ public class ServiceDiscoveryManager {
                  * the associated ServiceItem is an old, previously discovered
                  * item, or a newly discovered item.
                  */
-		if(transition == ServiceRegistrar.TRANSITION_MATCH_NOMATCH) {
+                if(transition == ServiceRegistrar.TRANSITION_MATCH_NOMATCH) {
+                    logger.finer("ServiceDiscoveryManager.NotifyEventTask - "
+                                 +"transition=TRANSITION_MATCH_NOMATCH");
                     handleMatchNoMatch(reg.proxy, sid, item);
                 } else {//(transition == NOMATCH_MATCH or MATCH_MATCH)
+                    if (logger.isLoggable(Level.FINER)) {
+                        if(transition == 
+                                   ServiceRegistrar.TRANSITION_MATCH_MATCH)
+                        {
+                            logger.finer("ServiceDiscoveryManager."
+                                         +"NotifyEventTask - "
+                                         +"transition="
+                                         +"TRANSITION_MATCH_MATCH");
+                        } else if(transition == 
+                                   ServiceRegistrar.TRANSITION_NOMATCH_MATCH)
+                        { 
+                            logger.finer("ServiceDiscoveryManager."
+                                         +"NotifyEventTask - "
+                                         +"transition="
+                                         +"TRANSITION_NOMATCH_MATCH");
+                        }//endif
+                    }//endif
+
                     (new NewOldServiceTask(reg, item,
                        (transition == ServiceRegistrar.TRANSITION_MATCH_MATCH),
                                                thisTaskSeqN)).run();
@@ -1808,6 +1828,16 @@ public class ServiceDiscoveryManager {
 				      int transition)
         {
             if(eventSource == null) return;
+
+            if (logger.isLoggable(Level.FINEST)) {
+                if( (item != null) && (item.attributeSets != null) ) {
+                    for(int i=0; i<(item.attributeSets).length; i++) {
+                        logger.finest("notifyServiceMap - attribute["+i+"] = "
+                                      +(item.attributeSets)[i]);
+                    }//end loop
+                }//endif
+            }//endif(FINEST)
+
             synchronized(serviceIdMap) {
                 /* Search eventRegMap for ProxyReg corresponding to event. */
                 ProxyReg reg = null;
@@ -2017,7 +2047,8 @@ public class ServiceDiscoveryManager {
              */
             boolean attrsChanged = false;
             boolean versionChanged = false;
-	    if( matchMatchEvent || sameVersion(newItem,oldItem) ) {
+            boolean isSameVersion = sameVersion(newItem,oldItem);
+            if( matchMatchEvent || isSameVersion ) {
                 /* Same version, determine if the attributes have changed.
                  * But first, replace the new service proxy with the old
                  * service proxy so the client always uses the old proxy
@@ -2027,21 +2058,73 @@ public class ServiceDiscoveryManager {
                 /* Now compare attributes */
                 attrsChanged = !LookupAttributes.equal(newItem.attributeSets,
                                                        oldItem.attributeSets);
+                if (logger.isLoggable(Level.FINEST)) {
+                    if((oldItem != null) && (oldItem.attributeSets != null)) {
+                        for(int i=0; i<(oldItem.attributeSets).length; i++) {
+                            logger.finest("itemMatchMatchChange - "
+                                          +"OLD Attribute["+i+"] = "
+                                          +(oldItem.attributeSets)[i]);
+                        }//end loop
+                    }//endif
+                    logger.finest("    ");
+                    if((newItem != null) && (newItem.attributeSets != null)) {
+                        for(int i=0; i<(newItem.attributeSets).length; i++) {
+                            logger.finest("itemMatchMatchChange - "
+                                          +"NEW Attribute["+i+"] = "
+                                          +(newItem.attributeSets)[i]);
+                        }//end loop
+                    }//endif
+                }//endif(FINEST)
+
+                if (logger.isLoggable(Level.FINER)) {
+                    if(attrsChanged) {
+                        if(matchMatchEvent) {
+                            logger.finer("itemMatchMatchChange - attributes "
+                                         +"changed [TRANSITION_MATCH_MATCH]");
+                        } else if( isSameVersion ) {
+                            logger.finer("ServiceDiscoveryManager."
+                                         +"itemMatchMatchChange - attributes "
+                                         +"changed [same version]");
+                        }//endif
+                    } else {//(!attrChanged)
+                        if(matchMatchEvent) {
+                            logger.finer("itemMatchMatchChange - "
+                                         +"attributes NOT changed ["
+                                         +"TRANSITION_MATCH_MATCH] ..."
+                                         +"return");
+                        } else if( isSameVersion ) {
+                            logger.finer("itemMatchMatchChange - "
+                                         +"attributes NOT changed [same"
+                                         +"version] ... return");
+                        }//endif
+                    }//endif
+                }//endif
+
                 if(!attrsChanged) return;//no change, no need to filter
             } else {//(!matchMatchEvent && !same version) ==> re-registration
                 versionChanged = true;
+                logger.finer("itemMatchMatchChange - version changed");
             }//endif
             /* Now apply the filter, and send events if appropriate */
             ServiceItem newFilteredItem = filterMaybeDiscard
                                                        (newItem, proxy, true);
             if(newFilteredItem != null) {
                 /* Passed the filter, okay to send event(s). */
-                if(attrsChanged) changeServiceNotify(newFilteredItem,
-                                                     oldFilteredItem);
+                if(attrsChanged) {
+                    logger.finer("itemMatchMatchChange - send serviceChanged");
+                    changeServiceNotify(newFilteredItem,
+                                        oldFilteredItem);
+                }//endif
+
                 if(versionChanged) {
+                    logger.finer("itemMatchMatchChange - send serviceRemoved");
                     removeServiceNotify(oldFilteredItem);
+                    logger.finer("itemMatchMatchChange - send serviceAdded");
                     addServiceNotify(newFilteredItem);
                 }//endif
+            } else {
+                logger.finer("ServiceDiscoveryManager.itemMatchMatchChange - "
+                             +"NULL returned by filter");
             }//endif
 	}//end LookupCacheImpl.itemMatchMatchChange
 
@@ -2343,11 +2426,17 @@ public class ServiceDiscoveryManager {
                 if(itemRegHasNoProxys) {
                     if(itemRegIsDiscarded) {
                         /* Remove item from map and wake up the discard task */
+                        logger.finer("handleMatchNoMatch - "
+                                     +"TRANSITION_MATCH_NOMATCH && service in "
+                                     +"discard queue - send NO event");
                         removeServiceIdMapSendNoEvent(srvcID);
                         synchronized(serviceDiscardMutex) {
                             serviceDiscardMutex.notifyAll();
                         }//end sync
                     } else {//remove item from map and send removed event
+                        logger.finer("handleMatchNoMatch - "
+                                     +"TRANSITION_MATCH_NOMATCH - send "
+                                     +"serviceRemoved");
                         removeServiceIdMap(srvcID, filteredItem);
                     }//endif
                 }//endif
