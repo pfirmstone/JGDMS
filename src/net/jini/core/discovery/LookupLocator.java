@@ -17,6 +17,7 @@
  */
 package net.jini.core.discovery;
 
+import com.sun.jini.jeri.internal.runtime.Util;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -31,6 +32,7 @@ import java.net.UnknownHostException;
 import java.rmi.MarshalledObject;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import javax.net.SocketFactory;
 import net.jini.core.lookup.ServiceRegistrar;
 
 /**
@@ -65,7 +67,14 @@ public class LookupLocator implements Serializable {
      * @serial
      */
     protected int port;
-    
+    /**
+     * The socket factory that this <code>LookupLocator</code> uses to
+     * create <code>Socket</code> objects.
+     *
+     * @serial
+     **/
+    protected SocketFactory sf;
+
     /**
      * The timeout after which we give up waiting for a response from
      * the lookup service.
@@ -242,6 +251,41 @@ public class LookupLocator implements Serializable {
     }
 
     /**
+     * Construct a new <code>LookupLocator</code> object, set to perform unicast
+     * discovery to the input <code>host</code> and <code>port</code> using the socketFactory.
+     * The
+     * <code>host</code>, <code>port</code> and <code>sf</code> fields will be populated with the
+     * <code>host</code>, <code>port</code> and <code>sf</code> arguments.  No host name
+     * resolution is attempted.
+     * <p>The <code>host</code>
+     * argument must meet any one of the following syntactical requirements:
+     * <ul>
+     * <li>A host as required by a <i>server-based naming authority</i> in
+     * section 3.2.2 of <a href="http://www.ietf.org/rfc/rfc2396.txt">
+     * <i>RFC 2396: Uniform Resource Identifiers (URI): Generic Syntax</i></a>
+     * <li>A literal IPv6 address as defined by
+     * <a href="http://www.ietf.org/rfc/rfc2732.txt">
+     * <i>RFC 2732: Format for Literal IPv6 Addresses in URL's</i></a>
+     * <li>A literal IPv6 address as defined by
+     * <a href="http://www.ietf.org/rfc/rfc3513.txt">
+     * <i>RFC 3513: Internet Protocol Version 6 (IPv6) Addressing Architecture
+     * </i></a>
+     * </ul>
+     * 
+     * @param host the name of the host to contact
+     * @param port the number of the port to connect to
+     * @param sf the factory to use for creating the socket
+     * @throws IllegalArgumentException if <code>port</code> is not between
+     * 1 and 65535 (both included) or if <code>host</code> cannot be parsed.
+     * @throws NullPointerException if <code>host</code> is <code>null</code>
+     */
+    public LookupLocator(String host, int port, SocketFactory sf)
+    {
+        this(host,port);
+        this.sf = sf ;
+    }
+
+    /**
      * Returns the name of the host that this instance should contact.
      * <code>LookupLocator</code> implements this method to return
      * the <code>host</code> field.
@@ -317,7 +361,12 @@ public class LookupLocator implements Serializable {
 	} catch (UnknownHostException uhe) {
 	    // Cannot resolve the host name, maybe the socket implementation
 	    // can do it for us.
-	    Socket sock = new Socket(host, port);
+	    Socket sock ;
+            if( sf == null ) {
+                sock = new Socket(host, port);
+            } else {
+                sock = sf.createSocket(host, port);
+            }
 	    return getRegistrarFromSocket(sock, timeout);
 	}
 	IOException ioEx = null;
@@ -325,7 +374,12 @@ public class LookupLocator implements Serializable {
 	ClassNotFoundException cnfEx = null;
 	for (int i = 0; i < addrs.length; i++) {
 	    try {
-		Socket sock = new Socket(addrs[i], port);
+                Socket sock ;
+                if( sf == null ) {
+                    sock = new Socket(addrs[i], port);
+                } else {
+                    sock = sf.createSocket(addrs[i], port);
+                }
 		return getRegistrarFromSocket(sock, timeout);
 	    } catch (ClassNotFoundException ex) {
 		cnfEx = ex;
@@ -407,7 +461,8 @@ public class LookupLocator implements Serializable {
 	}
 	if (o instanceof LookupLocator) {
 	    LookupLocator oo = (LookupLocator) o;
-	    return port == oo.port && host.equalsIgnoreCase(oo.host);
+	    return port == oo.port && host.equalsIgnoreCase(oo.host) &&
+                    Util.sameClassAndEquals(sf, oo.sf);
 	}
 	return false;
     }
@@ -417,7 +472,8 @@ public class LookupLocator implements Serializable {
      * <code>port</code> field values.
      */
     public int hashCode() {
-	return host.toLowerCase().hashCode() ^ port;
+	return host.toLowerCase().hashCode() ^ port ^
+	    (sf != null ? sf.hashCode() : 0);
     }
     
     // Checks if the host is an RFC 3513 IPv6 literal and converts it into
