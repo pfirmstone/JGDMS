@@ -19,7 +19,6 @@ package com.sun.jini.reggie;
 
 import com.sun.jini.config.Config;
 import com.sun.jini.constants.ThrowableConstants;
-import com.sun.jini.constants.TimeConstants;
 import com.sun.jini.constants.VersionConstants;
 import com.sun.jini.discovery.ClientSubjectChecker;
 import com.sun.jini.discovery.Discovery;
@@ -82,6 +81,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import javax.net.ServerSocketFactory;
+import javax.net.SocketFactory;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
@@ -188,6 +189,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     private LoginContext loginContext;
     /** Shutdown callback object, or null if no callback needed */
     private LifeCycle lifeCycle;
+
+    /** Unicast socket factories */
+    private ServerSocketFactory serverSocketFactory ;
+    private SocketFactory socketFactory;
 
     /**
      * Map from ServiceID to SvcReg.  Every service is in this map under
@@ -2044,7 +2049,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
         private void attemptResponse(InetSocketAddress addr, int timeout) 
             throws Exception 
         {
-            Socket s = new Socket();
+            Socket s = socketFactory.createSocket();
             try {
                 s.connect(addr, timeout);
                 respond(s);
@@ -2451,14 +2456,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    setDaemon(true);
 	    if (port == 0) {
 		try {
-		    listen = new ServerSocket(Constants.discoveryPort);
+		    listen = serverSocketFactory.createServerSocket(Constants.discoveryPort);
 		} catch (IOException e) {
 		    logger.log(
 			Levels.HANDLED, "failed to bind to default port", e);
 		}
 	    }
 	    if (listen == null) {
-		listen = new ServerSocket(port);
+                listen = serverSocketFactory.createServerSocket(port);
 	    }
 	    this.port = listen.getLocalPort();
 	}
@@ -2500,7 +2505,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 */
 	public synchronized void interrupt() {
 	    try {
-		(new Socket(InetAddress.getLocalHost(), port)).close();
+                Socket s = socketFactory.createSocket(InetAddress.getLocalHost(), port);
+                s.close();
 	    } catch (IOException e) {
 	    }
 	    super.interrupt();
@@ -4390,6 +4396,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	throws IOException, ConfigurationException, ActivationException
     {
 	this.lifeCycle = lifeCycle;
+
+
+        serverSocketFactory = (ServerSocketFactory) config.getEntry(
+		COMPONENT, "serverSocketFactory", ServerSocketFactory.class,
+		ServerSocketFactory.getDefault(), Configuration.NO_DATA);
+        socketFactory = (SocketFactory) config.getEntry(
+		COMPONENT, "socketFactory", SocketFactory.class,
+		SocketFactory.getDefault(), Configuration.NO_DATA);
 
 	/* persistence-specific initialization */
 	if (persistent) {
