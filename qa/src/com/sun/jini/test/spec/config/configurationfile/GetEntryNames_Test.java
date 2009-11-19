@@ -212,7 +212,7 @@ public class GetEntryNames_Test extends Template_Test {
                 String[] optionsWithFile = { confFile.getPath() };
                 options = optionsWithFile;
             } else if (testSubCase == OPT_URL_SUBCASE) {
-                URL confFileURL = confFile.toURL();
+                URL confFileURL = confFile.toURI().toURL();
                 String[] optionsWithURL = { confFileURL.toString() };
                 options = optionsWithURL;
             } else { // if (testSubCase == OPT_OVERRIDE_SUBCASE) {

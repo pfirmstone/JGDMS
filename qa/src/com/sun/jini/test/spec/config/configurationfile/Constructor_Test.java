@@ -194,7 +194,7 @@ public class Constructor_Test extends Template_Test {
         String[] optionsWithDash = { "-" };
         callConstructor(testCase, confFile, optionsWithDash);
 
-        URL confFileURL = confFile.toURL();
+        URL confFileURL = confFile.toURI().toURL();
         logger.log(Level.INFO,
                 "File URL=" + confFileURL.toString());
         String[] optionsWithFileURL = { confFileURL.toString() };
@@ -267,7 +267,7 @@ public class Constructor_Test extends Template_Test {
                         + " element is invalid url");
             }
 
-            unexistConfFileURL = unexistConfFile.toURL();
+            unexistConfFileURL = unexistConfFile.toURI().toURL();
             String[] optionsWithUnexistFileURL = { 
                     unexistConfFileURL.toString() };
             try {

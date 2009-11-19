@@ -192,7 +192,7 @@ public class VerifyCodebaseIntegrityTest extends QATest {
                 if (useNullLoader[i]) {
                     testCl = null;
                 } else {
-                    testCl = new FakeClassLoader(jarFile.toURL());
+                    testCl = new FakeClassLoader(jarFile.toURI().toURL());
                 }
 
                 try {
@@ -226,10 +226,10 @@ public class VerifyCodebaseIntegrityTest extends QATest {
                     if (useNullLoader[i]) {
                         testCl = null;
                     } else {
-                        testCl = new FakeClassLoader(jarFile.toURL());
+                        testCl = new FakeClassLoader(jarFile.toURI().toURL());
                     }
                     Thread.currentThread().setContextClassLoader(
-                            new FakeClassLoader(jarFile.toURL()));
+                            new FakeClassLoader(jarFile.toURI().toURL()));
 
                     try {
                         callVerifyCodebaseIntegrity(testUrls[k], testCl);

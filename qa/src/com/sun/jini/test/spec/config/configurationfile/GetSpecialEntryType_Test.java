@@ -130,7 +130,7 @@ public class GetSpecialEntryType_Test extends Template_Test {
                 + entryLine
                 + ";\n}\n";
             createFile(confFile, conf);
-            URL confFileURL = confFile.toURL();
+            URL confFileURL = confFile.toURI().toURL();
             String[] optionsWithURL = { confFileURL.toString() };
             return (FakeConfigurationFile) callConstructor(
                     testCase, confFileURL, optionsWithURL);

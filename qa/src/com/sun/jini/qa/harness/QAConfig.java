@@ -438,7 +438,7 @@ public class QAConfig implements Serializable {
 		throw new TestException("test jar found not found: " + testJar);
 	    }
 	    try {
-		URL testJarURL = testJarFile.getCanonicalFile().toURL();
+		URL testJarURL = testJarFile.getCanonicalFile().toURI().toURL();
 		testLoader = new URLClassLoader(new URL[]{testJarURL},
 						getClass().getClassLoader());
 	    } catch (Exception e) {
@@ -707,7 +707,7 @@ public class QAConfig implements Serializable {
 	File entryFile = getComponentFile(entryName, td);
 	if (entryFile != null) { 
 	    try {
-		return entryFile.getCanonicalFile().toURL();
+		return entryFile.getCanonicalFile().toURI().toURL();
 	    } catch (Exception e) {
 		throw new TestException("problem converting file to url", e);
 	    }

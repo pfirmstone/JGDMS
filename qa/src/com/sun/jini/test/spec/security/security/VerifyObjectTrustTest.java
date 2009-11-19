@@ -210,6 +210,7 @@ public class VerifyObjectTrustTest extends QATest {
      * This method performs all actions mentioned in class description.
      *
      */
+    @SuppressWarnings("deprecation")
     public void run() throws Exception {
         File jarFile = null;
         Object testObj = new TestObject();
@@ -391,6 +392,7 @@ public class VerifyObjectTrustTest extends QATest {
      * @param obj Object for 'verifyObjectTrust' method
      * @param loader ClassLoader for 'verifyObjectTrust' method
      * @param context Collection for 'verifyObjectTrust' method
+     * @throws java.rmi.RemoteException 
      */
     protected void callVerifyObjectTrust(Object obj, ClassLoader loader,
             Collection context) throws RemoteException {

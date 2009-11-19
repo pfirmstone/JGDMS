@@ -1,4 +1,4 @@
-/*
+ /*
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
  * distributed with this work for additional information
@@ -126,7 +126,7 @@ public abstract class GetInstance_QATest extends QATest {
         File confResource = new File(servicesDir.getPath(),
                 "net.jini.config.Configuration");
         createFile(confResource, content);
-        URL classURL = classDir.toURL();
+        URL classURL = classDir.toURI().toURL();
         URL[] urls = { classURL };
         return urls;
     }

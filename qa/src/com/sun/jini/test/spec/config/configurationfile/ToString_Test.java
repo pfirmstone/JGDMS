@@ -368,7 +368,7 @@ public class ToString_Test extends QATest {
         String[] optionsWithDash = { "-" };
         checkVariant(testCase, confFile, optionsWithDash);
 
-        URL confFileURL = confFile.toURL();
+        URL confFileURL = confFile.toURI().toURL();
         logger.log(Level.INFO,
                 "File URL=" + confFileURL.toString());
         String[] optionsWithFileURL = { confFileURL.toString() };

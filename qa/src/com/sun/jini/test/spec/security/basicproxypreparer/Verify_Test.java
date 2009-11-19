@@ -148,7 +148,7 @@ public class Verify_Test extends Constructor_Test {
         // 2 If proxy is not null, if verify is true, if trusted
         File jarFile = Util.createResourceJar(resName,
                 new Class[] { TrueTrustVerifier.class });
-        URL[] urls = { jarFile.toURL() };
+        URL[] urls = { jarFile.toURI().toURL() };
         ClassLoader testCl = new URLClassLoader(urls);
         Thread.currentThread().setContextClassLoader(testCl);
 
