@@ -210,7 +210,6 @@ public class VerifyObjectTrustTest extends QATest {
      * This method performs all actions mentioned in class description.
      *
      */
-    @SuppressWarnings("deprecation")
     public void run() throws Exception {
         File jarFile = null;
         Object testObj = new TestObject();
@@ -250,7 +249,7 @@ public class VerifyObjectTrustTest extends QATest {
             if (useNullLoader[i]) {
                 testCl = null;
             } else {
-                testCl = new FakeClassLoader(jarFile.toURL());
+                testCl = new FakeClassLoader(jarFile.toURI().toURL());
             }
 
             try {
@@ -279,10 +278,10 @@ public class VerifyObjectTrustTest extends QATest {
                 if (useNullLoader[i]) {
                     testCl = null;
                 } else {
-                    testCl = new FakeClassLoader(jarFile.toURL());
+                    testCl = new FakeClassLoader(jarFile.toURI().toURL());
                 }
                 Thread.currentThread().setContextClassLoader(
-                        new FakeClassLoader(jarFile.toURL()));
+                        new FakeClassLoader(jarFile.toURI().toURL()));
 
                 try {
                     callVerifyObjectTrust(testObj, testCl, testCtx);
