@@ -25,7 +25,7 @@
     <property name="root" location=".." />
 
     <!-- Override this to build/run QA tests against an external River installation -->
-    <property name="river.home" location="${root}"/>
+    <property name="river.home" location="${root}"/>    
 
     <!-- Import common settings and macros -->
     <import file="${root}/common.xml"/>
@@ -154,6 +154,7 @@
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk1.5.home}">
             <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar:${jtlib.tmp}/jsk-lib.jar:${jtlib.tmp}/jsk-platform.jar:${jtlib.tmp}/jsk-resources.jar:${jtlib.tmp}/phoenix-init.jar"/>
+            <arg value="-timeout:2"/>
             <!--<arg value="-Djsk.home=${river.home}"/>-->
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <!--<arg value="-status:fail"/>-->
@@ -261,7 +262,7 @@
 			 destdir="${doc.api.dir}"
 			 doctitle="${javadoc.doc-title}"
 			 serialwarn="false"
-			 source="1.4"
+			 source="5"
              linkoffline="${jdk.doc.url} ${jdk.packages}"
 			 use="true"
 			 version="true"
