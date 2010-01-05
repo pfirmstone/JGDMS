@@ -31,7 +31,7 @@
 <p>
 Previously the <i>JavaSpaces Service Specification</i> required that
 event sequence numbers associated with spaces events to be <em>fully
-ordered</em>.  Fully ordered, as defined in the <i>Jini Distributed
+ordered</em>.  Fully ordered, as defined in the <i>River Distributed
 Event Specification</i>, requires that:
 <blockquote>
 	... not only do sequence numbers increase, but they are not
@@ -64,13 +64,13 @@ the Outrigger codebase with minimal performance impact, serving only
 our own needs would not promote our goal of having JavaSpaces
 implementations from a number of vendors.
 <p>
-After substantial discussions within the Jini Community(SM) for more than a
+After substantial discussions within the River Community(SM) for more than a
 year, we came to the conclusion that weakening the fully ordered guarantee
 would be unlikely to have significant negative impact on users of
 JavaSpaces technology. As a result, in the 1.2 FCS release,  
 we changed the <i>JavaSpaces
 Service Specification</i> so that only the basic guarantee required by the
-<i>Jini Distributed Event Specification</i> on event sequences numbers
+<i>River Distributed Event Specification</i> on event sequences numbers
 is called for. This basic guarantee requires that all sequence numbers are
 unique and ordered, but that gaps in the sequence do not necessarily imply
 that events have been missed.  Put another way, if two remote events
@@ -138,7 +138,7 @@ calculate the number of intervening events by subtracting sequence
 numbers.  If your existing code is using persistent Outrigger
 across a crash, such code might be surprised to suddenly find
 that a few billion events seem to have transpired while it wasn't
-looking.  The discussions within the Jini Community have yet to locate a
+looking.  The discussions within the River Community have yet to locate a
 critical dependency of this form, but one is possible.
 
 <p>

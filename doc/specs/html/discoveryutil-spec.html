@@ -24,7 +24,7 @@
 <meta name="TEMPLATEBASE" content="JiniSpec1.1alpha">
 <meta name="LASTUPDATED" content="Mar 5, 2003">
 <link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
-<title>Jini Discovery Utilities Specification - DU </title>
+<title>River Discovery Utilities Specification - DU </title>
 </head>
 
 <body bgcolor="#ffffff">
@@ -33,7 +33,7 @@
 <a href="#skip" title="Skip navigation bar"></a>
 <table width="100%"><td align=left><tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a></td>
-<td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications
+<td align=right><i>A Collection of River Technology Helper Utilities and Services Specifications
 </i></td>
 </tr>
 </table>
@@ -50,7 +50,7 @@
 
 <blockquote>
 <h2>
-  <a name="1022667"> </a>DU - Jini<font size="-1"><sup>TM</sup></font> Discovery Utilities Specification
+  <a name="1022667"> </a>DU - River Discovery Utilities Specification
 </h2>
 <h3 class="Heading2">
   <a name="1022668"> </a>DU.1	 Introduction
@@ -67,8 +67,8 @@
 <ul>
 
   <li class="SmartList1"><a name="997299"> </a><em class="Emphasis">Java<font size="-1"><sup>TM</sup></font> Object Serialization Specification</em> <p>
-  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="discovery-spec.html">Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</a></em><p>
-  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="lookup-spec.html">Jini<font size="-1"><sup>TM</sup></font> Lookup Service Specification</a></em><p>
+  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="discovery-spec.html">River Discovery and Join Specification</a></em><p>
+  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="lookup-spec.html">River Lookup Service Specification</a></em><p>
 </ul>
 
 <h3 class="Heading2">
@@ -78,10 +78,10 @@
   <a name="1022215"> </a>DU.2.1	 Overview
 </h4>
 <p class="Body">
-  <a name="1022216"> </a>Discovery is one behavior that is common to all entities wishing to interact with a Jini lookup service. Whether an entity is a client, a service, or a service acting as a client, the entity must first discover a lookup service, before the entity can begin interacting with that lookup service.
+  <a name="1022216"> </a>Discovery is one behavior that is common to all entities wishing to interact with a River lookup service. Whether an entity is a client, a service, or a service acting as a client, the entity must first discover a lookup service, before the entity can begin interacting with that lookup service.
 </p>
 <p class="Body">
-  <a name="1022217"> </a>The interfaces collectively referred to as the <em class="Emphasis">discovery management</em> interfaces specify sets of methods that define a mechanism that may be used to manage various aspects of the discovery duties of entities that wish to participate in an application environment for Jini technology (a <em class="Emphasis">Jini application environment</em>). These interfaces provide a uniform way to define utility classes that perform the necessary discovery-related management duties on behalf of a client or service. Currently, there are three discovery management interfaces belonging to the package <code>net.jini.discovery</code>:
+  <a name="1022217"> </a>The interfaces collectively referred to as the <em class="Emphasis">discovery management</em> interfaces specify sets of methods that define a mechanism that may be used to manage various aspects of the discovery duties of entities that wish to participate in an application environment for River technology (a <em class="Emphasis">River application environment</em>). These interfaces provide a uniform way to define utility classes that perform the necessary discovery-related management duties on behalf of a client or service. Currently, there are three discovery management interfaces belonging to the package <code>net.jini.discovery</code>:
 </p>
 <ul>
 
@@ -94,10 +94,10 @@
   <a name="1022221"> </a>The <code>DiscoveryManagement</code> interface defines semantics for methods related to the discovery event mechanism and discovery process termination. Through this interface, an entity can register or un-register for discovery events, discard a lookup service, or terminate the discovery process.
 </p>
 <p class="Body">
-  <a name="1022222"> </a>The <code>DiscoveryGroupManagement</code> interface defines methods related to the management of the sets of lookup services that are to be discovered using the multicast discovery protocols (see the <a href="discovery-spec.html"><em class="Emphasis">Jini Discovery and Join Specification</em></a>). The methods of this interface define how an entity accesses or modifies the set of groups whose members are lookup services that the entity is interested in discovering through group discovery.
+  <a name="1022222"> </a>The <code>DiscoveryGroupManagement</code> interface defines methods related to the management of the sets of lookup services that are to be discovered using the multicast discovery protocols (see the <a href="discovery-spec.html"><em class="Emphasis">River Discovery and Join Specification</em></a>). The methods of this interface define how an entity accesses or modifies the set of groups whose members are lookup services that the entity is interested in discovering through group discovery.
 </p>
 <p class="Body">
-  <a name="1022223"> </a>The <code>DiscoveryLocatorManagement</code> interface defines methods related to the management of the set of lookup services that are to be discovered using the unicast discovery protocol (as defined in the <a href="discovery-spec.html"><em class="Emphasis">Jini Discovery and Join Specification</em></a>). The methods of this interface define how an entity accesses or modifies the contents of the set of <code>LookupLocator</code> objects corresponding to the specific lookup services the entity has targeted for locator discovery.
+  <a name="1022223"> </a>The <code>DiscoveryLocatorManagement</code> interface defines methods related to the management of the set of lookup services that are to be discovered using the unicast discovery protocol (as defined in the <a href="discovery-spec.html"><em class="Emphasis">River Discovery and Join Specification</em></a>). The methods of this interface define how an entity accesses or modifies the contents of the set of <code>LookupLocator</code> objects corresponding to the specific lookup services the entity has targeted for locator discovery.
 </p>
 <p class="Body">
   <a name="1022224"> </a>Although each interface defines semantics for methods involved in the management of the discovery process, the individual roles each interface plays in that process are independent of each other. Because of this independence, there may be scenarios where it is desirable to implement some subset of these interfaces.
@@ -534,7 +534,7 @@ It is important to note that when this form of the constructor is used to constr
 </h4>
 <p class="Body">
 
-  <a name="1003668"> </a>In a Jini application environment the multicast discovery protocols are often collectively referred to as multicast discovery or group discovery. The entities that participate in the multicast discovery protocol are a <em class="Emphasis">discovering entity</em> (Jini client or service) and a Jini lookup service, which acts as the entity that is to be discovered. When the discovering entity starts, it uses the multicast request protocol to announce its interest in finding lookup services within range. After a specified amount of time, the entity stops sending multicast requests, and simply listens for multicast announcements from any lookup services within range that may be broadcasting their availability. Through either of these protocols, the discovering entity can obtain references to lookup services belonging to member group in which the entity is interested. For the details of the multicast discovery protocols, refer to the <a href="discovery-spec.html"><em class="Emphasis">Jini Discovery and Join Specification</em></a>.
+  <a name="1003668"> </a>In a River application environment the multicast discovery protocols are often collectively referred to as multicast discovery or group discovery. The entities that participate in the multicast discovery protocol are a <em class="Emphasis">discovering entity</em> (River client or service) and a River lookup service, which acts as the entity that is to be discovered. When the discovering entity starts, it uses the multicast request protocol to announce its interest in finding lookup services within range. After a specified amount of time, the entity stops sending multicast requests, and simply listens for multicast announcements from any lookup services within range that may be broadcasting their availability. Through either of these protocols, the discovering entity can obtain references to lookup services belonging to member group in which the entity is interested. For the details of the multicast discovery protocols, refer to the <a href="discovery-spec.html"><em class="Emphasis">River Discovery and Join Specification</em></a>.
 </p>
 <p class="Body">
   <a name="1024620"> </a>The <code>LookupDiscovery</code> helper utility in the package <code>net.jini.discovery</code> encapsulates the functionality required of an entity that wishes to employ multicast discovery to discover a lookup service located within the entity's <em class="Emphasis">multicast radius</em> (roughly, the number of hops beyond which neither the multicast requests from the entity, nor the multicast announcements from the lookup service, will propagate). This utility provides an implementation that makes the process of acquiring lookup service instances, based on no information other than group membership, much simpler for both services and clients.
@@ -694,7 +694,7 @@ public final class DiscoveryPermission extends Permission
 </ul>
 
 <p class="Body">
-  <a name="1025204"> </a>Finally, it is important to note that a restriction of the Java2 platform security model requires that appropriate <code>DiscoveryPermission</code> be granted to the Jini technology infrastructure software codebase itself, in addition to any codebases that may use Jini technology infrastructure software classes.
+  <a name="1025204"> </a>Finally, it is important to note that a restriction of the Java2 platform security model requires that appropriate <code>DiscoveryPermission</code> be granted to the River technology infrastructure software codebase itself, in addition to any codebases that may use River technology infrastructure software classes.
 </p>
 <h4 class="Heading3">
   <a name="1003769"> </a>DU.3.6	 Serialized Forms<p>
@@ -725,13 +725,13 @@ public final class DiscoveryPermission extends Permission
   <a name="1022346"> </a>DU.4.1	 Overview
 </h4>
 <p class="Body">
-  <a name="1022347"> </a>The <a href="discovery-spec.html"><em class="Emphasis">Jini Discovery and Join Specification</em></a>, states that the "unicast discovery protocol is a simple request-response protocol." In a Jini application environment, the entities that participate in this protocol are a discovering entity (Jini client or service) and a Jini lookup service that acts as the entity to be discovered. The discovering entity sends unicast discovery requests to the lookup service, and the lookup service reacts to those requests by sending unicast discovery responses to the interested discovering entity.
+  <a name="1022347"> </a>The <a href="discovery-spec.html"><em class="Emphasis">River Discovery and Join Specification</em></a>, states that the "unicast discovery protocol is a simple request-response protocol." In a River application environment, the entities that participate in this protocol are a discovering entity (River client or service) and a River lookup service that acts as the entity to be discovered. The discovering entity sends unicast discovery requests to the lookup service, and the lookup service reacts to those requests by sending unicast discovery responses to the interested discovering entity.
 </p>
 <p class="Body">
   <a name="1022348"> </a>The <code>LookupLocatorDiscovery</code> helper utility (belonging to the package <code>net.jini.discovery</code>) encapsulates the functionality required of an entity that wishes to employ the unicast discovery protocol to discover a lookup service. This utility provides an implementation that makes the process of finding specific instances of a lookup service much simpler for both services and clients.
 </p>
 <p class="Body">
-  <a name="1022349"> </a>Because the <code>LookupLocatorDiscovery</code> helper utility class will participate in only the unicast discovery protocol, and because the unicast discovery protocol imposes no restriction on the physical location of a service or client relative to a lookup service, this utility can be used to discover lookup services running on hosts that are located far from, or near to, the hosts on which the service is running. This lack of a restriction on location brings with it a requirement that the discovering entity supply specific information about the desired lookup services to the <code>LookupLocatorDiscovery</code> utility; namely, the location of the device(s) hosting each lookup service. This information is supplied through an instance of the <code>LookupLocator</code> utility, defined in the <a href="discovery-spec.html"><em class="Emphasis">Jini Discovery and Join Specification</em></a>, or through an instance of <code>ConstrainableLookupLocator</code>, defined later in this document.
+  <a name="1022349"> </a>Because the <code>LookupLocatorDiscovery</code> helper utility class will participate in only the unicast discovery protocol, and because the unicast discovery protocol imposes no restriction on the physical location of a service or client relative to a lookup service, this utility can be used to discover lookup services running on hosts that are located far from, or near to, the hosts on which the service is running. This lack of a restriction on location brings with it a requirement that the discovering entity supply specific information about the desired lookup services to the <code>LookupLocatorDiscovery</code> utility; namely, the location of the device(s) hosting each lookup service. This information is supplied through an instance of the <code>LookupLocator</code> utility, defined in the <a href="discovery-spec.html"><em class="Emphasis">River Discovery and Join Specification</em></a>, or through an instance of <code>ConstrainableLookupLocator</code>, defined later in this document.
 </p>
 <p class="Body">
   <a name="1022350"> </a>It may be of value to note the difference between <code>LookupLocatorDiscovery</code> and the <code>LookupDiscovery</code> helper utility for group discovery (defined earlier). Although both are non-remote utility classes that entities can use to discover at least one lookup service, the <code>LookupLocatorDiscovery</code> utility is designed to provide discovery capabilities that satisfy different needs than those satisfied by the <code>LookupDiscovery</code> utility. These two utilities differ in the following ways: 
@@ -831,10 +831,10 @@ Creating a <code>LookupLocatorDiscovery</code> object using the non-configurable
   <a name="1022449"> </a>DU.5.1	 Overview
 </h4>
 <p class="Body">
-  <a name="1022450"> </a>Although the goals of any well-behaved Jini client or service are application-specific, the goals of such entities with respect to their interaction with Jini lookup services generally begin with employing the Jini discovery protocols (defined in the <a href="discovery-spec.html"><em class="Emphasis">Jini Discovery and Join Specification</em></a>) to obtain a reference to at least one lookup service. Because the discovery duties performed by such entities may require the management of significant amounts of state information, those duties can become quite tedious.
+  <a name="1022450"> </a>Although the goals of any well-behaved River client or service are application-specific, the goals of such entities with respect to their interaction with River lookup services generally begin with employing the River discovery protocols (defined in the <a href="discovery-spec.html"><em class="Emphasis">River Discovery and Join Specification</em></a>) to obtain a reference to at least one lookup service. Because the discovery duties performed by such entities may require the management of significant amounts of state information, those duties can become quite tedious.
 </p>
 <p class="Body">
-  <a name="1022451"> </a>The <code>LookupDiscoveryManager</code> is a helper utility class (belonging to the package <code>net.jini.discovery</code>) that organizes and manages all discovery-related activities on behalf of a Jini client or service. Rather than providing its own facility for coordinating and maintaining all of the necessary state information related to group names, <code>LookupLocator</code> objects, and <code>DiscoveryListener</code> objects, such an entity can employ this class to provide those facilities on its behalf.
+  <a name="1022451"> </a>The <code>LookupDiscoveryManager</code> is a helper utility class (belonging to the package <code>net.jini.discovery</code>) that organizes and manages all discovery-related activities on behalf of a River client or service. Rather than providing its own facility for coordinating and maintaining all of the necessary state information related to group names, <code>LookupLocator</code> objects, and <code>DiscoveryListener</code> objects, such an entity can employ this class to provide those facilities on its behalf.
 </p>
 <h4 class="Heading3">
   <a name="1022453"> </a>DU.5.2	 Other Types
@@ -899,7 +899,7 @@ The input parameters shared by both versions of the constructor are as follows:
 </ul>
 
 <p class="Body">
-  <a name="1022465"> </a>The <code>LookupDiscoveryManager</code> will, on behalf of any entity that constructs an instance of this utility, employ the Jini discovery protocols defined in the <em class="Emphasis"><a href="discovery-spec.html">Jini Discovery and Join Specification</em></a> to attempt to find all lookup services that satisfy the criteria set forth by the contents of the first two arguments, and it will maintain and manage any lookup services that it does discover.
+  <a name="1022465"> </a>The <code>LookupDiscoveryManager</code> will, on behalf of any entity that constructs an instance of this utility, employ the River discovery protocols defined in the <em class="Emphasis"><a href="discovery-spec.html">River Discovery and Join Specification</em></a> to attempt to find all lookup services that satisfy the criteria set forth by the contents of the first two arguments, and it will maintain and manage any lookup services that it does discover.
 </p>
 <p class="Body">
   <a name="1025812"> </a>If either version of the constructor is invoked with a set of group names and a set of locators in which either or both sets contain duplicate elements (where duplicate locators are determined by <code>LookupLocator.equals</code>), the invocation is equivalent to constructing this class with no duplicates in either set.
@@ -1017,7 +1017,7 @@ java.net.MalformedURLException
 </p>
 <ul>
 
-  <li class="SmartList1"><a name="1000833"> </a>A non-<code>null</code> <code>String</code> containing a URL, which must be a URL of scheme <code>"jini"</code> as described in the <a href="discovery-spec.html"><em>Jini Discovery and Join Specification</em></a>
+  <li class="SmartList1"><a name="1000833"> </a>A non-<code>null</code> <code>String</code> containing a URL, which must be a URL of scheme <code>"jini"</code> as described in the <a href="discovery-spec.html"><em>River Discovery and Join Specification</em></a>
   <li class="SmartList1"><a name="1000834"> </a>A <code>MethodConstraints</code> instance containing the constraints to be applied to unicast discovery, or <code>null</code>, indicating an empty set of constraints
 </ul>
 
@@ -1123,10 +1123,10 @@ The <code>getRegistrar()</code> method, like the <code>getRegistrar(int)</code> 
   <a name="1026440"> </a>DU.7	 Low-Level Discovery Protocol Utilities	 
 </h3>
 <p class="Body">
-  <a name="1026441"> </a>The utilities presented in this section of the specification are useful when implementing higher-level utilities or other entities or components that will be involved in the Jini discovery process. These utilities encapsulate functionality that allow one to exercise more control when interacting with the Jini discovery protocols. Anyone wishing to provide their own implementation of the Jini lookup service or their own implementation of the discovery utilities presented previously in this specification, may find the utilities presented in this section useful when creating those alternate implementations.
+  <a name="1026441"> </a>The utilities presented in this section of the specification are useful when implementing higher-level utilities or other entities or components that will be involved in the River discovery process. These utilities encapsulate functionality that allow one to exercise more control when interacting with the River discovery protocols. Anyone wishing to provide their own implementation of the River lookup service or their own implementation of the discovery utilities presented previously in this specification, may find the utilities presented in this section useful when creating those alternate implementations.
 </p>
 <p>
-Note that these utilities only support version 1 of the discovery protocol, as defined in the <a href="./discovery-spec.html"><em>Jini Discovery and Join Specification</em></a>.
+Note that these utilities only support version 1 of the discovery protocol, as defined in the <a href="./discovery-spec.html"><em>River Discovery and Join Specification</em></a>.
 <h4 class="Heading3">
   <a name="1027563"> </a>DU.7.1	 The <code>Constants</code> Class
 </h4>
@@ -1705,7 +1705,7 @@ limitations under the License.
 <table width="100%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-</td><td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications</i></td>
+</td><td align=right><i>A Collection of River Technology Helper Utilities and Services Specifications</i></td>
 </tr>
 </table>
 <a name="skip"></a>

@@ -22,7 +22,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
 <link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
-<title>Jini Lease Utilities Specification  </title>
+<title>River Lease Utilities Specification  </title>
 </head>
 
 <body bgcolor="#ffffff">
@@ -32,7 +32,7 @@
 <table width="100%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a></td>
-<td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications</i></td>
+<td align=right><i>A Collection of River Technology Helper Utilities and Services Specifications</i></td>
 </tr>
 </table>
 <br clear="all">
@@ -49,7 +49,7 @@
 <a name="skip"></a>
 <blockquote>
 <h2>
-  <a name="1004356"> </a>LM - Jini<font size="-1"><sup>TM</sup></font> Lease Utilities Specification</h2>
+  <a name="1004356"> </a>LM - River Lease Utilities Specification</h2>
 <h3 class="Heading2">
   <a name="1011663"> </a>LM.1	 Introduction
 </h3>
@@ -68,16 +68,16 @@
   <a name="1011615"> </a>The <code>LeaseRenewalManager</code> class (belonging to the package <code>net.jini.lease</code>) encapsulates functionality that provides for the systematic renewal and overall management of a set of leases associated with one or more remote entities on behalf of a local entity.
 </p>
 <p class="Body">
-  <a name="1000050"> </a>The concept of leased resources is fundamental to the Jini technology programming model. Providing a leasing mechanism helps to prevent the accumulation of outdated and unwanted resources in time-based distributed systems, such as the Jini technology infrastructure. The leasing model for Jini network technology (Jini technology), defined in the <a href="lease-spec.html"><em class="Emphasis">Jini Distributed Leasing Specification</em>, Section LE.1.1, "Leasing and Distributed Systems"</a>, requires renewed proof of interest to continue the existence of a leased resource. Thus, any Jini technology-enabled client (Jini client) or Jini technology-enabled service (Jini service) that requests the use of the leased resources provided by another Jini service may be granted access to those resources for a negotiated period of time, and must continue to request renewal of the lease on each resource for as long as the client or service wishes to have access to the resource.
+  <a name="1000050"> </a>The concept of leased resources is fundamental to the River technology programming model. Providing a leasing mechanism helps to prevent the accumulation of outdated and unwanted resources in time-based distributed systems, such as the River technology infrastructure. The leasing model for River network technology (River technology), defined in the <a href="lease-spec.html"><em class="Emphasis">River Distributed Leasing Specification</em>, Section LE.1.1, "Leasing and Distributed Systems"</a>, requires renewed proof of interest to continue the existence of a leased resource. Thus, any River technology-enabled client (River client) or River technology-enabled service (River service) that requests the use of the leased resources provided by another River service may be granted access to those resources for a negotiated period of time, and must continue to request renewal of the lease on each resource for as long as the client or service wishes to have access to the resource.
 </p>
 <p class="Body">
-  <a name="1008798"> </a>For example, the Jini lookup service leases two resources: residency in its database and registration with its event notification mechanism. Thus, if a service that is registered with a Jini lookup service wishes to continue its residency beyond the length of the current lease, the service must request a lease renewal from that lookup service. This renewal process must be repeated for as long as the service wishes to maintain its residency in the lookup service. Similarly, if a client has requested that a lookup service notify it of events of interest, then prior to the expiration of the lease on the event registration, the client must request that the lookup service continue to send such events. As with residency in the lookup service, these renewal requests must be repeated for as long as the client wishes to receive event notifications.
+  <a name="1008798"> </a>For example, the River lookup service leases two resources: residency in its database and registration with its event notification mechanism. Thus, if a service that is registered with a River lookup service wishes to continue its residency beyond the length of the current lease, the service must request a lease renewal from that lookup service. This renewal process must be repeated for as long as the service wishes to maintain its residency in the lookup service. Similarly, if a client has requested that a lookup service notify it of events of interest, then prior to the expiration of the lease on the event registration, the client must request that the lookup service continue to send such events. As with residency in the lookup service, these renewal requests must be repeated for as long as the client wishes to receive event notifications.
 </p>
 <p class="Body">
-  <a name="1000583"> </a>Another example of a Jini service providing leased resources would be a service that implements the <a href="txn-spec.html"><em class="Emphasis">Jini Transaction Specification</em></a> to manage transactions on behalf of registered participants. That specification requires that a transaction must be a leased resource. Therefore, any entity that creates such a transaction object is required to negotiate (with an entity referred to as a <em class="Emphasis">transaction manager</em>) a lease on that object, repeatedly requesting lease renewals prior to the lease's expiration, for as long as the transaction is to remain in effect.
+  <a name="1000583"> </a>Another example of a River service providing leased resources would be a service that implements the <a href="txn-spec.html"><em class="Emphasis">River Transaction Specification</em></a> to manage transactions on behalf of registered participants. That specification requires that a transaction must be a leased resource. Therefore, any entity that creates such a transaction object is required to negotiate (with an entity referred to as a <em class="Emphasis">transaction manager</em>) a lease on that object, repeatedly requesting lease renewals prior to the lease's expiration, for as long as the transaction is to remain in effect.
 </p>
 <p class="Body">
-  <a name="1000584"> </a>The <code>LeaseRenewalManager</code> class is designed to be a simple mechanism that provides for the systematic renewal and overall management of leases granted on resources that are provided by Jini services and for which a Jini client or service has registered interest. The <code>LeaseRenewalManager</code> is a utility class, not a remote service. In order to use this utility, an entity must create, in its own address space, an instance of the <code>LeaseRenewalManager</code> to manage the entity's leases locally.
+  <a name="1000584"> </a>The <code>LeaseRenewalManager</code> class is designed to be a simple mechanism that provides for the systematic renewal and overall management of leases granted on resources that are provided by River services and for which a River client or service has registered interest. The <code>LeaseRenewalManager</code> is a utility class, not a remote service. In order to use this utility, an entity must create, in its own address space, an instance of the <code>LeaseRenewalManager</code> to manage the entity's leases locally.
 </p>
 <h4 class="Heading3">
   <a name="1000048"> </a>LM.2.1	 Other Types
@@ -146,7 +146,7 @@ public class LeaseRenewalManager
   <a name="1008464"> </a>The term <em class="Emphasis">client</em> is used in this specification to refer to the local entity that is using the <code>LeaseRenewalManager</code> to manage a collection of leases on its behalf. This collection is referred to as the <em class="Emphasis">managed set</em>.
 </p>
 <p class="Body">
-  <a name="1011387"> </a>The <code>LeaseRenewalManager</code> distinguishes between two time values associated with lease expiration: the <em class="Emphasis">desired expiration</em> time for the lease and the <em class="Emphasis">actual expiration</em> time granted when the lease is created or last renewed. The desired expiration represents when the client would like the lease to expire. The actual expiration represents when the lease is going to expire if it is not renewed. Both time values are absolute times, not relative time durations. The desired expiration time can be retrieved using the renewal manager's <code>getExpiration</code> method, which is described below. The actual expiration time of a lease object can be retrieved by invoking the <code>getExpiration</code> method directly on the lease (see the <code>Lease</code> interface defined in the <a href="lease-spec.html"><em class="Emphasis">Jini Distributed Leasing Specification</em></a>).
+  <a name="1011387"> </a>The <code>LeaseRenewalManager</code> distinguishes between two time values associated with lease expiration: the <em class="Emphasis">desired expiration</em> time for the lease and the <em class="Emphasis">actual expiration</em> time granted when the lease is created or last renewed. The desired expiration represents when the client would like the lease to expire. The actual expiration represents when the lease is going to expire if it is not renewed. Both time values are absolute times, not relative time durations. The desired expiration time can be retrieved using the renewal manager's <code>getExpiration</code> method, which is described below. The actual expiration time of a lease object can be retrieved by invoking the <code>getExpiration</code> method directly on the lease (see the <code>Lease</code> interface defined in the <a href="lease-spec.html"><em class="Emphasis">River Distributed Leasing Specification</em></a>).
 </p>
 <p class="Body">
   <a name="1011943"> </a>Each lease in the managed set also has two other associated attributes: a <em class="Emphasis">renewal duration </em>and a <em class="Emphasis">remaining desired duration</em>. The remaining desired duration is always the desired expiration less the current time. The renewal duration is usually a positive number and is the new duration that will be requested when the renewal manager renews the lease, unless the renewal duration is greater than the remaining desired duration. If the renewal duration is greater than the remaining desired duration, then the remaining desired duration will be requested when renewing the lease. One exception is that when the desired expiration is <code>Lease.FOREVER</code>, the renewal duration may be <code>Lease.ANY</code>, in which case <code>Lease.ANY</code> will be requested when renewing the client lease, regardless of the value of the remaining desired duration.
@@ -482,7 +482,7 @@ limitations under the License.
 <a href="#skip" title="Skip navigation bar"></a>
 <table width="100%"><tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-<td align=right><em>A Collection of Jini Technology Helper Utilities and Services Specifications</em></td>
+<td align=right><em>A Collection of River Technology Helper Utilities and Services Specifications</em></td>
 </tr></table>
 <a name="skip"></a>
 

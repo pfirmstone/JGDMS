@@ -29,7 +29,7 @@
 <table width="100%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a></td>
-<td align=right><i>A Collection of Jini<font size="-1"><sup>TM</sup></font> Technology Helper Utilities and Services Specifications</i></td>
+<td align=right><i>A Collection of River Technology Helper Utilities and Services Specifications</i></td>
 </tr>
 </table>
 <br clear="all">
@@ -49,20 +49,20 @@
   <a name="1007837"> </a>US.1	 Summary
 </h3>
 <p class="Body">
-  <a name="998142"> </a>When developing clients and services that will participate in the application environment for Jini<font size="-1"><sup>TM</sup></font> technology, there are a number of behaviors that the developer may find desirable to incorporate in the client or service. Some of these behaviors may satisfy requirements described in the specifications of various Jini technology components; some behaviors may simply represent design practices that are desirable and should be encouraged. Examples of the sort of behavior that is required or desirable include the following:
+  <a name="998142"> </a>When developing clients and services that will participate in the application environment for River technology, there are a number of behaviors that the developer may find desirable to incorporate in the client or service. Some of these behaviors may satisfy requirements described in the specifications of various River technology components; some behaviors may simply represent design practices that are desirable and should be encouraged. Examples of the sort of behavior that is required or desirable include the following:
 </p>
 <ul>
 
-  <li class="SmartList1"><a name="998413"> </a>It is a requirement of the Jini discovery protocols that a service must continue to listen for and act on announcements from lookup services in which the service has registered interest.<p>
-  <li class="SmartList1"><a name="998151"> </a>It is a requirement of the Jini discovery protocols that, until successful, a service must continue to attempt to join the specific lookup services with which it has been configured to join.<p>
-  <li class="SmartList1"><a name="998570"> </a>Under many conditions, a Jini technology-enabled client (<em class="Emphasis">Jini client</em>) or service will wish to regularly renew leases that it holds. For example, when a Jini technology-enabled service (<em class="Emphasis">Jini service</em>) registers with a Jini lookup service, the service is requesting residency in the lookup service. Residency in a lookup service is a leased resource. Thus, when the requested residency is granted, the lookup service also imposes a lease on that residency. Typically, such a registered service will wish to extend the lease on its residency beyond the original expiration time, resulting in a need to renew the lease on a regular basis.<p>
-  <li class="SmartList1"><a name="998539"> </a>Many Jini services will need to maintain a dormant (inactive) state, becoming active only when needed.<p>
-  <li class="SmartList1"><a name="998341"> </a>Many Jini clients and services will need to have a mechanism for finding and managing Jini services.<p>
-  <li class="SmartList1"><a name="998435"> </a>Many Jini clients and services will find it desirable to employ a separate service that will handle events, in some useful way, on behalf of the participant.
+  <li class="SmartList1"><a name="998413"> </a>It is a requirement of the River discovery protocols that a service must continue to listen for and act on announcements from lookup services in which the service has registered interest.<p>
+  <li class="SmartList1"><a name="998151"> </a>It is a requirement of the River discovery protocols that, until successful, a service must continue to attempt to join the specific lookup services with which it has been configured to join.<p>
+  <li class="SmartList1"><a name="998570"> </a>Under many conditions, a River technology-enabled client (<em class="Emphasis">River client</em>) or service will wish to regularly renew leases that it holds. For example, when a River technology-enabled service (<em class="Emphasis">River service</em>) registers with a River lookup service, the service is requesting residency in the lookup service. Residency in a lookup service is a leased resource. Thus, when the requested residency is granted, the lookup service also imposes a lease on that residency. Typically, such a registered service will wish to extend the lease on its residency beyond the original expiration time, resulting in a need to renew the lease on a regular basis.<p>
+  <li class="SmartList1"><a name="998539"> </a>Many River services will need to maintain a dormant (inactive) state, becoming active only when needed.<p>
+  <li class="SmartList1"><a name="998341"> </a>Many River clients and services will need to have a mechanism for finding and managing River services.<p>
+  <li class="SmartList1"><a name="998435"> </a>Many River clients and services will find it desirable to employ a separate service that will handle events, in some useful way, on behalf of the participant.
 </ul>
 
 <p class="Body">
-  <a name="1008785"> </a>To help simplify the process of developing clients and services for the application environment for Jini technology (<em class="Emphasis">Jini application environment</em>), several specifications in this document collection define reusable components that encapsulate behaviors such as those outlined above. Employing such utilities and services to build such desirable behavior into a Jini client or service can help to avoid poor design and implementation decisions, greatly simplifying the development process.
+  <a name="1008785"> </a>To help simplify the process of developing clients and services for the application environment for River technology (<em class="Emphasis">River application environment</em>), several specifications in this document collection define reusable components that encapsulate behaviors such as those outlined above. Employing such utilities and services to build such desirable behavior into a River client or service can help to avoid poor design and implementation decisions, greatly simplifying the development process.
 </p>
 <p class="Body">
   <a name="1007748"> </a>What is presented first is terminology that may be helpful when analyzing these specifications. Following the section on terminology, brief summaries of the content of each of the current helper utilities and services specifications are provided. Finally, the other specifications on which these specifications depend are listed for reference.
@@ -78,28 +78,28 @@
   <a name="998835"> </a>US.2.1	 Terms Related to Discovery and Join
 </h4>
 <p class="Body">
-  <a name="1000369"> </a>The <a href="discovery-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</em></a> defines a <em class="Emphasis">discovering entity</em> as one or more cooperating software objects written in the Java<font size="-1"><sup>TM</sup></font> programming language (<em class="Emphasis">Java software objects</em>), executing on the same host, that are in the process of obtaining references to Jini lookup services. That specification also defines a <em class="Emphasis">joining entity</em> as one or more cooperating Java software objects, on the same host, that have received a reference to a lookup service and are in the process of obtaining services from, and possibly exporting services to, a federation of Jini technology-enabled services and/or devices and Jini lookup services referred to as a <em class="Emphasis">djinn</em>. The lookup services comprising a djinn may be organized into one or more sets known as <em class="Emphasis">groups</em>. Multiple groups may or may not be disjoint. Each group of lookup services is identified by a logical name represented by a <code>String</code> object.
+  <a name="1000369"> </a>The <a href="discovery-spec.html"><em class="Emphasis">River Discovery and Join Specification</em></a> defines a <em class="Emphasis">discovering entity</em> as one or more cooperating software objects written in the Java<font size="-1"><sup>TM</sup></font> programming language (<em class="Emphasis">Java software objects</em>), executing on the same host, that are in the process of obtaining references to River lookup services. That specification also defines a <em class="Emphasis">joining entity</em> as one or more cooperating Java software objects, on the same host, that have received a reference to a lookup service and are in the process of obtaining services from, and possibly exporting services to, a federation of River technology-enabled services and/or devices and River lookup services referred to as a <em class="Emphasis">djinn</em>. The lookup services comprising a djinn may be organized into one or more sets known as <em class="Emphasis">groups</em>. Multiple groups may or may not be disjoint. Each group of lookup services is identified by a logical name represented by a <code>String</code> object.
 </p>
 <p class="Body">
-  <a name="999345"> </a>The <a href="discovery-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</em></a> defines two protocols used in the discovery process: the <em class="Emphasis">multicast discovery protocol</em> and the <em class="Emphasis">unicast discovery protocol</em>.
+  <a name="999345"> </a>The <a href="discovery-spec.html"><em class="Emphasis">River Discovery and Join Specification</em></a> defines two protocols used in the discovery process: the <em class="Emphasis">multicast discovery protocol</em> and the <em class="Emphasis">unicast discovery protocol</em>.
 </p>
 <p class="Body">
   <a name="999377"> </a>When a discovering entity employs the multicast discovery protocol to discover lookup services that are members of one or more groups belonging to a set of groups, that discovery process is referred to as <em class="Emphasis">group discovery</em>. 
 </p>
 <p class="Body">
-  <a name="999356"> </a>The utility class <code>net.jini.core.discovery.LookupLocator</code> is defined in the <a href="discovery-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</em></a>. Any instance of that class is referred to as a <em class="Emphasis">locator</em>. When a discovering entity employs the unicast discovery protocol to discover specific lookup services, each corresponding to an element in a set of locators, that discovery process is referred to as <em class="Emphasis">locator discovery</em>.
+  <a name="999356"> </a>The utility class <code>net.jini.core.discovery.LookupLocator</code> is defined in the <a href="discovery-spec.html"><em class="Emphasis">River Discovery and Join Specification</em></a>. Any instance of that class is referred to as a <em class="Emphasis">locator</em>. When a discovering entity employs the unicast discovery protocol to discover specific lookup services, each corresponding to an element in a set of locators, that discovery process is referred to as <em class="Emphasis">locator discovery</em>.
 </p>
 <h4 class="Heading3">
-  <a name="998836"> </a>US.2.2	 Jini Clients and Services
+  <a name="998836"> </a>US.2.2	 River Clients and Services
 </h4>
 <p class="Body">
-  <a name="997888"> </a>For the purposes of the helper utilities and services specifications, a <em class="Emphasis">Jini client</em> is defined as a discovering entity that can retrieve a service (or a remote reference to a service) registered with a discovered lookup service and invoke the methods of the service to meet the entity's requirements. An entity that acts only as a client never registers with (requests residency in) a lookup service.
+  <a name="997888"> </a>For the purposes of the helper utilities and services specifications, a <em class="Emphasis">River client</em> is defined as a discovering entity that can retrieve a service (or a remote reference to a service) registered with a discovered lookup service and invoke the methods of the service to meet the entity's requirements. An entity that acts only as a client never registers with (requests residency in) a lookup service.
 </p>
 <p class="Body">
-  <a name="998025"> </a>A <em class="Emphasis">Jini service</em> is defined as both a discovering and a joining entity containing methods that may be of use to some other Jini client or service, and which registers with discovered lookup services to provide access to those methods. Note that a Jini service can also act as a Jini client.
+  <a name="998025"> </a>A <em class="Emphasis">River service</em> is defined as both a discovering and a joining entity containing methods that may be of use to some other River client or service, and which registers with discovered lookup services to provide access to those methods. Note that a River service can also act as a River client.
 </p>
 <p class="Body">
-  <a name="998960"> </a>The term <em class="Emphasis">client-like entity</em> may be used, in general, when referring to Jini clients and Jini services that act as clients.
+  <a name="998960"> </a>The term <em class="Emphasis">client-like entity</em> may be used, in general, when referring to River clients and River services that act as clients.
 </p>
 <p class="Body">
   <a name="998964"> </a>Note that when the term <em class="Emphasis">entity</em> is used, that term may be referring to a discovering entity, a joining entity, a client-like entity, a service, or some combination of these types of entities. Whenever that general term is used, it should be clear from the context what type of entity is being discussed.
@@ -108,16 +108,16 @@
   <a name="999426"> </a>US.2.3	 Helper Service
 </h4>
 <p class="Body">
-  <a name="999427"> </a>A Jini technology-enabled <em class="Emphasis">helper service</em> is defined in this document as an interface or set of interfaces, with an associated implementation, that encapsulates behavior that is either required or highly desirable in service entities that adhere to the Jini technology programming model (or simply the <em class="Emphasis">Jini programming model</em>). A helper service is a Jini service that can be registered with any number of lookup services and whose methods can execute on remote hosts.
+  <a name="999427"> </a>A River technology-enabled <em class="Emphasis">helper service</em> is defined in this document as an interface or set of interfaces, with an associated implementation, that encapsulates behavior that is either required or highly desirable in service entities that adhere to the River technology programming model (or simply the <em class="Emphasis">River programming model</em>). A helper service is a River service that can be registered with any number of lookup services and whose methods can execute on remote hosts.
 </p>
 <p class="Body">
-  <a name="999428"> </a>In general, a helper service should be of use to more than one type of entity participating in the Jini application environment and should provide a significant reduction in development complexity for developers of such entities.
+  <a name="999428"> </a>In general, a helper service should be of use to more than one type of entity participating in the River application environment and should provide a significant reduction in development complexity for developers of such entities.
 </p>
 <h4 class="Heading3">
   <a name="999429"> </a>US.2.4	 Helper Utility
 </h4>
 <p class="Body">
-  <a name="999430"> </a>This document distinguishes between a helper <em class="Emphasis">utility</em> and a helper <em class="Emphasis">service</em>. Helper utilities are programming components that can be used during the construction of Jini services and/or clients. Helper utilities are <em class="Emphasis">not</em> remote and do not register with a lookup service. Helper utilities are instantiated locally by entities wishing to employ them.
+  <a name="999430"> </a>This document distinguishes between a helper <em class="Emphasis">utility</em> and a helper <em class="Emphasis">service</em>. Helper utilities are programming components that can be used during the construction of River services and/or clients. Helper utilities are <em class="Emphasis">not</em> remote and do not register with a lookup service. Helper utilities are instantiated locally by entities wishing to employ them.
 </p>
 <h4 class="Heading3">
   <a name="999384"> </a>US.2.5	 Managed Sets
@@ -219,7 +219,7 @@ The term <em>definite exception</em> refers to a category of exception where any
   <a name="999048"> </a>To initiate an invocation of a remote method, the client must have access to an object referred to as the <em class="Emphasis">stub</em> of the remote object. The stub <em class="Emphasis">is</em> an object local to the client that acts as the "representative" of the remote object. The stub implements the same set of remote interfaces that the remote object implements. From the point of view of the client, the stub <em class="Emphasis">is</em> the remote object. When the client invokes a method on the local stub, communication with the remote object occurs, resulting in the execution of the corresponding method in the remote object's JVM.
 </p>
 <p class="Body">
-  <a name="998990"> </a>The term <em class="Emphasis">proxy</em> is used extensively throughout the helper utilities and services specifications. With respect to remote objects in general, and entities operating within a Jini application environment in particular, a proxy is simply an intermediary object through which one entity (the client) may request the invocation of the methods provided by another entity (the remote object or the service).
+  <a name="998990"> </a>The term <em class="Emphasis">proxy</em> is used extensively throughout the helper utilities and services specifications. With respect to remote objects in general, and entities operating within a River application environment in particular, a proxy is simply an intermediary object through which one entity (the client) may request the invocation of the methods provided by another entity (the remote object or the service).
 </p>
 <p class="Body">
   <a name="999229"> </a>Proxies can take a number of different forms. A <em class="Emphasis">smart proxy</em> typically consists of a set of local methods and a set of one or more remote object references (stubs). Clients invoke one or more of the local methods to access the methods of the remote objects referenced in the proxy.
@@ -231,7 +231,7 @@ The term <em>definite exception</em> refers to a category of exception where any
   <a name="999223"> </a>Some proxies are implemented as <em class="Emphasis">strictly local</em>. Proxies of this form consist of only local methods, each executing in the client's JVM. Unlike smart proxies, no remote invocations result when any method of a strictly local proxy is invoked.
 </p>
 <p class="Body">
-  <a name="1000354"> </a>Typically, Jini services provide a proxy that has one of the forms described above. When a service registers with a lookup service, the service's proxy is copied (through serialization) into the lookup service. When a client looks up the service, the service's proxy is downloaded to the client. The client can then invoke the methods contained in the service's proxy. If the invoked method is a local method, then execution will occur in the JVM of the client. If the invoked method is a remote method (or results in a remote invocation), then execution is initiated in the client's JVM, but ultimately occurs in the JVM of the service.
+  <a name="1000354"> </a>Typically, River services provide a proxy that has one of the forms described above. When a service registers with a lookup service, the service's proxy is copied (through serialization) into the lookup service. When a client looks up the service, the service's proxy is downloaded to the client. The client can then invoke the methods contained in the service's proxy. If the invoked method is a local method, then execution will occur in the JVM of the client. If the invoked method is a remote method (or results in a remote invocation), then execution is initiated in the client's JVM, but ultimately occurs in the JVM of the service.
 </p>
 <p class="Body">
   <a name="1000355"> </a>Note that the term <em class="Emphasis">front-end proxy</em> (or simply <em class="Emphasis">front end</em>) is often used interchangeably with the term <code>proxy.</code> Similarly, the term <em class="Emphasis">back-end server</em> (or simply, <em class="Emphasis">back end</em>) is often used interchangeably with the term <code>remote object.</code> Thus, the back end of a service is the part of the service's implementation that satisfies the contract advertised in the service's remote interface.
@@ -240,7 +240,7 @@ The term <em>definite exception</em> refers to a category of exception where any
   <a name="999291"> </a>US.2.8	 Activation
 </h4>
 <p class="Body">
-  <a name="1009168"> </a>The glossary defines <em class="Emphasis">active object</em> as a remote object that is instantiated and exported in a JVM on some system. Remote objects can be implemented with the ability to change their state from inactive to active, or from active to inactive; the process of doing so is referred to as <em class="Emphasis">activation</em> or <em class="Emphasis">deactivation</em>, respectively. Many Jini services that wish to conserve computational resources may find this capability desirable. When the back end of any Jini service is implemented with the ability to activate and deactivate, the service is referred to as an <em class="Emphasis">activatable</em> <em class="Emphasis">service</em>. Refer to the <em class="Emphasis">Java<font size="-1"><sup>TM</sup></font> Remote Method Invocation Specification</em> for the details of activation.
+  <a name="1009168"> </a>The glossary defines <em class="Emphasis">active object</em> as a remote object that is instantiated and exported in a JVM on some system. Remote objects can be implemented with the ability to change their state from inactive to active, or from active to inactive; the process of doing so is referred to as <em class="Emphasis">activation</em> or <em class="Emphasis">deactivation</em>, respectively. Many River services that wish to conserve computational resources may find this capability desirable. When the back end of any River service is implemented with the ability to activate and deactivate, the service is referred to as an <em class="Emphasis">activatable</em> <em class="Emphasis">service</em>. Refer to the <em class="Emphasis">Java<font size="-1"><sup>TM</sup></font> Remote Method Invocation Specification</em> for the details of activation.
 </p>
 <h3 class="Heading2">
   <a name="1009170"> </a>US.3	 Introduction to the Helper Utilities
@@ -249,7 +249,7 @@ The term <em>definite exception</em> refers to a category of exception where any
   <a name="1009531"> </a>US.3.1	 The Discovery Utilities
 </h4>
 <p class="Body">
-  <a name="1009535"> </a>The <em class="Emphasis"><a href="discoveryutil-spec.html">Jini Discovery Utilities Specification</a></em> defines a set of general-purpose utility interfaces collectively referred to as the discovery management interfaces. Those interfaces define the policies to apply when implementing helper utilities that manage an entity's discovery duties. Currently, the set of discovery management interfaces consists of the following three interfaces:
+  <a name="1009535"> </a>The <em class="Emphasis"><a href="discoveryutil-spec.html">River Discovery Utilities Specification</a></em> defines a set of general-purpose utility interfaces collectively referred to as the discovery management interfaces. Those interfaces define the policies to apply when implementing helper utilities that manage an entity's discovery duties. Currently, the set of discovery management interfaces consists of the following three interfaces:
 </p>
 <ul>
 
@@ -269,10 +269,10 @@ The term <em>definite exception</em> refers to a category of exception where any
 </ul>
 
 <p class="Body">
-  <a name="1007183"> </a>In order to provide a mechanism to control (through the application of sets of constraints) how unicast discovery is performed by the discovery management utilities described above, the discovery utilities specification defines a subclass of the <code>net.jini.core.discovery.LookupLocator</code> class defined in the <em>Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</em>. That class is <code>ConstrainableLookupLocator</code>.
+  <a name="1007183"> </a>In order to provide a mechanism to control (through the application of sets of constraints) how unicast discovery is performed by the discovery management utilities described above, the discovery utilities specification defines a subclass of the <code>net.jini.core.discovery.LookupLocator</code> class defined in the <em>River Discovery and Join Specification</em>. That class is <code>ConstrainableLookupLocator</code>.
 </p>
 <p>
-The discovery utilities specification closes with a discussion of a set of low-level utility classes that can be useful when applying the discovery management policies to build higher-level helper utilities for discovery. It is important to note that these classes only support version 1 of the discovery protocol, as defined in the <em>Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</em>. The low-level discovery utilities consist of the following classes:</p>
+The discovery utilities specification closes with a discussion of a set of low-level utility classes that can be useful when applying the discovery management policies to build higher-level helper utilities for discovery. It is important to note that these classes only support version 1 of the discovery protocol, as defined in the <em>River Discovery and Join Specification</em>. The low-level discovery utilities consist of the following classes:</p>
 	<ul>
 	<li class="SmartList1"><code>Constants</code><p>
 	<li class="SmartList1"><code>OutgoingMulticastRequest</code><p>
@@ -318,7 +318,7 @@ The discovery utilities specification closes with a discussion of a set of low-l
   <a name="1007073"> </a>US.3.1.6	  The <code>LookupDiscoveryManager</code> Helper Utility
 </h5>
 <p class="Body">
-  <a name="1007170"> </a>The <code>LookupDiscoveryManager</code> is a helper utility class that organizes and manages all discovery-related activities on behalf of a Jini client or service. Rather than providing its own facility for coordinating and maintaining all of the necessary state information related to group names, locators, and listeners, such an entity can employ this class to provide those facilities on its behalf.
+  <a name="1007170"> </a>The <code>LookupDiscoveryManager</code> is a helper utility class that organizes and manages all discovery-related activities on behalf of a River client or service. Rather than providing its own facility for coordinating and maintaining all of the necessary state information related to group names, locators, and listeners, such an entity can employ this class to provide those facilities on its behalf.
 </p>
 <h5 class="Heading4">US.3.1.7	  The <code>ConstrainableLookupLocator</code> Utility</h5>
 <p>
@@ -382,7 +382,7 @@ The <code>ConstrainableLookupLocator</code> class is a subclass of <code>net.jin
   <a name="1007423"> </a>US.3.2	 The Lease Utilities
 </h4>
 <p class="Body">
-  <a name="1007424"> </a>The <em class="Emphasis"><a href="leaseutil-spec.html#1004356">Jini Lease Utilities Specification</a></em> defines helper utility classes, along with supporting interfaces and supporting classes, that encapsulate functionality which provides for the coordination, systematic renewal, and overall management of a set of leases associated with some object on behalf of another object. Currently, this specification defines only one helper utility class:
+  <a name="1007424"> </a>The <em class="Emphasis"><a href="leaseutil-spec.html#1004356">River Lease Utilities Specification</a></em> defines helper utility classes, along with supporting interfaces and supporting classes, that encapsulate functionality which provides for the coordination, systematic renewal, and overall management of a set of leases associated with some object on behalf of another object. Currently, this specification defines only one helper utility class:
 </p>
 <ul>
 
@@ -393,13 +393,13 @@ The <code>ConstrainableLookupLocator</code> class is a subclass of <code>net.jin
   <a name="1007438"> </a>US.3.2.1	  The <code>LeaseRenewalManager</code> Helper Utility
 </h5>
 <p class="Body">
-  <a name="1007439"> </a>The <code>LeaseRenewalManager</code> is a helper utility class that organizes and manages all of the activities related to the renewal of the leases granted to a Jini client or service by another Jini service. Rather than providing its own facility for coordinating and maintaining all of the necessary state information related to lease renewal, such an entity can employ this class to provide those facilities on its behalf.
+  <a name="1007439"> </a>The <code>LeaseRenewalManager</code> is a helper utility class that organizes and manages all of the activities related to the renewal of the leases granted to a River client or service by another River service. Rather than providing its own facility for coordinating and maintaining all of the necessary state information related to lease renewal, such an entity can employ this class to provide those facilities on its behalf.
 </p>
 <h4 class="Heading3">
   <a name="1007461"> </a>US.3.3	 The Join Utilities
 </h4>
 <p class="Body">
-  <a name="1007462"> </a>The <em class="Emphasis"><a href="joinutil-spec.html#1015487">Jini Join Utilities Specification</a></em> defines helper utility classes, supporting interfaces, and supporting classes, that encapsulate functionality related to discovery and registration interactions that a well-behaved Jini service will typically have with a lookup service. Currently, this specification defines only one helper utility class:
+  <a name="1007462"> </a>The <em class="Emphasis"><a href="joinutil-spec.html#1015487">River Join Utilities Specification</a></em> defines helper utility classes, supporting interfaces, and supporting classes, that encapsulate functionality related to discovery and registration interactions that a well-behaved River service will typically have with a lookup service. Currently, this specification defines only one helper utility class:
 </p>
 <ul>
 
@@ -410,13 +410,13 @@ The <code>ConstrainableLookupLocator</code> class is a subclass of <code>net.jin
   <a name="1007476"> </a>US.3.3.1	  The <code>JoinManager</code> Helper Utility
 </h5>
 <p class="Body">
-  <a name="1007514"> </a>The <code>JoinManager</code> is a helper utility class that performs all of the functions related to lookup service discovery, joining, lease renewal, and attribute management, functions that the programming model requires of a well-behaved Jini service. Rather than providing its own facility for providing such functions, a Jini service can employ this class to provide those facilities on its behalf.
+  <a name="1007514"> </a>The <code>JoinManager</code> is a helper utility class that performs all of the functions related to lookup service discovery, joining, lease renewal, and attribute management, functions that the programming model requires of a well-behaved River service. Rather than providing its own facility for providing such functions, a River service can employ this class to provide those facilities on its behalf.
 </p>
 <h4 class="Heading3">
   <a name="1007520"> </a>US.3.4	 The Service Discovery Utilities
 </h4>
 <p class="Body">
-  <a name="1009054"> </a>The <em class="Emphasis"><a href="servicediscutil-spec.html#1010752">Jini Service Discovery Utilities Specification</a></em> defines helper utility classes (with supporting interfaces and classes) that encapsulate functionality that aids a Jini service or client in acquiring services of interest, registered with the various lookup services with which the service or client wishes to interact. Currently, the service discovery utilities specification defines only one helper utility class:
+  <a name="1009054"> </a>The <em class="Emphasis"><a href="servicediscutil-spec.html#1010752">River Service Discovery Utilities Specification</a></em> defines helper utility classes (with supporting interfaces and classes) that encapsulate functionality that aids a River service or client in acquiring services of interest, registered with the various lookup services with which the service or client wishes to interact. Currently, the service discovery utilities specification defines only one helper utility class:
 </p>
 <ul>
 
@@ -433,10 +433,10 @@ The <code>ConstrainableLookupLocator</code> class is a subclass of <code>net.jin
   <a name="1007553"> </a>The <code>ServiceDiscoveryManager</code> class can be asked to "discover" services an entity is interested in using and to cache the references to those services as each is found. The cache can be viewed as a set of services that the entity can access through a set of public, non-remote methods. The <code>ServiceDiscoveryManager</code> class also provides a mechanism for an entity to request notification when a service of interest is discovered for the first time or has encountered a state change (such as removal from all lookup services or attribute set changes).
 </p>
 <p class="Body">
-  <a name="1007555"> </a>For convenience, the <code>ServiceDiscoveryManager</code> class also provides versions of a method named <code>lookup</code>, which employs invocation semantics similar to the semantics of the <code>lookup</code> method of the <code>ServiceRegistrar</code> interface, specified in the <a href="lookup-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Lookup Service Specification</em></a>. Entities needing to find services on only an infrequent basis, or in which the cost of making a remote call is outweighed by the overhead of maintaining a local cache (for example, because of limited resources), may find this method useful.
+  <a name="1007555"> </a>For convenience, the <code>ServiceDiscoveryManager</code> class also provides versions of a method named <code>lookup</code>, which employs invocation semantics similar to the semantics of the <code>lookup</code> method of the <code>ServiceRegistrar</code> interface, specified in the <a href="lookup-spec.html"><em class="Emphasis">River Lookup Service Specification</em></a>. Entities needing to find services on only an infrequent basis, or in which the cost of making a remote call is outweighed by the overhead of maintaining a local cache (for example, because of limited resources), may find this method useful.
 </p>
 <p class="Body">
-  <a name="1007853"> </a>All three mechanisms described above--local queries on the cache, service discovery notification, and remote lookups--employ the same template-matching scheme as that described in the <a href="lookup-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Lookup Service Specification</em></a>. Additionally, each mechanism allows the entity to supply an action object referred to as a <em class="Emphasis">filter</em>. Such an object is a non-remote object that defines additional matching criteria that will be applied when searching for the entity's services of interest. This filtering facility is particularly useful to entities that wish to extend the capabilities of the standard template-matching scheme.
+  <a name="1007853"> </a>All three mechanisms described above--local queries on the cache, service discovery notification, and remote lookups--employ the same template-matching scheme as that described in the <a href="lookup-spec.html"><em class="Emphasis">River Lookup Service Specification</em></a>. Additionally, each mechanism allows the entity to supply an action object referred to as a <em class="Emphasis">filter</em>. Such an object is a non-remote object that defines additional matching criteria that will be applied when searching for the entity's services of interest. This filtering facility is particularly useful to entities that wish to extend the capabilities of the standard template-matching scheme.
 </p>
 <h3 class="Heading2">
   <a name="1007854"> </a>US.4	 Introduction to the Helper Services
@@ -448,13 +448,13 @@ The <code>ConstrainableLookupLocator</code> class is a subclass of <code>net.jin
   <a name="1007660"> </a>Under certain circumstances, a discovering entity may find it useful to allow a third party to perform the entity's discovery duties. For example, an activatable entity that wishes to deactivate may wish to employ a separate helper service to perform discovery duties on the entity's behalf. Such an entity may wish to deactivate for various reasons, one being to conserve computational resources. While the entity is deactivated, the helper service, running on the same or a separate host, would employ the discovery protocols to find lookup services in which the entity has expressed interest and would notify the entity when a previously unavailable lookup service becomes available. Such a helper service is referred to as a <em class="Emphasis">lookup discovery service</em>. 
 </p>
 <p class="Body">
-  <a name="1007694"> </a>The <code>LookupDiscoveryService</code> interface defines the lookup discovery helper service. Through that interface, other Jini services and clients may request that discovery processing be performed on their behalf.
+  <a name="1007694"> </a>The <code>LookupDiscoveryService</code> interface defines the lookup discovery helper service. Through that interface, other River services and clients may request that discovery processing be performed on their behalf.
 </p>
 <h4 class="Heading3">
   <a name="1007697"> </a>US.4.2	 The Lease Renewal Service
 </h4>
 <p class="Body">
-  <a name="1009574"> </a>The <em class="Emphasis">lease renewal service</em>--defined by the <code>net.jini.lease.LeaseRenewalService</code> interface--is a helper service that can be employed by both Jini clients and services to perform all lease renewal duties on their behalf. Services that wish to remain inactive until they are needed may find the lease renewal service quite useful. Such a service can request that the lease renewal service take on the responsibility of renewing the leases granted to the service, and then safely deactivate without risking the loss of access to the resources corresponding to the leases being renewed.
+  <a name="1009574"> </a>The <em class="Emphasis">lease renewal service</em>--defined by the <code>net.jini.lease.LeaseRenewalService</code> interface--is a helper service that can be employed by both River clients and services to perform all lease renewal duties on their behalf. Services that wish to remain inactive until they are needed may find the lease renewal service quite useful. Such a service can request that the lease renewal service take on the responsibility of renewing the leases granted to the service, and then safely deactivate without risking the loss of access to the resources corresponding to the leases being renewed.
 </p>
 <p class="Body">
   <a name="1007713"> </a>Entities that have continuous <em class="Emphasis">access</em> to a network but that cannot be continuously <em class="Emphasis">connected</em> to that network (for example, a cell phone), may also find this service useful. By allowing a lease renewal service (which can be continuously connected) to renew the leases on the resources acquired by the entity, the entity may remain disconnected until needed. This lease renewal service removes the need to perform the discovery and lookup process each time the entity reconnects to the network, potentially resulting in a significant increase in efficiency.
@@ -481,11 +481,11 @@ The <code>ConstrainableLookupLocator</code> class is a subclass of <code>net.jin
 
   <li class="SmartList1"><a name="997298"> </a><em class="Emphasis">Java<font size="-1"><sup>TM</sup></font> Remote Method Invocation Specification</em><p>
   <li class="SmartList1"><a name="997299"> </a><em class="Emphasis">Java<font size="-1"><sup>TM</sup></font> Object Serialization Specification</em><p>
-  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="discovery-spec.html">Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</a></em><p>
-  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="lease-spec.html">Jini<font size="-1"><sup>TM</sup></font> Distributed Leasing Specification</a></em><p>
-  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="txn-spec.html">Jini<font size="-1"><sup>TM</sup></font> Transaction Specification</a></em><p>
-  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="lookup-spec.html">Jini<font size="-1"><sup>TM</sup></font> Lookup Service Specification</a></em><p>
-  <li class="SmartList1"><a name="998598"> </a><em class="Emphasis"><a href="schema-spec.html">Jini<font size="-1"><sup>TM</sup></font> Lookup Attribute Schema Specification</a></em>
+  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="discovery-spec.html">River Discovery and Join Specification</a></em><p>
+  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="lease-spec.html">River Distributed Leasing Specification</a></em><p>
+  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="txn-spec.html">River Transaction Specification</a></em><p>
+  <li class="SmartList1"><a name="1009473"> </a><em class="Emphasis"><a href="lookup-spec.html">River Lookup Service Specification</a></em><p>
+  <li class="SmartList1"><a name="998598"> </a><em class="Emphasis"><a href="schema-spec.html">River Lookup Attribute Schema Specification</a></em>
 </ul>
 </p>
 
@@ -545,7 +545,7 @@ limitations under the License.
 <a href="#skip" title="Skip navigation bar"></a>
 <table width="100%"><tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-</td><td align=right><em>A Collection of Jini<font size="-1"><sup>TM</sup></font> Technology Helper Utilities and Services Specifications</em></td>
+</td><td align=right><em>A Collection of River Technology Helper Utilities and Services Specifications</em></td>
 </tr></table>
 <a name="skip"></a>
 

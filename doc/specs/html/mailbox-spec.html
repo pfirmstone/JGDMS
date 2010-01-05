@@ -22,7 +22,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
 <link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
-<title>Jini Event Mailbox Service Specification  </title>
+<title>River Event Mailbox Service Specification  </title>
 </head>
 
 <body bgcolor="#ffffff">
@@ -32,7 +32,7 @@
 <table width="100%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a></td>
-<td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications
+<td align=right><i>A Collection of River Technology Helper Utilities and Services Specifications
 </i></td>
 </tr>
 </table>
@@ -48,19 +48,19 @@
 </table>
 <blockquote>
 <h2>
-  <a name="1005479"> </a>EM - Jini<font size="-1"><sup>TM</sup></font> Event Mailbox Service Specification
+  <a name="1005479"> </a>EM - River Event Mailbox Service Specification
 </h2>
 <h3 class="Heading2">
   <a name="1000110"> </a>EM.1	 Introduction
 </h3>
 <p class="Body">
-  <a name="1001466"> </a>The <a href="event-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Distributed Events Specification</em></a> states the ability to interpose third-party objects, or "agents," into an event notification chain as one of its design goals. This specification also describes a notification mailbox object, which stores and forwards event notifications on behalf of other objects, as an example of a useful third-party agent. These mailbox objects can be particularly helpful for objects that need more control over how and when they receive event notifications.
+  <a name="1001466"> </a>The <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a> states the ability to interpose third-party objects, or "agents," into an event notification chain as one of its design goals. This specification also describes a notification mailbox object, which stores and forwards event notifications on behalf of other objects, as an example of a useful third-party agent. These mailbox objects can be particularly helpful for objects that need more control over how and when they receive event notifications.
 </p>
 <p class="Body">
-  <a name="1009565"> </a>For example, it would be impossible to send event notifications to a transient entity that has detached itself from a system of Jini<font size="-1"><sup>TM</sup></font> technology-enabled services and/or devices (<em class="Emphasis">Jini system</em>). In such a situation an entity could employ the services of an event mailbox to store event notifications on its behalf before leaving the system. Upon rejoining the Jini system, the entity could then contact the event mailbox to retrieve any collected events that it would otherwise have missed. Similarly, an entity that wishes to deactivate could use an event mailbox to collect event notifications on its behalf while dormant.
+  <a name="1009565"> </a>For example, it would be impossible to send event notifications to a transient entity that has detached itself from a system of River technology-enabled services and/or devices (<em class="Emphasis">River system</em>). In such a situation an entity could employ the services of an event mailbox to store event notifications on its behalf before leaving the system. Upon rejoining the River system, the entity could then contact the event mailbox to retrieve any collected events that it would otherwise have missed. Similarly, an entity that wishes to deactivate could use an event mailbox to collect event notifications on its behalf while dormant.
 </p>
 <p class="Body">
-  <a name="1005881"> </a>Like other Jini technology-enabled services (<em class="Emphasis">Jini services</em>), the event mailbox service will grant its services only for a limited period of time without an active expression of continuing interest. Therefore, event mailbox clients still need to renew their leases if they intend to maintain the mailbox's services beyond the initially granted lease period. Any resources (for example, remote objects or storage space) associated with a particular client can be freed once the client's lease has expired or been cancelled. In the previous usage scenarios, it might also benefit a transient or deactivatable entity to employ the services of a lease renewal service (see the <a href="lrs-spec.html"><em class="Emphasis">Jini Lease Renewal Service Specification</em></a>) to help mitigate the issue of lease maintenance.
+  <a name="1005881"> </a>Like other River technology-enabled services (<em class="Emphasis">River services</em>), the event mailbox service will grant its services only for a limited period of time without an active expression of continuing interest. Therefore, event mailbox clients still need to renew their leases if they intend to maintain the mailbox's services beyond the initially granted lease period. Any resources (for example, remote objects or storage space) associated with a particular client can be freed once the client's lease has expired or been cancelled. In the previous usage scenarios, it might also benefit a transient or deactivatable entity to employ the services of a lease renewal service (see the <a href="lrs-spec.html"><em class="Emphasis">River Lease Renewal Service Specification</em></a>) to help mitigate the issue of lease maintenance.
 </p>
 <p class="Body">
   <a name="1009032"> </a>The remainder of this specification defines the requirements, interfaces, and protocols of the event mailbox service.
@@ -75,7 +75,7 @@
 
   <li class="SmartList1"><a name="1000304"> </a>To define a service that is capable of storing event notifications on behalf of its clients and capable of delivering stored event notifications to those clients upon request<p>
   <li class="SmartList1"><a name="1005900"> </a>To provide this service in such a way that it can be used by entities that are temporarily unable or unwilling to receive event notifications<p>
-  <li class="SmartList1"><a name="1000305"> </a>To provide a service that complies with the policies embodied in the Jini technology programming model
+  <li class="SmartList1"><a name="1000305"> </a>To provide a service that complies with the policies embodied in the River technology programming model
 </ul>
 
 <p class="Body">
@@ -91,7 +91,7 @@
   <a name="1000302"> </a>EM.1.2	 Other Types
 </h4>
 <p class="Body">
-  <a name="1000008"> </a>The types defined in the specification of the event mailbox service are in the <code>net.jini.event</code> package. This specification assumes knowledge of the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a> and the <a href="lease-spec.html"><em class="Emphasis">Jini Distributed Leasing Specification</em></a>. The following object types may be referenced in this chapter. Whenever referenced, these object types will be referenced in unqualified form:
+  <a name="1000008"> </a>The types defined in the specification of the event mailbox service are in the <code>net.jini.event</code> package. This specification assumes knowledge of the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a> and the <a href="lease-spec.html"><em class="Emphasis">River Distributed Leasing Specification</em></a>. The following object types may be referenced in this chapter. Whenever referenced, these object types will be referenced in unqualified form:
 </p>
 <p class="Body">
   <a name="1009048"> </a>
@@ -108,7 +108,7 @@ net.jini.core.lease.LeaseDeniedException
   <a name="1001523"> </a>EM.2	 The Interface
 </h3>
 <p class="Body">
-  <a name="1009792"> </a>The <code>EventMailbox</code> defines the interface to the event mailbox service. Through this interface, other Jini services and clients may request that event notification management be performed on their behalf. This interface belongs to the <code>net.jini.event</code> package, and any service implementing this interface must comply with the definition of a Jini service. This interface is not a remote interface; each implementation exports a proxy object that implements this interface local to the client, using an implementation-specific protocol to communicate with the actual remote server. All of the proxy methods obey normal Java<font size="-1"><sup>TM</sup></font> Remote Method Invocation (Java RMI) interface semantics and can therefore be implemented directly using Java RMI (except where explicitly noted). Two proxy objects are equal (using the <code>equals</code> method) if they are proxies for the same event mailbox service.
+  <a name="1009792"> </a>The <code>EventMailbox</code> defines the interface to the event mailbox service. Through this interface, other River services and clients may request that event notification management be performed on their behalf. This interface belongs to the <code>net.jini.event</code> package, and any service implementing this interface must comply with the definition of a River service. This interface is not a remote interface; each implementation exports a proxy object that implements this interface local to the client, using an implementation-specific protocol to communicate with the actual remote server. All of the proxy methods obey normal Java<font size="-1"><sup>TM</sup></font> Remote Method Invocation (Java RMI) interface semantics and can therefore be implemented directly using Java RMI (except where explicitly noted). Two proxy objects are equal (using the <code>equals</code> method) if they are proxies for the same event mailbox service.
 </p>
 <pre  class="Preformatted">
 package net.jini.event;
@@ -184,10 +184,10 @@ public interface MailboxRegistration
   <a name="1006088"> </a>EM.4.1	 The Semantics
 </h4>
 <p class="Body">
-  <a name="1009632"> </a>The <code>getLease</code> method returns the <code>Lease</code> object associated with the registration. The client can renew or cancel the registration with the mailbox service through the <code>Lease</code> object returned by this method (see the <a href="lease-spec.html"><em class="Emphasis">Jini Distributed Leasing Specification</em></a>). This method is not remote and takes no arguments.
+  <a name="1009632"> </a>The <code>getLease</code> method returns the <code>Lease</code> object associated with the registration. The client can renew or cancel the registration with the mailbox service through the <code>Lease</code> object returned by this method (see the <a href="lease-spec.html"><em class="Emphasis">River Distributed Leasing Specification</em></a>). This method is not remote and takes no arguments.
 </p>
 <p class="Body">
-  <a name="1006102"> </a>The <code>getListener</code> method returns an object that implements the interface <code>RemoteEventListener</code>. This object, referred to as a <em class="Emphasis">mailbox listener</em>, can then be submitted as the <code>RemoteEventListener</code> argument to an event generator's registration method(s) (see the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>). Subsequent calls to this method will return equivalent objects (in the <code>equals</code> sense). Note that mailbox listeners generated by different registrations will not be equal. This method is not remote and takes no arguments.
+  <a name="1006102"> </a>The <code>getListener</code> method returns an object that implements the interface <code>RemoteEventListener</code>. This object, referred to as a <em class="Emphasis">mailbox listener</em>, can then be submitted as the <code>RemoteEventListener</code> argument to an event generator's registration method(s) (see the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a>). Subsequent calls to this method will return equivalent objects (in the <code>equals</code> sense). Note that mailbox listeners generated by different registrations will not be equal. This method is not remote and takes no arguments.
 </p>
 <p class="Body">
   <a name="1006111"> </a>The valid period of use for a mailbox listener is tied to the associated registration's lease. A <code>NoSuchObjectException</code> will be thrown if an attempt is made to invoke the <code>notify</code> method on a mailbox listener whose associated lease has terminated.
@@ -241,7 +241,7 @@ The algorithm used to classify exceptions as definite or indefinite is implement
   <a name="1009616"> </a>EM.5	 The Interface
 </h3>
 <p class="Body">
-The <code>PullEventMailbox</code> defines the interface to the pull event mailbox service (the mailbox service). Through this interface, other Jini technology-enabled services and clients may request that event notification management be performed on their behalf. This interface belongs to the <code>net.jini.event</code> package. This interface is not a remote interface; each implementation exports a proxy object that implements this interface local to the client, using an implementation-specific protocol to communicate with the actual remote server. All of the proxy methods obey normal Java RMI interface semantics and can therefore be implemented directly using Java RMI. Two proxy objects are equal (using the <code>equals</code> method) if they are proxies for the same mailbox service.
+The <code>PullEventMailbox</code> defines the interface to the pull event mailbox service (the mailbox service). Through this interface, other River technology-enabled services and clients may request that event notification management be performed on their behalf. This interface belongs to the <code>net.jini.event</code> package. This interface is not a remote interface; each implementation exports a proxy object that implements this interface local to the client, using an implementation-specific protocol to communicate with the actual remote server. All of the proxy methods obey normal Java RMI interface semantics and can therefore be implemented directly using Java RMI. Two proxy objects are equal (using the <code>equals</code> method) if they are proxies for the same mailbox service.
 <pre>
 package net.jini.event;
 
@@ -390,7 +390,7 @@ limitations under the License.
 <a href="#skip" title="Skip navigation bar"></a>
 <table width="100%"><tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-<td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications</i></td>
+<td align=right><i>A Collection of River Technology Helper Utilities and Services Specifications</i></td>
 </tr></table>
 <a name="skip"></a>
 

@@ -22,7 +22,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
 <link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
-<title>Jini Technology Lookup Service Specification</title>
+<title>River Technology Lookup Service Specification</title>
 </head>
 
 <body bgcolor="#ffffff">
@@ -32,7 +32,7 @@
 <table width="90%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-</td><td align=right><em>Jini Technology Core Platform Specifications</em></td>
+</td><td align=right><em>River Technology Core Platform Specifications</em></td>
 </tr>
 </table>
 <br clear="all">
@@ -46,13 +46,13 @@
 </table>
 <a name="skip"></a>
 <blockquote>
-<h2>LU - Jini<font size="-1"><sup>TM</sup></font> Lookup Service Specification<br>
+<h2>LU - River Lookup Service Specification<br>
 </h2>
 <h3 class="Heading2">
   <a name="1021843"> </a>LU.1	 Introduction
 </h3>
 <p class="Body">
-  The Jini<font size="-1"><sup>TM</sup></font> lookup service is a fundamental part of the federation infrastructure for a <em class="Emphasis">djinn,</em> the group of devices, resources, and users that are joined by the Jini technology infrastructure. The<em class="Emphasis"> lookup service</em> provides a central registry of services available within the djinn. This lookup service is a primary means for programs to find services within the djinn, and is the foundation for providing user interfaces through which users and administrators can discover and interact with services in the djinn.
+  The River lookup service is a fundamental part of the federation infrastructure for a <em class="Emphasis">djinn,</em> the group of devices, resources, and users that are joined by the River technology infrastructure. The<em class="Emphasis"> lookup service</em> provides a central registry of services available within the djinn. This lookup service is a primary means for programs to find services within the djinn, and is the foundation for providing user interfaces through which users and administrators can discover and interact with services in the djinn.
 </p>
 <p class="Body">
   <a name="997331"> </a>Although the primary purpose of this specification is to define the interface to the djinn's central service registry, the interfaces defined here can readily be used in other service registries.
@@ -82,10 +82,10 @@
   <a name="997207"> </a>LU.1.2	 Attributes
 </h4>
 <p class="Body">
-  <a name="997454"> </a>The attributes of a service item are represented as a set of attribute sets. An individual <em class="Emphasis">attribute set</em> is represented as an instance of some class for the Java platform, each attribute being a public field of that class. The class provides strong typing of both the set and the individual attributes. A service item can contain multiple instances of the same class with different attribute values, as well as multiple instances of different classes. For example, an item might have multiple instances of a <code>Name</code> class, each giving the common name of the service in a different language, plus an instance of a <code>Location</code> class, an <code>Owner</code> class, and various service-specific classes. The schema used for attributes is not constrained by this specification, but a standard foundation schema for Jini technology-enabled systems is defined in the <em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Lookup Attribute Schema Specification</em>.
+  <a name="997454"> </a>The attributes of a service item are represented as a set of attribute sets. An individual <em class="Emphasis">attribute set</em> is represented as an instance of some class for the Java platform, each attribute being a public field of that class. The class provides strong typing of both the set and the individual attributes. A service item can contain multiple instances of the same class with different attribute values, as well as multiple instances of different classes. For example, an item might have multiple instances of a <code>Name</code> class, each giving the common name of the service in a different language, plus an instance of a <code>Location</code> class, an <code>Owner</code> class, and various service-specific classes. The schema used for attributes is not constrained by this specification, but a standard foundation schema for River technology-enabled systems is defined in the <em class="Emphasis">River Lookup Attribute Schema Specification</em>.
 </p>
 <p class="Body">
-  <a name="997218"> </a>Concretely, a set of attributes is implemented with a class that correctly implements the interface <code>net.jini.core.entry.Entry</code>, as described in the <em><a href="entry-spec.html#30282">Jini<font size="-1"><sup>TM</sup></font> Entry Specification</em></a>. Operations on the lookup service are defined in terms of template matching, using the same semantics as in the <em><a href="entry-spec.html#30282">Jini<font size="-1"><sup>TM</sup></font> Entry Specification</em></a>, but the definition is augmented to deal with sets of entries and sets of templates. A set of entries matches a set of templates if there is at least one matching entry for every template (with every entry usable as the match for more than one template).
+  <a name="997218"> </a>Concretely, a set of attributes is implemented with a class that correctly implements the interface <code>net.jini.core.entry.Entry</code>, as described in the <em><a href="entry-spec.html#30282">River Entry Specification</em></a>. Operations on the lookup service are defined in terms of template matching, using the same semantics as in the <em><a href="entry-spec.html#30282">River Entry Specification</em></a>, but the definition is augmented to deal with sets of entries and sets of templates. A set of entries matches a set of templates if there is at least one matching entry for every template (with every entry usable as the match for more than one template).
 </p>
 <p class="Body">
   <a name="1021269"> </a>
@@ -352,10 +352,10 @@ public interface ServiceRegistrar {
   <a name="1020504"> </a>Every lookup service assigns itself a service ID when it is first created; this service ID is returned by the <code>getServiceID</code> method. (Note that this does not make a remote call.) A lookup service is always registered with itself under this service ID, and if a lookup service is configured to register itself with other lookup services, it will register with all of them using this same service ID.
 </p>
 <p class="Body">
-  <a name="1020516"> </a>The <code>getLocator</code> method returns a <code>LookupLocator</code> that can be used if necessary for unicast discovery of the lookup service. The definition of this class is given in the <em><a href="discovery-spec.html#40553">Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</em></a>.
+  <a name="1020516"> </a>The <code>getLocator</code> method returns a <code>LookupLocator</code> that can be used if necessary for unicast discovery of the lookup service. The definition of this class is given in the <em><a href="discovery-spec.html#40553">River Discovery and Join Specification</em></a>.
 </p>
 <p class="Body">
-  <a name="1020517"> </a>The <code>getGroups</code> method returns the set of groups that this lookup service is currently a member of. The semantics of these groups is defined in the <em><a href="discovery-spec.html#40553">Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</em></a>.
+  <a name="1020517"> </a>The <code>getGroups</code> method returns the set of groups that this lookup service is currently a member of. The semantics of these groups is defined in the <em><a href="discovery-spec.html#40553">River Discovery and Join Specification</em></a>.
 </p>
 <h4 class="Heading3">
   <a name="1020411"> </a>LU.2.6	 ServiceRegistration 
@@ -490,7 +490,7 @@ limitations under the License.
 <a href="#skip" title="Skip navigation bar"></a>
 <table width="100%"><tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-</td><td align=right><em>Jini Technology Core Platform Specifications</em></td>
+</td><td align=right><em>River Technology Core Platform Specifications</em></td>
 </tr></table>
 <a name="skip"></a>
 

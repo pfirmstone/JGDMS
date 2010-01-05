@@ -22,14 +22,14 @@
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
 <link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
-<title>Jini Discovery & Join Specification</title>
+<title>River Discovery & Join Specification</title>
 </head>
 <body bgcolor="#ffffff">
 <a href="#skip" title="Skip navigation bar"></a>
 <table width="90%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a></td>
-<td align=right><em>Jini Technology Core Platform Specifications</em></td>
+<td align=right><em>River Technology Core Platform Specifications</em></td>
 </tr>
 </table>
 <a name="skip"></a>
@@ -46,13 +46,13 @@
 <blockquote>
 <h2 align="left">
 <a name="40553"></a>
-  <a name="999930"> </a>DJ - Jini<font size="-1"><sup>TM</sup></font> Discovery & Join Specification	 
+  <a name="999930"> </a>DJ - River Discovery & Join Specification	 
 </h2>
 <h3 class="Heading2">
   <a name="18973"> </a>DJ.1	 Introduction
 </h3>
 <p class="Body">
-  <a name="2506"> </a>Entities that wish to start participating in a distributed system of Jini<font size="-1"><sup>TM</sup></font> technology-enabled services and/or devices, known as a <em class="Emphasis">djinn</em>, must first obtain references to one or more Jini lookup services. The protocols that govern the acquisition of these references are known as the <em class="Emphasis">discovery</em> protocols. Once these references have been obtained, a number of steps must be taken for entities to start communicating usefully with services in a djinn; these steps are described by the <em class="Emphasis">join</em> protocol.
+  <a name="2506"> </a>Entities that wish to start participating in a distributed system of River technology-enabled services and/or devices, known as a <em class="Emphasis">djinn</em>, must first obtain references to one or more River lookup services. The protocols that govern the acquisition of these references are known as the <em class="Emphasis">discovery</em> protocols. Once these references have been obtained, a number of steps must be taken for entities to start communicating usefully with services in a djinn; these steps are described by the <em class="Emphasis">join</em> protocol.
 </p>
 <h4 class="Heading3">
   <a name="2830"> </a>DJ.1.1	 Terminology
@@ -65,14 +65,14 @@
 </p>
 <ul>
 
-  <li class="SmartList1"><a name="3844"> </a>A <em class="Emphasis">discovering entity</em> is simply one or more cooperating objects in the Java programming language on the same host that are about to start, or are in the process of, obtaining references to Jini lookup services. 
+  <li class="SmartList1"><a name="3844"> </a>A <em class="Emphasis">discovering entity</em> is simply one or more cooperating objects in the Java programming language on the same host that are about to start, or are in the process of, obtaining references to River lookup services. 
   <li class="SmartList1"><a name="2834"> </a>A <em class="Emphasis">joining entity</em> comprises one or more cooperating objects in the Java programming language on the same host that have just received a reference to the lookup service and are in the process of obtaining services from, and possibly exporting them to, a djinn. 
   <li class="SmartList1"><a name="2835"> </a>An <em class="Emphasis">entity</em> may be a discovering entity, a joining entity, or an entity that is already a member of a djinn; the intended meaning should be clear from the context.
   <li class="SmartList1"><a name="3796"> </a>A <em class="Emphasis">group</em> is a logical name by which a djinn is identified.
 </ul>
 
 <p class="Body">
-  <a name="2836"> </a>Since all participants in a djinn are collections of one or more objects in the Java programming language, this document will not make a distinction between an entity that is a dedicated device using Jini technology or something running in a <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">JVM</span> that is hosted on a legacy system. Such distinctions will be made only when necessary.
+  <a name="2836"> </a>Since all participants in a djinn are collections of one or more objects in the Java programming language, this document will not make a distinction between an entity that is a dedicated device using River technology or something running in a <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">JVM</span> that is hosted on a legacy system. Such distinctions will be made only when necessary.
 </p>
 <h4 class="Heading3">
   <a name="2670"> </a>DJ.1.2	 Host Requirements
@@ -82,7 +82,7 @@
 </p>
 <ul>
 
-  <li class="SmartList1"><a name="2672"> </a>A functioning <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">JVM</span>, with access to all packages needed to run software written to the Jini specifications
+  <li class="SmartList1"><a name="2672"> </a>A functioning <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">JVM</span>, with access to all packages needed to run software written to the River specifications
   <li class="SmartList1"><a name="2735"> </a>A properly configured network protocol stack
 </ul>
 
@@ -98,7 +98,7 @@
 <ul>
 
   <li class="SmartList1"><a name="2741"> </a>An IP address. IP addresses may be statically assigned to some hosts, but we expect that many hosts will have addresses assigned to them dynamically. Dynamic IP addresses are obtained by hosts through use of <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">DHCP</span>.
-  <li class="SmartList1"><a name="2742"> </a>Support for unicast <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">TCP</span> and multicast <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">UDP</span>. The former is used by subsystems using Jini technology such as Java Remote Method Invocation (<span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">Java RMI</span>); both are used during discovery.
+  <li class="SmartList1"><a name="2742"> </a>Support for unicast <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">TCP</span> and multicast <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">UDP</span>. The former is used by subsystems using River technology such as Java Remote Method Invocation (<span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">Java RMI</span>); both are used during discovery.
   <li class="SmartList1"><a name="2743"> </a>Provision of some mechanism, such as a simple <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">HTTP</span> server, that facilitates the downloading of code (for example, for service proxies or Java <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">Java RMI</span> stubs) by remote parties. This mechanism does not have to be provided by the host itself, but the code must be made available by some cooperating party.
 </ul>
 
@@ -507,7 +507,7 @@
   <a name="19194"> </a>DJ.2.5	 The Multicast Announcement Protocol
 </h4>
 <p class="Body">
-  <a name="19195"> </a>The multicast announcement protocol is used by Jini lookup services to announce their availability to interested parties within multicast radius. Participants in this protocol are the multicast announcement client, which resides on the same system as a lookup service, and the multicast announcement server, at least one instance of which exists on every entity that listens for such announcements.
+  <a name="19195"> </a>The multicast announcement protocol is used by River lookup services to announce their availability to interested parties within multicast radius. Participants in this protocol are the multicast announcement client, which resides on the same system as a lookup service, and the multicast announcement server, at least one instance of which exists on every entity that listens for such announcements.
 </p>
 <p class="Body">
   <a name="19196"> </a>The multicast announcement client is a long-lived process; it must start at about the same time as the lookup service itself and remain running as long as the lookup service is alive.
@@ -1516,13 +1516,13 @@
   <a name="19569"> </a>Whether or not calls to the discovery request service will need to be bridged across <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">LAN</span> or wide area network (<span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">WAN</span>) segments will depend on the network protocol being used and the topology of the local network.
 </p>
 <p class="Body">
-  <a name="19570"> </a>In an environment in which every <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">LAN</span> segment happens to host a Jini lookup service, bridging might not be necessary. This does not seem likely to be a typical scenario.
+  <a name="19570"> </a>In an environment in which every <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">LAN</span> segment happens to host a River lookup service, bridging might not be necessary. This does not seem likely to be a typical scenario.
 </p>
 <p class="Body">
   <a name="19571"> </a>Where the underlying transport is multicast IP, intelligent bridges and routers must be able to forward packets appropriately. This simply requires that they support one of the multicast IP routing protocols; most router vendors already do so.
 </p>
 <p class="Body">
-  <a name="19572"> </a>If the underlying transport were permitted to be local-area IP broadcast, some kind of intelligent broadcast relay would be required, similar to that described in the <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">DHCP</span> and <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">BOOTP</span> specifications. Since this would increase the complexity of the infrastructure needed to support the Jini discovery protocol, we mandate use of multicast IP instead of broadcast IP.
+  <a name="19572"> </a>If the underlying transport were permitted to be local-area IP broadcast, some kind of intelligent broadcast relay would be required, similar to that described in the <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">DHCP</span> and <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">BOOTP</span> specifications. Since this would increase the complexity of the infrastructure needed to support the River discovery protocol, we mandate use of multicast IP instead of broadcast IP.
 </p>
 <h4 class="Heading3">
   <a name="19573"> </a>DJ.5.3	 Limiting the Scope of Multicasts
@@ -1540,7 +1540,7 @@
   <a name="19577"> </a>DJ.5.5	 Address and Port Mappings for TCP and Multicast UDP
 </h4>
 <p class="Body">
-  <a name="19461"> </a>The port number for Jini lookup discovery requests is <code>4160</code>. This applies to both the multicast and unicast discovery protocols. For multicast discovery the IP address of the multicast group over which discovery requests should travel is <code>224.0.1.85</code>. Multicast announcements should use the address <code>224.0.1.84</code>.
+  <a name="19461"> </a>The port number for River lookup discovery requests is <code>4160</code>. This applies to both the multicast and unicast discovery protocols. For multicast discovery the IP address of the multicast group over which discovery requests should travel is <code>224.0.1.85</code>. Multicast announcements should use the address <code>224.0.1.84</code>.
 </p>
 <p class="Body">
   <a name="19635"> </a>
@@ -1611,10 +1611,10 @@ p class="Body">The <code>hashCode</code> method returns a hash value calculated 
 A similar timeout is implied for the no-arg form of this method. It invokes the one-arg form of the method, passing to it a timeout value. The timeout in milliseconds may be specified globally using the <code>net.jini.discovery.timeout</code> system property. A default equal to 60 seconds is assumed if the system property is not set, set to a negative value, or cannot be parsed as an <code>Integer</code>.
 </p>
 <h4 class="Heading3">
-  <a name="19664"> </a>DJ.6.1	 Jini Technology URL Syntax
+  <a name="19664"> </a>DJ.6.1	 River Technology URL Syntax
 </h4>
 <p class="Body">
-  <a name="19665"> </a>The syntax of the Jini technology URL is that of a <em>hierarchical</em> URI with a <em>server-based naming authority</em> (host and optional port). The URI syntax is defined in RFC 2396. The components of the URL must satisfy the following requirements:
+  <a name="19665"> </a>The syntax of the River technology URL is that of a <em>hierarchical</em> URI with a <em>server-based naming authority</em> (host and optional port). The URI syntax is defined in RFC 2396. The components of the URL must satisfy the following requirements:
 </p>
 <ul>
 
@@ -1708,7 +1708,7 @@ Miscellaneous corrections.<br>
     <td valign="top">v3.0
 	</td>
     <td>Correct specification for the computation of Discovery Format IDs.<br>
-    Clarify Jini Technology URL syntax.<br>
+    Clarify River Technology URL syntax.<br>
     Clarify that null format ID unicast responses only need version number.<br>
     Add format id for net.jini.discovery.x500.SHA1withRSA format.<br>
     Miscellaneous edits.
@@ -1753,7 +1753,7 @@ limitations under the License.
 <a href="#skip" title="Skip navigation bar"></a>
 <table width="100%"><tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-</td><td align=right><em>Jini Technology Core Platform Specifications</em></td>
+</td><td align=right><em>River Technology Core Platform Specifications</em></td>
 </tr></table>
 <a name="skip"></a>
 
