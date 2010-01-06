@@ -22,7 +22,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
 <link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
-<title>River Join Utilities Specification  </title>
+<title>Jini Join Utilities Specification  </title>
 </head>
 
 <body bgcolor="#ffffff">
@@ -32,7 +32,7 @@
 <table width="100%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a></td>
-<td align=right><i>A Collection of River Technology Helper Utilities and Services Specifications</i></td>
+<td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications</i></td>
 </tr>
 </table>
 <br clear="all">
@@ -47,12 +47,12 @@
 <a name="skip"></a>
 <blockquote>
 <h2>
-  <a name="1015487"> </a>JU - River Join Utilities Specification</h2>
+  <a name="1015487"> </a>JU - Jini<font size="-1"><sup>TM</sup></font> Join Utilities Specification</h2>
 <h3 class="Heading2">
   <a name="1015667"> </a>JU.1	 Introduction
 </h3>
 <p class="Body">
-  <a name="1015702"> </a>This specification defines helper utility classes, along with supporting interfaces and classes, that encapsulate functionality that can help River technology-based services (River services) demonstrate good behavior in their discovery and registration related interactions with River lookup services. In particular, the River join utilities perform functions related to lookup service discovery and registration (joining), as well as lease renewal and attribute management, which the River technology programming model requires of a well-behaved River service. Currently, this specification defines only one helper utility class:
+  <a name="1015702"> </a>This specification defines helper utility classes, along with supporting interfaces and classes, that encapsulate functionality that can help Jini<font size="-1"><sup>TM</sup></font> technology-based services (Jini services) demonstrate good behavior in their discovery and registration related interactions with Jini lookup services. In particular, the Jini join utilities perform functions related to lookup service discovery and registration (joining), as well as lease renewal and attribute management, which the Jini technology programming model requires of a well-behaved Jini service. Currently, this specification defines only one helper utility class:
 </p>
 <ul>
 
@@ -63,22 +63,22 @@
   <a name="1015670"> </a>JU.2	 The <code>JoinManager</code>
 </h3>
 <p class="Body">
-  <a name="1016181"> </a>The goal of any well-behaved River service, implemented within the bounds defined by the River technology programming model, is to advertise the service it provides by requesting residency within at least one River lookup service. Making such a request of a River lookup service is known as registering with, or <em class="Emphasis">joining</em>, a lookup service. To demonstrate this good behavior, a service must comply with both the multicast discovery protocol and the unicast discovery protocol to discover the lookup services it is interested in joining. The service must also comply with the join protocol to register with the desired lookup services. The details of the discovery and join protocols are described in the <a href="discovery-spec.html"><em class="Emphasis">River Technology Discovery and Join Specification</em></a>.
+  <a name="1016181"> </a>The goal of any well-behaved Jini service, implemented within the bounds defined by the Jini technology programming model, is to advertise the service it provides by requesting residency within at least one Jini lookup service. Making such a request of a Jini lookup service is known as registering with, or <em class="Emphasis">joining</em>, a lookup service. To demonstrate this good behavior, a service must comply with both the multicast discovery protocol and the unicast discovery protocol to discover the lookup services it is interested in joining. The service must also comply with the join protocol to register with the desired lookup services. The details of the discovery and join protocols are described in the <a href="discovery-spec.html"><em class="Emphasis">Jini Technology Discovery and Join Specification</em></a>.
 </p>
 <p class="Body">
   <a name="1016156"> </a>For the service to maintain its residency in the lookup services it has joined, the service must provide for the coordination, systematic renewal, and overall management of all leases on that residency. In addition to handling all discovery and join duties, as well as managing all leases on lookup service residency, the service must provide for the coordination and management of any attribute sets with which it may have registered.
 </p>
 <p class="Body">
-  <a name="1016215"> </a>With respect to the duties described above, a River service may perform all but the attribute set management duties by using the helper utility classes <code>LookupDiscoveryManager</code> and <code>LeaseRenewalManager</code>. (For information on these classes, refer to the <a href="discoveryutil-spec.html"><em class="Emphasis">River Discovery Utilities Specification</em>, Section DU.5, "The LookupDiscoveryManager Utility"</a>,  and the <a href="leaseutil-spec.html"><em class="Emphasis">River Lease Utilities Specification</em>, Section LM.2, "The LeaseRenewalManager"</a>).
+  <a name="1016215"> </a>With respect to the duties described above, a Jini service may perform all but the attribute set management duties by using the helper utility classes <code>LookupDiscoveryManager</code> and <code>LeaseRenewalManager</code>. (For information on these classes, refer to the <a href="discoveryutil-spec.html"><em class="Emphasis">Jini Discovery Utilities Specification</em>, Section DU.5, "The LookupDiscoveryManager Utility"</a>,  and the <a href="leaseutil-spec.html"><em class="Emphasis">Jini Lease Utilities Specification</em>, Section LM.2, "The LeaseRenewalManager"</a>).
 </p>
 <p class="Body">
-  <a name="1002807"> </a>Rather than writing a service to use these classes in a coordinated fashion (in addition to providing for attribute management), the service may be written to employ the <code>JoinManager</code> class from the <code>net.jini.lookup</code> package. This utility class performs all of the functions related to discovery, joining, service lease renewal, and attribute management that the River technology programming model requires of a well-behaved River service. Each of these activities is intimately involved with the maintenance of a service's residency in one or more lookup services (the service's <em class="Emphasis">join state</em>), hence the name <code>JoinManager</code>.
+  <a name="1002807"> </a>Rather than writing a service to use these classes in a coordinated fashion (in addition to providing for attribute management), the service may be written to employ the <code>JoinManager</code> class from the <code>net.jini.lookup</code> package. This utility class performs all of the functions related to discovery, joining, service lease renewal, and attribute management that the Jini technology programming model requires of a well-behaved Jini service. Each of these activities is intimately involved with the maintenance of a service's residency in one or more lookup services (the service's <em class="Emphasis">join state</em>), hence the name <code>JoinManager</code>.
 </p>
 <p class="Body">
   <a name="1002812"> </a>The <code>JoinManager</code> class provides an implementation of the functionality described above. The use of this class in a wide variety of services can help minimize the work resulting from having to repeatedly implement this required functionality in each service.
 </p>
 <p class="Body">
-  <a name="1001884"> </a>The <code>JoinManager</code> is a utility class, not a remote service. River services that wish to use this utility will create an instance of the <code>JoinManager</code> in the service's address space to manage the entity's join state locally.
+  <a name="1001884"> </a>The <code>JoinManager</code> is a utility class, not a remote service. Jini services that wish to use this utility will create an instance of the <code>JoinManager</code> in the service's address space to manage the entity's join state locally.
 </p>
 <p class="Body">
   <a name="1003456"> </a>Note that when either the term <em>service</em> or the term <em>entity</em> is used, it refers to the object that has created an instance of the <code>JoinManager</code> and avails itself of the public methods of that utility class.
@@ -209,7 +209,7 @@ If the reference to the service to be registered is not <code>Serializable</code
   <a name="1016267"> </a>A constructor from the first category is typically used by services that have not yet been assigned a service ID, but that have been pre-configured to join lookup services that the service identifies through the initialization of a discovery manager.
 </p>
 <p class="Body">
-  <a name="1002941"> </a>The constructors from the second category each take the same arguments as the constructors from the first category, except that an instance of <code>ServiceID</code> replaces the instance of <code>ServiceIDListener</code>. Note that the <code>ServiceID</code> class is defined in the <a href="lookup-spec.html"><em class="Emphasis">River Technology Lookup Service Specification</em></a>, and the <code>ServiceIDListener</code> interface is described later in this document.
+  <a name="1002941"> </a>The constructors from the second category each take the same arguments as the constructors from the first category, except that an instance of <code>ServiceID</code> replaces the instance of <code>ServiceIDListener</code>. Note that the <code>ServiceID</code> class is defined in the <a href="lookup-spec.html"><em class="Emphasis">Jini Technology Lookup Service Specification</em></a>, and the <code>ServiceIDListener</code> interface is described later in this document.
 </p>
 <p class="Body">
   <a name="1002065"> </a>Constructors from the second category each apply the same semantics to the <code>serviceProxy</code>, <code>attrSets</code>, <code>discoveryMgr</code>, and <code>leaseMgr</code> arguments as is applied by the constructors from the first category.
@@ -260,7 +260,7 @@ There are two forms of the <code>addAttributes</code> method. Both forms of this
 <p class="Body">
 An invocation of either form of this method with duplicate elements in the <code>attrSets</code> parameter (where duplication means attribute equality as defined by calling the <code>MarshalledObject.equals</code> method on field values) is equivalent to performing the invocation with the duplicates removed from that parameter. If <code>null</code> is passed in as the value of this parameter, a <code>NullPointerException</code> will be thrown.
 <p class="Body">
-The second form of this method also takes as input a flag indicating whether or not this method should determine if the attributes in the input set are instances of the <code>ServiceControlled</code> interface, which is a marker interface that is used to control which entities may modify a service's attribute set. For more information on this interface, refer to the <a href="schema-spec.html"><em>River Lookup Attribute Schema Specification</em>, Section LS.4.1, "Indicating User Modifiability"</a>. If the value of this flag is true and at least one of the attributes to be added is an instance of the <code>ServiceControlled</code> interface, a <code>SecurityException</code> will be thrown and propagated through this method.
+The second form of this method also takes as input a flag indicating whether or not this method should determine if the attributes in the input set are instances of the <code>ServiceControlled</code> interface, which is a marker interface that is used to control which entities may modify a service's attribute set. For more information on this interface, refer to the <a href="schema-spec.html"><em>Jini Lookup Attribute Schema Specification</em>, Section LS.4.1, "Indicating User Modifiability"</a>. If the value of this flag is true and at least one of the attributes to be added is an instance of the <code>ServiceControlled</code> interface, a <code>SecurityException</code> will be thrown and propagated through this method.
 <p class="Body">
 Note that because there is no guarantee that attribute propagation will have completed upon return from this method, services that invoke this method must take care not to modify the contents of the input array. Doing so could cause the service's attribute state to be corrupted or inconsistent on a subset of the lookup services with which the service is registered as compared with the state reflected on the remaining lookup services. It is for this reason that the effects of modifying the contents of the input array, after this method is invoked, are undefined.
 <p class="Body">
@@ -279,7 +279,7 @@ Note that because there is no guarantee that attribute propagation will have com
   <a name="1003738"> </a>For the same reason as noted above in the description of the <code>addAttributes</code> method, the effects of modifying the contents of the input array after the method <code>setAttributes</code> is invoked, are undefined.
 </p>
 <p class="Body">
-  <a name="1000720"> </a>The <code>modifyAttributes</code> method changes the service's current set of attributes using the same semantics as the <code>modifyAttributes</code> method of the class <code>ServiceRegistration</code> (see the <a href="lookup-spec.html"><em class="Emphasis">River Technology Lookup Service Specification</em></a>). This method has two forms. The first form takes two arguments, the second form takes three arguments. Both forms will take an array of templates in the first argument and an array of attributes in the second argument. The templates are used to identify which elements to modify from the service's current set of attributes. If any element of the array of templates is <code>null</code>, a <code>NullPointerException</code> is thrown. The attribute array contains the actual modifications to be made. The additional argument in the signature of the second form of <code>modifyAttributes</code> is a flag indicating whether or not this method should determine if the attributes in the input set are instances of the <code>ServiceControlled</code> interface, which is a marker interface used to control which entities may modify a service's attribute set (see the <a href="schema-spec.html#31204"><em class="Emphasis">River Lookup Attribute Schema Specification</em>, Section&nbsp;LS.4.1, "Indicating User Modifiability"</a>). If the value of this flag is true and at least one of the attributes to be modified is an instance of the <code>ServiceControlled</code> interface, a <code>SecurityException</code> will be thrown and propagated through this method.
+  <a name="1000720"> </a>The <code>modifyAttributes</code> method changes the service's current set of attributes using the same semantics as the <code>modifyAttributes</code> method of the class <code>ServiceRegistration</code> (see the <a href="lookup-spec.html"><em class="Emphasis">Jini Technology Lookup Service Specification</em></a>). This method has two forms. The first form takes two arguments, the second form takes three arguments. Both forms will take an array of templates in the first argument and an array of attributes in the second argument. The templates are used to identify which elements to modify from the service's current set of attributes. If any element of the array of templates is <code>null</code>, a <code>NullPointerException</code> is thrown. The attribute array contains the actual modifications to be made. The additional argument in the signature of the second form of <code>modifyAttributes</code> is a flag indicating whether or not this method should determine if the attributes in the input set are instances of the <code>ServiceControlled</code> interface, which is a marker interface used to control which entities may modify a service's attribute set (see the <a href="schema-spec.html#31204"><em class="Emphasis">Jini Lookup Attribute Schema Specification</em>, Section&nbsp;LS.4.1, "Indicating User Modifiability"</a>). If the value of this flag is true and at least one of the attributes to be modified is an instance of the <code>ServiceControlled</code> interface, a <code>SecurityException</code> will be thrown and propagated through this method.
 </p>
 <p class="Body">
   <a name="1001414"> </a>The association of the new set of attributes with the service will be propagated to each lookup service with which the service is registered. This propagation must be performed asynchronously. Because of this asynchronous behavior, there is no guarantee that the propagation of the attributes to all lookup services with which the service is registered will have completed upon return from this method.
@@ -325,7 +325,7 @@ Note that because there is no guarantee that attribute propagation will have com
   <a name="1000770"> </a>JU.5.1	 The <code>DiscoveryManagement</code> Interface
 </h4>
 <p class="Body">
-  <a name="1002984"> </a>Although it is not necessary for the <code>JoinManager</code> itself to execute the discovery process, it does need to be notified when one of the lookup services it wishes to join is discovered or discarded. Thus, at a minimum, the <code>JoinManager</code> requires access to the discovery events sent to the listeners registered with the discovery process' event mechanism. The instance of <code>DiscoveryManagement</code> that is passed as an argument to the constructor of the <code>JoinManager</code> provides a mechanism for acquiring access to those events. For a complete description of the semantics of the methods of this interface, refer to the <em class="Emphasis"><a href="discoveryutil-spec.html">River Discovery Utilities Specification</a></em>.
+  <a name="1002984"> </a>Although it is not necessary for the <code>JoinManager</code> itself to execute the discovery process, it does need to be notified when one of the lookup services it wishes to join is discovered or discarded. Thus, at a minimum, the <code>JoinManager</code> requires access to the discovery events sent to the listeners registered with the discovery process' event mechanism. The instance of <code>DiscoveryManagement</code> that is passed as an argument to the constructor of the <code>JoinManager</code> provides a mechanism for acquiring access to those events. For a complete description of the semantics of the methods of this interface, refer to the <em class="Emphasis"><a href="discoveryutil-spec.html">Jini Discovery Utilities Specification</a></em>.
 </p>
 <p class="Body">
   <a name="1003002"> </a>One noteworthy item about the semantics of the <code>JoinManager</code> is the effect that invocations of the <code>discard</code> method of <code>DiscoveryManagement</code> will have on any discovery listeners created by the <code>JoinManager</code>. The <code>DiscoveryManagement</code> interface specifies that the <code>discard</code> method will remove a particular lookup service from the managed set of lookup services that have already been discovered, allowing that lookup service to be rediscovered. Invoking this method will result in the flushing of the lookup service from the appropriate cache, ultimately causing a discard notification to be sent to all <code>DiscoveryListener</code> objects registered with the event mechanism of the discovery process, including all listeners registered by the <code>JoinManager</code>.
@@ -407,7 +407,7 @@ limitations under the License.
 <table width="100%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-</td><td align=right><i>A Collection of River Technology Helper Utilities and Services Specifications</i></td>
+</td><td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications</i></td>
 </tr>
 </table>
 <a name="skip"></a>

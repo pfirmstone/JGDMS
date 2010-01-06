@@ -22,7 +22,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
 <link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
-<title>River Lookup Discovery Service  </title>
+<title>Jini Lookup Discovery Service  </title>
 </head>
 
 <body bgcolor="#ffffff">
@@ -31,7 +31,7 @@
 <table width="100%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a></td>
-<td align=right><em>A Collection of River Technology Helper Utilities and Services Specifications</em></td>
+<td align=right><em>A Collection of Jini Technology Helper Utilities and Services Specifications</em></td>
 </tr>
 </table>
 <br clear="all">
@@ -46,15 +46,15 @@
 <a name="skip"></a>
 <blockquote>
 <h2>
-  <a name="1013622"> </a>LD - River Lookup Discovery Service</h2>
+  <a name="1013622"> </a>LD - Jini<font size="-1"><sup>TM</sup></font> Lookup Discovery Service</h2>
 <h3 class="Heading2">
   <a name="1000045"> </a>LD.1	 Introduction
 </h3>
 <p class="Body">
-  <a name="1000634"> </a>Part of the <a href="discovery-spec.html"><em>River Discovery and Join Specification</em></a> is devoted to defining the discovery requirements for well-behaved River clients and services, called <em class="Emphasis">discovering entities</em>, which are required to participate in the multicast discovery protocols. Discovering entities are required to send multicast discovery requests to lookup services with which the entities wish to interact. In addition, they must continuously listen for and act on announcements from the desired lookup services. Interactions with a discovered lookup service may involve registration with that lookup service, or may simply involve querying the lookup service for services of interest (or both). To find <em class="Emphasis">specific</em> lookup services, discovering entities also need to be able to participate in the unicast discovery protocol.
+  <a name="1000634"> </a>Part of the <a href="discovery-spec.html"><em>Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</em></a> is devoted to defining the discovery requirements for well-behaved Jini clients and services, called <em class="Emphasis">discovering entities</em>, which are required to participate in the multicast discovery protocols. Discovering entities are required to send multicast discovery requests to lookup services with which the entities wish to interact. In addition, they must continuously listen for and act on announcements from the desired lookup services. Interactions with a discovered lookup service may involve registration with that lookup service, or may simply involve querying the lookup service for services of interest (or both). To find <em class="Emphasis">specific</em> lookup services, discovering entities also need to be able to participate in the unicast discovery protocol.
 </p>
 <p class="Body">
-  <a name="1002945"> </a>Under certain circumstances, a discovering entity may find it useful to allow a third party to perform the entity's discovery duties. For example, an activatable entity that wishes to deactivate may wish to employ a special River technology-enabled service (<em class="Emphasis">River service</em>)--referred to as a <em class="Emphasis">lookup discovery service</em>--to perform discovery duties on its behalf. Such an entity may wish to deactivate for various reasons, one being to conserve computational resources. While the entity is inactive, the lookup discovery service, running on the same or a separate host, would employ the discovery protocols to find lookup services in which the entity has expressed interest and would notify the entity when a previously unavailable lookup service has become available.
+  <a name="1002945"> </a>Under certain circumstances, a discovering entity may find it useful to allow a third party to perform the entity's discovery duties. For example, an activatable entity that wishes to deactivate may wish to employ a special Jini technology-enabled service (<em class="Emphasis">Jini service</em>)--referred to as a <em class="Emphasis">lookup discovery service</em>--to perform discovery duties on its behalf. Such an entity may wish to deactivate for various reasons, one being to conserve computational resources. While the entity is inactive, the lookup discovery service, running on the same or a separate host, would employ the discovery protocols to find lookup services in which the entity has expressed interest and would notify the entity when a previously unavailable lookup service has become available.
 </p>
 <p class="Body">
   <a name="1003079"> </a>The facilities of the lookup discovery service are of particular value in a scenario in which a new lookup service is added to a long-lived djinn containing multiple inactive services. Without the use of a lookup discovery service, the time frame over which the new lookup service is fully populated can be both unpredictable and unbounded.
@@ -82,13 +82,13 @@
   <a name="1003028"> </a>Note that the scenario just described does not come without restrictions. For the lookup discovery service to be able to "link" an entity with lookup services in the way just described, the lookup discovery service must be registered with a lookup service having a location that either is known to the entity or is within the multicast radius of the entity. Furthermore, the lookup discovery service must be running on a host that is located within the multicast radius of the lookup services with which the entity wishes to be linked. That is, the entity must be able to find the lookup discovery service, and the lookup discovery service must be able to find the other desired lookup services.
 </p>
 <p class="Body">
-  <a name="1000724"> </a>To address these scenarios, the lookup discovery service participates in both the multicast discovery protocols and the unicast discovery protocol on behalf of a registered discovering entity or <em class="Emphasis">client</em>. This service will listen for and process multicast announcement packets from River lookup services and will, until successful, repeatedly attempt to discover specific lookup services that the client is interested in finding.
+  <a name="1000724"> </a>To address these scenarios, the lookup discovery service participates in both the multicast discovery protocols and the unicast discovery protocol on behalf of a registered discovering entity or <em class="Emphasis">client</em>. This service will listen for and process multicast announcement packets from Jini lookup services and will, until successful, repeatedly attempt to discover specific lookup services that the client is interested in finding.
 </p>
 <p class="Body">
-  <a name="1000786"> </a>Upon discovery of a previously undiscovered lookup service of interest, the lookup discovery service notifies all entities that have requested the discovery of that lookup service that such an event has occurred. The event mechanism employed by the lookup discovery service satisfies the requirements defined in the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a>. Note that the entity that receives such an event notification does not have to be the client of the lookup discovery service; it may be a third-party event-handling service such as an event mailbox service. Once a client is notified of the discovery of a lookup service, it is left to the client to define the semantics of how it interacts with that lookup service. For example, the client may wish to join the lookup service, simply query it for other useful services, or both.
+  <a name="1000786"> </a>Upon discovery of a previously undiscovered lookup service of interest, the lookup discovery service notifies all entities that have requested the discovery of that lookup service that such an event has occurred. The event mechanism employed by the lookup discovery service satisfies the requirements defined in the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>. Note that the entity that receives such an event notification does not have to be the client of the lookup discovery service; it may be a third-party event-handling service such as an event mailbox service. Once a client is notified of the discovery of a lookup service, it is left to the client to define the semantics of how it interacts with that lookup service. For example, the client may wish to join the lookup service, simply query it for other useful services, or both.
 </p>
 <p class="Body">
-  <a name="1000236"> </a>The lookup discovery service must be implemented as a well-behaved River service and must comply with all of the policies embodied in the River technology programming model. Thus, the resources granted by this service are leased, and implementations of this service must adhere to the distributed leasing model for River technology as defined in the <a href="lease-spec.html"><em class="Emphasis">River Distributed Leasing Specification</em></a>. That is, the lookup discovery service will grant its services for only a limited period of time without an active expression of continuing interest on the part of the client.
+  <a name="1000236"> </a>The lookup discovery service must be implemented as a well-behaved Jini service and must comply with all of the policies embodied in the Jini technology programming model. Thus, the resources granted by this service are leased, and implementations of this service must adhere to the distributed leasing model for Jini technology as defined in the <a href="lease-spec.html"><em class="Emphasis">Jini Distributed Leasing Specification</em></a>. That is, the lookup discovery service will grant its services for only a limited period of time without an active expression of continuing interest on the part of the client.
 </p>
 <h4 class="Heading3">
   <a name="1000358"> </a>LD.1.1	 Goals and Requirements
@@ -98,9 +98,9 @@
 </p>
 <ul>
 
-  <li class="SmartList1"><a name="1002280"> </a>To define a service that not only employs the River discovery protocols to discover, by way of either group association or <code>LookupLocator</code> association, lookup services in which clients have registered interest, but that also notifies its clients of the discovery of those lookup services<p>
+  <li class="SmartList1"><a name="1002280"> </a>To define a service that not only employs the Jini discovery protocols to discover, by way of either group association or <code>LookupLocator</code> association, lookup services in which clients have registered interest, but that also notifies its clients of the discovery of those lookup services<p>
   <li class="SmartList1"><a name="1000361"> </a>To provide this service in such a way that it can be used by entities that deactivate<p>
-  <li class="SmartList1"><a name="1000384"> </a>To comply with the policies of the River technology programming model
+  <li class="SmartList1"><a name="1000384"> </a>To comply with the policies of the Jini technology programming model
 </ul>
 
 <p class="Body">
@@ -139,7 +139,7 @@ java.util.Map
   <a name="1000124"> </a>LD.2	 The Interface
 </h3>
 <p class="Body">
-  <a name="1000801"> </a>The <code>LookupDiscoveryService</code> interface defines the service--referred to as the <em class="Emphasis">lookup discovery service</em>--previously introduced in this specification. Through this interface, other River services and clients may request that discovery processing be performed on their behalf. This interface belongs to the <code>net.jini.discovery</code> package, and any service implementing this interface must comply with the definition of a River service. This interface is not a remote interface; each implementation of this service exports a front end proxy object that implements this interface local to the client, using an implementation-specific protocol to communicate with the actual remote server (the back end). All of the proxy methods must obey normal Java Remote Method Invocation (RMI) remote interface semantics except where explicitly noted. Two proxy objects are equal (using the <code>equals</code> method) if they are proxies for the same lookup discovery service.
+  <a name="1000801"> </a>The <code>LookupDiscoveryService</code> interface defines the service--referred to as the <em class="Emphasis">lookup discovery service</em>--previously introduced in this specification. Through this interface, other Jini services and clients may request that discovery processing be performed on their behalf. This interface belongs to the <code>net.jini.discovery</code> package, and any service implementing this interface must comply with the definition of a Jini service. This interface is not a remote interface; each implementation of this service exports a front end proxy object that implements this interface local to the client, using an implementation-specific protocol to communicate with the actual remote server (the back end). All of the proxy methods must obey normal Java Remote Method Invocation (RMI) remote interface semantics except where explicitly noted. Two proxy objects are equal (using the <code>equals</code> method) if they are proxies for the same lookup discovery service.
 </p>
 <p class="Body">
   <a name="1005712"> </a>The one method defined in this interface throws a <code>RemoteException</code><code>, </code>and requires only the default serialization semantics so that this interface can be implemented directly using Java RMI.
@@ -257,7 +257,7 @@ The other class of exception to note is identified by the term <em>definite exce
   <a name="1016285"> </a>If, between the time a lookup service is discarded and the time it is rediscovered, a new registration is requested having parameters indicating interest in that lookup service, upon rediscovery of the lookup service an event will also be sent to that new registration's listener.
 </p>
 <p class="Body">
-  <a name="1016032"> </a>The sequence numbers for a given event identifier are strictly increasing (as defined in the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a>), which means that when any two such successive events have sequence numbers that differ by only a value of 1, then no events have been missed. On the other hand, when the set of received events is viewed in order, if the difference between the sequence numbers of two successive events is greater than 1, then one or more events may or may not have been missed. For example, a difference greater than 1 could occur if the lookup discovery service crashes, even if no events are lost because of the crash. When two such successive events have sequence numbers whose difference is greater than 1, there is said to be a <em class="Emphasis">gap</em> between the events.
+  <a name="1016032"> </a>The sequence numbers for a given event identifier are strictly increasing (as defined in the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>), which means that when any two such successive events have sequence numbers that differ by only a value of 1, then no events have been missed. On the other hand, when the set of received events is viewed in order, if the difference between the sequence numbers of two successive events is greater than 1, then one or more events may or may not have been missed. For example, a difference greater than 1 could occur if the lookup discovery service crashes, even if no events are lost because of the crash. When two such successive events have sequence numbers whose difference is greater than 1, there is said to be a <em class="Emphasis">gap</em> between the events.
 </p>
 <p class="Body">
   <a name="1005149"> </a>When a gap occurs between events, the local state (on the client) related to the discovered lookup services may or may not fall out of sync with the corresponding remote state maintained by the lookup discovery service. For example, if the gap corresponds to a missed event representing the (initial) discovery of a targeted lookup service, the remote state will reflect this discovery, whereas the client's local state will not. To allow clients to identify and correct such a situation, each registration object provides a method that returns a set consisting of the proxies to the lookup services that have been discovered for that registration. With this information the client can update its local state.
@@ -266,7 +266,7 @@ The other class of exception to note is identified by the term <em>definite exce
   <a name="1006050"> </a>When requesting a registration with the lookup discovery service, a client may also supply (as a parameter to the <code>register</code> method) a reference to an object, wrapped in a <code>MarshalledObject</code>, referred to as a <em class="Emphasis">handback</em>. When the lookup discovery service sends an event to a registration's listener, the event will also contain a reference to this handback object. The lookup discovery service will not change the handback object. That is, the handback object contained in the event sent by the lookup discovery service will be identical to the handback object registered by the client with the event mechanism.
 </p>
 <p class="Body">
-  <a name="1010251"> </a>The semantics of the object input to the <code>handback</code> argument are left to each client to define, although <code>null</code> may be input to this argument. The role of the <code>handback</code> object in the remote event mechanism is detailed in the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a>.
+  <a name="1010251"> </a>The semantics of the object input to the <code>handback</code> argument are left to each client to define, although <code>null</code> may be input to this argument. The role of the <code>handback</code> object in the remote event mechanism is detailed in the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>.
 </p>
 <h4 class="Heading3">
   <a name="1003330"> </a>LD.3.3	 Leasing Semantics
@@ -494,7 +494,7 @@ public interface LookupDiscoveryRegistration {
   <a name="1004599"> </a>The <code>discard</code> method provides a mechanism for registered clients to inform the lookup discovery service of the existence of an unavailable--or <em class="Emphasis">unreachable</em>--lookup service, and to request that the lookup discovery service discard that lookup service and make it eligible for rediscovery.
 </p>
 <p class="Body">
-  <a name="1002366"> </a>The <code>discard</code> method takes a single argument: the proxy to the lookup service to discard. This method takes no action if the parameter to this method equals none of the proxies reflected in the managed set (using proxy equality as defined in the <a href="lookup-spec.html"><em class="Emphasis">River Lookup Service Specification</em></a>. If <code>null</code> is passed to <code>discard</code>, a <code>NullPointerException</code> is thrown.
+  <a name="1002366"> </a>The <code>discard</code> method takes a single argument: the proxy to the lookup service to discard. This method takes no action if the parameter to this method equals none of the proxies reflected in the managed set (using proxy equality as defined in the <a href="lookup-spec.html"><em class="Emphasis">Jini Lookup Service Specification</em></a>. If <code>null</code> is passed to <code>discard</code>, a <code>NullPointerException</code> is thrown.
 </p>
 <p class="Body">
   <a name="1015507"> </a>Although the lookup discovery service monitors the multicast announcements from all discovered lookup services for indications of unavailability, it should be noted that there are conditions under which the lookup discovery service will not discard such a lookup service, even when the lookup service is found to be unreachable. Whether or not the lookup discovery service discards such an unreachable lookup service is dependent on how each registration is configured for discovery with respect to that lookup service. If every registration that is configured to discover the unreachable lookup service is configured to discover it through locator discovery only, the lookup discovery service will not discard the lookup service. In other words, in order for the lookup discovery service to discard a lookup service it has determined is unreachable, at least one registration must be configured for discovery of at least one group in which that lookup service is a member.
@@ -795,7 +795,7 @@ limitations under the License.
 <a href="#skip" title="Skip navigation bar"></a>
 <table width="100%"><tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-<td align=right><em>A Collection of River Technology Helper Utilities and Services Specifications</em></td>
+<td align=right><em>A Collection of Jini Technology Helper Utilities and Services Specifications</em></td>
 </tr></table>
 <a name="skip"></a>
 

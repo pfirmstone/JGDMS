@@ -44,11 +44,11 @@ than changing the license from the Sun Community Source License (SCSL) to Apache
      so that it returns the hashcode of its fully qualified <code>String</code> name, rather than
      the hashcode of its <code>Class</code> instance.
      <li>Added <code>UIDescriptorBean</code> to <code>net.jini.lookup.entry</code>, as suggested
-     by the River Lookup Attributes Schema specification.
+     by the Jini Lookup Attributes Schema specification.
      <li>Theresa Gonzales edited the entire spec for English, and I went over it again after that. Lots
      of minor changes to clarify sentences, but no change in semantics.
     <li>Changed "service object" to "service proxy," to tow the line with
-        commonly used River jargon.
+        commonly used Jini jargon.
     <li>Modified the Javadoc of <code>MainUI</code>,  <code>AdminUI</code>,
          and <code>AboutUI</code> to match the semantics given in the
          specification. Originally (prior to the 1.0 release), these role
@@ -120,7 +120,7 @@ than changing the license from the Sun Community Source License (SCSL) to Apache
      Fleshed out material in most sections. Added a new section on third-party
      UIs. 
  <li>0.4 - Wed., Feb. 2, 2000:
-     Incorporated changes decided upon with River architects at the 2nd meeting.
+     Incorporated changes decided upon with Jini architects at the 2nd meeting.
      Document now offers a good general overview. 
  <li>0.3 - Mon., Jan. 31, 2000:
      Fixed a few typos in Main UI semantics. 
@@ -142,7 +142,7 @@ than changing the license from the Sun Community Source License (SCSL) to Apache
 <UL>
 <LI>1.1. Direct-Use Clients
 <LI>1.2. User Adapters
-<LI>1.3. River Service UIs
+<LI>1.3. Jini Service UIs
 </UL>
 
 <LI>UI Descriptors
@@ -242,7 +242,7 @@ functionality code may burrow back into UI code. In the traditional desktop
 application, therefore, the UI code and functionality code are usually
 inseparable, married for all eternity. </p>
 
-<p>River's service proxy architecture encourages you to think differently about
+<p>Jini's service proxy architecture encourages you to think differently about
 UI and functionality: </p>
 
 <ul>
@@ -254,7 +254,7 @@ UI and functionality: </p>
      code and functionality code should be the service proxy interface
 </ul>
 
-<p>A River service proxy should represent the service's pure functionality, expressed
+<p>A Jini service proxy should represent the service's pure functionality, expressed
 via the methods of its object interface. For example, the service proxy
 interface for a toaster service should express or model the conceptual toaster
 service's functionality -- the interface should say &quot;what it means to be a
@@ -303,7 +303,7 @@ knowledge.) </p>
 
 <h2>1.2. User Adapters</h2>
 
-<p>When you design a River service, you should attempt to capture the service's
+<p>When you design a Jini service, you should attempt to capture the service's
 entire functionality in the service proxy interface. To access any aspect of
 your service, a direct-use client should only need a reference to the service
 proxy. The service proxy should not include any code that defines a user
@@ -312,7 +312,7 @@ the method invocation level. </p>
 
 <p>To provide a user interface for the service, you should encapsulate the user
 interface code in a separate UI object. As Figure 2 shows, a UI object grants a
-user access to some aspect of a River service. Think of a service UI object as a
+user access to some aspect of a Jini service. Think of a service UI object as a
 <i>user adapter</i> -- an object that <em>adapts</em> a service proxy
 interface that a human user cannot interact with directly into one a human user
 can interact with directly. Sitting between the service proxy interface and a
@@ -331,7 +331,7 @@ but doesn't necessarily need to be graphical. A UI object could also represent
 a speech interface, a text interface, a speech and graphic combination, or a
 3D-immersive world. (The UI object is called <i>UI object</i>, rather than <i>GUI
 object </i>or <i>view object</i>, because the object represents UI components
-in general, not just graphical UI components.) Any kind of River Service UI,
+in general, not just graphical UI components.) Any kind of Jini Service UI,
 including a 3D-immersible world with speech and virtual text display, should be
 represented by a UI object, which is distinct from the service proxy. </p>
 
@@ -342,15 +342,15 @@ clients that have particular UI capabilities, such as Swing or speech. Clients
 can then choose the UI that best fits their user interface capabilities. In
 addition, you may want to associate different UIs that serve different
 purposes, such as a main UI or an administration UI, with a service. Often, you
-may need to associate multiple UIs with one River service, where each UI has a
+may need to associate multiple UIs with one Jini service, where each UI has a
 particular purpose and targets a particular set of client capabilities. </p>
 
-<h2>1.3. River Service UIs</h2>
+<h2>1.3. Jini Service UIs</h2>
 
 <p>This specification standardizes how UI providers associate a UI (user
-adapter) object with a River service, and shows how client programs can find the
+adapter) object with a Jini service, and shows how client programs can find the
 best-fit UI among multiple UIs associated with the same service. To associate a
-UI with a River service, UI providers (primarily service providers, but also
+UI with a Jini service, UI providers (primarily service providers, but also
 possibly third parties) must supply three items: </p>
 
 <ul>
@@ -370,7 +370,7 @@ Because <code>UIDescriptor</code>
 implements <code>net.jini.core.entry.Entry</code>
 (<code>Entry</code>),
 you can include a <code>UIDescriptor</code>
-in a River service item's attribute sets array, thereby associating the UI with
+in a Jini service item's attribute sets array, thereby associating the UI with
 the service. A UI descriptor contains four public fields: </p>
 
 <ul>
@@ -393,11 +393,11 @@ Using these fields, clients can choose from multiple UIs associated with a
 service. Once they select a UI object, clients can use the other field, <code>factory</code>, to
 create the object. </p>
 
-<p>To associate a UI with a River service, the UI provider must first fill a UI
+<p>To associate a UI with a Jini service, the UI provider must first fill a UI
 descriptor with a role <code>String</code>,
 a toolkit <code>String</code>,
 an attribute set, and a marshalled UI factory. The UI provider must then place
-the UI descriptor in the attribute sets of the River service's service item. </p>
+the UI descriptor in the attribute sets of the Jini service's service item. </p>
 
 <p>A UI's role indicates both its purpose and its role-related semantics. Each
 UI role is defined as a Java interface type, which UI objects playing that role
@@ -421,7 +421,7 @@ descriptor-represented UI. Several attribute classes, defined in the <code>net.j
 package, are described later in this document. </p>
 
 <p>The <code>toolkit</code>
-field facilitates matching when querying the River lookup service. For example,
+field facilitates matching when querying the Jini lookup service. For example,
 if a client seeks all services that have main UIs working with the Swing
 toolkit, it could form a <code>net.jini.core.lookup.ServiceItem</code>
 (<code>ServiceItem</code>)
@@ -561,10 +561,10 @@ client to use a UI, the client must understand the semantics of the type whose
 fully qualified name appears in the <code>role</code> field of that UI's <code>UIDescriptor</code>. </p>
 
 <p>For example, three role types defined in the <code>net.jini.lookup.ui</code> package by
-the River Service UI Specification are <code>MainUI</code>, for a main UI to a River
+the Jini Service UI Specification are <code>MainUI</code>, for a main UI to a Jini
 service; <code>AdminUI</code>,
 for an administration UI; and <code>AboutUI</code> for an about UI. Future incarnations of
-the River Service UI Specification, individual River service API specifications,
+the Jini Service UI Specification, individual Jini service API specifications,
 or any other party may define other role types. The UI role types' fully
 qualified names should, as with any other type, follow the recommended naming
 convention for unique packages outlined in the Java Language Specification: </p>
@@ -583,11 +583,11 @@ part of its Printer API definition, one for printer setup and one for print job
 setup. (The printer's administration UI could likely use the existing <code>net.jini.lookup.ui.AdminUI</code>
 role.) The Printer working group would start its role type names with a package
 prefix it has either received or obtained control over. For example, if the
-River Community grants the Printer working group the right to place its APIs in
+Jini Community grants the Printer working group the right to place its APIs in
 the <code>net.jini.print</code>
 package, the group could name its <code>role</code> types: <code>net.jini.print.ui.PrinterSetup</code>
 and <code>net.jini.print.ui.PrintJobSetup</code>.
-Each working group or other entity that defines River Service APIs can include,
+Each working group or other entity that defines Jini Service APIs can include,
 as part of its specification, any new UI role types useful in the context of
 its service. </p>
 
@@ -598,12 +598,12 @@ should only be manipulated by client programs. Users should not view them. A
 client may, nevertheless, display localized strings representing roles about
 which the client has prior knowledge. </p>
 
-<p>For example, imagine a River browser client shows a service list using icons
+<p>For example, imagine a Jini browser client shows a service list using icons
 and names provided by <code>net.jini.lookup.entry.ServiceType</code>
 (<code>ServiceType</code>)
-entries. Such a River browser could, when the user double-clicks on a service
+entries. Such a Jini browser could, when the user double-clicks on a service
 icon or name, attempt to display a <code>MainUI</code> for the service. In addition,
-such a River browser could, when the user right-clicks on a service icon or
+such a Jini browser could, when the user right-clicks on a service icon or
 name, pop up a list of verb strings, one for each UI role the service offers in
 a form the client believes it can use. For example, imagine that the user
 right-clicked, among the UIs offered by the service, three <code>java.swing.JFrame</code>
@@ -622,7 +622,7 @@ the client could display the <code>AboutUI</code> <code>JFrame</code>. </p>
 <p>Note that the service did not provide the strings shown to the user -- <code>&quot;Open...&quot;</code>,
 <code>&quot;Administer...&quot;</code>,
 and <code>&quot;About...&quot;</code>.
-The developers of the River browser client decided upon these strings. Given
+The developers of the Jini browser client decided upon these strings. Given
 that these developers had prior knowledge of the <code>MainUI</code> role, they were able to
 decide that, in their client, <code>&quot;Open&quot;</code> would be a sensible verb string
 for <code>MainUI</code>s
@@ -633,7 +633,7 @@ Ding...&quot;</code> for <code>AboutUI</code>s, and <code>&quot;Spielen Sie Mit 
 for <code>AdminUI</code>s.
 </p>
 
-<p>Because the client program, not the River service, provides the verb strings,
+<p>Because the client program, not the Jini service, provides the verb strings,
 the client will be unable to show a verb in its list for any role about which
 it did not have prior knowledge. Thus, if the user right-clicks a service that
 also offers a <code>JFrame</code>
@@ -764,7 +764,7 @@ public interface AboutUI {
 <h2>3.5. Defining New Role Types</h2>
 
 <p>As mentioned previously, any party may define new role interfaces. New UI
-role interfaces will likely be defined in conjunction with new River Service API
+role interfaces will likely be defined in conjunction with new Jini Service API
 definitions, and many of those roles will likely represent service-specific
 dialogs with users. As used here, a <i>dialog</i> is a short conversation with
 the user, usually to obtain some information from the user. Although for
@@ -776,10 +776,10 @@ graphical sense. Service-specific dialog UIs will enable clients to enlist a
 user's help at various points throughout an otherwise direct use of a service. </p>
 
 <p>As an example, consider a user asking a word processor that has prior
-knowledge of a well-known River Printer API to print a document. (Note that the
+knowledge of a well-known Jini Printer API to print a document. (Note that the
 types appearing in this example were invented for illustration purposes. At the
-time of this writing, the River Printer Service API had not been finalized.) To
-print via the River Print Service API, the word processor first obtains a <code>net.jini.print.service.PrintService</code>
+time of this writing, the Jini Printer Service API had not been finalized.) To
+print via the Jini Print Service API, the word processor first obtains a <code>net.jini.print.service.PrintService</code>
 (<code>PrintService</code>)
 object and invokes <code>createPrintJob()</code>
 on that object to obtain a <code>net.jini.print.job.PrintJob</code> (<code>PrintJob</code>)
@@ -794,7 +794,7 @@ configure the print job. Once the user completes his or her configuration and
 dismisses the dialog UI (with &quot;OK,&quot; not &quot;Cancel&quot;), the word
 processor could supply the print data and invoke <code>close()</code> on the <code>PrintJob</code>. </p>
 
-<p>Given that River Print Service API clients would prefer a dialog UI that
+<p>Given that Jini Print Service API clients would prefer a dialog UI that
 allows for user configuration, the Printer working group could define a new UI
 role type for that purpose. The Printer working group would likely place the
 role interface in some subpackage of its API's main package. For example, it
@@ -823,44 +823,44 @@ dismissal). As the dialog may require sophisticated UI and client interaction,
 the role interface may be more than just a tag interface; it may include
 methods that define how the UI and client interact. The word processor client
 would know how to display this <code>PrintJobSetup</code> dialog because the <code>PrintJobSetup</code>
-role interface, and its semantics, would be defined in the River Print Service
+role interface, and its semantics, would be defined in the Jini Print Service
 API, of which that client has prior knowledge. </p>
 
 <h2>3.6. Working with Existing Role Types</h2>
 
 <p>Besides creating new role types for service-specific dialogs, a working
-group for a River service API or a provider of a River service API implementation
+group for a Jini service API or a provider of a Jini service API implementation
 could also provide multiple incarnations of an already-defined role. For
 example, what if the manufacturer of a combined printer/scanner/faxer/copier
 product (a &quot;four-in-one box&quot;) wanted to deliver four <code>AdminUI</code>s, each
 dedicated to administering one of four product functions? Such a manufacture
 could take several approaches. </p>
 
-<p>First, assuming the River Community has adopted a standard API for each
-product function (i.e., a River Print Service API, a River Scanner Service API, a
-River Faxer Service API, and a River Copier Service API), the four-in-one-box
-manufacturer could, rather than registering one River service whose service
+<p>First, assuming the Jini Community has adopted a standard API for each
+product function (i.e., a Jini Print Service API, a Jini Scanner Service API, a
+Jini Faxer Service API, and a Jini Copier Service API), the four-in-one-box
+manufacturer could, rather than registering one Jini service whose service
 proxy implements four interfaces (such as <code>Printer</code>, <code>Scanner</code>, <code>Faxer</code>, and <code>Copier</code>),
-simply offer four separate River services, each of which implements only one
+simply offer four separate Jini services, each of which implements only one
 interface. In this approach, each service could offer an <code>AdminUI</code>
 dedicated to that one function. </p>
 
-<p>Alternatively (or in addition), the manufacturer could register one River
+<p>Alternatively (or in addition), the manufacturer could register one Jini
 service whose service proxy implements all four interfaces. The <code>AdminUI</code> for
 that service could present a user interface device (such as a tabbed pane for a
 graphical UI) that lets users select between the four main functions. In this
 way, one <code>AdminUI</code>
 exists, which grants users access to the four conceptual administration UIs. </p>
 
-<p>Lastly, the manufacturer could propose to the River Community a River
+<p>Lastly, the manufacturer could propose to the Jini Community a Jini
 Four-in-One Service API that includes four new role types, each dedicated to
 administering a product subset. The Four-in-One working group, which defines
-the River Four-in-One Service API, could control a package that holds the role
+the Jini Four-in-One Service API, could control a package that holds the role
 types, <code>PrinterAdminUI</code>,
 <code>ScannerAdminUI</code>,
 <code>FaxerAdminUI</code>,
 and <code>CopierAdminUI</code>.
-Clients with prior knowledge of the River Four-in-One Service API would also
+Clients with prior knowledge of the Jini Four-in-One Service API would also
 have prior knowledge of the four role types, and therefore could offer verb
 strings for them. Four-in-One service providers could offer those four admin UI
 types, but should also offer a basic <code>net.jini.lookup.ui.AdminUI</code>, which as
@@ -1162,7 +1162,7 @@ therefore may invoke a factory method on the same factory object multiple
 times. Each time the factory method is invoked, it should produce and return a
 new UI object copy. </p>
 
-<p>The River Service UI API's first version defines eight factory interfaces: </p>
+<p>The Jini Service UI API's first version defines eight factory interfaces: </p>
 
 <ul>
  <li><code>DialogFactory</code>: Returns an
@@ -1195,7 +1195,7 @@ new UI object copy. </p>
      that depends on the AWT, not the Swing, libraries
 </ul>
 
-<p>Future incarnations of the River Service UI Specification or any other party
+<p>Future incarnations of the Jini Service UI Specification or any other party
 may define additional UI factory interface types. The fully qualified names of
 UI factory interface types should, as with any other type, follow the
 recommended naming convention for unique packages outlined in the Java Language
@@ -1233,7 +1233,7 @@ by a UI factory class must have the same toolkit. </p>
 <p>Although anyone can define new factory types, to prevent a chaotic explosion
 of factory types, you should define new factory types with the utmost care. In
 general, new factory types will be justified only when new UI toolkits appear
-on the scene. If possible, new factory types should be agreed upon by the River
+on the scene. If possible, new factory types should be agreed upon by the Jini
 Community and placed into the <code>net.jini.lookup.ui.factory</code> package so they are easy
 to find. For example, if a toolkit is defined for speech-only UIs, a set of
 factory methods for speech-only UIs could be added to those already in <code>net.jini.lookup.ui.factory</code>.
@@ -1279,13 +1279,13 @@ that service and UI providers may have are: </p>
      object 
 </ul>
 
-<p class=MsoNormal>Both temptations should be avoided. The River service proxy
+<p class=MsoNormal>Both temptations should be avoided. The Jini service proxy
 should contain the service functionality, the whole service functionality, and
 nothing but the service functionality. No user-interface code should appear in
 the service proxy, and no service functionality should appear in the UI object
-unless it also appears in the service proxy. In short, River Service UIs should
+unless it also appears in the service proxy. In short, Jini Service UIs should
 merely offer users all or part of the functionality available to direct-use
-clients via the River service proxy's methods. </p>
+clients via the Jini service proxy's methods. </p>
 
 <p>Note that even though the service item may be passed as the role object for
 some roles -- as it is to factories that produce <code>MainUI</code>s, <code>AdminUI</code>s, and <code>AboutUI</code>s --
@@ -1353,7 +1353,7 @@ factories sitting in two different UI descriptors could produce the <code>JCompo
 Swing <code>JDialog</code>
 may be more appropriate. </p>
 
-<p>Currently no direct support exists in the River Service UI API for
+<p>Currently no direct support exists in the Jini Service UI API for
 speech-only interfaces, but an AWT or Swing UI could be enhanced with speech
 capabilities, produced by an appropriate AWT or Swing UI factory type, and
 identified as speech-enabled with the appropriate required package names (such
@@ -1387,7 +1387,7 @@ factory, which could then send them to the UI. </p>
 
 <p>
 The trouble with either of these approaches is that functionality is being put into the UI that isn't in the service. 
-As mentioned previously, a River service's
+As mentioned previously, a Jini service's
 functionality should be modeled in the service proxy, so direct-use client
 code can just use the service directly. If a service requires a user name and
 password, the service proxy's interface should allow the client to provide the
@@ -1397,13 +1397,13 @@ service proxy if it has a user name and password yet. If not, the UI would
 show the logon dialog box prompting for the user name and password. Otherwise,
 the UI wouldn't show the logon dialog box. </p>
 
-<p>The recommended way to design a River service and its UIs is to make sure the
+<p>The recommended way to design a Jini service and its UIs is to make sure the
 full functionality is available via the service proxy interface, and keep the
 UIs focused on being user adapters -- adapting some or all functionality
 available via the service proxy interface, but offering no more functionality
 available via the service proxy interface. </p>
 
-<p>Service providers are not the only River Community members who will face
+<p>Service providers are not the only Jini Community members who will face
 UI-related temptations in the years ahead; client providers may also be tempted
 to pass client context data to UI objects. </p>
 
@@ -1425,21 +1425,21 @@ context innovations, UI providers will have to worry about which kinds of
 client context to support. To the extent a UI provider supports various kinds
 of client context, that UI provider's test matrix will expand. To the extent
 that client context becomes complicated, such as the invention of a general
-compound document model for River Service UIs, everyone's job, and the user's
+compound document model for Jini Service UIs, everyone's job, and the user's
 experience, become more complicated. </p>
 
 <p>Client providers, therefore, should avoid the temptation to invent client
-context for River Service UIs. The only context data that should be passed to UI
+context for Jini Service UIs. The only context data that should be passed to UI
 factory methods is context a UI toolkit requires, such as the <code>Frame</code> or <code>Window</code>
-reference required by an AWT <code>Dialog</code>. Similarly, the only context in which River
+reference required by an AWT <code>Dialog</code>. Similarly, the only context in which Jini
 Service UIs should be embedded is context the toolkit provides. For example, a
-client could embed a River Service UI <code>JComponent</code> in a <code>JFrame</code>, and
+client could embed a Jini Service UI <code>JComponent</code> in a <code>JFrame</code>, and
 then pop up the <code>JFrame</code>.
 The <code>JComponent</code>'s ability to embed
 is provided by its toolkit, Swing. </p>
 
 <p>UI providers can do their part by ensuring that their UIs don't depend on
-any context other than that provided by the UI toolkit. River Service UIs should
+any context other than that provided by the UI toolkit. Jini Service UIs should
 be self-contained and care only about the context of their toolkit. If a UI
 provider wants its UI to write messages to a status bar, the UI should not look
 for a status bar provided by the client, the UI should itself include a status
@@ -1533,31 +1533,31 @@ able to use these new types, the new types will need to be publicized. Before a
 client will be able to use a role, factory, or attribute type, that client's
 programmers must have had prior knowledge of the type. </p>
 
-<p>Other than service-specific UI roles created under River Service APIs, new
-roles should come from the Service UI project at the River Community. Service
+<p>Other than service-specific UI roles created under Jini Service APIs, new
+roles should come from the Service UI project at the Jini Community. Service
 providers should resist temptation to define new role types, as that
 complicates clients' jobs. Clients should be able to program to the interface
-(particular River Service APIs about which they have prior knowledge), rather
+(particular Jini Service APIs about which they have prior knowledge), rather
 than be forced to program to one or more implementations of that interface.
-Whether role types are being defined for particular River Service APIs, or
-globally for the River Service UI API, the preferred way to define the role
-interfaces is via the River Community Process. </p>
+Whether role types are being defined for particular Jini Service APIs, or
+globally for the Jini Service UI API, the preferred way to define the role
+interfaces is via the Jini Community Process. </p>
 
 <p>As mentioned previously, new UI factory interface types should be defined
 with great care. The main justification for a new set of UI factory types is
 when new UI toolkits appear on the scene. The preferred way to define these
-interfaces is via the River Community Process. Similarly, although anyone can
+interfaces is via the Jini Community Process. Similarly, although anyone can
 define new attribute types, the preferred way to define these types is through
-the River Community Process. </p>
+the Jini Community Process. </p>
 
-<p>The River Community is the preferred process to define new role, factory, and
+<p>The Jini Community is the preferred process to define new role, factory, and
 attribute types because it is the best way to avoid a explosion of types. For
 example, if a certain attribute type is needed, and twenty different parties
 define basically the same attribute, but with twenty slightly different names
 and behaviors, and in twenty different packages, then clients wanting to use
 that kind of attribute would need to support all twenty variations. It would be
 far better if those twenty parties agreed on one attribute class. Enabling such
-collaborations is the River Community's main purpose. If twenty parties can agree
+collaborations is the Jini Community's main purpose. If twenty parties can agree
 upon one attribute class, then clients need to be aware of less
 information (one attribute class versus twenty), and the resulting client
 programs would likely work more reliably. </p>
@@ -1566,17 +1566,17 @@ programs would likely work more reliably. </p>
 <H1>9. Consistent Serialized Forms</H1>
 
 <p>
-Because the River lookup service uses exact matching of the serialized forms of entry fields, it is critical that fields that will be used in template lookups have serialized forms that are consistent across all virtual machines.  However, there is no guarantee that implementations of the <code>Set</code> interface, the declared type of the <code>attributes</code> field of <code>UIDescriptor</code>, have consistent serialized forms across all virtual machines.  For example, <code>java.util.HashSet</code>, perhaps the most commonly used implementation of <code>Set</code>, does not guarantee a consistent serialized form.  As a result, if a <code>UIDescriptor</code> that contains a <code>HashSet</code> in its <code>attributes</code> field is retrieved from a River lookup service, the serialized a form of the <code>attributes</code> field could be different if the <code>UIDescriptor</code> is reserialized as part of a template.  This means that a <code>UIDescriptor</code>, when retrieved from a River lookup service and used immediately in a lookup template, may not match itself.
+Because the Jini lookup service uses exact matching of the serialized forms of entry fields, it is critical that fields that will be used in template lookups have serialized forms that are consistent across all virtual machines.  However, there is no guarantee that implementations of the <code>Set</code> interface, the declared type of the <code>attributes</code> field of <code>UIDescriptor</code>, have consistent serialized forms across all virtual machines.  For example, <code>java.util.HashSet</code>, perhaps the most commonly used implementation of <code>Set</code>, does not guarantee a consistent serialized form.  As a result, if a <code>UIDescriptor</code> that contains a <code>HashSet</code> in its <code>attributes</code> field is retrieved from a Jini lookup service, the serialized a form of the <code>attributes</code> field could be different if the <code>UIDescriptor</code> is reserialized as part of a template.  This means that a <code>UIDescriptor</code>, when retrieved from a Jini lookup service and used immediately in a lookup template, may not match itself.
 
 <p>
 The Service UI API was defined under the assumption that
 <code>UIDescriptor</code>s in
-River lookup templates might contain non-<code>null</code>
+Jini lookup templates might contain non-<code>null</code>
 <code>role</code> and <code>toolkit</code> fields, but
 would always contain <code>null</code> in their
 <code>attributes</code> and <code>factory</code> fields.
 It was expected that attributes could be inspected on the client side to
-select between multiple matches of a River lookup. Once a
+select between multiple matches of a Jini lookup. Once a
 <code>UIDescriptor</code> was selected, it was expected that clients would use
 the <code>factory</code> field to produce the selected UI. Because of
 these assumptions, the <code>UIDescriptor</code> class was not designed to
@@ -1586,15 +1586,15 @@ would work.  In other words, the designers were aware that the
 but did not imagine that anyone would ever need to do that.
 
 <p>
-When used in templates intended for basic lookup of River services,
+When used in templates intended for basic lookup of Jini services,
 <code>UIDescriptor</code>s will likely never have non-<code>null</code> 
 <code>attributes</code> fields. Nevertheless, <code>UIDescriptor</code>s
 used in templates intended to modify the attribute sets of
-already-registered River services could very likely contain
+already-registered Jini services could very likely contain
 non-<code>null</code> <code>attributes</code> fields. For example,
 to add an object to the attributes set of a
 <code>UIDescriptor</code> already registered as part
-particular River service item, you must pass a template <code>UIDescriptor</code>
+particular Jini service item, you must pass a template <code>UIDescriptor</code>
 that exactly matches the registered <code>UIDescriptor</code> in
 the <code>attrSetTemplates</code> parameter of either:
 
@@ -1605,7 +1605,7 @@ the <code>attrSetTemplates</code> parameter of either:
 
 <p>
 Unfortunately, the use case of modifying a <code>UIDescriptor</code> in
-an already-registered River service item was never considered during the initial
+an already-registered Jini service item was never considered during the initial
 design discussions leading to 1.0 release of the Service UI API. To
 address this need, the 1.1 version of this specification narrows slightly
 the contracts of these methods and constructors:
@@ -1699,9 +1699,9 @@ Gives the fully qualified name of the interface that represents
 
  <P>
  For example, two role types that are defined in the <CODE>net.jini.lookup.ui</CODE>
- package by the River Service UI Specification are <CODE>MainUI</CODE>, for a main UI
- to a River service, and <CODE>AdminUI</CODE>, for an administration UI. Other role types
- may be defined by the River Service UI Specification and by individual River service API
+ package by the Jini Service UI Specification are <CODE>MainUI</CODE>, for a main UI
+ to a Jini service, and <CODE>AdminUI</CODE>, for an administration UI. Other role types
+ may be defined by the Jini Service UI Specification and by individual Jini service API
  specifications.
 
  <P>
@@ -1792,9 +1792,9 @@ Gives the fully qualified name of the interface that represents
 
  <P>
  For example, two role types that are defined in the <CODE>net.jini.lookup.ui</CODE>
- package by the River Service UI Specification are <CODE>MainUI</CODE>, for a main UI
- to a River service, and <CODE>AdminUI</CODE>, for an administration UI. Other role types
- may be defined by the River Service UI Specification and by individual River service API
+ package by the Jini Service UI Specification are <CODE>MainUI</CODE>, for a main UI
+ to a Jini service, and <CODE>AdminUI</CODE>, for an administration UI. Other role types
+ may be defined by the Jini Service UI Specification and by individual Jini service API
  specifications.
 
  <P>
@@ -1963,7 +1963,7 @@ net.jini.lookup.entry.UIDescriptor <STRONG>assoc</STRONG><BR>
 The <code>UIDescriptor</code> object associated with this JavaBeans component.
 
 <H1>11. Package <CODE>net.jini.lookup.ui</CODE></H1>
-Provides UI role interfaces used to associate service UIs with River services.
+Provides UI role interfaces used to associate service UIs with Jini services.
 
 <H2>11.1. Summary of Interfaces In Package <CODE>net.jini.lookup.ui</CODE></H2>
 <UL>
@@ -2131,7 +2131,7 @@ Convenience constant to use in the <CODE>role</CODE>
  field of <CODE>UIDescriptor</CODE>s for MainUI role UIs.
  The value of this constant is <CODE>"net.jini.lookup.ui.MainUI"</CODE>.
 <H1>12. Package <CODE>net.jini.lookup.ui.factory</CODE></H1>
-Provides UI factory interfaces used to associate service UIs with River services.
+Provides UI factory interfaces used to associate service UIs with Jini services.
 <H2>12.1. Summary of Interfaces In Package <CODE>net.jini.lookup.ui.factory</CODE></H2>
 <UL>
 <LI><CODE>DialogFactory</CODE> - UI factory for a modal or non-modal AWT <CODE>Dialog</CODE> with a
@@ -2684,7 +2684,7 @@ Returns a <CODE>Window</CODE> with specified
  <code>Window</code></DD>
 </DL>
 <H1>13. Package <CODE>net.jini.lookup.ui.attribute</CODE></H1>
-Provides attribute classes used to associate service UIs with River services.
+Provides attribute classes used to associate service UIs with Jini services.
 <H2>13.1. Summary of Interfaces In Package <CODE>net.jini.lookup.ui.attribute</CODE></H2>
 <P>No interfaces are declared in package <CODE>net.jini.lookup.ui.attribute</CODE>.
 <H2>13.2. Summary of Classes In Package <CODE>net.jini.lookup.ui.attribute</CODE></H2>

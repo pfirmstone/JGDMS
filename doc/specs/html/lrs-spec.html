@@ -22,7 +22,7 @@
 <meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
 <meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
 <link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
-<title>River Lease Renewal Service Specification  </title>
+<title>Jini Lease Renewal Service Specification  </title>
 </head>
 
 <body bgcolor="#ffffff">
@@ -32,7 +32,7 @@
 <table width="100%">
 <tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a></td>
-<td align=right><em>A Collection of River Technology Helper Utilities and Services Specifications</em></td>
+<td align=right><em>A Collection of Jini Technology Helper Utilities and Services Specifications</em></td>
 </tr>
 </table>
 <br clear="all">
@@ -47,19 +47,19 @@
 <a name="skip"></a>
 <blockquote>
 <h2>
-  <a name="1005695"> </a>LR - River Lease Renewal Service Specification
+  <a name="1005695"> </a>LR - Jini<font size="-1"><sup>TM</sup></font> Lease Renewal Service Specification
 </h2>
 <h3 class="Heading2">
   <a name="1000045"> </a>LR.1	 Introduction
 </h3>
 <p class="Body">
-  <a name="1006066"> </a>Leasing is a key concept in the River architecture; in general, River technology-enabled services (<em class="Emphasis">River services</em>) grant access to a resource only for as long as the clients of those River services actively express interest in the resource being maintained. This pattern is in contrast to many other systems, in which access to a resource is granted until the client explicitly releases the resource. Using a leasing model generally makes a distributed system more robust by allowing stale information and services to be cleaned up, but it also places additional requirements on clients and services.
+  <a name="1006066"> </a>Leasing is a key concept in the Jini<font size="-1"><sup>TM</sup></font> architecture; in general, Jini technology-enabled services (<em class="Emphasis">Jini services</em>) grant access to a resource only for as long as the clients of those Jini services actively express interest in the resource being maintained. This pattern is in contrast to many other systems, in which access to a resource is granted until the client explicitly releases the resource. Using a leasing model generally makes a distributed system more robust by allowing stale information and services to be cleaned up, but it also places additional requirements on clients and services.
 </p>
 <p class="Body">
   <a name="1001371"> </a>A client of a leased service may run into difficulties if that client deactivates. Unless the client ensures that some other process renews the client's leases while it is inactive, or that the client is activated before its leases begin to expire, the client will lose access to the resources it has acquired. This loss can be particularly dramatic in the case of lookup service registrations. A service's registration with a lookup service is leased--if the service deactivates (maybe to conserve computational resources on its host) and it does not take appropriate steps, its registrations with lookup services will expire, and before long it will be inaccessible. If that service becomes active only when clients invoke its methods, it may never become active again, because at this point new clients may not be able to find it.
 </p>
 <p class="Body">
-  <a name="1006118"> </a>The need to renew leases creates a constant load on clients, servers, and the network. Although batching lease renewals can help (see the <a href="lease-spec.html"><em class="Emphasis">River Distributed Leasing Specification</em></a>), a given client is unlikely to have very many leases granted by any one service at any given time, thus reducing the opportunities for meaningful batching.
+  <a name="1006118"> </a>The need to renew leases creates a constant load on clients, servers, and the network. Although batching lease renewals can help (see the <a href="lease-spec.html"><em class="Emphasis">Jini Distributed Leasing Specification</em></a>), a given client is unlikely to have very many leases granted by any one service at any given time, thus reducing the opportunities for meaningful batching.
 </p>
 <p class="Body">
   <a name="1002224"> </a>This additional load may be an especially great burden on clients that always have the ability to access the network but cannot be continuously connected. A cell phone always has the ability to connect; however, being connected all the time will drain its batteries and accumulate airtime charges. One or two leases may not pose a problem, but a large number of leases could force the phone to be on the network all the time.
@@ -68,10 +68,10 @@
   <a name="1002237"> </a>A lease renewal service can help mitigate these problems. Clients that wish to become inactive can pass the responsibility for renewing the leases they have been granted to a renewal service. Those clients can then deactivate without risk of losing access to the resources that they have acquired. Clients that have continuous access to the network but cannot be continuously connected, such as the cell phone described previously, can also register with a renewal service that can be continuously connected. The renewal service will renew the client's leases, allowing the client to remain disconnected most of the time. Lastly, if multiple clients pass their leases to a given renewal service, more opportunities for batching renewals will be created.
 </p>
 <p class="Body">
-  <a name="1000205"> </a>Like other River services, the lease renewal service will grant its services for only a limited period of time without an active expression of continuing interest. To break the recursive cycle that would otherwise result, the renewal service provides an optional event that is triggered before the leases that it grants expire. This event gives activatable processes that have deactivated the opportunity to wake up and renew their lease with the renewal service. Although it may seem odd for the lease renewal service to lease its resources, it is very important that it does so. If it did not, then the lease renewal service could be used to subvert the leasing model.
+  <a name="1000205"> </a>Like other Jini services, the lease renewal service will grant its services for only a limited period of time without an active expression of continuing interest. To break the recursive cycle that would otherwise result, the renewal service provides an optional event that is triggered before the leases that it grants expire. This event gives activatable processes that have deactivated the opportunity to wake up and renew their lease with the renewal service. Although it may seem odd for the lease renewal service to lease its resources, it is very important that it does so. If it did not, then the lease renewal service could be used to subvert the leasing model.
 </p>
 <p class="Body">
-  <a name="1010114"> </a>Lease renewal services are likely to grant longer leases than other River services. In some cases the lease may be so long that the client will not need to worry about renewing the lease at all. In other cases the lease may be long enough that a client that deactivates will rarely need to reactivate for the sole purpose of renewing its lease with the renewal service. In any case, the leases that the renewal service grants are likely to be sufficiently long such that the actual renewal calls do not place a significant additional load on the client, the renewal service, or the network.
+  <a name="1010114"> </a>Lease renewal services are likely to grant longer leases than other Jini services. In some cases the lease may be so long that the client will not need to worry about renewing the lease at all. In other cases the lease may be long enough that a client that deactivates will rarely need to reactivate for the sole purpose of renewing its lease with the renewal service. In any case, the leases that the renewal service grants are likely to be sufficiently long such that the actual renewal calls do not place a significant additional load on the client, the renewal service, or the network.
 </p>
 <h4 class="Heading3">
   <a name="1000297"> </a>LR.1.1	  Goals and Requirements 
@@ -322,7 +322,7 @@ public class LeaseUnmarshalException extends Exception {
   <a name="1011714"> </a>The <code>setExpirationWarningListener</code> method of <code>LeaseRenewalSet</code> allows the client to register for notification of the approaching expiration of the <em class="Emphasis">set's </em>lease. Expiration warning events are not generated for client leases. The <code>listener</code> argument specifies which listener should be notified when the set's lease is about to expire. The <code>minWarning</code> argument specifies the minimum number of milliseconds before set lease expiration that the first event delivery attempt should be made by the service. The service may also make subsequent delivery attempts if the first and any subsequent attempts resulted in an indefinite exception. The <code>minWarning</code> argument must be zero or a positive number; if it is not, an <code>IllegalArgumentException</code> must be thrown. If the current expiration of the set's lease is less than <code>minWarning</code> milliseconds away, the event will occur immediately (though it will take time to propagate to the handler).
 </p>
 <p class="Body">
-  <a name="1002363"> </a>The <code>handback</code> argument to <code>setExpirationWarningListener</code> specifies an object that will be part of the expiration warning event notification. This mechanism is detailed in the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a>.
+  <a name="1002363"> </a>The <code>handback</code> argument to <code>setExpirationWarningListener</code> specifies an object that will be part of the expiration warning event notification. This mechanism is detailed in the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>.
 </p>
 <p class="Body">
   <a name="1012046"> </a>The <code>setExpirationWarningListener</code> method returns the event registration for this event. The <code>Lease</code> object associated with the registration will be equivalent (in the sense of the <code>equals</code> method) to the <code>Lease</code> on the renewal set. Because the event registration shares a lease with the set, clients that want to just remove their expiration warning registration without destroying the set should use the <code>clearExpirationWarningListener</code> method described below, instead of cancelling the registration's lease. The event ID returned with the registration will be <code>LeaseRenewalSet.EXPIRATION_WARNING_EVENT_ID</code>. The source of the registration will be the set. The method will throw a <code>NullPointerException</code> if the <code>listener</code> argument is <code>null</code>. If an event handler has already been specified for this event, the current registration is replaced with the new one. Because both registrations are for the same kind of event, the events sent to the new registration must be in the same sequence as the events sent to the old registration.
@@ -334,7 +334,7 @@ public class LeaseUnmarshalException extends Exception {
   <a name="1001640"> </a>The <code>setRenewalFailureListener</code> method of <code>LeaseRenewalSet</code> allows the client to register for the event associated with the failure to renew a client lease in the set. These events are generated when a client lease in the set reaches its actual expiration before its desired expiration or when the service attempts to renew a client lease and gets a definite exception. The <code>listener</code> argument specifies the listener to be notified if a client lease could not be renewed. 
 </p>
 <p class="Body">
-  <a name="1001621"> </a>The <code>handback</code> argument to <code>setRenewalFailureListener</code> specifies an object that will be part of the renewal failure event notification. This mechanism is detailed in the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a>.
+  <a name="1001621"> </a>The <code>handback</code> argument to <code>setRenewalFailureListener</code> specifies an object that will be part of the renewal failure event notification. This mechanism is detailed in the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>.
 </p>
 <p class="Body">
   <a name="1012121"> </a>The <code>setRenewalFailureListener</code> method returns the event registration for this event. The <code>Lease</code> object associated with the registration will be equivalent (in the sense of the <code>equals</code> method) to the <code>Lease</code> on the renewal set. Because the event registration shares a lease with the set, clients that want to just remove their expiration warning registration without destroying the set should use the <code>clearRenewalFailureListener</code> method (described below) instead of cancelling the registration's lease. The registration ID returned with the registration will be <code>LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID</code>. The source of the registration will be the set. The method will throw <code>NullPointerException</code> if the <code>listener</code> argument is <code>null</code>. If an event handler has already been specified for this event, the current registration is replaced with the new one. Because both registrations are for the same kind of event, the events sent to the new registration must be in the same sequence as the events sent to the old registration.
@@ -360,7 +360,7 @@ public class ExpirationWarningEvent extends RemoteEvent {
   <a name="1010427"> </a>The expiration time associated with the <code>Lease</code> object returned by the <code>getRenewalSetLease</code> method will reflect the expiration the lease had when the event occurred. Renewal calls may have changed the expiration time of the underlying lease between the time when the event was generated and when it was delivered. 
 </p>
 <p class="Body">
-  <a name="1010431"> </a>Other aspects of the event's state are described in the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a>. Sequence numbers for a given event ID are increasing. If there is no gap between two sequence numbers, no events have been missed; if there is a gap, events might (but might not) have been missed.
+  <a name="1010431"> </a>Other aspects of the event's state are described in the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>. Sequence numbers for a given event ID are increasing. If there is no gap between two sequence numbers, no events have been missed; if there is a gap, events might (but might not) have been missed.
 </p>
 <pre  class="Preformatted">
 package net.jini.lease;
@@ -387,7 +387,7 @@ public abstract class RenewalFailureEvent
   <a name="1001917"> </a>If the renewal service was able to renew the client lease and record the result before the event occurred, the expiration time of the <code>Lease</code> object returned by the event's <code>getLease</code> method will reflect the result of the last-recorded successful renewal call. Note that this time may be distorted by clock skew between hosts if it is currently set to use the <code>Lease.ABSOLUTE</code> serial format. If the <code>Lease</code> object is using the <code>Lease.DURATION</code> serial format, and the event only unmarshals the lease when <code>getLease</code> is called, the expiration time may be distorted if a long time has passed between the time the event was generated by the renewal service and when the client called <code>getLease</code>. When a renewal failure event is generated for a given lease, that lease is removed from the set.
 </p>
 <p class="Body">
-  <a name="1011496"> </a>The event's other state is described in the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a>.
+  <a name="1011496"> </a>The event's other state is described in the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>.
  Sequence numbers for a given event ID are increasing. If there is no gap between two sequence numbers, no events have been missed; if there is a gap, events might (but might not) have been missed.
 </p>
 <h4 class="Heading3">
@@ -466,7 +466,7 @@ limitations under the License.
 <a href="#skip" title="Skip navigation bar"></a>
 <table width="100%"><tr>
 <td align=left><a href="../../spec-index.html">Spec Index</a>
-<td align=right><em>A Collection of River Technology Helper Utilities and Services Specifications</em></td>
+<td align=right><em>A Collection of Jini Technology Helper Utilities and Services Specifications</em></td>
 </tr></table>
 <a name="skip"></a>
 

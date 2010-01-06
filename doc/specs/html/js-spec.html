@@ -60,7 +60,7 @@
   <a name="27387"> </a>JS.1.1	 The JavaSpaces Application Model and Terms
 </h4>
 <p class="Body">
-  <a name="27409"> </a>A JavaSpaces service holds <em class="Emphasis">entries</em>. An entry is a typed group of objects, expressed in a class for the Java platform that implements the interface <code>net.jini.core.entry.Entry</code>. Entries are described in detail in the <a href="entry-spec.html"><em class="Emphasis">River Entry Specification</em></a>. 
+  <a name="27409"> </a>A JavaSpaces service holds <em class="Emphasis">entries</em>. An entry is a typed group of objects, expressed in a class for the Java platform that implements the interface <code>net.jini.core.entry.Entry</code>. Entries are described in detail in the <a href="entry-spec.html"><em class="Emphasis">Jini Entry Specification</em></a>. 
 </p>
 <p class="Body">
   <a name="27420"> </a>An entry can be <em class="Emphasis">written</em> into a JavaSpaces service, which creates a copy of that entry in the space<a href="#27423"><sup>2</sup></a> that can be used in future lookup operations.
@@ -72,16 +72,16 @@
   <a name="27463"> </a>There are two kinds of lookup operations: <em class="Emphasis">read</em> and <em class="Emphasis">take</em>. A <em class="Emphasis">read</em> request to a space returns either an entry that matches the template on which the read is done, or an indication that no match was found. A <em class="Emphasis">take</em> request operates like a read, but if a match is found, the matching entry is removed from the space.
 </p>
 <p class="Body">
-  <a name="27464"> </a>You can request a JavaSpaces service to <em class="Emphasis">notify</em> you when an entry that matches a specified template is written. This is done using the distributed event model contained in the package <code>net.jini.core.event</code> and described in the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a>.
+  <a name="27464"> </a>You can request a JavaSpaces service to <em class="Emphasis">notify</em> you when an entry that matches a specified template is written. This is done using the distributed event model contained in the package <code>net.jini.core.event</code> and described in the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>.
 </p>
 <p class="Body">
   <a name="2902"> </a>All operations that modify a JavaSpaces service are performed in a transactionally secure manner with respect to that space. That is, if a write operation returns successfully, that entry was written into the space (although an intervening take may remove it from the space before a subsequent lookup of yours). And if a take operation returns an entry, that entry has been removed from the space, and no future operation will read or take the same entry. In other words, each entry in the space can be taken at most once. Note, however, that two or more entries in a space may have exactly the same value.
 </p>
 <p class="Body">
-  <a name="2903"> </a>The architecture of JavaSpaces technology supports a simple transaction mechanism that allows multi-operation and/or multi-space updates to complete atomically. This is done using the two-phase commit model under the default transaction semantics, as defined in the package <code>net.jini.core.transaction</code> and described in the <a href="txn-spec.html"><em class="Emphasis">River Transaction Specification</em></a>.
+  <a name="2903"> </a>The architecture of JavaSpaces technology supports a simple transaction mechanism that allows multi-operation and/or multi-space updates to complete atomically. This is done using the two-phase commit model under the default transaction semantics, as defined in the package <code>net.jini.core.transaction</code> and described in the <a href="txn-spec.html"><em class="Emphasis">Jini Transaction Specification</em></a>.
 </p>
 <p class="Body">
-  <a name="2966"> </a>Entries written into a JavaSpaces service are governed by a lease, as defined in the package <code>net.jini.core.lease</code> and described in the <a href="lease-spec.html"><em class="Emphasis">River Distributed Leasing Specification</em></a>.
+  <a name="2966"> </a>Entries written into a JavaSpaces service are governed by a lease, as defined in the package <code>net.jini.core.lease</code> and described in the <a href="lease-spec.html"><em class="Emphasis">Jini Distributed Leasing Specification</em></a>.
 </p>
 <h5 class="Heading4">
   <a name="1765"> </a>JS.1.1.1	 Distributed Persistence
@@ -209,10 +209,10 @@
 <ul>
   <li class="SmartList1"><a name="31963"> </a><em class="Emphasis">Java<font size="-1"><sup>TM</sup></font> Object Serialization Specification</em> <p>
   <li class="SmartList1"><a name="2065"> </a><em class="Emphasis">Java<font size="-1"><sup>TM</sup></font> Remote Method Invocation Specification</em> <p>
-  <li class="SmartList1"><a name="31881"> </a><a href="entry-spec.html"><em class="Emphasis">River Entry Specification</em></a><p>
-  <li class="SmartList1"><a name="31881"> </a><a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a><p>
-  <li class="SmartList1"><a name="31881"> </a><a href="lease-spec.html"><em class="Emphasis">River Distributed Leasing Specification</em></a><p>
-  <li class="SmartList1"><a name="31881"> </a><a href="txn-spec.html"><em class="Emphasis">River Transaction Specification</em></a><p>
+  <li class="SmartList1"><a name="31881"> </a><a href="entry-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Entry Specification</em></a><p>
+  <li class="SmartList1"><a name="31881"> </a><a href="event-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Distributed Events Specification</em></a><p>
+  <li class="SmartList1"><a name="31881"> </a><a href="lease-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Distributed Leasing Specification</em></a><p>
+  <li class="SmartList1"><a name="31881"> </a><a href="txn-spec.html"><em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Transaction Specification</em></a><p>
 </ul>
 
 <h3 class="Heading2">
@@ -234,7 +234,7 @@
   <a name="7287"> </a>JS.2.1	 Entries
 </h4>
 <p class="Body">
-  <a name="30734"> </a>The types <code>Entry</code> and <code>UnusableEntryException</code> that are used in this specification are from the package <code>net.jini.core.entry</code> and are described in detail in the <a href="entry-spec.html"><em class="Emphasis">River Entry Specification</em></a>. In the terminology of that specification <code>write</code> is a store operation; <code>read</code> and <code>take</code> are combination search and fetch operations; and <code>notify</code> sets up repeated search operations as entries are written to the space.
+  <a name="30734"> </a>The types <code>Entry</code> and <code>UnusableEntryException</code> that are used in this specification are from the package <code>net.jini.core.entry</code> and are described in detail in the <a href="entry-spec.html"><em class="Emphasis">Jini Entry Specification</em></a>. In the terminology of that specification <code>write</code> is a store operation; <code>read</code> and <code>take</code> are combination search and fetch operations; and <code>notify</code> sets up repeated search operations as entries are written to the space.
 </p>
 <h4 class="Heading3">
   <a name="7290"> </a>JS.2.2	 <code>net.jini.space.JavaSpace</code> 
@@ -359,7 +359,7 @@ public class InternalSpaceException extends RuntimeException {
   <a name="31227"> </a>The <code>take</code> requests perform exactly like the corresponding <code>read</code> requests (see <a href="js-spec.html#7320">Section&nbsp;JS.2.4, "<code>readIfExists</code> and <code>read</code>"</a>), except that the matching entry is removed from the space. Two <code>take</code> operations will never return copies of the same entry, although if two equivalent entries were in the JavaSpaces service the two <code>take</code> operations could return equivalent entries.
 </p>
 <p class="Body">
-  <a name="30790"> </a>If a <code>take</code> returns a non-<code>null</code> value, the entry has been removed from the space, possibly within a transaction (see <a href="js-spec.html#7388">Section&nbsp;JS.3, "Transactions"</a>). This modifies the claims to once-only retrieval: A <code>take</code> is considered to be successful only if all enclosing transactions commit successfully. If a <code>RemoteException</code> is thrown, the <code>take</code> may or may not have been successful. If an <code>UnusableEntryException</code> is thrown, the <code>take</code> removed the unusable entry from the space; the contents of the exception are as described in the <a href="entry-spec.html"><em class="Emphasis">River Entry Specification</em></a>. If any other exception is thrown, the <code>take</code> did not occur, and no entry was removed from the space.
+  <a name="30790"> </a>If a <code>take</code> returns a non-<code>null</code> value, the entry has been removed from the space, possibly within a transaction (see <a href="js-spec.html#7388">Section&nbsp;JS.3, "Transactions"</a>). This modifies the claims to once-only retrieval: A <code>take</code> is considered to be successful only if all enclosing transactions commit successfully. If a <code>RemoteException</code> is thrown, the <code>take</code> may or may not have been successful. If an <code>UnusableEntryException</code> is thrown, the <code>take</code> removed the unusable entry from the space; the contents of the exception are as described in the <a href="entry-spec.html"><em class="Emphasis">Jini Entry Specification</em></a>. If any other exception is thrown, the <code>take</code> did not occur, and no entry was removed from the space.
 </p>
 <p class="Body">
   <a name="7336"> </a>With a <code>RemoteException</code>, an entry can be removed from a space and yet never returned to the client that performed the <code>take</code>, thus losing the entry in between. In circumstances in which this is unacceptable, the <code>take</code> can be wrapped inside a transaction that is committed by the client when it has the requested entry in hand.
@@ -389,7 +389,7 @@ public class InternalSpaceException extends RuntimeException {
   <a name="7346"> </a>JS.2.7	 <code>notify</code> 
 </h4>
 <p class="Body">
-  <a name="27483"> </a>A <code>notify</code> request registers interest in future incoming entries to the JavaSpaces service that match the specified template. Matching is done as it is for <code>read</code>. The <code>notify</code> method is a particular registration method under the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a>. When matching entries are written, the specified <code>RemoteEventListener</code> will eventually be notified. When you invoke <code>notify</code> you provide an upper bound on the lease time, which is how long you want the registration to be remembered by the JavaSpaces service. The service decides the actual time for the lease. You will get an <code>IllegalArgumentException</code> if the lease time requested is not <code>Lease.ANY</code> and is negative. The lease time is expressed in the standard millisecond units, although actual lease times will usually be of much larger granularity. A lease time of <code>Lease.FOREVER</code> is a request for an indefinite lease; if the service chooses not to grant an indefinite lease, it will return a bounded (non-zero) lease. The final argument to the notify request is a <CODE>MarshaledObject</CODE> called the handback.
+  <a name="27483"> </a>A <code>notify</code> request registers interest in future incoming entries to the JavaSpaces service that match the specified template. Matching is done as it is for <code>read</code>. The <code>notify</code> method is a particular registration method under the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a>. When matching entries are written, the specified <code>RemoteEventListener</code> will eventually be notified. When you invoke <code>notify</code> you provide an upper bound on the lease time, which is how long you want the registration to be remembered by the JavaSpaces service. The service decides the actual time for the lease. You will get an <code>IllegalArgumentException</code> if the lease time requested is not <code>Lease.ANY</code> and is negative. The lease time is expressed in the standard millisecond units, although actual lease times will usually be of much larger granularity. A lease time of <code>Lease.FOREVER</code> is a request for an indefinite lease; if the service chooses not to grant an indefinite lease, it will return a bounded (non-zero) lease. The final argument to the notify request is a <CODE>MarshaledObject</CODE> called the handback.
 <p>
 Each notify returns a <CODE>net.jini.core.event.EventRegistration</CODE> object. When an object is written that matches the template supplied in the <CODE>notify</CODE> invocation, the listener's <CODE>notify</CODE> method is eventually invoked, with a <CODE>RemoteEvent</CODE> object.  The <CODE>RemoteEvent</CODE> object's <CODE>getID</CODE> method will return the same value returned by the <CODE>EventRegistration</CODE> object's <CODE>getID</CODE> method.  This value, the event ID, will be unique at least with respect to all other active event registrations on this JavaSpaces service with different templates or transactions.  The <CODE>RemoteEvent</CODE> object's <CODE>getSource</CODE> method will return a reference to the JavaSpaces service.  If the handback associated with the registration was non-<CODE>null</CODE>, the <CODE>RemoteEvent</CODE> object's <CODE>getRegistrationObject</CODE> method will return an object that is equivalent (in the sense of the <CODE>equals</CODE> method) to the handback, otherwise this method will return <CODE>null</CODE>. The <CODE>RemoteEvent</CODE> object's <CODE>getSequenceNumber</CODE> method will return the sequence number assigned to this event.  Sequence numbers for a given event ID are strictly increasing. If there is no gap between two sequence numbers, no events have been missed; if there is a gap, events might (but might not) have been missed. For example, a gap might occur if the JavaSpaces service crashes, even if no events are lost due to the crash.
 </p>
@@ -406,7 +406,7 @@ Each notify returns a <CODE>net.jini.core.event.EventRegistration</CODE> object.
   <a name="7352"> </a>The service will make a "best effort" attempt to deliver notifications. The service will retry at most until the notification request's lease expires. Notifications may be delivered in any order.
 </p>
 <p class="Body">
-  <a name="7353"> </a>See the <a href="event-spec.html"><em class="Emphasis">River Distributed Events Specification</em></a> for details on the event types.
+  <a name="7353"> </a>See the <a href="event-spec.html"><em class="Emphasis">Jini Distributed Events Specification</em></a> for details on the event types.
 </p>
 <h4 class="Heading3">
   <a name="7354"> </a>JS.2.8	 Operation Ordering
@@ -450,7 +450,7 @@ Each notify returns a <CODE>net.jini.core.event.EventRegistration</CODE> object.
   <a name="7390"> </a>Transactions wrap together multiple operations. Either all modifications within the transactions will be applied or none will, whether the transaction spans one or more operations and/or one or more JavaSpaces services.
 </p>
 <p class="Body">
-  <a name="7391"> </a>The transaction semantics described here conform to the default transaction semantics defined in the <a href="txn-spec.html"><em class="Emphasis">River Transaction Specification</em></a>.
+  <a name="7391"> </a>The transaction semantics described here conform to the default transaction semantics defined in the <a href="txn-spec.html"><em class="Emphasis">Jini Transaction Specification</em></a>.
 </p>
 <h4 class="Heading3">
   <a name="7392"> </a>JS.3.1	 Operations under Transactions
@@ -549,7 +549,7 @@ Each notify returns a <CODE>net.jini.core.event.EventRegistration</CODE> object.
   </tr>
   <tr>
     <td>v2.2 </td>
-    <td>Removed dependency on River Entry Utilities Specification.</td>
+    <td>Removed dependency on Jini Entry Utilities Specification.</td>
   </tr>
 </table>
 <p>
@@ -559,7 +559,7 @@ Each notify returns a <CODE>net.jini.core.event.EventRegistration</CODE> object.
 </p>
 <a name="275577"> </a><a href="#2427"><sup>3</sup></a> "Linda" is the name of a public domain technology originally propounded by Dr. David Gelernter of Yale University. "Linda" is also claimed as a trademark for certain goods by Scientific Computing Associates, Inc. This discussion refers to the public domain "Linda" technology.
 <p>
-<a name="04915"> </a><a href="#01886"><sup>4</sup></a> "Fully ordered" in defined in the <em>River Technology Core Platform Specification</em>, "Distributed Events".
+<a name="04915"> </a><a href="#01886"><sup>4</sup></a> "Fully ordered" in defined in the <em>Jini Technology Core Platform Specification</em>, "Distributed Events".
 <h3 class="Heading2">
   <a name="0188"> </a>		 License	 
 </h3>
