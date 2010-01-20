@@ -24,7 +24,7 @@
 </H1>
  <ul>
 
-<p>Some River network technology-based services may be activatable and
+<p>Some Jini network technology-based services may be activatable and
 as such will require the use of an activation daemon.  The standard
 Java(TM) 2 Standard Edition (J2SE(TM)) Remote Method Invocation (Java RMI) activation daemon is
 <code>rmid</code>.  The Apache River release
@@ -284,11 +284,11 @@ name for the permissions needs to be changed to
      and
 
 <pre>     <a href="http://java.sun.com/j2se/1.4/docs/tooldocs/windows/rmid.html">http://java.sun.com/j2se/1.4/docs/tooldocs/windows/rmid.html</a>
-</pre></a>
+</pre>
 <P>
 <H3><a name="prev">
 How to achieve the behavior of <code>rmid</code> released in
-previous versions of the Java 2 SDK</H3></a>
+previous versions of the Java 2 SDK</a></H3>
 <P>
    The new security control can be effectively bypassed by assigning an
    exec policy that permits all commands and all options.  There is a
@@ -311,7 +311,7 @@ previous versions of the Java 2 SDK</H3></a>
 <P>
 <H3><a name="assign">
 How to assign and maintain security controls
-</H3></a>
+</a></H3>
 <P>
    The default exec policy is used if the
    <CODE>sun.rmi.activation.execPolicy</CODE> system property is not
@@ -428,7 +428,7 @@ JavaSpaces technology from Sun Microsystems) in the Solaris OS:
 <PRE>
   grant {
     permission com.sun.rmi.rmid.ExecOptionPermission
-	       "-Djava.security.policy=<b><var>configDir</b></var>/books.policy";
+	       "-Djava.security.policy=<var><b>configDir</b></var>/books.policy";
     permission com.sun.rmi.rmid.ExecOptionPermission
 	       "-Djava.rmi.server.codebase=*";
     permission com.sun.rmi.rmid.ExecOptionPermission

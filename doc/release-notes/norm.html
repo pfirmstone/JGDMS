@@ -47,6 +47,50 @@ href="../api/net/jini/admin/Administrable.html">
 <dl>
   <dt> <b>None</b>
 </dl>
+<H3>Changes since the v2.0.1 release</H3>
+
+<dl>
+
+  <dt> <b>Configuration</b>
+  <dd> In this release, no new configuration entries have been added, nor have any other
+       changes occurred with respect to the configuration.
+       <p>
+       A full list of supported configuration entries is given in this service's
+       <a href="../api/com/sun/jini/norm/package-summary.html#configuration"> man page</a>.
+       <p>
+
+  <dt> <b>Logging</b>
+  <dd> In this release, no changes have occurred with respect to the logging mechanism
+       employed by Norm, which logs diagnostic information using a separate
+       <a href="http://java.sun.com/j2se/1.4/docs/api/java/util/logging/Logger.html"> <code>Logger</code></a>
+       for each type of information logged. The name of each logger
+       is a dot-separated concatenation of the implementation package name,
+       <code>com.sun.jini.norm</code>, with a descriptive string. A description
+of each
+       logger used by this service, as well as what information is logged to which
+       logger, and at what logging level, is given in this service's
+       <a href="../api/com/sun/jini/norm/package-summary.html#logging"> man page</a>.
+       <p>
+
+  <dt> <b>Bug Fixes of Interest</b>
+  <dd> A number of bugs have been addressed in this release of Norm.
+       What follows is a description of those bugs that might be of
+       interest:
+  <p>
+
+  <dt><b>4965775: Norm threads should guard against lost interrupts</b><dt>
+
+  <dd> Thread subclasses in Norm that use logging and do not override the
+       <code>Thread.interrupt</code> method to set an "interrupted" field are
+       susceptable to lost interrupts.  This problem can occur because
+       <code>java.util.logging</code> swallows internal
+       <code>InterruptedIOExceptions</code> without setting the receiving
+       thread's interrupted status, effectively forgetting the interrupt.  The
+       end result is that some of Norm's threads could loop endlessly instead of       terminating, causing Norm shutdowns to hang.
+       <p>
+       This bug has been fixed.
+  </dd>
+</dl>
 
 <!-- No issues for now
 

@@ -43,7 +43,7 @@ exploits and extends Java technology to enable the construction of
 secure, distributed systems which are adaptive to change.
 <hr>
 <h2>Notes of Interest for this Release</h2>
-This first release from the Apache River project is based on the
+This second release from the Apache River project is based on the
 contributions of Sun's Jini Technology Starter Kit (Starter Kit) v2.1
 and Service UI from Artima.  The release focuses on merging the
 two contributions together, structuring separate src and bin releases,
@@ -100,10 +100,288 @@ To discuss problems, questions, or suggestions on the release, please subscribe
 to the <code>river-dev</code> list from the <a href="http://incubator.apache.org/river/mailing.html">
 project Mailing Lists</a> page.
 <hr>
-In this first release from the Apache River project, we're also including
-these release notes from the Jini Technology Starter Kit v2.0.2 release for 
-background and context: 
+    
+    <h2>Changes made since Apache River v2.1.1</h2>
+    <h2>        Bug
+</h2>
 <ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-5'>RIVER-5</a>] - 
+HTTMPMD URLs can be considered equal while they are not
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-8'>RIVER-8</a>] -         
+com.sun.jini.tool.ClassDep empty inside collection doesn't work
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-17'>RIVER-17</a>] -         
+Misleading logging message when discovery constraint checking is delayed
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-18'>RIVER-18</a>] -         
+Order of discovery providers not maintained
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-22'>RIVER-22</a>] -         
+NPE in net.jini.jeri.tcp.TcpEndpoint$ConnectionImpl.checkConnectPermission
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-24'>RIVER-24</a>] -         
+PreferredListGen can create illegal PREFERRED.LIST
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-78'>RIVER-78</a>] -         
+ClassDep generates duplicate output lines
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-82'>RIVER-82</a>] -         
+ClassDep generates duplicate output lines
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-91'>RIVER-91</a>] -         
+Uninstaller does not remove all items
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-205'>RIVER-205</a>] -         
+LookupDiscovery can give untrusted code access to privileged threads
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-209'>RIVER-209</a>] -         
+NullPointerException in SslConnection.checkConnectPermission()
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-212'>RIVER-212</a>] -         
+use of &quot;enum&quot; as a variable name
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-213'>RIVER-213</a>] -         
+(DOC) - JoinManger has typo in javadoc (missing &lt;/code&gt; termination tag)
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-215'>RIVER-215</a>] -         
+LookupDiscovery throws NullPointerException on terminate
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-216'>RIVER-216</a>] -         
+ConfigurationFile should throw ExceptionInInitializerError if unable to read 
+prohibited methods
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-217'>RIVER-217</a>] -         
+Browser incorrectly assumes event source is ServiceRegistrar proxy
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-223'>RIVER-223</a>] -         
+test: jtreg/net/jini/jeri/tcp/connectTimeout/TestConnectTimeout fails on Linux
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-224'>RIVER-224</a>] -         
+Problem using browser to destroy service that supports DestroyAdmin but not 
+JoinAdmin
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-225'>RIVER-225</a>] -         
+NullPointerException in Reggie during destroy
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-227'>RIVER-227</a>] -         
+tools manpages command lines do not include line continuation characters
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-230'>RIVER-230</a>] -         
+(mux) SelectionManager catch Error block assumes getMessage() returns non-null
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-232'>RIVER-232</a>] -         
+JarWrapper and PreferredListGen uses jsk_install_dir and install_dir
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-234'>RIVER-234</a>] -         
+(DOC) Fiddler manpage directions for HTTP server should reference 
+classserver.jar, not tools.jar
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-240'>RIVER-240</a>] -         
+BasicInvocationDispatcher.dispatch could log more info for some exceptions
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-241'>RIVER-241</a>] -         
+Mercury spelling errore
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-242'>RIVER-242</a>] -         
+if a given ConnectionManager instance cannot create a reaper thread once, 
+it never will again
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-245'>RIVER-245</a>] -         
+Unicast discovery should close socket in case of connection exception.
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-252'>RIVER-252</a>] -         
+ComputeHttpmdCodebase NPE if resource bundle not found
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-253'>RIVER-253</a>] -         
+ComputeDigest NPE if resource bundle not found
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-254'>RIVER-254</a>] -         
+request initiation can block on I/O for inapplicable connection
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-255'>RIVER-255</a>] -         
+Outrigger DestroyThread does not catch exceptions from exporter.unexport
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-284'>RIVER-284</a>] -         
+[PATCH] fix bad ParticipantHandle.compareTo 
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-286'>RIVER-286</a>] -         
+[PATCH] iterators on synchronized collections still need synchronization
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-289'>RIVER-289</a>] -         
+Fix for RIVER-247 introduced wrong license headers and references
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-298'>RIVER-298</a>] -         
+No JavaDocs generated for package &quot;com.sun.jini.reliableLog&quot;
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-302'>RIVER-302</a>] -         
+ClassDep -newdirbehaviour option does not work
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-305'>RIVER-305</a>] -         
+qa/GetPermissions test still uses &quot;enum&quot; keyword
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-320'>RIVER-320</a>] -         
+Prebuilt hello example certificates have expired - need to provide new ones 
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-324'>RIVER-324</a>] -         
+Under certain circumstances, the ServiceDiscoveryManager internal LookupCache 
+implementation can incorrectly  process attribute change events before the 
+lookup snapshot is processed.
+</li>
+</ul>
+    
+<h2>        Improvement
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-7'>RIVER-7</a>] -         
+com.sun.jini.tool.ClassDep should be smarter with outer classes
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-9'>RIVER-9</a>] -         
+PreferredClassLoader should try to avoid making a direct check against the 
+first URL
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-25'>RIVER-25</a>] -         
+Improve logging for JoinManager at INFO and WARNING level
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-115'>RIVER-115</a>] -         
+Multiple jar files with conflicting lists need facilities to map the chosen 
+preferred value
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-116'>RIVER-116</a>] -         
+Multiple jar files with conflicting lists need facilities to map the chosen 
+preferred value
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-160'>RIVER-160</a>] -         
+add TrustEquivalence to browser's list of uninterestingInterfaces
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-201'>RIVER-201</a>] -         
+Show interfaces rather than classes in browser's Matching Services pane.
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-206'>RIVER-206</a>] -         
+Change default load factors from 3 to 1
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-210'>RIVER-210</a>] -         
+Browser should cancel event lease on exit
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-220'>RIVER-220</a>] -         
+LookupLocatorDiscovery catch Throwable blocks should also catch Throwable
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-226'>RIVER-226</a>] -         
+LLD: consider delaying the queuing of a discovery request immediately after a 
+discard
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-229'>RIVER-229</a>] -         
+reduce number of Reaper threads created by ConnectionManager
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-231'>RIVER-231</a>] -         
+ComputeHttpmdCodebase man page could be clarified with respect to algorithm used
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-233'>RIVER-233</a>] -         
+ComputeDigest instructions reference sha and sha1
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-243'>RIVER-243</a>] -         
+JarWrapper javadoc could be clearer wrt to classpath manifests
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-244'>RIVER-244</a>] -         
+Text area below menu bar in ServiceBrowser should not be editable
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-246'>RIVER-246</a>] -         
+Consider adding shutdown hook so Reggie sends final multicast packet if its VM 
+is terminated
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-247'>RIVER-247</a>] -         
+Destroy processing should use configurable duration and interval for unexporting
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-256'>RIVER-256</a>] -         
+Outrigger catch Throwable blocks should also catch Throwable
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-262'>RIVER-262</a>] -         
+ServiceUI Specification
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-270'>RIVER-270</a>] -         
+tar tasks in release* ant targets fail due to 100-char limitation and are 
+disabled
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-285'>RIVER-285</a>] -         
+LookupDiscoveryManager has unused variable declarations
+</li>
+</ul>
+    
+<h2>        New Feature
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-151'>RIVER-151</a>] -         
+ClassDep should have a method to determine if problems occurred
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-161'>RIVER-161</a>] -         
+Coalesce jars from multiple source dirs while retain current Manifest Classpath 
+semantics
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-163'>RIVER-163</a>] -         
+ClassDep doesn't pick up annotation or type parameter dependencies
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-292'>RIVER-292</a>] -         
+The service browser should provide support for the ServiceUI support
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-295'>RIVER-295</a>] -         
+Support configurable option to prevent from popup windows that require a 
+confirmation by the user
+</li>
+</ul>
+                
+<h2>        Task
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-294'>RIVER-294</a>] -         
+Remove http://svn.apache.org/repos/asf/incubator/river/trunk/ from the SVN 
+repository
+</li>
+</ul>
+            
+<h2>        Test
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-291'>RIVER-291</a>] -         
+Cannot build QA tests using the supplied make files
+</li>
+</ul>
+    <hr>
+    
+    <h2>Changes made since JTSK v2.1</h2>
+        
+<h2>        Bug
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-211'>RIVER-211</a>] -         
+source files for ServiceItem, ServiceMatches, and ServiceTemplate do not match 
+binary distribution
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-269'>RIVER-269</a>] -         
+build reports problem with javadoc generation on Windows
+</li>
+</ul>
+                        
+<h2>        Task
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-263'>RIVER-263</a>] -         
+Remove outrigger logstore sources and build support
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-264'>RIVER-264</a>] -         
+integrate serviceui sources into jtsk trunk
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-266'>RIVER-266</a>] -         
+update build and source code for name, version number, ...
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-267'>RIVER-267</a>] -         
+Documentation update in release
+</li>
+</ul>
+<hr>
+                
+                <h2>Release notes from the Jini Technology Starter Kit v2.1</h2>
+<ul>
+        <li><a href=new.html>What's new in v2.1?</a>  
         <li><a href="bugfixes.html">Bugs fixed between v2.0.1 and v2.0.2 releases</a>
         <li><a href=#changes>Changes since the v2.0.1 release</a>
 	<li><a href=#platform>Platform dependencies</a>
@@ -120,7 +398,7 @@ background and context:
 	<li><a href=#javadoc>Note on the API documentation</a>
 </ul>
 <a name="changes">
-<h2>Changes to the Starter Kit between v2.0.1 and v2.0.2</h2></a>
+<h2>Changes by Component, updated for v2.1.2</h2></a>
 <h3>Services</h3>
 <ul>
 	<li><a href="reggie.html">Reggie</a>

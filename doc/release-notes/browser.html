@@ -25,7 +25,7 @@
 
 <center>
 <h1>Service Browser<br>
-v2.1.2 Release Notes</h1>
+Apache River v2.1.2 Release Notes</h1>
 </center>
 <HR>
 <UL>
@@ -37,7 +37,40 @@ services registered within those lookup services.
 <dl>
 <dt><b>None</b>
 </dl>
+
+
+<H3>Changes since the v2.0.1 release</H3>
+<dl>
+<dt><b>Service Starter support</b>
+<dd>The Service Browser can now be run as a nonactivatable entity under
+the Service Starter.
+<p>
+<dt><b>JAR File Changes</b>
+<dd>The codebase for the Service Browser should now contain two URLs, the
+first for <code>browser-dl.jar</code> and the second for
+<code>jsk-dl.jar</code>. The <code>Class-Path</code> manifest attribute
+for <code>browser.jar</code> now also includes <code>jsk-lib.jar</code>.
+<p>
+<dt><b>Security Policy File Changes</b>
+<dd>The security policy file for the Service Browser must now grant
+permissions to <code>jsk-lib.jar</code>.
+<p>
+<dt><b>Browsing JavaSpaces(TM) service entries</b>
+<dd>The Service Browser can now browse the entries of a JavaSpaces(TM)
+service that implements the
+<a href="../api/net/jini/space/JavaSpace05.html"><code>JavaSpace05</code></a>
+interface.
+<p>
+<dt><b>Configuration</b>
+<dd>A new <code>exitActionListener</code> configuration entry has been added,
+which can be used to set the action listener for the <b>Exit</b> item of the
+<b>File</b> menu. The new class,
+<a href="../api/com/sun/jini/example/browser/Browser.Exit.html"><code>Browser.Exit</code></a>,
+is a simple action listener that calls <code>System.exit</code>.
+</dl>
 </ul>
+
+
 <hr>
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file

@@ -24,8 +24,8 @@
 <title>River Lease Utilities Release Notes</title>
 
 <center>
-<h1>River Lease Utilities<BR>
-v2.1.2 Release Notes</h1>
+<h1>Jini<font size="-1"><sup>TM</sup></font> Lease Utilities<BR>
+River v2.1.2 Release Notes</h1>
 </center>
 <HR>
 <UL>
@@ -33,7 +33,7 @@ v2.1.2 Release Notes</h1>
 The class <code>net.jini.lease.LeaseRenewalManager</code> is a utility
 class that provides for the systematic renewal and overall management of
 a set of leases associated with one or more remote entities on behalf of
-a local entity.  The <i>River Lease Utilities Specification</i> is
+a local entity.  The <i>Jini Lease Utilities Specification</i> is
 available in <a href="../specs/html/leaseutil-spec.html">html</a>.
 <p>
 
@@ -43,6 +43,48 @@ available in <a href="../specs/html/leaseutil-spec.html">html</a>.
 
   <dt> <b>None</b></dt>
   
+</dl>
+<H3>Changes since the v2.0.1 release</H3>
+
+<dl>
+
+  <dt> <b>Configuration</b>
+  <dd> A new configuration entry named <code>roundTripTime</code> may
+       be used to set the worst-case latency to assume for a remote
+       call to renew a lease. This latency was previously hard-coded
+       to a value of ten seconds.
+       A full list of supported configuration entries is given in the
+       <code>LeaseRenewalManager</code> <a
+       href="../api/net/jini/lease/LeaseRenewalManager.html#configEntries">
+       class documentation</a>. <p>
+
+  <dt> <b>Logging</b>
+  <dd> In this release, no changes have occurred with respect to the logging mechanism
+       employed by the <code>LeaseRenewalManager</code>, which logs
+       diagnostic information to the <a
+       href="http://java.sun.com/j2se/1.4/docs/api/java/util/logging/Logger.html">
+       <code>Logger</code></a> named
+       <code>net.jini.lease.LeaseRenewalManager</code>. A description of
+       what information is logged at what logging levels is given in the
+       <a
+       href="../api/net/jini/lease/LeaseRenewalManager.html#logging">
+       class documentation</a>.
+  <p>
+  <dt> <b>Bug Fixes of Interest</b>
+
+  <dd> A number of bugs have been addressed in this release of the
+       <code>LeaseRenewalManager.</code> What follows is a description of those
+       bugs that might be of interest:
+  <p>
+
+  <dt><b>5015237: <code>LeaseRenewalManager</code> does not log lease
+         renewal failures if no listener is specified</b><dt>
+
+  <dd>The renewal failure logging code had an unnecessary dependency
+      on the existence of a registered listener.
+      <p>
+      This bug has been fixed.
+  </dd>
 </dl>
 
 <!-- No issues for now

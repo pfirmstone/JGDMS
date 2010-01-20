@@ -25,7 +25,7 @@
 
 <center>
 <h1><code>ClassServer</code><br>
-v2.1.2 Release Notes</h1>
+Apache River v2.1.2 Release Notes</h1>
 </center>
 <HR>
 <UL>
@@ -37,6 +37,21 @@ class files.
 <dl>
 <dt><b>None</b></dt>
 </dl>
+<H3>Changes since the v2.0.1 release</H3>
+<dl>
+<dt><b>Multiple Directory Support</b>
+<dd>The class server can now serve up files from multiple directories.
+The <code>-dir</code> (or <code>-dirs</code>) command line option
+and the <code>dirlist</code> constructor parameter now accept a list
+of directories to serve files from, with entries separated by the
+system path-separator character.
+<p>
+<dt><b>Executable JAR file</b>
+<dd>There is a new executable JAR file, <code>classserver.jar</code>,
+that can be used to run the class server.
+</dl>
+
+
 </ul>
 <hr>
 Licensed to the Apache Software Foundation (ASF) under one

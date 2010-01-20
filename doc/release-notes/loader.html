@@ -25,7 +25,7 @@
 
 <center>
 <h1><code>net.jini.loader</code><br>
-v2.1.2 Release Notes</h1>
+Apache River v2.1.2 Release Notes</h1>
 </center>
 <HR>
 <UL>
@@ -38,11 +38,59 @@ loading and, in particular, <i>preferred classes</i>.
 
 <H3>Changes since the v2.1.1 release</H3>
 
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-9'>RIVER-9</a>] -         
+PreferredClassLoader should try to avoid making a direct check against the 
+first URL
+</li>
+
+<H3>Changes since the v2.0.1 release</H3>
+
 <dl>
 
-<dt><b>None</b></dt>
+<dt><b><code>PreferredClassProvider</code> constructors now require a
+permission</b>
+
+<dd><p>The constructors of <a
+href="../api/net/jini/loader/pref/PreferredClassProvider.html"><code>PreferredClassProvider</code></a>
+now check that the current security context has the permission
+<code>RuntimePermission("createClassLoader")</code>, and they throw a
+<code>SecurityException</code> if that check fails.  The primary
+consequence of this change is that the protection domain of a subclass
+of <code>PreferredClassProvider</code> must have this permission in
+order for the subclass to be instantiated.  Instances of
+<code>PreferredClassProvider</code> are typically only instantiated as
+part of the internal process of looking up and initializing the
+<code>RMIClassLoader</code> provider, so this change is unlikely to
+affect the permission requirements of classes other than
+<code>PreferredClassProvider</code> subclasses.
+
+<dt><b>New <code>PreferredClassLoader</code> constructor with
+<code>URLStreamHandlerFactory</code> parameter</b>
+
+<dd><p><a
+href="../api/net/jini/loader/pref/PreferredClassLoader.html"><code>PreferredClassLoader</code></a>
+has a <a
+href="../api/net/jini/loader/pref/PreferredClassLoader.html#PreferredClassLoader(java.net.URL[],%20java.lang.ClassLoader,%20java.lang.String,%20boolean,%20java.net.URLStreamHandlerFactory)">new
+constructor</a>, with a <code>URLStreamHandlerFactory</code> parameter
+that can be used to control the <code>URLStreamHandler</code> used
+when the loader creates new <code>URL</code> objects (which it does in
+order to load classes and resources from JAR files, by using the
+<code>"jar"</code> URL scheme).  This new constructor is intended to
+parallel the superclass <code>java.net.URLClassLoader</code>
+constructor that has a <code>URLStreamHandlerFactory</code> parameter.
+
+<dt><b>New <code>PreferredClassProvider</code> <code>protected</code>
+method <code>createClassLoader</code></b>
+
+<dd><p><a
+href="../api/net/jini/loader/pref/PreferredClassProvider.html"><code>PreferredClassProvider</code></a>
+has a new <code>protected</code> method, <a
+href="../api/net/jini/loader/pref/PreferredClassProvider.html#createClassLoader(java.net.URL[],%20java.lang.ClassLoader,%20boolean)"><code>createClassLoader</code></a>,
+which can be overridden by subclasses to customize the creation of new
+class loaders created by the provider.
 
 </dl>
+
 
 <H3>Known Issues (& Workarounds)</H3>
 

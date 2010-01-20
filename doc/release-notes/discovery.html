@@ -21,16 +21,16 @@
       vlink="#cc1877" alink="#ffffff">
 
 
-<title>River Discovery Utilities Release Notes</title>
+<title>Jini Discovery Utilities Release Notes</title>
 
 <center>
-<h1>River Discovery Utilities<BR>
-v2.1.2 Release Notes</h1>
+<h1>Jini Discovery Utilities<BR>
+Apache River v2.1.2 Release Notes</h1>
 </center>
 <HR>
 <UL>
 <H3>Description</H3>
-The River discovery utilities contain
+The Jini discovery utilities contain
 a set of discovery management interfaces that define the policies to
 apply when implementing helper utilities that manage an entity's
 discovery duties: in particular, the management of multicast (group)
@@ -63,15 +63,86 @@ Additional classes and packages:
     <code>com.sun.jini.discovery</code></a>
   </ul>
 <p>
-The <i>River Discovery Utilities Specification</i> is available in
+The <i>Jini Discovery Utilities Specification</i> is available in
 <a href="../specs/html/discoveryutil-spec.html">html</a>.
 
 <p>
 <H3>Changes since the v2.1.1 release</H3>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-17'>RIVER-17</a>] -         
+Misleading logging message when discovery constraint checking is delayed
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-245'>RIVER-245</a>] -         
+Unicast discovery should close socket in case of connection exception.
+</li>
+  
+  <H3>Changes since the v2.0.1 release</H3>
 
 <dl>
-  <dt>None</dt>
-  </dl>
+  <dt> <b>API additions and changes</b>
+  <dd> Changes to the <a href="../api/net/jini/discovery/package-summary.html">
+       <code>net.jini.discovery</code></a> package.
+       <ul>
+       <li>Parsing of the input URL and host name arguments in the corresponding       <a href="../api/net/jini/discovery/ConstrainableLookupLocator.html">
+       <code>ConstrainableLookupLocator</code></a> and
+       <a href="../api/net/jini/core/discovery/LookupLocator.html">
+       <code>LookupLocator</code></a> constructors has been made stricter;
+       this may generate new <code>MalformedURLException</code>s. Note that
+       the implementation does not conform to the DJ 3.0 specification, which
+       requires parsing according to RFC 2396. The implementation is more
+       permissive and allows characters such as <code>'_'</code> in host names
+       to minimize backward incompatibility issues and anticipate compliance
+       with RFC 3986 (which obsoletes RFC 2396).
+       <li>
+       <code>ConstrainableLookupLocator</code> handles
+       <a href="../api/net/jini/core/constraint/ConnectionAbsoluteTime.html">
+       <code>ConnectionAbsoluteTime</code></a> and
+       <a href="../api/net/jini/core/constraint/ConnectionRelativeTime.html">
+       <code>ConnectionRelativeTime</code></a> constraints, enabling the
+       specification of timeouts on unicast discovery connection attempts.
+       <li>
+       <a href="../api/net/jini/discovery/LookupLocatorDiscovery.html">
+       <code>LookupLocatorDiscovery</code></a> handles any
+       <code>ConnectionRelativeTime</code> and <code>ConnectionAbsoluteTime</code>
+       constraints that may be set on the <code>LookupLocator</code>s passed into its
+       constructors.
+       <li>The
+       <a href="../api/net/jini/discovery/LookupDiscovery.html"> <code>LookupDiscovery</code></a>,
+       <code>LookupLocator</code>, <code>ConstrainableLookupLocator</code>, and
+       <code>LookupLocatorDiscovery</code> classes now try all the IP addresses
+       that a given host name may resolve to, instead of just the first one. This is as per the
+       recommendations in RFC 1123.
+       </ul>
+       <p>
+       Changes to the <a href="../api/com/sun/jini/discovery/package-summary.html">
+       <code>com.sun.jini.discovery</code></a> package.
+       <ul>
+       <li>
+       The <a href="../api/com/sun/jini/discovery/Discovery.html">
+       <code>Discovery</code></a> class now enables constraint checking to be optionally
+       delayed. With this change, constraint checks need not be performed as part of multicast
+       announcement or request decoding.
+       Discovery providers that support delayed constraint checking must implement the new
+       <a href="../api/com/sun/jini/discovery/MulticastAnnouncementDecoder.html">
+       <code>MulticastAnnouncementDecoder</code></a>
+       and <a href="../api/com/sun/jini/discovery/MulticastRequestDecoder.html">       <code>MulticastRequestDecoder</code></a> interfaces.
+       <li>
+       The <a href="../api/com/sun/jini/discovery/DiscoveryConstraints.html">
+       <code>DiscoveryConstraints</code></a> class supports processing of
+       <code>ConnectionRelativeTime</code> and <code>ConnectionAbsoluteTime</code>
+       constraints. Note that the processed constraints will no longer return
+       <code>ConnectionRelativeTime</code> and <code>ConnectionAbsoluteTime</code>
+       <code>ConnectionRelativeTime</code> and <code>ConnectionAbsoluteTime</code>
+       constraints. Note that the processed constraints will no longer return
+       <code>ConnectionRelativeTime</code> and <code>ConnectionAbsoluteTime</code>
+       as unfulfilled constraints.
+       </ul>
+       <p>
+
+  <dt> <b>Configuration</b>
+  <dd> The current implementation of the <code>LookupDiscovery</code>
+       utility now allows <code>ConnectionRelativeTime</code> and
+       <code>ConnectionAbsoluteTime</code> as part of its discovery constraints.
+ 
   
 <!-- No issues for now
 

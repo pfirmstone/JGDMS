@@ -38,12 +38,42 @@ href="../specs/html/mailbox-spec.html">HTML</a>.
 <p>
 
 <H3>Changes since the v2.1.1 release</H3>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-241'>RIVER-241</a>] -         
+Mercury spelling errore
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-247'>RIVER-247</a>] -         
+Destroy processing should use configurable duration and interval for unexporting
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-289'>RIVER-289</a>] -         
+Fix for RIVER-247 introduced wrong license headers and references
+</li>
+
+<H3>Changes since the v2.1 release</H3>
+<dl>None</dl>
+
+<H3>Changes since the v2.0.1 release</H3>
 
 <dl>
 
-  <dt> <b>None</b></dt>
-  
+  <dt> <b>"Pull" Functionality</b>
+  <dd> The Jini(TM) Event Mailbox Service
+       <a href="../specs/html/mailbox-spec.html">Specification</a>
+       was augmented with additional classes and
+       interfaces that provide synchronous access to
+       events (see sections EM.5-EM.7). Mercury was also
+       updated to implement this new functionality. <BR>
+       The following work still needs to be done:
+       <UL>
+       <LI>Implement the timeout functionality for
+           <code>RemoteEventIterator.next</code>
+       <LI>Make the batching implementation configurable. For example,
+           configuring the number of events that get returned to the
+           event mailbox client in a single call. Currently all the available
+           events are sent.
+       </UL>
+       <p>
 </dl>
+
        
 <!-- No issues for now
 
@@ -52,6 +82,7 @@ href="../specs/html/mailbox-spec.html">HTML</a>.
 <p>
 
 -->
+
 
 </ul>
 <hr>
