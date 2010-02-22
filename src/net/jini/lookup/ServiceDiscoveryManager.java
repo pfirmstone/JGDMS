@@ -983,8 +983,16 @@ public class ServiceDiscoveryManager {
                         cacheTaskMgr.add(t);
                     }//end loop
                     /* 3. Handle events that came in prior to lookup */
+                    /* Fix provided by Bob Scheifler to JIRA [#RIVER-324] fix
+                     * to assign new task sequence numbers, to pending events
+                     * added to cacheTaskMgr.
+                     */ 
                     eReg.lookupsPending--;
-                    cacheTaskMgr.addAll(eReg.pending);
+		    for (iter = eReg.pending.iterator(); iter.hasNext(); ) {
+			NotifyEventTask t = (NotifyEventTask) iter.next();
+			t.thisTaskSeqN = taskSeqN++; // assign new seqN
+			cacheTaskMgr.add(t);
+                    }
                     eReg.pending.clear();
                 }//end sync(serviceIdMap)
                 logger.finest("ServiceDiscoveryManager - LookupTask "
