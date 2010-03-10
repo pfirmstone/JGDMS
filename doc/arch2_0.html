@@ -26,24 +26,24 @@
 <br>
 
 <p>This document provides an overview of the new components of
-the Apache River v2.1.2 release and
+the Jini v2.0 Architecture included in Apache River and
 explains how the components fit together and fit within the
-existing River technology infrastructure.  Much of this
+existing Jini technology infrastructure.  Much of this
 information is available in the package, interface, and class
 documentation, but this document provides a higher-level overview
 and indicates where to find more information.
 
 
-<h2>1 Overview of River Architecture</h2>
+<h2>1 Overview of Jini Architecture</h2>
 
-<p>The River system architecture consists of three categories:
+<p>The Jini system architecture consists of three categories:
 <i>programming model</i>, <i>infrastructure</i>, and <i>services</i>.
-The original <a href="../doc/specs/html/jini-spec.html"><i>River
+The original <a href="../doc/specs/html/jini-spec.html"><i>Jini
 Architecture Specification</i></a> defines these categories as follows:
 
 <blockquote>
     The infrastructure is the set of components that enables
-    building a federated River system, while the services are the
+    building a federated Jini system, while the services are the
     entities within the federation.  The programming model is a
     set of interfaces that enables the construction of reliable
     services, including those that are part of the infrastructure
@@ -53,8 +53,8 @@ Architecture Specification</i></a> defines these categories as follows:
 <p>Originally, the programming model defined models for leasing, event
 notification, and transactions.  The basic infrastructure consisted of
 the discovery/join protocol and the lookup service.  Previous versions
-of Apache River delivered implementations of the following River
-technology-enabled services (River services):
+delivered implementations of the following Jini
+technology-enabled services (Jini services):
 
 <ul>
 <li> Lookup Service (reggie)
@@ -65,8 +65,9 @@ technology-enabled services (River services):
 <li> JavaSpaces Service (outrigger)
 </ul>
 
-<p>The Apache River v2.0 release adds components to the first two
-categories (programming model and infrastructure) of the River
+<p>Apache River releases following and including the Jini v2.0 release add
+components to the first two
+categories (programming model and infrastructure) of the Jini
 architecture, although some components span both of these categories.
 Additionally, this release provides updates to existing services to
 account for the additions to the infrastructure and the programming
@@ -102,10 +103,10 @@ exporting and proxy preparation.
 
 <h3>1.1 Goals</h3>
 
-The main goals for the additions in the River architecture are to:
+The main goals for the additions in the Jini architecture are to:
 
 <ul>
-<li> Add support for secure River technology-based programs (Security infrastructure)
+<li> Add support for secure Jini technology-based programs (Security infrastructure)
 <li> Provide mechanisms to configure applications (<code>Configuration</code>)
 <li> Unify client-side and server-side programming models
      (<code>ProxyPreparer</code> and <code>Exporter</code>)
@@ -114,11 +115,11 @@ The main goals for the additions in the River architecture are to:
      and pluggable transport providers (Jini ERI)
 </ul>
 
-<p>The primary motivation for augmenting the River architecture
+<p>The primary motivation for augmenting the Jini architecture
 is to provide the new programming models and infrastructure
-necessary to support and manage security in River technology-based
-distributed applications.  The previous River architecture lacked
-direct support for a type of security many River applications
+necessary to support and manage security in Jini technology-based
+distributed applications.  The previous Jini architecture lacked
+direct support for a type of security many Jini / Apache River applications
 need, namely basic network security for remote calls to
 services.  This goal is addressed by the new security
 infrastructure and constraint-based remote invocation model.
@@ -132,7 +133,7 @@ release introduces a uniform client-side API to handle a
 "preparation" step before remote invocation.  Additionally,
 application developers can ease deployment tasks by separating
 out deployment-time information from the application.  The
-<code>Configuration</code> API introduced in this release
+<code>Configuration</code> API introduced in the Jini 2.0 release
 provides a simple and uniform way to obtain deployment-specific
 information.  The resulting programming model supports a uniform
 framework for pluggable security, exporter, transport, and other
@@ -203,13 +204,13 @@ application.
 
 <h3>2.2  <code>Exporter</code> and the Server-Side Implementation Model </h3>
 
-<p>In River technology-based applications, invoking a method on a
-River service proxy has a uniform client-side model: a client
+<p>In Jini technology-based applications, invoking a method on a
+Jini service proxy has a uniform client-side model: a client
 simply invokes a method on the service's proxy to initiate remote
 communication to the service object, an invocation that follows
 the same general semantics as the Java RMI model.
 
-<p>The server-side implementation model for River applications,
+<p>The server-side implementation model for Jini / Apache River applications,
 however, is not uniform.  An application developer typically
 implements a service and exports that service in a way that ties
 the service directly to a specific implementation and model of
@@ -230,8 +231,8 @@ invocation and additional invocation semantics, are defined by the
 particular implementation of the <code>Exporter</code> interface.
 
 <p>Several standard <code>Exporter</code> implementations, which are
-also implementations of the Java RMI programming model, are provided
-in this release of Apache River.  The following table lists these
+also implementations of the Java RMI programming model, are provided.  
+The following table lists these
 implementations along with the class whose behavior the exporter is
 semantically equivalent to.
 
@@ -352,7 +353,7 @@ deployed with an alternate <code>ProxyPreparer</code> implementation.
 
 <h2>3 Security</h2>
 
-<p>In a typical River technology-based application, a client obtains a
+<p>In a typical Jini technology-based application, a client obtains a
 service proxy from somewhere (for example, from a lookup service or as
 a result of communicating with another service) and then invokes
 methods on that proxy to communicate with the service.  Many
@@ -367,8 +368,8 @@ requiring one or more of the following:
 </ul>
 
 <p>These requirements are typical for securing <i>data</i>
-communication; however, the River security model has an additional
-requirement: <i>code</i> integrity.  In the River and Java RMI model,
+communication; however, the Jini security model has an additional
+requirement: <i>code</i> integrity.  In the Jini and Java RMI model,
 an object's data is sent in a remote invocation, but its code is
 downloaded out-of-band as a result of that remote invocation.  An
 application needs to establish trust for the <i>objects</i> it
