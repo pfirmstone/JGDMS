@@ -91,6 +91,19 @@ public class RegistrySunExporter extends SunJrmpExporter {
 	/**
 	 * Disable remote code downloading on the input stream and then
 	 * continue normal dispatching.
+         * 
+         * From the RemoteCall javadoc:
+         * RemoteCall is an abstraction used solely by the RMI runtime 
+         * (in conjunction with stubs and skeletons of remote objects) 
+         * to carry out a call to a remote object. The RemoteCall interface 
+         * is deprecated because it is only used by deprecated methods of 
+         * java.rmi.server.RemoteRef.
+         * 
+         * This method is an overridden method from UnicastServerRef which is
+         * a sun internal implementation class.
+         * 
+         * @depreciated no replacement
+         * @see java.rmi.server.RemoteCall
 	 */
 	public void dispatch(Remote obj, RemoteCall call) throws IOException {
 	    try {

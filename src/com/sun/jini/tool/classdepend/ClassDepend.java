@@ -451,7 +451,7 @@ public class ClassDepend {
 	for (int i = 0; tokens.hasMoreTokens(); i++) {
 	    String file = tokens.nextToken();
 	    try {
-		urls[i] = new File(file).toURL();
+		urls[i] = new File(file).toURI().toURL();
 	    } catch (MalformedURLException e) {
 		urls[i] = new URL(file);
 	    }

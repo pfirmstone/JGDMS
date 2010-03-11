@@ -1094,12 +1094,12 @@ public class PreferredListGen {
 		    String msg = getString("preflistgen.badcp", fileName);
 		    throw new IllegalArgumentException(msg);
 		}
-		list.add(cpFile.getCanonicalFile().toURL());
+		list.add(cpFile.getCanonicalFile().toURI().toURL());
 	    }
 	}
 	for (Iterator it = jarList.iterator(); it.hasNext(); ) {
 	    String fileName = (String) it.next();
-	    list.add(new File(fileName).getCanonicalFile().toURL());
+	    list.add(new File(fileName).getCanonicalFile().toURI().toURL());
 	}
 	if (list.size() > 0) {
 	    URL[] urls = (URL[]) list.toArray(new URL[list.size()]);
