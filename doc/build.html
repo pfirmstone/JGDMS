@@ -175,6 +175,28 @@ where the basic targets are:
   </dl>
 </blockquote>
 
+<h2>Testing your Build</h2>
+<p>There are three test harnesses:
+<ul>
+    <li><b>Unit Tests:</b> The build target is <b>test</b>.  JUnit testing is provided
+    because of the popularity of this Unit test framework, reducing the initial
+    learning curve for developers, enabling more developers
+    to participate.
+    </li>
+    <li><b>Regression Tests:</b> The build target is <b>jtreg</b> from the build.xml
+    file in the qa directory. Jtreg is the Regression Test framework
+    for Jini, also utilised by Sun's JRE, you'll need to download jtreg
+    separately from <a href="http://openjdk.java.net/jtreg/">openjdk.java.net/jtreg</a>
+    and ensure jtreg is available on your execution path.
+    </li>
+    <li><b>Integration and Compliance Tests:</b> The build target is <b>qa.run</b> from
+    the main build.xml file.
+    The Jini QA Test Harness, was developed by Sun, specifically to cater for testing 
+    of the Jini Architecture, more information can be found in the qa directory.
+    </li>
+</ul>  
+</p>
+
 
 <p>
 If you make any modifications and/or corrections to this build process and
