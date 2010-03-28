@@ -1654,8 +1654,8 @@ public class QAConfig implements Serializable {
 	    getStringConfigVal("com.sun.jini.qa.harness.globalvmargs", null);
 	return parseArgList(vmArgs);
      }
-
-    /**
+     
+     /**
      * Return an array of VM options extracted from the given array
      * of combined options and properties. These are structured
      * to be input to service starter descriptions, i.e. one

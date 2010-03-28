@@ -239,7 +239,7 @@ public class PreferredClassLoader extends URLClassLoader
     private final String exportAnnotation;
 
     /** permissions required to access loader through public API */
-    private final Permissions permissions;
+    private final PermissionCollection permissions;
 
     /** security context for loading classes and resources */
     private final AccessControlContext acc;
@@ -445,7 +445,7 @@ public class PreferredClassLoader extends URLClassLoader
 		    final boolean requireDlPerm)
     {
 	/* ensure caller has permission to access all urls */
-	Permissions perms = new Permissions();
+	PermissionCollection perms = new Permissions();
 	addPermissionsForURLs(urls, perms, false);
 	checkPermissions(perms);
 
@@ -1038,7 +1038,7 @@ public class PreferredClassLoader extends URLClassLoader
      * Check that the current access control context has all of the
      * given permissions.
      */
-    private static void checkPermissions(Permissions perms) {
+    private static void checkPermissions(PermissionCollection perms) {
 	SecurityManager sm = System.getSecurityManager();
 	if (sm != null) {		// should never be null?
 	    Enumeration en = perms.elements();

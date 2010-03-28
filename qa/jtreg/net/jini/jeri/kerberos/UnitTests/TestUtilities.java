@@ -28,6 +28,7 @@ import java.io.File;
 import java.lang.reflect.Field;
 import java.security.AccessControlContext;
 import java.security.Permission;
+import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.ProtectionDomain;
 import java.util.Properties;
@@ -118,7 +119,7 @@ class TestUtilities extends UnitTestUtilities {
     }
 
     public static AccessControlContext getContext(Permission[] perms) {
-	Permissions permissions = new Permissions();
+	PermissionCollection permissions = new Permissions();
 	if (perms != null) {
 	    for (int i = 0; i < perms.length; i++) {
 		if (perms[i] != null)

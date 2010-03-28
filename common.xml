@@ -168,8 +168,8 @@
         <attribute name="source.dir"/>
         <attribute name="dest.dir"/>
         <attribute name="debug" default="${debug}"/>
-        <attribute name="source" default="1.4"/>
-        <attribute name="target" default="1.4"/>
+        <attribute name="source" default="5"/>
+        <attribute name="target" default="jsr14"/>
         <element name="javac-cmd-elements" implicit="true" optional="true"/>
         <sequential>
             <javac fork="yes"
@@ -181,7 +181,7 @@
                     source="@{source}"
                     srcdir="@{source.dir}"
                     target="@{target}"
-                    verbose="no">
+                    verbose="yes">
                 <patternset refid="@{source.pat}"/>
                 <javac-cmd-elements/>
             </javac>

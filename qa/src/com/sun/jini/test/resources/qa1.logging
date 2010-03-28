@@ -39,7 +39,7 @@ handlers = java.util.logging.ConsoleHandler
 # level setting (set below) to limit messages printed to
 # the console.
 
-.level = INFO
+.level = FINEST
 
 ############################################################
 # Handler specific properties: formatters and logger levels
@@ -104,10 +104,10 @@ java.util.logging.FileHandler.level = INFO
 #  FINEST (lowest value) 
 
 # For Everything
-sun.rmi.level = INFO
-net.jini.level = INFO
+sun.rmi.level = FINEST
+net.jini.level = FINEST
 
-com.sun.jini.level = INFO
+com.sun.jini.level = FINEST
 
 # For the LogManager
 com.sun.jini.logging.LogManager.level = INFO
@@ -159,9 +159,9 @@ net.jini.jeri.BasicInvocationHandler.level = 600
 net.jini.iiop.IiopExporter.level = INFO
 
 # For Preferred Classes
-net.jini.loader.level = INFO
-#net.jini.loader.pref.PreferredClassLoader.level = INFO
-#net.jini.loader.pref.PreferredClassLoader.preferred.level = INFO
+net.jini.loader.level = FINEST
+net.jini.loader.pref.PreferredClassLoader.level = FINEST
+net.jini.loader.pref.PreferredClassLoader.preferred.level = FINEST
 #net.jini.loader.pref.PreferredClassLoader.exception.level = INFO
 #net.jini.loader.pref.PreferredClassProvider.level = INFO
 

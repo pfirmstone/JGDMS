@@ -37,7 +37,7 @@ grant {
         "accessClassInPackage.sun.security.provider";
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.security.SecurityPermission "createAccessControlContext";
-
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
 };
 
 /*

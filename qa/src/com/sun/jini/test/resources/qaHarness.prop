@@ -26,13 +26,13 @@
 ######################################################
 
 # location of the JSK installation
-com.sun.jini.jsk.home=${user.home}/river/jtsk/trunk
+# com.sun.jini.jsk.home=${user.home}/river/jtsk/trunk
 
 # Location of the harness installation
-com.sun.jini.qa.home=${user.home}/river/qatests/trunk/source/vob/qa
+# com.sun.jini.qa.home=${user.home}/river/qatests/trunk/source/vob/qa
 
 # Location of the tests installation
-com.sun.jini.test.home=${user.home}/river/qatests/trunk/source/vob/qa
+# com.sun.jini.test.home=${user.home}/river/qatests/trunk/source/vob/qa
 
 ######################################################
 #
@@ -216,9 +216,12 @@ testOverrideProviders=${testOverrideProviders} com.sun.jini.test.support.Multica
 com.sun.jini.qa.harness.globalvmargs=${com.sun.jini.qa.harness.globalvmargs},\
 -Dcom.sun.jini.test.home=${com.sun.jini.test.home},\
 -Dcom.sun.jini.test.port=${com.sun.jini.test.port},\
--Dcom.sun.jini.qa.harness.policies=<url: com/sun/jini/test/resources/jinitest.policy>
+-Dcom.sun.jini.qa.harness.policies=<url: src/com/sun/jini/test/resources/jinitest.policy>
 
 # make sure slave's use their local test home directory
 com.sun.jini.qa.harness.slaveOverrides=${com.sun.jini.qa.harness.slaveOverrides} com.sun.jini.test.home
 
-searchPath=${com.sun.jini.test.home},${searchPath}
+# The src directory was newly added after the ant build conversion now policy
+# files attempts succeed and don't need to be loaded from jar files.
+# This makes life a lot easier while trying to change policy files during debugging.
+searchPath=${com.sun.jini.test.home}/src,${searchPath}

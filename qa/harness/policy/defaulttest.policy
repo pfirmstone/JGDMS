@@ -23,7 +23,7 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-jini-latest.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}harness.jar" {
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}jiniharness.jar" {
     permission java.security.AllPermission "", "";
 };
 

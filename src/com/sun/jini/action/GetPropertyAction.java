@@ -23,6 +23,7 @@ import com.sun.jini.logging.LogUtil;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.logging.Logger;
+import java.util.logging.Level;
 import net.jini.security.Security;
 
 /**
@@ -58,7 +59,7 @@ public class GetPropertyAction implements PrivilegedAction {
 
     private static final Logger logger =
 	Logger.getLogger("com.sun.jini.action.GetPropertyAction");
-
+    
     private final String theProp;
     private final String defaultVal;
 
@@ -104,12 +105,14 @@ public class GetPropertyAction implements PrivilegedAction {
 		return value;
 	    }
 	} catch (SecurityException e) {
-	    if (logger.isLoggable(Levels.HANDLED)) {
-		LogUtil.logThrow(logger, Levels.HANDLED,
-		    GetPropertyAction.class, "run",
-		    "security exception reading \"{0}\", returning {1}",
-		    new Object[] { theProp, defaultVal }, e);
-	    }
+	    if (logger.isLoggable(Level.FINE)) {
+		logger.logp( Level.FINE,
+		    GetPropertyAction.class.toString(), "run()",
+		    "security exception reading \"" + theProp + "\", returning "
+                    + defaultVal,
+		     e);
+                throw e;
+	    }             
 	}
 	return defaultVal;
     }

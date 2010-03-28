@@ -602,6 +602,8 @@ public class TestDescription implements Serializable {
 	String testClass   = getTestClassName();
 	ArrayList cmdList = new ArrayList(10);
 	cmdList.add(getJVM());
+        // Uncomment the following line if you want to debug permission requests
+        //cmdList.add("-Djava.security.manager=com.sun.jini.tool.ProfilingSecurityManager");
 	cmdList.add("-Djava.security.policy=" + getPolicyFile());
 	if (getCodebase() != null) {
 	    cmdList.add("-Djava.rmi.server.codebase=" + getCodebase());

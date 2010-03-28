@@ -360,7 +360,7 @@ public class UnitTestUtilities {
 	ProtectionDomain domain = UnitTestUtilities.class.getProtectionDomain();
 	PermissionCollection origPerms =
 	    Policy.getPolicy().getPermissions(domain);
-	Permissions perms = new Permissions();
+	PermissionCollection perms = new Permissions();
 	for (Enumeration en = origPerms.elements();
 	     en.hasMoreElements(); )
 	{

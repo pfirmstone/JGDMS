@@ -228,7 +228,7 @@
 			 doctitle="${javadoc.doc-title}"
 			 linkoffline="${jdk.doc.url} ${jdk.packages}"
 			 serialwarn="yes"
-			 source="1.4"
+			 source="5"
 			 use="true"
 			 version="true"
 			 windowtitle="${javadoc.win-title}">
@@ -305,6 +305,11 @@
             <package name="net.jini.security"/>
             <package name="net.jini.security.policy"/>
             <package name="net.jini.security.proxytrust"/>
+            <package name="org.apache.river.security"/>
+            <package name="org.apache.river.security.concurrent"/>
+            <package name="org.apache.river.security.policy.spi"/>
+            <package name="org.apache.river.security.policy.util"/>    
+            <package name="org.apache.river.util.concurrent"/>
             <package name="net.jini.space"/>
             <package name="net.jini.url.file"/>
             <package name="net.jini.url.httpmd"/>
@@ -325,7 +330,7 @@
 			 doctitle="${javadoc.spec.doc-title}"
 			 linkoffline="${jdk.doc.url} ${jdk.packages}"
 			 serialwarn="yes"
-			 source="1.4"
+			 source="5"
 			 use="true"
 			 version="true"
 			 windowtitle="${javadoc.spec.win-title}">
@@ -381,6 +386,7 @@
 			jsk-resources.jar,
 			jsk-platform.jar,
 			jsk-policy.jar,
+                        concurrent-policy-util.jar,
 			sun-util.jar" />
 
     <target name="services.jars" depends="toolswrappers.jars,
@@ -609,6 +615,7 @@
             <arg line="${jskprivate.include}"/>
             <arg line="-in com.sun.jini.tool"/>
             <arg value="com.sun.jini.tool.DebugDynamicPolicyProvider"/>
+            <arg value="com.sun.jini.tool.ProfilingSecurityManager"/>
         </classdep>
         <delete file="${lib.dir}/jsk-debug-policy.jar" quiet="true"/>
         <jar destfile="${lib.dir}/jsk-debug-policy.jar"
@@ -788,11 +795,33 @@
             <arg value="net.jini.security.policy.PolicyFileProvider"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
+            <arg line="-in org.apache.river"/>
         </classdep>
         <delete file="${lib-ext.dir}/jsk-policy.jar" quiet="true"/>
         <jar destfile="${lib-ext.dir}/jsk-policy.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${jsk-policy.deps}"/>
+        </jar>
+    </target>
+
+        <target name="concurrent-policy-util.jar">
+        <property name="concurrent-policy-util.deps" 
+                location="${build.deps.dir}/concurrent-policy-util.deps"/>
+        <classdep output="${concurrent-policy-util.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg path="${build.classes.dir}"/>
+            <arg value="-files"/>
+            <arg value="org.apache.river.security.concurrent.ConcurrentPolicyFile"/>
+            <arg line="-in com.sun.jini"/>
+            <arg line="-in net.jini"/>
+            <arg line="-in org.apache.river"/>
+        </classdep>
+        <delete file="${lib-ext.dir}/concurrent-policy-util.jar" quiet="true"/>
+        <jar destfile="${lib-ext.dir}/concurrent-policy-util.jar"
+		     index="false">
+            <fileset dir="${build.classes.dir}" 
+                includesfile="${concurrent-policy-util.deps}"/>
         </jar>
     </target>
 
@@ -1628,6 +1657,10 @@
             <arg value="com.sun.jini.phoenix.AbstractRegistry_Skel"/>
             <arg value="com.sun.jini.phoenix.AbstractRegistry_Stub"/>
             <arg value="com.sun.jini.phoenix.AbstractSystem_Stub"/>
+            <!--Why was the following class was missing from jar file,
+            is this a bug with ClassDep?
+            com.sun.jini.phoenix.Activation depends on this:-->
+            <arg value="com.sun.jini.phoenix.ConstrainableAID"/>
         </classdep>
         <delete file="${lib.dir}/phoenix.jar" quiet="true" />
         <jar destfile="${lib.dir}/phoenix.jar" index="false"

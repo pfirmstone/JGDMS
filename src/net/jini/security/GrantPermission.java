@@ -41,7 +41,6 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import net.jini.security.policy.DynamicPolicy;
 
 /**
  * Permission required to dynamically grant permissions by security policy
@@ -676,7 +675,7 @@ public final class GrantPermission extends Permission {
     private static class Implier {
 	
 	private final PermissionCollection perms = new Permissions();
-	private final ArrayList unresolved = new ArrayList();
+	private final List unresolved =new ArrayList();
 
 	void add(GrantPermission gp) {
 	    for (int i = 0; i < gp.grants.length; i++) {
@@ -753,7 +752,8 @@ public final class GrantPermission extends Permission {
      * @serial include
      */
     static class GrantPermissionCollection extends PermissionCollection {
-
+        // All access is synchronized through GrantPermissionCollection
+        // Nothing within should use synchronization 
 	private static final long serialVersionUID = 8227621799817733985L;
 
 	/**

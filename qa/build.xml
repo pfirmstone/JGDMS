@@ -161,6 +161,7 @@
             <!--<arg value="-Djava.security.debug=access,failure"/>-->
             <arg value="-Djavatest.maxOutputSize=500000"/>
             <!--<arg value="-Bug:6307813"/>-->
+            <!--<arg value="net/jini/security/policy/DynamicPolicyProvider/dynamicBasePolicy/Test.java"/>-->
             <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
         </jtreg>
         <move todir="${river.lib.dir}">
@@ -196,19 +197,37 @@
         <element name="tr-elements" optional="true" implicit="true"/>
         <sequential>
             <java classname="com.sun.jini.qa.harness.QARunner" fork="yes" failOnError="true">
+                <!--Note these arguments only apply to the qa harness, they aren't
+                propagated to client test jvm's to do that you must set the
+                global or client vm args in the file:
+                src/com/sun/jini/resources/qaDefaults.properties-->
                 <!-- JDK extension directories (include our lib-ext dirs, for the custom policy providers) -->
+                <!--<jvmarg value="-Xbootclasspath/a:${river-ext.lib-dir}"/>-->
                 <jvmarg value="-Djava.ext.dirs=${ext.dirs}" />
+                <!--Use the following security manager if you need to discover which jar
+                file requires a particular permission, note this only works for the harness here -->
+                <!--<jvmarg value="-Djava.security.manager=com.sun.jini.tool.ProfilingSecurityManager"/>-->
+                <!--<jvmarg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
+                <!--Enable the following if you don't want to use any other policy's -->
+                <!--<jvmarg value="-Djava.security.policy==${security.policy}" />-->
                 <jvmarg value="-Djava.security.policy=${security.policy}" />
-                <!--<jvmarg value="-Djava.security.debug=access" />-->
+                <jvmarg value="-Djava.security.debug=access" />
                 <jvmarg value="-Djava.util.logging.config.file=${log.config}" />
                 <jvmarg value="-Dcom.sun.jini.jsk.home=${river.home}" />
                 <jvmarg value="-Dcom.sun.jini.qa.home=${basedir}" />
+                <!--We have a problem with path to properties and the src directory
+                it appears that the src directory was added later, however links
+                to property files aren't reflective of this and conflict with 
+                the path to those property files in jar archives needs looking into
+                this is now solved by setting the -->
                 <jvmarg value="-Dcom.sun.jini.test.home=${basedir}" />
+                <!--<jvmarg value="-DsearchPath=${basedir}/src,${basedir},${searchPath}"/>-->
+                <jvmarg value="-Dcom.sun.jini.qa.harness.harnessJar=${basedir}/lib/jiniharness.jar"/>
                 <jvmarg value="-Dcom.sun.jini.qa.harness.configs=${harness.configs}" />
                 <!-- VM args for each test run: include our JDK extension directories
                 $${com.sun.jini.qa.harness.globalvmargs},-Dcom.sun.jini.test.home=$${com.sun.jini.test.home},-Dcom.sun.jini.test.port=$${com.sun.jini.test.port},-Dcom.sun.jini.qa.harness.policies=&lt;url: com/sun/jini/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
-                <!--<jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>-->
-                <jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs}"/>
+                <jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>
+                <!--<jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs}"/>-->
                 <arg path="${src.dir}/com/sun/jini/test/resources/qaHarness.prop" />
                 <arg value="-testJar"/>
                 <arg path="${lib.dir}/jinitests.jar" />
@@ -230,7 +249,9 @@
     </macrodef>
 
     <target name="run-tests" depends="" description="Execute specific QA test(s)">
-        <property name="run.tests" value="com/sun/jini/test/impl/discoverymanager/RemoveGroupsLocsDiscard.td"/>
+        <!--<property name="run.tests" value="com/sun/jini/test/impl/discoverymanager/RemoveGroupsLocsDiscard.td"/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/impl/locatordiscovery/DelayDiscoveryAfterDiscard.td"/>-->
+        <property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>
         <testrun>
             <!-- Run specific test(s) -->
             <arg value="-tests"/>

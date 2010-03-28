@@ -104,8 +104,14 @@ public class PolicyFileProvider extends Policy {
      */
     public PolicyFileProvider() throws PolicyInitializationException {
 	policyFile = null;
-
-	String cname = Security.getProperty(basePolicyClassProperty);
+        String cname = Security.getProperty(basePolicyClassProperty);
+//        @SuppressWarnings("unchecked")
+//	String cname = (String) AccessController.doPrivileged(
+//                new PrivilegedAction() {
+//            public Object run() {
+//                return System.getProperty(basePolicyClassProperty);
+//            }
+//        });
 	if (cname == null) {
 	    cname = defaultBasePolicyClass;
 	}

@@ -511,7 +511,7 @@ public class ClassDepend {
      * is null.
      * @param string
      * @param pattern
-     * @return 
+     * @return True if the Pattern Matches
      */
     public boolean matches(String string, Pattern pattern) {
 	return pattern != null && pattern.matcher(string).matches();
@@ -520,7 +520,7 @@ public class ClassDepend {
     /**
      * Returns a literal pattern String for the specified String.
      * Added to backport Java 1.5 sources to 1.4.  adds the functionality
-     * of java.util.regex.Patter.quote() method missing from Java 1.4 version
+     * of java.util.regex.Pattern.quote() method missing from Java 1.4 version
      *
      * This method produces a String that can be used to create a 
      * Pattern that would match the string s as if it were a literal pattern.

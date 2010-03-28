@@ -1,81 +1,139 @@
 /*
- * Licensed to the Apache Software Foundation (ASF) under one
- * or more contributor license agreements.  See the NOTICE file
- * distributed with this work for additional information
- * regarding copyright ownership. The ASF licenses this file
- * to you under the Apache License, Version 2.0 (the
- * "License"); you may not use this file except in compliance
- * with the License. You may obtain a copy of the License at
- * 
- *      http://www.apache.org/licenses/LICENSE-2.0
- * 
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * To change this template, choose Tools | Templates
+ * and open the template in the editor.
  */
 
 package net.jini.security.policy;
 
-import com.sun.jini.collection.WeakIdentityMap;
-import java.lang.ref.ReferenceQueue;
-import java.lang.ref.WeakReference;
+import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.PermissionCollection;
-import java.security.Permissions;
-import java.security.Principal;
 import java.security.Policy;
+import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Security;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
-import java.util.Set;
-import net.jini.security.GrantPermission;
+//import java.util.ServiceLoader;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+import sun.misc.Service;
+import org.apache.river.security.policy.spi.RevokeablePolicy;
+import org.apache.river.security.policy.spi.RevokeableDynamicPolicySpi;
 
 /**
- * Security policy provider that supports dynamic granting of permissions at
- * run-time.  This provider is designed as a wrapper to layer dynamic grant
- * functionality on top of an underlying policy provider.  If the underlying
- * provider does not implement the {@link DynamicPolicy} interface, then its
- * permission mappings are assumed to change only when its {@link
- * Policy#refresh refresh} method is called.  Permissions are granted on the
- * granularity of class loader; granting a permission requires (of the calling
- * context) {@link GrantPermission} for that permission.
- *
- * @author Sun Microsystems, Inc.
+ * This class replaces the existing DynamicPolicyProvider, the existing 
+ * implementation has been modified to partially
+ * implement RevokableDynamiPolicySpi but doing so in a manner compatible with
+ * Java 1.4.  In that implementation it will throw an exception for the revoke
+ * method unless the additional work required has sufficient
+ * demand, in which case it may be implemented for java 1.4 also.
  * 
- * @since 2.0
+ * I would have liked to use the java 6 ServiceLoader in preference
+ * to the Java 1.4 and cdc (java 1.4) foundation profile 1.1.2 compatible
+ * forbidden sun.misc.Service implementation, since ServiceLoader doesn't exist
+ * in Java 1.4, this might be better as an OSGi service.  A dependency could
+ * be resolved automatically based on the platform.
+ * 
+ * @author Peter Firmstone
  */
-public class DynamicPolicyProvider extends Policy implements DynamicPolicy {
-
+public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
+  
+    //Java 1.4 compatible
+    @SuppressWarnings("unchecked")
+    private synchronized static RevokeableDynamicPolicySpi getDynamicPolicy()
+    throws AccessControlException {
+        RevokeableDynamicPolicySpi rdps;
+        rdps = (RevokeableDynamicPolicySpi) AccessController.doPrivileged( 
+                new PrivilegedAction(){
+            public Object run(){       
+                Iterator sp = Service.providers(RevokeableDynamicPolicySpi.class);
+                    while (sp.hasNext()){
+                        RevokeableDynamicPolicySpi inst = 
+                                (RevokeableDynamicPolicySpi) sp.next();
+                        if (inst != null){
+                            return inst;
+                    }               
+                }
+                return null;
+            }
+        });
+        return rdps;
+    }
+   
+    private static final Logger logger = 
+            Logger.getLogger("net.jini.security.policy");
+    
+    /* If true, always grant permission */
+    @SuppressWarnings("unchecked")
+    private static volatile boolean grantAll =
+	((Boolean) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public Object run() {
+		    return Boolean.valueOf(
+			Security.getProperty(
+			    "net.jini.security.policy.grantAllandLog"));
+		}
+	    })).booleanValue();
+            
     private static final String basePolicyClassProperty =
 	"net.jini.security.policy." +
 	"DynamicPolicyProvider.basePolicyClass";
-    private static final String defaultBasePolicyClass =
-	"net.jini.security.policy.PolicyFileProvider";
-    private static final ProtectionDomain sysDomain = (ProtectionDomain)
-	AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() { return Object.class.getProtectionDomain(); }
-	});
-
-    private final Policy basePolicy;
-    private final boolean cacheBasePerms;
-    private final WeakIdentityMap domainPerms = new WeakIdentityMap();
-    private final WeakIdentityMap loaderGrants = new WeakIdentityMap();
-    private final Grants globalGrants = new Grants();
-
-    /**
+    
+    private static Policy getBasePolicy() throws PolicyInitializationException {
+        String cname = "net.jini.security.policy.PolicyFileProvider";
+        Policy basePolicy = null;
+        try {
+            String bpc = Security.getProperty(basePolicyClassProperty);
+            if (bpc != null) cname = bpc;
+            basePolicy = (Policy) Class.forName(cname).newInstance();
+        } catch (InstantiationException ex) {
+            if (logger.isLoggable(Level.SEVERE)){
+                logger.log(Level.SEVERE, null, ex);
+            }
+            throw new PolicyInitializationException(
+                    "Unable to create a new instance of: " +
+                    cname, ex);
+        } catch (IllegalAccessException ex) {
+            if (logger.isLoggable(Level.SEVERE)){
+                logger.logp(Level.SEVERE, "DynamicPolicyProviderImpl",
+                        "initialize()", "Unable to create a new instance of: " +
+                        cname, ex);
+            }
+            throw new PolicyInitializationException(
+                    "Unable to create a new instance of: " +
+                    cname, ex);
+        } catch (ClassNotFoundException ex) {
+            if (logger.isLoggable(Level.SEVERE)){
+                logger.log(Level.SEVERE, "Check " + cname + " is accessable" +
+                        "from your classpath", ex);
+            }
+            throw new PolicyInitializationException(
+                    "Unable to create a new instance of: " +
+                    cname, ex);
+        } catch (SecurityException ex) {
+            if (logger.isLoggable(Level.SEVERE)){
+                logger.log(Level.SEVERE,
+                        "You don't have sufficient permissions to create" +
+                        "a new instance of" + cname, ex);
+            }
+            throw new PolicyInitializationException(
+                    "Unable to create a new instance of: " +
+                    cname, ex);
+        } 
+        return basePolicy;
+    }
+   
+    // Try using an enum here for optional loading?  Or just get whatever is available?
+    private RevokeableDynamicPolicySpi instance; //= getDynamicPolicy();
+    
+    
+    // The original implementation wraps a base Policy we still need that
+    // don't return until the instance has been created properly.
+    // This is undesireable for revokeable permissions.
+     /**
      * Creates a new <code>DynamicPolicyProvider</code> instance that wraps a
      * default underlying policy.  The underlying policy is created as follows:
      * if the
@@ -93,7 +151,7 @@ public class DynamicPolicyProvider extends Policy implements DynamicPolicy {
      * Note that this constructor requires the appropriate
      * <code>"getProperty"</code> {@link java.security.SecurityPermission} to
      * read the
-     * <code>net.jini.security.policy.DynamicPolicyProvider.basePolicyClass</code>
+     * <code>net.jini.security.policy.DynamicPolicyProviderImpl.basePolicyClass</code>
      * security property, and may require <code>"accessClassInPackage.*"</code>
      * {@link RuntimePermission}s, depending on the package of the base policy
      * class.
@@ -102,28 +160,15 @@ public class DynamicPolicyProvider extends Policy implements DynamicPolicy {
      *          policy
      * @throws  SecurityException if there is a security manager and the
      *          calling context does not have adequate permissions to read the
-     *          <code>net.jini.security.policy.DynamicPolicyProvider.basePolicyClass</code>
+     *          <code>net.jini.security.policy.DynamicPolicyProviderImpl.basePolicyClass</code>
      *          security property, or if the calling context does not have
      *          adequate permissions to access the base policy class
      */
     public DynamicPolicyProvider() throws PolicyInitializationException {
-	String cname = Security.getProperty(basePolicyClassProperty);
-	if (cname == null) {
-	    cname = defaultBasePolicyClass;
-	}
-	try {
-	    basePolicy = (Policy) Class.forName(cname).newInstance();
-	} catch (SecurityException e) {
-	    throw e;
-	} catch (Exception e) {
-	    throw new PolicyInitializationException(
-		"unable to construct base policy", e);
-	}
-	cacheBasePerms = !(basePolicy instanceof DynamicPolicy);
-	ensureDependenciesResolved();
+        this(getBasePolicy());
     }
-
-    /**
+    
+   /**
      * Creates a new <code>DynamicPolicyProvider</code> instance that wraps
      * around the given non-<code>null</code> base policy object.
      *
@@ -133,446 +178,135 @@ public class DynamicPolicyProvider extends Policy implements DynamicPolicy {
      * 		<code>null</code>
      */
     public DynamicPolicyProvider(Policy basePolicy) {
-	if (basePolicy == null) {
-	    throw new NullPointerException();
-	}
-	this.basePolicy = basePolicy;
-	cacheBasePerms = !(basePolicy instanceof DynamicPolicy);
-	ensureDependenciesResolved();
+            if (basePolicy == null) {
+                throw new NullPointerException();
+            }
+        try {
+            instance = getDynamicPolicy();
+        } catch (AccessControlException ex) {
+            if (logger.isLoggable(Level.CONFIG)) {
+               logger.logp(Level.CONFIG,
+                   DynamicPolicyProvider.class.toString(), 
+                   "DynamicPolicyProvider(Policy basePolicy) constructor",
+                   "If you see this message, it means that you need to grant" +
+                   "the java.lang.RuntimePermission accessClassInPackage.sun.misc" +
+                   "in your Policy file in order to take advantage of " +
+                   "the RevokeableDynamicPolicyProviderSpi", ex);           
+            }
+        }           
+        if (instance == null) {            
+            instance = new DynamicPolicyProviderImpl();            
+        }
+        try {
+            instance.basePolicy(basePolicy);
+            instance.initialize();
+        } catch (PolicyInitializationException ex) {
+            logger.log(Level.SEVERE, "This should never happen, since" +
+                    "basePolicy is not null", ex);
+        }
+        instance.ensureDependenciesResolved();    
     }
 
-    /**
-     * Behaves as specified by {@link Policy#getPermissions(CodeSource)}.
-     */
-    public PermissionCollection getPermissions(CodeSource source) {
-	PermissionCollection pc = basePolicy.getPermissions(source);
-	Permission[] pa = globalGrants.get(null);
-	for (int i = 0; i < pa.length; i++) {
-	    Permission p = pa[i];
-	    if (!pc.implies(p)) {
-		pc.add(p);
-	    }
-	}
-	return pc;
-    }
-
-    /**
-     * Behaves as specified by {@link Policy#getPermissions(ProtectionDomain)}.
-     */
-    public PermissionCollection getPermissions(ProtectionDomain domain) {
-	return getDomainPermissions(domain).getPermissions(domain);
-    }
-
-    /**
-     * Behaves as specified by {@link Policy#implies}.
-     */
-    public boolean implies(ProtectionDomain domain, Permission permission) {
-	return getDomainPermissions(domain).implies(permission, domain);
-    }
-
-    /**
-     * Behaves as specified by {@link Policy#refresh}.
-     */
-    public void refresh() {
-	basePolicy.refresh();
-	if (cacheBasePerms) {
-	    synchronized (domainPerms) {
-		domainPerms.clear();
-	    }
-	}
-    }
-
-    // documentation inherited from DynamicPolicy.grantSupported
     public boolean grantSupported() {
-	return true;
+        return instance.grantSupported();
     }
 
-    // documentation inherited from DynamicPolicy.grant
-    public void grant(Class cl, 
-		      Principal[] principals, 
-		      Permission[] permissions) 
-    {
-	if (cl != null) {
-	    checkDomain(cl);
-	}
-	if (principals != null && principals.length > 0) {
-	    principals = (Principal[]) principals.clone();
-	    checkNullElements(principals);
-	}
-	if (permissions == null || permissions.length == 0) {
-	    return;
-	}
-	permissions = (Permission[]) permissions.clone();
-	checkNullElements(permissions);
-
-	SecurityManager sm = System.getSecurityManager();
-	if (sm != null) {
-	    sm.checkPermission(new GrantPermission(permissions));
-	}
-
-	Grants g = (cl != null) ?
-	    getLoaderGrants(getClassLoader(cl)) : globalGrants;
-	g.add(principals, permissions);
+    public void grant(Class cl, Principal[] principals, Permission[] permissions) {
+        instance.grant(cl, principals, permissions);
     }
 
-    // documentation inherited from DynamicPolicy.getGrants
     public Permission[] getGrants(Class cl, Principal[] principals) {
-	if (cl != null) {
-	    checkDomain(cl);
-	}
-	if (principals != null && principals.length > 0) {
-	    principals = (Principal[]) principals.clone();
-	    checkNullElements(principals);
-	}
-
-	List l = Arrays.asList(globalGrants.get(principals));
-	if (cl != null) {
-	    l = new ArrayList(l);
-	    l.addAll(Arrays.asList(
-			 getLoaderGrants(getClassLoader(cl)).get(principals)));
-	}
-	PermissionCollection pc = new Permissions();
-	for (Iterator i = l.iterator(); i.hasNext(); ) {
-	    Permission p = (Permission) i.next();
-	    if (!pc.implies(p)) {
-		pc.add(p);
-	    }
-	}
-	l = Collections.list(pc.elements());
-	return (Permission[]) l.toArray(new Permission[l.size()]);
+        return instance.getGrants(cl, principals);
     }
 
+    public void revoke(Class cl, Principal[] principals, Permission[] permissions) {
+        instance.revoke(cl, principals, permissions);
+    }
+    
+    @Override
+    public PermissionCollection getPermissions(CodeSource codesource) {
+	return instance.getPermissions(codesource);
+    }
+    
     /**
-     * Ensures that any classes depended on by this policy provider are
-     * resolved.  This is to preclude lazy resolution of such classes during
-     * operation of the provider, which can result in deadlock as described by
-     * bug 4911907.
+     * Return a PermissionCollection object containing the set of
+     * permissions granted to the specified ProtectionDomain.
+     *
+     * <p> Applications are discouraged from calling this method
+     * since this operation may not be supported by all policy implementations.
+     * Applications should rely on the <code>implies</code> method
+     * to perform policy checks.
+     *
+     * <p> The default implementation of this method first retrieves
+     * the permissions returned via <code>getPermissions(CodeSource)</code>
+     * (the CodeSource is taken from the specified ProtectionDomain),
+     * as well as the permissions located inside the specified ProtectionDomain.
+     * All of these permissions are then combined and returned in a new
+     * PermissionCollection object.  If <code>getPermissions(CodeSource)</code>
+     * returns Policy.UNSUPPORTED_EMPTY_COLLECTION, then this method
+     * returns the permissions contained inside the specified ProtectionDomain
+     * in a new PermissionCollection object.
+     *
+     * <p> This method can be overridden if the policy implementation
+     * supports returning a set of permissions granted to a ProtectionDomain.
+     *
+     * @param domain the ProtectionDomain to which the returned
+     *		PermissionCollection has been granted.
+     *
+     * @return a set of permissions granted to the specified ProtectionDomain.
+     *		If this operation is supported, the returned
+     *		set of permissions must be a new mutable instance
+     *		and it must support heterogeneous Permission types.
+     *		If this operation is not supported,
+     *		Policy.UNSUPPORTED_EMPTY_COLLECTION is returned.
+     *
+     * @since 1.4
      */
-    private void ensureDependenciesResolved() {
-	// force class resolution by pre-invoking method called by implies()
-	getDomainPermissions(sysDomain);
+    @Override
+    public PermissionCollection getPermissions(ProtectionDomain domain) {
+        return instance.getPermissions(domain);
     }
-
-    private DomainPermissions getDomainPermissions(ProtectionDomain pd) {
-	DomainPermissions dp;
-	synchronized (domainPerms) {
-	    dp = (DomainPermissions) domainPerms.get(pd);
-	}
-	if (dp == null) {
-	    dp = new DomainPermissions(pd);
-	    globalGrants.register(dp);
-	    if (pd != null) {
-		getLoaderGrants(pd.getClassLoader()).register(dp);
-	    }
-	    synchronized (domainPerms) {
-		domainPerms.put(pd, dp);
-	    }
-	}
-	return dp;
-    }
-
-    private Grants getLoaderGrants(ClassLoader ldr) {
-	synchronized (loaderGrants) {
-	    Grants g = (Grants) loaderGrants.get(ldr);
-	    if (g == null) {
-		loaderGrants.put(ldr, g = new Grants());
-	    }
-	    return g;
-	}
-    }
-
-    private static ClassLoader getClassLoader(final Class cl) {
-	return (ClassLoader) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() { return cl.getClassLoader(); }
-	    });
-    }
-
-    private static void checkDomain(final Class cl) {
-	ProtectionDomain pd = (ProtectionDomain) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() { return cl.getProtectionDomain(); }
-	    });
-	if (pd != sysDomain && pd.getClassLoader() == null) {
-	    throw new UnsupportedOperationException(
-		"ungrantable protection domain");
-	}
-    }
-
-    private static void checkNullElements(Object[] array) {
-	for (int i = 0; i < array.length; i++) {
-	    if (array[i] == null) {
-		throw new NullPointerException();
-	    }
-	}
-    }
-
+    
     /**
-     * Class which holds permissions and principals of a ProtectionDomain. The
-     * domainPerms map associates ProtectionDomain instances to instances of
-     * this class.
+     * Evaluates the global policy for the permissions granted to
+     * the ProtectionDomain and tests whether the permission is 
+     * granted.
+     *
+     * @param domain the ProtectionDomain to test
+     * @param permission the Permission object to be tested for implication.
+     *
+     * @return true if "permission" is a proper subset of a permission
+     * granted to this ProtectionDomain.
+     *
+     * @see java.security.ProtectionDomain
+     * @since 1.4
      */
-    private class DomainPermissions {
-
-	private final Set principals;
-	private final PermissionCollection perms;
-	private final List grants = new ArrayList();
-
-	DomainPermissions(ProtectionDomain pd) {
-	    Principal[] pra;
-	    principals = (pd != null && (pra = pd.getPrincipals()).length > 0)
-		? new HashSet(Arrays.asList(pra)) : Collections.EMPTY_SET;
-	    perms = cacheBasePerms ? basePolicy.getPermissions(pd) : null;
-	}
-
-	Set getPrincipals() {
-	    return principals;
-	}
-
-	synchronized void add(Permission[] pa) {
-	    for (int i = 0; i < pa.length; i++) {
-		Permission p = pa[i];
-		grants.add(p);
-		if (perms != null) {
-		    perms.add(p);
-		}
-	    }
-	}
-
-	synchronized PermissionCollection getPermissions(ProtectionDomain d) {
-	    return getPermissions(true, d);
-	}
-
-	synchronized boolean implies(Permission p, ProtectionDomain domain) {
-	    if (perms != null) {
-		return perms.implies(p);
-	    }
-	    if (basePolicy.implies(domain, p)) {
-		return true;
-	    }
-	    if (grants.isEmpty()) {
-		return false;
-	    }
-	    return getPermissions(false, domain).implies(p);
-	}
-
-	private PermissionCollection getPermissions(boolean compact,
-						    ProtectionDomain domain)
-        {
-	    // base policy permission collection may not be enumerable
-	    assert Thread.holdsLock(this);
-	    PermissionCollection pc = basePolicy.getPermissions(domain);
-	    for (Iterator i = grants.iterator(); i.hasNext(); ) {
-		Permission p = (Permission) i.next();
-		if (!(compact && pc.implies(p))) {
-		    pc.add(p);
-		}
-	    }
-	    return pc;
-	}
+    @Override
+    public boolean implies(ProtectionDomain domain, Permission permission) {
+        if (grantAll == false) {
+            return instance.implies(domain, permission);
+        }
+        boolean result = instance.implies(domain, permission);
+        if (result == false){
+            logger.logp(Level.INFO, "instance.getClass().getName()",
+                    "implies(ProtectionDomain domain, Permission permission",
+                    "domain.toString(), permission.toString() returned false");
+            return true;
+        }
+        return result;
+    }
+    
+    @Override
+    public void refresh() {
+        instance.refresh();
     }
 
-    /**
-     * Class which tracks dynamic permission grants.
-     */
-    private static class Grants {
-
-	private final Map principalGrants = new HashMap();
-	private final WeakGroup scope;
-
-	Grants() {
-	    PrincipalGrants pg = new PrincipalGrants();
-	    principalGrants.put(Collections.EMPTY_SET, pg);
-	    scope = pg.scope;
-	}
-
-	synchronized void add(Principal[] pra, Permission[] pa) {
-	    Set prs = (pra != null && pra.length > 0) ?
-		new HashSet(Arrays.asList(pra)) : Collections.EMPTY_SET;
-
-	    PrincipalGrants pg = (PrincipalGrants) principalGrants.get(prs);
-	    if (pg == null) {
-		pg = new PrincipalGrants();
-		for (Iterator i = scope.iterator(); i.hasNext();) {
-		    DomainPermissions dp = (DomainPermissions) i.next();
-		    if (containsAll(dp.getPrincipals(), prs)) {
-			pg.scope.add(dp);
-		    }
-		}
-		principalGrants.put(prs, pg);
-	    }
-	    
-	    ArrayList l = new ArrayList();
-	    for (int i = 0; i < pa.length; i++) {
-		Permission p = pa[i];
-		if (!pg.perms.implies(p)) {
-		    pg.perms.add(p);
-		    l.add(p);
-		}
-	    }
-	    
-	    if (l.size() > 0) {
-		pa = (Permission[]) l.toArray(new Permission[l.size()]);
-		for (Iterator i = pg.scope.iterator(); i.hasNext();) {
-		    ((DomainPermissions) i.next()).add(pa);
-		}
-	    }
-	}
-
-	synchronized Permission[] get(Principal[] pra) {
-	    Set prs = (pra != null && pra.length > 0) ?
-		new HashSet(Arrays.asList(pra)) : Collections.EMPTY_SET;
-	    List l = new ArrayList();
-
-	    for (Iterator i = principalGrants.entrySet().iterator();
-		 i.hasNext(); )
-	    {
-		Map.Entry me = (Map.Entry) i.next();
-		if (containsAll(prs, (Set) me.getKey())) {
-		    PrincipalGrants pg = (PrincipalGrants) me.getValue();
-		    l.addAll(Collections.list(pg.perms.elements()));
-		}
-	    }
-	    return (Permission[]) l.toArray(new Permission[l.size()]);
-	}
-
-	synchronized void register(DomainPermissions dp) {
-	    Set prs = dp.getPrincipals();
-	    for (Iterator i = principalGrants.entrySet().iterator(); 
-		 i.hasNext(); ) 
-	    {
-		Map.Entry me = (Map.Entry) i.next();
-		if (containsAll(prs, (Set) me.getKey())) {
-		    PrincipalGrants pg = (PrincipalGrants) me.getValue();
-		    pg.scope.add(dp);
-		    List l = Collections.list(pg.perms.elements());
-		    dp.add((Permission[]) l.toArray(new Permission[l.size()]));
-		}
-	    }
-	}
-
-	private static boolean containsAll(Set s1, Set s2) {
-	    return (s1.size() >= s2.size()) && s1.containsAll(s2);
-	}
-	
-	private static class PrincipalGrants {
-	    final WeakGroup scope = new WeakGroup();
-	    final PermissionCollection perms = new Permissions();
-	    PrincipalGrants() {}
-	}
+    public boolean revokeSupported() {
+        return instance.revokeSupported();
     }
 
-    /**
-     * Grouping of non-null, weakly-referenced objects. The structure is a
-     * doubly linked list. The resulting structure is not thread safe and
-     * must be synchronized externally.
-     */
-    private static class WeakGroup {
-	private final ReferenceQueue rq = new ReferenceQueue();
-	private final Node head;
-	private final Node tail;
-	
-	WeakGroup() {
-	    head = Node.createEmptyList();
-	    tail = head.getNext();
-	}
-	
-	void add(Object obj) {
-	    if (obj == null) {
-		throw new NullPointerException();
-	    }
-	    processQueue();
-	    Node newNode = new Node(obj, rq);
-	    newNode.insertAfter(head);
-	}
-	
-	Iterator iterator() {
-	    processQueue();
-	    return new Iterator() {
-		private Node curNode = head.getNext();
-		private Object nextObj = getNext();
-
-		public Object next() {
-		    if (nextObj == null) {
-			throw new NoSuchElementException();
-		    }
-		    Object obj = nextObj;
-		    nextObj = getNext();
-		    return obj;
-		}
-		
-		public boolean hasNext() {
-		    return nextObj != null;
-		}
-		
-		public void remove() {
-		    throw new UnsupportedOperationException();
-		}
-		
-		private Object getNext() {
-		    while (curNode != tail) {
-			Object obj = curNode.get();
-			if (obj != null) {
-			    curNode = curNode.getNext();
-			    return obj;
-			} else {
-			    curNode.enqueue();
-			    curNode = curNode.getNext();
-			}
-		    }
-		    return null;
-		}
-	    };
-	}
-	
-	private void processQueue() {
-	    Node n;
-	    while ((n = (Node) rq.poll()) != null) {
-		n.remove();
-	    }
-	}
-
-	private static class Node extends WeakReference {
-	    private Node next;
-	    private Node prev;
-	    
-	    static Node createEmptyList() {
-		Node head = new Node(null);
-		Node tail = new Node(null);
-		head.next = tail;
-		tail.prev = head;
-		return head;
-	    }
-	    
-	    // Constructor for initialization of head and tail nodes which
-	    // should never be enqueued. 
-	    private Node(Object obj) {
-		super(obj);
-	    }
-
-	    Node(Object obj, ReferenceQueue rq) {
-		super(obj, rq);
-	    }
-	    
-	    /**
-	     * Inserts this node between <code>pred</code> and its successor
-	     */
-	    void insertAfter(Node pred) {
-		Node succ = pred.next;
-		next = succ;
-		prev = pred;
-		pred.next = this;
-		succ.prev = this;
-	    }
-	    
-	    void remove() {
-		prev.next = next;
-		next.prev = prev;
-	    }
-	    
-	    Node getNext() {
-		return next;
-	    }
-	}
+    public Object parameters() throws UnsupportedOperationException {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
+   
 }

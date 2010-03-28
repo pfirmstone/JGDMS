@@ -19,8 +19,9 @@ package net.jini.core.lookup;
 
 import java.rmi.RemoteException;
 import java.rmi.MarshalledObject;
-import net.jini.core.event.*;
 import net.jini.core.discovery.LookupLocator;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
 
 /**
  * Defines the interface to the lookup service.  The interface is not a

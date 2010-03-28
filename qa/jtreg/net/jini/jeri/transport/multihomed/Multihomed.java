@@ -59,6 +59,7 @@ import java.rmi.server.ExportException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.Permission;
+import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -281,7 +282,7 @@ public class Multihomed {
      * has only the specified permissions.
      **/
     private static AccessControlContext createAccWith(Permission[] perms) {
-	Permissions permissions = new Permissions();
+	PermissionCollection permissions = new Permissions();
 	for (int i = 0; i < perms.length; i++) {
 	    permissions.add(perms[i]);
 	}
