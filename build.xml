@@ -573,7 +573,7 @@
 		      includes="META-INF/services/com.sun.jini.tool.envcheck.Plugin"/>
         </jar>
     </target>
-
+    <!-- Scheduled for removal
     <target name="jini-core.jar" depends="stubs">
         <delete file="${lib.dir}/jini-core.jar" quiet="true"/>
         <jar destfile="${lib.dir}/jini-core.jar"
@@ -604,6 +604,7 @@
             <fileset dir="${build.classes.dir}"  includesfile="${jini-ext.deps}"/>
         </jar>
     </target>
+    -->
 
     <target name="jsk-debug-policy.jar" depends="stubs">
         <property name="jsk-debug-policy.deps" location="${build.deps.dir}/jsk-debug-policy.deps"/>
@@ -724,6 +725,7 @@
             <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg path="${build.classes.dir}/net/jini/activation"/>
             <arg path="${build.classes.dir}/net/jini/config"/>
             <arg path="${build.classes.dir}/net/jini/constraint"/>
@@ -837,7 +839,7 @@
 					   META-INF/services/net.jini.export.ServerContext$$Spi"/>
         </jar>
     </target>
-
+    <!-- Scheduled for removal
     <target name="sun-util.jar"	depends="stubs">
         <property name="sun-util.deps" location="${build.deps.dir}/sun-util.deps"/>
         <classdep output="${sun-util.deps}"
@@ -875,7 +877,7 @@
 				      com/sun/jini/thread/**"/>
         </jar>
     </target>
-
+    -->
     <target name="sdm-dl.jar" depends="stubs">
         <property name="sdm-dl.deps" location="${build.deps.dir}/sdm-dl.deps"/>
         <classdep output="${sdm-dl.deps}">

@@ -18,8 +18,10 @@
 
 package net.jini.loader.pref;
 
+import com.sun.jini.action.GetPropertyAction;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.logging.LogUtil;
+import java.io.FilePermission;
 import java.io.IOException;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
@@ -28,14 +30,15 @@ import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.net.URLClassLoader;
+import java.rmi.server.RMIClassLoader;
 import java.rmi.server.RMIClassLoaderSpi;
 import java.security.AccessController;
+import java.security.CodeSource;
 import java.security.Permission;
-import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.PrivilegedAction;
-import java.security.Security;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -46,6 +49,7 @@ import java.util.WeakHashMap;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.loader.ClassAnnotation;
+import net.jini.loader.DownloadPermission;
 
 /**
  * An <code>RMIClassLoader</code> provider that supports preferred
@@ -216,9 +220,8 @@ import net.jini.loader.ClassAnnotation;
  *
  * </table>
  **/
-@SuppressWarnings("unchecked")
 public class PreferredClassProvider extends RMIClassLoaderSpi {
-    
+
     /** encodings for primitive array class element types */
     private static final String PRIMITIVE_TYPES = "BCDFIJSZ";
 
@@ -234,70 +237,35 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 
     private static final Permission getClassLoaderPermission =
 	new RuntimePermission("getClassLoader");
-    
+
     /**
-     * value of "java.rmi.server.codebase" property, was cached at class
-     * initialization time, now lazy loaded as required and cached at 
-     * runtime. It may contain malformed URLs.
+     * value of "java.rmi.server.codebase" property, as cached at class
+     * initialization time.  It may contain malformed URLs.
      */
-    private static volatile String codebaseProperty = null;
-    
-    private static String getCodebaseProperty() {
-//	String prop = (String) AccessController.doPrivileged(
-//            new GetPropertyAction("java.rmi.server.codebase"));
-        if (codebaseProperty != null) return codebaseProperty;
-        String prop = null;
-        try{                 
-           prop = (String) AccessController.doPrivileged(
-                    new PrivilegedAction() {
-                public Object run() {
-                    String value = Security.getProperty("java.rmi.server.codebase");	    
-                    return value;                 
-                }
-            });
-        } catch (SecurityException ex){
-            logger.log(Level.FINE, "unable to retrieve property:" +
-                    " java.rmi.server.codebase", ex);            
-        }        
+    private static String codebaseProperty = null;
+    static {
+	String prop = (String) AccessController.doPrivileged(
+            new GetPropertyAction("java.rmi.server.codebase"));
 	if (prop != null && prop.trim().length() > 0) {
-            // Don't care about atomic operation, if intervening thread
-            // updates, it just get's updated again.
 	    codebaseProperty = prop;
-            return prop;
 	}
-        return codebaseProperty;
     }
 
     /** table of "local" class loaders */
     private static final Map localLoaders =
 	Collections.synchronizedMap(new WeakHashMap());
-    
-    /**
-     * Return true if the given loader is the system class loader or
-     * its parent (i.e. the loader for installed extensions) or the null
-     * class loader
-     */
-    private static boolean isLocalLoader(ClassLoader loader) {
-        if (localLoaders.isEmpty()) {
-            try{
-                AccessController.doPrivileged(new PrivilegedAction() {
-                    public Object run() {
-                        for (ClassLoader loader = ClassLoader.getSystemClassLoader();
-                             loader != null;
-                             loader = loader.getParent())
-                        {
-                            localLoaders.put(loader, null);
-                        }
-                        return null;
-                    }
-                });
-            }catch (SecurityException ex) {
-                logger.logp(Level.FINE, "net.jini.loader.pref.PreferredClassProvider",
-                        "isLocalLoader(ClassLoader loader)" ,"unable to retrieve" +
-                        " System ClassLoader", ex);
-            } 
-        }
-	return (loader == null || localLoaders.containsKey(loader));      
+    static {
+	AccessController.doPrivileged(new PrivilegedAction() {
+	    public Object run() {
+		for (ClassLoader loader = ClassLoader.getSystemClassLoader();
+		     loader != null;
+		     loader = loader.getParent())
+		{
+		    localLoaders.put(loader, null);
+		}
+		return null;
+	    }
+	});
     }
 
     /**
@@ -356,9 +324,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      **/
     protected PreferredClassProvider(boolean requireDlPerm) {
 	SecurityManager sm = System.getSecurityManager();
-            if (sm != null) {
-                sm.checkCreateClassLoader();
-            }
+	if (sm != null) {
+	    sm.checkCreateClassLoader();
+	}
 	this.requireDlPerm = requireDlPerm;
 	initialized = true;
     }
@@ -797,7 +765,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      **/
     protected String getClassAnnotation(ClassLoader loader) {
 	checkInitialized();
-        return getCodebaseProperty();
+	return codebaseProperty;
     }
 
     /**
@@ -833,7 +801,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		    if (check) {
 			SecurityManager sm = System.getSecurityManager();
 			if (sm != null) {
-			    PermissionCollection perms = new Permissions();
+			    Permissions perms = new Permissions();
 			    for (int i = 0; i < urls.length; i++) {
 				Permission p =
 				    urls[i].openConnection().getPermission();
@@ -870,7 +838,14 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	}
     }
 
-
+    /**
+     * Return true if the given loader is the system class loader or
+     * its parent (i.e. the loader for installed extensions) or the null
+     * class loader
+     */
+    private static boolean isLocalLoader(ClassLoader loader) {
+	return (loader == null || localLoaders.containsKey(loader));
+    }
     
     /**
      * Provides the implementation for {@link
