@@ -141,6 +141,7 @@ public class PolicyEntry {
      * PolicyEntry, may be <code>null</code>.
      */
     public Collection<Permission> getPermissions() {
+        if (permissions.isEmpty()) return null; // not sure if this is good needs further investigation
         return permissions;
     }
 
