@@ -67,22 +67,27 @@ public class PolicyEntry {
             Collection<? extends Permission> permissions) {
         this.cs = (cs != null) ? normalizeCodeSource(cs) : null;
         if ( prs == null || prs.isEmpty()) {
-            this.principals = null;
+            this.principals = new ArrayList<Principal>(0);
         }else{
-            this.principals = new ArrayList<Principal>();
+            this.principals = new ArrayList<Principal>(prs.size());
             this.principals.addAll(prs);
         }
         if (permissions == null || permissions.isEmpty()) {
-            this.permissions = null;
+            Set<Permission> perm = new HashSet<Permission>(0);
+            this.permissions = Collections.unmodifiableCollection(perm);
         }else{
-            Set<Permission> perm = new HashSet<Permission>();
+            Set<Permission> perm = new HashSet<Permission>(permissions.size());
             perm.addAll(permissions);
             this.permissions = Collections.unmodifiableCollection(perm);
         }
         /* Effectively immutable, this will make any hash this is contained in perform.
          * May need to consider Serializable for this class yet, we'll see.
          */ 
+        if (this.cs == null){
+            hashcode = (principals.hashCode() + this.permissions.hashCode())/2;
+        } else {
         hashcode = (this.cs.hashCode() + principals.hashCode() + this.permissions.hashCode())/3;
+        }
     }
 
     /**
@@ -125,7 +130,7 @@ public class PolicyEntry {
      */
     public boolean impliesPrincipals(Principal[] prs) {
        // return PolicyUtils.matchSubset(principals, prs);
-        if ( principals == null || principals.isEmpty()) return true;
+        if ( principals.isEmpty()) return true;
         if ( prs == null || prs.length == 0 ) return false;
         List<Principal> princp = Arrays.asList(prs);
         return princp.containsAll(principals);      
@@ -143,7 +148,7 @@ public class PolicyEntry {
      * Returns true if this PolicyEntry defines no Permissions, false otherwise.
      */
     public boolean isVoid() {
-        return permissions == null || permissions.size() == 0;
+        return permissions.size() == 0;
     }
     
     @Override
@@ -151,7 +156,7 @@ public class PolicyEntry {
         if (this == o) return true;
         if ( !(o instanceof PolicyEntry)) return false;
         PolicyEntry pe = (PolicyEntry) o;
-        if (cs.equals(pe.cs) && principals.equals(pe.principals) 
+        if ( (cs == pe.cs || cs.equals(pe.cs)) && principals.equals(pe.principals) 
                 && permissions.equals(pe.permissions) ) return true;
         return false;
     }
