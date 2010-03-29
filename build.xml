@@ -379,12 +379,15 @@
             browser.jars" />
 
     <target name="river.jars" depends="stubs,
+            jini-core.jar,
+			jini-ext.jar,
 			jsk-dl.jar,
 			jsk-lib.jar,
 			jsk-resources.jar,
 			jsk-platform.jar,
 			jsk-policy.jar,
-                        concurrent-policy-util.jar" />
+                        concurrent-policy-util.jar,
+			sun-util.jar" />
 
     <target name="services.jars" depends="toolswrappers.jars,
             destroy.jar,
@@ -570,6 +573,38 @@
 		      includes="META-INF/services/com.sun.jini.tool.envcheck.Plugin"/>
         </jar>
     </target>
+    <!-- Scheduled for removal -->
+    <target name="jini-core.jar" depends="stubs">
+        <delete file="${lib.dir}/jini-core.jar" quiet="true"/>
+        <jar destfile="${lib.dir}/jini-core.jar"
+		     index="false">
+            <fileset dir="${build.classes.dir}"
+			 includes="net/jini/core/**"/>
+        </jar>
+    </target>
+    <!-- Scheduled for removal -->
+    <target name="jini-ext.jar" depends="stubs">
+        <property name="jini-ext.deps" location="${build.deps.dir}/jini-ext.deps"/>
+        <classdep output="${jini-ext.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg path="${build.classes.dir}"/>
+            <arg value="-files"/>
+            <arg line="-in com.sun.jini"/>
+            <arg line="-in net.jini"/>
+            <arg line="-out net.jini.core"/>
+            <arg line="-prune net.jini.core"/>
+            <arg path="${build.classes.dir}/net/jini"/>
+            <arg path="${build.classes.dir}/com/sun/jini/discovery"/>
+        </classdep>
+        <delete file="${lib.dir}/jini-ext.jar" quiet="true"/>
+        <jar destfile="${lib.dir}/jini-ext.jar"
+		     index="false"
+		     manifest="${src.manifest.dir}/jini-ext.mf">
+            <fileset dir="${build.classes.dir}"  includesfile="${jini-ext.deps}"/>
+        </jar>
+    </target>
+    
 
     <target name="jsk-debug-policy.jar" depends="stubs">
         <property name="jsk-debug-policy.deps" location="${build.deps.dir}/jsk-debug-policy.deps"/>
@@ -804,7 +839,45 @@
 					   META-INF/services/net.jini.export.ServerContext$$Spi"/>
         </jar>
     </target>
-
+    <!-- Scheduled for removal -->
+    <target name="sun-util.jar"	depends="stubs">
+        <property name="sun-util.deps" location="${build.deps.dir}/sun-util.deps"/>
+        <classdep output="${sun-util.deps}"
+                classpathref="classdep.classes.classpath">
+            <arg value="-cp"/>
+            <arg path="${build.classes.dir}"/>
+            <arg value="-files"/>
+            <arg value="com.sun.jini.discovery.ClientSubjectChecker"/>
+            <arg value="com.sun.jini.fiddler.FiddlerAdmin"/>
+            <arg value="com.sun.jini.outrigger.ConstrainableJavaSpaceAdmin"/>
+            <arg value="com.sun.jini.phoenix.ActivationAdmin"/>
+            <arg value="com.sun.jini.start.LifeCycle"/>
+            <arg value="com.sun.jini.start.ServiceProxyAccessor"/>
+            <arg line="-in com.sun.jini"/>
+        </classdep>
+        <delete file="${lib.dir}/sun-util.jar" quiet="true"/>
+        <jar destfile="${lib.dir}/sun-util.jar"
+		     duplicate="preserve"
+		     index="false">
+            <fileset  dir="${build.classes.dir}"  includesfile="${sun-util.deps}"/>
+            <fileset  dir="${build.classes.dir}"
+			    includes="com/sun/jini/action/**
+				      com/sun/jini/admin/**
+				      com/sun/jini/collection/**
+				      com/sun/jini/config/**
+				      com/sun/jini/constants/**
+				      com/sun/jini/landlord/**
+				      com/sun/jini/lease/**
+				      com/sun/jini/logging/**
+				      com/sun/jini/lookup/entry/**
+				      com/sun/jini/proxy/**
+				      com/sun/jini/reliableLog/**
+				      com/sun/jini/resource/**
+				      com/sun/jini/system/**
+				      com/sun/jini/thread/**"/>
+        </jar>
+    </target>
+   
     <target name="sdm-dl.jar" depends="stubs">
         <property name="sdm-dl.deps" location="${build.deps.dir}/sdm-dl.deps"/>
         <classdep output="${sdm-dl.deps}">
