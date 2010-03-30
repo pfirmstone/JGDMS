@@ -806,7 +806,7 @@
         </jar>
     </target>
 
-        <target name="concurrent-policy-util.jar">
+        <target name="concurrent-policy-util.jar" depends="compile">
         <property name="concurrent-policy-util.deps" 
                 location="${build.deps.dir}/concurrent-policy-util.deps"/>
         <classdep output="${concurrent-policy-util.deps}"

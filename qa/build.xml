@@ -250,7 +250,7 @@
 
     <target name="run-tests" depends="" description="Execute specific QA test(s)">
         <!--<property name="run.tests" value="com/sun/jini/test/impl/discoverymanager/RemoveGroupsLocsDiscard.td"/>-->
-        <property name="run.tests" value="com/sun/jini/test/impl/locatordiscovery/DelayDiscoveryAfterDiscard.td"/>
+        <property name="run.tests" value="com/sun/jini/test/impl/locatordiscovery/DelayDiscoveryAfterDiscard.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoGetProperty.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoAccessClass.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoAccessClass.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoGetProperty.td"/>
         <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>-->
         <testrun>
             <!-- Run specific test(s) -->

@@ -65,18 +65,18 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
    
     private static final Logger logger = 
             Logger.getLogger("net.jini.security.policy");
-    
-    /* If true, always grant permission */
-    @SuppressWarnings("unchecked")
-    private static volatile boolean grantAll =
-	((Boolean) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() {
-		    return Boolean.valueOf(
-			Security.getProperty(
-			    "net.jini.security.policy.grantAllandLog"));
-		}
-	    })).booleanValue();
+// Debugging can be done with an SPI implementation    
+//    /* If true, always grant permission */
+//    @SuppressWarnings("unchecked")
+//    private static volatile boolean grantAll =
+//	((Boolean) AccessController.doPrivileged(
+//	    new PrivilegedAction() {
+//		public Object run() {
+//		    return Boolean.valueOf(
+//			Security.getProperty(
+//			    "net.jini.security.policy.grantAllandLog"));
+//		}
+//	    })).booleanValue();
             
     private static final String basePolicyClassProperty =
 	"net.jini.security.policy." +
@@ -113,15 +113,15 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
             throw new PolicyInitializationException(
                     "Unable to create a new instance of: " +
                     cname, ex);
-        } catch (SecurityException ex) {
-            if (logger.isLoggable(Level.SEVERE)){
-                logger.log(Level.SEVERE,
-                        "You don't have sufficient permissions to create" +
-                        "a new instance of" + cname, ex);
-            }
-            throw new PolicyInitializationException(
-                    "Unable to create a new instance of: " +
-                    cname, ex);
+//        } catch (SecurityException ex) {
+//            if (logger.isLoggable(Level.SEVERE)){
+//                logger.log(Level.SEVERE,
+//                        "You don't have sufficient permissions to create" +
+//                        "a new instance of" + cname, ex);
+//            }
+//            throw new PolicyInitializationException(
+//                    "Unable to create a new instance of: " +
+//                    cname, ex);
         } 
         return basePolicy;
     }
@@ -283,17 +283,19 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
      */
     @Override
     public boolean implies(ProtectionDomain domain, Permission permission) {
-        if (grantAll == false) {
-            return instance.implies(domain, permission);
-        }
-        boolean result = instance.implies(domain, permission);
-        if (result == false){
-            logger.logp(Level.INFO, "instance.getClass().getName()",
-                    "implies(ProtectionDomain domain, Permission permission",
-                    "domain.toString(), permission.toString() returned false");
-            return true;
-        }
-        return result;
+          return instance.implies(domain, permission);
+// Debugging can be done with an SPI implementation.
+//        if (grantAll == false) {
+//            return instance.implies(domain, permission);
+//        }
+//        boolean result = instance.implies(domain, permission);
+//        if (result == false){
+//            logger.logp(Level.INFO, "instance.getClass().getName()",
+//                    "implies(ProtectionDomain domain, Permission permission",
+//                    "domain.toString(), permission.toString() returned false");
+//            return true;
+//        }
+//        return result;
     }
     
     @Override
