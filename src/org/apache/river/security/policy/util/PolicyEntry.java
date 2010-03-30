@@ -46,16 +46,20 @@ import java.util.Set;
  * 
  * 
  */
-public class PolicyEntry {
+public final class PolicyEntry {
 
     // Store CodeSource
     private final CodeSource cs;
 
     // Array of principals 
     private final List<Principal> principals;
+    private static final List<Principal> noPrincipals = 
+            Collections.unmodifiableList(new ArrayList<Principal>(0));
 
     // Permissions collection
     private final Collection<Permission> permissions;
+    private static final Collection<Permission> noPermissions = 
+            Collections.unmodifiableCollection(new HashSet<Permission>(0));
     
     private transient final int hashcode;
 
@@ -67,14 +71,13 @@ public class PolicyEntry {
             Collection<? extends Permission> permissions) {
         this.cs = (cs != null) ? normalizeCodeSource(cs) : null;
         if ( prs == null || prs.isEmpty()) {
-            this.principals = new ArrayList<Principal>(0);
+            this.principals = noPrincipals;
         }else{
             this.principals = new ArrayList<Principal>(prs.size());
             this.principals.addAll(prs);
         }
         if (permissions == null || permissions.isEmpty()) {
-            Set<Permission> perm = new HashSet<Permission>(0);
-            this.permissions = Collections.unmodifiableCollection(perm);
+            this.permissions = noPermissions;
         }else{
             Set<Permission> perm = new HashSet<Permission>(permissions.size());
             perm.addAll(permissions);
@@ -141,7 +144,7 @@ public class PolicyEntry {
      * PolicyEntry, may be <code>null</code>.
      */
     public Collection<Permission> getPermissions() {
-        if (permissions.isEmpty()) return null; // not sure if this is good needs further investigation
+//        if (permissions.isEmpty()) return null; // not sure if this is good needs further investigation
         return permissions;
     }
 

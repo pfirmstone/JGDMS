@@ -50,12 +50,12 @@ public class PolicyEntryTest extends TestCase {
     public void testCtor() {
         PolicyEntry pe = new PolicyEntry(null, null, null);
         assertTrue(pe.isVoid());
-        assertNull(pe.getPermissions());
+        assertTrue(pe.getPermissions().isEmpty());
 
         pe = new PolicyEntry(new CodeSource(null, (Certificate[])null),
             new ArrayList(), new ArrayList());
         assertTrue(pe.isVoid());
-        assertNull(pe.getPermissions());
+        assertTrue(pe.getPermissions().isEmpty());
 
         Collection perms = Arrays.asList(new Permission[] {
             new SecurityPermission("dsfg"), new AllPermission() });
