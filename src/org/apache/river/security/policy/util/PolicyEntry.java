@@ -63,7 +63,6 @@ public final class PolicyEntry {
      * Constructor with initialization parameters. Passed collections are not
      * referenced directly, but copied.
      */
-    @SuppressWarnings("unchecked")
     public PolicyEntry(CodeSource cs, Collection<? extends Principal> prs,
             Collection<? extends Permission> permissions) {
         this.cs = (cs != null) ? normalizeCodeSource(cs) : null;
