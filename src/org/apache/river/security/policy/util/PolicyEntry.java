@@ -53,13 +53,9 @@ public final class PolicyEntry {
 
     // Array of principals 
     private final List<Principal> principals;
-    private static final List<Principal> noPrincipals = 
-            Collections.unmodifiableList(new ArrayList<Principal>(0));
 
     // Permissions collection
     private final Collection<Permission> permissions;
-    private static final Collection<Permission> noPermissions = 
-            Collections.unmodifiableCollection(new HashSet<Permission>(0));
     
     private transient final int hashcode;
 
@@ -67,17 +63,18 @@ public final class PolicyEntry {
      * Constructor with initialization parameters. Passed collections are not
      * referenced directly, but copied.
      */
+    @SuppressWarnings("unchecked")
     public PolicyEntry(CodeSource cs, Collection<? extends Principal> prs,
             Collection<? extends Permission> permissions) {
         this.cs = (cs != null) ? normalizeCodeSource(cs) : null;
         if ( prs == null || prs.isEmpty()) {
-            this.principals = noPrincipals;
+            this.principals = Collections.emptyList(); // Java 1.5
         }else{
             this.principals = new ArrayList<Principal>(prs.size());
             this.principals.addAll(prs);
         }
         if (permissions == null || permissions.isEmpty()) {
-            this.permissions = noPermissions;
+            this.permissions = Collections.emptySet(); // Java 1.5
         }else{
             Set<Permission> perm = new HashSet<Permission>(permissions.size());
             perm.addAll(permissions);
