@@ -95,13 +95,8 @@ public final class PolicyEntry {
      * imply() method.
      */
     public boolean impliesCodeSource(CodeSource codeSource) {
-        if (cs == null) {
-            return true;
-        }
-
-        if (codeSource == null) {
-            return false;
-        }
+        if (cs == null) return true;
+        if (codeSource == null) return false;       
         return cs.implies(normalizeCodeSource(codeSource));
     }
 
