@@ -17,9 +17,8 @@
  */
 package com.sun.jini.reggie;
 
-import java.rmi.server.RMIClassLoader;
-import java.io.IOException;
 import java.io.Serializable;
+import net.jini.loader.CodebaseAccessClassLoader;
 
 /**
  * An EntryClass annotated with a codebase.
@@ -52,7 +51,7 @@ class EntryClassBase implements Serializable {
 
     /** Sets the codebase to the codebase of the given class. */
     public void setCodebase(Class cls) {
-	codebase = RMIClassLoader.getClassAnnotation(cls);
+	codebase = CodebaseAccessClassLoader.getClassAnnotation(cls);
     }
 
     /**

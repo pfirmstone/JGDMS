@@ -18,30 +18,17 @@
 package net.jini.core.lookup;
 
 import java.rmi.RemoteException;
-import java.rmi.MarshalledObject;
+import net.jini.io.CDCMarshalledObject;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
 
 /**
- * Defines the interface to the lookup service.  The interface is not a
- * remote interface; each implementation of the lookup service exports
- * proxy objects that implement the ServiceRegistrar interface local to
- * the client, using an implementation-specific protocol to communicate
- * with the actual remote server.  All of the proxy methods obey normal
- * RMI remote interface semantics except where explicitly noted.  Two
- * proxy objects are equal if they are proxies for the same lookup service.
- * Every method invocation (on both ServiceRegistrar and ServiceRegistration)
- * is atomic with respect to other invocations.
- * 
- * @author Sun Microsystems, Inc.
  *
- * @see ServiceRegistration
- *
- * @since 1.0
+ * @author Peter Firmstone
  */
-public interface ServiceRegistrar extends PortableServiceRegistrar {
-
-    /**
+public interface StreamingServiceRegistrar extends PortableServiceRegistrar{
+    
+     /**
      * Registers for event notification.  The registration is leased; the
      * lease expiration request is not exact.  The registration is persistent
      * across restarts (crashes) of the lookup service until the lease expires
@@ -66,7 +53,7 @@ public interface ServiceRegistrar extends PortableServiceRegistrar {
     EventRegistration notify(ServiceTemplate tmpl,
 			     int transitions,
 			     RemoteEventListener listener,
-			     MarshalledObject handback,
+			     CDCMarshalledObject handback,
 			     long leaseDuration)
 	throws RemoteException;
 }

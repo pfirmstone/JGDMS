@@ -15,15 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sun.jini.constants;
+package net.jini.io;
 
-/**
- * Interface that holds the version string for the current release
- *
- * @author Sun Microsystems, Inc.
- *
- */
-public interface VersionConstants {
-    /** Current version of the Apache River release */ 
-    String SERVER_VERSION = "2.2.0";
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.io.ObjectStreamClass;
+
+class ToMOInputStream extends ObjectInputStream {
+
+    public ToMOInputStream(InputStream in) throws IOException {
+        super(in);
+    }
+
+    @Override
+    protected Class resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+        if (desc.getName().equals("net.jini.io.MarshalledObject")) {
+            return java.rmi.MarshalledObject.class;
+        }
+        return super.resolveClass(desc);
+    }
 }

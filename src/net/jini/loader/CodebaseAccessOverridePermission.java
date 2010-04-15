@@ -15,15 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sun.jini.constants;
+package net.jini.loader;
+
+import java.security.BasicPermission;
 
 /**
- * Interface that holds the version string for the current release
  *
- * @author Sun Microsystems, Inc.
- *
+ * @author Gregg Wonderly
  */
-public interface VersionConstants {
-    /** Current version of the Apache River release */ 
-    String SERVER_VERSION = "2.2.0";
+public class CodebaseAccessOverridePermission extends BasicPermission {
+	public CodebaseAccessOverridePermission( String name, String access ) {
+		super( name, access );
+	}
+	public CodebaseAccessOverridePermission( String name ) {
+		super( name );
+	}
 }

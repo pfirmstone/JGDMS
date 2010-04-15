@@ -23,10 +23,10 @@ import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
-import java.rmi.server.RMIClassLoader;
 import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedActionException;
 import net.jini.export.Exporter;
+import net.jini.loader.CodebaseAccessClassLoader;
 import net.jini.security.Security;
 
 /**
@@ -129,7 +129,7 @@ public abstract class ActivationGroup
 	    Class cl = (Class) Security.doPrivileged(
 		new PrivilegedExceptionAction() {
 		    public Object run() throws Exception {
-			return RMIClassLoader.loadClass(location, className);
+			return CodebaseAccessClassLoader.loadClass(location, className);
 		    }
 	    });
 	    return ActivationGroup.class.isAssignableFrom(cl);

@@ -31,8 +31,6 @@ import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
 import java.rmi.RemoteException;
 import java.rmi.UnmarshalException;
-import java.rmi.server.RMIClassLoader;
-import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
@@ -46,6 +44,7 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.ObjectStreamContext;
+import net.jini.loader.CodebaseAccessClassLoader;
 import net.jini.security.SecurityContext;
 import net.jini.security.TrustVerifier;
 
@@ -228,8 +227,8 @@ public class ProxyTrustVerifier implements TrustVerifier {
      * method; the class loader of the proxy's class is
      * the proper Java(TM) RMI class
      * loader (as defined below) for its parent class loader and the class's
-     * codebase (as produced by {@link RMIClassLoader#getClassAnnotation
-     * RMIClassLoader.getClassAnnotation}); and both <code>ProxyTrust</code>
+     * codebase (as produced by {@link CodebaseAccessClassLoader#getClassAnnotation
+     * CodebaseAccessClassLoader.getClassAnnotation}); and both <code>ProxyTrust</code>
      * and <code>RemoteMethodControl</code> are loadable by the parent class
      * loader. The derivative that is produced is an instance of a dynamically
      * generated <code>Proxy</code> class defined by the parent class loader
@@ -270,7 +269,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
      * parent class loader and the class's codebase if the class loader is
      * not <code>null</code>, the codebase for the class is a non-empty
      * string, and calling
-     * {@link RMIClassLoader#getClassLoader RMIClassLoader.getClassLoader}
+     * {@link CodebaseAccessClassLoader#getClassLoader CodebaseAccessClassLoader.getClassLoader}
      * with that codebase, with the thread's context class loader set to the
      * parent class loader, returns the class loader of the class.
      *
@@ -413,7 +412,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 			    throws IllegalAccessException,
 				   InvocationTargetException
 			{
-			    return m.invoke(obj, null);
+			    return m.invoke(obj, (Object[])null);
 			}
 		    }), rsc.getAccessControlContext());
 	} catch (PrivilegedActionException pae) {
@@ -513,7 +512,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	    return null;
 	}
 	final Class base = obj.getClass();
-	final String bcb = RMIClassLoader.getClassAnnotation(base);
+	final String bcb = CodebaseAccessClassLoader.getClassAnnotation(base);
 	if (bcb == null || bcb.length() == 0) {
 	    return null;
 	}
@@ -530,8 +529,9 @@ public class ProxyTrustVerifier implements TrustVerifier {
 		    boolean proper = false;
 		    try {
 			t.setContextClassLoader(pcl);
-			proper = (RMIClassLoader.getClassLoader(bcb) == bcl);
-		    } catch (MalformedURLException e) {
+			proper = (CodebaseAccessClassLoader.getClassLoader(bcb) == bcl);
+		    } catch (IOException e) {
+				logger.log(Level.FINER, e.toString()+": Can't get ClassLoader for "+bcb, e);
 		    } finally {
 			t.setContextClassLoader(ccl);
 		    }
@@ -543,6 +543,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 						    RemoteMethodControl.class},
 					ih);
 			} catch (IllegalArgumentException e) {
+				logger.log(Level.FINER, e.toString(), e);
 			}
 		    }
 		    return null;
@@ -631,7 +632,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	}
 
 	private void writeAnnotation(final Class c) throws IOException {
-	    String cb = RMIClassLoader.getClassAnnotation(c);
+	    String cb = CodebaseAccessClassLoader.getClassAnnotation(c);
 	    writeObject(cb);
 	    if (bcb.equals(cb)) {
 		AccessController.doPrivileged(new PrivilegedAction() {

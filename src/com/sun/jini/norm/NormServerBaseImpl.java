@@ -26,7 +26,6 @@ import java.io.OutputStream;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
-import java.rmi.server.RMIClassLoader;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
@@ -44,13 +43,10 @@ import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 
-import net.jini.admin.Administrable;
-import net.jini.admin.JoinAdmin;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.config.NoSuchEntryException;
-import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.event.EventRegistration;
@@ -77,7 +73,6 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
-import net.jini.security.proxytrust.TrustEquivalence;
 
 import com.sun.jini.config.Config;
 import com.sun.jini.constants.ThrowableConstants;
@@ -88,7 +83,6 @@ import com.sun.jini.landlord.LandlordUtil;
 import com.sun.jini.landlord.LeaseFactory;
 import com.sun.jini.landlord.LeasePeriodPolicy;
 import com.sun.jini.landlord.LocalLandlord;
-import com.sun.jini.logging.Levels;
 import com.sun.jini.lookup.entry.BasicServiceType;
 import com.sun.jini.norm.event.EventType;
 import com.sun.jini.norm.event.EventTypeGenerator;
@@ -99,6 +93,9 @@ import com.sun.jini.start.LifeCycle;
 import com.sun.jini.reliableLog.LogException;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.thread.InterruptedStatusThread;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.loader.CodebaseAccessClassLoader;
+import net.jini.security.proxytrust.TrustEquivalence;
 
 /**
  * Base class for implementations of NormServer.  Provides a complete
@@ -297,7 +294,7 @@ abstract class NormServerBaseImpl
 		       "Adding lease of class {0} with annotation {1}",
 		       new Object[] {
 			   leaseToRenew.getClass(),
-			   RMIClassLoader.getClassAnnotation(lc) });
+			   CodebaseAccessClassLoader.getClassAnnotation(lc) });
 	}
 
 	// Add the lease to the set

@@ -15,15 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-package com.sun.jini.constants;
+package net.jini.io;
 
-/**
- * Interface that holds the version string for the current release
- *
- * @author Sun Microsystems, Inc.
- *
- */
-public interface VersionConstants {
-    /** Current version of the Apache River release */ 
-    String SERVER_VERSION = "2.2.0";
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.ObjectInputStream;
+import java.util.Collection;
+
+class MarshalledInstanceInputStream extends MarshalInputStream {
+
+    private ObjectInputStream locIn;
+
+    MarshalledInstanceInputStream(InputStream objIn, InputStream locIn, ClassLoader defaultLoader, boolean verifyCodebaseIntegrity, ClassLoader verifierLoader, Collection context) throws IOException {
+        super(objIn, defaultLoader, verifyCodebaseIntegrity, verifierLoader, context);
+        this.locIn = (locIn == null ? null : new ObjectInputStream(locIn));
+    }
+
+    @Override
+    protected String readAnnotation() throws IOException, ClassNotFoundException {
+        return locIn == null ? null : (String) locIn.readObject();
+    }
 }
