@@ -35,9 +35,19 @@ import java.util.Collections;
  * @param T - Generic Type Parameter of contained object.
  * @author Peter Firmstone
  */
-public class Convert<T> {    
+public class Convert<T> {
+    private static volatile Convert convert = new Convert();
+    protected static void setConvert(Convert converter){
+        convert = converter;
+    }
+    
+    public static Convert getInstance(){
+        return convert;
+    }
+    protected Convert(){}
+    
     @SuppressWarnings("unchecked")
-    private java.rmi.MarshalledObject<T> 
+    public java.rmi.MarshalledObject<T> 
             toRmiMarshalledObject(net.jini.io.MarshalledObject<T> privateMO){
         // To create a java.rmi.MarshalledObject with previously
 	// serialized data we first create a private
@@ -64,7 +74,17 @@ public class Convert<T> {
 	return mo;
     }
     
-    private net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
+    public net.jini.io.MarshalledInstance<T> toMarshalledInstance(
+            net.jini.io.MarshalledObject<T> mo){
+        return new MarshalledInstance<T>(mo);
+    }
+    
+    public net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
+            net.jini.io.MarshalledInstance<T> instance){
+        return instance.asMarshalledObject();
+    }
+    
+    public net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
             java.rmi.MarshalledObject<T> instance){
         net.jini.io.MarshalledObject<T> privateMO = null;
 	try {

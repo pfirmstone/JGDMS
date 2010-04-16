@@ -24,6 +24,7 @@ import java.security.BasicPermission;
  * @author Gregg Wonderly
  */
 public class CodebaseAccessOverridePermission extends BasicPermission {
+    private static final long serialVersionUID = 1L;
 	public CodebaseAccessOverridePermission( String name, String access ) {
 		super( name, access );
 	}

@@ -18,7 +18,15 @@
 
 package net.jini.core.event;
 
-import java.rmi.MarshalledObject;
+
+import java.io.IOException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import net.jini.io.Convert;
+import net.jini.io.Converter;
+import net.jini.io.FromMOInputStream;
+import net.jini.io.MarshalledInstance;
+import net.jini.io.ToMOOutputStream;
 
 /**
  * The base class or superclass for remote events.
@@ -27,7 +35,7 @@ import java.rmi.MarshalledObject;
  * to the object in which the event occurred, a long which identifies the
  * kind of event relative to the object in which the event occurred, a long
  * which indicates the sequence number of this instance of the event kind,
- * and a MarshalledObject that is to be handed back when the notification
+ * and a MarshalledInstance that is to be handed back when the notification
  * occurs.  The combination of the event identifier and the object reference
  * obtained from the RemoteEvent object should uniquely identify the event
  * type.
@@ -75,11 +83,15 @@ import java.rmi.MarshalledObject;
  * @author Sun Microsystems, Inc.
  *
  * @since 1.0
+ * @version 2.0
  */
 public class RemoteEvent extends java.util.EventObject {
-
+    /**
+     * Serialization is broken for Serializing to River Releases earlier than
+     * 2.2.0, however it will succeed 
+     * @serial
+     */
     private static final long serialVersionUID = 1777278867291906446L;
-
     /**
      * The event source.
      *
@@ -102,11 +114,14 @@ public class RemoteEvent extends java.util.EventObject {
     protected long seqNum;
 
     /**
-     * The handback object.
+     * The handback object, there is a remote possibility that this object
+     * is required to be accessed by a subclass, the visibility has been 
+     * changed from protected to private, this may break binary compatibility
+     * for some.
      *
      * @serial
      */
-    protected MarshalledObject handback;
+    private net.jini.io.MarshalledObject handback;
 
     /**
      * Constructs a RemoteEvent object.
@@ -125,14 +140,45 @@ public class RemoteEvent extends java.util.EventObject {
      * @param seqNum    a <tt>long</tt> containing the event sequence number
      * @param handback  a <tt>MarshalledObject</tt> that was passed in 
      *                  as part of the original event registration.
+     * @deprecated As of Release 2.2.0 this method cannot be supported on
+     * the Java CDC Personal Profile 1.12 platform.
      */
+    @Deprecated
     public RemoteEvent(Object source, long eventID, long seqNum,
-		       MarshalledObject handback) {
+		       java.rmi.MarshalledObject handback) {
 	super(source);
 	this.source = source;
 	this.eventID = eventID;
 	this.seqNum = seqNum;
-	this.handback = handback;
+        Convert convert = Convert.getInstance();
+	this.handback = convert.toJiniMarshalledObject(handback);
+    }
+    /**
+     * Constructs a RemoteEvent object.
+     * <p>
+     * The abstract state contained in a RemoteEvent object includes a 
+     * reference to the object in which the event occurred, a long which 
+     * identifies the kind of event relative to the object in which the 
+     * event occurred, a long which indicates the sequence number of this 
+     * instance of the event kind, and a MarshalledInstance that is to be 
+     * handed back when the notification occurs. The combination of the 
+     * event identifier and the object reference obtained from the 
+     * RemoteEvent object should uniquely identify the event type.
+     * 
+     * @param source    an <tt>Object</tt> representing the event source
+     * @param eventID   a <tt>long</tt> containing the event identifier
+     * @param seqNum    a <tt>long</tt> containing the event sequence number
+     * @param handback  a <tt>MarshalledInstance</tt> that was passed in 
+     *                  as part of the original event registration.
+     */
+    public RemoteEvent(Object source, long eventID, long seqNum,
+		       MarshalledInstance handback) {
+	super(source);
+        this.source = source;
+        this.eventID = eventID;
+        this.seqNum = seqNum;
+        this.handback = Converter.toJiniMarshalledObject(handback);
+           
     }
 
     /**
@@ -163,17 +209,39 @@ public class RemoteEvent extends java.util.EventObject {
      * @return the MarshalledObject that was provided as a parameter to
      *         the event interest registration method, if any. 
      */
-    public MarshalledObject getRegistrationObject() {
-	return handback;
+    @Deprecated
+    public java.rmi.MarshalledObject getRegistrationObject() {
+        Convert convert = Convert.getInstance();
+	return convert.toRmiMarshalledObject(handback);
+    }
+    
+    public MarshalledInstance getRegisteredObject() {
+	return Converter.toMarshalledInstance(handback);      
     }
 
     /**
-     * Serialization support
+     * Serialization support, the serialized form of this object converts
+     * a java.rmi.MarshalledObject, later when support for marshalling to
+     * java.rmi.MarshalledObject Serialized Form is dropped, this
+     * method can still convert old events if neccessary.
      */
     private void readObject(java.io.ObjectInputStream stream)
 	throws java.io.IOException, ClassNotFoundException
     {
-	stream.defaultReadObject();
+	ObjectInputStream newStream = new FromMOInputStream(stream);
+        newStream.defaultReadObject();
 	super.source = source;
+    }
+    
+    /**
+     * This method is an interim temporary measure to provide a transition
+     * period for the Serialized form in Apache River versions prior to
+     * 2.2.0
+     * @param stream
+     * @throws java.io.IOException
+     */
+    private void writeObject(java.io.ObjectOutputStream stream) throws IOException{
+        ObjectOutputStream newOutStream = new ToMOOutputStream(stream);
+        newOutStream.defaultWriteObject();
     }
 }

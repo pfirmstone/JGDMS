@@ -22,7 +22,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
 
-class FromMOInputStream extends ObjectInputStream {
+public class FromMOInputStream extends ObjectInputStream {
 
     public FromMOInputStream(InputStream in) throws IOException {
         super(in);

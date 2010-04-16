@@ -34,6 +34,11 @@ import net.jini.io.context.IntegrityEnforcement;
 /**
  * This is an experimental implementation and may be subject to change or
  * removal.
+ * 
+ * This will be removed shortly, a CDC version of MarshalledInstance will be
+ * compiled withouth the deprecated methods.  PackageVersion will be changed
+ * to be an package version annotation generator.
+ * 
  * A <code>CDCMarshalledObject</code> contains an object in serialized
  * form. The contained object can be deserialized on demand when
  * explicitly requested. This allows an object to be sent from one VM

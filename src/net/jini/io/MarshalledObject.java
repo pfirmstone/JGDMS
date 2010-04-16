@@ -24,7 +24,7 @@ import java.io.Serializable;
  * This is a private class used to convert <code>java.rmi.MarshalledObject</code>
  * to <code>MarshalledInstance</code> and vice versa.
  */
-final class MarshalledObject<T> implements Serializable {
+public final class MarshalledObject<T> implements Serializable {
 
     // Duplicate (private) MarshalledObject fields, and make them
     // package visable

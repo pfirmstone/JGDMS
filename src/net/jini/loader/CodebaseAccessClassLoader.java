@@ -21,9 +21,6 @@ package net.jini.loader;
 import java.io.IOException;
 import java.net.URL;
 import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.security.PrivilegedAction;
-import net.jini.loader.pref.PreferredClassLoader;
 
 /**
  *

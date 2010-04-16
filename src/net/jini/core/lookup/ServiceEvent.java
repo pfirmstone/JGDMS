@@ -17,6 +17,8 @@
  */
 package net.jini.core.lookup;
 
+import net.jini.io.MarshalledInstance;
+
 /**
  * This class is used for remote events sent by the lookup service.  It
  * extends RemoteEvent with methods to obtain the service ID of the matched
@@ -60,6 +62,7 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * @param serviceID the serviceID of the item that triggered the event
      * @param transition the transition that triggered the event
      */
+    @Deprecated
     public ServiceEvent(Object source,
 			long eventID,
 			long seqNo,
@@ -72,6 +75,28 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	this.transition = transition;
     }
 
+    /**
+     * Simple constructor.
+     *
+     * @param source the source of this ServiceEvent
+     * @param eventID the registration eventID
+     * @param seqNo the sequence number of this event
+     * @param handback the client handback
+     * @param serviceID the serviceID of the item that triggered the event
+     * @param transition the transition that triggered the event
+     */
+    public ServiceEvent(Object source,
+			long eventID,
+			long seqNo,
+			MarshalledInstance handback,
+			ServiceID serviceID,
+			int transition)
+    {
+	super(source, eventID, seqNo, handback);
+	this.serviceID = serviceID;
+	this.transition = transition;
+    }
+    
     /** Returns the serviceID of the item that triggered the event. 
      *
      * @return a <tt>ServiceID</tt> object representing the service ID value
@@ -116,7 +141,7 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	sBuffer.append(", source=").append(source).append(
 	    ", eventID=").append(getID()).append(
 	    ", seqNum=").append(getSequenceNumber()).append(
-	    ", handback=").append(getRegistrationObject());
+	    ", handback=").append(getRegisteredObject());
 	return sBuffer.append("]").toString();
     }
 
