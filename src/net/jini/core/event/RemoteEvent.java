@@ -171,8 +171,8 @@ public class RemoteEvent extends java.util.EventObject {
      * @param handback  a <tt>MarshalledInstance</tt> that was passed in 
      *                  as part of the original event registration.
      */
-    public RemoteEvent(Object source, long eventID, long seqNum,
-		       MarshalledInstance handback) {
+    public RemoteEvent(MarshalledInstance handback, Object source, long eventID,
+            long seqNum ) {
 	super(source);
         this.source = source;
         this.eventID = eventID;

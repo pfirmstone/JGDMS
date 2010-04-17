@@ -18,9 +18,9 @@
 package net.jini.core.lookup;
 
 import java.rmi.RemoteException;
-import net.jini.io.CDCMarshalledObject;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
+import net.jini.io.MarshalledInstance;
 
 /**
  *
@@ -40,6 +40,10 @@ public interface StreamingServiceRegistrar extends PortableServiceRegistrar{
      * the specified listener whenever a register, lease cancellation or
      * expiration, or attribute change operation results in an item changing
      * state in a way that satisfies the template and transition combination.
+      * <p>
+      * The method signature varies slightly from ServiceRegistar in case
+      * a class implements both method signatures and a caller used a null
+      * MarshalledInstance, the call would be ambiguious.
      *
      * @param tmpl template to match
      * @param transitions bitwise OR of any non-empty set of transition values
@@ -50,10 +54,10 @@ public interface StreamingServiceRegistrar extends PortableServiceRegistrar{
      *         specified remote listener
      * @throws java.rmi.RemoteException
      */
-    EventRegistration notify(ServiceTemplate tmpl,
+    EventRegistration notify(MarshalledInstance handback,
+                             ServiceTemplate tmpl,
 			     int transitions,
 			     RemoteEventListener listener,
-			     CDCMarshalledObject handback,
 			     long leaseDuration)
 	throws RemoteException;
 }

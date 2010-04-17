@@ -85,14 +85,14 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * @param serviceID the serviceID of the item that triggered the event
      * @param transition the transition that triggered the event
      */
-    public ServiceEvent(Object source,
+    public ServiceEvent(MarshalledInstance handback,
+                        Object source,
 			long eventID,
 			long seqNo,
-			MarshalledInstance handback,
 			ServiceID serviceID,
 			int transition)
     {
-	super(source, eventID, seqNo, handback);
+	super(handback, source, eventID, seqNo);
 	this.serviceID = serviceID;
 	this.transition = transition;
     }
