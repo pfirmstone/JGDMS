@@ -21,8 +21,20 @@ import java.rmi.RemoteException;
 import net.jini.core.discovery.LookupLocator;
 
 /**
+ * Defines the interface to the lookup service.  The interface is not a
+ * remote interface; each implementation of the lookup service exports
+ * proxy objects that implement the PortableServiceRegistrar interface local to
+ * the client, using an implementation-specific protocol to communicate
+ * with the actual remote server.  All of the proxy methods obey normal
+ * RMI remote interface semantics except where explicitly noted.  Two
+ * proxy objects are equal if they are proxies for the same lookup service.
+ * Every method invocation (on both PortableServiceRegistrar and ServiceRegistration)
+ * is atomic with respect to other invocations.
+ * 
+ * 
+ * @see ServiceRegistration
  *
- * @author peter
+ * @since 2.2.0
  */
 public interface PortableServiceRegistrar {
     /**

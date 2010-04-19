@@ -23,10 +23,9 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import net.jini.io.Convert;
-import net.jini.io.Converter;
-import net.jini.io.FromMOInputStream;
 import net.jini.io.MarshalledInstance;
-import net.jini.io.ToMOOutputStream;
+import net.jini.io.MiToMoOutputStream;
+import net.jini.io.MoToMiInputStream;
 
 /**
  * The base class or superclass for remote events.
@@ -118,10 +117,15 @@ public class RemoteEvent extends java.util.EventObject {
      * is required to be accessed by a subclass, the visibility has been 
      * changed from protected to private, this may break binary compatibility
      * for some.
-     *
+     * 
+     * The serial form of this field is java.rmi.MarshalledObject, this class
+     * uses stream based converters to convert to and from MarshalledObject
+     * during serialization and deserialization.
+     * 
+     * @see MarshalledObject
      * @serial
      */
-    private net.jini.io.MarshalledObject handback;
+    private MarshalledInstance handback;
 
     /**
      * Constructs a RemoteEvent object.
@@ -151,7 +155,7 @@ public class RemoteEvent extends java.util.EventObject {
 	this.eventID = eventID;
 	this.seqNum = seqNum;
         Convert convert = Convert.getInstance();
-	this.handback = convert.toJiniMarshalledObject(handback);
+	this.handback = convert.toMarshalledInstance(handback);
     }
     /**
      * Constructs a RemoteEvent object.
@@ -177,7 +181,7 @@ public class RemoteEvent extends java.util.EventObject {
         this.source = source;
         this.eventID = eventID;
         this.seqNum = seqNum;
-        this.handback = Converter.toJiniMarshalledObject(handback);
+        this.handback = handback;
            
     }
 
@@ -216,7 +220,7 @@ public class RemoteEvent extends java.util.EventObject {
     }
     
     public MarshalledInstance getRegisteredObject() {
-	return Converter.toMarshalledInstance(handback);      
+	return handback;      
     }
 
     /**
@@ -228,7 +232,7 @@ public class RemoteEvent extends java.util.EventObject {
     private void readObject(java.io.ObjectInputStream stream)
 	throws java.io.IOException, ClassNotFoundException
     {
-	ObjectInputStream newStream = new FromMOInputStream(stream);
+	ObjectInputStream newStream = new MoToMiInputStream(stream);
         newStream.defaultReadObject();
 	super.source = source;
     }
@@ -241,7 +245,7 @@ public class RemoteEvent extends java.util.EventObject {
      * @throws java.io.IOException
      */
     private void writeObject(java.io.ObjectOutputStream stream) throws IOException{
-        ObjectOutputStream newOutStream = new ToMOOutputStream(stream);
+        ObjectOutputStream newOutStream = new MiToMoOutputStream(stream);
         newOutStream.defaultWriteObject();
     }
 }

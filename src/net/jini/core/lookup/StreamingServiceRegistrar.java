@@ -17,14 +17,35 @@
  */
 package net.jini.core.lookup;
 
+import java.io.ObjectInput;
 import java.rmi.RemoteException;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.io.MarshalledInstance;
 
 /**
- *
+ * Defines the interface to the lookup service.  The interface is not a
+ * remote interface; each implementation of the lookup service exports
+ * proxy objects that implement the StreamingServiceRegistrar interface local to
+ * the client, using an implementation-specific protocol to communicate
+ * with the actual remote server.  All of the proxy methods obey normal
+ * RMI remote interface semantics except where explicitly noted.  Two
+ * proxy objects are equal if they are proxies for the same lookup service.
+ * Every method invocation (on both StreamingServiceRegistrar and ServiceRegistration)
+ * is atomic with respect to other invocations.
+ * 
+ * The StreamingServiceRegistrar is intended to perform the same function
+ * as the ServiceRegistrar, but with the ability to return results as a 
+ * stream, so memory consumption can be minimised at the client.
+ * 
+ * All clients utilising ServiceRegistrar, should switch to the 
+ * StreamingServiceRegistrar.
+ * 
+ * @see ServiceRegistrar
+ * @see PortableServiceRegistrar
+ * @see ServiceRegistration
  * @author Peter Firmstone
+ * @since 2.2.0
  */
 public interface StreamingServiceRegistrar extends PortableServiceRegistrar{
     
@@ -53,6 +74,7 @@ public interface StreamingServiceRegistrar extends PortableServiceRegistrar{
      * @return an EventRegistration object to the entity that registered the
      *         specified remote listener
      * @throws java.rmi.RemoteException
+     * @since 2.2.0
      */
     EventRegistration notify(MarshalledInstance handback,
                              ServiceTemplate tmpl,
@@ -60,4 +82,30 @@ public interface StreamingServiceRegistrar extends PortableServiceRegistrar{
 			     RemoteEventListener listener,
 			     long leaseDuration)
 	throws RemoteException;
+
+    /**
+     * Returns the service object (i.e., just ServiceItem.service) from an
+     * item matching the template.  It makes the service object available via
+     * the returned ObjectInput.  
+     * 
+     * If the returned object cannot be deserialized, it can be returned in
+     * marshalled form as a MarshalledInstance.
+     * 
+     * Implementations of this interface should return the Objects in order of
+     * their package implementation version, so that the number of ClassLoaders
+     * are minimised and common packages can share code.  This is intended to
+     * be used with the new codebase services (TODO once implemented).
+     * 
+     * The ObjectInput should be an InputStream, in order to minimise the
+     * memory consumption requirements at the client.
+     *
+     * @param tmpl template to match
+     * @param marshalled if true return objects in marshalled form.
+     * @return an object input that represents a service that matches the
+     * specified template
+     * @throws java.rmi.RemoteException
+     * @see MarshalledInstance
+     * @since 2.2.0
+     */
+    ObjectInput lookup(ServiceTemplate tmpl, boolean marshalled) throws RemoteException;
 }

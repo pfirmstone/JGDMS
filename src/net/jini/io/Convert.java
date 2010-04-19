@@ -74,17 +74,17 @@ public class Convert<T> {
 	return mo;
     }
     
-    public net.jini.io.MarshalledInstance<T> toMarshalledInstance(
+    private net.jini.io.MarshalledInstance<T> toMarshalledInstance(
             net.jini.io.MarshalledObject<T> mo){
         return new MarshalledInstance<T>(mo);
     }
     
-    public net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
+    private net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
             net.jini.io.MarshalledInstance<T> instance){
         return instance.asMarshalledObject();
     }
     
-    public net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
+    private net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
             java.rmi.MarshalledObject<T> instance){
         net.jini.io.MarshalledObject<T> privateMO = null;
 	try {
@@ -105,12 +105,6 @@ public class Convert<T> {
     }
     
     public java.rmi.MarshalledObject<T> 
-            toRmiMarshalledObject(CDCMarshalledObject<T> instance){
-        if ( instance == null ) throw new NullPointerException("null reference");
-        return toRmiMarshalledObject(instance.asMarshalledObject());
-    }
-    
-    public java.rmi.MarshalledObject<T> 
             toRmiMarshalledObject(MarshalledInstance<T> instance){    
         if ( instance == null ) throw new NullPointerException("null reference");
 	return toRmiMarshalledObject(instance.asMarshalledObject());
@@ -122,25 +116,5 @@ public class Convert<T> {
         net.jini.io.MarshalledObject obj = toJiniMarshalledObject(instance);
         if ( obj == null ) throw new NullPointerException("null reference");
 	return new MarshalledInstance<T>(obj);
-    }
-    
-    public MarshalledInstance<T> 
-            toMarshalledInstance(CDCMarshalledObject<T> instance){
-        if ( instance == null ) throw new NullPointerException("null reference");
-        return new MarshalledInstance<T>(instance.asMarshalledObject());       
-    }
-    
-    public CDCMarshalledObject<T> 
-            toCDCMarshalledObject(java.rmi.MarshalledObject<T> instance){
-        if ( instance == null ) throw new NullPointerException("null reference");
-        return toCDCMarshalledObject(instance, null);
-    }
-    
-    public CDCMarshalledObject<T> 
-            toCDCMarshalledObject(
-            java.rmi.MarshalledObject<T> instance, PackageVersion version){
-        if ( instance == null ) throw new NullPointerException("null reference");
-	return new CDCMarshalledObject<T>(toJiniMarshalledObject(instance),
-                version); 
-    }   
+    }  
 }
