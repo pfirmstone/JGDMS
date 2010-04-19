@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
+import java.rmi.MarshalledObject;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.junit.After;
@@ -22,12 +23,11 @@ import static org.junit.Assert.*;
  *
  * @author peter
  */
-public class ToMOOutputStreamTest {
-    public ToMOOutputStreamTest(){}
+public class MiToMoOutputStreamTest {
+    public MiToMoOutputStreamTest(){}
     String strObject;
     MarshalledInstance mi;
-    Convert convert;
-    net.jini.io.MarshalledObject jinmo;
+    MarshalledObject mo;
     @org.junit.BeforeClass
     public static void setUpClass() throws Exception {
     }
@@ -40,8 +40,7 @@ public class ToMOOutputStreamTest {
     public void setUp() throws Exception {
         strObject = "Test String";
         mi = new MarshalledInstance(strObject);
-        convert = Convert.getInstance();
-        jinmo = convert.toJiniMarshalledObject(mi);
+        mo = new MarshalledObject(strObject);
     }
 
     @org.junit.After
@@ -52,23 +51,24 @@ public class ToMOOutputStreamTest {
      * Test of toRmiMarshalledObject method, of class Convert.
      */
     @org.junit.Test
-    public void toRmiMarshalledObject() {
+    public void toMarshalledObject() {
         try {
-            System.out.println("toRmiMarshalledObject");
+            System.out.println("MarshalledInstancetoMarshalledObject");
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ObjectOutputStream oos = new ToMOOutputStream(baos);
-            oos.writeObject(jinmo);
+            ObjectOutputStream oos = new MiToMoOutputStream(baos);
+            oos.writeObject(mi);
             oos.flush();
+            
             byte[] bytes = baos.toByteArray();
             ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
             ObjectInputStream ois = new ObjectInputStream(bais);
-            java.rmi.MarshalledObject mo = (java.rmi.MarshalledObject) ois.readObject();
+            MarshalledObject mo = (MarshalledObject) ois.readObject();
             if (mo == null) {
                 fail("MarshalledObject returned was null");
             }
             String result = (String) mo.get();
             System.out.println(result);
-            assertEquals(strObject, result);
+            assertEquals(mo, this.mo);
         } catch (IOException ex) {
             ex.printStackTrace();
             fail("The test threw an exception: " + ex.getMessage());

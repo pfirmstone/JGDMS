@@ -48,7 +48,7 @@ public class ConvertTest {
     public void toRmiMarshalledObject() {
         try {
             System.out.println("toRmiMarshalledObject");
-            CDCMarshalledObject<String> instance_2 = new CDCMarshalledObject<String>(strObject);
+            MarshalledInstance<String> instance_2 = new MarshalledInstance<String>(strObject);
             Convert<String> convert = new Convert<String>();
             MarshalledObject<String> expResult = new MarshalledObject<String>(strObject);
             MarshalledObject<String> result = convert.toRmiMarshalledObject(instance_2);
@@ -78,26 +78,4 @@ public class ConvertTest {
             fail("The test threw an exception: " + ex.getMessage());
         }
     }
-
-    /**
-     * Test of toCDCMarshalledObject method, of class Convert.
-     */
-    @org.junit.Test
-    public void toCDCMarshalledObject() {
-        try {
-            System.out.println("toCDCMarshalledObject");
-            MarshalledObject<String> instance_2 = new MarshalledObject<String>(strObject);
-            Convert<String> instance = new Convert<String>();
-            CDCMarshalledObject<String> expResult = new CDCMarshalledObject<String>(strObject);
-            CDCMarshalledObject<String> result = instance.toCDCMarshalledObject(instance_2);
-            assertEquals(expResult, result);
-            // TODO review the generated test code and remove the default call to fail.
-            //fail("The test case is a prototype.");
-        } catch (Exception ex) {
-            fail("The test threw an exception: " + ex.getMessage());
-        }
-        // TODO review the generated test code and remove the default call to fail.
-        //fail("The test case is a prototype.");
-    }
-
 }
