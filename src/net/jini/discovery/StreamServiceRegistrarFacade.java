@@ -52,7 +52,8 @@ public class StreamServiceRegistrarFacade implements StreamServiceRegistrar,
                 return sr.notify(tmpl, transitions, listener, hback, leaseDuration);
             }
             throw new UnsupportedOperationException("Unsupported Method");
-        } catch (Exception e ) {
+        } catch (NoClassDefFoundError er ) {
+            //This is normal for Java CDC.
             throw new UnsupportedOperationException("Unsupported Method");
         }
     }
@@ -64,6 +65,7 @@ public class StreamServiceRegistrarFacade implements StreamServiceRegistrar,
             return ssr.lookup(tmpl, marshalled);
         }
         throw new UnsupportedOperationException("Not supported yet.");
+        //We could make an empty implementation that doesn't return any matches?
     }
 
     public Class[] getEntryClasses(ServiceTemplate tmpl) throws RemoteException {
