@@ -1653,11 +1653,12 @@ public class JoinManager {
         } catch(ConfigurationException e) { /* swallow this exception */ }
     }//end constructor
      
-     public JoinManager(Object serviceProxy,
+     public JoinManager(DiscoveryListenerManagement discoveryMgr,
+                        Object serviceProxy,
                         Entry[] attrSets,
 			ServiceIDListener callback,
-			LeaseRenewalManager leaseMgr,
-                        DiscoveryListenerManagement discoveryMgr)    throws IOException
+			LeaseRenewalManager leaseMgr
+                        )    throws IOException
     {
         discMgr = discoveryMgr;
         try {
@@ -1783,11 +1784,11 @@ public class JoinManager {
                           callback, leaseMgr, config);
     }//end constructor
 
-     public JoinManager(Object serviceProxy,
+     public JoinManager(DiscoveryListenerManagement discoveryMgr,
+                        Object serviceProxy,
                         Entry[] attrSets,
 			ServiceIDListener callback,
-                        LeaseRenewalManager leaseMgr,
-			DiscoveryListenerManagement discoveryMgr,
+                        LeaseRenewalManager leaseMgr,			
                         Configuration config)
                                     throws IOException, ConfigurationException
     {
@@ -1860,11 +1861,12 @@ public class JoinManager {
         } catch(ConfigurationException e) { /* swallow this exception */ }
     }//end constructor
 
-     public JoinManager(Object serviceProxy,
+     public JoinManager(DiscoveryListenerManagement discoveryMgr,
+                        Object serviceProxy,
                         Entry[] attrSets,
 			ServiceID serviceID,
-                        LeaseRenewalManager leaseMgr,
-			DiscoveryListenerManagement discoveryMgr)
+                        LeaseRenewalManager leaseMgr
+			)
                         throws IOException
     {
         discMgr = discoveryMgr;
@@ -1953,11 +1955,11 @@ public class JoinManager {
                           (ServiceIDListener)null, leaseMgr, config);
     }//end constructor
      
-     public JoinManager(Object serviceProxy,
+     public JoinManager(DiscoveryListenerManagement discoveryMgr,
+                        Object serviceProxy,
                         Entry[] attrSets,
 			ServiceID serviceID,
-                        LeaseRenewalManager leaseMgr,
-			DiscoveryListenerManagement discoveryMgr,
+                        LeaseRenewalManager leaseMgr,			
                         Configuration config)
                                     throws IOException, ConfigurationException
     {
