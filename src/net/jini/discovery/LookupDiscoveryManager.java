@@ -29,6 +29,7 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.EmptyConfiguration;
 import net.jini.core.discovery.LookupLocator;
+import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
 
 /** 
@@ -89,7 +90,9 @@ import net.jini.core.lookup.ServiceRegistrar;
  * @see net.jini.discovery.DiscoveryLocatorManagement
  * 
  */
+@SuppressWarnings("deprecation")
 public class LookupDiscoveryManager implements DiscoveryManagement,
+                                               DiscoveryManagement2,
                                                DiscoveryGroupManagement,
                                                DiscoveryLocatorManagement
 {
@@ -156,7 +159,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      */
     private final class ProxyReg  {
         /** The discovered registrar to be managed */
-	public ServiceRegistrar proxy;
+	public PortableServiceRegistrar proxy;
         /** The groups to which the discovered registrar belongs */
         public String[] memberGroups;
         /** Special-purpose flag used in the discard process. This flag is
@@ -228,9 +231,17 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  @param from         indicates the mechanism by which the registrar
          *                      was discovered (group or locator discovery).
          *                      The only values which are valid for this
-         *                      parameter are FROM_GROUP or FROM_LOCATOR.
+         *                      parameter are FROM_GROUP or FROM_LOCATOR.        
          */
+        
         public ProxyReg(ServiceRegistrar proxy,
+                        String[] memberGroups,
+                        int from)
+        {
+            this((PortableServiceRegistrar) proxy, memberGroups, from);
+        }
+        
+        public ProxyReg(PortableServiceRegistrar proxy,
                         String[] memberGroups,
                         int from)
         {
@@ -1257,10 +1268,39 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      *
      * @see net.jini.core.lookup.ServiceRegistrar
      * @see net.jini.discovery.DiscoveryManagement#removeDiscoveryListener
+     * @deprecated replaced by {@link #getPRegistrars()}
      */
+    @Deprecated
     public ServiceRegistrar[] getRegistrars() {
-	ArrayList proxySet = new ArrayList(1);;
+	PortableServiceRegistrar[] psr = getPRegistrars();
+        int l = psr.length;
+        ServiceRegistrar[] sr = new ServiceRegistrar[l];
+        for ( int i = 0; i < l; i++){
+            if (psr[i] instanceof ServiceRegistrar){
+                sr[i] = (ServiceRegistrar) psr[i];
+            }else{
+                sr[i] = new ServiceRegistrarFacade(psr[i]);
+            }
+        }
+        return sr;
+    }
+    
+    /**
+     * Returns an array of instances of <code>ServiceRegistrar</code>, each
+     * corresponding to a proxy to one of the currently discovered lookup
+     * services. For each invocation of this method, a new array is returned.
+     *
+     * @return array of instances of <code>ServiceRegistrar</code>, each
+     *         corresponding to a proxy to one of the currently discovered
+     *         lookup services
+     *
+     * @see net.jini.core.lookup.ServiceRegistrar
+     * @see net.jini.discovery.DiscoveryManagement#removeDiscoveryListener
+     */
+    public PortableServiceRegistrar[] getPRegistrars() {
+	ArrayList<PortableServiceRegistrar> proxySet;
 	synchronized(discoveredSet) {
+            proxySet = new ArrayList<PortableServiceRegistrar>(discoveredSet.size());
 	    int k = 0;
 	    Iterator iter = discoveredSet.iterator();
 	    while(iter.hasNext()) {
@@ -1269,7 +1309,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
 		    proxySet.add(reg.proxy);
 	    }
 	}
-	ServiceRegistrar[] ret = new ServiceRegistrar[proxySet.size()];
+	PortableServiceRegistrar[] ret = new PortableServiceRegistrar[proxySet.size()];
 	proxySet.toArray(ret);
 	return ret;
     }
@@ -1287,8 +1327,28 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      *
      * @see net.jini.core.lookup.ServiceRegistrar
      * @see net.jini.discovery.DiscoveryManagement#discard
+     * @deprecated 
      */
+    @Deprecated
     public void discard(ServiceRegistrar proxy) {
+        discard(proxy);
+    }//end discard
+    
+    /**
+     * Removes an instance of <code>ServiceRegistrar</code> from the
+     * managed set of lookup services, making the corresponding lookup
+     * service eligible for re-discovery. This method takes no action if
+     * the parameter input to this method is <code>null</code>, or if it
+     * does not match (using <code>equals</code>) any of the elements in
+     * the managed set.
+     *
+     * @param proxy the instance of <code>ServiceRegistrar</code> to discard
+     *              from the managed set of lookup services
+     *
+     * @see net.jini.core.lookup.ServiceRegistrar
+     * @see net.jini.discovery.DiscoveryManagement#discard
+     */
+    public void discard(PortableServiceRegistrar proxy) {
         if(proxy == null) return;
 	ProxyReg reg = findReg(proxy);
 	if(reg != null) {
@@ -1321,15 +1381,31 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      * @param proxy  a ServiceRegistrar object
      * @return an <code>int</code> indicating whether the proxy   
      *         was obtained through group or locator discovery. 
+     * @deprecated replaced by {@link #getFrom(PortableServiceRegistrar)}
      */
+    @Deprecated
     public int getFrom(ServiceRegistrar proxy) {
+	return getFrom(proxy);
+    }
+    
+    /** Return where the proxy come from. 
+     * @param proxy  a ServiceRegistrar object
+     * @return an <code>int</code> indicating whether the proxy   
+     *         was obtained through group or locator discovery.
+     *         Returns 0 if proxy not found. 
+     */
+    public int getFrom(PortableServiceRegistrar proxy) {
 	ProxyReg reg = findReg(proxy);
-	if(reg != null)
-	    return reg.getFrom();
+	if(reg != null) return reg.getFrom();
 	return 0;
     }
 
-    private ProxyReg findReg(ServiceRegistrar proxy) {
+    private ProxyReg findReg(PortableServiceRegistrar proxy) {
+        while (proxy instanceof Facade){ //always ensure we have uncovered any facades.
+            @SuppressWarnings("unchecked")
+                Facade<PortableServiceRegistrar> f = (Facade<PortableServiceRegistrar>) proxy;
+                proxy = f.reveal();
+        }
 	synchronized(discoveredSet) {
 	    Iterator iter = discoveredSet.iterator();
 	    while(iter.hasNext()) {

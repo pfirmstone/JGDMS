@@ -18,8 +18,8 @@
 
 package net.jini.discovery;
 
+import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.discovery.DiscoveryListener;
-import net.jini.core.lookup.ServiceRegistrar;
 
 /**
  * This interface defines methods related to the discovery event mechanism
@@ -27,14 +27,13 @@ import net.jini.core.lookup.ServiceRegistrar;
  * register or un-register for discovery events, discard a lookup service,
  * or terminate the discovery process.
  *
- * @author Sun Microsystems, Inc.
- * @deprecated replaced by {@link net.jini.discovery.DiscoveryManagement2}
+ * @author Peter Firmstone.
+ * @since 2.2.0
  */
-@Deprecated
-public interface DiscoveryManagement extends DiscoveryListenerManagement {
+public interface DiscoveryManagement2 extends DiscoveryListenerManagement {
 
     /**
-     * Returns an array of instances of <code>ServiceRegistrar</code>, each
+     * Returns an array of instances of <code>PortableServiceRegistrar</code>, each
      * corresponding to a proxy to one of the currently discovered lookup
      * services. For each invocation of this method, a new array is returned.
      *
@@ -44,7 +43,7 @@ public interface DiscoveryManagement extends DiscoveryListenerManagement {
      *
      * @see net.jini.core.lookup.ServiceRegistrar
      */
-    public ServiceRegistrar[] getRegistrars();
+    public PortableServiceRegistrar[] getPRegistrars();
 
     /**
      * Removes an instance of <code>ServiceRegistrar</code> from the
@@ -57,12 +56,17 @@ public interface DiscoveryManagement extends DiscoveryListenerManagement {
      * Changing the Parameter to PortableServiceRegistrar doesn't break client
      * code, but it may break implementation code if that code utilises
      * the nofify method from ServiceRegistrar
+     * 
+     * Implementer beware check for Facade and unwrap before using equals
+     * comparison to remove.
      *
      * @param proxy the instance of <code>PortableServiceRegistrar</code> to remove
      *              from the managed set of lookup services
      *
      * @see net.jini.core.lookup.PortableServiceRegistrar
      * @see net.jini.core.lookup.ServiceRegistrar
+     * @see net.jini.core.lookup.StreamServiceRegistrar
+     * @see net.jini.core.lookup.Facade;
      */
-   public void discard(ServiceRegistrar proxy);
+   public void discard(PortableServiceRegistrar proxy);
 }

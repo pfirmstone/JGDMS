@@ -424,7 +424,7 @@ public class Plaintext {
 
 	    // write LUS proxy
 	    new ObjectOutputStream(out).writeObject(
-		new MarshalledInstance(response.getRegistrar(), context));
+		new MarshalledInstance(response.getPRegistrar(), context));
 	} catch (RuntimeException e) {
 	    throw new DiscoveryProtocolException(null, e);
 	}

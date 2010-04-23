@@ -29,7 +29,6 @@ import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import net.jini.core.constraint.InvocationConstraints;
-import net.jini.core.lookup.ServiceRegistrar;
 
 /**
  * Utility class used by implementations which want to perform unicast

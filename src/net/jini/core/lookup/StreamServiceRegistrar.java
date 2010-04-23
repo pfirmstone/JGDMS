@@ -26,20 +26,20 @@ import net.jini.io.MarshalledInstance;
 /**
  * Defines the interface to the lookup service.  The interface is not a
  * remote interface; each implementation of the lookup service exports
- * proxy objects that implement the StreamingServiceRegistrar interface local to
+ * proxy objects that implement the StreamServiceRegistrar interface local to
  * the client, using an implementation-specific protocol to communicate
  * with the actual remote server.  All of the proxy methods obey normal
  * RMI remote interface semantics except where explicitly noted.  Two
  * proxy objects are equal if they are proxies for the same lookup service.
- * Every method invocation (on both StreamingServiceRegistrar and ServiceRegistration)
+ * Every method invocation (on both StreamServiceRegistrar and ServiceRegistration)
  * is atomic with respect to other invocations.
  * 
- * The StreamingServiceRegistrar is intended to perform the same function
+ * The StreamServiceRegistrar is intended to perform the same function
  * as the ServiceRegistrar, but with the ability to return results as a 
  * stream, so memory consumption can be minimised at the client.
  * 
  * All clients utilising ServiceRegistrar, should switch to the 
- * StreamingServiceRegistrar.
+ * StreamServiceRegistrar.
  * 
  * @see ServiceRegistrar
  * @see PortableServiceRegistrar
@@ -47,7 +47,7 @@ import net.jini.io.MarshalledInstance;
  * @author Peter Firmstone
  * @since 2.2.0
  */
-public interface StreamingServiceRegistrar extends PortableServiceRegistrar{
+public interface StreamServiceRegistrar extends PortableServiceRegistrar{
     
      /**
      * Registers for event notification.  The registration is leased; the
@@ -96,7 +96,7 @@ public interface StreamingServiceRegistrar extends PortableServiceRegistrar{
      * are minimised and common packages can share code.  This is intended to
      * be used with the new codebase services (TODO once implemented).
      * 
-     * The ObjectInput should be an InputStream, in order to minimise the
+     * ObjectInput should be an InputStream, in order to minimise
      * memory consumption requirements at the client.
      *
      * @param tmpl template to match

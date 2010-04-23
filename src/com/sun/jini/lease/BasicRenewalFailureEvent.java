@@ -82,7 +82,9 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
      *        last chain of renewal failures, in marshalled form.  May be
      *        <code>null</code> in which case <code>getThrowable</code> will
      *        return <code>null</code>.
+     * @deprecated 
      */
+    @Deprecated
     public BasicRenewalFailureEvent(LeaseRenewalSet source, 
 				    long seqNum,
 				    MarshalledObject handback,
@@ -90,6 +92,31 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
 				    MarshalledInstance marshalledThrowable) 
     {
 	super(source, seqNum, handback);
+	this.marshalledThrowable = marshalledThrowable;
+	this.marshalledLease = marshalledLease;
+    }
+    
+    /**
+     * Simple constructor.  Note event id is fixed to
+     * <code>LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID</code>.
+     *
+     * @param source the <code>LeaseRenewalSet</code> that generated the event
+     * @param seqNum the sequence number of this event
+     * @param handback the client handback
+     * @param marshalledLease the lease which could not be renewed, in
+     *        marshalled form
+     * @param marshalledThrowable the first exception that was thrown in the
+     *        last chain of renewal failures, in marshalled form.  May be
+     *        <code>null</code> in which case <code>getThrowable</code> will
+     *        return <code>null</code>.
+     */
+    public BasicRenewalFailureEvent(MarshalledInstance handback,
+                                    LeaseRenewalSet source, 
+				    long seqNum,
+				    MarshalledInstance marshalledLease,
+				    MarshalledInstance marshalledThrowable) 
+    {
+	super(handback, source, seqNum);
 	this.marshalledThrowable = marshalledThrowable;
 	this.marshalledLease = marshalledLease;
     }

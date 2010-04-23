@@ -31,10 +31,8 @@ import java.lang.ref.SoftReference;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.net.URL;
-import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.ActivationID;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -46,6 +44,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.net.InetAddress;
+// We need a JERI equivalent that extends RemoteException
 import java.rmi.server.ServerNotActiveException;
 import javax.security.auth.Subject;
 import net.jini.export.ServerContext;
@@ -70,9 +69,10 @@ public class Util {
     private static Map proxyRemoteMethodCache = new WeakHashMap();
 
     /** parameter types for activatable constructor or activate method */
-    private static Class[] paramTypes = {
-	ActivationID.class, MarshalledObject.class
-    };
+//   Doesn't appear to be utilised?    
+//    private static Class[] paramTypes = {
+//	ActivationID.class, MarshalledObject.class
+//    };
 
     /** name of the resource containing prohibited proxy interfaces */
     private static final String prohibitedProxyInterfacesResource =

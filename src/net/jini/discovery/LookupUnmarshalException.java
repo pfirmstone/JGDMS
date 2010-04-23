@@ -28,6 +28,7 @@ import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import java.util.ArrayList;
 import java.util.Arrays;
+import net.jini.core.lookup.StreamServiceRegistrar;
 import net.jini.io.Convert;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.MiToMoOutputStream;
@@ -326,11 +327,13 @@ public class LookupUnmarshalException extends Exception {
      *         each element corresponds to a successfully unmarshalled object.
      */
     public ServiceRegistrar[] getRegistrars() {
-        ArrayList<ServiceRegistrar> sr = new ArrayList<ServiceRegistrar>();
         int l = registrars.length;
+        ArrayList<ServiceRegistrar> sr = new ArrayList<ServiceRegistrar>(l);
         for ( int i = 0; i < l; i++){
             if (registrars[i] instanceof ServiceRegistrar) {
                 sr.add((ServiceRegistrar) registrars[i]);
+            } else {
+                sr.add(new ServiceRegistrarFacade(registrars[i]));
             }
         }
         ServiceRegistrar[] sra = new ServiceRegistrar[sr.size()];
@@ -339,7 +342,7 @@ public class LookupUnmarshalException extends Exception {
     
     /**
      * Accessor method that returns an array consisting of instances of 
-     * <code>PortableServiceRegistrar</code>, where each element of the array
+     * <code>StreamServiceRegistrar</code>, where each element of the array
      * corresponds to a successfully unmarshalled object. Note that the
      * same array is returned on each invocation of this method; that is,
      * a copy is not made.
@@ -347,9 +350,20 @@ public class LookupUnmarshalException extends Exception {
      * @return array of instances of <code>PortableServiceRegistrar</code>, where
      *         each element corresponds to a successfully unmarshalled object.
      */
-    public PortableServiceRegistrar[] getPRegistrars() {
+    public StreamServiceRegistrar[] getStreamRegistrars() {
         // Defensive copy.
-        return Arrays.copyOf(registrars, registrars.length);
+        int l = registrars.length;
+        ArrayList<StreamServiceRegistrar> sr = new ArrayList<StreamServiceRegistrar>(l);
+        for ( int i = 0; i < l; i++){
+            if (registrars[i] instanceof StreamServiceRegistrar) {
+                sr.add((StreamServiceRegistrar) registrars[i]);
+            } else {
+                sr.add(new StreamServiceRegistrarFacade(registrars[i]));
+            }
+        }
+        StreamServiceRegistrar[] sra = new StreamServiceRegistrar[sr.size()];
+        return sr.toArray(sra);
+        
     }//end getRegistrars
 
     /**

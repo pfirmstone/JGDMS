@@ -20,8 +20,11 @@ package net.jini.discovery;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.rmi.MarshalledObject;
+import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.lookup.StreamServiceRegistrar;
+import net.jini.io.MarshalledInstance;
+import net.jini.io.MoToMiInputStream;
 
 /**
  * This class encapsulates the details of unmarshaling an incoming
@@ -34,17 +37,23 @@ import net.jini.core.lookup.ServiceRegistrar;
 public class IncomingUnicastResponse {
     /**
      * The registrar we have discovered.
+     * Changed from protected to private in 2.2.0
      */
-    protected ServiceRegistrar registrar;
+    private PortableServiceRegistrar registrar;
     /**
      * The groups the lookup service was a member of, at the time
      * discovery was performed.  This may be out of date.
+     * Changed from protected to private in 2.2.0
      */
-    protected String[] groups;
+    private String[] groups;
     
     /**
      * Construct a new object, initialized by unmarshaling the
      * contents of an input stream.
+     * 
+     * This class remains backward compatible with earlier releases of Jini
+     * since 2.0, however it will be eventually dropped and only support
+     * versions 2.2.0 and later.
      *
      * @param str the stream from which to unmarshal the response
      * @exception IOException an error occurred while unmarshaling the
@@ -55,9 +64,11 @@ public class IncomingUnicastResponse {
     public IncomingUnicastResponse(InputStream str)
 	throws IOException, ClassNotFoundException
     {
-	ObjectInputStream istr = new ObjectInputStream(str);
+	ObjectInputStream istr = new MoToMiInputStream(str);
+        // need to look at configurable option for verify codebase integrity.
+        boolean verifyCodebaseIntegrity = false;
 	registrar =
-	    (ServiceRegistrar)((MarshalledObject)istr.readObject()).get();
+	    (PortableServiceRegistrar)((MarshalledInstance)istr.readObject()).get(verifyCodebaseIntegrity);
 	int grpCount = istr.readInt();
 	groups = new String[grpCount];
 	for (int i = 0; i < groups.length; i++) {
@@ -67,11 +78,28 @@ public class IncomingUnicastResponse {
 
     /**
      * Return the lookup service registrar we have discovered.
+     * This method won't be available on Java CDC.
      *
      * @return the lookup service registrar we have discovered
+     * @deprecated replaced by {@link #getPRegistrar()}
      */
+    @Deprecated
     public ServiceRegistrar getRegistrar() {
-	return registrar;
+	if (registrar instanceof ServiceRegistrar ) return (ServiceRegistrar) registrar;
+        return new ServiceRegistrarFacade(registrar);
+    }
+    
+    /**
+     * Return the lookup portable service registrar we have discovered.
+     * 
+     * For maximum platform compatbility don't downcast to ServiceRegistrar,
+     * use PortableServiceRegistrar where possible.
+     *
+     * @return the lookup service registrar we have discovered
+     * @since 2.2.0
+     */
+    public PortableServiceRegistrar getPRegistrar () {
+        return registrar;
     }
 
     /**

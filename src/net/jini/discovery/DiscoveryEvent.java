@@ -17,9 +17,13 @@
  */
 package net.jini.discovery;
 
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.EventObject;
 import java.util.Map;
+import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.lookup.StreamServiceRegistrar;
 
 /**
  * Event object passed (via either the <code>DiscoveryListener</code>
@@ -44,7 +48,7 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    protected ServiceRegistrar[] regs;
+    private PortableServiceRegistrar[] regs;
 
     /**
      * Map from the registrars of this event to the groups in which each
@@ -52,8 +56,25 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    protected Map groups;
+    private Map groups;
 
+    /**
+     * Construct a new <code>DiscoveryEvent</code> object, with the given
+     * source and set of registrars.  The set of registrars should not be
+     * empty. This constructor has been left in place to maintain binary
+     * compatibility.
+     *
+     * @param source the source of this event
+     * @param regs   the registrars to which this event applies
+     * @deprecated 
+     */
+    @Deprecated
+    public DiscoveryEvent(Object source, ServiceRegistrar[] regs) {
+	super(source);
+	this.regs = regs;
+	this.groups = null;
+    }
+    
     /**
      * Construct a new <code>DiscoveryEvent</code> object, with the given
      * source and set of registrars.  The set of registrars should not be
@@ -62,7 +83,7 @@ public class DiscoveryEvent extends EventObject {
      * @param source the source of this event
      * @param regs   the registrars to which this event applies
      */
-    public DiscoveryEvent(Object source, ServiceRegistrar[] regs) {
+    public DiscoveryEvent(Object source, PortableServiceRegistrar[] regs) {
 	super(source);
 	this.regs = regs;
 	this.groups = null;
@@ -81,19 +102,69 @@ public class DiscoveryEvent extends EventObject {
     public DiscoveryEvent(Object source, Map groups) {
 	super(source);
 	this.groups = groups;
-        this.regs   = (ServiceRegistrar[])(groups.keySet()).toArray
-                                       (new ServiceRegistrar[groups.size()]);
+        this.regs   = (PortableServiceRegistrar[])(groups.keySet()).toArray
+                                       (new PortableServiceRegistrar[groups.size()]);
     }
 
     /**
      * Return the set of registrars to which this event applies.
      * The same array is returned on every call; a copy is not made.
+     * 
+     * I'm going to experiment with returning a copy to see if anything
+     * breaks.
+     * 
      * @return the set of registrars to which this event applies.
      */
     public ServiceRegistrar[] getRegistrars() {
-	return regs;
+        int l = regs.length;
+        ArrayList<ServiceRegistrar> sr = new ArrayList<ServiceRegistrar>(l);
+        for ( int i = 0; i < l; i++ ){
+            if (regs[i] instanceof ServiceRegistrar) {
+                sr.add( (ServiceRegistrar) regs[i]);
+            } else {
+                sr.add( new ServiceRegistrarFacade(regs[i]));
+            }
+        }
+        ServiceRegistrar[] sra = new ServiceRegistrar[sr.size()];
+        return sr.toArray(sra);
     }
-
+    
+    /**
+     * Return the set of registrars to which this event applies.
+     * The same array is returned on every call; a copy is not made.
+     * 
+     * I'm going to experiment with returning a copy to see if anything
+     * breaks.
+     * 
+     * @return the set of registrars to which this event applies.
+     */
+    public StreamServiceRegistrar[] getStreamRegistrars() {
+        int l = regs.length;
+        ArrayList<StreamServiceRegistrar> sr = new ArrayList<StreamServiceRegistrar>(l);
+        for ( int i = 0; i < l; i++ ){
+            if (regs[i] instanceof StreamServiceRegistrar) {
+                sr.add( (StreamServiceRegistrar) regs[i]);
+            } else {
+                sr.add( new StreamServiceRegistrarFacade(regs[i]));
+            }
+        }
+        StreamServiceRegistrar[] sra = new StreamServiceRegistrar[sr.size()];
+        return sr.toArray(sra);
+    }
+    
+    /**
+     * Return the set of registrars to which this event applies.
+     * The same array is returned on every call; a copy is not made.
+     * 
+     * I'm going to experiment with returning a copy to see if anything
+     * breaks.
+     * 
+     * @return the set of registrars to which this event applies.
+     */
+    public PortableServiceRegistrar[] getPRegistrars() {
+        return Arrays.copyOf(regs, regs.length);      
+    }
+    
     /**
      * Returns a set that maps to each registrar referenced by this event,
      * the current set of groups in which each registrar is a member.

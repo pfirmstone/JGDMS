@@ -48,7 +48,9 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
+import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.lookup.StreamServiceRegistrar;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 
@@ -305,7 +307,7 @@ import net.jini.security.ProxyPreparer;
  *
  * @see net.jini.core.discovery.LookupLocator
  */
-public class LookupLocatorDiscovery implements DiscoveryManagement,
+public class LookupLocatorDiscovery implements DiscoveryManagement, DiscoveryManagement2,
                                                DiscoveryLocatorManagement
 {
     /* Name of this component; used in config entry retrieval and the logger.*/
@@ -319,7 +321,7 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
     private static final int MAX_N_TASKS = 15;
     /** Default timeout to set on sockets used for unicast discovery. */
     private static final int DEFAULT_SOCKET_TIMEOUT = 1*60*1000;
-    /** LookupLocator.getRegistrar method, used for looking up client
+    /** LookupLocator.getPRegistrar method, used for looking up client
      *  constraints of contained lookup locators.
      */
     private static final Method getRegistrarMethod;
@@ -388,7 +390,7 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
      *  to discover via unicast discovery.
      */
     private class LocatorReg {
-        public ServiceRegistrar proxy = null;
+        public PortableServiceRegistrar proxy = null;
         public final LookupLocator l;
         public String[] memberGroups = null;
 	private boolean discarded = false;
@@ -534,8 +536,8 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
 	    }.getResponse(locator.getHost(), locator.getPort(), ic);
 	    	    
 	    /* Proxy preparation */
-	    proxy = (ServiceRegistrar)registrarPreparer.prepareProxy
-							(resp.getRegistrar());
+	    proxy = (PortableServiceRegistrar)registrarPreparer.prepareProxy
+							(resp.getPRegistrar());
 	    logger.log(Level.FINEST, "LookupLocatorDiscovery - prepared "
 		       +"lookup service proxy: {0}", proxy);
 	    memberGroups = resp.getGroups();
@@ -889,12 +891,129 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
             if((discoveredLocators == null) || (discoveredLocators.isEmpty())){
                 return new ServiceRegistrar[0];
             }
-            return buildServiceRegistrar();
+            int k = 0;
+            ServiceRegistrar[] proxys =
+                                  new ServiceRegistrar[discoveredLocators.size()];
+            Iterator iter = discoveredLocators.iterator();
+            while(iter.hasNext()) {
+                LocatorReg reg = (LocatorReg)iter.next();
+                PortableServiceRegistrar psr = reg.proxy;
+                if ( psr instanceof ServiceRegistrar){
+                    proxys[k++] = (ServiceRegistrar) psr;
+                } else {
+                    proxys[k++] = new ServiceRegistrarFacade(psr);
+                }
+            }//end loop
+            return proxys;
         }//end sync(this)
     }//end getRegistrars
+    
+    /**
+     * Returns an array of instances of <code>StreamServiceRegistrar</code>, each
+     * corresponding to a proxy to one of the currently discovered lookup
+     * services. For each invocation of this method, a new array is returned.
+     *
+     * @return array of instances of <code>StreamServiceRegistrar</code>, each
+     *         corresponding to a proxy to one of the currently discovered
+     *         lookup services
+     *
+     * @throws java.lang.IllegalStateException this exception occurs when
+     *         this method is called after the <code>terminate</code>
+     *         method has been called.
+     * 
+     * @see net.jini.core.lookup.StreamServiceRegistrar
+     */
+    public StreamServiceRegistrar[] getStreamRegistrars() {
+        synchronized(this) {
+            if (terminated) {
+                throw new IllegalStateException("discovery terminated");
+            }
+            if((discoveredLocators == null) || (discoveredLocators.isEmpty())){
+                return new StreamServiceRegistrar[0];
+            }
+            int k = 0;
+            StreamServiceRegistrar[] proxys =
+                                  new StreamServiceRegistrar[discoveredLocators.size()];
+            Iterator iter = discoveredLocators.iterator();
+            while(iter.hasNext()) {
+                LocatorReg reg = (LocatorReg)iter.next();
+                PortableServiceRegistrar psr = reg.proxy;
+                if ( psr instanceof StreamServiceRegistrar){
+                    proxys[k++] = (StreamServiceRegistrar) psr;
+                } else {
+                    proxys[k++] = new StreamServiceRegistrarFacade(psr);
+                }
+            }//end loop
+            return proxys;
+        }//end sync(this)
+    }//end getStreamRegistrars
+    
+    /**
+     * Returns an array of instances of <code>PortableServiceRegistrar</code>, each
+     * corresponding to a proxy to one of the currently discovered lookup
+     * services. For each invocation of this method, a new array is returned.
+     *
+     * @return array of instances of <code>ServiceRegistrar</code>, each
+     *         corresponding to a proxy to one of the currently discovered
+     *         lookup services
+     *
+     * @throws java.lang.IllegalStateException this exception occurs when
+     *         this method is called after the <code>terminate</code>
+     *         method has been called.
+     * 
+     * @see net.jini.core.lookup.ServiceRegistrar
+     * @see net.jini.discovery.DiscoveryManagement#removeDiscoveryListener
+     */
+    public PortableServiceRegistrar[] getPRegistrars() {
+        synchronized(this) {
+            if (terminated) {
+                throw new IllegalStateException("discovery terminated");
+            }
+            if((discoveredLocators == null) || (discoveredLocators.isEmpty())){
+                return new PortableServiceRegistrar[0];
+            }
+            /* From each element of the set of LocatorReg objects that correspond
+             *  to lookup services that have been discovered, this method extracts
+             *  the PortableServiceRegistrar reference and returns all of the references
+             *  in an array of PortableServiceRegistrar.
+             */
+            int k = 0;
+            PortableServiceRegistrar[] proxys =
+                                  new PortableServiceRegistrar[discoveredLocators.size()];
+            Iterator iter = discoveredLocators.iterator();
+            while(iter.hasNext()) {
+                LocatorReg reg = (LocatorReg)iter.next();
+                 proxys[k++] = reg.proxy;                
+            }//end loop
+            return proxys;
+        }//end sync(this)
+    }//end getPRegistrars
+    
+    /** From each element of the set of LocatorReg objects that correspond
+     *  to lookup services that have been discovered, this method extracts
+     *  the ServiceRegistrar reference and returns all of the references
+     *  in an array of ServiceRegistrar.
+     */
+    private PortableServiceRegistrar[] buildServiceRegistrar() {
+	int k = 0;
+	PortableServiceRegistrar[] proxys =
+                              new PortableServiceRegistrar[discoveredLocators.size()];
+	Iterator iter = discoveredLocators.iterator();
+	while(iter.hasNext()) {
+	    LocatorReg reg = (LocatorReg)iter.next();
+	    proxys[k++] = reg.proxy;
+	}//end loop
+	return proxys;
+    }//end buildServiceRegistrar
+
+    
+    // Just to maintain binary compatibility (Method Signature cannot change)
+    public void discard(ServiceRegistrar proxy){
+        discard((PortableServiceRegistrar) proxy);
+    }
 
     /**
-     * Removes an instance of <code>ServiceRegistrar</code> from the
+     * Removes an instance of <code>PortableServiceRegistrar</code> from the
      * managed set of lookup services, making the corresponding lookup
      * service eligible for re-discovery. This method takes no action if
      * the parameter input to this method is <code>null</code>, or if it
@@ -911,12 +1030,16 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
      * @see net.jini.core.lookup.ServiceRegistrar
      * @see net.jini.discovery.DiscoveryManagement#discard
      */
-    public void discard(ServiceRegistrar proxy) {
+    public void discard(PortableServiceRegistrar proxy) {     
 	synchronized(this) {
             if (terminated) {
                 throw new IllegalStateException("discovery terminated");
             }
             if(proxy == null) return;
+            while ( proxy instanceof Facade ){
+                Facade f = (Facade) proxy;
+                proxy = (PortableServiceRegistrar) f.reveal();
+            }
 	    LookupLocator lct = findRegFromProxy(proxy);
 	    if(lct == null) return;
             /* Remove locator from the set of already-discovered locators */
@@ -1265,7 +1388,7 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
      *  Upon finding such an element, the corresponding LookupLocator is
      *  returned; otherwise, null is returned. 
      */
-    private LookupLocator findRegFromProxy(ServiceRegistrar proxy) {
+    private LookupLocator findRegFromProxy(PortableServiceRegistrar proxy) {
 	Iterator iter = discoveredLocators.iterator();
 	while(iter.hasNext()) {
 	    LocatorReg reg = (LocatorReg)iter.next();
@@ -1328,23 +1451,6 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
             return true;//done; don't queue any retries
 	}//end sync(this)
     }//end regTryGetProxy
-
-    /** From each element of the set of LocatorReg objects that correspond
-     *  to lookup services that have been discovered, this method extracts
-     *  the ServiceRegistrar reference and returns all of the references
-     *  in an array of ServiceRegistrar.
-     */
-    private ServiceRegistrar[] buildServiceRegistrar() {
-	int k = 0;
-	ServiceRegistrar[] proxys =
-                              new ServiceRegistrar[discoveredLocators.size()];
-	Iterator iter = discoveredLocators.iterator();
-	while(iter.hasNext()) {
-	    LocatorReg reg = (LocatorReg)iter.next();
-	    proxys[k++] = reg.proxy;
-	}//end loop
-	return proxys;
-    }//end buildServiceRegistrar
 
     /** 
      *  Adds the given LocatorReg object to the set containing the objects
@@ -1506,8 +1612,9 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
      *   @return <code>Map</code> instance containing a single mapping from
      *           a given registrar to its current member groups
      */
-    private Map mapRegToGroups(ServiceRegistrar reg, String[] curGroups) {
-        HashMap groupsMap = new HashMap(1);
+    private Map mapRegToGroups(PortableServiceRegistrar reg, String[] curGroups) {
+        HashMap<PortableServiceRegistrar,String[]> groupsMap = 
+                new HashMap<PortableServiceRegistrar,String[]>(1);
         groupsMap.put(reg,curGroups);
         return groupsMap;
     }//end mapRegToGroups

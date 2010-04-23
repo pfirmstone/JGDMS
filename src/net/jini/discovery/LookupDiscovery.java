@@ -72,8 +72,10 @@ import net.jini.constraint.BasicMethodConstraints;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.discovery.LookupLocator;
+import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.lookup.StreamServiceRegistrar;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
@@ -693,7 +695,7 @@ import net.jini.security.SecurityContext;
  * @see DiscoveryEvent
  * @see DiscoveryPermission
  */
-public class LookupDiscovery implements DiscoveryManagement,
+public class LookupDiscovery implements DiscoveryManagement, DiscoveryManagement2,
                                         DiscoveryGroupManagement
 {
     /* Name of this component; used in config entry retrieval and the logger.*/
@@ -735,7 +737,7 @@ public class LookupDiscovery implements DiscoveryManagement,
     /** The groups to discover. Empty set -- NO_GROUPS, null -- ALL_GROUPS */
     private Set groups = null;
     /** Map from ServiceID to UnicastResponse. */
-    private Map registrars = new HashMap(11);
+    private Map<ServiceID,UnicastResponse> registrars = new HashMap<ServiceID,UnicastResponse>(11);
     /** 
      * Set that takes one of the following:
      * <p><ul>
@@ -947,7 +949,7 @@ public class LookupDiscovery implements DiscoveryManagement,
                                        new String[]{"discovered",
                                                     "discarded",
                                                     "changed"}[task.eventType];
-                                ServiceRegistrar[] regs = e.getRegistrars();
+                                PortableServiceRegistrar[] regs = e.getPRegistrars();
                                 logger.finest(eType+" event  -- "+regs.length
                                                                 +" lookup(s)");
                                 Map groupsMap = e.getGroups();
@@ -1480,13 +1482,13 @@ public class LookupDiscovery implements DiscoveryManagement,
 	}
 
 	public int hashCode() {
-	    return response.getRegistrar().hashCode();
+	    return response.getPRegistrar().hashCode();
 	}
 
 	public boolean equals(Object obj) {
 	    return obj instanceof CheckReachabilityMarker &&
-		   response.getRegistrar().equals(
-		      ((CheckReachabilityMarker) obj).response.getRegistrar());
+		   response.getPRegistrar().equals(
+		      ((CheckReachabilityMarker) obj).response.getPRegistrar());
 	}
     }
 
@@ -1973,7 +1975,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    Iterator iter = registrars.values().iterator();
 	    while (iter.hasNext()) {
                 UnicastResponse resp = (UnicastResponse)iter.next();
-                groupsMap.put(resp.getRegistrar(),resp.getGroups());
+                groupsMap.put(resp.getPRegistrar(),resp.getGroups());
 	    }
 	    ArrayList list = new ArrayList(1);
 	    list.add(l);
@@ -2029,12 +2031,90 @@ public class LookupDiscovery implements DiscoveryManagement,
             Iterator iter = registrars.values().iterator();
             ServiceRegistrar[] regs = new ServiceRegistrar[registrars.size()];
             for (int i=0;iter.hasNext();i++) {
-                regs[i] = ((UnicastResponse)iter.next()).getRegistrar();
+                PortableServiceRegistrar psr = ((UnicastResponse)iter.next()).getPRegistrar();
+                if ( psr instanceof ServiceRegistrar){
+                    regs[i] = (ServiceRegistrar) psr;
+                } else {
+                    regs[i] = new ServiceRegistrarFacade(psr);
+                }
             }
             return regs;
         }
     }//end getRegistrars
 
+    /**
+     * Returns an array of instances of <code>PortableServiceRegistrar</code>, each
+     * corresponding to a proxy to one of the currently discovered lookup
+     * services. For each invocation of this method, a new array is returned.
+     *
+     * @return array of instances of <code>ServiceRegistrar</code>, each
+     *         corresponding to a proxy to one of the currently discovered
+     *         lookup services
+     *
+     * @throws java.lang.IllegalStateException this exception occurs when
+     *         this method is called after the <code>terminate</code>
+     *         method has been called.
+     * 
+     * @see net.jini.core.lookup.ServiceRegistrar
+     * @see net.jini.discovery.DiscoveryManagement#removeDiscoveryListener
+     */
+    public PortableServiceRegistrar[] getPRegistrars() {
+        synchronized (registrars) {
+            if (terminated) {
+                throw new IllegalStateException("discovery terminated");
+            }
+            if (registrars.isEmpty()) {
+                return new PortableServiceRegistrar[0];
+            }
+            Iterator iter = registrars.values().iterator();
+            PortableServiceRegistrar[] regs = new PortableServiceRegistrar[registrars.size()];
+            for (int i=0;iter.hasNext();i++) {
+                regs[i] = ((UnicastResponse)iter.next()).getPRegistrar();              
+            }
+            return regs;
+        }
+    }//end getPRegistrars
+    
+    
+    
+    /**
+     * Returns an array of instances of <code>StreamServiceRegistrar</code>, each
+     * corresponding to a proxy to one of the currently discovered lookup
+     * services. For each invocation of this method, a new array is returned.
+     *
+     * @return array of instances of <code>ServiceRegistrar</code>, each
+     *         corresponding to a proxy to one of the currently discovered
+     *         lookup services
+     *
+     * @throws java.lang.IllegalStateException this exception occurs when
+     *         this method is called after the <code>terminate</code>
+     *         method has been called.
+     * 
+     * @see net.jini.core.lookup.ServiceRegistrar
+     * @see net.jini.discovery.DiscoveryManagement#removeDiscoveryListener
+     */
+    public StreamServiceRegistrar[] getStreamRegistrars() {
+        synchronized (registrars) {
+            if (terminated) {
+                throw new IllegalStateException("discovery terminated");
+            }
+            if (registrars.isEmpty()) {
+                return new StreamServiceRegistrar[0];
+            }
+            Iterator iter = registrars.values().iterator();
+            StreamServiceRegistrar[] regs = new StreamServiceRegistrar[registrars.size()];
+            for (int i=0;iter.hasNext();i++) {
+                PortableServiceRegistrar psr = ((UnicastResponse)iter.next()).getPRegistrar();
+                if ( psr instanceof StreamServiceRegistrar){
+                    regs[i] = (StreamServiceRegistrar) psr;
+                } else {
+                    regs[i] = new StreamServiceRegistrarFacade(psr);
+                }
+            }
+            return regs;
+        }
+        
+    }//end getRegistrars
     /**
      * Discard a registrar from the set of registrars already
      * discovered.  This does not prevent that registrar from being
@@ -2051,9 +2131,9 @@ public class LookupDiscovery implements DiscoveryManagement,
      *         this method is called after the <code>terminate</code>
      *         method has been called.
      * 
-     * @see DiscoveryListener#discarded
+     * @see DiscoveryListener2#discarded
      */
-    public void discard(ServiceRegistrar reg) {
+    public void discard(PortableServiceRegistrar reg) {
         synchronized (registrars) {
             if (terminated) {
                 throw new IllegalStateException("discovery terminated");
@@ -2062,6 +2142,10 @@ public class LookupDiscovery implements DiscoveryManagement,
             sendDiscarded(reg,null);
         }//end sync
     }//end discard
+      
+    public void discard(ServiceRegistrar proxy) {
+        discard((PortableServiceRegistrar) proxy);
+    }
 
     /** Terminate the discovery process. */
     public void terminate() {
@@ -2452,7 +2536,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 					   UnicastResponse resp2)
     {
 	return resp1 != null && resp2 != null &&
-	       resp2.getRegistrar().equals(resp1.getRegistrar());
+	       resp2.getPRegistrar().equals(resp1.getPRegistrar());
     }//end registrarsEqual
 
     /**
@@ -2592,9 +2676,9 @@ public class LookupDiscovery implements DiscoveryManagement,
          * that object is not accessed by any other thread.
          */
         try {
-	    final ServiceRegistrar srcReg = resp.getRegistrar();
-            ServiceRegistrar prepReg
-		= (ServiceRegistrar)AccessController.doPrivileged
+	    final PortableServiceRegistrar srcReg = resp.getPRegistrar();
+            PortableServiceRegistrar prepReg
+		= (PortableServiceRegistrar)AccessController.doPrivileged
 		    ( securityContext.wrap( new PrivilegedExceptionAction() {
                         public Object run() throws RemoteException {
                             Object proxy = registrarPreparer.prepareProxy
@@ -2627,7 +2711,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    if(groupsOverlap(resp.getGroups()) &&
 	       !registrarsEqual(resp,
 				(UnicastResponse) registrars.put
-				   (resp.getRegistrar().getServiceID(), resp)))
+				   (resp.getPRegistrar().getServiceID(), resp)))
 	    {
                 /* Time stamp the service ID and store its current sequence 
 		 * number. The first time stamp associated
@@ -2648,11 +2732,11 @@ public class LookupDiscovery implements DiscoveryManagement,
                  * cause the lookup to be discovered before the first
                  * announcement arrives.
                  */
-                regInfo.put(resp.getRegistrar().getServiceID(),
+                regInfo.put(resp.getPRegistrar().getServiceID(),
 			 new AnnouncementInfo(System.currentTimeMillis(), -1));
                 if(!listeners.isEmpty()) {
 		    addNotify((ArrayList)listeners.clone(),
-                              mapRegToGroups(resp.getRegistrar(),
+                              mapRegToGroups(resp.getPRegistrar(),
 					     resp.getGroups()),
                               DISCOVERED);
                 }//endif
@@ -2670,8 +2754,8 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    for(Iterator iter=registrars.values().iterator();iter.hasNext(); ){
 		UnicastResponse ent = (UnicastResponse)iter.next();
 		if(!groupsOverlap(ent.getGroups())) { // not interested anymore
-                    groupsMap.put(ent.getRegistrar(),ent.getGroups());
-                    regInfo.remove(ent.getRegistrar().getServiceID());
+                    groupsMap.put(ent.getPRegistrar(),ent.getGroups());
+                    regInfo.remove(ent.getPRegistrar().getServiceID());
 		    iter.remove(); // remove (srvcID,response) mapping
 		}//endif
 	    }//end loop
@@ -2809,7 +2893,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      *                  possible change)
      */
     private void maybeSendEvent(UnicastResponse response, String[] newGroups) {
-        ServiceRegistrar reg = response.getRegistrar();
+        PortableServiceRegistrar reg = response.getPRegistrar();
         boolean getActual    = true;
         if(newGroups == null) { // newGroups null means get actual groups now
             newGroups = getActualGroups(reg);
@@ -2870,7 +2954,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      *                  member groups of the <code>reg</code> parameter
      *                  (just after a possible change)
      */
-    private void notifyOnGroupChange(ServiceRegistrar reg,
+    private void notifyOnGroupChange(PortableServiceRegistrar reg,
                                      String[]         oldGroups,
                                      String[]         newGroups)
     {
@@ -2895,7 +2979,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      *                   member groups of the registrar referenced by the 
      *                   <code>reg</code> parameter
      */
-    private void sendDiscarded(ServiceRegistrar reg, String[] curGroups) {
+    private void sendDiscarded(PortableServiceRegistrar reg, String[] curGroups) {
         ServiceID srvcID = reg.getServiceID();
         if(curGroups == null) { // discard request is from external source
             UnicastResponse resp = (UnicastResponse)registrars.get(srvcID);
@@ -2923,7 +3007,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      *                   member groups of the registrar referenced by the 
      *                   <code>reg</code> parameter
      */
-    private void sendChanged(ServiceRegistrar reg, String[] curGroups) {
+    private void sendChanged(PortableServiceRegistrar reg, String[] curGroups) {
         /* replace old groups with new; prevents repeated changed events */
         UnicastResponse resp = 
                    (UnicastResponse)registrars.get(reg.getServiceID());
@@ -2931,7 +3015,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 		       new UnicastResponse(resp.getHost(),
 					   resp.getPort(),
 					   curGroups,
-					   resp.getRegistrar()));
+					   resp.getPRegistrar()));
         if( !listeners.isEmpty() ) {
             addNotify((ArrayList)listeners.clone(), 
                        mapRegToGroups(reg,curGroups), CHANGED);
@@ -2973,7 +3057,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      *  @return <code>String</code> array containing the current member groups
      *          of the registrar referenced by the <code>reg</code> parameter
      */
-    private String[] getActualGroups(final ServiceRegistrar reg) {
+    private String[] getActualGroups(final PortableServiceRegistrar reg) {
         /* The retrieval of the member groups of the given ServiceRegistrar
          * is performed inside a doPrivileged block that restores the access
          * control context that was in place when this utility was created.
@@ -3020,7 +3104,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      *   @return <code>Map</code> instance containing a single mapping from
      *           a given registrar to its current member groups
      */
-    private Map mapRegToGroups(ServiceRegistrar reg, String[] curGroups) {
+    private Map mapRegToGroups(PortableServiceRegistrar reg, String[] curGroups) {
         HashMap groupsMap = new HashMap(1);
         groupsMap.put(reg,curGroups);
         return groupsMap;

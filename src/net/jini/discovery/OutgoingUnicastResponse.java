@@ -21,7 +21,10 @@ import java.io.ObjectOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.rmi.MarshalledObject;
+import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.io.MarshalledInstance;
+import net.jini.io.MiToMoOutputStream;
 
 /**
  * Encapsulate the details of marshaling a unicast response.
@@ -39,6 +42,22 @@ public class OutgoingUnicastResponse {
     /**
      * Marshal a unicast response to the given output stream.  The
      * stream is flushed afterwards.
+     * 
+     * Older Versions of Apache River prior to 2.2.0 participating in a djinn,
+     * will not have the ability to wrap a PortableServiceRegistrar, so it
+     * can participate as a ServiceRegistrar instance. 
+     * However it is intended that the Registrar's
+     * proxy's implementation will be able to be unmarshalled
+     * with a suitable codebase that also implements ServiceRegistrar for
+     * recipients IncomingUnicastRequest's
+     * 
+     * At some future point in time, a djinn will have a minimum Apache River
+     * version requirement for participation, at that stage old application
+     * code will rely upon the PortableServiceRegistrarWrapper and ServiceRegistrar
+     * will no longer be implemented directly by the proxy class.
+     * 
+     * At the same point in time the serialized form of the PortableServiceRegistrar
+     * will be that of MarshalledInstance, not MarshalledObject as it currently is.
      *
      * @param str the stream to marshal to
      * @param reg the registrar object to marshal
@@ -47,16 +66,17 @@ public class OutgoingUnicastResponse {
      * @exception IOException a problem occurred during marshaling
      */
     public static void marshal(OutputStream str,
-			       ServiceRegistrar reg,
+			       PortableServiceRegistrar reg,
 			       String[] groups)
 	throws IOException
     {
-	ObjectOutputStream ostr = new ObjectOutputStream(str);
-	ostr.writeObject(new MarshalledObject(reg));
+	ObjectOutputStream ostr = new MiToMoOutputStream(str);
+	ostr.writeObject(new MarshalledInstance(reg));
 	ostr.writeInt(groups.length);
 	for (int i = 0; i < groups.length; i++) {
 	    ostr.writeUTF(groups[i]);
 	}
 	ostr.flush();
     }
+    
 }

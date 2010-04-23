@@ -21,17 +21,13 @@ package com.sun.jini.discovery;
 import com.sun.jini.discovery.internal.Plaintext;
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.DataOutput;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.io.UTFDataFormatException;
 import java.net.DatagramPacket;
 import java.net.Socket;
 import java.nio.ByteBuffer;
-import java.rmi.MarshalledObject;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedList;
@@ -43,6 +39,8 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.Constants;
 import net.jini.io.MarshalledInstance;
+import net.jini.io.MiToMoOutputStream;
+import net.jini.io.MoToMiInputStream;
 import net.jini.io.UnsupportedConstraintException;
 
 /**
@@ -389,11 +387,10 @@ class DiscoveryV1 extends Discovery {
 	    String host = socket.getInetAddress().getHostAddress();
 	    int port = socket.getPort();
 
-	    // read LUS proxy
-	    ObjectInputStream oin = new ObjectInputStream(
+	    // read LUS proxy - Converted from java.rmi.MarshalledObject form.
+	    ObjectInputStream oin = new MoToMiInputStream(
 		new BufferedInputStream(socket.getInputStream()));
-	    MarshalledInstance mi = 
-		new MarshalledInstance((MarshalledObject) oin.readObject());
+	    MarshalledInstance mi = (MarshalledInstance) oin.readObject();
 	    ServiceRegistrar reg = 
 		(ServiceRegistrar) mi.get(defaultLoader, false, null, context);
 
@@ -435,11 +432,11 @@ class DiscoveryV1 extends Discovery {
 	// note: unicast request (the protocol version) already consumed
 
 	// write LUS proxy
-	ObjectOutputStream oout = new ObjectOutputStream(
+	ObjectOutputStream oout = new MiToMoOutputStream(
 	    new BufferedOutputStream(socket.getOutputStream()));
 	oout.writeObject(
 	    new MarshalledInstance(
-		response.getRegistrar(), context).convertToMarshalledObject());
+		response.getPRegistrar(), context));
 
 	// write LUS member groups
 	String[] groups = response.getGroups();
