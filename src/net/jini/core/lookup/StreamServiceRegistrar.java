@@ -17,8 +17,8 @@
  */
 package net.jini.core.lookup;
 
-import java.io.ObjectInput;
 import java.rmi.RemoteException;
+import net.jini.core.entry.Entry;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.io.MarshalledInstance;
@@ -84,28 +84,109 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
 	throws RemoteException;
 
     /**
-     * Returns the service object (i.e., just ServiceItem.service) from an
-     * item matching the template.  It makes the service object available via
-     * the returned ObjectInput.  
+     * Returns a ResultStream that provides access to MarshalledServiceItem 
+     * instances.  The ResultStream terminates with a null value.  The result
+     * stream may be infinite.
      * 
-     * If the returned object cannot be deserialized, it can be returned in
-     * marshalled form as a MarshalledInstance.
+     * MarshalledServiceItem extends ServiceItem and can be used anywhere a 
+     * ServiceItem can.  A MarshalledServiceItem implementation instance 
+     * contains the marshalled form of a Service and it's Entry's,
+     * the corresponding superclass ServiceItem however contains null values
+     * for the service and excludes any Entry's that are not specifically requested
+     * unmarshalled by this method. The ServiceID will be unmarshalled always.
      * 
-     * Implementations of this interface should return the Objects in order of
-     * their package implementation version, so that the number of ClassLoaders
-     * are minimised and common packages can share code.  This is intended to
-     * be used with the new codebase services (TODO once implemented).
+     * This method is designed to allow the caller to control exactly what
+     * is unmarshalled and when, it allows unmarshalling of specific entries
+     * that the caller may wish to utilise for filtering. It is
+     * designed to allow both the caller and the implementer to deal with very
+     * large result sets in an incremental fashion.
      * 
-     * ObjectInput should be an InputStream, in order to minimise
-     * memory consumption requirements at the client.
+     * It is absolutely essential that the caller deletes any references to
+     * the returned result stream as soon as it is no longer requried.
      *
      * @param tmpl template to match
-     * @param marshalled if true return objects in marshalled form.
-     * @return an object input that represents a service that matches the
      * specified template
+     * @param unmarshalledEntries only Entry's with these classes will be in
+     * unmarshalled form.
+     * @param maxBatchSize Allows the caller to limit the number of results
+     * held locally, larger batch sizes reduce network traffic, but may delay
+     * processing locally depending on implementation.
+     * @return ResultStream containing ServiceItem's
      * @throws java.rmi.RemoteException
-     * @see MarshalledInstance
+     * @see MarshalledServiceItem
+     * @see ServiceItem
+     * @see ResultStream
+     * @see ServiceResultStreamFilter
      * @since 2.2.0
      */
-    ObjectInput lookup(ServiceTemplate tmpl, boolean marshalled) throws RemoteException;
+    ResultStream<MarshalledServiceItem> lookup(ServiceTemplate tmpl, 
+        Class<? extends Entry>[] unmarshalledEntries, int maxBatchSize) throws RemoteException;
+    
+    /**
+     * Looks at all service items that match the specified template, finds
+     * every entry (among those service items) that either doesn't match any
+     * entry templates or is a subclass of at least one matching entry
+     * template, and returns the set of the (most specific) classes of those
+     * entries.  Duplicate classes are eliminated, and the order of classes
+     * within the returned array is arbitrary.  Null (not an empty array) is
+     * returned if there are no such entries or no matching items.  If a
+     * returned class cannot be deserialized, that element of the returned
+     * array is set to null and no exception is thrown.
+     *
+     * @param tmpl template to match
+     * @param maxBatchSize 
+     * @return a ResultStream of entry Classes (attribute sets) for every service
+     * that matches the specified template
+     * @throws java.rmi.RemoteException
+     */
+    ResultStream<Class> getEntryClasses(ServiceTemplate tmpl, int maxBatchSize) 
+            throws RemoteException;
+
+    /**
+     * Looks at all service items that match the specified template, finds
+     * every entry (among those service items) that matches
+     * tmpl.attributeSetTemplates[setIndex], and returns the set of values
+     * of the specified field of those entries.  Duplicate values are
+     * eliminated, and the order of values isarbitrary.  
+     * If a returned value cannot be deserialized, that
+     * element is excluded and no exception is thrown.
+     *
+     * @param tmpl template to match
+     * @param setIndex index into tmpl.attributeSetTemplates
+     * @param field name of field of tmpl.attributeSetTemplates[setIndex]
+     *
+     * @param maxBatchSize 
+     * @return a ResultStream of objects that represents field values of entries
+     * associated with services that meet the specified matching
+     * criteria
+     *
+     * @throws NoSuchFieldException field does not name a field of the
+     * entry template
+     * @throws java.rmi.RemoteException
+     */
+    ResultStream getFieldValues(ServiceTemplate tmpl, int setIndex, String field,
+            int maxBatchSize) throws NoSuchFieldException, RemoteException;
+    
+    /**
+     * Looks at all service items that match the specified template, and for
+     * every service item finds the most specific type (class or interface)
+     * or types the service item is an instance of that are neither equal to,
+     * nor a superclass of, any of the service types in the template and that
+     * have names that start with the specified prefix, and returns the set
+     * of all such types.  Duplicate types are eliminated, and the order of
+     * types within the returned array is arbitrary.  
+     * Null is returned if there are no such types.  If a returned type
+     * cannot be deserialized, that element is excluded and no exception is thrown.
+     *
+     * @param tmpl template to match
+     * @param prefix class name prefix
+     *
+     * @param maxBatchSize 
+     * @return an array of Classes of all services that either match the
+     * specified template or match the specified prefix
+     * @throws java.rmi.RemoteException
+     */
+    ResultStream<Class> getServiceTypes(ServiceTemplate tmpl, String prefix, 
+            int maxBatchSize) throws RemoteException;
+
 }

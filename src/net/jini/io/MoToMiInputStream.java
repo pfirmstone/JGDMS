@@ -93,11 +93,4 @@ public class MoToMiInputStream extends ObjectInputStream {
         return desc;
     }
 
-//    @Override
-//    protected Class resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
-//        if (desc.getName().equals("java.rmi.MarshalledObject")) {
-//            return net.jini.io.MarshalledInstance.class;
-//        }
-//        return super.resolveClass(desc);
-//    }
 }

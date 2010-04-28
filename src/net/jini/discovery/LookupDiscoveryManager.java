@@ -18,6 +18,7 @@
 
 package net.jini.discovery;
 
+import net.jini.lookup.ServiceRegistrarFacade;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;

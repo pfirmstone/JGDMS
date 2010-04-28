@@ -21,7 +21,7 @@ package com.sun.jini.discovery;
 import java.util.Arrays;
 import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.discovery.ServiceRegistrarFacade;
+import net.jini.lookup.ServiceRegistrarFacade;
 
 /**
  * Class representing the values obtained as the result of unicast discovery.

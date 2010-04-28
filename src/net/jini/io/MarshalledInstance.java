@@ -20,10 +20,12 @@ package net.jini.io;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
+import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Collection;
@@ -195,22 +197,9 @@ public class MarshalledInstance<T> implements Serializable {
 	// version of MarshalledObject allows access to the needed
 	// fields.
 	//
-	net.jini.io.MarshalledObject privateMO = null;
-	try {
-	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	    ObjectOutputStream oos = new ObjectOutputStream(baos);
-	    oos.writeObject(mo);
-	    oos.flush();
-	    byte[] bytes = baos.toByteArray();
-	    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-	    ObjectInputStream ois = new FromMOInputStream(bais);
-	    privateMO =
-		(net.jini.io.MarshalledObject)ois.readObject();
-	} catch (IOException ioe) {
-	    throw new AssertionError(ioe);
-	} catch (ClassNotFoundException cnfe) {
-	    throw new AssertionError(cnfe);
-	}
+        Convert<T> convert = new Convert<T>();
+	net.jini.io.MarshalledObject<T> privateMO = 
+                convert.toJiniMarshalledObject(mo);
 	objBytes = privateMO.objBytes;
 	locBytes = privateMO.locBytes;
 	hash = privateMO.hash;
@@ -231,37 +220,8 @@ public class MarshalledInstance<T> implements Serializable {
     @SuppressWarnings("unchecked")
     @Deprecated
     public java.rmi.MarshalledObject<T> convertToMarshalledObject() {
-
-	// To create a java.rmi.MarshalledObject with previously
-	// serialized data we first create a private
-	// net.jini.io.MarshalledObject with the
-	// data and then convert it to the final object by changing
-	// the class during readObject(). (See resolveClass() in
-	// ToMOInputStream)
-	//
-	net.jini.io.MarshalledObject<T> privateMO =
-		new net.jini.io.MarshalledObject<T>();
-
-	privateMO.objBytes = objBytes;
-	privateMO.locBytes = locBytes;
-	privateMO.hash = hash;
-
-	java.rmi.MarshalledObject<T> mo = null;
-	try {
-	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
-	    ObjectOutputStream oos = new ObjectOutputStream(baos);
-	    oos.writeObject(privateMO);
-	    oos.flush();
-	    byte[] bytes = baos.toByteArray();
-	    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-	    ObjectInputStream ois = new ToMOInputStream(bais);
-	    mo = (java.rmi.MarshalledObject<T>)ois.readObject();
-	} catch (IOException ioe) {
-	    throw new AssertionError(ioe);
-	} catch (ClassNotFoundException cnfe) {
-	    throw new AssertionError(cnfe);
-	}
-	return mo;
+        Convert convert = Convert.getInstance();
+        return convert.toRmiMarshalledObject(this);
     }
     
     MarshalledObject<T> asMarshalledObject(){
@@ -459,5 +419,55 @@ public class MarshalledInstance<T> implements Serializable {
      */
     private void readObjectNoData() throws ObjectStreamException {
 	throw new InvalidObjectException("Bad class hierarchy");
-    }    
+    } 
+    
+    private static class MarshalledInstanceInputStream extends MarshalInputStream {
+
+        private ObjectInputStream locIn;
+
+        MarshalledInstanceInputStream(InputStream objIn, InputStream locIn, ClassLoader defaultLoader, boolean verifyCodebaseIntegrity, ClassLoader verifierLoader, Collection context) throws IOException {
+            super(objIn, defaultLoader, verifyCodebaseIntegrity, verifierLoader, context);
+            this.locIn = (locIn == null ? null : new ObjectInputStream(locIn));
+        }
+
+        @Override
+        protected String readAnnotation() throws IOException, ClassNotFoundException {
+            return locIn == null ? null : (String) locIn.readObject();
+        }
+    }
+    
+    private static class MarshalledInstanceOutputStream extends MarshalOutputStream {
+
+        private ObjectOutputStream locOut;
+        /** <code>true</code> if non-<code>null</code> annotations are
+         *  written.
+         */
+        private boolean hadAnnotations;
+
+        public MarshalledInstanceOutputStream(OutputStream objOut, OutputStream locOut, Collection context) throws IOException {
+            super(objOut, context);
+            this.locOut = new ObjectOutputStream(locOut);
+            hadAnnotations = false;
+        }
+
+        /**
+         * Returns <code>true</code> if any non-<code>null</code> location
+         * annotations have been written to this stream.
+         */
+        public boolean hadAnnotations() {
+            return hadAnnotations;
+        }
+
+        @Override
+        protected void writeAnnotation(String loc) throws IOException {
+            hadAnnotations |= (loc != null);
+            locOut.writeObject(loc);
+        }
+
+        @Override
+        public void flush() throws IOException {
+            super.flush();
+            locOut.flush();
+        }
+    }
 }

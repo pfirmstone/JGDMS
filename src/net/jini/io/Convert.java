@@ -20,9 +20,10 @@ package net.jini.io;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
-import java.util.Collections;
+import java.io.ObjectStreamClass;
 
 /**
  * Rather than utilise a static class, an empty object class can be utilised
@@ -41,13 +42,17 @@ public class Convert<T> {
         convert = converter;
     }
     
+    /**
+     * Get the non generic, plain object, unchecked Convert instance.
+     * @return
+     */
     public static Convert getInstance(){
         return convert;
     }
-    protected Convert(){}
+    Convert(){}
     
-    @SuppressWarnings("unchecked")
-    public java.rmi.MarshalledObject<T> 
+    @SuppressWarnings("unchecked") 
+    java.rmi.MarshalledObject<T> 
             toRmiMarshalledObject(net.jini.io.MarshalledObject<T> privateMO){
         // To create a java.rmi.MarshalledObject with previously
 	// serialized data we first create a private
@@ -74,17 +79,18 @@ public class Convert<T> {
 	return mo;
     }
     
-    private net.jini.io.MarshalledInstance<T> toMarshalledInstance(
+    net.jini.io.MarshalledInstance<T> toMarshalledInstance(
             net.jini.io.MarshalledObject<T> mo){
         return new MarshalledInstance<T>(mo);
     }
     
-    private net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
+    net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
             net.jini.io.MarshalledInstance<T> instance){
         return instance.asMarshalledObject();
     }
     
-    private net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
+    @SuppressWarnings("unchecked")
+    net.jini.io.MarshalledObject<T> toJiniMarshalledObject(
             java.rmi.MarshalledObject<T> instance){
         net.jini.io.MarshalledObject<T> privateMO = null;
 	try {
@@ -110,11 +116,41 @@ public class Convert<T> {
 	return toRmiMarshalledObject(instance.asMarshalledObject());
     }
     
+    @SuppressWarnings("unchecked")
     public MarshalledInstance<T> 
             toMarshalledInstance(java.rmi.MarshalledObject<T> instance){
         if ( instance == null ) throw new NullPointerException("null reference");
         net.jini.io.MarshalledObject obj = toJiniMarshalledObject(instance);
         if ( obj == null ) throw new NullPointerException("null reference");
 	return new MarshalledInstance<T>(obj);
-    }  
+    }
+    
+    private static class FromMOInputStream extends ObjectInputStream {
+
+        public FromMOInputStream(InputStream in) throws IOException {
+            super(in);
+        }
+
+        @Override
+        protected Class resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+            if (desc.getName().equals("java.rmi.MarshalledObject")) {
+                return net.jini.io.MarshalledObject.class;
+            }
+            return super.resolveClass(desc);
+        }
+    }
+    
+    private static class ToMOInputStream extends ObjectInputStream {
+        public ToMOInputStream(InputStream in) throws IOException {
+            super(in);
+        }
+
+        @Override
+        protected Class resolveClass(ObjectStreamClass desc) throws IOException, ClassNotFoundException {
+            if (desc.getName().equals("net.jini.io.MarshalledObject")) {
+                return java.rmi.MarshalledObject.class;
+            }
+            return super.resolveClass(desc);
+        }
+    }
 }

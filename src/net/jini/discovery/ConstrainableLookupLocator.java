@@ -18,6 +18,8 @@
 
 package net.jini.discovery;
 
+import net.jini.lookup.StreamServiceRegistrarFacade;
+import net.jini.lookup.ServiceRegistrarFacade;
 import com.sun.jini.discovery.Discovery;
 import com.sun.jini.discovery.DiscoveryConstraints;
 import com.sun.jini.discovery.UnicastResponse;

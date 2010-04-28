@@ -3,13 +3,15 @@
  * and open the template in the editor.
  */
 
-package net.jini.discovery;
+package net.jini.lookup;
 
-import java.io.ObjectInput;
+import net.jini.core.lookup.ResultStream;
 import java.rmi.RemoteException;
 import net.jini.core.discovery.LookupLocator;
+import net.jini.core.entry.Entry;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lookup.MarshalledServiceItem;
 import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceItem;
@@ -17,6 +19,7 @@ import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.lookup.StreamServiceRegistrar;
+import net.jini.discovery.Facade;
 import net.jini.io.Convert;
 import net.jini.io.MarshalledInstance;
 
@@ -56,16 +59,6 @@ public class StreamServiceRegistrarFacade implements StreamServiceRegistrar,
             //This is normal for Java CDC.
             throw new UnsupportedOperationException("Unsupported Method");
         }
-    }
-
-    public ObjectInput lookup(ServiceTemplate tmpl, boolean marshalled)
-            throws RemoteException {
-        if ( psr instanceof StreamServiceRegistrar ){
-            StreamServiceRegistrar ssr = (StreamServiceRegistrar) psr;
-            return ssr.lookup(tmpl, marshalled);
-        }
-        throw new UnsupportedOperationException("Not supported yet.");
-        //We could make an empty implementation that doesn't return any matches?
     }
 
     public Class[] getEntryClasses(ServiceTemplate tmpl) throws RemoteException {
@@ -129,6 +122,32 @@ public class StreamServiceRegistrarFacade implements StreamServiceRegistrar,
 
     public PortableServiceRegistrar reveal() {
         return psr;
+    }
+
+    public ResultStream<MarshalledServiceItem> lookup(ServiceTemplate tmpl, 
+            Class<? extends Entry>[] unmarshalledEntries, int maxBatchSize) 
+            throws RemoteException {
+        if ( psr instanceof StreamServiceRegistrar ){
+            StreamServiceRegistrar ssr = (StreamServiceRegistrar) psr;
+            return ssr.lookup(tmpl, unmarshalledEntries, maxBatchSize);
+        }
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public ResultStream<Class> getEntryClasses(ServiceTemplate tmpl, 
+            int maxBatchSize) throws RemoteException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public ResultStream getFieldValues(ServiceTemplate tmpl, int setIndex, 
+            String field, int maxBatchSize)
+            throws NoSuchFieldException, RemoteException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public ResultStream<Class> getServiceTypes(ServiceTemplate tmpl, 
+            String prefix, int maxBatchSize) throws RemoteException {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
 }

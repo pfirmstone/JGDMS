@@ -35,8 +35,8 @@ import javax.net.SocketFactory;
 import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.StreamServiceRegistrar;
-import net.jini.discovery.ServiceRegistrarFacade;
-import net.jini.discovery.StreamServiceRegistrarFacade;
+import net.jini.lookup.ServiceRegistrarFacade;
+import net.jini.lookup.StreamServiceRegistrarFacade;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.MoToMiInputStream;
 

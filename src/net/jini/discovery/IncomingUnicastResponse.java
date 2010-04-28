@@ -17,6 +17,7 @@
  */
 package net.jini.discovery;
 
+import net.jini.lookup.ServiceRegistrarFacade;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -92,7 +93,7 @@ public class IncomingUnicastResponse {
     /**
      * Return the lookup portable service registrar we have discovered.
      * 
-     * For maximum platform compatbility don't downcast to ServiceRegistrar,
+     * For maximum platform compatbility don't downcast,
      * use PortableServiceRegistrar where possible.
      *
      * @return the lookup service registrar we have discovered

@@ -59,7 +59,7 @@ import net.jini.discovery.DiscoveryListenerManagement;
 import net.jini.discovery.DiscoveryManagement2;
 import net.jini.discovery.DiscMan2Facade;
 import net.jini.discovery.Facade;
-import net.jini.discovery.ServiceRegistrarFacade;
+import net.jini.lookup.ServiceRegistrarFacade;
 
 /**
  * A goal of any well-behaved service is to advertise the facilities and

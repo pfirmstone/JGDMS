@@ -32,11 +32,12 @@ import java.util.logging.Logger;
  * an RMI MarshalledObject Serialized form.
  * 
  * This is a nasty horrible hack to write the output stream as a 
- * java.rmi.MarshalledObject, so the CDC PersonalProfile version 1.12
- * can share this object.
+ * java.rmi.MarshalledObject, so existing classes can support
+ * Java CDC PersonalProfile version 1.12, without altering their serialized
+ * form.
  * 
  * Since this class accesses the private state of ObjectStreamClass, it is
- * tied to it's internal implementation, however since this class also
+ * tied to it's internal implementation, however since ObjectStreamClass also
  * implements Serializable, its internal state has been publicly published
  * so must remain compatible.
  * 

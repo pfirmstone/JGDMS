@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package net.jini.discovery;
+package net.jini.lookup;
 
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
@@ -18,6 +18,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.lookup.StreamServiceRegistrar;
+import net.jini.discovery.Facade;
 import net.jini.io.Convert;
 import net.jini.io.MarshalledInstance;
 

@@ -17,6 +17,8 @@
  */
 package net.jini.discovery;
 
+import net.jini.lookup.StreamServiceRegistrarFacade;
+import net.jini.lookup.ServiceRegistrarFacade;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.EventObject;
