@@ -9,7 +9,7 @@ import net.jini.core.lookup.ResultStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import net.jini.core.lookup.MarshalledServiceItem;
+import net.jini.core.lookup.ServiceItem;
 
 /**
  * A Filter utility class designed to filter out unwanted results.  Filters can
@@ -24,19 +24,19 @@ import net.jini.core.lookup.MarshalledServiceItem;
  * 
  * @author Peter Firmstone.
  */
-public class ServiceResultStreamFilter implements ResultStream<MarshalledServiceItem> {
+public class ServiceResultStreamFilter implements ResultStream<ServiceItem> {
     private final List<ServiceItemFilter> filters;
-    private final ResultStream<MarshalledServiceItem> inputResultStream;
+    private final ResultStream<ServiceItem> inputResultStream;
     
-    public ServiceResultStreamFilter(ResultStream<MarshalledServiceItem> rs,
+    public ServiceResultStreamFilter(ResultStream<ServiceItem> rs,
             ServiceItemFilter[] sf){
         inputResultStream = rs;
         filters = new ArrayList<ServiceItemFilter>(sf.length);
         filters.addAll(Arrays.asList(sf));
     }
 
-    public MarshalledServiceItem get() {
-        for(MarshalledServiceItem item = inputResultStream.get(); item != null; 
+    public ServiceItem get() {
+        for(ServiceItem item = inputResultStream.get(); item != null; 
                 item = inputResultStream.get()) {
             int l = filters.size();
             for ( int i = 0; i < l; i++){
