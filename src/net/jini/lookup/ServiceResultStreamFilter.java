@@ -47,4 +47,8 @@ public class ServiceResultStreamFilter implements ResultStream<ServiceItem> {
         }//end item loop
         return null; // Our stream terminated item was null;
     }
+
+    public void close() {
+        inputResultStream.close();
+    }
 }

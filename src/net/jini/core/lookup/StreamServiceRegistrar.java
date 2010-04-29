@@ -101,7 +101,7 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
      * designed to allow both the caller and the implementer to deal with very
      * large result sets in an incremental fashion.
      * 
-     * It is absolutely essential that the caller deletes any references to
+     * It is absolutely essential that the caller closes and deletes any references to
      * the returned result stream as soon as it is no longer requried.
      *
      * @param tmpl template to match
@@ -117,6 +117,7 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
      * @see ServiceItem
      * @see ResultStream
      * @see ServiceResultStreamFilter
+     * @see ResultStreamUnmarshaller
      * @since 2.2.0
      */
     ResultStream<MarshalledServiceItem> lookup(ServiceTemplate tmpl, 

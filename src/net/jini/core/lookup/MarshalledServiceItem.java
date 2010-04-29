@@ -5,7 +5,6 @@
 
 package net.jini.core.lookup;
 
-import java.io.IOException;
 import net.jini.core.entry.Entry;
 
 /**
@@ -36,17 +35,13 @@ public abstract class MarshalledServiceItem extends ServiceItem{
         super(id, (Object) null, unmarshalledEntries);
     }
     /**
-     * Unmarshall the service proxy.
-     * @return the service proxy.
-     * @throws java.io.IOException
-     * @throws java.lang.ClassNotFoundException 
+     * Unmarshall the service proxy. 
+     * @return the service proxy, null if class not found.
      */
-    public abstract Object getService() throws IOException, ClassNotFoundException;
+    public abstract Object getService();
     /**
      * Unmarshall the Entry's
-     * @return array of Entry's
-     * @throws java.io.IOException
-     * @throws java.lang.ClassNotFoundException
+     * @return array of Entry's, null entry in array for any class not found.
      */
-    public abstract Entry[] getEntries() throws IOException, ClassNotFoundException;
+    public abstract Entry[] getEntries();
 }

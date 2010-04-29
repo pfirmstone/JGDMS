@@ -15,5 +15,14 @@ package net.jini.core.lookup;
  * @author Peter Firmstone
  */
 public interface ResultStream<T> {
+    /**
+     * Get next T, call from a loop until T is null;
+     * @return T unless end of stream in which case null is returned.
+     */
     public T get();
+    /**
+     * Close the result stream, this allows the implementer to close any
+     * resources prior to deleting reference.
+     */
+    public void close();
 }
