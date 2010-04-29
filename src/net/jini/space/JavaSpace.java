@@ -17,13 +17,15 @@
  */
 package net.jini.space;
 
-import net.jini.core.entry.*;
-import net.jini.entry.*;
-import net.jini.core.transaction.*;
-import net.jini.core.event.*;
-import net.jini.core.lease.*;
-
-import java.rmi.*;
+import java.rmi.MarshalledObject;
+import java.rmi.RemoteException;
+import net.jini.core.entry.Entry;
+import net.jini.core.entry.UnusableEntryException;
+import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lease.Lease;
+import net.jini.core.transaction.Transaction;
+import net.jini.core.transaction.TransactionException;
 
 /**
  * This interface is implemented by servers that export a
