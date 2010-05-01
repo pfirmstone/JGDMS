@@ -16,35 +16,14 @@
  * limitations under the License.
  */
 
-/**
- * Shamelessly stolen from Apache Harmony.
- * @author  Mikhail A. Markov
- * @version $Revision: 1.4.4.2 $
- */
-package net.jini.exception;
+package net.jini.exception.rmi;
 
+import java.rmi.RemoteException;
 
-/**
- * @com.intel.drl.spec_ref
- *
- * @author  Mikhail A. Markov
- * @version $Revision: 1.4.4.2 $
- */
-public class ServerNotActiveException extends Exception {
+public class NoSuchObjectException extends RemoteException {
+    private static final long serialVersionUID = 6619395951570472985L;
 
-    private static final long serialVersionUID = 4687940720827538231L;
-
-    /**
-     * @com.intel.drl.spec_ref
-     */
-    public ServerNotActiveException(String msg) {
+    public NoSuchObjectException(String msg) {
         super(msg);
-    }
-
-    /**
-     * @com.intel.drl.spec_ref
-     */
-    public ServerNotActiveException() {
-        super();
     }
 }

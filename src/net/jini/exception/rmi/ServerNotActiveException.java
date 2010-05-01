@@ -16,26 +16,35 @@
  * limitations under the License.
  */
 
-package net.jini.exception;
+/**
+ * Shamelessly stolen from Apache Harmony.
+ * @author  Mikhail A. Markov
+ * @version $Revision: 1.4.4.2 $
+ */
+package net.jini.exception.rmi;
 
-import java.rmi.RemoteException;
 
 /**
- * Shamlessly copied from Apache Harmony.
- * 
- * This has the same serial version uid as java.rmi.UnmarshalException it is
- * also perfectly interchangeable with it, it also has no state.
- * 
- * @since 2.2.0
+ * @com.intel.drl.spec_ref
+ *
+ * @author  Mikhail A. Markov
+ * @version $Revision: 1.4.4.2 $
  */
-public class UnmarshalException extends RemoteException {
-    private static final long serialVersionUID = 594380845140740218L;
+public class ServerNotActiveException extends Exception {
 
-    public UnmarshalException(String msg, Exception cause) {
-        super(msg, cause);
+    private static final long serialVersionUID = 4687940720827538231L;
+
+    /**
+     * @com.intel.drl.spec_ref
+     */
+    public ServerNotActiveException(String msg) {
+        super(msg);
     }
 
-    public UnmarshalException(String msg) {
-        super(msg);
+    /**
+     * @com.intel.drl.spec_ref
+     */
+    public ServerNotActiveException() {
+        super();
     }
 }

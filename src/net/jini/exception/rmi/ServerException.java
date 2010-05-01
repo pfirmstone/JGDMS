@@ -16,18 +16,18 @@
  * limitations under the License.
  */
 
-package net.jini.exception;
+package net.jini.exception.rmi;
 
 import java.rmi.RemoteException;
 
-public class MarshalException extends RemoteException {
-    private static final long serialVersionUID = 6223554758134037936L;
+public class ServerException extends RemoteException {
+    private static final long serialVersionUID = -4775845313121906682L;
 
-    public MarshalException(String msg, Exception cause) {
+    public ServerException(String msg, Exception cause) {
         super(msg, cause);
     }
 
-    public MarshalException(String msg) {
+    public ServerException(String msg) {
         super(msg);
     }
 }

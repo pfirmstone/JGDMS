@@ -120,7 +120,7 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
      * @see ResultStreamUnmarshaller
      * @since 2.2.0
      */
-    ResultStream<MarshalledServiceItem> lookup(ServiceTemplate tmpl, 
+    ResultStream<ServiceItem> lookup(ServiceTemplate tmpl, 
         Class<? extends Entry>[] unmarshalledEntries, int maxBatchSize) throws RemoteException;
     
     /**

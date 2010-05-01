@@ -16,14 +16,26 @@
  * limitations under the License.
  */
 
-package net.jini.exception;
+package net.jini.exception.rmi;
 
 import java.rmi.RemoteException;
 
-public class NoSuchObjectException extends RemoteException {
-    private static final long serialVersionUID = 6619395951570472985L;
+/**
+ * Shamlessly copied from Apache Harmony.
+ * 
+ * This has the same serial version uid as java.rmi.UnmarshalException it is
+ * also perfectly interchangeable with it, it also has no state.
+ * 
+ * @since 2.2.0
+ */
+public class UnmarshalException extends RemoteException {
+    private static final long serialVersionUID = 594380845140740218L;
 
-    public NoSuchObjectException(String msg) {
+    public UnmarshalException(String msg, Exception cause) {
+        super(msg, cause);
+    }
+
+    public UnmarshalException(String msg) {
         super(msg);
     }
 }

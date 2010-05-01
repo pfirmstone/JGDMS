@@ -36,7 +36,7 @@
  * @author  Mikhail A. Markov
  * @version $Revision: 1.4.4.2 $
  */
-package net.jini.exception;
+package net.jini.exception.rmi;
 
 import java.rmi.RemoteException;
 

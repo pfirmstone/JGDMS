@@ -124,7 +124,7 @@ public class StreamServiceRegistrarFacade implements StreamServiceRegistrar,
         return psr;
     }
 
-    public ResultStream<MarshalledServiceItem> lookup(ServiceTemplate tmpl, 
+    public ResultStream<ServiceItem> lookup(ServiceTemplate tmpl, 
             Class<? extends Entry>[] unmarshalledEntries, int maxBatchSize) 
             throws RemoteException {
         if ( psr instanceof StreamServiceRegistrar ){

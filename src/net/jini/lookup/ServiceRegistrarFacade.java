@@ -30,7 +30,7 @@ import net.jini.io.MarshalledInstance;
 public class ServiceRegistrarFacade implements ServiceRegistrar, Facade<PortableServiceRegistrar>{
     
     private final PortableServiceRegistrar sr; //Never allow a facade referent.
-    private final boolean isStreamingServiceRegistrar;
+    private final boolean isStreamServiceRegistrar;
     
     public ServiceRegistrarFacade(PortableServiceRegistrar psr){
         while (psr instanceof Facade){ //always ensure we have uncovered any facades.
@@ -40,16 +40,16 @@ public class ServiceRegistrarFacade implements ServiceRegistrar, Facade<Portable
         }
         sr = psr;       
         if (psr instanceof StreamServiceRegistrar){
-            isStreamingServiceRegistrar = true;
+            isStreamServiceRegistrar = true;
         } else {
-            isStreamingServiceRegistrar = false;
+            isStreamServiceRegistrar = false;
         }
     }
 
     public EventRegistration notify(ServiceTemplate tmpl, int transitions, 
             RemoteEventListener listener, MarshalledObject handback, 
             long leaseDuration) throws RemoteException {
-        if ( isStreamingServiceRegistrar ) {
+        if ( isStreamServiceRegistrar ) {
             Convert convert = Convert.getInstance();
             @SuppressWarnings("unchecked")
             MarshalledInstance hback = convert.toMarshalledInstance(handback);
