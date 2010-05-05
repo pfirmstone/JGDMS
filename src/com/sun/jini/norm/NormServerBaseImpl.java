@@ -1336,6 +1336,7 @@ abstract class NormServerBaseImpl
      * so it will not hang up in-progress remote calls
      */
     private class SnapshotThread extends InterruptedStatusThread {
+    private boolean snapshotRequested = false;
 	/** Create a daemon thread */
 	private SnapshotThread() {
 	    super("snapshot thread");
@@ -1344,6 +1345,7 @@ abstract class NormServerBaseImpl
 
 	/** Signal this thread that is should take a snapshot */
 	private synchronized void takeSnapshot() {
+		snapshotRequested = true;
 	    notifyAll();
 	}
 
@@ -1351,9 +1353,13 @@ abstract class NormServerBaseImpl
 	    while (!hasBeenInterrupted()) {
 		synchronized (this) {
 		    try {
-			wait();
+		    while (!snapshotRequested) {
+		    	wait();
+		    }
 		    } catch (InterruptedException e) {
 			return;
+		    } finally {
+		    	snapshotRequested = false;
 		    }
 		}
 
