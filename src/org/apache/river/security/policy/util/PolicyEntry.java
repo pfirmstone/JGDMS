@@ -75,9 +75,8 @@ public final class PolicyEntry {
         if (permissions == null || permissions.isEmpty()) {
             this.permissions = Collections.emptySet(); // Java 1.5
         }else{
-            Set<Permission> perm = new HashSet<Permission>(permissions.size());
-            perm.addAll(permissions);
-            this.permissions = Collections.unmodifiableCollection(perm);
+            this.permissions = new HashSet<Permission>(permissions.size());
+            this.permissions.addAll(permissions);
         }
         /* Effectively immutable, this will make any hash this is contained in perform.
          * May need to consider Serializable for this class yet, we'll see.
@@ -136,7 +135,7 @@ public final class PolicyEntry {
      */
     public Collection<Permission> getPermissions() {
 //        if (permissions.isEmpty()) return null; // not sure if this is good needs further investigation
-        return permissions;
+        return Collections.unmodifiableCollection(permissions);
     }
 
     /**
