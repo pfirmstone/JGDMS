@@ -41,6 +41,7 @@ import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.ProtectionDomain;
 import java.security.Policy;
+import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -1141,10 +1142,21 @@ public class PreferredClassLoader extends URLClassLoader
 	/*
 	 * Create an AccessControlContext that consists of a single
 	 * protection domain with only the permissions calculated above.
+         * Comment added 7th May 2010 by Peter Firmstone:
+         * This calls the pre java 1.4 constructor which causes the
+         * ProtectionDomain to not consult the Policy, this
+         * has the effect of not allowing Dynamic Permission changes to be
+         * effected by the Policy.  It doesn't affect the existing
+         * DynamicPolicy implementation as it returns the Permissions
+         * allowing the ProtectionDomain domain combiner to combine
+         * cached permissions with those from the Policy.
+         * ProtectionDomain(CodeSource, PermissionCollection)
+         * By utilising this earlier constructor it also prevents
+         * RevokeablePolicy, hence the constructor change.  
 	 */
 	ProtectionDomain pd = new ProtectionDomain(
 	    new CodeSource((urls.length > 0 ? urls[0] : null),
-			   (Certificate[]) null), perms);
+			   (Certificate[]) null), perms, null, null);
 	return new AccessControlContext(new ProtectionDomain[] { pd });
     }
 

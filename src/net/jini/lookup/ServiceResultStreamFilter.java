@@ -5,7 +5,7 @@
 
 package net.jini.lookup;
 
-import net.jini.core.lookup.ResultStream;
+import org.apache.river.api.util.ResultStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;

@@ -17,6 +17,7 @@
  */
 package net.jini.discovery;
 
+import org.apache.river.api.util.Facade;
 import net.jini.lookup.StreamServiceRegistrarFacade;
 import net.jini.lookup.ServiceRegistrarFacade;
 import com.sun.jini.config.Config;

@@ -17,6 +17,7 @@
  */
 package com.sun.jini.qa.harness;
 
+import com.sun.jini.tool.ProfilingSecurityManager;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -84,6 +85,7 @@ class MasterTest {
 	logger.log(Level.FINE, "Starting MasterTest");
 	if (System.getSecurityManager() == null) {
 	    System.setSecurityManager(new java.rmi.RMISecurityManager());
+//            System.setSecurityManager(new ProfilingSecurityManager());
 	}
 	if (args.length < 1) {
 	    exit(false, Test.ENV, "Arguments missing");

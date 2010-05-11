@@ -17,6 +17,7 @@
  */
 package net.jini.core.lookup;
 
+import org.apache.river.api.util.ResultStream;
 import java.rmi.RemoteException;
 import net.jini.core.entry.Entry;
 import net.jini.core.event.EventRegistration;

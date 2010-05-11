@@ -5,6 +5,7 @@
 
 package net.jini.discovery;
 
+import org.apache.river.api.util.Facade;
 import net.jini.lookup.ServiceRegistrarFacade;
 import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;

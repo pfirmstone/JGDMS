@@ -73,7 +73,7 @@ import net.jini.core.lookup.StreamServiceRegistrar;
 import net.jini.discovery.DiscMan2Facade;
 import net.jini.discovery.DiscManFacade;
 import net.jini.discovery.DiscoveryManagement2;
-import net.jini.discovery.Facade;
+import org.apache.river.api.util.Facade;
 
 /**
  * The <code>ServiceDiscoveryManager</code> class is a helper utility class

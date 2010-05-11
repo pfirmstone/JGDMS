@@ -32,8 +32,9 @@ import java.rmi.RemoteException;
  * 
  * @author Sun Microsystems, Inc.
  * @see LeaseRenewalSet 
+ * @deprecated.
  */
-
+@Deprecated
 public interface LeaseRenewalService {
     /**
      * Create a new <code>LeaseRenewalSet</code> that the client can

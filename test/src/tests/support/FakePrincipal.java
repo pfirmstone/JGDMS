@@ -22,7 +22,6 @@
 
 package tests.support;
 
-import org.apache.river.security.concurrent.*;
 
 public class FakePrincipal extends MyPrincipal {
     public FakePrincipal(String name) {

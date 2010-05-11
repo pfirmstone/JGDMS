@@ -306,14 +306,20 @@
             <package name="net.jini.security.policy"/>
             <package name="net.jini.security.proxytrust"/>
             <package name="org.apache.river.security"/>
-            <package name="org.apache.river.security.concurrent"/>
-            <package name="org.apache.river.security.policy.spi"/>
-            <package name="org.apache.river.security.policy.util"/>    
-            <package name="org.apache.river.util.concurrent"/>
+            <package name="org.apache.river.imp.security.policy.se"/>
+            <package name="org.apache.river.imp.security.policy.cdc"/>
+            <package name="org.apache.river.imp.security.policy.spi"/>
+            <package name="org.apache.river.imp.security.policy.util"/>  
+            <package name="org.apache.river.imp.util"/>
             <package name="net.jini.space"/>
             <package name="net.jini.url.file"/>
             <package name="net.jini.url.httpmd"/>
             <package name="net.jini.url.https"/>
+            <package name="org.apache.river.api.security"/>
+            <package name="org.apache.river.api.services.lease"/>
+            <package name="org.apache.river.api.throwable.lease"/>
+            <package name="org.apache.river.api.throwable.rmi"/>
+            <package name="org.apache.river.api.util"/>
         </javadoc>
         <mkdir dir="${doc.api.dir}/doc-files"/>
         <copy file="NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE"/>
@@ -345,6 +351,13 @@
             <package name="net.jini.config"/>
             <package name="net.jini.constraint"/>
             <package name="net.jini.core.constraint"/>
+            <package name="net.jini.core.discovery"/>
+            <package name="net.jini.core.entry"/>
+            <package name="net.jini.core.event"/>
+            <package name="net.jini.core.lease"/>
+            <package name="net.jini.core.lookup"/>
+            <package name="net.jini.core.transaction"/>
+            <package name="net.jini.core.transaction.server"/>
             <package name="net.jini.entry"/>
             <package name="net.jini.export"/>
             <package name="net.jini.id"/>
@@ -367,6 +380,12 @@
             <package name="net.jini.url.file"/>
             <package name="net.jini.url.httpmd"/>
             <package name="net.jini.url.https"/>
+            <package name="org.apache.river.api.security"/>
+            <package name="org.apache.river.api.services.lease"/>
+            <package name="org.apache.river.api.throwable.lease"/>
+            <package name="org.apache.river.api.throwable.rmi"/>
+            <package name="org.apache.river.api.util"/>
+            
         </javadoc>
         <mkdir dir="${doc.spec.api.dir}/doc-files"/>
         <copy file="NOTICE" tofile="${doc.spec.api.dir}/doc-files/NOTICE"/>
@@ -726,6 +745,12 @@
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="-in org.apache.river"/>
+            <!--The following is left out to avoid multiple classes visible on
+            the classpath, if the wrong jar is selected, it may not have
+            the appropriate permission if it is outside the jre/lib/ext 
+            directory where AllPermission is granted-->
+            <arg line="-out org.apache.river.imp.security.policy.se"/>
+            <arg line="-out org.apache.river.imp.security.policy.util"/>
             <arg path="${build.classes.dir}/net/jini/activation"/>
             <arg path="${build.classes.dir}/net/jini/config"/>
             <arg path="${build.classes.dir}/net/jini/constraint"/>
@@ -741,6 +766,7 @@
             <arg path="${build.classes.dir}/net/jini/url"/>
             <arg value="net.jini.discovery.ConstrainableLookupLocator"/>
             <arg value="net.jini.discovery.ConstrainableLookupLocatorTrustVerifier"/>
+            <arg value="org.apache.river.api.security.RevokePermission"/>
             <arg path="${build.classes.dir}/com/sun/jini/discovery"/>
             <arg value="com.sun.jini.config.ConfigUtil"/>
             <arg value="com.sun.jini.config.KeyStores"/>
@@ -782,6 +808,7 @@
             <arg line="-api com.sun.jini.config.ConfigUtil"/>
             <arg line="-api com.sun.jini.config.KeyStores"/>
             <arg line="-api com.sun.jini.logging.LogManager"/>
+            <arg line="-api org/apache/river/api/-"/>
             <classpath refid="river.classes"/>
         </preferredlistgen>
     </target>
@@ -795,6 +822,7 @@
             <arg value="-files"/>
             <arg value="net.jini.security.policy.DynamicPolicyProvider"/>
             <arg value="net.jini.security.policy.PolicyFileProvider"/>
+            <arg value="org.apache.river.api.security.RevokePermission"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="-in org.apache.river"/>
@@ -814,16 +842,19 @@
             <arg value="-cp"/>
             <arg path="${build.classes.dir}"/>
             <arg value="-files"/>
-            <arg value="org.apache.river.security.concurrent.ConcurrentPolicyFile"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="-in net.jini"/>
+            <arg value="org.apache.river.imp.security.policy.se.ConcurrentPolicyFile"/>
+            <arg value="org.apache.river.imp.security.policy.se.DynamicConcurrentPolicyProvider"/>
             <arg line="-in org.apache.river"/>
+            <arg line="-out org.apache.river.api"/>
+            <arg line="-out org.apache.river.imp.security.policy.spi"/>
         </classdep>
         <delete file="${lib-ext.dir}/concurrent-policy-util.jar" quiet="true"/>
         <jar destfile="${lib-ext.dir}/concurrent-policy-util.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}" 
                 includesfile="${concurrent-policy-util.deps}"/>
+            <fileset dir="${src.manifest.dir}/concurrent-policy-util"
+				 includes="META-INF/services/org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi"/>
         </jar>
     </target>
 

@@ -168,7 +168,9 @@ import net.jini.core.lease.Lease;
  * 
  * @author Sun Microsystems, Inc.
  * @see LeaseRenewalService
+ * @deprecated no replacement.
  */
+@Deprecated
 public interface LeaseRenewalSet {
     /**
      * The event id for all <code>RenewalFailureEvent</code> objects.

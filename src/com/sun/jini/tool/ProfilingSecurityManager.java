@@ -88,6 +88,7 @@ public class ProfilingSecurityManager extends SecurityManager {
         if( !isRecur(stack) ) {
             buildRules(permission, AccessController.getContext());
         }
+        //super.checkPermission(permission);
     }
     
     // -----------------
@@ -95,6 +96,7 @@ public class ProfilingSecurityManager extends SecurityManager {
     @Override
     public void checkPermission(final Permission permission, final Object context) {
         buildRules(permission, (AccessControlContext)context);
+        //super.checkPermission(permission, context);
     }
     
     // -----------------

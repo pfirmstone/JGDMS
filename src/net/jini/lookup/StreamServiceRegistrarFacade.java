@@ -5,7 +5,7 @@
 
 package net.jini.lookup;
 
-import net.jini.core.lookup.ResultStream;
+import org.apache.river.api.util.ResultStream;
 import java.rmi.RemoteException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
@@ -19,7 +19,7 @@ import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.lookup.StreamServiceRegistrar;
-import net.jini.discovery.Facade;
+import org.apache.river.api.util.Facade;
 import net.jini.io.Convert;
 import net.jini.io.MarshalledInstance;
 

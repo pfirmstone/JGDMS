@@ -3,7 +3,10 @@
  * and open the template in the editor.
  */
 
-package net.jini.core.lookup;
+package net.jini.lookup;
+
+import org.apache.river.api.util.ResultStream;
+import net.jini.core.lookup.*;
 
 /**
  * Add this to the ResultStream filter chain
@@ -15,10 +18,10 @@ package net.jini.core.lookup;
  * @see MarshalledServiceItem.
  * @see StreamServiceRegistrar
  */
-public class ServiceItemUnmarshaller implements ResultStream<ServiceItem> {
+public class ServiceResultStreamUnmarshaller implements ResultStream<ServiceItem> {
     ResultStream<ServiceItem> input;
     
-    public ServiceItemUnmarshaller(ResultStream<ServiceItem> rs){
+    public ServiceResultStreamUnmarshaller(ResultStream<ServiceItem> rs){
         input = rs;
     }
 

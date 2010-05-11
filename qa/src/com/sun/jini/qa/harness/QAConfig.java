@@ -43,6 +43,8 @@ import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationException;
 import java.rmi.RemoteException;
 
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -949,8 +951,17 @@ public class QAConfig implements Serializable {
      */
     public static boolean isDistributed() {
         boolean distributed = false;
-        String hostList =
-            System.getProperty("com.sun.jini.qa.harness.testhosts");
+        String hostList = AccessController.doPrivileged(
+	    new PrivilegedAction<String>() {
+		public String run() {
+		    return 
+			System.getProperty(
+			    "com.sun.jini.qa.harness.testhosts");
+		}
+            }
+        );
+//        String hostList =
+//            System.getProperty("com.sun.jini.qa.harness.testhosts");
         if (hostList != null) {
             StringTokenizer tok = new StringTokenizer(hostList, "|");
             if (tok.countTokens() > 1) {

@@ -5,6 +5,7 @@
 
 package net.jini.security.policy;
 
+import org.apache.river.imp.security.policy.cdc.DynamicPolicyProviderImpl;
 import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.CodeSource;
@@ -20,8 +21,8 @@ import java.util.Iterator;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import sun.misc.Service;
-import org.apache.river.security.policy.spi.RevokeablePolicy;
-import org.apache.river.security.policy.spi.RevokeableDynamicPolicySpi;
+import org.apache.river.api.security.RevokeablePolicy;
+import org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi;
 
 /**
  * This class replaces the existing DynamicPolicyProvider, the existing 
@@ -165,6 +166,7 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
      *          adequate permissions to access the base policy class
      */
     public DynamicPolicyProvider() throws PolicyInitializationException {
+        // Need to change this so implementer can choose their own base policy.
         this(getBasePolicy());
     }
     
@@ -195,7 +197,8 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
             }
         }           
         if (instance == null) {            
-            instance = new DynamicPolicyProviderImpl();            
+            instance = new DynamicPolicyProviderImpl();
+            logger.log(Level.INFO, "Using DynamicPolicyProviderImpl");
         }
         try {
             instance.basePolicy(basePolicy);

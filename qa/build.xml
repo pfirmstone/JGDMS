@@ -149,6 +149,7 @@
             </filelist>
         </move>
         <move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>
+        <move file="${river.lib-ext.dir}/concurrent-policy-util.jar" todir="${jtreg.dir}/JTlib-tmp"/>
         <jtreg  dir="${jtreg.dir}" verbose="all,nopass" failonerror="false"
                 errorproperty="jtreg.fail" failureproperty="jtreg.fail"
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
@@ -173,6 +174,7 @@
             </filelist>
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
+        <move file="${jtreg.dir}/JTlib-tmp/concurrent-policy-util.jar" todir="${river.lib-ext.dir}"/>
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>
         <fail if="jtreg.fail"/>
@@ -189,6 +191,7 @@
             </filelist>
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
+        <move file="${jtreg.dir}/JTlib-tmp/concurrent-policy-util.jar" todir="${river.lib-ext.dir}"/>
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>
     </target>
@@ -208,10 +211,10 @@
                 file requires a particular permission, note this only works for the harness here -->
                 <!--<jvmarg value="-Djava.security.manager=com.sun.jini.tool.ProfilingSecurityManager"/>-->
                 <!--<jvmarg value="-Dpolicy.provider=net.jini.security.policy.DynamicPolicyProvider"/>-->
-                <!--Enable the following if you don't want to use any other policy's -->
+                <!--Enable the following if you don't want to use any other policy's note == -->
                 <!--<jvmarg value="-Djava.security.policy==${security.policy}" />-->
                 <jvmarg value="-Djava.security.policy=${security.policy}" />
-                <jvmarg value="-Djava.security.debug=access" />
+                <!--<jvmarg value="-Djava.security.debug=access" />-->
                 <jvmarg value="-Djava.util.logging.config.file=${log.config}" />
                 <jvmarg value="-Dcom.sun.jini.jsk.home=${river.home}" />
                 <jvmarg value="-Dcom.sun.jini.qa.home=${basedir}" />
@@ -252,7 +255,21 @@
         <!--<property name="run.tests" value="com/sun/jini/test/impl/discoverymanager/RemoveGroupsLocsDiscard.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/impl/locatordiscovery/DelayDiscoveryAfterDiscard.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoGetProperty.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoAccessClass.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoAccessClass.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoGetProperty.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>-->
-        <property name="run.tests" value="com/sun/jini/test/spec/policyprovider/policyFileProvider/NullPolicy.td"/>
+        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/policyFileProvider/NullPolicy.td"/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/spec/joinmanager/GetDiscoveryManager.td"/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/spec/joinmanager/TerminateDiscovery.td"/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/ZRegisterStorm.td"/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipalSame.td"/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipal.td"/>-->
+        <property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantNoPrincipalCase02.td"/>
+        <!--<property name="run.tests" value=""/>-->
+        <!--<property name="run.tests" value=""/>-->
+        <!--<property name="run.tests" value=""/>-->
+        <!--<property name="run.tests" value=""/>-->
+        <!--<property name="run.tests" value=""/>-->
+        <!--<property name="run.tests" value=""/>-->
+        <!--<property name="run.tests" value=""/>-->
         <testrun>
             <!-- Run specific test(s) -->
             <arg value="-tests"/>
@@ -265,7 +282,7 @@
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,
         eventmailbox,jeri,iiop,jrmp,reliability,scalability,thread,renewalservice"/>-->
-        <property name="run.categories" value="joinmanager"/>
+        <property name="run.categories" value="policyprovider"/>
         <testrun>
              <!-- Run one or more test categories -->
             <arg value="-categories"/>

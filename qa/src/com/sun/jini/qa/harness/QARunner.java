@@ -19,6 +19,8 @@ package com.sun.jini.qa.harness;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.StringTokenizer;
 
 /**
@@ -48,7 +50,16 @@ public abstract class QARunner {
     public static void main(String[] args) 
 	throws UnknownHostException, TestException
     {
-	String hostList = System.getProperty("com.sun.jini.qa.harness.testhosts");
+        String hostList = AccessController.doPrivileged(
+	    new PrivilegedAction<String>() {
+		public String run() {
+		    return 
+			System.getProperty(
+			    "com.sun.jini.qa.harness.testhosts");
+		}
+            }
+        );
+//	String hostList = System.getProperty("com.sun.jini.qa.harness.testhosts");
 	if (isMasterHost(hostList)) {
 	    boolean allPass = (new MasterHarness(args)).runTests();
 	    System.exit(allPass ? 0 : 1);

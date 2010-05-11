@@ -18,7 +18,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.lookup.StreamServiceRegistrar;
-import net.jini.discovery.Facade;
+import org.apache.river.api.util.Facade;
 import net.jini.io.Convert;
 import net.jini.io.MarshalledInstance;
 

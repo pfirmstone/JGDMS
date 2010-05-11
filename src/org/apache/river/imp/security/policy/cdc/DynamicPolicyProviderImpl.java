@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package net.jini.security.policy;
+package org.apache.river.imp.security.policy.cdc;
 
+import net.jini.security.policy.*;
 import com.sun.jini.collection.WeakIdentityMap;
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.WeakReference;
@@ -44,7 +45,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.GrantPermission;
-import org.apache.river.security.policy.spi.RevokeableDynamicPolicySpi;
+import org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi;
 
 /**
  * Security policy provider that supports dynamic granting of permissions at
@@ -60,7 +61,7 @@ import org.apache.river.security.policy.spi.RevokeableDynamicPolicySpi;
  * 
  * @since 2.0
  */
-class DynamicPolicyProviderImpl extends Policy implements RevokeableDynamicPolicySpi {
+public class DynamicPolicyProviderImpl extends Policy implements RevokeableDynamicPolicySpi {
 
     private static final ProtectionDomain sysDomain = (ProtectionDomain)
 	AccessController.doPrivileged(new PrivilegedAction() {
@@ -76,12 +77,12 @@ class DynamicPolicyProviderImpl extends Policy implements RevokeableDynamicPolic
     private final Map loaderGrants;
     private final Grants globalGrants;
     private static final Logger logger = Logger.getLogger(
-            "net.jini.security.policy.DynamicPolicyProviderImpl");
+            "net.jini.security.policy");
 
     /**
      * A new uninitialized instance.
      */
-    DynamicPolicyProviderImpl() {
+    public DynamicPolicyProviderImpl() {
        domainPerms = new WeakIdentityMap();
        loaderGrants = new WeakIdentityMap();
        globalGrants = new Grants();
