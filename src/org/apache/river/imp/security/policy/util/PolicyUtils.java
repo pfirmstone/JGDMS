@@ -552,16 +552,17 @@ public class PolicyUtils {
     }
     
     /** 
-     * Converts common-purpose homegeneous or heterogeneous PermissionCollection 
-     * to a hetergeneous PermissionCollection.
+     * Copies a common-purpose homegeneous or heterogeneous PermissionCollection 
+     * to a hetergeneous PermissionCollection based on ConcurrentPermissions.
      *
-     * @param perms a PermissionCollection containing arbitrary permissions.
+     * @param perms a PermissionCollection containing arbitrary permissions. Null
+     * is permitted.
      * @return mutable heterogeneous PermissionCollection containing all Permissions 
-     * from the specified PermissionCollection
+     * from the specified PermissionCollection. An empty PermissionCollection
+     * is returned if parameter is null.
      */
     public static PermissionCollection 
-            toConcurrentPermissions(PermissionCollection perms) {
-        if (perms instanceof ConcurrentPermissions) return perms;
+            toConcurrentPermissionsCopy(PermissionCollection perms) {
         PermissionCollection pc = new ConcurrentPermissions();
         if (perms != null) {
             Enumeration<Permission> iter = perms.elements();

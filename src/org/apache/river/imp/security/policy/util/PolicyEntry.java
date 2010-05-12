@@ -101,11 +101,6 @@ public final class PolicyEntry {
     
     public PolicyEntry(ProtectionDomain pd, Collection<? extends Principal> prs,
             Collection<? extends Permission> permissions ){
-        CodeSource cs = null;
-        if (pd != null){
-            cs = pd.getCodeSource();
-        }
-        this.cs = (cs != null) ? normalizeCodeSource(cs) : null;
         if ( prs == null || prs.isEmpty()) {
             this.principals = Collections.emptyList(); // Java 1.5
         }else{
@@ -118,18 +113,26 @@ public final class PolicyEntry {
             this.permissions = new HashSet<Permission>(permissions.size());
             this.permissions.addAll(permissions);
         }
-        domain = new WeakReference<ProtectionDomain>(pd);
-        hasDomain = ( pd != null);
         /* Effectively immutable, this will make any hash this is contained in perform.
          * May need to consider Serializable for this class yet, we'll see.
          */
         if (pd == null){
+            hasDomain = false;
+            domain = null;
+            cs = null;
             hashcode = (principals.hashCode() + this.permissions.hashCode() 
                     - Boolean.valueOf(hasDomain).hashCode());
         } else {
-            int codeBaseHash = 0;
-            if (cs != null){
-                codeBaseHash = cs.hashCode();
+            hasDomain = true;
+            domain = new WeakReference<ProtectionDomain>(pd);
+            CodeSource code = pd.getCodeSource();
+            int codeBaseHash;
+            if (code != null){
+                codeBaseHash = code.hashCode();
+                cs = normalizeCodeSource(code);
+            } else {
+                cs = null;
+                codeBaseHash = 0;
             }
             hashcode = (pd.hashCode() + principals.hashCode() 
                 + this.permissions.hashCode() + codeBaseHash 
@@ -181,13 +184,15 @@ public final class PolicyEntry {
      * Checks if specified Principals match this PolicyEntry. Null or empty set
      * of Principals of PolicyEntry implies any Principals; otherwise specified
      * array must contain all Principals of this PolicyEntry.
+     * @param prs 
+     * @return
      */
     public boolean impliesPrincipals(Principal[] prs) {
-       // return PolicyUtils.matchSubset(principals, prs);
-        if ( principals.isEmpty()) return true;
-        if ( prs == null || prs.length == 0 ) return false;
-        List<Principal> princp = Arrays.asList(prs);
-        return princp.containsAll(principals);      
+        return PolicyUtils.matchSubset(principals.toArray(new Principal[principals.size()]), prs);
+//        if ( principals.isEmpty()) return true;
+//        if ( prs == null || prs.length == 0 ) return false;
+//        List<Principal> princp = Arrays.asList(prs);
+//        return princp.containsAll(principals);      
     }
 
     /**

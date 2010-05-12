@@ -294,7 +294,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 //            //if (pc == null) pc = new ConcurrentPermissions();
 //            if (pc == null) pc = new Permissions();
 ////            if (!(pc instanceof ConcurrentPermissions)) {
-////                pc = PolicyUtils.toConcurrentPermissions(pc);
+////                pc = PolicyUtils.toConcurrentPermissionsCopy(pc);
 ////            }           
 //            PermissionCollection existed = cache.putIfAbsent(domain, pc);
 //            if ( !(existed == null) ){ pc = existed;} //Another thread might have just done it!
@@ -335,13 +335,15 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         pc = cache.get(domain); // saves new object creation.
         if (pc == null){
             pc = basePolicy.getPermissions(domain);
-            if (pc == null) pc = new ConcurrentPermissions();
-//            if (pc == null) pc = new Permissions();
-            if (!(pc instanceof ConcurrentPermissions)) {
-                pc = PolicyUtils.toConcurrentPermissions(pc);
-            }           
+           /* Don't use the underlying policy permission collection otherwise
+            * we can leak grants in to the underlying policy from our cache,
+            * this could then be merged into the PermissionDomain's permission
+            * cache negating the possiblity of revoking the permission.  This
+            * PolicyUtils method defensively copies or creates new if null.
+            */
+            pc = PolicyUtils.toConcurrentPermissionsCopy(pc);                  
             PermissionCollection existed = cache.putIfAbsent(domain, pc);
-            if ( !(existed == null) ){ pc = existed;} //Another thread might have just done it!
+            if ( (existed != null) ){ pc = existed;} //Another thread might have just done it!
         }        
         Iterator<Permission> dgpi = dynamicallyGrantedPermissions.iterator();
         while (dgpi.hasNext()){
