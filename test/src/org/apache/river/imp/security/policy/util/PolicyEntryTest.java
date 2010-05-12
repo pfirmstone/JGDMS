@@ -50,7 +50,9 @@ public class PolicyEntryTest extends TestCase {
      * Tests constructor and accessors of PolicyEntry 
      */
     public void testCtor() {
-        PolicyEntry pe = new PolicyEntry(null, null, null);
+        PolicyEntry pe =
+            new PolicyEntry((CodeSource) null, (Collection<Principal>) null,
+                (Collection<Permission>)null);
         assertTrue(pe.isVoid());
         assertTrue(pe.getPermissions().isEmpty());
 
@@ -61,7 +63,7 @@ public class PolicyEntryTest extends TestCase {
 
         Collection perms = Arrays.asList(new Permission[] {
             new SecurityPermission("dsfg"), new AllPermission() });
-        pe = new PolicyEntry(null, null, perms);
+        pe = new PolicyEntry((CodeSource) null, (Collection<Principal>) null, perms);
         assertFalse(pe.isVoid());
         assertEquals(perms, new ArrayList(pe.getPermissions()));
     }
@@ -88,7 +90,9 @@ public class PolicyEntryTest extends TestCase {
         CodeSource cs32 = new CodeSource(new URL("file://-"), (Certificate[]) null);
         CodeSource cs33 = new CodeSource(new URL("file:///-"), (Certificate[]) null);
 
-        PolicyEntry pe0  = new PolicyEntry(null, null, null);
+        PolicyEntry pe0  = 
+                new PolicyEntry((CodeSource) null, (Collection<Principal>) null,
+                (Collection<Permission>)null);
 
         PolicyEntry pe10 = new PolicyEntry(cs10, null, null);
         PolicyEntry pe11 = new PolicyEntry(cs11, null, null);
@@ -293,7 +297,9 @@ public class PolicyEntryTest extends TestCase {
      * otherwise tested set must contain all Principals of PolicyEntry.
      */
     public void testImpliesPrincipals() {
-        PolicyEntry pe = new PolicyEntry(null, null, null);
+        PolicyEntry pe =
+            new PolicyEntry((CodeSource) null, (Collection<Principal>) null,
+                (Collection<Permission>)null);
         Principal[] pp1 = new Principal[] {};
         Principal[] pp2 = new Principal[] { new UnresolvedPrincipal("a.b.c",
             "XXX") };
@@ -305,10 +311,12 @@ public class PolicyEntryTest extends TestCase {
         assertTrue(pe.impliesPrincipals(null));
         assertTrue(pe.impliesPrincipals(pp1));
 
-        pe = new PolicyEntry(null, new HashSet(), null);
+        pe = new PolicyEntry((CodeSource)null, new HashSet<Principal>(),
+                (Collection<Permission>) null);
         assertTrue(pe.impliesPrincipals(pp3));
 
-        pe = new PolicyEntry(null, Arrays.asList(pp2), null);
+        pe = new PolicyEntry((CodeSource) null, Arrays.asList(pp2),
+                (Collection<Permission>) null);
         assertFalse(pe.impliesPrincipals(null));
         assertFalse(pe.impliesPrincipals(pp1));
         assertTrue(pe.impliesPrincipals(pp3));

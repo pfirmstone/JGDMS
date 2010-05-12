@@ -75,8 +75,11 @@ public class ConcurrentPolicyFileTest extends TestCase {
      */
     public void testRefresh() {
         Permission sp = new SecurityPermission("sdf");
-        PolicyEntry[] pe = new PolicyEntry[] { new PolicyEntry(null, null,
-            Arrays.asList(new Permission[] { sp })) };
+        PolicyEntry[] pe = new PolicyEntry[] { 
+            new PolicyEntry((CodeSource)null,
+                (Collection<Principal>)null,
+            Arrays.asList(new Permission[] { sp })) 
+        };
         TestParser tp = new TestParser(pe);
         ConcurrentPolicyFile policy = new ConcurrentPolicyFile(tp);
         CodeSource cs = new CodeSource(null, (Certificate[])null);
