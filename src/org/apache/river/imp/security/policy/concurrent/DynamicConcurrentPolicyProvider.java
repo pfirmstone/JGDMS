@@ -140,7 +140,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         basePolicyIsDynamic = false;
         revokeable = true;
         logger = Logger.getLogger("net.jini.security.policy");
-        loggable = logger.isLoggable(Level.INFO);
+        loggable = logger.isLoggable(Level.FINEST);
     }
     
     /**
@@ -319,7 +319,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         if (basePolicy.implies(domain, permission)) return true;
         if (basePolicyIsDynamic) return false;
         if (loggable){
-            logger.log(Level.INFO, domain + permission.toString() + 
+            logger.log(Level.FINEST, domain + permission.toString() + 
                     ": Base policy is not dynamic and returned false" );
         }
         // If it doesn't then we should check for dynamic grants
@@ -327,7 +327,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         CodeSource cs = ( domain == null ? null : domain.getCodeSource());
         Collection<Permission> dynamicallyGrantedPermissions = getGrants(domain, cs, pals);
         if (loggable) {
-            logger.log(Level.INFO, "Grants: " + dynamicallyGrantedPermissions.toString());
+            logger.log(Level.FINEST, "Grants: " + dynamicallyGrantedPermissions.toString());
         }
         if (dynamicallyGrantedPermissions.isEmpty()) return false;
         // Operation starts to get expensive
@@ -352,7 +352,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         // If we get refreshed the cache could be empty, which is more pedantic
         // however the result may still be true so we'll return it anyway.
         if (loggable) {
-            logger.log(Level.INFO, "PermissionCollection: " + pc.toString());
+            logger.log(Level.FINEST, "PermissionCollection: " + pc.toString());
         }
         return pc.implies(permission);
     }
@@ -422,7 +422,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         }
         PolicyEntry pe = new PolicyEntry(domain, pal, perm);
         if (loggable){
-            logger.log(Level.INFO, "Granting: " + pe.toString());
+            logger.log(Level.FINEST, "Granting: " + pe.toString());
         }
         try {
             wl.lock();
