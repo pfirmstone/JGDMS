@@ -57,20 +57,21 @@ public class PolicyEntryTest extends TestCase {
         assertTrue(pe.getPermissions().isEmpty());
 
         pe = new PolicyEntry(new CodeSource(null, (Certificate[])null),
-            new ArrayList(), new ArrayList());
+            new ArrayList<Principal>(), new ArrayList<Permission>());
         assertTrue(pe.isVoid());
         assertTrue(pe.getPermissions().isEmpty());
 
-        Collection perms = Arrays.asList(new Permission[] {
+        Collection<Permission> perms = Arrays.asList(new Permission[] {
             new SecurityPermission("dsfg"), new AllPermission() });
         pe = new PolicyEntry((CodeSource) null, (Collection<Principal>) null, perms);
         assertFalse(pe.isVoid());
-        assertEquals(perms, new ArrayList(pe.getPermissions()));
+        assertEquals(perms, new ArrayList<Permission>(pe.getPermissions()));
     }
 
     /**
      * Null CodeSource of PolicyEntry implies any CodeSource; non-null
      * CodeSource should delegate to its own imply() functionality
+     * @throws java.lang.Exception 
      */
     public void testImpliesCodeSource() throws Exception {
         CodeSource cs0  = new CodeSource(null, (Certificate[]) null);

@@ -61,7 +61,8 @@ public class ConcurrentPolicyFileTest extends TestCase {
             this.content = content;
         }
 
-        public Collection parse(URL location, Properties system)
+        @Override
+        public Collection<PolicyEntry> parse(URL location, Properties system)
             throws Exception {
             if (content != null) {
                 return Arrays.asList(content);
@@ -106,6 +107,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
 
     /**
      * Tests proper policy evaluation for CodeSource parameters.
+     * @throws java.lang.Exception 
      */
     public void testGetPermissions_CodeSource() throws Exception {
         CodeSource cs = new CodeSource(null, (Certificate[])null);
@@ -116,7 +118,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
         Permission sp3 = new SecurityPermission("ccc");
         PolicyEntry pe1 = new PolicyEntry(cs, null, Arrays
             .asList(new Permission[] { sp1 }));
-        PolicyEntry pe2 = new PolicyEntry(cs2, new HashSet(), Arrays
+        PolicyEntry pe2 = new PolicyEntry(cs2, new HashSet<Principal>(), Arrays
             .asList(new Permission[] { sp2 }));
         PolicyEntry pe3 = new PolicyEntry(cs, Arrays
             .asList(new Principal[] { new FakePrincipal("qqq") }), Arrays
@@ -136,6 +138,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
 
     /**
      * Tests proper policy evaluation for ProtectionDomain parameters.
+     * @throws java.lang.Exception 
      */
     public void testGetPermissions_ProtectionDomain() throws Exception {
         Permission sp1 = new SecurityPermission("aaa");
