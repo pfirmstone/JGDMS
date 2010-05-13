@@ -313,5 +313,13 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
     public Object parameters() throws UnsupportedOperationException {
         throw new UnsupportedOperationException("Not supported yet.");
     }
+
+    public void revoke(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+        instance.revoke(cs, principals, permissions);
+    }
+
+    public void grant(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+        instance.grant(cs, principals, permissions);
+    }
    
 }

@@ -390,6 +390,15 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         if (permissions == null || permissions.length == 0) {
 	    return;
 	}
+        if (principals == null){
+            principals = new Principal[0];
+        }
+        if (principals.length > 0) {
+	    principals = principals.clone();
+	    checkNullElements(principals);
+	}
+        permissions = permissions.clone();
+        checkNullElements(permissions);
         if ( basePolicyIsDynamic ){
             /* Delegate, otherwise, if base policy is an instance of this class, we
              * may have multi combinations of permissions that together should
@@ -401,15 +410,6 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             dp.grant(cl, principals, permissions);
             return;
         }
-        if (principals == null){
-            principals = new Principal[0];
-        }
-        if (principals.length > 0) {
-	    principals = principals.clone();
-	    checkNullElements(principals);
-	}
-        permissions = permissions.clone();
-        checkNullElements(permissions);
 	SecurityManager sm = System.getSecurityManager();
 	if (sm != null) {
 	    sm.checkPermission(new GrantPermission(permissions));
@@ -486,6 +486,14 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 		"ungrantable protection domain");
 	}
             return pd;
-    }  
+    }
+
+    public void revoke(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void grant(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
 
 }

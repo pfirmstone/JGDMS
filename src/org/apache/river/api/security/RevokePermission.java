@@ -8,16 +8,14 @@ package org.apache.river.api.security;
 import java.security.Permission;
 
 /**
- * RevokePermission allows for a permission to be granted at runtime or
- * revoked.  The revoker thread needs no permission other than a this.  
- * A RevokePermission cannot grant itself a permission it doesn't already have.
+ * <p>RevokePermission allows for a permission to be revoked at runtime provided
+ * it has been dynamically granted.<p>
+ * 
+ * A RevokePermission cannot dynamically grant itself a permission.<p>
  * 
  * A domain with revoke permission can not revoke a RevokePermission
- * unless it has been 
- * 
- * It should cache all revokes, such that a refresh operation, doesn't add
- * any revoked permissions.  I'm not sure about grant's though, should they be
- * refreshed and require re granting if they didn't exist in the configuration
+ * unless it has been granted dynamically. </p>
+ *
  * -- seems logical.
  * 
  * 

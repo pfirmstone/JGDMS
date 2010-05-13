@@ -188,11 +188,11 @@ public final class PolicyEntry {
      * @return
      */
     public boolean impliesPrincipals(Principal[] prs) {
-        return PolicyUtils.matchSubset(principals.toArray(new Principal[principals.size()]), prs);
-//        if ( principals.isEmpty()) return true;
-//        if ( prs == null || prs.length == 0 ) return false;
-//        List<Principal> princp = Arrays.asList(prs);
-//        return princp.containsAll(principals);      
+//        return PolicyUtils.matchSubset(principals.toArray(new Principal[principals.size()]), prs);
+        if ( principals.isEmpty()) return true;
+        if ( prs == null || prs.length == 0 ) return false;
+        List<Principal> princp = Arrays.asList(prs);
+        return princp.containsAll(principals);      
     }
 
     /**
