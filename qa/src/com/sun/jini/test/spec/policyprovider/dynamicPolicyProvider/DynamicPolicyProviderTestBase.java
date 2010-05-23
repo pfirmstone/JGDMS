@@ -347,12 +347,18 @@ public abstract class DynamicPolicyProviderTestBase extends AbstractTestBase {
      *
      * @param pd the ProtectionDomain or null.
      * @param p  permissions granted earlier or null.
+     * @param dynamicallyGranted   This indicates that these permissions 
+     * have been dynamically granted.
+     * If the policy being tested supports revoking 
+     * permissions, dynamically granted permissions passed in must not be present, as this
+     * will remove the ability to revoke the permissions as they will become
+     * merged into the PermissionDomain's cached PermissionCollection.
      * @param msg  string to format log message.
      *
      * @throws TestException if failed
      *
      */
-    protected void callGetPermissions(ProtectionDomain pd, Permission[] p,
+    protected void callGetPermissions(ProtectionDomain pd, Permission[] p, boolean dynamicallyGranted,
             String msg) throws TestException {
         // Returned permissions.
         PermissionCollection pReturned = null;
@@ -372,7 +378,18 @@ public abstract class DynamicPolicyProviderTestBase extends AbstractTestBase {
             throw new TestException(Util.fail(msg, SNULL,
                     "PermissionCollection"));
         }
-
+        if ( dynamicallyGranted && policy.revokeSupported()){
+            for (int i = 0; i < p.length; i++) {
+                if (pReturned.implies(p[i])) {
+                    String prm = p[i].toString();
+                    String exp = "PermissionCollection does not contain " + prm;
+                    String ret = "PermissionCollection contains " + prm;
+                    throw new TestException(Util.fail(msg, ret, exp));
+                }
+            }
+            logger.log(Level.FINE, Util.pass(msg, "permission(s) not present"));
+            return;
+        }
         for (int i = 0; i < p.length; i++) {
             if (!pReturned.implies(p[i])) {
                 String prm = p[i].toString();
@@ -396,7 +413,8 @@ public abstract class DynamicPolicyProviderTestBase extends AbstractTestBase {
      * @throws TestException if failed
      *
      */
-    protected void callGetPermissions(CodeSource cs, Permission[] p, String msg)
+    protected void callGetPermissions(CodeSource cs, Permission[] p, 
+            boolean dynamicallyGranted, String msg)
             throws TestException {
         // Returned permissions.
         PermissionCollection pReturned = null;
@@ -420,7 +438,18 @@ public abstract class DynamicPolicyProviderTestBase extends AbstractTestBase {
             throw new TestException(Util.fail(msg, SNULL,
                     "PermissionCollection"));
         }
-
+       if ( dynamicallyGranted && policy.revokeSupported()){
+            for (int i = 0; i < p.length; i++) {
+                if (pReturned.implies(p[i])) {
+                    String prm = p[i].toString();
+                    String exp = "PermissionCollection does not contain " + prm;
+                    String ret = "PermissionCollection contains " + prm;
+                    throw new TestException(Util.fail(msg, ret, exp));
+                }
+            }
+            logger.log(Level.FINE, Util.pass(msg, "permission(s) not present"));
+            return;
+        }
         for (int i = 0; i < p.length; i++) {
             if (!pReturned.implies(p[i])) {
                 String prm = p[i].toString();

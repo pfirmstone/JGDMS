@@ -102,7 +102,7 @@ public class MergedPolicyProvider extends Policy {
      *
      * @param source the <code>CodeSource</code>
      */
-    public PermissionCollection getPermissions(CodeSource source) {
+    public synchronized PermissionCollection getPermissions(CodeSource source) {
 	Iterator it = policies.iterator();
 	if (it.hasNext()) {
 	    PermissionCollection pc = 
@@ -131,7 +131,7 @@ public class MergedPolicyProvider extends Policy {
      *
      * @param domain the <code>ProtectionDomain</code>
      */
-    public PermissionCollection getPermissions(ProtectionDomain domain) {
+    public synchronized PermissionCollection getPermissions(ProtectionDomain domain) {
 	Iterator it = policies.iterator();
 	ArrayList list = new ArrayList();
 	if (it.hasNext()) {
@@ -190,7 +190,7 @@ public class MergedPolicyProvider extends Policy {
      * @param permission the <code>Permission</code> to check
      * @return true if the permission is granted
      */
-    public boolean implies(ProtectionDomain domain, Permission permission) {
+    public synchronized boolean implies(ProtectionDomain domain, Permission permission) {
 	Iterator it = policies.iterator();
 	while (it.hasNext()) {
 	    Policy p = (Policy) it.next();
@@ -205,7 +205,7 @@ public class MergedPolicyProvider extends Policy {
     /**
      * Refresh all of the underlying policies.
      */
-    public void refresh() {
+    public synchronized void refresh() {
 	System.out.println("In REFRESH");
 	Iterator it = policies.iterator();
 	while (it.hasNext()) {

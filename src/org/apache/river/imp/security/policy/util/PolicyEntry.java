@@ -30,13 +30,14 @@ import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
+import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
+import sun.security.util.SecurityConstants;
 
 
 /**
@@ -49,13 +50,16 @@ import java.util.Set;
  * 
  */
 public final class PolicyEntry {
-
+    
+    public static final int CLASSLOADER = 0;
+    public static final int CODESOURCE = 1;
+    public static final int PROTECTIONDOMAIN = 2;
     // Store CodeSource
     private final CodeSource cs;
-    
+    private final Certificate[] certs; //TODO certs comparison etc.
     private final WeakReference<ProtectionDomain> domain;
     private final boolean hasDomain;
-
+    
     // Array of principals 
     private final List<Principal> principals;
 
@@ -63,10 +67,43 @@ public final class PolicyEntry {
     private final Collection<Permission> permissions;
     
     private transient final int hashcode;
-
+    
+    private final int context;
+    
     /**
      * Constructor with initialization parameters. Passed collections are not
-     * referenced directly, but copied.
+     * referenced directly, but copied.  This constructor is for
+     * grants by CodeSource either read from files or granted at runtime.
+     */
+    public PolicyEntry(Certificate[] codeSourceCertificates, Collection<? extends Principal> prs,
+            Collection<? extends Permission> permissions) {
+        if ( prs == null || prs.isEmpty()) {
+            this.principals = Collections.emptyList(); // Java 1.5
+        }else{
+            this.principals = new ArrayList<Principal>(prs.size());
+            this.principals.addAll(prs);
+        }
+        if (permissions == null || permissions.isEmpty()) {
+            this.permissions = Collections.emptySet(); // Java 1.5
+        }else{
+            this.permissions = new HashSet<Permission>(permissions.size());
+            this.permissions.addAll(permissions);
+        }
+        certs = codeSourceCertificates.clone();
+        cs = null;
+        domain = null;
+        hasDomain = false;
+        context = 1;
+        /* Effectively immutable, this will make any hash this is contained in perform.
+         * May need to consider Serializable for this class yet, we'll see.
+         */ 
+        hashcode = calculateHashCode();
+    }
+    
+    /**
+     * Constructor with initialization parameters. Passed collections are not
+     * referenced directly, but copied.  This constructor is for
+     * grants by CodeSource either read from files or granted at runtime.
      */
     public PolicyEntry(CodeSource cs, Collection<? extends Principal> prs,
             Collection<? extends Permission> permissions) {
@@ -85,22 +122,31 @@ public final class PolicyEntry {
         }
         domain = null;
         hasDomain = false;
+        context = 1;
+        certs = null;
         /* Effectively immutable, this will make any hash this is contained in perform.
          * May need to consider Serializable for this class yet, we'll see.
          */ 
-        if (this.cs == null){
-            hashcode = (principals.hashCode() + this.permissions.hashCode()
-                    - Boolean.valueOf(hasDomain).hashCode());
-        } else {
-        hashcode = (this.cs.hashCode() + principals.hashCode() 
-                + this.permissions.hashCode() 
-                - Boolean.valueOf(hasDomain).hashCode());
-        }
+        hashcode = calculateHashCode();
     }
 
     
-    public PolicyEntry(ProtectionDomain pd, Collection<? extends Principal> prs,
+    /**
+     * Runtime Permission Grants, collections are copied.
+     * @param pd ProtectionDomain
+     * @param context int constant for the context of the PolicyEntry grant.
+     * @param prs principals
+     * @param permissions
+     */
+    public PolicyEntry(ProtectionDomain pd, int context, Collection<? extends Principal> prs,
             Collection<? extends Permission> permissions ){
+        if ( context < 0 ){
+            throw new IllegalStateException("context must be >= 0");
+        }
+        if ( context > 2 ){
+            throw new IllegalStateException("context must be <= 2");
+        }
+        this.context = context;
         if ( prs == null || prs.isEmpty()) {
             this.principals = Collections.emptyList(); // Java 1.5
         }else{
@@ -120,32 +166,108 @@ public final class PolicyEntry {
             hasDomain = false;
             domain = null;
             cs = null;
-            hashcode = (principals.hashCode() + this.permissions.hashCode() 
-                    - Boolean.valueOf(hasDomain).hashCode());
-        } else {
+        } else if (context != 1) {
             hasDomain = true;
             domain = new WeakReference<ProtectionDomain>(pd);
-            CodeSource code = pd.getCodeSource();
-            int codeBaseHash;
-            if (code != null){
-                codeBaseHash = code.hashCode();
-                cs = normalizeCodeSource(code);
-            } else {
-                cs = null;
-                codeBaseHash = 0;
-            }
-            hashcode = (pd.hashCode() + principals.hashCode() 
-                + this.permissions.hashCode() + codeBaseHash 
-                - Boolean.valueOf(hasDomain).hashCode());
+            cs = pd.getCodeSource();
+        } else {
+            // context == 1 and pd != null
+            hasDomain = false;
+            domain = null;
+            cs = pd.getCodeSource();
         }
+        certs = null;
+        hashcode = calculateHashCode();
+    }
+    
+    public PolicyEntry(PolicyEntry pe, 
+            Collection<? extends Permission> permissions){
+        this.cs = pe.cs;
+        this.hasDomain = pe.hasDomain;
+        this.domain = pe.domain;
+        this.principals = pe.principals;
+        this.context = pe.context;
+        this.certs = pe.certs;
+        if (permissions == null || permissions.isEmpty()) {
+            this.permissions = Collections.emptySet(); // Java 1.5
+        }else{
+            this.permissions = new HashSet<Permission>(permissions.size());
+            this.permissions.addAll(permissions);
+        }
+        hashcode = calculateHashCode();
+    }
+    
+    public ProtectionDomain getProtectionDomain(){
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(SecurityConstants.GET_PD_PERMISSION);
+        }
+        if (hasDomain){
+            return domain.get();
+        }
+        return null;
+    }
+    
+    /**
+     * This is a multi comparison 
+     * @param pd ProtectionDomain
+     * @return
+     */
+    public boolean implies(ProtectionDomain pd){
+        CodeSource cs = null;
+        ClassLoader cl = null;
+        Principal[] pals = null;
+        if (pd != null){
+            cs = pd.getCodeSource();
+            cl = pd.getClassLoader();
+            pals = pd.getPrincipals();
+        }
+        if (context == 0){
+            // ClassLoader comparison
+            if (impliesClassLoader(cl) && impliesPrincipals(pals)){
+                return true;
+            }
+        } else if (context == 2){
+            // ProtectionDomain comparison
+            if (impliesProtectionDomain(pd)){
+                return true;
+            }
+        } else if (context == 1){
+            // CodeSource comparison
+            if (impliesCodeSource(cs) && impliesPrincipals(pals)) 
+            return true;       
+        }
+        return false;
+    }
+    
+    /**
+     * Checks if passed ClassLoader matches this PolicyEntry. Null ProtectionDomain of
+     * PolicyEntry implies any ClassLoader, unless the ProtectionDomain has
+     * become garbage collected, in which case it will be false;
+     * 
+     * This implies is public to assist in removal of Permission grants
+     * from a ClassLoader space.  In other words it ignores context.
+     * 
+     * It isn't very smart, it misses other grants, so isn't a guarantee that
+     * a permission grant won't apply to a particluar ClassLoader, in the
+     * case of Principals and Certificate grants.
+     * 
+     * non-null ProtectionDomain's are
+     * compared with equals();
+     */
+    public boolean impliesClassLoader(ClassLoader cl) {
+        if (hasDomain == false) return true;
+        if (cl == null) return false;       
+        if (domain.get() == null ) return false; // hasDomain already true
+        return domain.get().getClassLoader().equals(cl); // pd not null
     }
     
     /**
      * Checks if passed ProtectionDomain matches this PolicyEntry. Null ProtectionDomain of
-     * PolicyEntry implies any ProtectionDomain; non-null ProtectionDomain is
+     * PolicyEntry implies any ProtectionDomain; non-null ProtectionDomain's are
      * compared with equals();
      */
-    public boolean impliesProtectionDomain(ProtectionDomain pd) {
+    private boolean impliesProtectionDomain(ProtectionDomain pd) {
         if (hasDomain == false) return true;
         if (pd == null) return false;       
         if (domain.get() == null ) return false; // hasDomain already true
@@ -203,7 +325,7 @@ public final class PolicyEntry {
 //        if (permissions.isEmpty()) return null; // not sure if this is good needs further investigation
         return Collections.unmodifiableCollection(permissions);
     }
-
+    
     /**
      * Returns true if this PolicyEntry defines no Permissions, false otherwise.
      */
@@ -230,6 +352,28 @@ public final class PolicyEntry {
     @Override
     public int hashCode(){
         return hashcode;        
+    }
+    
+    /* Effectively immutable, this will make any hash this is contained in perform.
+     * May need to consider Serializable for this class yet, we'll see.
+     */
+    private int calculateHashCode(){
+        int pdHash = 0;
+        int codeHash = 0;      
+        if (hasDomain){
+            ProtectionDomain d = domain.get();
+            if (d != null){
+                pdHash = d.hashCode();
+            }
+        }
+        if (cs != null){
+            codeHash = cs.hashCode();
+        }        
+        return (
+                pdHash + codeHash
+                + context * 31
+                + principals.hashCode() 
+                + permissions.hashCode());
     }
     
     @Override

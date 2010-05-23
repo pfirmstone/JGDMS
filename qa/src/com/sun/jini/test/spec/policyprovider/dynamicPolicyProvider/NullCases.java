@@ -154,15 +154,17 @@ public class NullCases extends DynamicPolicyProviderTestBase {
         // Some times call grant() passing various array of Principal
         // that contains null and verify that
         // NullPointerExceptions are thrown.
+        // Changed permissions from null to avoid early 
+        // return performance optimisation.
         msg = "policy.grant(null, new Principal[] {..., null,... }, null)";
         pra = new Principal[] { null };
-        callGrantNPE(null, pra, null, msg);
+        callGrantNPE(null, pra, pmGranted, msg);
         pra = new Principal[] { null, pr1, pr2, null, pr3 };
-        callGrantNPE(null, pra, null, msg);
+        callGrantNPE(null, pra, pmGranted, msg);
         pra = new Principal[] { pr1, pr2, pr3, null, pr3 };
-        callGrantNPE(null, pra, null, msg);
+        callGrantNPE(null, pra, pmGranted, msg);
         pra = new Principal[] { pr1, pr2, pr3, pr3, null };
-        callGrantNPE(null, pra, null, msg);
+        callGrantNPE(null, pra, pmGranted, msg);
 
         // some times call grant() passing various array of Permission
         // that contains null and verify that NullPointerExceptions
@@ -202,7 +204,7 @@ public class NullCases extends DynamicPolicyProviderTestBase {
         // also verify that returned array contains Permissions granted
         // earlier.
         msg = "policy.getPermissions((ProtectionDomain) null)";
-        callGetPermissions((ProtectionDomain) null, pmGranted, msg);
+        callGetPermissions((ProtectionDomain) null, pmGranted, true, msg);
 
         // Call getPermissions() passing null as CodeSource
         // and verify that NullPointerException is thrown;

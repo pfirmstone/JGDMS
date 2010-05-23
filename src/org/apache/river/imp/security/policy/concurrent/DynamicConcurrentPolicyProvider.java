@@ -183,7 +183,15 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         if (initialized == false) throw new RuntimeException("Object not initialized");
         // Investigate bug 4911907, do we need to do anything more here? Is this sufficient.
         if (sysDomain == null ) System.out.println("System Domain is null");
-        implies(sysDomain, new AllPermission());
+        basePolicy.implies(sysDomain, new AllPermission());
+        PermissionCollection pc = getPermissions(sysDomain);
+        pc = PolicyUtils.toConcurrentPermissionsCopy(pc);
+        cache.putIfAbsent(sysDomain, pc);
+        ProtectionDomain own = this.getClass().getProtectionDomain();
+        basePolicy.implies(own, new AllPermission());
+        PermissionCollection mypc = getPermissions(own);
+        mypc = PolicyUtils.toConcurrentPermissionsCopy(mypc);
+        cache.putIfAbsent(own, mypc);
     }
 
     public void revoke(Class cl, Principal[] principals, Permission[] permissions) {
@@ -208,45 +216,53 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
          * possible to prevent possible deadlocks, increase concurrency at the
          * risk of possible positive implies() the the mean time.
          */       
-        ProtectionDomain domain = cl.getProtectionDomain();
-        CodeSource codeSource = domain.getCodeSource();
-        if (principals == null){
-            principals = new Principal[0];
-        }
-        if (principals.length > 0) {
+        ClassLoader loader = cl.getClassLoader();
+        if ( principals != null && principals.length > 0) {
 	    principals = principals.clone();
 	    checkNullElements(principals);
-	}
+	} else {
+            principals = new Principal[0];
+        }
         permissions = permissions.clone();
 	checkNullElements(permissions);        
         Collection<Permission> permToBeRemoved = Arrays.asList(permissions);
-        Collection<Permission> remainingGrants = new HashSet<Permission>();
+        Collection<PolicyEntry> removed = new HashSet<PolicyEntry>();
         try {
             wl.lock();
             Iterator<PolicyEntry> it = dynamicGrants.iterator();
             while (it.hasNext()) {
                 PolicyEntry ge = it.next();
-                if (ge.impliesPrincipals(domain == null ? null : principals)
-                    && ge.impliesProtectionDomain(domain)
-                    && ge.impliesCodeSource(domain == null ? null : codeSource)) {
-                    remainingGrants.addAll( ge.getPermissions());
+                // This ignores ServiceItem's context as we want to capture
+                // and remove all grants that may be granted by other means.
+                // such as ProtectionDomain or Principals alone.
+                // When we have Certificates we might want to check that
+                // too because otherwise we might remove a grant that doesn't
+                // imply or apply.
+                if ( ge.impliesPrincipals(loader == null ? null : principals)
+                    && ge.impliesClassLoader(loader)) {
+                    removed.add(ge);
                     it.remove();
                 }               
             }
-            if (remainingGrants.isEmpty()) return; // nothing to do.
+            if (removed.isEmpty()) return; // nothing to do.
         } finally { wl.unlock(); }
-        /* Now we can remove the PermissionDomain from the cache.
+        /* Now we can remove the PermissionDomain's from the cache.
          * The cache will populate itself again correctly when implies() is
          * called on that PermissionDomain again.
          */
-        cache.remove(domain.toString());
+        Collection<PolicyEntry> prevail = new HashSet<PolicyEntry>(removed.size());
+        Iterator<PolicyEntry> pdIterator = removed.iterator();
+        while (pdIterator.hasNext()){
+            PolicyEntry pe = pdIterator.next();
+            cache.remove(pe);
+            Collection<Permission> p = pe.getPermissions();
+            p.removeAll(permToBeRemoved);
+            prevail.add(new PolicyEntry(pe, p));
+        }
         /* We must re-enter the remaining grants if any exist. */
-        remainingGrants.removeAll(permToBeRemoved);
-        PolicyEntry policyEntry = new PolicyEntry(codeSource, 
-                Arrays.asList(principals), remainingGrants);
         try {
             wl.lock();
-            dynamicGrants.add(policyEntry);
+            dynamicGrants.addAll(prevail);
         } finally { wl.unlock(); }
     }
 
@@ -267,72 +283,68 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 
     public PermissionCollection getPermissions(CodeSource codesource) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
-        return basePolicy.getPermissions(codesource);
-//      The following code breaks revoke.
-//        Collection<Permission> dynamicallyGrantedPermissions = getGrants(codesource, null);
-//        PermissionCollection pc = null;
-//        pc = basePolicy.getPermissions(codesource);
-//        if (pc == null) pc = new Permissions();       
-//        Iterator<Permission> dgpi = dynamicallyGrantedPermissions.iterator();
-//        while (dgpi.hasNext()){
-//            pc.add(dgpi.next());
-//        }
-//        return pc;      
+        return basePolicy.getPermissions(codesource); 
     }
 
     public PermissionCollection getPermissions(ProtectionDomain domain) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
         return basePolicy.getPermissions(domain);
-//      The following code breaks revoke.      
-//        CodeSource cs = (domain == null ? null : domain.getCodeSource());
-//        Principal[] pals = (domain == null ? null : domain.getPrincipals());
-//        Collection<Permission> dynamicallyGrantedPermissions = getGrants(cs, pals);
-//        PermissionCollection pc = null;
-//        pc = cache.get(domain); // saves new object creation.
-//        if (pc == null){
-//            pc = basePolicy.getPermissions(domain);
-//            //if (pc == null) pc = new ConcurrentPermissions();
-//            if (pc == null) pc = new Permissions();
-////            if (!(pc instanceof ConcurrentPermissions)) {
-////                pc = PolicyUtils.toConcurrentPermissionsCopy(pc);
-////            }           
-//            PermissionCollection existed = cache.putIfAbsent(domain, pc);
-//            if ( !(existed == null) ){ pc = existed;} //Another thread might have just done it!
-//        }        
-//        Iterator<Permission> dgpi = dynamicallyGrantedPermissions.iterator();
-//        while (dgpi.hasNext()){
-//            pc.add(dgpi.next());
-//        }
-//        return pc;
     }
 
     public boolean implies(ProtectionDomain domain, Permission permission) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
         // First check the our cache if the basePolicy is not dynamic.
+        PermissionCollection pc = cache.get(domain);
         if (!basePolicyIsDynamic) {
-            PermissionCollection pc = cache.get(domain);
             if ( pc != null){
                 if (pc.implies(permission)) return true;
             }
         }
-        // Then check the base policy
-        if (basePolicy.implies(domain, permission)) return true;
+        // Then check the base policy, this will resolve any unresolved
+        // permissions, but we should the add that domain's permissions to
+        // our cache, to reduce any contention.
+        if (basePolicy.implies(domain, permission)) {
+            if (basePolicyIsDynamic) return true;
+            PermissionCollection bpc = basePolicy.getPermissions(domain);
+            if (pc == null){
+                pc = PolicyUtils.toConcurrentPermissionsCopy(bpc);
+                PermissionCollection existed = cache.putIfAbsent(domain, pc);
+                if ( existed != null ) {
+                    if (existed.implies(permission)) return true;                  
+                    if (pc.implies(permission)) {
+                    throw new RuntimeException("Underlying policy not dynamic" +
+                            " but has changed");
+                    }
+                }
+            }
+            if (pc.implies(permission)) {return true; }
+            else {
+                throw new RuntimeException("Underlying policy implies but" +
+                        " PermissionCollection doesn't");  
+            }          
+        }
         if (basePolicyIsDynamic) return false;
         if (loggable){
             logger.log(Level.FINEST, domain + permission.toString() + 
                     ": Base policy is not dynamic and returned false" );
         }
         // If it doesn't then we should check for dynamic grants
-        Principal[] pals = (domain == null ? null : domain.getPrincipals());
-        CodeSource cs = ( domain == null ? null : domain.getCodeSource());
-        Collection<Permission> dynamicallyGrantedPermissions = getGrants(domain, cs, pals);
+        Collection<Permission> dynamicallyGrantedPermissions = new HashSet<Permission>();
+        try {
+            rl.lock();
+            Iterator<PolicyEntry> it = dynamicGrants.iterator();
+            while (it.hasNext()) {
+                PolicyEntry ge = it.next();
+                if ( ge.implies(domain)) {
+                    dynamicallyGrantedPermissions.addAll( ge.getPermissions());
+                }
+            }               
+        } finally { rl.unlock(); }
         if (loggable) {
             logger.log(Level.FINEST, "Grants: " + dynamicallyGrantedPermissions.toString());
         }
         if (dynamicallyGrantedPermissions.isEmpty()) return false;
-        // Operation starts to get expensive
-        PermissionCollection pc = null;
-        pc = cache.get(domain); // saves new object creation.
+//        // Operation starts to get expensive
         if (pc == null){
             pc = basePolicy.getPermissions(domain);
            /* Don't use the underlying policy permission collection otherwise
@@ -344,7 +356,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             pc = PolicyUtils.toConcurrentPermissionsCopy(pc);                  
             PermissionCollection existed = cache.putIfAbsent(domain, pc);
             if ( (existed != null) ){ pc = existed;} //Another thread might have just done it!
-        }        
+        }
         Iterator<Permission> dgpi = dynamicallyGrantedPermissions.iterator();
         while (dgpi.hasNext()){
             pc.add(dgpi.next());
@@ -377,7 +389,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
                 }
             }
         } finally {wl.unlock();}
-        
+        ensureDependenciesResolved();
     }
 
     public boolean grantSupported() {
@@ -387,16 +399,12 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 
     public void grant(Class cl, Principal[] principals, Permission[] permissions) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
-        if (permissions == null || permissions.length == 0) {
-	    return;
-	}
-        if (principals == null){
-            principals = new Principal[0];
-        }
+        if (permissions == null || permissions.length == 0) {return;}
+        if (principals == null){ principals = new Principal[0];}
         if (principals.length > 0) {
 	    principals = principals.clone();
 	    checkNullElements(principals);
-	}
+	} 
         permissions = permissions.clone();
         checkNullElements(permissions);
         if ( basePolicyIsDynamic ){
@@ -420,7 +428,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         if ( cl != null){
             domain = getDomain(cl);
         }
-        PolicyEntry pe = new PolicyEntry(domain, pal, perm);
+        PolicyEntry pe = new PolicyEntry(domain, 0, pal, perm);
         if (loggable){
             logger.log(Level.FINEST, "Granting: " + pe.toString());
         }
@@ -433,18 +441,33 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
     // documentation inherited from DynamicPolicy.getGrants
     public Permission[] getGrants(Class cl, Principal[] principals) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
-        ProtectionDomain pd = null;
-        CodeSource cs = null;
-        if ( cl != null ) {
-            pd = getDomain(cl);
-            cs = pd.getCodeSource();
+        ClassLoader loader = null;
+        if( cl != null ) {
+            loader = cl.getClassLoader();
         }
         // defensive copy array
         if (principals != null && principals.length > 0) {
 	    principals = principals.clone();
 	    checkNullElements(principals);
 	}
-        Collection<Permission> cperms = getGrants(pd, cs, principals);
+        Collection<Permission> cperms = new HashSet();
+        try {
+            wl.lock();
+            Iterator<PolicyEntry> it = dynamicGrants.iterator();
+            while (it.hasNext()) {
+                PolicyEntry ge = it.next();
+                // This ignores ServiceItem's context as we want to capture
+                // and remove all grants that may be granted by other means.
+                // such as ProtectionDomain or Principals alone.
+                // When we have Certificates we might want to check that
+                // too because otherwise we might remove a grant that doesn't
+                // imply or apply.
+                if ( ge.impliesPrincipals(loader == null ? null : principals)
+                    && ge.impliesClassLoader(loader)) {
+                    cperms.addAll(ge.getPermissions());
+                }               
+            }
+        } finally { wl.unlock(); }
         Permission[] perms = cperms.toArray(new Permission[cperms.size()]);        
         return perms;
     }
@@ -457,8 +480,8 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             Iterator<PolicyEntry> it = dynamicGrants.iterator();
             while (it.hasNext()) {
                 PolicyEntry ge = it.next();
-                if ( ge.impliesProtectionDomain(pd)
-                        && ge.impliesCodeSource(cs)
+                if ( ge.implies(pd) ||
+                        ge.impliesCodeSource(cs)
                         && ge.impliesPrincipals(pals)) {
                     dynamicallyGrantedPermissions.addAll( ge.getPermissions());
                 }

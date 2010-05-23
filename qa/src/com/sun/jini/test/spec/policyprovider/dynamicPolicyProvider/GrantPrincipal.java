@@ -428,6 +428,12 @@ public class GrantPrincipal extends DynamicPolicyProviderTestBase {
 
             /*
              * Iterate over array of array of QAPrincipals.
+             * This is where ConcurrentDynamicPolicyProvider has some issues,
+             * due to it's granting permission by ProtectionDomain instead
+             * of ClassLoader.  When implies is called in the original spec
+             * it grants by ClassLoader, such that multiple protection domains 
+             * are given identical Permissions.
+             * 
              */
             for (int j = 0; j < praBase.length; j++) {
 

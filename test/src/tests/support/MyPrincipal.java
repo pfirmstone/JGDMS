@@ -35,4 +35,23 @@ public class MyPrincipal implements Principal {
     public String getName() {
         return name;
     }
+    
+    // documentation inherited from java.security.Principal.hashCode
+    @Override
+    public int hashCode() {
+        return name.hashCode();
+    }
+
+    // documentation inherited from java.security.Principal.toString
+    @Override
+    public String toString() {
+        return "MyPrincipal[" + name + "]";
+    }
+
+    // documentation inherited from java.security.Principal.equals
+    @Override
+    public boolean equals(Object obj) {
+        return (obj instanceof MyPrincipal
+                && name.equals(((MyPrincipal) obj).name));
+    }
 }

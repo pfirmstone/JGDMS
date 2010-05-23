@@ -22,8 +22,7 @@ import net.jini.security.policy.DynamicPolicy;
 public interface RevokeablePolicy extends DynamicPolicy {
     
     /**
-     * Revokes permissions based on Principal's and a ProtectionDomain belonging
-     * to the class cl.
+     * ClassLoader based permission revocation.
      * @param cl
      * @param principals
      * @param permissions
