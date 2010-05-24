@@ -1,1 +1,1 @@
-net.jini.config.GroovyConfig
+com.sun.jini.config.GroovyConfig
