@@ -79,12 +79,12 @@ import org.apache.river.imp.util.ConcurrentWeakIdentityMap;
  * <p>
  * It is thus reccommeded that Static policy files only be used for files
  * where the level of trust is relatively static.  This is the only implementation
- * where a dyanamic grantCodeSource can be removed.  In the case of Proxy trust, a proxy
+ * where a dyanamic grant can be removed.  In the case of Proxy trust, a proxy
  * is no longer trusted when it has lost contact with it's Principal (server)
  * because the server cannot be asked if it trusts it's proxy and the proxy
  * cannot be given a thread of control to find it's server because it has
  * already attained too many Permissions.  In this new implementation it should
- * be possible to revoke AllPermission and grantCodeSource Permissions dynamically as 
+ * be possible to revoke AllPermission and grant Permissions dynamically as 
  * trust is gained.</p>
  * <p>
  * This may cause some undesireable side effects in existing programs.
@@ -237,7 +237,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
                 // and remove all grants that may be granted by other means.
                 // such as ProtectionDomain or Principals alone.
                 // When we have Certificates we might want to check that
-                // too because otherwise we might remove a grantCodeSource that doesn't
+                // too because otherwise we might remove a grant that doesn't
                 // imply or apply.
                 if ( ge.impliesPrincipals(loader == null ? null : principals)
                     && ge.impliesClassLoader(loader)) {
@@ -371,7 +371,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
     }
     
     /**
-     * Calling refresh doesn't remove any dynamic grantCodeSource's, it only clears
+     * Calling refresh doesn't remove any dynamic grant's, it only clears
      * the cache and refreshes the underlying Policy, it also removes any
      * grants for ProtectionDomains that no longer exist.
      */
@@ -461,7 +461,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
                 // and remove all grants that may be granted by other means.
                 // such as ProtectionDomain or Principals alone.
                 // When we have Certificates we might want to check that
-                // too because otherwise we might remove a grantCodeSource that doesn't
+                // too because otherwise we might remove a grant that doesn't
                 // imply or apply.
                 if ( ge.impliesPrincipals(loader == null ? null : principals)
                     && ge.impliesClassLoader(loader)) {

@@ -43,15 +43,15 @@ import net.jini.security.policy.PolicyInitializationException;
 /**
  * Defines a {@link DynamicPolicy} that logs information about missing
  * permissions, and optionally grants all permissions, which is <b>FOR
- * DEBUGGING ONLY</b>. Do not use this security policy provider to grantCodeSource
+ * DEBUGGING ONLY</b>. Do not use this security policy provider to grant
  * all permissions in a production environment. <p>
  *
  * This class is intended to simplify the process of deciding what security
- * permissions to grantCodeSource to run an application.  While it is generally
- * acceptable to grantCodeSource all permissions to local, trusted code, downloaded
+ * permissions to grant to run an application.  While it is generally
+ * acceptable to grant all permissions to local, trusted code, downloaded
  * code should typically be granted the least permission possible. <p>
  *
- * The usual approach to choosing which permissions to grantCodeSource is to start by
+ * The usual approach to choosing which permissions to grant is to start by
  * running the application with a security policy file that grants all
  * permissions to local, trusted code.  When the application fails with an
  * exception message that identifies a missing permission, add that
@@ -170,7 +170,7 @@ public class DebugDynamicPolicyProvider extends DynamicPolicyProvider {
     private static final Logger logger =
 	Logger.getLogger("net.jini.security.policy");
 
-    /* If true, always grantCodeSource permission */
+    /* If true, always grant permission */
     private static boolean grantAll =
 	((Boolean) AccessController.doPrivileged(
 	    new PrivilegedAction() {

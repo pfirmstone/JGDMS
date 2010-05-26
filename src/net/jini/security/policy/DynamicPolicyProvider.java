@@ -68,7 +68,7 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
     private static final Logger logger = 
             Logger.getLogger("net.jini.security.policy");
 // Debugging can be done with an SPI implementation    
-//    /* If true, always grantCodeSource permission */
+//    /* If true, always grant permission */
 //    @SuppressWarnings("unchecked")
 //    private static volatile boolean grantAll =
 //	((Boolean) AccessController.doPrivileged(

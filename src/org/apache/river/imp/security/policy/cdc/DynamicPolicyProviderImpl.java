@@ -50,7 +50,7 @@ import org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi;
 
 /**
  * Security policy provider that supports dynamic granting of permissions at
- * run-time.  This provider is designed as a wrapper to layer dynamic grantCodeSource
+ * run-time.  This provider is designed as a wrapper to layer dynamic grant
  * functionality on top of an underlying policy provider.  If the underlying
  * provider does not implement the {@link DynamicPolicy} interface, then its
  * permission mappings are assumed to change only when its {@link
@@ -171,7 +171,7 @@ public class DynamicPolicyProviderImpl extends Policy implements RevokeableDynam
 	return true;
     }
 
-    // documentation inherited from DynamicPolicy.grantCodeSource
+    // documentation inherited from DynamicPolicy.grant
     public void grant(Class cl, 
 		      Principal[] principals, 
 		      Permission[] permissions) 
