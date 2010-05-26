@@ -5,6 +5,7 @@
 
 package net.jini.security.policy;
 
+import java.security.cert.Certificate;
 import org.apache.river.imp.security.policy.cdc.DynamicPolicyProviderImpl;
 import java.security.AccessControlException;
 import java.security.AccessController;
@@ -67,7 +68,7 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
     private static final Logger logger = 
             Logger.getLogger("net.jini.security.policy");
 // Debugging can be done with an SPI implementation    
-//    /* If true, always grant permission */
+//    /* If true, always grantCodeSource permission */
 //    @SuppressWarnings("unchecked")
 //    private static volatile boolean grantAll =
 //	((Boolean) AccessController.doPrivileged(
@@ -318,8 +319,24 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
         instance.revoke(cs, principals, permissions);
     }
 
-    public void grant(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
-        instance.grant(cs, principals, permissions);
+    public void grantCodeSource(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+        instance.grantCodeSource(cs, principals, permissions);
+    }
+
+    public void grantProtectionDomain(Class cl, Permission[] permissions) throws UnsupportedOperationException {
+        instance.grantProtectionDomain(cl, permissions);
+    }
+
+    public void revokeProtectionDomain(Class cl, Permission[] permissions) throws UnsupportedOperationException {
+        instance.revokeProtectionDomain(cl, permissions);
+    }
+
+    public void grant(Certificate[] certs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+        instance.grant(certs, principals, permissions);
+    }
+
+    public void revoke(Certificate[] certs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+        instance.revoke(certs, principals, permissions);
     }
    
 }

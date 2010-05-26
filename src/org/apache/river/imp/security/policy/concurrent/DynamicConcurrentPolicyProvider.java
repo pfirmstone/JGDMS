@@ -13,6 +13,7 @@ import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Provider;
+import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -78,12 +79,12 @@ import org.apache.river.imp.util.ConcurrentWeakIdentityMap;
  * <p>
  * It is thus reccommeded that Static policy files only be used for files
  * where the level of trust is relatively static.  This is the only implementation
- * where a dyanamic grant can be removed.  In the case of Proxy trust, a proxy
+ * where a dyanamic grantCodeSource can be removed.  In the case of Proxy trust, a proxy
  * is no longer trusted when it has lost contact with it's Principal (server)
  * because the server cannot be asked if it trusts it's proxy and the proxy
  * cannot be given a thread of control to find it's server because it has
  * already attained too many Permissions.  In this new implementation it should
- * be possible to revoke AllPermission and grant Permissions dynamically as 
+ * be possible to revoke AllPermission and grantCodeSource Permissions dynamically as 
  * trust is gained.</p>
  * <p>
  * This may cause some undesireable side effects in existing programs.
@@ -236,7 +237,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
                 // and remove all grants that may be granted by other means.
                 // such as ProtectionDomain or Principals alone.
                 // When we have Certificates we might want to check that
-                // too because otherwise we might remove a grant that doesn't
+                // too because otherwise we might remove a grantCodeSource that doesn't
                 // imply or apply.
                 if ( ge.impliesPrincipals(loader == null ? null : principals)
                     && ge.impliesClassLoader(loader)) {
@@ -370,7 +371,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
     }
     
     /**
-     * Calling refresh doesn't remove any dynamic grant's, it only clears
+     * Calling refresh doesn't remove any dynamic grantCodeSource's, it only clears
      * the cache and refreshes the underlying Policy, it also removes any
      * grants for ProtectionDomains that no longer exist.
      */
@@ -397,7 +398,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         return true;
     }
 
-    public void grant(Class cl, Principal[] principals, Permission[] permissions) {
+    private void grant(Class cl, int context, Principal[] principals, Permission[] permissions) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
         if (permissions == null || permissions.length == 0) {return;}
         if (principals == null){ principals = new Principal[0];}
@@ -428,7 +429,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         if ( cl != null){
             domain = getDomain(cl);
         }
-        PolicyEntry pe = new PolicyEntry(domain, 0, pal, perm);
+        PolicyEntry pe = new PolicyEntry(domain, context, pal, perm);
         if (loggable){
             logger.log(Level.FINEST, "Granting: " + pe.toString());
         }
@@ -460,7 +461,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
                 // and remove all grants that may be granted by other means.
                 // such as ProtectionDomain or Principals alone.
                 // When we have Certificates we might want to check that
-                // too because otherwise we might remove a grant that doesn't
+                // too because otherwise we might remove a grantCodeSource that doesn't
                 // imply or apply.
                 if ( ge.impliesPrincipals(loader == null ? null : principals)
                     && ge.impliesClassLoader(loader)) {
@@ -511,12 +512,102 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             return pd;
     }
 
-    public void revoke(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+    public void revoke(CodeSource cs, Principal[] principals, 
+            Permission[] permissions) throws UnsupportedOperationException {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public void grant(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+    public void grantCodeSource(CodeSource cs, Principal[] principals, 
+            Permission[] permissions) throws UnsupportedOperationException {
+        if (initialized == false) throw new RuntimeException("Object not initialized");
+        if (permissions == null || permissions.length == 0) {return;}
+        if (principals == null){ principals = new Principal[0];}
+        if (principals.length > 0) {
+	    principals = principals.clone();
+	    checkNullElements(principals);
+	} 
+        permissions = permissions.clone();
+        checkNullElements(permissions);
+        if ( basePolicyIsDynamic ){
+            /* Delegate, otherwise, if base policy is an instance of this class, we
+             * may have multi combinations of permissions that together should
+             * be true but become separated as this implementation will not
+             * return any dynamically granted permissions via getPermissions(
+             * because doing so would mean loosing revoke ability.
+             */           
+            throw new UnsupportedOperationException("Can't delegate CodeSource" +
+                    "grant to underlying policy");
+        }
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPermission(new GrantPermission(permissions));
+	}
+        Collection<Principal> pal = Arrays.asList(principals);
+        Collection<Permission> perm = Arrays.asList(permissions);
+        PolicyEntry pe = new PolicyEntry(cs, pal, perm);
+        if (loggable){
+            logger.log(Level.FINEST, "Granting: " + pe.toString());
+        }
+        try {
+            wl.lock();
+            dynamicGrants.add(pe);           
+        } finally {wl.unlock();}
+    }
+
+    public void grantProtectionDomain(Class cl, Permission[] permissions) 
+            throws UnsupportedOperationException {
+        grant(cl, PolicyEntry.PROTECTIONDOMAIN, (Principal[]) null, permissions);
+    }
+
+    public void revokeProtectionDomain(Class cl, Permission[] permissions) 
+            throws UnsupportedOperationException {
         throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void grant(Certificate[] certs, Principal[] principals, 
+            Permission[] permissions) throws UnsupportedOperationException {
+        if (initialized == false) throw new RuntimeException("Object not initialized");
+        if (permissions == null || permissions.length == 0) {return;}
+        if (principals == null){ principals = new Principal[0];}
+        if (principals.length > 0) {
+	    principals = principals.clone();
+	    checkNullElements(principals);
+	} 
+        permissions = permissions.clone();
+        checkNullElements(permissions);
+        if ( basePolicyIsDynamic ){
+            /* Delegate, otherwise, if base policy is an instance of this class, we
+             * may have multi combinations of permissions that together should
+             * be true but become separated as this implementation will not
+             * return any dynamically granted permissions via getPermissions(
+             * because doing so would mean loosing revoke ability.
+             */           
+            throw new UnsupportedOperationException("Can't delegate Certificate" +
+                    "grants to underlying policy");
+        }
+	SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {
+	    sm.checkPermission(new GrantPermission(permissions));
+	}
+        Collection<Principal> pal = Arrays.asList(principals);
+        Collection<Permission> perm = Arrays.asList(permissions);
+        PolicyEntry pe = new PolicyEntry(certs, pal, perm);
+        if (loggable){
+            logger.log(Level.FINEST, "Granting: " + pe.toString());
+        }
+        try {
+            wl.lock();
+            dynamicGrants.add(pe);           
+        } finally {wl.unlock();}
+    }
+
+    public void revoke(Certificate[] certs, Principal[] principals, 
+            Permission[] permissions) throws UnsupportedOperationException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void grant(Class cl, Principal[] principals, Permission[] permissions) {
+        grant(cl, PolicyEntry.CLASSLOADER, principals, permissions);
     }
 
 }

@@ -8,6 +8,8 @@ package org.apache.river.api.security;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
+import java.security.ProtectionDomain;
+import java.security.cert.Certificate;
 import net.jini.security.policy.DynamicPolicy;
 
 /**
@@ -49,7 +51,19 @@ public interface RevokeablePolicy extends DynamicPolicy {
      * @param permissions
      * @throws java.lang.UnsupportedOperationException
      */
-    public void grant(CodeSource cs, Principal[] principals, Permission[] permissions)
+    public void grantCodeSource(CodeSource cs, Principal[] principals, Permission[] permissions)
+            throws UnsupportedOperationException;
+    
+    public void grantProtectionDomain(Class cl, Permission[] permissions)
+            throws UnsupportedOperationException;
+    
+    public void revokeProtectionDomain(Class cl, Permission[] permissions)
+            throws UnsupportedOperationException;
+    
+    public void grant(Certificate[] certs, Principal[] principals, Permission[] permissions)
+            throws UnsupportedOperationException;
+    
+    public void revoke(Certificate[] certs, Principal[] principals, Permission[] permissions)
             throws UnsupportedOperationException;
     /**
      * 

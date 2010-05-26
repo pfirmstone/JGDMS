@@ -18,6 +18,7 @@
 
 package org.apache.river.imp.security.policy.cdc;
 
+import java.security.cert.Certificate;
 import net.jini.security.policy.*;
 import com.sun.jini.collection.WeakIdentityMap;
 import java.lang.ref.ReferenceQueue;
@@ -49,7 +50,7 @@ import org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi;
 
 /**
  * Security policy provider that supports dynamic granting of permissions at
- * run-time.  This provider is designed as a wrapper to layer dynamic grant
+ * run-time.  This provider is designed as a wrapper to layer dynamic grantCodeSource
  * functionality on top of an underlying policy provider.  If the underlying
  * provider does not implement the {@link DynamicPolicy} interface, then its
  * permission mappings are assumed to change only when its {@link
@@ -170,7 +171,7 @@ public class DynamicPolicyProviderImpl extends Policy implements RevokeableDynam
 	return true;
     }
 
-    // documentation inherited from DynamicPolicy.grant
+    // documentation inherited from DynamicPolicy.grantCodeSource
     public void grant(Class cl, 
 		      Principal[] principals, 
 		      Permission[] permissions) 
@@ -577,7 +578,23 @@ public class DynamicPolicyProviderImpl extends Policy implements RevokeableDynam
         throw new UnsupportedOperationException("Not supported yet.");
     }
 
-    public void grant(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+    public void grantCodeSource(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void grantProtectionDomain(Class cl, Permission[] permissions) throws UnsupportedOperationException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void revokeProtectionDomain(Class cl, Permission[] permissions) throws UnsupportedOperationException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void grant(Certificate[] certs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void revoke(Certificate[] certs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
         throw new UnsupportedOperationException("Not supported yet.");
     }
 }
