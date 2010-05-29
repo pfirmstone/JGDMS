@@ -29,14 +29,14 @@ public class Test {
 	    System.setSecurityManager(new SecurityManager());
 	}
 	DynamicPolicyProvider policy = new DynamicPolicyProvider();
-	policy.grant(null, null, null);
+	policy.grant((Class) null,(Principal[]) null, (Permission[]) null);
 	try {
-	    policy.grant(null, new Principal[]{ null }, null);
+	    policy.grant((Class) null, new Principal[]{ null }, (Permission[]) null);
 	    throw new Error();
 	} catch (NullPointerException e) {
 	}
 	try {
-	    policy.grant(null, null, new Permission[]{ null });
+	    policy.grant((Class) null, (Principal[]) null, new Permission[]{ null });
 	    throw new Error();
 	} catch (NullPointerException e) {
 	}
