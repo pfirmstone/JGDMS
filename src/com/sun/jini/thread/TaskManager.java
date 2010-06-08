@@ -356,11 +356,5 @@ public class TaskManager {
         public Thread getThread() {
             return thread;
         }
-
-        public void setThread(Thread thread) {
-            if (thread == null) {
-                this.thread = thread;
-            }
-        }
     }
 }
