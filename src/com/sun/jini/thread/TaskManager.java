@@ -130,10 +130,10 @@ public class TaskManager {
 	tasks.add(t);
 	boolean poke = true;
 	while (threads.size() < maxThreads && needThread()) {
-            TaskThread task;
+            TaskThread thread;
 	    try {
-                task = new TaskThread();
-                task.start();
+                thread = new TaskThread();
+                thread.start();
 	    } catch (Throwable tt) {
 		try {
 		    logger.log(threads.isEmpty() ?
@@ -143,7 +143,7 @@ public class TaskManager {
 		}
 		break;
 	    }
-	    threads.add(task);
+	    threads.add(thread);
 	    poke = false;
 	}
 	if (poke &&
@@ -230,8 +230,8 @@ public class TaskManager {
 		    for (int j = threads.size(); --j >= 0; ) {
 			TaskThread thread = threads.get(j);
 			if (thread.getTask() == t) {
-			    if (thread.getThread() != Thread.currentThread()) {
-                                thread.getThread().interrupt();
+			    if ( !thread.isCurrentThread()) {
+                                thread.interrupt();
                             }
 			    break;
 			}
@@ -250,7 +250,7 @@ public class TaskManager {
     public synchronized void terminate() {
 	terminated = true;
 	for (int i = threads.size(); --i >= 0; ) {
-	    (threads.get(i)).getThread().interrupt();
+	    (threads.get(i)).interrupt();
 	}
     }
 
@@ -272,7 +272,7 @@ public class TaskManager {
 
 	/** The task being run, if any */
 	private Task task;
-        private Thread thread;
+        private final Thread thread;
 
 	public TaskThread() {
             task = null;
@@ -282,6 +282,14 @@ public class TaskManager {
         
         public void start(){
             thread.start();
+        }
+        
+        public boolean isCurrentThread() {
+            return ( Thread.currentThread() == thread);
+        }
+        
+        public void interrupt() {
+            thread.interrupt();
         }
 
 	/**
@@ -321,7 +329,7 @@ public class TaskManager {
 			    }
 			}
 			setTask(null);
-			getThread().interrupted(); // clear interrupt bit
+			thread.interrupted(); // clear interrupt bit
 		    }
 		    if (!takeTask()) {
 			try {
@@ -351,10 +359,6 @@ public class TaskManager {
 
         public void setTask(Task task) {
             this.task = task;
-        }
-
-        public Thread getThread() {
-            return thread;
         }
     }
 }
