@@ -13,6 +13,7 @@ import java.util.concurrent.FutureTask;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import org.apache.river.api.util.Facade;
 
 /**
  * For simple Task dependencies.
@@ -29,15 +30,17 @@ import java.util.concurrent.TimeoutException;
  * 
  * @author Peter Firmstone.
  */
-public class DependantTask<V> extends FutureTask<V> {
+public class DependantTask<V> extends FutureTask<V> implements Facade<Runnable>{
     private final PriorityHandler priority;
     private volatile boolean cancel = false;
     private volatile boolean mayInterruptIfRunning = false;
     private volatile RunnableFuture current = new NullRunnableFuture();
+    private Runnable task;
     
     @SuppressWarnings("unchecked")
     public DependantTask(Runnable task, V result, PriorityHandler ph ){
         super (task, result);
+        this.task = task;
         priority = ph;
     }
     
@@ -115,5 +118,9 @@ public class DependantTask<V> extends FutureTask<V> {
         public Object get(long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, TimeoutException {
             throw new ExecutionException("Null RunnableFuture not Executable", null);
         }
+    }
+
+    public Runnable reveal() {
+        return task;
     }
 }
