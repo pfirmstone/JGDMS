@@ -18,6 +18,6 @@ import java.util.concurrent.RunnableFuture;
  * 
  * @author Peter Firmstone.
  */
-public interface PriorityHandler {
-    public Set<RunnableFuture> getPreceedingTasks(RunnableFuture task);
+public interface PriorityHandler<T extends Runnable> {
+    public Set<RunnableFuture> getPreceedingTasks(T task);
 }

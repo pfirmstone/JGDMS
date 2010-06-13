@@ -30,15 +30,15 @@ import org.apache.river.api.util.Facade;
  * 
  * @author Peter Firmstone.
  */
-public class DependantTask<V> extends FutureTask<V> implements Facade<Runnable>{
+public class DependantTask<T extends Runnable, V> extends FutureTask<V> implements Facade<T> {
     private final PriorityHandler priority;
     private volatile boolean cancel = false;
     private volatile boolean mayInterruptIfRunning = false;
     private volatile RunnableFuture current = new NullRunnableFuture();
-    private Runnable task;
+    private T task;
     
     @SuppressWarnings("unchecked")
-    public DependantTask(Runnable task, V result, PriorityHandler ph ){
+    public DependantTask(T task, V result, PriorityHandler<T> ph ){
         super (task, result);
         this.task = task;
         priority = ph;
@@ -120,7 +120,7 @@ public class DependantTask<V> extends FutureTask<V> implements Facade<Runnable>{
         }
     }
 
-    public Runnable reveal() {
+    public T reveal() {
         return task;
     }
 }
