@@ -30,12 +30,14 @@ import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
+import java.security.acl.Group;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import sun.security.util.SecurityConstants;
 
@@ -50,13 +52,14 @@ import sun.security.util.SecurityConstants;
  * 
  */
 public final class PolicyEntry {
-    
+    // Creation Context
     public static final int CLASSLOADER = 0;
     public static final int CODESOURCE = 1;
     public static final int PROTECTIONDOMAIN = 2;
+    public static final int CODESOURCE_CERTS = 3;
     // Store CodeSource
     private final CodeSource cs;
-    private final Certificate[] certs; //TODO certs comparison etc.
+    private final List<Certificate> certs; //TODO certs comparison etc.
     private final WeakReference<ProtectionDomain> domain;
     private final boolean hasDomain;
     
@@ -82,18 +85,18 @@ public final class PolicyEntry {
         }else{
             this.principals = new ArrayList<Principal>(prs.size());
             this.principals.addAll(prs);
-        }
+                }          
         if (permissions == null || permissions.isEmpty()) {
             this.permissions = Collections.emptySet(); // Java 1.5
         }else{
             this.permissions = new HashSet<Permission>(permissions.size());
             this.permissions.addAll(permissions);
         }
-        certs = codeSourceCertificates.clone();
+        certs = Arrays.asList(codeSourceCertificates.clone());
         cs = null;
         domain = null;
         hasDomain = false;
-        context = 1;
+        context = 3;
         /* Effectively immutable, this will make any hash this is contained in perform.
          * May need to consider Serializable for this class yet, we'll see.
          */ 
@@ -113,7 +116,7 @@ public final class PolicyEntry {
         }else{
             this.principals = new ArrayList<Principal>(prs.size());
             this.principals.addAll(prs);
-        }
+                }          
         if (permissions == null || permissions.isEmpty()) {
             this.permissions = Collections.emptySet(); // Java 1.5
         }else{
@@ -152,7 +155,7 @@ public final class PolicyEntry {
         }else{
             this.principals = new ArrayList<Principal>(prs.size());
             this.principals.addAll(prs);
-        }
+                }          
         if (permissions == null || permissions.isEmpty()) {
             this.permissions = Collections.emptySet(); // Java 1.5
         }else{
@@ -162,7 +165,7 @@ public final class PolicyEntry {
         /* Effectively immutable, this will make any hash this is contained in perform.
          * May need to consider Serializable for this class yet, we'll see.
          */
-        if (pd == null){
+        if (pd ==  null){
             hasDomain = false;
             domain = null;
             cs = null;
@@ -223,7 +226,7 @@ public final class PolicyEntry {
             pals = pd.getPrincipals();
         }
         if (context == 0){
-            // ClassLoader comparison
+            // ClassLoader and Principal comparison
             if (impliesClassLoader(cl) && impliesPrincipals(pals)){
                 return true;
             }
@@ -233,9 +236,15 @@ public final class PolicyEntry {
                 return true;
             }
         } else if (context == 1){
-            // CodeSource comparison
-            if (impliesCodeSource(cs) && impliesPrincipals(pals)) 
-            return true;       
+            // CodeSource and Principal comparison
+            if (impliesCodeSource(cs) && impliesPrincipals(pals)) {
+                return true;
+            }       
+        } else if (context == 3){
+            // Certificate and Principal comparison
+            if (impliesCertificates(cs.getCertificates()) && impliesPrincipals(pals)) {
+                return true;
+            }   
         }
         return false;
     }
@@ -301,6 +310,13 @@ public final class PolicyEntry {
         }
         return result;
     }
+    
+    private boolean impliesCertificates( Certificate[] signers){
+        if ( certs.isEmpty()) return true;
+        if ( signers == null || signers.length == 0 ) return false;
+        List<Certificate> certificates = Arrays.asList(signers);
+        return certificates.containsAll(certs);
+    }
 
     /**
      * Checks if specified Principals match this PolicyEntry. Null or empty set
@@ -310,13 +326,38 @@ public final class PolicyEntry {
      * @return
      */
     public boolean impliesPrincipals(Principal[] prs) {
-//        return PolicyUtils.matchSubset(principals.toArray(new Principal[principals.size()]), prs);
         if ( principals.isEmpty()) return true;
         if ( prs == null || prs.length == 0 ) return false;
+        // PolicyEntry Principals match if equal or if they are Groups and
+        // the Principals being tested are their members.  Every Principal
+        // in this PolicyEntry must have a match.
         List<Principal> princp = Arrays.asList(prs);
-        return princp.containsAll(principals);      
+        int matches = 0;
+        Iterator<Principal> principalItr = principals.iterator();
+        while (principalItr.hasNext()){
+            Principal entrypal = principalItr.next();
+            Group g = null;
+            if ( entrypal instanceof Group ){
+                g = (Group) entrypal;
+            }
+            Iterator<Principal> p = princp.iterator();
+            // The first match breaks out of internal loop.
+            while (p.hasNext()){
+                Principal implied = p.next();
+                if (entrypal.equals(implied)) {
+                    matches++;
+                    break;
+                }
+                if ( g != null && g.isMember(implied) ) {
+                    matches++;
+                    break;
+                }
+            }  
+        }
+        if (matches == principals.size()) return true;
+        return false;
     }
-
+   
     /**
      * Returns unmodifiable collection of permissions defined by this
      * PolicyEntry, may be <code>null</code>.
