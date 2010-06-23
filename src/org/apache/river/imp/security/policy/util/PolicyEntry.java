@@ -146,7 +146,7 @@ public final class PolicyEntry {
         if ( context < 0 ){
             throw new IllegalStateException("context must be >= 0");
         }
-        if ( context > 2 ){
+        if ( context > 3 ){
             throw new IllegalStateException("context must be <= 2");
         }
         this.context = context;

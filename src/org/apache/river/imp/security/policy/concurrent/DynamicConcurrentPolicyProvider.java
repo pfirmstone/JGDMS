@@ -473,23 +473,23 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         return perms;
     }
     
-    private Collection<Permission> getGrants(ProtectionDomain pd, 
-            CodeSource cs, Principal[] pals){
-        Collection<Permission> dynamicallyGrantedPermissions = new HashSet<Permission>(20);
-        try {
-            rl.lock();
-            Iterator<PolicyEntry> it = dynamicGrants.iterator();
-            while (it.hasNext()) {
-                PolicyEntry ge = it.next();
-                if ( ge.implies(pd) ||
-                        ge.impliesCodeSource(cs)
-                        && ge.impliesPrincipals(pals)) {
-                    dynamicallyGrantedPermissions.addAll( ge.getPermissions());
-                }
-            }               
-        } finally { rl.unlock(); }
-        return dynamicallyGrantedPermissions;
-    }
+//    private Collection<Permission> getGrants(ProtectionDomain pd, 
+//            CodeSource cs, Principal[] pals){
+//        Collection<Permission> dynamicallyGrantedPermissions = new HashSet<Permission>(20);
+//        try {
+//            rl.lock();
+//            Iterator<PolicyEntry> it = dynamicGrants.iterator();
+//            while (it.hasNext()) {
+//                PolicyEntry ge = it.next();
+//                if ( ge.implies(pd) ||
+//                        ge.impliesCodeSource(cs)
+//                        && ge.impliesPrincipals(pals)) {
+//                    dynamicallyGrantedPermissions.addAll( ge.getPermissions());
+//                }
+//            }               
+//        } finally { rl.unlock(); }
+//        return dynamicallyGrantedPermissions;
+//    }
     
     private static void checkNullElements(Object[] array) {
         int l = array.length;
