@@ -37,6 +37,7 @@ import java.util.List;
  */
 abstract class PrincipalGrant implements PermissionGrant {
     private final Collection<Principal> principals;
+    private final int hashCode;
     @SuppressWarnings("unchecked")
     protected PrincipalGrant(Principal[] pals){
         if ( pals != null ){
@@ -45,7 +46,9 @@ abstract class PrincipalGrant implements PermissionGrant {
         }else {
             principals = Collections.EMPTY_LIST;
         }
-
+        int hash = 5;
+        hash = 97 * hash + (this.principals != null ? this.principals.hashCode() : 0);
+        hashCode = hash;
     }
     
     @Override
@@ -61,9 +64,7 @@ abstract class PrincipalGrant implements PermissionGrant {
 
     @Override
     public int hashCode() {
-        int hash = 5;
-        hash = 97 * hash + (this.principals != null ? this.principals.hashCode() : 0);
-        return hash;
+        return hashCode;
     }
         
     public boolean implies(Principal[] prs) {

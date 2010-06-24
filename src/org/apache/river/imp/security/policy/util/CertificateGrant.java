@@ -35,14 +35,20 @@ import java.util.List;
  */
 class CertificateGrant extends CodeSourceGrant {
     private final Collection<Certificate> certs;
+    private final int hashCode;
+    @SuppressWarnings("unchecked")
     CertificateGrant(Certificate[] codeSourceCerts, Principal[] pals, Permission[] perms){
         super(null, pals, perms);
          if (codeSourceCerts == null || codeSourceCerts.length == 0) {
-            certs = Collections.emptySet(); // Java 1.5
+            certs = Collections.EMPTY_SET;
         }else{
             certs = new HashSet<Certificate>(codeSourceCerts.length);
             certs.addAll(Arrays.asList(codeSourceCerts));
         }
+        int hash = 3;
+        hash = 83 * hash + (this.certs != null ? this.certs.hashCode() : 0);
+        hash = 83 * hash + (super.hashCode());
+        hashCode = hash;
     }
     
         @Override
@@ -59,10 +65,7 @@ class CertificateGrant extends CodeSourceGrant {
 
     @Override
     public int hashCode() {
-        int hash = 3;
-        hash = 83 * hash + (this.certs != null ? this.certs.hashCode() : 0);
-        hash = 83 * hash + (super.hashCode());
-        return hash;
+        return hashCode;
     }
     
     @Override

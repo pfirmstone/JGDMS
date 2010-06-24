@@ -36,6 +36,7 @@ import java.util.List;
 class CodeSourceGrant extends PrincipalGrant {
     private final CodeSource cs;
     private final Collection<Permission> permissions;
+    private final int hashCode;
     
     CodeSourceGrant(CodeSource cs, Principal[] pals, Permission[] perm){
         super(pals);
@@ -45,16 +46,17 @@ class CodeSourceGrant extends PrincipalGrant {
         }else{
             this.permissions = new HashSet<Permission>(perm.length);
             this.permissions.addAll(Arrays.asList(perm));
-        }        
-    }
-
-    @Override
-    public int hashCode() {
+        }
         int hash = 3;
         hash = 67 * hash + (this.cs != null ? this.cs.hashCode() : 0);
         hash = 67 * hash + (this.permissions != null ? this.permissions.hashCode() : 0);
         hash = 67 * hash + (super.hashCode());
-        return hash;
+        hashCode = hash;
+    }
+
+    @Override
+    public int hashCode() {
+        return hashCode;
     }
     
     @Override

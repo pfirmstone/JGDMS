@@ -28,11 +28,14 @@ import java.security.ProtectionDomain;
  * @author Peter Firmstone
  */
 class ClassLoaderGrant extends ProtectionDomainGrant implements PermissionGrant {
-
+    private final int hashCode;
     @SuppressWarnings("unchecked")
     ClassLoaderGrant(WeakReference<ProtectionDomain> domain, Principal[] groups, 
             Permission[] perm){
         super(domain, groups, perm);
+        int hash = 7;
+        hash = 19 * hash + super.hashCode();
+        hashCode = hash;
     }
     
         @Override
@@ -47,9 +50,7 @@ class ClassLoaderGrant extends ProtectionDomainGrant implements PermissionGrant 
    
     @Override
     public int hashCode() {
-        int hash = 7;
-        hash = 19 * hash + super.hashCode();
-        return hash;
+        return hashCode;
     }     
 
     @Override

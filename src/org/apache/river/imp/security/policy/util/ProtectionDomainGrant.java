@@ -38,6 +38,7 @@ class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
     private final boolean hasDomain;
     private final WeakReference<ProtectionDomain> domain;
     private final Collection<Permission> permissions;
+    private final int hashCode;
     
     @SuppressWarnings("unchecked")
     ProtectionDomainGrant(WeakReference<ProtectionDomain> domain, Principal[] groups, 
@@ -55,6 +56,12 @@ class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
             this.permissions = new HashSet<Permission>(perm.length);
             this.permissions.addAll(Arrays.asList(perm));
         }
+        int hash = 7;
+        hash = 13 * hash + (this.hasDomain ? 1 : 0);
+        hash = 13 * hash + (this.domain != null ? this.domain.hashCode() : 0);
+        hash = 13 * hash + (this.permissions != null ? this.permissions.hashCode() : 0);
+        hash = 13 * hash + super.hashCode();
+        hashCode = hash;
     }
     
     @Override
@@ -72,12 +79,7 @@ class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
 
     @Override
     public int hashCode() {
-        int hash = 7;
-        hash = 13 * hash + (this.hasDomain ? 1 : 0);
-        hash = 13 * hash + (this.domain != null ? this.domain.hashCode() : 0);
-        hash = 13 * hash + (this.permissions != null ? this.permissions.hashCode() : 0);
-        hash = 13 * hash + super.hashCode();
-        return hash;
+        return hashCode;
     }
     
     /*
