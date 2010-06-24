@@ -47,6 +47,27 @@ class CodeSourceGrant extends PrincipalGrant {
             this.permissions.addAll(Arrays.asList(perm));
         }        
     }
+
+    @Override
+    public int hashCode() {
+        int hash = 3;
+        hash = 67 * hash + (this.cs != null ? this.cs.hashCode() : 0);
+        hash = 67 * hash + (this.permissions != null ? this.permissions.hashCode() : 0);
+        hash = 67 * hash + (super.hashCode());
+        return hash;
+    }
+    
+    @Override
+    public boolean equals(Object o){
+        if (o == null) return false;
+        if (o == this) return true;
+        if (o instanceof CodeSourceGrant){
+            CodeSourceGrant c = (CodeSourceGrant) o;
+            if ( !super.equals(o)) return false;
+            if (cs.equals(c.cs) && permissions.equals(c.permissions)) return true;
+        }
+        return false;
+    }
     
     /**
      * Checks if passed CodeSource matches this PolicyEntry. Null CodeSource of
@@ -92,4 +113,11 @@ class CodeSourceGrant extends PrincipalGrant {
         return false;
     }
 
+    @Override
+    public PermissionGrantBuilder getBuilderTemplate() {
+        PermissionGrantBuilder pgb = super.getBuilderTemplate();
+        return pgb.codeSource(cs)
+                .permissions(permissions.toArray(new Permission[permissions.size()]))
+                .context(PermissionGrantBuilder.CODESOURCE);
+    }
 }

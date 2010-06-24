@@ -23,15 +23,21 @@ import net.jini.security.policy.DynamicPolicy;
  */
 public interface RevokeablePolicy extends DynamicPolicy {
     
-    /**
-     * ClassLoader based permission revocation.
+    /*
+     * ClassLoader based permission revocation is broken and cannot be fixed.
+     * It will be removed shortly.
+     * 
+     * The reason is if a Permission is granted to a CodeSource or Certificate's loaded into
+     * a ClassLoader, then that Permission will not be revokeable for that
+     * ClassLoader.
+     * 
      * @param cl
      * @param principals
      * @param permissions
      * @throws java.lang.UnsupportedOperationException
      */
-    public void revoke(Class cl, Principal[] principals, Permission[] permissions)
-            throws UnsupportedOperationException;
+//    public void revoke(Class cl, Principal[] principals, Permission[] permissions)
+//            throws UnsupportedOperationException;
     /**
      * Revokes permissions based on CodeSource and Principals.
      * @param cs

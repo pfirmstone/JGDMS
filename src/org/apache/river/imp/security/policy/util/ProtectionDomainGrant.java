@@ -57,6 +57,29 @@ class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
         }
     }
     
+    @Override
+    public boolean equals(Object o){
+        if (o == null) return false;
+        if (o == this) return true;
+        if (o instanceof ProtectionDomainGrant){
+            ProtectionDomainGrant c = (ProtectionDomainGrant) o;
+            if ( !super.equals(o)) return false;
+            if (domain.equals(c.domain) && permissions.equals(c.permissions) 
+                    && hasDomain == c.hasDomain) return true;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 13 * hash + (this.hasDomain ? 1 : 0);
+        hash = 13 * hash + (this.domain != null ? this.domain.hashCode() : 0);
+        hash = 13 * hash + (this.permissions != null ? this.permissions.hashCode() : 0);
+        hash = 13 * hash + super.hashCode();
+        return hash;
+    }
+    
     /*
      * Checks if passed ProtectionDomain matches this PolicyEntry. Null ProtectionDomain of
      * PolicyEntry implies any ProtectionDomain; non-null ProtectionDomain's are
@@ -106,6 +129,14 @@ class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
         if (permissions.size() == 0 ) return true;
         if (hasDomain == true && domain.get() == null) return true;
         return false;
+    }
+
+    public PermissionGrantBuilder getBuilderTemplate() {
+        PermissionGrantBuilder pgb = super.getBuilderTemplate();
+        return pgb
+                .domain(domain)
+                .permissions(permissions.toArray(new Permission[permissions.size()]))
+                .context(PermissionGrantBuilder.PROTECTIONDOMAIN);
     }
   
 }

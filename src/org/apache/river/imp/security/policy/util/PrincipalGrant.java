@@ -36,19 +36,37 @@ import java.util.List;
  * @author Peter Firmstone.
  */
 abstract class PrincipalGrant implements PermissionGrant {
-        private final Collection<Principal> principals;
+    private final Collection<Principal> principals;
     @SuppressWarnings("unchecked")
-        protected PrincipalGrant(Principal[] pals){
-            if ( pals != null ){
-                principals = new ArrayList<Principal>(pals.length);
-                principals.addAll(Arrays.asList(pals));
-            }else {
-                principals = Collections.EMPTY_LIST;
-            }
-          
+    protected PrincipalGrant(Principal[] pals){
+        if ( pals != null ){
+            principals = new ArrayList<Principal>(pals.length);
+            principals.addAll(Arrays.asList(pals));
+        }else {
+            principals = Collections.EMPTY_LIST;
         }
+
+    }
+    
+    @Override
+    public boolean equals(Object o){
+       if (o == null) return false;
+       if (o == this) return true;
+       if (o instanceof PrincipalGrant ){
+           PrincipalGrant p = (PrincipalGrant) o;
+           if (principals.equals(p.principals)) return true;
+       }
+       return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 5;
+        hash = 97 * hash + (this.principals != null ? this.principals.hashCode() : 0);
+        return hash;
+    }
         
-        public boolean implies(Principal[] prs) {
+    public boolean implies(Principal[] prs) {
         if ( principals.isEmpty()) return true;
         if ( prs == null || prs.length == 0 ) return false;
         // PolicyEntry Principals match if equal or if they are Groups and
@@ -122,4 +140,8 @@ abstract class PrincipalGrant implements PermissionGrant {
 
     protected abstract boolean impliesCodeSource(CodeSource codeSource);
 
+    public PermissionGrantBuilder getBuilderTemplate() {
+        PermissionGrantBuilder pgb = new PermissionGrantBuilder();
+        return pgb.principals(principals.toArray(new Principal[principals.size()]));
+    }
 }

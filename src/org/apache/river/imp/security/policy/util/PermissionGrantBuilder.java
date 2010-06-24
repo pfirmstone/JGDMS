@@ -118,18 +118,24 @@ public class PermissionGrantBuilder {
      * @param cl
      * @return
      */
-    public PermissionGrantBuilder clazz(Class cl){        
-        domain = new WeakReference<ProtectionDomain>(cl.getProtectionDomain());
-        if (cs == null){
-            cs = domain.get().getCodeSource();
-        }
-        if (certs == null){
-            certs = domain.get().getCodeSource().getCertificates();
-        }
-        if (principals == null){
-            principals = domain.get().getPrincipals();
+    public PermissionGrantBuilder clazz(Class cl){
+        if (cl != null){
+            domain = new WeakReference<ProtectionDomain>(cl.getProtectionDomain());
+            if (cs == null){
+                cs = domain.get().getCodeSource();
+            }
+            if (certs == null){
+                certs = domain.get().getCodeSource().getCertificates();
+            }
+            if (principals == null){
+                principals = domain.get().getPrincipals();
+            }
         }
         return this;
+    }
+    
+    public PermissionGrantBuilder domain(WeakReference<ProtectionDomain> pd){
+        domain = pd;
     }
     
     /**

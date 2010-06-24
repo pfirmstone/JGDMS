@@ -34,6 +34,24 @@ class ClassLoaderGrant extends ProtectionDomainGrant implements PermissionGrant 
             Permission[] perm){
         super(domain, groups, perm);
     }
+    
+        @Override
+    public boolean equals(Object o){
+        if (o == null) return false;
+        if (o == this) return true;
+        if (o instanceof ClassLoaderGrant){
+            ClassLoaderGrant c = (ClassLoaderGrant) o;
+            if ( super.equals(o)) return true;
+        }
+        return false;
+    }
+   
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 19 * hash + super.hashCode();
+        return hash;
+    }     
 
     @Override
     public boolean implies(ProtectionDomain pd) {
@@ -46,4 +64,9 @@ class ClassLoaderGrant extends ProtectionDomainGrant implements PermissionGrant 
         return implies(cl, pals);
     }
 
+    @Override
+    public PermissionGrantBuilder getBuilderTemplate() {
+        PermissionGrantBuilder pgb = super.getBuilderTemplate();
+        return pgb.context(PermissionGrantBuilder.CLASSLOADER);
+    }
 }

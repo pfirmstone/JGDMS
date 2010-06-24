@@ -45,6 +45,26 @@ class CertificateGrant extends CodeSourceGrant {
         }
     }
     
+        @Override
+    public boolean equals(Object o){
+        if (o == null) return false;
+        if (o == this) return true;
+        if (o instanceof CertificateGrant){
+            CertificateGrant c = (CertificateGrant) o;
+            if ( !super.equals(o)) return false;
+            if (certs.equals(c.certs)) return true;
+        }
+        return false;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 3;
+        hash = 83 * hash + (this.certs != null ? this.certs.hashCode() : 0);
+        hash = 83 * hash + (super.hashCode());
+        return hash;
+    }
+    
     @Override
     public boolean implies(ProtectionDomain pd) {
         Certificate[] c = null;
@@ -70,5 +90,12 @@ class CertificateGrant extends CodeSourceGrant {
         if (codeSource == null) return false;
         List<Certificate> certificates = Arrays.asList(codeSource.getCertificates());
         return certificates.containsAll(certs);
+    }
+    
+    @Override
+    public PermissionGrantBuilder getBuilderTemplate() {
+        PermissionGrantBuilder pgb = super.getBuilderTemplate();
+        return pgb.certificates(certs.toArray(new Certificate[certs.size()]))
+                .context(PermissionGrantBuilder.CODESOURCE_CERTS);
     }
 }

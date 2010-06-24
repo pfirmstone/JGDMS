@@ -65,6 +65,12 @@ public interface PermissionGrant {
      */
     public Collection<Permission> getPermissions();
     /**
+     * Provides a builder that will replicate the PermissionGrant.  Useful
+     * when you want to change the Permission's but not the
+     * context.
+     */
+    public PermissionGrantBuilder getBuilderTemplate();
+    /**
      * Returns true if this PermissionGrant defines no Permissions, or if
      * a PermissionGrant was made to a ProtectionDomain that no longer exists.
      */

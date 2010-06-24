@@ -222,10 +222,6 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
     public Permission[] getGrants(Class cl, Principal[] principals) {
         return instance.getGrants(cl, principals);
     }
-
-    public void revoke(Class cl, Principal[] principals, Permission[] permissions) {
-        instance.revoke(cl, principals, permissions);
-    }
     
     @Override
     public PermissionCollection getPermissions(CodeSource codesource) {

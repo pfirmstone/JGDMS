@@ -562,9 +562,6 @@ public class DynamicPolicyProviderImpl extends Policy implements RevokeableDynam
 	}
     }
 
-    public void revoke(Class cl, Principal[] principals, Permission[] permissions) {
-        throw new UnsupportedOperationException("Revoke not supported.");
-    }
 
     public boolean revokeSupported() {
         return false;
