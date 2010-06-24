@@ -38,6 +38,7 @@ class CodeSourceGrant extends PrincipalGrant {
     private final Collection<Permission> permissions;
     private final int hashCode;
     
+    @SuppressWarnings("unchecked")
     CodeSourceGrant(CodeSource cs, Principal[] pals, Permission[] perm){
         super(pals);
         this.cs = normalizeCodeSource(cs);
