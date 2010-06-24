@@ -1,6 +1,19 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package org.apache.river.imp.security.policy.util;
@@ -13,10 +26,20 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 
 /**
+ * The PermissionGrantBuilder creates Dynamic PermissionGrant's based on
+ * information provided by the user.
+ * 
  * Single Thread use only.
  * @author Peter Firmstone.
  */
 public class PermissionGrantBuilder {
+    /**
+     * Implied Context of Grant
+     */ 
+    public static final int CLASSLOADER = 0;
+    public static final int CODESOURCE = 1;
+    public static final int PROTECTIONDOMAIN = 2;
+    public static final int CODESOURCE_CERTS = 3;
     // Store CodeSource
     private CodeSource cs;
     private Certificate[] certs;
@@ -31,15 +54,25 @@ public class PermissionGrantBuilder {
         reset();
     }
     
+    /**
+     * Resets builder back to initial state, ready to recieve new information
+     * for building a new PermissionGrant.
+     */
     public void reset(){
         cs = null;
         certs = null;
         domain = null;
         principals = null;
         permissions = null;
-        context = PermissionGrant.CODESOURCE;
+        context = CODESOURCE;
     }
     
+    /**
+     * This method set's the Context of the applied Grant, that is if a 
+     * Permission is to be granted directly to a PermissionDomain
+     * @param context
+     * @return
+     */
     public PermissionGrantBuilder context(int context){
         if ( context < 0 ){
             throw new IllegalStateException("context must be >= 0");
@@ -56,7 +89,7 @@ public class PermissionGrantBuilder {
         return this;
     }
     
-    public PermissionGrantBuilder clazz(Class cl){
+    public PermissionGrantBuilder clazz(Class cl){        
         domain = new WeakReference<ProtectionDomain>(cl.getProtectionDomain());
         return this;
     }
@@ -79,13 +112,13 @@ public class PermissionGrantBuilder {
     
     public PermissionGrant build(){
         switch (context){
-            case PermissionGrant.CLASSLOADER:
+            case CLASSLOADER:
                 return new ClassLoaderGrant(domain, principals, permissions);
-            case PermissionGrant.CODESOURCE:
+            case CODESOURCE:
                 return new CodeSourceGrant(cs, principals, permissions);
-            case PermissionGrant.CODESOURCE_CERTS:
+            case CODESOURCE_CERTS:
                 return new CertificateGrant(certs, principals, permissions);
-            case PermissionGrant.PROTECTIONDOMAIN:
+            case PROTECTIONDOMAIN:
                 return new ProtectionDomainGrant(domain, principals, permissions);
             default:
                 return null;
