@@ -39,9 +39,8 @@ class ClassLoaderGrant extends ProtectionDomainGrant implements PermissionGrant 
     public boolean equals(Object o){
         if (o == null) return false;
         if (o == this) return true;
-        if (o instanceof ClassLoaderGrant){
-            ClassLoaderGrant c = (ClassLoaderGrant) o;
-            if ( super.equals(o)) return true;
+        if (o instanceof ClassLoaderGrant && super.equals(o)){
+            return true;
         }
         return false;
     }
