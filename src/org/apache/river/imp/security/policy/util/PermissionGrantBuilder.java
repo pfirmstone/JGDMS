@@ -136,6 +136,7 @@ public class PermissionGrantBuilder {
     
     public PermissionGrantBuilder domain(WeakReference<ProtectionDomain> pd){
         domain = pd;
+        return this;
     }
     
     /**
