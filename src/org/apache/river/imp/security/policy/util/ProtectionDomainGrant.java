@@ -25,9 +25,6 @@ import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -37,29 +34,21 @@ import java.util.List;
 class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
     private final boolean hasDomain;
     private final WeakReference<ProtectionDomain> domain;
-    private final Collection<Permission> permissions;
     private final int hashCode;
     
     @SuppressWarnings("unchecked")
     ProtectionDomainGrant(WeakReference<ProtectionDomain> domain, Principal[] groups, 
             Permission[] perm){
-        super(groups);
+        super(groups, perm);
         if (domain == null){
             hasDomain = false;
         }else{
             hasDomain = true;
         }
         this.domain = domain;
-        if (perm == null || perm.length == 0) {
-            this.permissions = Collections.EMPTY_LIST;
-        }else{
-            this.permissions = new HashSet<Permission>(perm.length);
-            this.permissions.addAll(Arrays.asList(perm));
-        }
         int hash = 7;
         hash = 13 * hash + (this.hasDomain ? 1 : 0);
         hash = 13 * hash + (this.domain != null ? this.domain.hashCode() : 0);
-        hash = 13 * hash + (this.permissions != null ? this.permissions.hashCode() : 0);
         hash = 13 * hash + super.hashCode();
         hashCode = hash;
     }
@@ -71,7 +60,7 @@ class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
         if (o instanceof ProtectionDomainGrant){
             ProtectionDomainGrant c = (ProtectionDomainGrant) o;
             if ( !super.equals(o)) return false;
-            if (domain.equals(c.domain) && permissions.equals(c.permissions) 
+            if (domain.equals(c.domain) 
                     && hasDomain == c.hasDomain) return true;
         }
         return false;
@@ -123,21 +112,18 @@ class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
         return certificates.containsAll(certs);    
     }
 
-    public Collection<Permission> getPermissions() {
-        return Collections.unmodifiableCollection(permissions);
-    }
-
+    @Override
     public boolean isVoid() {        
-        if (permissions.size() == 0 ) return true;
+        if ( super.isVoid()) return true;
         if (hasDomain == true && domain.get() == null) return true;
         return false;
     }
 
+    @Override
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
         return pgb
                 .domain(domain)
-                .permissions(permissions.toArray(new Permission[permissions.size()]))
                 .context(PermissionGrantBuilder.PROTECTIONDOMAIN);
     }
   

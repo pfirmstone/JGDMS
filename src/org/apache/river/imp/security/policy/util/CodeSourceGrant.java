@@ -24,9 +24,6 @@ import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 
 /**
@@ -35,22 +32,14 @@ import java.util.List;
  */
 class CodeSourceGrant extends PrincipalGrant {
     private final CodeSource cs;
-    private final Collection<Permission> permissions;
     private final int hashCode;
     
     @SuppressWarnings("unchecked")
     CodeSourceGrant(CodeSource cs, Principal[] pals, Permission[] perm){
-        super(pals);
+        super(pals, perm);
         this.cs = normalizeCodeSource(cs);
-        if (perm == null || perm.length == 0) {
-            this.permissions = Collections.EMPTY_LIST;
-        }else{
-            this.permissions = new HashSet<Permission>(perm.length);
-            this.permissions.addAll(Arrays.asList(perm));
-        }
         int hash = 3;
         hash = 67 * hash + (this.cs != null ? this.cs.hashCode() : 0);
-        hash = 67 * hash + (this.permissions != null ? this.permissions.hashCode() : 0);
         hash = 67 * hash + (super.hashCode());
         hashCode = hash;
     }
@@ -67,7 +56,7 @@ class CodeSourceGrant extends PrincipalGrant {
         if (o instanceof CodeSourceGrant){
             CodeSourceGrant c = (CodeSourceGrant) o;
             if ( !super.equals(o)) return false;
-            if (cs.equals(c.cs) && permissions.equals(c.permissions)) return true;
+            if (cs.equals(c.cs)) return true;
         }
         return false;
     }
@@ -107,20 +96,11 @@ class CodeSourceGrant extends PrincipalGrant {
         return implies(codeSource, pals);
     }
 
-    public Collection<Permission> getPermissions() {
-        return Collections.unmodifiableCollection(permissions);
-    }
-
-    public boolean isVoid() {
-        if (permissions.size() == 0 ) return true;
-        return false;
-    }
-
     @Override
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
-        return pgb.codeSource(cs)
-                .permissions(permissions.toArray(new Permission[permissions.size()]))
-                .context(PermissionGrantBuilder.CODESOURCE);
+        pgb.codeSource(cs)
+           .context(PermissionGrantBuilder.CODESOURCE);
+        return pgb;
     }
 }
