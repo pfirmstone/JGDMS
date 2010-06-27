@@ -3939,7 +3939,7 @@ public class RegistrarImpl implements Registrar {
 	discoer = new LookupDiscoveryManager(lookupGroups, lookupLocators,
 					     null);
 	joiner = new JoinManager(proxy, lookupAttrs, myServiceID,
-				 discoer, null);
+				 (DiscoveryListenerManagement) discoer, null);
 	/* start up all the daemon threads */
 	serviceExpirer.start();
 	eventExpirer.start();

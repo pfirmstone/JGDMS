@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 
+import net.jini.discovery.DiscoveryListenerManagement;
 import net.jini.lookup.JoinManager;
 
 /**
@@ -55,7 +56,8 @@ public class Register extends AbstractBaseTest {
         /* Discover & join lookups just started */
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
-                                        getLookupDiscoveryManager(),leaseMgr,
+                                        (DiscoveryListenerManagement) getLookupDiscoveryManager(),
+                                        leaseMgr,
 					sysConfig.getConfiguration());
         joinMgrList.add(joinMgrSrvcID);
     }//end setup

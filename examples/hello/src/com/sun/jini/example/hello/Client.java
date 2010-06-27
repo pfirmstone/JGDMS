@@ -28,6 +28,7 @@ import net.jini.config.NoSuchEntryException;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.discovery.LookupDiscovery;
+import net.jini.discovery.DiscoveryManagement2;
 import net.jini.lookup.ServiceDiscoveryManager;
 import net.jini.lookup.ServiceItemFilter;
 import net.jini.security.BasicProxyPreparer;
@@ -109,7 +110,7 @@ public class Client {
 	} catch (NoSuchEntryException e) {
 	    /* Default to search in the public group */
 	    serviceDiscovery = new ServiceDiscoveryManager(
-		new LookupDiscovery(new String[] { "" }, config),
+		(DiscoveryManagement2) new LookupDiscovery(new String[] { "" }, config),
 		null, config);
 	}
 

@@ -140,6 +140,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * This class is the server side of an implementation of the lookup
@@ -278,7 +279,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
     /** Earliest expiration time over all active registrations */
     private long minExpiration = Long.MAX_VALUE;
     /** The lookup discovery manager this service's join manager will use */
-    private DiscoveryManagement joinMgrLDM;
+    private DiscoveryListenerManagement joinMgrLDM;
     /** Manager for discovering and registering with lookup services */
     private JoinManager joinMgr;
     /** Task manager for sending remote discovery events */

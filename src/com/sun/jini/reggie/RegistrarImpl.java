@@ -109,6 +109,7 @@ import net.jini.core.lookup.ServiceRegistration;
 import net.jini.discovery.Constants;
 import net.jini.discovery.ConstrainableLookupLocator;
 import net.jini.discovery.DiscoveryGroupManagement;
+import net.jini.discovery.DiscoveryListenerManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
@@ -4670,7 +4671,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    throw new ConfigurationException(null, e);
 	}
 	joiner = new JoinManager(proxy, lookupAttrs, myServiceID,
-				 discoer, null, config);
+				 (DiscoveryListenerManagement) discoer, null, config);
 
 	/* start up all the daemon threads */
 	serviceExpirer.start();

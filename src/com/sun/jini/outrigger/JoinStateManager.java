@@ -41,6 +41,7 @@ import net.jini.security.ProxyPreparer;
 
 import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
+import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages
@@ -303,7 +304,7 @@ class JoinStateManager implements StorableObject {
 	((DiscoveryLocatorManagement)dgm).setLocators(locators);
 
 	mgr = new JoinManager(service, attributes, serviceID, 
-			      (DiscoveryManagement)dgm, null, config);
+			      (DiscoveryListenerManagement)dgm, null, config);
 
 	// Once we are running we don't need the attributes,
 	// locators, and groups fields, null them out (the

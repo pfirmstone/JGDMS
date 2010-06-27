@@ -27,6 +27,7 @@ import net.jini.lookup.JoinManager;
 import net.jini.config.ConfigurationException;
 
 import java.io.IOException;
+import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -57,7 +58,7 @@ public class Equality extends AbstractBaseTest {
         joinMgrCallback = new JoinManager(testService,
 					  serviceAttrs,
 					  callback,
-                                          discoveryMgr,
+                                          (DiscoveryListenerManagement) discoveryMgr,
 					  leaseMgr,
 					  sysConfig.getConfiguration());
         joinMgrList.add(joinMgrCallback);
@@ -65,7 +66,7 @@ public class Equality extends AbstractBaseTest {
         joinMgrSrvcID = new JoinManager(testService,
 					serviceAttrs,
 					serviceID,
-                                        discoveryMgr,
+                                        (DiscoveryListenerManagement) discoveryMgr,
 					leaseMgr,
 					sysConfig.getConfiguration());
         joinMgrList.add(joinMgrSrvcID);
@@ -107,7 +108,7 @@ public class Equality extends AbstractBaseTest {
 	newJM = new JoinManager(testService,
 				serviceAttrs,
 				serviceID,
-				discoveryMgr,
+				(DiscoveryListenerManagement) discoveryMgr,
 				leaseMgr,
 				getConfig().getConfiguration());
 	joinMgrList.add(newJM);

@@ -24,6 +24,7 @@ import com.sun.jini.test.spec.joinmanager.AbstractBaseTest;
 import net.jini.lookup.JoinManager;
 
 import java.util.logging.Level;
+import net.jini.discovery.DiscoveryListenerManagement;
 
 /** Regression test for bug #4953710 (ULE = UnknownLeaseException).
  *
@@ -62,7 +63,8 @@ public class RaceAttrsVsTerminateULE extends AbstractBaseTest {
                removeDups( addAttrsDup1DupAll(serviceAttrs,newServiceAttrs) );
         /* Discover & join lookups just started */
         jm = new JoinManager(testService,serviceAttrs,serviceID,
-                             getLookupDiscoveryManager(),leaseMgr,
+                             (DiscoveryListenerManagement) getLookupDiscoveryManager(),
+                             leaseMgr,
                              sysConfig.getConfiguration());
     }//end setup
 

@@ -18,6 +18,7 @@
 
 package org.apache.river.imp.security.policy.util;
 
+import org.apache.river.api.security.PermissionGrantBuilder;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
@@ -25,6 +26,7 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.river.api.security.Deny;
 
 /**
  *
@@ -35,8 +37,8 @@ class CodeSourceGrant extends PrincipalGrant {
     private final int hashCode;
     
     @SuppressWarnings("unchecked")
-    CodeSourceGrant(CodeSource cs, Principal[] pals, Permission[] perm){
-        super(pals, perm);
+    CodeSourceGrant(CodeSource cs, Principal[] pals, Permission[] perm, Deny deny){
+        super(pals, perm, deny);
         this.cs = normalizeCodeSource(cs);
         int hash = 3;
         hash = 67 * hash + (this.cs != null ? this.cs.hashCode() : 0);
@@ -72,12 +74,22 @@ class CodeSourceGrant extends PrincipalGrant {
         return cs.implies(normalizeCodeSource(codeSource));
     }
     
-    // This is only here for revoke.
+    // This is only here for user comparisons
+    protected boolean impliesProtectionDomain(ProtectionDomain pd){
+        CodeSource codeSource = null;
+        if (pd != null){
+            codeSource = pd.getCodeSource();
+        }
+        return impliesCodeSource(codeSource);
+    }
+    
+    // This is only here for user comparisons
     protected boolean impliesClassLoader(ClassLoader cl) {
         if ( cs == null ) return true;      
         return false;  //Indeterminate.
     }
     
+    // This is only here for user comparisons
     protected boolean impliesCertificates(Certificate[] signers){
         Certificate[] certs = cs.getCertificates();
         if ( certs.length == 0 ) return true;
@@ -86,6 +98,7 @@ class CodeSourceGrant extends PrincipalGrant {
         return certificates.containsAll(Arrays.asList(certs));
     }
     
+    // This is the real deal, the Policy utilises this.
     public boolean implies(ProtectionDomain pd) {
         CodeSource codeSource = null;
         Principal[] pals = null;
@@ -100,7 +113,7 @@ class CodeSourceGrant extends PrincipalGrant {
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
         pgb.codeSource(cs)
-           .context(PermissionGrantBuilder.CODESOURCE);
+           .context(CODESOURCE);
         return pgb;
     }
 }

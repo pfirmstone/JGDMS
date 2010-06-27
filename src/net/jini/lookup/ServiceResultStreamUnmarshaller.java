@@ -30,7 +30,7 @@ public class ServiceResultStreamUnmarshaller implements ResultStream<ServiceItem
                 item = input.get()) {
             if (item instanceof MarshalledServiceItem){
                 MarshalledServiceItem msi = (MarshalledServiceItem) item;
-                ServiceItem it = new ServiceItem(msi.serviceID, msi.getService(),
+                ServiceItem it = new ServiceItem(msi.serviceID, msi.getService(null),
                         msi.getEntries());
                 item = it;
             }

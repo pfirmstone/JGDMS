@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 
+import net.jini.discovery.DiscoveryListenerManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.lookup.JoinManager;
 
@@ -61,13 +62,14 @@ public class TerminateDiscovery extends AbstractBaseTest {
         /* Discover & join lookups just started */
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
-                                        null,null,sysConfig.getConfiguration());
+                                        (DiscoveryListenerManagement) null,
+                                        null,sysConfig.getConfiguration());
         /* Note: no need to add joinMgrSrvcID to the joinMgrList for
          *       termination during tearDown because it will be terminated
          *       in the run method
          */
         LookupDiscoveryManager discMgr 
-              = (LookupDiscoveryManager)(joinMgrSrvcID.getDiscoveryManager());
+              = (LookupDiscoveryManager)(joinMgrSrvcID.discoveryManager());
         discMgr.setGroups(toGroupsArray(initLookupsToStart));
         discMgr.addDiscoveryListener(mainListener);
     }//end setup

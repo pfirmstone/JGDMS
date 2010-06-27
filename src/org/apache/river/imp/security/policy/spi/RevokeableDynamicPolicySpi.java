@@ -5,20 +5,21 @@
 
 package org.apache.river.imp.security.policy.spi;
 
-import org.apache.river.api.security.RevokeablePolicy;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Policy;
 import java.security.ProtectionDomain;
+import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.PolicyInitializationException;
+import org.apache.river.api.security.RevokeableDynamicPolicy;
 
 /**
  * An implementer of this interface isn't required to extend Policy and isn't
  * required to implement dynamic grants either.
  * @author Peter Firmstone
  */
-public interface RevokeableDynamicPolicySpi extends RevokeablePolicy {
+public interface RevokeableDynamicPolicySpi extends RevokeableDynamicPolicy, DynamicPolicy {
     public boolean basePolicy(Policy basePolicy);
     public void initialize()throws PolicyInitializationException;
     /**

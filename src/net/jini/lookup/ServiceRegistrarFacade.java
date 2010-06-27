@@ -5,8 +5,11 @@
 
 package net.jini.lookup;
 
+import java.io.IOException;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
@@ -50,11 +53,15 @@ public class ServiceRegistrarFacade implements ServiceRegistrar, Facade<Portable
             RemoteEventListener listener, MarshalledObject handback, 
             long leaseDuration) throws RemoteException {
         if ( isStreamServiceRegistrar ) {
-            Convert convert = Convert.getInstance();
-            @SuppressWarnings("unchecked")
-            MarshalledInstance hback = convert.toMarshalledInstance(handback);
-            StreamServiceRegistrar ssr = (StreamServiceRegistrar) sr;
-            return ssr.notify(hback, tmpl, transitions, listener, leaseDuration);
+            try {
+                Convert convert = Convert.getInstance();
+                @SuppressWarnings(value = "unchecked")
+                MarshalledInstance hback = convert.toMarshalledInstance(handback);
+                StreamServiceRegistrar ssr = (StreamServiceRegistrar) sr;
+                return ssr.notify(hback, tmpl, transitions, listener, leaseDuration);
+            } catch (IOException ex) {
+                throw new RemoteException("ServiceRegistrarFacade threw exception",ex);
+            }
         }
         throw new UnsupportedOperationException("PortableServiceRegistrar " +
                 "doesn't implement this method");

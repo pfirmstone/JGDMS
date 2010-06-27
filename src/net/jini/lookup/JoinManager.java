@@ -59,7 +59,6 @@ import net.jini.discovery.DiscoveryListenerManagement;
 import net.jini.discovery.DiscoveryManagement2;
 import net.jini.discovery.DiscMan2Facade;
 import org.apache.river.api.util.Facade;
-import net.jini.lookup.ServiceRegistrarFacade;
 
 /**
  * A goal of any well-behaved service is to advertise the facilities and
@@ -1653,10 +1652,10 @@ public class JoinManager {
         } catch(ConfigurationException e) { /* swallow this exception */ }
     }//end constructor
      
-     public JoinManager(DiscoveryListenerManagement discoveryMgr,
-                        Object serviceProxy,
+     public JoinManager(Object serviceProxy,
                         Entry[] attrSets,
 			ServiceIDListener callback,
+                        DiscoveryListenerManagement discoveryMgr,
 			LeaseRenewalManager leaseMgr
                         )    throws IOException
     {
@@ -1784,10 +1783,10 @@ public class JoinManager {
                           callback, leaseMgr, config);
     }//end constructor
 
-     public JoinManager(DiscoveryListenerManagement discoveryMgr,
-                        Object serviceProxy,
+     public JoinManager(Object serviceProxy,
                         Entry[] attrSets,
 			ServiceIDListener callback,
+                        DiscoveryListenerManagement discoveryMgr,
                         LeaseRenewalManager leaseMgr,			
                         Configuration config)
                                     throws IOException, ConfigurationException
@@ -1861,10 +1860,10 @@ public class JoinManager {
         } catch(ConfigurationException e) { /* swallow this exception */ }
     }//end constructor
 
-     public JoinManager(DiscoveryListenerManagement discoveryMgr,
-                        Object serviceProxy,
+     public JoinManager(Object serviceProxy,
                         Entry[] attrSets,
 			ServiceID serviceID,
+                        DiscoveryListenerManagement discoveryMgr,
                         LeaseRenewalManager leaseMgr
 			)
                         throws IOException
@@ -1955,10 +1954,10 @@ public class JoinManager {
                           (ServiceIDListener)null, leaseMgr, config);
     }//end constructor
      
-     public JoinManager(DiscoveryListenerManagement discoveryMgr,
-                        Object serviceProxy,
+     public JoinManager(Object serviceProxy,
                         Entry[] attrSets,
 			ServiceID serviceID,
+                        DiscoveryListenerManagement discoveryMgr,
                         LeaseRenewalManager leaseMgr,			
                         Configuration config)
                                     throws IOException, ConfigurationException

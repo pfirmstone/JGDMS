@@ -48,6 +48,7 @@ import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
+import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * Utility class that combines <code>JoinManager</code> with persistence.
@@ -120,7 +121,7 @@ public class JoinState extends LogHandler implements SubStore {
      * must also implement <code>DiscoveryGroupManagement</code> and
      * <code>DiscoveryLocatorManagement</code>.
      */
-    private DiscoveryManagement dm;
+    private DiscoveryListenerManagement dm;
 
     /** Our join manager */
     private JoinManager joinMgr;

@@ -2792,9 +2792,8 @@ public class ServiceDiscoveryManager {
         } catch(ConfigurationException e) { /* swallow this exception */ }
     }//end constructor
     
-    public ServiceDiscoveryManager(LeaseRenewalManager leaseMgr,
-                                   DiscoveryManagement2 discoveryMgr)
-                                                            throws IOException
+    public ServiceDiscoveryManager(DiscoveryManagement2 discoveryMgr,
+            LeaseRenewalManager leaseMgr) throws IOException
     {
         try {
             init(discoveryMgr, leaseMgr, EmptyConfiguration.INSTANCE);
@@ -2874,9 +2873,9 @@ public class ServiceDiscoveryManager {
         init(discoveryMgr, leaseMgr, config);
     }//end constructor
 
-    public ServiceDiscoveryManager(LeaseRenewalManager leaseMgr,
-                                   Configuration config,
-                                   DiscoveryManagement2 discoveryMgr)
+    public ServiceDiscoveryManager(DiscoveryManagement2 discoveryMgr,
+                                   LeaseRenewalManager leaseMgr,
+                                   Configuration config)
                                                 throws IOException,
                                                        ConfigurationException
     {
@@ -3787,7 +3786,7 @@ public class ServiceDiscoveryManager {
     private EventReg registerListener(PortableServiceRegistrar proxy,
 			              ServiceTemplate tmpl,
 			              RemoteEventListener listenerProxy,
-			              long duration)  throws RemoteException
+			              long duration)  throws IOException
     {
         /* Register with the event mechanism of the given lookup service */
         EventRegistration e = null;

@@ -5,6 +5,9 @@
 
 package net.jini.core.lookup;
 
+import java.net.URI;
+import java.security.CodeSource;
+import java.util.Collection;
 import net.jini.core.entry.Entry;
 
 /**
@@ -36,12 +39,15 @@ public abstract class MarshalledServiceItem extends ServiceItem{
     }
     /**
      * Unmarshall the service proxy. 
+     * @param code load service with a local or existing CodeSource.
      * @return the service proxy, null if class not found.
      */
-    public abstract Object getService();
+    public abstract Object getService(CodeSource[] code);
     /**
      * Unmarshall the Entry's
      * @return array of Entry's, null entry in array for any class not found.
      */
     public abstract Entry[] getEntries();
+    
+    public abstract Collection<? extends URI> getAnnotations();
 }

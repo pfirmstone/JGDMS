@@ -50,6 +50,7 @@ import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
+import net.jini.discovery.DiscoveryListenerManagement;
 import net.jini.io.MiToMoOutputStream;
 
 /**
@@ -323,7 +324,7 @@ class JoinStateManager extends LogHandler {
 	    initlogger.log(Level.FINEST, "Creating JoinManager");
         }
 	mgr = new JoinManager(service, attributes, serviceID, 
-            dm, null, config);
+            (DiscoveryListenerManagement) dm, null, config);
         // Once we are running we don't need the attributes,
         // locators, and groups fields, null them out (the
         // state is in the mgr and dm.

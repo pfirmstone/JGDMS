@@ -5,6 +5,7 @@
 
 package net.jini.lookup;
 
+import java.io.IOException;
 import org.apache.river.api.util.ResultStream;
 import java.rmi.RemoteException;
 import net.jini.core.discovery.LookupLocator;
@@ -126,7 +127,7 @@ public class StreamServiceRegistrarFacade implements StreamServiceRegistrar,
 
     public ResultStream<ServiceItem> lookup(ServiceTemplate tmpl, 
             Class<? extends Entry>[] unmarshalledEntries, int maxBatchSize) 
-            throws RemoteException {
+            throws IOException {
         if ( psr instanceof StreamServiceRegistrar ){
             StreamServiceRegistrar ssr = (StreamServiceRegistrar) psr;
             return ssr.lookup(tmpl, unmarshalledEntries, maxBatchSize);

@@ -27,6 +27,7 @@ import com.sun.jini.test.share.AttributesUtil;
 import net.jini.lookup.JoinManager;
 
 import net.jini.core.entry.Entry;
+import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -58,7 +59,8 @@ public class GetAttributes extends AbstractBaseTest {
         /* Discover & join lookups just started */
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
-                                        getLookupDiscoveryManager(),leaseMgr,
+                                        (DiscoveryListenerManagement) getLookupDiscoveryManager(),
+                                        leaseMgr,
 					sysConfig.getConfiguration());
         joinMgrList.add(joinMgrSrvcID);
     }//end setup

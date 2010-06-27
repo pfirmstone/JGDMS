@@ -17,8 +17,8 @@
  */
 package net.jini.core.lookup;
 
+import java.io.IOException;
 import org.apache.river.api.util.ResultStream;
-import java.rmi.RemoteException;
 import net.jini.core.entry.Entry;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
@@ -82,7 +82,7 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
 			     int transitions,
 			     RemoteEventListener listener,
 			     long leaseDuration)
-	throws RemoteException;
+	throws IOException;
 
     /**
      * Returns a ResultStream that provides access to MarshalledServiceItem 
@@ -122,7 +122,7 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
      * @since 2.2.0
      */
     ResultStream<ServiceItem> lookup(ServiceTemplate tmpl, 
-        Class<? extends Entry>[] unmarshalledEntries, int maxBatchSize) throws RemoteException;
+        Class<? extends Entry>[] unmarshalledEntries, int maxBatchSize) throws IOException;
     
     /**
      * Looks at all service items that match the specified template, finds
@@ -142,7 +142,7 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
      * @throws java.rmi.RemoteException
      */
     ResultStream<Class> getEntryClasses(ServiceTemplate tmpl, int maxBatchSize) 
-            throws RemoteException;
+            throws IOException;
 
     /**
      * Looks at all service items that match the specified template, finds
@@ -167,7 +167,7 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
      * @throws java.rmi.RemoteException
      */
     ResultStream getFieldValues(ServiceTemplate tmpl, int setIndex, String field,
-            int maxBatchSize) throws NoSuchFieldException, RemoteException;
+            int maxBatchSize) throws NoSuchFieldException, IOException;
     
     /**
      * Looks at all service items that match the specified template, and for
@@ -189,6 +189,6 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
      * @throws java.rmi.RemoteException
      */
     ResultStream<Class> getServiceTypes(ServiceTemplate tmpl, String prefix, 
-            int maxBatchSize) throws RemoteException;
+            int maxBatchSize) throws IOException;
 
 }

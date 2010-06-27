@@ -33,6 +33,7 @@ import net.jini.lookup.ServiceDiscoveryManager;
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import net.jini.discovery.DiscoveryManagement2;
 
 /**
  * This class verifies that the <code>addListener</code> method of
@@ -84,7 +85,7 @@ public class AddListenerNPE extends AbstractBaseTest {
 				       null,
 				       sysConfig.getConfiguration());
         srvcDiscoveryMgr = 
-	    new ServiceDiscoveryManager(discoveryMgr,
+	    new ServiceDiscoveryManager((DiscoveryManagement2) discoveryMgr,
 					null,
 					sysConfig.getConfiguration());
         sdmList.add(srvcDiscoveryMgr);

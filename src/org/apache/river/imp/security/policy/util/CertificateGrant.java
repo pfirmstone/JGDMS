@@ -18,6 +18,7 @@
 
 package org.apache.river.imp.security.policy.util;
 
+import org.apache.river.api.security.PermissionGrantBuilder;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
@@ -28,6 +29,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import org.apache.river.api.security.Deny;
 
 /**
  *
@@ -37,8 +39,8 @@ class CertificateGrant extends CodeSourceGrant {
     private final Collection<Certificate> certs;
     private final int hashCode;
     @SuppressWarnings("unchecked")
-    CertificateGrant(Certificate[] codeSourceCerts, Principal[] pals, Permission[] perms){
-        super(null, pals, perms);
+    CertificateGrant(Certificate[] codeSourceCerts, Principal[] pals, Permission[] perms, Deny deny){
+        super(null, pals, perms, deny);
          if (codeSourceCerts == null || codeSourceCerts.length == 0) {
             certs = Collections.EMPTY_SET;
         }else{
@@ -99,6 +101,6 @@ class CertificateGrant extends CodeSourceGrant {
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
         return pgb.certificates(certs.toArray(new Certificate[certs.size()]))
-                .context(PermissionGrantBuilder.CODESOURCE_CERTS);
+                .context(CODESOURCE_CERTS);
     }
 }

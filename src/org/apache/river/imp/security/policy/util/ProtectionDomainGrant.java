@@ -18,6 +18,7 @@
 
 package org.apache.river.imp.security.policy.util;
 
+import org.apache.river.api.security.PermissionGrantBuilder;
 import java.lang.ref.WeakReference;
 import java.security.CodeSource;
 import java.security.Permission;
@@ -26,20 +27,21 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.List;
+import org.apache.river.api.security.Deny;
 
 /**
  *
  * @author Peter Firmstone
  */
-class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
+class ProtectionDomainGrant extends PrincipalGrant {
     private final boolean hasDomain;
     private final WeakReference<ProtectionDomain> domain;
     private final int hashCode;
     
     @SuppressWarnings("unchecked")
     ProtectionDomainGrant(WeakReference<ProtectionDomain> domain, Principal[] groups, 
-            Permission[] perm){
-        super(groups, perm);
+            Permission[] perm, Deny deny ){
+        super(groups, perm, deny);
         if (domain == null){
             hasDomain = false;
         }else{
@@ -71,13 +73,17 @@ class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
         return hashCode;
     }
     
+    public boolean implies(ProtectionDomain pd){
+        return implies(pd, pd.getPrincipals());
+    }
+    
     /*
      * Checks if passed ProtectionDomain matches this PolicyEntry. Null ProtectionDomain of
      * PolicyEntry implies any ProtectionDomain; non-null ProtectionDomain's are
      * compared with equals();
      */   
     // for grant
-    public boolean implies(ProtectionDomain pd) {
+    public boolean impliesProtectionDomain(ProtectionDomain pd) {
         // ProtectionDomain comparison
         if (hasDomain == false) return true;
         if (pd == null) return false;       
@@ -124,7 +130,7 @@ class ProtectionDomainGrant extends PrincipalGrant implements PermissionGrant {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
         return pgb
                 .domain(domain)
-                .context(PermissionGrantBuilder.PROTECTIONDOMAIN);
+                .context(PROTECTIONDOMAIN);
     }
   
 }

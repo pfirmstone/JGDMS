@@ -5,7 +5,9 @@
 
 package net.jini.security.policy;
 
-import java.security.cert.Certificate;
+import java.util.List;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.imp.security.policy.cdc.DynamicPolicyProviderImpl;
 import java.security.AccessControlException;
 import java.security.AccessController;
@@ -21,8 +23,9 @@ import java.util.Iterator;
 //import java.util.ServiceLoader;
 import java.util.logging.Logger;
 import java.util.logging.Level;
+import org.apache.river.api.security.RevokePermission;
+import org.apache.river.api.security.RevokeableDynamicPolicy;
 import sun.misc.Service;
-import org.apache.river.api.security.RevokeablePolicy;
 import org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi;
 
 /**
@@ -41,7 +44,7 @@ import org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi;
  * 
  * @author Peter Firmstone
  */
-public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
+public class DynamicPolicyProvider extends Policy implements RevokeableDynamicPolicy, DynamicPolicy {
   
     //Java 1.4 compatible
     @SuppressWarnings("unchecked")
@@ -307,32 +310,21 @@ public class DynamicPolicyProvider extends Policy implements RevokeablePolicy {
         return instance.revokeSupported();
     }
 
-    public Object parameters() throws UnsupportedOperationException {
-        throw new UnsupportedOperationException("Not supported yet.");
+    public void add(List<PermissionGrant> grants) {
+        instance.add(grants);
     }
 
-    public void revoke(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
-        instance.revoke(cs, principals, permissions);
+    public void remove(List<PermissionGrant> grants) {
+        AccessController.checkPermission(new RevokePermission());
+        instance.remove(grants);
     }
 
-    public void grantCodeSource(CodeSource cs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
-        instance.grantCodeSource(cs, principals, permissions);
+    public List<PermissionGrant> getPermissionGrants() {
+        return instance.getPermissionGrants();
     }
 
-    public void grantProtectionDomain(Class cl, Permission[] permissions) throws UnsupportedOperationException {
-        instance.grantProtectionDomain(cl, permissions);
-    }
-
-    public void revokeProtectionDomain(Class cl, Permission[] permissions) throws UnsupportedOperationException {
-        instance.revokeProtectionDomain(cl, permissions);
-    }
-
-    public void grant(Certificate[] certs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
-        instance.grant(certs, principals, permissions);
-    }
-
-    public void revoke(Certificate[] certs, Principal[] principals, Permission[] permissions) throws UnsupportedOperationException {
-        instance.revoke(certs, principals, permissions);
+    public PermissionGrantBuilder getPermissionGrantBuilder() {
+        return instance.getPermissionGrantBuilder();
     }
    
 }
