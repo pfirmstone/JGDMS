@@ -570,11 +570,11 @@ public class DynamicPolicyProviderImpl extends Policy implements RevokeableDynam
         return false;
     }
 
-    public void add(List<PermissionGrant> grants) {
+    public void grant(List<PermissionGrant> grants) {
         throw new UnsupportedOperationException("Not supported.");
     }
 
-    public void remove(List<PermissionGrant> grants) {
+    public void revoke(List<PermissionGrant> grants) {
         throw new UnsupportedOperationException("Not supported.");
     }
 

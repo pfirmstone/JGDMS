@@ -413,14 +413,14 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	}
     }
 
-    public void add(List<PermissionGrant> grants) {
+    public void grant(List<PermissionGrant> grants) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
         // because PermissionGrant's are given references to ProtectionDomain's
         // we must check the caller has this permission.
         AccessController.checkPermission(new RuntimePermission("getProtectionDomain"));
         if (revokeable){
             RevokeableDynamicPolicy bp = (RevokeableDynamicPolicy) basePolicy;
-            bp.add(grants);
+            bp.grant(grants);
             return;
         }
         //List<PermissionGrant> allowed = new ArrayList<PermissionGrant>(grants.size());
@@ -437,11 +437,11 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         } finally {wl.unlock();}
     }
 
-    public void remove(List<PermissionGrant> grants) {
+    public void revoke(List<PermissionGrant> grants) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
         if (revokeable){
             RevokeableDynamicPolicy bp = (RevokeableDynamicPolicy) basePolicy;
-            bp.remove(grants);
+            bp.revoke(grants);
             return;
         }
         AccessController.checkPermission(new RevokePermission());

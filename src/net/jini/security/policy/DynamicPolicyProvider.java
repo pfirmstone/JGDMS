@@ -311,13 +311,13 @@ public class DynamicPolicyProvider extends Policy implements RevokeableDynamicPo
         return instance.revokeSupported();
     }
 
-    public void add(List<PermissionGrant> grants) {
-        instance.add(grants);
+    public void grant(List<PermissionGrant> grants) {
+        instance.grant(grants);
     }
 
-    public void remove(List<PermissionGrant> grants) {
+    public void revoke(List<PermissionGrant> grants) {
         AccessController.checkPermission(new RevokePermission());
-        instance.remove(grants);
+        instance.revoke(grants);
     }
 
     public List<PermissionGrant> getPermissionGrants() {
