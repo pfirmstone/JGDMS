@@ -26,7 +26,7 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.river.api.security.Deny;
+import org.apache.river.imp.security.policy.util.DenyImpl;
 
 /**
  *
@@ -37,8 +37,8 @@ class CodeSourceGrant extends PrincipalGrant {
     private final int hashCode;
     
     @SuppressWarnings("unchecked")
-    CodeSourceGrant(CodeSource cs, Principal[] pals, Permission[] perm, Deny deny){
-        super(pals, perm, deny);
+    CodeSourceGrant(CodeSource cs, Principal[] pals, Permission[] perm){
+        super(pals, perm);
         this.cs = normalizeCodeSource(cs);
         int hash = 3;
         hash = 67 * hash + (this.cs != null ? this.cs.hashCode() : 0);
@@ -113,7 +113,7 @@ class CodeSourceGrant extends PrincipalGrant {
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
         pgb.codeSource(cs)
-           .context(CODESOURCE);
+           .context(PermissionGrantBuilder.CODESOURCE);
         return pgb;
     }
 }

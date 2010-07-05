@@ -28,13 +28,17 @@ import java.io.File;
 import java.io.FileWriter;
 import java.net.URL;
 import java.security.CodeSource;
+import java.security.Permission;
 import java.security.Principal;
 import java.security.SecurityPermission;
 import java.security.cert.Certificate;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
 
+import java.util.List;
 import junit.framework.TestCase;
+import org.apache.river.api.security.PermissionGrant;
 
 
 /**
@@ -70,21 +74,19 @@ public class DefaultPolicyParserTest extends TestCase {
         Collection entries = parser.parse(tmp.toURI().toURL(), null);
         assertEquals(2, entries.size());
         for (Iterator iter = entries.iterator(); iter.hasNext();) {
-            PolicyEntry element = (PolicyEntry)iter.next();
-            if (element.getPermissions()
+            PermissionGrant element = (PermissionGrant)iter.next();
+            Permission[] perm = element.getPermissions();
+            List<Permission> permissions = Arrays.asList(perm);
+            if (permissions
                 .contains(new SecurityPermission("ZZZ"))) {
-                assertTrue(element.impliesCodeSource(new CodeSource(null,
-                    (Certificate[])null)));
-                assertTrue(element.impliesPrincipals(null));
-            } else if (element.getPermissions()
+                assertTrue(element.implies(new CodeSource(null,
+                    (Certificate[])null), null));
+            } else if (permissions
                 .contains(new SecurityPermission("YYY"))) {
-                assertFalse(element.impliesCodeSource(null));
-                assertFalse(element.impliesPrincipals(null));
-                assertTrue(element.impliesCodeSource(new CodeSource(new URL(
-                    "http://a.b.c/-"), (Certificate[])null)));
-                assertTrue(element
-                    .impliesPrincipals(new Principal[] { new FakePrincipal(
-                        "qqq") }));
+                assertFalse(element.implies((CodeSource) null, (Principal[]) null));
+                assertTrue(element.implies(new CodeSource(new URL(
+                    "http://a.b.c/-"), (Certificate[])null), 
+                    new Principal[] { new FakePrincipal("qqq") }));
             } else {
                 fail("Extra entry parsed");
             }

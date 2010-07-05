@@ -46,6 +46,8 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.imp.security.policy.util.DefaultPolicyScanner.GrantEntry;
 import org.apache.river.imp.security.policy.util.DefaultPolicyScanner.KeystoreEntry;
 import org.apache.river.imp.security.policy.util.DefaultPolicyScanner.PermissionEntry;
@@ -107,7 +109,7 @@ public class DefaultPolicyParser implements PolicyParser {
      * @return a collection of PolicyEntry objects, may be empty
      * @throws Exception IO error while reading location or file syntax error 
      */
-    public Collection<PolicyEntry> parse(URL location, Properties system)
+    public Collection<PermissionGrant> parse(URL location, Properties system)
             throws Exception {
         boolean resolve = PolicyUtils.canExpandProperties();
         Reader r = new BufferedReader(new InputStreamReader(
@@ -127,12 +129,12 @@ public class DefaultPolicyParser implements PolicyParser {
         //XXX KeyStore could be loaded lazily...
         KeyStore ks = initKeyStore(keystores, location, system, resolve);
 
-        Collection<PolicyEntry> result = new HashSet<PolicyEntry>();
+        Collection<PermissionGrant> result = new HashSet<PermissionGrant>();
         for (Iterator<GrantEntry> iter = grantEntries.iterator(); iter.hasNext();) {
             DefaultPolicyScanner.GrantEntry ge = iter
                     .next();
             try {
-                PolicyEntry pe = resolveGrant(ge, ks, system, resolve);
+                PermissionGrant pe = resolveGrant(ge, ks, system, resolve);
                 if (!pe.isVoid()) {
                     result.add(pe);
                 }
@@ -178,7 +180,7 @@ public class DefaultPolicyParser implements PolicyParser {
      * @see DefaultPolicyScanner.PermissionEntry
      * @see org.apache.harmony.security.PolicyUtils
      */
-    protected PolicyEntry resolveGrant(DefaultPolicyScanner.GrantEntry ge,
+    protected PermissionGrant resolveGrant(DefaultPolicyScanner.GrantEntry ge,
             KeyStore ks, Properties system, boolean resolve) throws Exception {
 
         URL codebase = null;
@@ -222,8 +224,15 @@ public class DefaultPolicyParser implements PolicyParser {
                 }
             }
         }
-        return new PolicyEntry(new CodeSource(codebase, signers), principals,
-                permissions);
+        PermissionGrantBuilder pgb = new PermissionGrantBuilderImp();
+        return pgb.codeSource(new CodeSource(codebase, signers))
+                .principals(principals.toArray(new Principal[principals.size()]))
+                .permissions(permissions.toArray(new Permission[permissions.size()]))
+                .context(PermissionGrantBuilder.CODESOURCE)
+                .build();
+        
+//        return new PolicyEntry(new CodeSource(codebase, signers), principals,
+//                permissions);
     }
 
     /**

@@ -18,6 +18,7 @@
 
 package org.apache.river.imp.security.policy.util;
 
+import org.apache.river.api.security.Denied;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import java.lang.ref.WeakReference;
 import java.security.CodeSource;
@@ -25,14 +26,13 @@ import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
-import org.apache.river.api.security.Deny;
 import org.apache.river.api.security.PermissionGrant;
 
 /**
  * TODO: Document and complete Serializable.
  * @author Peter Firmstone
  */
-public class PermissionGrantBuilderImp extends PermissionGrantBuilder{
+public class PermissionGrantBuilderImp implements PermissionGrantBuilder{
     private static final long serialVersionUID = 1L;
     private CodeSource cs;
     private Certificate[] certs;
@@ -40,7 +40,7 @@ public class PermissionGrantBuilderImp extends PermissionGrantBuilder{
     private Principal[] principals;
     private Permission[] permissions;
     private int context;
-    private Deny deny;
+    private Denied deny;
     
     public PermissionGrantBuilderImp() {
         super();
@@ -58,7 +58,7 @@ public class PermissionGrantBuilderImp extends PermissionGrantBuilder{
         principals = null;
         permissions = null;
         deny = null;
-        context = PermissionGrant.CODESOURCE;
+        context = CODESOURCE;
     }
 
     public PermissionGrantBuilder context(int context) {
@@ -93,7 +93,7 @@ public class PermissionGrantBuilderImp extends PermissionGrantBuilder{
         return this;
     }
 
-    public PermissionGrantBuilder domain(WeakReference<ProtectionDomain> pd) {
+    public PermissionGrantBuilder setDomain(WeakReference<ProtectionDomain> pd) {
         domain = pd;
         return this;
     }
@@ -113,25 +113,26 @@ public class PermissionGrantBuilderImp extends PermissionGrantBuilder{
         this.permissions = permissions;
         return this;
     }
-    
-    public PermissionGrantBuilder deny(Deny denied){
-        deny = denied;
-        return this;
-    }
 
     public PermissionGrant build() {
         switch (context) {
-            case PermissionGrant.CLASSLOADER:
-                return new ClassLoaderGrant(domain, principals, permissions, deny);
-            case PermissionGrant.CODESOURCE:
-                return new CodeSourceGrant(cs, principals, permissions, null);
-            case PermissionGrant.CODESOURCE_CERTS:
-                return new CertificateGrant(certs, principals, permissions, deny);
-            case PermissionGrant.PROTECTIONDOMAIN:
-                return new ProtectionDomainGrant(domain, principals, permissions, null);
+            case CLASSLOADER:
+                return new ClassLoaderGrant(domain, principals, permissions );
+            case CODESOURCE:
+                return new CodeSourceGrant(cs, principals, permissions );
+            case CODESOURCE_CERTS:
+                return new CertificateGrant(certs, principals, permissions, deny );
+            case PROTECTIONDOMAIN:
+                return new ProtectionDomainGrant(domain, principals, permissions );
             default:
                 return null;
         }
+    }
+
+    @Override
+    public PermissionGrantBuilder deny(Denied denial) {
+        deny = denial;
+        return this;
     }
 
 }

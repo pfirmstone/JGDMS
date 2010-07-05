@@ -23,8 +23,6 @@ import java.lang.ref.WeakReference;
 import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
-import org.apache.river.api.security.Deny;
-import org.apache.river.api.security.PermissionGrant;
 
 /**
  *
@@ -34,8 +32,8 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
     private final int hashCode;
     @SuppressWarnings("unchecked")
     ClassLoaderGrant(WeakReference<ProtectionDomain> domain, Principal[] groups, 
-            Permission[] perm, Deny deny){
-        super(domain, groups, perm, deny);
+            Permission[] perm){
+        super(domain, groups, perm);
         int hash = 7;
         hash = 19 * hash + super.hashCode();
         hashCode = hash;
@@ -70,6 +68,6 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
     @Override
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
-        return pgb.context(CLASSLOADER);
+        return pgb.context(PermissionGrantBuilder.CLASSLOADER);
     }
 }

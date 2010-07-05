@@ -9,6 +9,7 @@ import java.net.URL;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Properties;
+import org.apache.river.api.security.PermissionGrant;
 
 /**
  * A null PolicyParser.
@@ -17,8 +18,7 @@ import java.util.Properties;
  */
 public class NullPolicyParser implements PolicyParser{
 
-    public Collection<PolicyEntry> parse(URL location, Properties system) throws Exception {
-        return new HashSet<PolicyEntry>();
+    public Collection<PermissionGrant> parse(URL location, Properties system) throws Exception {
+        return new HashSet<PermissionGrant>();
     }
-
 }

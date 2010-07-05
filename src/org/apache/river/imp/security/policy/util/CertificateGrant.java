@@ -29,7 +29,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
-import org.apache.river.api.security.Deny;
+import org.apache.river.api.security.Denied;
+import org.apache.river.imp.security.policy.util.DenyImpl;
 
 /**
  *
@@ -38,9 +39,11 @@ import org.apache.river.api.security.Deny;
 class CertificateGrant extends CodeSourceGrant {
     private final Collection<Certificate> certs;
     private final int hashCode;
+    private final Denied denied;
     @SuppressWarnings("unchecked")
-    CertificateGrant(Certificate[] codeSourceCerts, Principal[] pals, Permission[] perms, Deny deny){
-        super(null, pals, perms, deny);
+    CertificateGrant(Certificate[] codeSourceCerts, Principal[] pals, Permission[] perms, Denied deny){
+        super(null, pals, perms);
+        denied = deny;
          if (codeSourceCerts == null || codeSourceCerts.length == 0) {
             certs = Collections.EMPTY_SET;
         }else{
@@ -72,13 +75,16 @@ class CertificateGrant extends CodeSourceGrant {
     
     @Override
     public boolean implies(ProtectionDomain pd) {
-        Certificate[] c = null;
-        Principal[] pals = null;
-        if (pd != null){
-            c = pd.getCodeSource().getCertificates();
-            pals = pd.getPrincipals();
+        if ( denied.allow(pd, null)){
+            Certificate[] c = null;
+            Principal[] pals = null;
+            if (pd != null){
+                c = pd.getCodeSource().getCertificates();
+                pals = pd.getPrincipals();
+            }
+            return implies(c, pals);
         }
-        return implies(c, pals);
+        return false;
     }
     
     @Override
@@ -101,6 +107,6 @@ class CertificateGrant extends CodeSourceGrant {
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
         return pgb.certificates(certs.toArray(new Certificate[certs.size()]))
-                .context(CODESOURCE_CERTS);
+                .context(PermissionGrantBuilder.CODESOURCE_CERTS);
     }
 }

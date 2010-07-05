@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.river.api.security;
+package org.apache.river.imp.security.policy.util;
 
+import org.apache.river.api.security.*;
 import java.net.URL;
 import java.security.CodeSigner;
 import java.security.CodeSource;
@@ -43,18 +44,18 @@ import org.apache.river.imp.security.policy.util.PolicyUtils;
  * Usually this will be used in combination with Certificate[] grants, to
  * circumvent security bugs identified in known jar files by trusted developers.
  * 
- * Deny does not allow any permission, only Deny.
+ * Denied does not allow any permission, only Denied.
  * 
  * This class may be extended. The caller must have a DenyPermission before it
  * can be added to a PermissionGrantBuilder.
  *
  * @author Peter Firmstone
  */
-public class Deny {
+public class DenyImpl implements Denied {
     private final List<URL> uri;
     private final List<CodeSource> code;
     
-    public Deny(List<URL> denyURL, List<CodeSource> denyCode){
+    public DenyImpl(List<URL> denyURL, List<CodeSource> denyCode){
         List<URL> denied = new ArrayList<URL>(denyURL.size());
         Iterator<URL> itU = denyURL.iterator();
         while (itU.hasNext()){
@@ -77,7 +78,7 @@ public class Deny {
         return code;
     }
     
-    public boolean allow(ProtectionDomain pd){
+    public boolean allow(ProtectionDomain pd,java.security.Permission perm){
         CodeSource cs = pd.getCodeSource();
         cs = normalizeCodeSource(cs);
         if (code.contains(cs)) return false;

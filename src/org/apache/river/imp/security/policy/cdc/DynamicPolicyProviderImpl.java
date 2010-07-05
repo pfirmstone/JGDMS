@@ -46,6 +46,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.GrantPermission;
+import org.apache.river.api.security.Denied;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi;
@@ -581,8 +582,16 @@ public class DynamicPolicyProviderImpl extends Policy implements RevokeableDynam
         throw new UnsupportedOperationException("Not supported.");
     }
 
-    public PermissionGrantBuilder getPermissionGrantBuilder() {
-        throw new UnsupportedOperationException("Not supported.");
+    public void add(List<Denied> denials) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public void remove(List<Denied> denials) {
+        throw new UnsupportedOperationException("Not supported yet.");
+    }
+
+    public List<Denied> getDenied() {
+        throw new UnsupportedOperationException("Not supported yet.");
     }
 
 }

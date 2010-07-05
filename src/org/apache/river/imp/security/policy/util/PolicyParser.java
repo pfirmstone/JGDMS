@@ -8,6 +8,7 @@ package org.apache.river.imp.security.policy.util;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Properties;
+import org.apache.river.api.security.PermissionGrant;
 
 /**
  *
@@ -30,6 +31,6 @@ public interface PolicyParser {
      * @return a collection of PolicyEntry objects, may be empty
      * @throws Exception IO error while reading location or file syntax error
      */
-    Collection<PolicyEntry> parse(URL location, Properties system) throws Exception;
+    Collection<PermissionGrant> parse(URL location, Properties system) throws Exception;
 
 }

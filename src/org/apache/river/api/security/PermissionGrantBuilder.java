@@ -18,16 +18,10 @@
 
 package org.apache.river.api.security;
 
-import java.io.Serializable;
-import java.lang.ref.WeakReference;
-import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
-import java.security.PrivilegedAction;
-import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
-import net.jini.security.GrantPermission;
 
 /**
  * The PermissionGrantBuilder creates Dynamic PermissionGrant's based on
@@ -40,12 +34,15 @@ import net.jini.security.GrantPermission;
  * Single Thread use only.
  * @author Peter Firmstone.
  */
-public abstract class PermissionGrantBuilder implements Serializable{
-    private static final long serialVersionUID = 1L;
-    
-    public PermissionGrantBuilder(){
-        AccessController.checkPermission(new RuntimePermission("getProtectionDomain"));
-    }
+public interface PermissionGrantBuilder {
+   
+    /**
+     * Implied Context of Grant
+     */ 
+    public static final int CLASSLOADER = 0;
+    public static final int CODESOURCE = 1;
+    public static final int PROTECTIONDOMAIN = 2;
+    public static final int CODESOURCE_CERTS = 3;
     
     /**
      * Build the PermissionGrant using information supplied.
@@ -53,39 +50,19 @@ public abstract class PermissionGrantBuilder implements Serializable{
      */
     public abstract void reset();
 
-    public abstract PermissionGrantBuilder context(int context);
+    public abstract PermissionGrantBuilder context(int context) throws IllegalStateException;
 
     public abstract PermissionGrantBuilder codeSource(CodeSource cs);
 
     public abstract PermissionGrantBuilder clazz(Class cl);
 
-    public abstract PermissionGrantBuilder domain(WeakReference<ProtectionDomain> pd);
-
     public abstract PermissionGrantBuilder certificates(Certificate[] certs);
 
     public abstract PermissionGrantBuilder principals(Principal[] pals);
     
-    public final PermissionGrantBuilder denials(Deny denied) {
-        AccessController.checkPermission(new DenyPermission());
-        return deny(denied);
-    }
-    
-    public final PermissionGrantBuilder grant(Permission[] permissions){
-        AccessController.checkPermission(new GrantPermission(permissions));
-        return permissions(permissions);
-    }
-    
-    public final PermissionGrant create(){
-        return AccessController.doPrivileged(new PrivilegedAction<PermissionGrant>(){
-            public PermissionGrant run(){
-                return build();
-            }
-        });
-    }
+    public abstract PermissionGrantBuilder permissions(Permission[] perm);
 
-    protected abstract PermissionGrantBuilder permissions(Permission[] permissions);
-
-    protected abstract PermissionGrant build();
+    public abstract PermissionGrantBuilder deny(Denied denial);
     
-    protected abstract PermissionGrantBuilder deny(Deny denied);
+    public abstract PermissionGrant build();
 }

@@ -19,7 +19,6 @@
 package org.apache.river.imp.security.policy.util;
 
 import org.apache.river.api.security.PermissionGrantBuilder;
-import org.apache.river.api.security.PermissionGrant;
 import java.net.URL;
 import java.security.CodeSigner;
 import java.security.CodeSource;
@@ -35,19 +34,18 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import org.apache.river.api.security.Deny;
+import org.apache.river.api.security.PermissionGrant;
 
 /**
  *
  * @author Peter Firmstone.
  */
-abstract class PrincipalGrant extends PermissionGrant {
+abstract class PrincipalGrant implements PermissionGrant {
     private final Collection<Principal> principals;
     private final int hashCode;
     private final Collection<Permission> permissions;
-    private final Deny check;
     @SuppressWarnings("unchecked")
-    protected PrincipalGrant(Principal[] pals, Permission[] perm, Deny deny){
+    protected PrincipalGrant(Principal[] pals, Permission[] perm){
         if ( pals != null ){
             principals = new ArrayList<Principal>(pals.length);
             principals.addAll(Arrays.asList(pals));
@@ -60,7 +58,6 @@ abstract class PrincipalGrant extends PermissionGrant {
             this.permissions = new HashSet<Permission>(perm.length);
             this.permissions.addAll(Arrays.asList(perm));
         }
-        check = deny;
         int hash = 5;
         hash = 97 * hash + (this.principals != null ? this.principals.hashCode() : 0);
         hash = 97 * hash + (this.permissions != null ? this.permissions.hashCode() : 0);
@@ -82,10 +79,6 @@ abstract class PrincipalGrant extends PermissionGrant {
     @Override
     public int hashCode() {
         return hashCode;
-    }
-    
-    protected Deny getDenials(){
-        return check;
     }
         
     protected boolean implies(Principal[] prs) {
@@ -190,13 +183,12 @@ abstract class PrincipalGrant extends PermissionGrant {
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = new PermissionGrantBuilderImp();
         pgb.principals(principals.toArray(new Principal[principals.size()]))
-           .grant(permissions.toArray(new Permission[permissions.size()]))
-           .denials(check);
+           .permissions(permissions.toArray(new Permission[permissions.size()]));
         return pgb;
     }
 
-    public Collection<Permission> getPermissions() {
-        return Collections.unmodifiableCollection(permissions);
+    public Permission[] getPermissions() {
+        return permissions.toArray(new Permission[permissions.size()]);
     }
     
     public boolean isVoid() {        

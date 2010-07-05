@@ -34,6 +34,7 @@ import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Policy;
 import java.security.ProtectionDomain;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
@@ -44,8 +45,8 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
+import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.imp.security.policy.util.DefaultPolicyParser;
-import org.apache.river.imp.security.policy.util.PolicyEntry;
 import org.apache.river.imp.security.policy.util.PolicyParser;
 import org.apache.river.imp.security.policy.util.PolicyUtils;
 import org.apache.river.imp.util.ConcurrentWeakIdentityMap;
@@ -175,7 +176,7 @@ public class ConcurrentPolicyFile extends Policy {
     private final ReadLock rl;
     private final WriteLock wl;
     
-    private Set<PolicyEntry> grants = new HashSet<PolicyEntry>(); // protected by rwl
+    private Set<PermissionGrant> grants = new HashSet<PermissionGrant>(); // protected by rwl
 
     // Calculated Permissions cache, organized as
     // Map{Object->Collection&lt;Permission&gt;}.
@@ -228,12 +229,15 @@ public class ConcurrentPolicyFile extends Policy {
         }
         try {
             rl.lock();
-            Iterator<PolicyEntry> it = grants.iterator();
+            Iterator<PermissionGrant> it = grants.iterator();
             while (it.hasNext()) {
-                PolicyEntry ge = it.next();
-                if (ge.impliesPrincipals(pd == null ? null : pd.getPrincipals())
-                    && ge.impliesCodeSource(pd == null ? null : pd.getCodeSource())) {
-                    pc.addAll(ge.getPermissions());
+                PermissionGrant ge = it.next();
+//                if (ge.impliesPrincipals(pd == null ? null : pd.getPrincipals())
+//                    && ge.impliesCodeSource(pd == null ? null : pd.getCodeSource())) {
+                if (ge.implies(pd == null ? null : pd.getCodeSource(),
+                       pd == null ? null : pd.getPrincipals() )){
+                    Permission[] perm = ge.getPermissions();
+                    pc.addAll(Arrays.asList(perm));
                 }
             }               
         } finally { rl.unlock(); }        
@@ -259,12 +263,15 @@ public class ConcurrentPolicyFile extends Policy {
         }
         try {
             rl.lock();
-            Iterator<PolicyEntry> it = grants.iterator();
+            Iterator<PermissionGrant> it = grants.iterator();
             while (it.hasNext()) {
-                PolicyEntry ge = it.next();
-                if (ge.impliesPrincipals(null)
-                    && ge.impliesCodeSource(cs)) {
-                    pc.addAll(ge.getPermissions()); // we still hold a reference
+                PermissionGrant ge = it.next();
+//                if (ge.impliesPrincipals(null)
+//                    && ge.impliesCodeSource(cs)) {
+                if (ge.implies(cs,null )){
+                    Permission[] perm = ge.getPermissions();
+                    pc.addAll(Arrays.asList(perm)); // we still hold a reference
+//                    pc.addAll(ge.getPermissions()); // we still hold a reference
                 }
             }     
         } finally { rl.unlock(); }
@@ -289,7 +296,7 @@ public class ConcurrentPolicyFile extends Policy {
      */
     @Override
     public void refresh() {
-        Set<PolicyEntry> fresh = new HashSet<PolicyEntry>();
+        Set<PermissionGrant> fresh = new HashSet<PermissionGrant>();
         Properties system = new Properties(AccessController
                 .doPrivileged(new PolicyUtils.SystemKit()));
         system.setProperty("/", File.separator); //$NON-NLS-1$
@@ -300,7 +307,7 @@ public class ConcurrentPolicyFile extends Policy {
             try {
                 //TODO debug log
                 //System.err.println("Parsing policy file: " + policyLocations[i]);
-                Collection<PolicyEntry> pc = parser.parse(policyLocations[i], system);
+                Collection<PermissionGrant> pc = parser.parse(policyLocations[i], system);
                 fresh.addAll(pc);
             } catch (Exception e) {
                 // TODO log warning

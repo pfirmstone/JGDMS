@@ -27,7 +27,6 @@ import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.List;
-import org.apache.river.api.security.Deny;
 
 /**
  *
@@ -40,8 +39,8 @@ class ProtectionDomainGrant extends PrincipalGrant {
     
     @SuppressWarnings("unchecked")
     ProtectionDomainGrant(WeakReference<ProtectionDomain> domain, Principal[] groups, 
-            Permission[] perm, Deny deny ){
-        super(groups, perm, deny);
+            Permission[] perm){
+        super(groups, perm);
         if (domain == null){
             hasDomain = false;
         }else{
@@ -128,9 +127,12 @@ class ProtectionDomainGrant extends PrincipalGrant {
     @Override
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
-        return pgb
-                .domain(domain)
-                .context(PROTECTIONDOMAIN);
+        if ( pgb instanceof PermissionGrantBuilderImp ){
+         PermissionGrantBuilderImp pgbi = (PermissionGrantBuilderImp) pgb;
+                pgbi.setDomain(domain)
+                .context(PermissionGrantBuilder.PROTECTIONDOMAIN);
+        }
+        return pgb;
     }
   
 }
