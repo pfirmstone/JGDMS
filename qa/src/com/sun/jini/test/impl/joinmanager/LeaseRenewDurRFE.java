@@ -112,7 +112,7 @@ import java.util.StringTokenizer;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import net.jini.discovery.DiscoveryListenerManagement;
-import net.jini.discovery.DiscoveryManagement2;
+import net.jini.discovery.RegistrarManagement;
 
 /**
  * This class verifies that the current implementation of the 
@@ -453,7 +453,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 
         /* create SDM to retrieve ref to TestService-i from lookup */
         sdm = new ServiceDiscoveryManager
-                                    ((DiscoveryManagement2) ldm, null, sysConfig.getConfiguration());
+                                    ((DiscoveryListenerManagement) ldm, null, sysConfig.getConfiguration());
     }//end setup
 
     /** For each separate TestService started during setup, do the following:

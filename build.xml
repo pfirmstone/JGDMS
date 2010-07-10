@@ -751,6 +751,7 @@
             directory where AllPermission is granted-->
             <arg line="-out org.apache.river.imp.security.policy.se"/>
             <arg line="-out org.apache.river.imp.security.policy.util"/>
+            <arg line="-out org.apache.river.api.security"/>
             <arg path="${build.classes.dir}/net/jini/activation"/>
             <arg path="${build.classes.dir}/net/jini/config"/>
             <arg path="${build.classes.dir}/net/jini/constraint"/>
@@ -764,9 +765,11 @@
             <arg path="${build.classes.dir}/net/jini/loader"/>
             <arg path="${build.classes.dir}/net/jini/security"/>
             <arg path="${build.classes.dir}/net/jini/url"/>
+            <arg path="${build.classes.dir}/org/apache/river/api"/>
             <arg value="net.jini.discovery.ConstrainableLookupLocator"/>
             <arg value="net.jini.discovery.ConstrainableLookupLocatorTrustVerifier"/>
-            <arg value="org.apache.river.api.security.RevokePermission"/>
+            <!--<arg value="org.apache.river.api.security.RevokePermission"/>
+            <arg value="org.apache.river.api.security.PermissionGrantBuilder"/>-->
             <arg path="${build.classes.dir}/com/sun/jini/discovery"/>
             <arg value="com.sun.jini.config.ConfigUtil"/>
             <arg value="com.sun.jini.config.KeyStores"/>
@@ -823,6 +826,7 @@
             <arg value="net.jini.security.policy.DynamicPolicyProvider"/>
             <arg value="net.jini.security.policy.PolicyFileProvider"/>
             <arg value="org.apache.river.api.security.RevokePermission"/>
+            <arg value="org.apache.river.api.security.PermissionGrantBuilder"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="-in org.apache.river"/>

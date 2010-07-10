@@ -40,7 +40,10 @@ import org.apache.river.imp.security.policy.util.PolicyEntry;
 import org.apache.river.imp.security.policy.util.UnresolvedPrincipal;
 import org.apache.river.imp.security.policy.util.DefaultPolicyParser;
 import junit.framework.TestCase;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.imp.security.policy.se.ConcurrentPolicyFile;
+import org.apache.river.imp.security.policy.util.PermissionGrantBuilderImp;
 
 
 /**
@@ -55,14 +58,13 @@ public class ConcurrentPolicyFileTest extends TestCase {
 
     static class TestParser extends DefaultPolicyParser {
 
-        PolicyEntry[] content;
+        PermissionGrant[] content;
 
-        public TestParser(PolicyEntry[] content) {
+        public TestParser(PermissionGrant[] content) {
             this.content = content;
         }
 
-        @Override
-        public Collection<PolicyEntry> parse(URL location, Properties system)
+        public Collection<PermissionGrant> parse(URL location, Properties system)
             throws Exception {
             if (content != null) {
                 return Arrays.asList(content);
@@ -76,17 +78,18 @@ public class ConcurrentPolicyFileTest extends TestCase {
      */
     public void testRefresh() {
         Permission sp = new SecurityPermission("sdf");
-        PolicyEntry[] pe = new PolicyEntry[] { 
-            new PolicyEntry((CodeSource)null,
-                (Collection<Principal>)null,
-            Arrays.asList(new Permission[] { sp })) 
+        PermissionGrantBuilder pgb = new PermissionGrantBuilderImp();
+        PermissionGrant[] pe = new PermissionGrant[] { 
+            pgb.codeSource(null).principals(null)
+               .permissions(new Permission[] { sp })
+               .build()
         };
         TestParser tp = new TestParser(pe);
         ConcurrentPolicyFile policy = new ConcurrentPolicyFile(tp);
         CodeSource cs = new CodeSource(null, (Certificate[])null);
         assertTrue(policy.getPermissions(cs).implies(sp));
 
-        tp.content = new PolicyEntry[0];
+        tp.content = new PermissionGrant[0];
         policy.refresh();
         assertFalse(policy.getPermissions(cs).implies(sp));
 
@@ -110,21 +113,25 @@ public class ConcurrentPolicyFileTest extends TestCase {
      * @throws java.lang.Exception 
      */
     public void testGetPermissions_CodeSource() throws Exception {
+        PermissionGrantBuilder pgb = new PermissionGrantBuilderImp();
         CodeSource cs = new CodeSource(null, (Certificate[])null);
         CodeSource cs2 = new CodeSource(new URL("http://a.b.c"),
             (Certificate[])null);
         Permission sp1 = new SecurityPermission("aaa");
         Permission sp2 = new SecurityPermission("bbb");
         Permission sp3 = new SecurityPermission("ccc");
-        PolicyEntry pe1 = new PolicyEntry(cs, null, Arrays
-            .asList(new Permission[] { sp1 }));
-        PolicyEntry pe2 = new PolicyEntry(cs2, new HashSet<Principal>(), Arrays
-            .asList(new Permission[] { sp2 }));
-        PolicyEntry pe3 = new PolicyEntry(cs, Arrays
-            .asList(new Principal[] { new FakePrincipal("qqq") }), Arrays
-            .asList(new Permission[] { sp3 }));
-        PolicyEntry[] peArray = new PolicyEntry[] {
-            pe1, pe2, pe3 };
+        PermissionGrant pe1 = pgb.codeSource(cs)
+                .permissions(new Permission[] { sp1 })
+                .build();
+        PermissionGrant pe2 = pgb.codeSource(cs2)
+                .principals(new Principal[0])
+                .permissions(new Permission[] { sp2 })
+                .build();
+        PermissionGrant pe3 = pgb.codeSource(cs)
+                .principals( new Principal[] {new FakePrincipal("qqq") })
+                .permissions(new Permission[] { sp3 })
+                        .build();
+        PermissionGrant[] peArray = new PermissionGrant[] { pe1, pe2, pe3};
         ConcurrentPolicyFile policy = new ConcurrentPolicyFile(new TestParser(peArray));
 
         assertTrue(policy.getPermissions(cs).implies(sp1));
@@ -141,6 +148,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
      * @throws java.lang.Exception 
      */
     public void testGetPermissions_ProtectionDomain() throws Exception {
+        PermissionGrantBuilder pgb = new PermissionGrantBuilderImp();
         Permission sp1 = new SecurityPermission("aaa");
         Permission sp2 = new SecurityPermission("bbb");
         Permission sp3 = new SecurityPermission("ccc");
@@ -154,22 +162,26 @@ public class ConcurrentPolicyFileTest extends TestCase {
         ProtectionDomain pd1 = new ProtectionDomain(cs, null);
         ProtectionDomain pd2 = new ProtectionDomain(cs2, pcZ, null,
             new Principal[] { new FakePrincipal("qqq") });
-
-        PolicyEntry pe1 = new PolicyEntry(cs, null, Arrays
-            .asList(new Permission[] { sp1 }));
-        PolicyEntry pe2 = new PolicyEntry(cs2, Arrays
-            .asList(new Principal[] { new UnresolvedPrincipal(
-                UnresolvedPrincipal.WILDCARD, UnresolvedPrincipal.WILDCARD) }),
-            Arrays.asList(new Permission[] { sp2 }));
-        PolicyEntry pe3 = new PolicyEntry(cs, Arrays
-            .asList(new Principal[] { new UnresolvedPrincipal(
-                FakePrincipal.class.getName(), "qqq") }), Arrays
-            .asList(new Permission[] { sp3 }));
-        PolicyEntry pe4 = new PolicyEntry(cs2, Arrays
-            .asList(new Principal[] { new UnresolvedPrincipal(
-                FakePrincipal.class.getName(), "ttt") }), Arrays
-            .asList(new Permission[] { sp4 }));
-        PolicyEntry[] peArray = new PolicyEntry[] {
+        
+        PermissionGrant pe1 = pgb.codeSource(cs)
+                .permissions(new Permission[] { sp1 })
+                .build();
+        PermissionGrant pe2 = pgb.codeSource(cs2)
+                .principals(new Principal[] { new UnresolvedPrincipal(
+                UnresolvedPrincipal.WILDCARD, UnresolvedPrincipal.WILDCARD) })
+                .permissions(new Permission[] { sp2 })
+                .build();
+        PermissionGrant pe3 = pgb.codeSource(cs)
+                .principals(new Principal[] { new UnresolvedPrincipal(
+                FakePrincipal.class.getName(), "qqq") })
+                .permissions(new Permission[] { sp3 })
+                .build();
+        PermissionGrant pe4 = pgb.codeSource(cs2)
+                .principals(new Principal[] { new UnresolvedPrincipal(
+                FakePrincipal.class.getName(), "ttt") })
+                .permissions(new Permission[] { sp4 })
+                .build();
+        PermissionGrant[] peArray = new PermissionGrant[]{
             pe1, pe2, pe3, pe4 };
         ConcurrentPolicyFile policy = new ConcurrentPolicyFile(new TestParser(peArray));
 

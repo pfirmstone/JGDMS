@@ -26,7 +26,8 @@ import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.lookup.ServiceDiscoveryManager;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
-import net.jini.discovery.DiscoveryManagement2;
+import net.jini.discovery.DiscoveryListenerManagement;
+import net.jini.discovery.RegistrarManagement;
 import net.jini.lease.LeaseRenewalManager;
 
 /**
@@ -61,7 +62,7 @@ public class DefaultDiscoverPublic extends AbstractBaseTest {
         testDesc = "service discovery manager with default lookup "
                    +"discovery manager (should discover public lookups)";
         srvcDiscoveryMgr = 
-	    new ServiceDiscoveryManager( (DiscoveryManagement2) null, 
+	    new ServiceDiscoveryManager( (DiscoveryListenerManagement) null, 
 					 (LeaseRenewalManager) null,
 					config.getConfiguration());
         sdmList.add(srvcDiscoveryMgr);
@@ -69,7 +70,7 @@ public class DefaultDiscoverPublic extends AbstractBaseTest {
 
     /** Executes the current test by doing the following:
      *  
-     *  1. Retrieves the instance of <code>DiscoveryManagement2</code>
+     *  1. Retrieves the instance of <code>RegistrarManagement</code>
      *     being used by the service discovery manager.
      *  2. Retrieves the set of groups the lookup discovery manager is
      *     configured to discover. 
@@ -79,7 +80,7 @@ public class DefaultDiscoverPublic extends AbstractBaseTest {
      *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
-        DiscoveryManagement2 dm = srvcDiscoveryMgr.discoveryManager();
+        DiscoveryListenerManagement dm = srvcDiscoveryMgr.getDiscoveryListenerManager();
         if( !(dm instanceof LookupDiscoveryManager) ) {
         throw new TestException(" -- default lookup discovery manager is not "
 				+"an instance of "

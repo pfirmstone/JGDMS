@@ -59,7 +59,6 @@ import net.jini.discovery.DiscoveryEvent;
 import net.jini.discovery.DiscoveryChangeListener;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
-import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.discovery.LookupDiscoveryRegistration;
 import net.jini.discovery.RemoteDiscoveryEvent;
@@ -5291,11 +5290,11 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
         /* Get the discovery manager to pass to this service's join manager. */
         try {
             joinMgrLDM  = 
-                (DiscoveryManagement)Config.getNonNullEntry
+                (DiscoveryListenerManagement)Config.getNonNullEntry
                                                   (config,
                                                    COMPONENT_NAME,
                                                    "discoveryManager",
-                                                   DiscoveryManagement.class);
+                                                   DiscoveryListenerManagement.class);
             if( joinMgrLDM instanceof DiscoveryGroupManagement ) {
                 String[] groups0 =
                            ((DiscoveryGroupManagement)joinMgrLDM).getGroups();

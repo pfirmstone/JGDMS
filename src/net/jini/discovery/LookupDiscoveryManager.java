@@ -94,7 +94,8 @@ import net.jini.core.lookup.ServiceRegistrar;
  */
 @SuppressWarnings("deprecation")
 public class LookupDiscoveryManager implements DiscoveryManagement,
-                                               DiscoveryManagement2,
+                                               RegistrarManagement,
+                                               DiscoveryListenerManagement,
                                                DiscoveryGroupManagement,
                                                DiscoveryLocatorManagement
 {
@@ -1333,7 +1334,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      */
     @Deprecated
     public void discard(ServiceRegistrar proxy) {
-        discard(proxy);
+        discard((PortableServiceRegistrar) proxy);
     }//end discard
     
     /**

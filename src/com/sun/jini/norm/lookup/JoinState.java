@@ -38,7 +38,6 @@ import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
-import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.lease.LeaseRenewalManager;
 import net.jini.lookup.JoinManager;
@@ -303,8 +302,8 @@ public class JoinState extends LogHandler implements SubStore {
 	throws ConfigurationException, IOException
     {
 	try {
-	    dm = (DiscoveryManagement) Config.getNonNullEntry(
-		config, NORM, "discoveryManager", DiscoveryManagement.class);
+	    dm = (DiscoveryListenerManagement) Config.getNonNullEntry(
+		config, NORM, "discoveryManager", DiscoveryListenerManagement.class);
 	    if (!(dm instanceof DiscoveryGroupManagement)) {
 		throw new ConfigurationException(
 		    "Entry for component " + NORM +

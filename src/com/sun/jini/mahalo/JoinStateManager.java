@@ -36,7 +36,6 @@ import net.jini.config.ConfigurationException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
-import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscoveryManager;
@@ -81,7 +80,7 @@ class JoinStateManager extends LogHandler {
      * Object used to find lookups. Has to implement DiscoveryManagement
      * and DiscoveryLocatorManagement as well as DiscoveryGroupManagement.
      */
-    private DiscoveryManagement dm;
+    private DiscoveryListenerManagement dm;
 
     /**
      * <code>JoinManager</code> that is handling the details of binding
@@ -183,9 +182,9 @@ class JoinStateManager extends LogHandler {
 	         lookupLocatorPreparer);
 	}
 //TODO - defer creation of default LDM
-	dm = (DiscoveryManagement)
+	dm = (DiscoveryListenerManagement)
 	    Config.getNonNullEntry(config, TxnManager.MAHALO,
-		"discoveryManager", DiscoveryManagement.class, 
+		"discoveryManager", DiscoveryListenerManagement.class, 
 		new LookupDiscoveryManager(
                     DiscoveryGroupManagement.NO_GROUPS, null, null, config));
         if(initlogger.isLoggable(Level.CONFIG)) {

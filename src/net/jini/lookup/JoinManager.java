@@ -54,10 +54,8 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.lookup.PortableServiceRegistrar;
-import net.jini.discovery.DiscManFacade;
 import net.jini.discovery.DiscoveryListenerManagement;
-import net.jini.discovery.DiscoveryManagement2;
-import net.jini.discovery.DiscMan2Facade;
+import net.jini.discovery.RegistrarManagement;
 import org.apache.river.api.util.Facade;
 
 /**
@@ -447,11 +445,12 @@ public class JoinManager {
     private static void discard(DiscoveryListenerManagement dlm, 
             PortableServiceRegistrar proxy, Logger logger){
         try {
-            if (dlm instanceof DiscoveryManagement2) {
-                ((DiscoveryManagement2)dlm).discard(proxy);
+            if (dlm instanceof RegistrarManagement){
+                RegistrarManagement rm = (RegistrarManagement) dlm;
+                rm.discard(proxy);
             } else {
-                DiscMan2Facade dm2f = new DiscMan2Facade(dlm);
-                dm2f.discard(proxy);
+                throw new UnsupportedOperationException("Not instance of " +
+                        "RegistrarManagement");
             }
         } catch(IllegalStateException e1) {
            logger.log(Level.FINEST,
@@ -462,7 +461,7 @@ public class JoinManager {
             logger.log(Level.FINEST,
                       "JoinManager - cannot discard lookup, "
                       +"DiscoveryManager not supported on this" +
-                      " platform, use DiscoveryManager2 instead.",
+                      " platform, use RegistrarManagement instead.",
                       ex);
         }
     }
@@ -1636,7 +1635,8 @@ public class JoinManager {
      * @see net.jini.discovery.DiscoveryManagement
      * @see net.jini.discovery.LookupDiscoveryManager
      * @see net.jini.lease.LeaseRenewalManager
-     * @deprecated {@link replaced by #JoinManager(Object, Entry[], ServiceIDListener, LeaseRenewalManager, DiscoveryListenerManagement)}
+     * @deprecated {@link replaced by #JoinManager(Object, Entry[],
+     * ServiceIDListener, LeaseRenewalManager, DiscoveryListenerManagement)}
      */
     @Deprecated
      public JoinManager(Object serviceProxy,
@@ -1993,12 +1993,12 @@ public class JoinManager {
                 throw new IllegalStateException("join manager was terminated");
             }//endif
         }//end sync
-        // Don't need to worry about revealing facades, they do that in their
-        // constructor.
+        // Don't need to worry about facades, all implementers of the new 
+        // interfaces implement DiscoveryManagement, at least until this method is removed. 
         if (discMgr instanceof DiscoveryManagement){
             return (DiscoveryManagement) discMgr;
         }
-	return new DiscManFacade(discMgr);
+	return null;
         
     }//end getDiscoveryManager
     
@@ -2018,7 +2018,7 @@ public class JoinManager {
      *         parameter.
      * 
      * @see net.jini.discovery.DiscoveryListenerManagement
-     * @see net.jini.discovery.DiscoveryManagement2
+     * @see net.jini.discovery.RegistrarManagement
      * @see net.jini.discovery.LookupDiscoveryManager
      */
     public DiscoveryListenerManagement discoveryManager(){
@@ -2713,10 +2713,10 @@ public class JoinManager {
             try {
                 // Changed to the new Interface which all DiscoveryManagers
                 // must implement.
-                discMgr = (DiscoveryManagement2)config.getEntry
+                discMgr = (DiscoveryListenerManagement)config.getEntry
                                                  (COMPONENT_NAME,
                                                   "discoveryManager",
-                                                  DiscoveryManagement2.class);
+                                                  DiscoveryListenerManagement.class);
             } catch(NoSuchEntryException e) { /* use default */
                 discMgr = new LookupDiscoveryManager
                                      (new String[] {""}, null, null, config);

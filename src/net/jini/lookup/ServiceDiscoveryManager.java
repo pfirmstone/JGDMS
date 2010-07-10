@@ -69,10 +69,10 @@ import java.util.Map;
 import java.util.Random;
 import java.util.Set;
 import net.jini.core.lookup.PortableServiceRegistrar;
+import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.StreamServiceRegistrar;
-import net.jini.discovery.DiscMan2Facade;
-import net.jini.discovery.DiscManFacade;
-import net.jini.discovery.DiscoveryManagement2;
+import net.jini.discovery.DiscoveryListenerManagement;
+import net.jini.discovery.RegistrarManagement;
 import org.apache.river.api.util.Facade;
 
 /**
@@ -325,7 +325,7 @@ import org.apache.river.api.util.Facade;
  *            this utility, and not by the utility itself.
  * </table>
  *
- * <a name="discoveryManager">
+ * <a name="getDiscoveryListenerManager">
  * <table summary="Describes the discoveryManager configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
@@ -2489,7 +2489,7 @@ public class ServiceDiscoveryManager {
     /* Logger used by this utility. */
     private static final Logger logger = Logger.getLogger(COMPONENT_NAME);
     /* The discovery manager to use (passed in, or create one). */
-    private DiscoveryManagement2 discMgr;
+    private DiscoveryListenerManagement discMgr;
     /* Indicates whether the discovery manager was created internally or not */
     private boolean discMgrInternal = false;
     /* The listener added to discMgr that receives DiscoveryEvents */
@@ -2792,7 +2792,7 @@ public class ServiceDiscoveryManager {
         } catch(ConfigurationException e) { /* swallow this exception */ }
     }//end constructor
     
-    public ServiceDiscoveryManager(DiscoveryManagement2 discoveryMgr,
+    public ServiceDiscoveryManager(DiscoveryListenerManagement discoveryMgr,
             LeaseRenewalManager leaseMgr) throws IOException
     {
         try {
@@ -2873,7 +2873,7 @@ public class ServiceDiscoveryManager {
         init(discoveryMgr, leaseMgr, config);
     }//end constructor
 
-    public ServiceDiscoveryManager(DiscoveryManagement2 discoveryMgr,
+    public ServiceDiscoveryManager(DiscoveryListenerManagement discoveryMgr,
                                    LeaseRenewalManager leaseMgr,
                                    Configuration config)
                                                 throws IOException,
@@ -3235,10 +3235,13 @@ public class ServiceDiscoveryManager {
     @Deprecated
     public DiscoveryManagement getDiscoveryManager() {
 	checkTerminated();
-	return new DiscManFacade(discMgr);
+        if ( discMgr instanceof DiscoveryManagement){
+            return (DiscoveryManagement) discMgr;
+        }
+	return null;
     }//end getDiscoveryManager
     
-    public DiscoveryManagement2 discoveryManager() {
+    public DiscoveryListenerManagement getDiscoveryListenerManager() {
         checkTerminated();
         return discMgr;
     }
@@ -3758,7 +3761,18 @@ public class ServiceDiscoveryManager {
 
     /** Discards a ServiceRegistrar through the discovery manager.*/
     private void discard(PortableServiceRegistrar proxy) {
-	discMgr.discard(proxy);
+        if (discMgr instanceof RegistrarManagement){
+            RegistrarManagement dm = (RegistrarManagement) discMgr;
+            dm.discard(proxy);
+        } 
+        // This will need to be commented out for Java cdc Personal Basis Profile
+        else if (discMgr instanceof DiscoveryManagement){
+            DiscoveryManagement dm = (DiscoveryManagement) discMgr;
+            if (proxy instanceof ServiceRegistrar){
+                ServiceRegistrar prxy = (ServiceRegistrar) proxy;
+                dm.discard(prxy);
+            }
+        }
     }//end discard
 
     /** Cancels the given event lease. */
@@ -3879,18 +3893,18 @@ public class ServiceDiscoveryManager {
 	return false;
     }//end isArrayContainsServiceItems
     
-    private void init(DiscoveryManagement discoveryMgr,
-                      LeaseRenewalManager leaseMgr,
-                      Configuration config)
-                                    throws IOException, ConfigurationException
-    {
-        init(new DiscMan2Facade(discoveryMgr), leaseMgr, config);
-    }
+//    private void init(DiscoveryManagement discoveryMgr,
+//                      LeaseRenewalManager leaseMgr,
+//                      Configuration config)
+//                                    throws IOException, ConfigurationException
+//    {
+//        init(discoveryMgr, leaseMgr, config);
+//    }
 
     /* Convenience method that encapsulates the retrieval of the configurable
      * items from the given <code>Configuration</code> object.
      */
-    private void init(DiscoveryManagement2 discoveryMgr,
+    private void init(DiscoveryListenerManagement discoveryMgr,
                       LeaseRenewalManager leaseMgr,
                       Configuration config)
                                     throws IOException, ConfigurationException
@@ -3933,11 +3947,11 @@ public class ServiceDiscoveryManager {
 	if(discMgr == null) {
 	    discMgrInternal = true;
             try {
-                // All Discovery Managers Must implement DiscoveryManagement2
-                discMgr = (DiscoveryManagement2)thisConfig.getEntry
-                                                   (COMPONENT_NAME,
-                                                    "discoveryManager",
-                                                    DiscoveryManagement2.class);
+                // All Discovery Managers Must implement RegistrarManagement
+                discMgr = (DiscoveryListenerManagement) thisConfig.getEntry(
+                                    COMPONENT_NAME,
+                                    "discoveryManager",
+                                    DiscoveryListenerManagement.class);
             } catch(NoSuchEntryException e) { /* use default */
                 discMgr = new LookupDiscoveryManager
                                    (new String[] {""}, null, null, thisConfig);

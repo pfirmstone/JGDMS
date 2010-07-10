@@ -258,11 +258,11 @@
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/policyFileProvider/NullPolicy.td"/>*pass*-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/joinmanager/GetDiscoveryManager.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/joinmanager/TerminateDiscovery.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/ZRegisterStorm.td"/>*pass*-->
+        <property name="run.tests" value="com/sun/jini/test/impl/joinmanager/ZRegisterStorm.td"/>
         <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipalSame.td"/>-->
-        <property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipal.td"/>
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantNoPrincipalCase02.td"/>*fails*-->
+        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipal.td"/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantNoPrincipalCase02.td"/>-->
         <!--<property name="run.tests" value=""/>-->
         <!--<property name="run.tests" value=""/>-->
         <!--<property name="run.tests" value=""/>-->

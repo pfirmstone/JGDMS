@@ -310,7 +310,9 @@ import net.jini.security.ProxyPreparer;
  *
  * @see net.jini.core.discovery.LookupLocator
  */
-public class LookupLocatorDiscovery implements DiscoveryManagement, DiscoveryManagement2,
+public class LookupLocatorDiscovery implements DiscoveryManagement, 
+                                               RegistrarManagement,
+                                               DiscoveryListenerManagement,
                                                DiscoveryLocatorManagement
 {
     /* Name of this component; used in config entry retrieval and the logger.*/

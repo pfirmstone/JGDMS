@@ -284,7 +284,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     private long minEventExpiration = Long.MAX_VALUE;
 
     /** Manager for discovering other lookup services */
-    private DiscoveryManagement discoer;
+    private DiscoveryListenerManagement discoer;
     /** Manager for joining other lookup services */
     private JoinManager joiner;
     /** Task manager for sending events and discovery responses */
@@ -4515,8 +4515,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		new BasicMethodConstraints(InvocationConstraints.EMPTY);
 	}
 	try {
-	    discoer = (DiscoveryManagement) config.getEntry(
-		COMPONENT, "discoveryManager", DiscoveryManagement.class);
+	    discoer = (DiscoveryListenerManagement) config.getEntry(
+		COMPONENT, "discoveryManager", DiscoveryListenerManagement.class);
 	} catch (NoSuchEntryException e) {
 	    discoer = new LookupDiscoveryManager(
 		DiscoveryGroupManagement.NO_GROUPS, null, null, config);

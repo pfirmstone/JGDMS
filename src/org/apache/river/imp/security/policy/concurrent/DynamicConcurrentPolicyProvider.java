@@ -15,6 +15,7 @@ import java.security.Provider;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.logging.Logger;
 import net.jini.security.GrantPermission;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.PolicyInitializationException;
+import net.jini.security.policy.UmbrellaGrantPermission;
 import org.apache.river.api.security.Denied;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi;
@@ -155,6 +157,10 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
     
     /**
      * Idempotent method.
+     * 
+     * Actually we should consider allowing a null base policy so we can choose our own
+     * default.  Or pass in a string for the basePolicy to find it itself.
+     * 
      * @param basePolicy
      * @return
      */
@@ -202,6 +208,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         PermissionCollection mypc = getPermissions(own);
         mypc = PolicyUtils.toConcurrentPermissionsCopy(mypc);
         cache.putIfAbsent(own, mypc);
+        new GrantPermission(new UmbrellaGrantPermission());
     }
 
     public boolean revokeSupported() {
@@ -228,9 +235,27 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         if (initialized == false) throw new RuntimeException("Object not initialized");
         return basePolicy.getPermissions(domain);
     }
+    
+    /* River-26 Mark Brouwer suggested making UmbrellaPermission's expandable
+     * from Dynamic Grants.  Since it is the preferred behaviour of a
+     * RevokableDynamicPolicy, to minimise the Permission's granted by
+     * and underlying policy, so they can be later revoked, this is
+     * desireable behaviour.
+     */ 
+    private void expandUmbrella(PermissionCollection pc) {
+	if (pc.implies(new UmbrellaGrantPermission())) {
+	    List<Permission> l = Collections.list(pc.elements());
+	    pc.add(new GrantPermission(
+		       l.toArray(new Permission[l.size()])));
+	}
+    }
 
     public boolean implies(ProtectionDomain domain, Permission permission) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
+        if (basePolicyIsDynamic){
+            // Total delegation revoke and deny not supported.
+            return basePolicy.implies(domain, permission);
+        }
         // Will this ProtectionDomain and Permission be denied?
         if (checkDenied){
             try {
@@ -243,25 +268,44 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
                 }
             } finally { drl.unlock(); }
         }
-        // First check the our cache if the basePolicy is not dynamic.
+        // First check our cache if the basePolicy is not dynamic.
         PermissionCollection pc = cache.get(domain);
-        if (!basePolicyIsDynamic && pc != null) {
+        if ( pc != null ) {
             if (pc.implies(permission)) return true;           
         }
         // Then check the base policy, this will resolve any unresolved
         // permissions, but we should the add that domain's permissions to
         // our cache, to reduce any contention if the underlying policy
-        // is single threaded.
-        if (basePolicy.implies(domain, permission)) {
-            if (basePolicyIsDynamic) return true;
+        // is single threaded. 
+        else if ( basePolicy.implies(domain, permission)) {
+            // only fetch it if we don't have it already.
+            PermissionCollection bpc = basePolicy.getPermissions(domain);
+           /* Don't use the underlying policy permission collection otherwise
+            * we can leak grants in to the underlying policy from our cache,
+            * this could then be merged into the PermissionDomain's permission
+            * cache negating the possiblity of revoking the permission.  This
+            * PolicyUtils method defensively copies or creates new if null.
+            */
+            pc = PolicyUtils.toConcurrentPermissionsCopy(bpc);
+            PermissionCollection existed = cache.putIfAbsent(domain, pc); 
+            if ( existed != null ){
+                pc = existed;
+            }
+            expandUmbrella(pc); // We need to avoid using PolicyFileProvider
+            return true;
+        } else {
+            // We just called implies, so UnresolvedPermission's will be
+            // resolved, lets cache it, so we definitely have it.
             PermissionCollection bpc = basePolicy.getPermissions(domain);
             pc = PolicyUtils.toConcurrentPermissionsCopy(bpc);
-            cache.putIfAbsent(domain, pc); 
-            // Who cares if it's already there, we're not adding anything to it.
-            // Another thread might be, so don't replace it.
-            return true;
+            PermissionCollection existed = cache.putIfAbsent(domain, pc); 
+            if ( existed != null ){
+                pc = existed;
+            }
+            expandUmbrella(pc);
         }
-        if (basePolicyIsDynamic) return false;
+        // Once we get to here pc is definitely not null and we have the
+        // copy referenced in the cache.
         if (loggable){
             logger.log(Level.FINEST, domain + permission.toString() + 
                     ": Base policy is not dynamic and returned false" );
@@ -281,19 +325,15 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         if (loggable) {
             logger.log(Level.FINEST, "Grants: " + dynamicallyGrantedPermissions.toString());
         }
-        if (dynamicallyGrantedPermissions.isEmpty()) return false;
-        // Operation starts to get expensive
-        if (pc == null){
-            pc = basePolicy.getPermissions(domain);
-           /* Don't use the underlying policy permission collection otherwise
-            * we can leak grants in to the underlying policy from our cache,
-            * this could then be merged into the PermissionDomain's permission
-            * cache negating the possiblity of revoking the permission.  This
-            * PolicyUtils method defensively copies or creates new if null.
-            */
-            pc = PolicyUtils.toConcurrentPermissionsCopy(pc);                  
-            PermissionCollection existed = cache.putIfAbsent(domain, pc);
-            if ( (existed != null) ){ pc = existed;} //Another thread might have just done it!
+        if (dynamicallyGrantedPermissions.isEmpty()) {
+            // We have no dynamic grants, but we might have an UmbrellaGrant
+            // that has just been expanded, the GrantPermission instanceof
+            // is just an optimisation.
+           if  (permission instanceof GrantPermission &&
+		 pc.implies(permission)) {
+                 return true;
+           }
+            return false;
         }
         Iterator<Permission> dgpi = dynamicallyGrantedPermissions.iterator();
         while (dgpi.hasNext()){
@@ -304,6 +344,8 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         if (loggable) {
             logger.log(Level.FINEST, "PermissionCollection: " + pc.toString());
         }
+        // We have added dynamic grants, lets expand them
+        expandUmbrella(pc);
         return pc.implies(permission);
     }
     

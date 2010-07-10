@@ -37,7 +37,8 @@ import net.jini.core.lookup.ServiceRegistrar;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.logging.Level;
-import net.jini.discovery.DiscoveryManagement2;
+import net.jini.discovery.DiscoveryListenerManagement;
+import net.jini.discovery.RegistrarManagement;
 
 /**
  * This test attempts to simulate the following race condition that
@@ -274,7 +275,7 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
         /* 2. Create half the SDM's and caches */
         for (int i=0; i<(N_SDM/2); i++) {
             ServiceDiscoveryManager sdm = new ServiceDiscoveryManager
-                                      ( (DiscoveryManagement2) ldm,null,testConfig.getConfiguration());
+                                      ( (DiscoveryListenerManagement) ldm,null,testConfig.getConfiguration());
             sdmList.add(sdm);
             SDMListener l = new SDMListener(testConfig, "SDM_"+i);
             sdmListeners.add(l);
@@ -288,7 +289,7 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
         /* 4. Create the remaining SDM's and caches */
         for (int i=(N_SDM/2); i<N_SDM; i++) {
             ServiceDiscoveryManager sdm = new ServiceDiscoveryManager
-                                      ( (DiscoveryManagement2) ldm,null,testConfig.getConfiguration());
+                                      ( (DiscoveryListenerManagement) ldm,null,testConfig.getConfiguration());
             sdmList.add(sdm);
             SDMListener l = new SDMListener(testConfig, "SDM_"+i);
             sdmListeners.add(l);

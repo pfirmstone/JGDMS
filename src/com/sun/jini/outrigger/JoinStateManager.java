@@ -29,7 +29,6 @@ import java.util.logging.Logger;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
-import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscoveryManager;
@@ -42,6 +41,7 @@ import net.jini.security.ProxyPreparer;
 import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
 import net.jini.discovery.DiscoveryListenerManagement;
+import net.jini.discovery.RegistrarManagement;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages
@@ -166,8 +166,20 @@ class JoinStateManager implements StorableObject {
 		new LookupDiscoveryManager(
                     DiscoveryGroupManagement.NO_GROUPS, null, null,
 		    config));
-
-	if (!(dgm instanceof DiscoveryManagement))
+        
+        if (!(dgm instanceof DiscoveryListenerManagement))
+	    throw throwNewConfigurationException("Entry for component " +
+		OutriggerServerImpl.COMPONENT_NAME + ", name " +
+		"discoveryManager must implement " +
+	        "net.jini.discovery.DiscoveryListenerManagement");
+        
+        if (!(dgm instanceof RegistrarManagement))
+	    throw throwNewConfigurationException("Entry for component " +
+		OutriggerServerImpl.COMPONENT_NAME + ", name " +
+		"discoveryManager must implement " +
+	        "net.jini.discovery.RegistrarManagement");
+        
+	if (!(dgm instanceof DiscoveryGroupManagement))
 	    throw throwNewConfigurationException("Entry for component " +
 		OutriggerServerImpl.COMPONENT_NAME + ", name " +
 		"discoveryManager must implement " +
@@ -329,7 +341,7 @@ class JoinStateManager implements StorableObject {
 	    mgr.terminate();
 
 	if (dgm != null) 
-	    ((DiscoveryManagement)dgm).terminate();
+	    ((RegistrarManagement)dgm).terminate();
     }
 
     /* Basically we are implementing JoinAdmin, for get methods we just

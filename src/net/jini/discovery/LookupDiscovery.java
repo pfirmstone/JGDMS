@@ -697,7 +697,9 @@ import net.jini.security.SecurityContext;
  * @see DiscoveryEvent
  * @see DiscoveryPermission
  */
-public class LookupDiscovery implements DiscoveryManagement, DiscoveryManagement2,
+public class LookupDiscovery implements DiscoveryManagement, 
+                                        RegistrarManagement,
+                                        DiscoveryListenerManagement,
                                         DiscoveryGroupManagement
 {
     /* Name of this component; used in config entry retrieval and the logger.*/

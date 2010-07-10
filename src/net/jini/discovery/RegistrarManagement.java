@@ -19,7 +19,6 @@
 package net.jini.discovery;
 
 import net.jini.core.lookup.PortableServiceRegistrar;
-import net.jini.discovery.DiscoveryListener;
 
 /**
  * This interface defines methods related to the discovery event mechanism
@@ -30,7 +29,7 @@ import net.jini.discovery.DiscoveryListener;
  * @author Peter Firmstone.
  * @since 2.2.0
  */
-public interface DiscoveryManagement2 extends DiscoveryListenerManagement {
+public interface RegistrarManagement extends DiscoveryListenerManagement {
 
     /**
      * Returns an array of instances of <code>PortableServiceRegistrar</code>, each

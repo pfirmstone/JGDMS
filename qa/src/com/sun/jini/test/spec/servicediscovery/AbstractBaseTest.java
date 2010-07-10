@@ -66,7 +66,8 @@ import java.util.HashMap;
 import java.util.Properties;
 
 import net.jini.config.ConfigurationException;
-import net.jini.discovery.DiscoveryManagement2;
+import net.jini.discovery.DiscoveryListenerManagement;
+import net.jini.discovery.RegistrarManagement;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -504,7 +505,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
 	    /* Construct the ServiceDiscoveryManager that will be tested */
 	    logger.log(Level.FINE, "constructing a service discovery manager");
 	    srvcDiscoveryMgr = new ServiceDiscoveryManager
-		( (DiscoveryManagement2) getLookupDiscoveryManager(),
+		( (DiscoveryListenerManagement) getLookupDiscoveryManager(),
 		 null,  //LeaseRenewalManager
 		 sysConfig.getConfiguration());
 	    sdmList.add(srvcDiscoveryMgr);
@@ -574,7 +575,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
             for(int i=0;i<sdmList.size();i++) {
                 ServiceDiscoveryManager sdmMgr
                                     = (ServiceDiscoveryManager)sdmList.get(i);
-                DiscoveryManagement2 discMgr = sdmMgr.discoveryManager();
+                DiscoveryListenerManagement discMgr = sdmMgr.getDiscoveryListenerManager();
                 try {
                     logger.log(Level.FINE,
 			 "tearDown - terminating service discovery manager "+i);

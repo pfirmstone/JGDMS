@@ -104,9 +104,11 @@ import net.jini.discovery.ConstrainableLookupLocator;
 import net.jini.discovery.DiscoveryEvent;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.DiscoveryListener;
+import net.jini.discovery.DiscoveryListenerManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
-import net.jini.discovery.DiscoveryManagement;
+//import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
+import net.jini.discovery.RegistrarManagement;
 import net.jini.export.Exporter;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
@@ -239,9 +241,14 @@ public class Browser extends JFrame {
 	    				Boolean.FALSE)).booleanValue();
 	listen = new Listener();
 	try {
-	    DiscoveryManagement disco = (DiscoveryManagement)
+	    DiscoveryListenerManagement disco = (DiscoveryListenerManagement)
 		Config.getNonNullEntry(config, BROWSER, "discoveryManager",
-				       DiscoveryManagement.class);
+				       DiscoveryListenerManagement.class);
+            if (!(disco instanceof RegistrarManagement)) {
+		throw new ConfigurationException(
+			      "discoveryManager does not " +
+			      " support RegistrarManagement");
+	    }
 	    if (!(disco instanceof DiscoveryGroupManagement)) {
 		throw new ConfigurationException(
 			      "discoveryManager does not " +
@@ -360,7 +367,7 @@ public class Browser extends JFrame {
 	}));
 	adder = new LookupListener();
 	lnotify = new LeaseNotify();
-	((DiscoveryManagement) disco).addDiscoveryListener(adder);
+	((RegistrarManagement)disco).addDiscoveryListener(adder);
     }
 
     /**
@@ -1311,7 +1318,7 @@ public class Browser extends JFrame {
 
     private void failure(Throwable t) {
 	logger.log(Level.INFO, "call to lookup service failed", t);
-	((DiscoveryManagement) disco).discard(lookup);
+	((RegistrarManagement) disco).discard(lookup);
     }
 
     class ServiceItemRenderer implements ListCellRenderer {
