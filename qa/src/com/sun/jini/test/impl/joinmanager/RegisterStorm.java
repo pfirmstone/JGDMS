@@ -34,6 +34,7 @@ import net.jini.core.lookup.ServiceMatches;
 
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -105,7 +106,7 @@ public class RegisterStorm extends AbstractBaseTest {
 	    JoinManager jm = 
 		new JoinManager(ts,serviceAttrs,
 				sidListener,
-				ldm,leaseMgr,
+				(DiscoveryListenerManagement) ldm,leaseMgr,
 				getConfig().getConfiguration());
 	    joinMgrList.add(jm);
 	}//end loop

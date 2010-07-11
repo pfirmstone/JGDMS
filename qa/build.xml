@@ -276,6 +276,9 @@
             <arg value="${run.tests}" />
         </testrun>
     </target>
+    
+    <target name="run-all" depends="run-categories, jtreg" description="Execute QA and Jtreg tests">
+    </target>
 
     <target name="run-categories" depends="" description="Execute QA test categories">
         <!-- categories can be found under packages com.sun.jini.test.impl and com.sun.jini.test.spec, some of them: -->

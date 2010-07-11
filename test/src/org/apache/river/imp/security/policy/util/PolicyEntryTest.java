@@ -23,7 +23,6 @@
 package org.apache.river.imp.security.policy.util;
 
 import org.apache.river.imp.security.policy.util.UnresolvedPrincipal;
-import org.apache.river.imp.security.policy.util.PolicyEntry;
 import java.net.URL;
 import java.security.cert.Certificate;
 import java.security.AllPermission;

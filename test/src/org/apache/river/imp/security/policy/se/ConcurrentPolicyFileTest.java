@@ -35,8 +35,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Properties;
-
-import org.apache.river.imp.security.policy.util.PolicyEntry;
 import org.apache.river.imp.security.policy.util.UnresolvedPrincipal;
 import org.apache.river.imp.security.policy.util.DefaultPolicyParser;
 import junit.framework.TestCase;

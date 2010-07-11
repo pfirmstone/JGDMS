@@ -751,7 +751,6 @@
             directory where AllPermission is granted-->
             <arg line="-out org.apache.river.imp.security.policy.se"/>
             <arg line="-out org.apache.river.imp.security.policy.util"/>
-            <arg line="-out org.apache.river.api.security"/>
             <arg path="${build.classes.dir}/net/jini/activation"/>
             <arg path="${build.classes.dir}/net/jini/config"/>
             <arg path="${build.classes.dir}/net/jini/constraint"/>

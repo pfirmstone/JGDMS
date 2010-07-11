@@ -47,9 +47,8 @@ import net.jini.io.MoToMiInputStream;
  * @author Sun Microsystems, Inc.
  *
  * @since 1.0
- * @deprecated replaced by @link{net.jini.discovery.LookupLocatorDiscovery}
+ * @see{net.jini.discovery.LookupLocatorDiscovery}
  */
-@Deprecated
 public class LookupLocator implements Serializable {
     private static final long serialVersionUID = 1448769379829432795L;
 

@@ -23,7 +23,6 @@
 package org.apache.river.imp.security.policy.util;
 
 import org.apache.river.imp.security.policy.util.DefaultPolicyParser;
-import org.apache.river.imp.security.policy.util.PolicyEntry;
 import java.io.File;
 import java.io.FileWriter;
 import java.net.URL;
