@@ -126,7 +126,7 @@ public class StreamServiceRegistrarFacade implements StreamServiceRegistrar,
     }
 
     public ResultStream<ServiceItem> lookup(ServiceTemplate tmpl, 
-            Class<? extends Entry>[] unmarshalledEntries, int maxBatchSize) 
+            Class[] unmarshalledEntries, int maxBatchSize) 
             throws IOException {
         if ( psr instanceof StreamServiceRegistrar ){
             StreamServiceRegistrar ssr = (StreamServiceRegistrar) psr;

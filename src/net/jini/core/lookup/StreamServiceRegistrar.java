@@ -122,7 +122,7 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
      * @since 2.2.0
      */
     ResultStream<ServiceItem> lookup(ServiceTemplate tmpl, 
-        Class<? extends Entry>[] unmarshalledEntries, int maxBatchSize) throws IOException;
+        Class[] unmarshalledEntries, int maxBatchSize) throws IOException;
     
     /**
      * Looks at all service items that match the specified template, finds
