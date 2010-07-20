@@ -37,11 +37,31 @@ import java.security.cert.Certificate;
 public interface PermissionGrantBuilder {
    
     /**
-     * Implied Context of Grant
+     * The PermissionGrant generated will apply to all classes loaded by
+     * the ClassLoader
      */ 
     public static final int CLASSLOADER = 0;
+    /**
+     * The PermissionGrant generated will apply to all classes loaded from
+     * the CodeSource.
+     */
     public static final int CODESOURCE = 1;
+    /**
+     * The PermissionGrant generated will apply to all classes belonging to
+     * the ProtectionDomain.  This is actually a simplification for the 
+     * programmer the PermissionGrant will apply to the CodeSource and the
+     * ClassLoader combination, the reason for this is the DomainCombiner may
+     * create new instances of ProtectionDomain's from those that exist on
+     * the stack.
+     * @see java.security.AccessControlContext
+     * @see java.security.DomainCombiner
+     * @see javax.security.auth.SubjectDomainCombiner
+     */
     public static final int PROTECTIONDOMAIN = 2;
+    /**
+     * The PermissionGrant generated will apply to all classes loaded from
+     * CodeSource's that have at a minimum the defined array Certificate[]
+     */
     public static final int CODESOURCE_CERTS = 3;
     
     /**

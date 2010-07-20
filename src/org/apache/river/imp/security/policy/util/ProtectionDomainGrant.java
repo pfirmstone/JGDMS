@@ -79,7 +79,8 @@ class ProtectionDomainGrant extends PrincipalGrant {
     /*
      * Checks if passed ProtectionDomain matches this PolicyEntry. Null ProtectionDomain of
      * PolicyEntry implies any ProtectionDomain; non-null ProtectionDomain's are
-     * compared with equals();
+     * compared with equals() and if false are compared by ClassLoader and
+     * CodeSource, in case of PermissionDomain's created by a DomainCombiner
      */   
     // for grant
     public boolean impliesProtectionDomain(ProtectionDomain pd) {
@@ -87,17 +88,24 @@ class ProtectionDomainGrant extends PrincipalGrant {
         if (hasDomain == false) return true;
         if (pd == null) return false;       
         if (domain.get() == null ) return false; // hasDomain already true
-        return pd.equals(domain.get()); // pd not null
+        if ( pd.equals(domain.get())) return true; // pd not null fast reference comparison
+        if ( impliesClassLoader(pd.getClassLoader()) && impliesCodeSource(pd.getCodeSource()))
+        {
+            return true;
+        }
+        return false;
     }
 
-    // This is only here for revoke.
+    // This is here for revoke and for new ProtectionDomain's created by the
+    // DomainCombiner such as those in the SubjectDomainCombiner.
     protected boolean impliesClassLoader(ClassLoader cl) {
         if (hasDomain == false) return true;
         if (cl == null) return false;       
         if (domain.get() == null ) return false; // hasDomain already true
         return domain.get().getClassLoader().equals(cl); // pd not null
     }
-    // This is only here for revoke.
+    // This is here for revoke and for new ProtectionDomain's created by the
+    // DomainCombiner such as those in the SubjectDomainCombiner.
     protected boolean impliesCodeSource(CodeSource codeSource) {
         ProtectionDomain pd = domain.get();
         if (pd == null) return true;

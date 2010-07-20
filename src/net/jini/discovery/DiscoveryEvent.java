@@ -20,7 +20,6 @@ package net.jini.discovery;
 import net.jini.lookup.StreamServiceRegistrarFacade;
 import net.jini.lookup.ServiceRegistrarFacade;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.EventObject;
 import java.util.Map;
 import net.jini.core.lookup.PortableServiceRegistrar;
@@ -164,7 +163,7 @@ public class DiscoveryEvent extends EventObject {
      * @return the set of registrars to which this event applies.
      */
     public PortableServiceRegistrar[] getPRegistrars() {
-        return Arrays.copyOf(regs, regs.length);      
+        return regs.clone();      
     }
     
     /**
