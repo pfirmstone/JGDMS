@@ -57,7 +57,7 @@ public interface PermissionGrant {
      * 
      * Note that if this method returns false, it doesn't necessarily mean
      * that the grant will not apply to the ClassLoader, since it will depend on 
-     * the contents of the ClassLoader and that is inderterminate. It just
+     * the contents of the ClassLoader and that is indeterminate. It just
      * indicates that the grant definitely does apply if it returns true.
      * 
      * If this method returns false, follow up using the ProtectionDomain for a
