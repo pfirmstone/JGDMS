@@ -44,7 +44,11 @@ public class TestGetKeyStore extends BasicTest {
 	    System.setSecurityManager(new SecurityManager());
 	}
     }
-
+    /* "http://unknwnxx/foo" used to be UnknownHostException, however IOException
+     * was also found to be a valid Exception and is the direct parent class that
+     * UnknownHostException inherits from.  Inspection of various methods involved
+     * indicate that IOException is also a valid response.
+     */ 
     static Test[] tests = {
 	new TestGetKeyStore(null, null, NullPointerException.class),
 	new TestGetKeyStore("not-found", null, FileNotFoundException.class),
@@ -54,7 +58,7 @@ public class TestGetKeyStore extends BasicTest {
 	new TestGetKeyStore(
 	    "badprot://foo", null, FileNotFoundException.class),
 	new TestGetKeyStore(
-	    "http://unknwnxx/foo", null, UnknownHostException.class),
+	    "http://unknwnxx/foo", null, IOException.class),
 	testWithHttpServer("unknown-file", null, FileNotFoundException.class),
 	testWithHttpServer("keystore", null, KeyStore.class),
 	testWithHttpServer("policy", null, IOException.class),
