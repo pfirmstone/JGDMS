@@ -73,7 +73,7 @@ public class MultiReadPermissionCollectionTest {
     public void implies() {
         System.out.println("add");
         Permission permission = new RuntimePermission("getClassLoader");
-        RevokeablePermissionCollection instance = new MultiReadPermissionCollection(permission);
+        PermissionCollection instance = new MultiReadPermissionCollection(permission);
         instance.add(permission);
         boolean result = instance.implies(permission);
         assertEquals(true, result);
@@ -88,7 +88,7 @@ public class MultiReadPermissionCollectionTest {
         Permission permission0 = new AccessPermission("org.some.class");
         Permission permission1 = new AccessPermission("org.some.other.class");
         Permission permission2 = new AccessPermission("org.another.class");
-        RevokeablePermissionCollection instance = new MultiReadPermissionCollection(permission0);
+        PermissionCollection instance = new MultiReadPermissionCollection(permission0);
         instance.add(permission0);
         instance.add(permission1);
         instance.add(permission2);
@@ -106,47 +106,6 @@ public class MultiReadPermissionCollectionTest {
         assertEquals(expRes, res);
     }
 
-    /**
-     * Test of revoke method, of class MultiReadPermissionCollection.
-     */
-    @org.junit.Test
-    public void revoke() {
-        System.out.println("revoke");
-        Permission permission0 = new AccessPermission("org.some.class");
-        Permission permission1 = new AccessPermission("org.some.other.class");
-        Permission permission2 = new AccessPermission("org.another.class");
-        RevokeablePermissionCollection instance = new MultiReadPermissionCollection(permission0);
-        instance.add(permission0);
-        instance.add(permission1);
-        instance.add(permission2);
-        instance.revoke(permission1);
-        boolean result = instance.implies(permission1);
-        assertEquals(false, result);
-    }
 
-    /**
-     * Test of revokeAll method, of class MultiReadPermissionCollection.
-     */
-    @org.junit.Test
-    public void revokeAll() {
-        System.out.println("revokeAll");
-                Permission permission0 = new AccessPermission("org.some.class");
-        Permission permission1 = new AccessPermission("org.some.other.class");
-        Permission permission2 = new AccessPermission("org.another.class");
-        RevokeablePermissionCollection instance = new MultiReadPermissionCollection(permission0);
-        instance.add(permission0);
-        instance.add(permission1);
-        instance.add(permission2);
-        instance.revokeAll(permission1);
-        ArrayList<Permission> expResult = new ArrayList<Permission>();
-        Enumeration<Permission> elem = instance.elements();
-        ArrayList<Permission> result = new ArrayList<Permission>();
-        while (elem.hasMoreElements()){
-            result.add(elem.nextElement());
-        }
-        int expRes = expResult.size();
-        int res = result.size();
-        assertEquals(expRes, res);
-    }
 
 }

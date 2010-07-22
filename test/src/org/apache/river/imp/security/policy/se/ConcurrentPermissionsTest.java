@@ -8,10 +8,12 @@ package org.apache.river.imp.security.policy.se;
 import java.lang.reflect.ReflectPermission;
 import java.net.NetPermission;
 import java.security.Permission;
+import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.UnresolvedPermission;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.PropertyPermission;
 import java.util.logging.LoggingPermission;
 import net.jini.security.AuthenticationPermission;
@@ -140,68 +142,61 @@ public class ConcurrentPermissionsTest {
     }
     
     /**
-     * Test of revoke method, of class MultiReadPermissionCollection.
+     * This tests the ability of the ConcurrentPermission to return
+     * UnresolvedPermission's via an Enumerator.
      */
     @org.junit.Test
-    public void revoke() {
-        System.out.println("revoke");
+    public void resolvesAndReturnsEnumerator() {
+        System.out.println("resolves and returns Enumerators correctly");
         Permission permission0 = new ReflectPermission ("suppressAccessChecks");
         Permission permission1 = new PropertyPermission ("sun.security.key.serial.interop", "read");
-        Permission permission2 = new NetPermission ("specifyStreamHandler");
-        RevokeablePermissionCollection instance = new ConcurrentPermissions();
-        instance.add(permission0);
-        instance.add(permission1);
-        instance.add(permission2);
-        assertTrue(instance.implies(permission0));
-        assertTrue(instance.implies(permission1));
-        assertTrue(instance.implies(permission2));
-        int result = instance.revoke(permission1, permission0 , permission2);       
-        int expectedResult = 1;
-        assertEquals(expectedResult, result);
-        assertFalse(instance.implies(permission0));
-        assertFalse(instance.implies(permission1));
-        assertFalse(instance.implies(permission2));
-    }
- 
-    /**
-     * Test of revoke method, of class MultiReadPermissionCollection.
-     * This test adds an UnresolvedPermission, the revoke() method
-     * must first attempt to resolve any UnresolvedPermission's before
-     * revoking
-     * 
-     */
-    @org.junit.Test
-    public void revokeUnresolvedPermission() {
-        System.out.println("revokeUnresolvedPermission");      
         Permission permission2 = new NetPermission ("specifyStreamHandler");
         Permission permission3 = new UnresolvedPermission("java.net.NetPermission",
                 "specifyStreamHandler", null, null);
-        RevokeablePermissionCollection instance = new ConcurrentPermissions();       
-        instance.add(permission3);     
-        //We don't check implies for permission2, that would cause resolution.
-        assertFalse(instance.implies(permission3));
-        int result = instance.revoke( permission2);       
-        int expectedResult = 1;
-        assertEquals(expectedResult, result);
-        assertFalse(instance.implies(permission2));
-    }
-    
-    /**
-     * Test of revokeAll method, of class MultiReadPermissionCollection.
-     */
-    @org.junit.Test
-    public void revokeAll() {
-        System.out.println("revokeAll");
-        Permission permission0 = new ReflectPermission ("suppressAccessChecks");
-        Permission permission1 = new PropertyPermission ("sun.security.key.serial.interop", "read");
-        Permission permission2 = new NetPermission ("specifyStreamHandler");
-        RevokeablePermissionCollection instance = new ConcurrentPermissions();
+        PermissionCollection instance = new ConcurrentPermissions();
         instance.add(permission0);
         instance.add(permission1);
-        instance.add(permission2);
-        instance.revokeAll(permission1);
-        boolean result = instance.implies(permission1);
-        assertEquals(false, result);
+        instance.add(permission3);
+        List<Permission> expectedResult = new ArrayList<Permission>(3);
+        expectedResult.add(permission0);
+        expectedResult.add(permission1);
+        expectedResult.add(permission3);
+        Enumeration<Permission> en = instance.elements();
+        List<Permission> result = new ArrayList<Permission>(3);
+        while (en.hasMoreElements()){
+            result.add(en.nextElement());
+        }
+        assertTrue(expectedResult.equals(result));
+        assertTrue(instance.implies(permission0));
+        assertTrue(instance.implies(permission1));
+        assertTrue(instance.implies(permission2));
+        en = instance.elements();
+        result = new ArrayList<Permission>(3);
+        while (en.hasMoreElements()){
+            result.add(en.nextElement());
+        }
+        expectedResult = new ArrayList<Permission>(3);
+        expectedResult.add(permission0);
+        expectedResult.add(permission1);
+        expectedResult.add(permission2);
+        assertTrue(result.containsAll(expectedResult));
+    }
+ 
+    /**
+     * This test adds an UnresolvedPermission, the implies() method
+     * must resolve any UnresolvedPermission's.
+     */
+    @org.junit.Test
+    public void resolvesUnresolvedPermission() {
+        System.out.println("resolveUnresolvedPermission");      
+        Permission permission2 = new NetPermission ("specifyStreamHandler");
+        Permission permission3 = new UnresolvedPermission("java.net.NetPermission",
+                "specifyStreamHandler", null, null);
+        PermissionCollection instance = new ConcurrentPermissions();       
+        instance.add(permission3);     
+        //check implies for permission2, that will cause resolution.
+        assertFalse(instance.implies(permission3));
+        assertTrue(instance.implies( permission2));       
     }
 
 

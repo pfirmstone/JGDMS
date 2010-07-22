@@ -46,13 +46,12 @@ import java.util.logging.Logger;
  * @author Peter Firmstone
  */
 public final class MultiReadPermissionCollection extends PermissionCollection 
-    implements RevokeablePermissionCollection, Serializable {
+    implements Serializable {
     private final static long serialVersionUID = 1L;
     private transient PermissionCollection permCl; // all access protected by rwl
     private final transient ReadWriteLock rwl;
     private final transient Lock rl;
     private final transient Lock wl;
-    private transient int writeCounter; // all access protected by rwl
     private boolean readOnly; // all access protected by rwl
     private Permission[] permissions; //never instantiate for ide code completion
 
@@ -61,7 +60,6 @@ public final class MultiReadPermissionCollection extends PermissionCollection
         rwl = new ReentrantReadWriteLock();
         rl = rwl.readLock();
         wl = rwl.writeLock();
-        writeCounter = 0;
         readOnly = false;
     }
     
@@ -118,7 +116,6 @@ public final class MultiReadPermissionCollection extends PermissionCollection
         wl.lock();
         try {
             permCl.add(permission);
-            writeCounter++;
         }
         finally {wl.unlock();}
     }
@@ -146,109 +143,7 @@ public final class MultiReadPermissionCollection extends PermissionCollection
             pc = new PermissionHash();
         }
         return pc;                    
-    }
-    /**
-     * Permissions may have some overlap, this method will remove any Permission
-     * objects that imply any of the Permission's supplied.
-     * 
-     * If this fails it will be due to the implies method returning true
-     * due to a combination of Permission objects.
-     * 
-     * Permission objects must have the same class and type for this implementation.  
-     * 
-     * @param permissions
-     * @return success
-     */    
-    public int revoke(Permission ... permissions) {       
-            int count = 0; // false
-            HashSet<Permission> permissionSet = new HashSet<Permission>();          
-            rl.lock();
-            try {
-                if (readOnly) {
-                    throw new SecurityException("attempt to remove a Permission from a readonly Permissions object");
-                } 
-                count = writeCounter;
-                Enumeration<Permission> current = elements();
-                while (current.hasMoreElements()) {
-                    permissionSet.add(current.nextElement());
-                }
-            } finally {
-                rl.unlock();
-            }
-            if (permissionSet.size() == 0) {
-                return 1; // true
-            } 
-            Iterator<Permission> itr = permissionSet.iterator();
-            PermissionCollection newCollection = null;
-            int size = permissions.length;
-            PER:
-            while (itr.hasNext() ){
-                Permission p = itr.next();
-                if (newCollection == null) {
-                    newCollection =  p.newPermissionCollection();
-                    if (newCollection == null ){
-                        newCollection = new PermissionHash();
-                    }
-                }
-                for (int i = 0; i < size; i++) {
-                    if (p.implies(permissions[i])) {
-                        continue PER;
-                    }
-                }
-                newCollection.add(p); // if the wrong type is passed in it doesn't matter
-            }          
-            /* Check that our modifications have been effective.
-             */ 
-            for (int i = 0; i < size ; i++){
-                if ( newCollection.implies(permissions[i])) { return -1;} // fail
-            }
-            return updatePermissionCollection(newCollection, count);           
-    }
-
-    /**
-     * Idempotent method to remove all Permissions Contained within a
-     * PermissionCollection.  Method fails if PermissionCollection is
-     * modified during method execution.  This method
-     * creates an empty replacement PermissionCollection.
-     * 
-     * This method also resets setReadOnly() to false;
-     * 
-     * @param permission
-     */
-    public void revokeAll(Permission permission) { 
-        boolean sameClassType = false;
-        int count = 0;
-        rl.lock();
-        try { 
-            Enumeration<Permission> current = elements();
-            Permission currentPerm = null;
-            if (current.hasMoreElements()) {
-                currentPerm = current.nextElement();
-            }
-            if (currentPerm == null) { return; } // idempotent, already empty.
-            if (currentPerm.getClass().equals(permission.getClass())){ sameClassType = true;}
-        } finally { rl.unlock(); }
-        PermissionCollection newCollection = permission.newPermissionCollection();
-        if (newCollection == null) { newCollection = new PermissionHash(); }
-        if (sameClassType == true){
-            updatePermissionCollection(newCollection, count);      
-        }             
-    }
-    
-    private int updatePermissionCollection( PermissionCollection pc, int writeCount ){
-        wl.lock();
-        try {
-            if ( writeCount  == writeCounter || writeCount == 0 ) {
-                permCl = pc;
-                writeCounter = 0; //Reset the counter
-                if (writeCount == 0) {readOnly = false;}
-                return 1;
-            }
-        } finally { 
-            wl.unlock(); 
-        }
-        return 0;
-    }      
+    }   
     
     private static class SerializationProxy implements Serializable {
         private static final long serialVersionUID = 1L;

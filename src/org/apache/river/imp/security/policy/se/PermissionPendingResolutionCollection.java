@@ -40,6 +40,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class PermissionPendingResolutionCollection  extends PermissionCollection {
     private static final long serialVersionUID = 1L;
     private ConcurrentHashMap<String,Collection<PermissionPendingResolution>> klasses;
+    // This is a best effort counter, it doesn't try to identify duplicates.
+    // If it equals 0, it definitely has no pendings, however it may be greater
+    // than 0 and have no pending Permission's for resolution.
     private AtomicInteger pending;
     PermissionPendingResolutionCollection(){
         klasses = new ConcurrentHashMap<String,Collection<PermissionPendingResolution>>(2);
@@ -83,8 +86,8 @@ public class PermissionPendingResolutionCollection  extends PermissionCollection
                                            PermissionCollection holder ){
         if (pending.get() == 0) { return holder; }
         String klass = target.getClass().getName();
-        if (klasses.containsKey(klass)) {            
-            Collection<PermissionPendingResolution> klassMates = klasses.get(klass);
+        Collection<PermissionPendingResolution> klassMates = klasses.remove(klass);
+        if (klassMates != null) {       
             for (Iterator<PermissionPendingResolution> iter = klassMates.iterator(); iter.hasNext();) {
                 PermissionPendingResolution element = iter.next();
                 Permission resolved = element.resolve(target.getClass());
@@ -97,7 +100,15 @@ public class PermissionPendingResolutionCollection  extends PermissionCollection
                     pending.decrementAndGet();
                 }
             } 
-            // there is no possible way of atomic removal of an empty Collection.           
+            // If for some reason something wasn't resolved we better put it back
+            // We should never get here, should I throw an exception instead?
+            if (klassMates.size() > 0 ) {
+                Collection<PermissionPendingResolution> existed
+                        = klasses.putIfAbsent(klass, klassMates);
+                if ( existed != null ) {
+                    existed.addAll(klassMates);
+                }
+            }
         }
         return holder;
     }
