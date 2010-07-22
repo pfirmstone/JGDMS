@@ -12,7 +12,6 @@ import java.util.ArrayList;
 import java.util.Enumeration;
 import net.jini.security.AccessPermission;
 import net.jini.security.AuthenticationPermission;
-import org.apache.river.imp.security.policy.se.RevokeablePermissionCollection;
 import org.apache.river.imp.security.policy.se.MultiReadPermissionCollection;
 import org.junit.After;
 import org.junit.Before;

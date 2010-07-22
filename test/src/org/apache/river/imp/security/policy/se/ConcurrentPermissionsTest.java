@@ -18,7 +18,6 @@ import java.util.PropertyPermission;
 import java.util.logging.LoggingPermission;
 import net.jini.security.AuthenticationPermission;
 import org.apache.river.imp.security.policy.se.ConcurrentPermissions;
-import org.apache.river.imp.security.policy.se.RevokeablePermissionCollection;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
