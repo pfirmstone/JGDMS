@@ -89,10 +89,6 @@ import org.apache.river.imp.util.ConcurrentWeakIdentityMap;
  * <p>
  * This may cause some undesireable side effects in existing programs.
  * </p><p>
- * There is one final reccommendation and that is adopting / utilising an OSGi
- * Framework to enable far greater control over dynamic Permissions than this hack
- * implementation provides.
- * </p><p>
  * To make the best utilisation of this Policy provider, set the System property:
  * </p>,<p>
  * net.jini.security.policy.PolicyFileProvider.basePolicyClass = 
