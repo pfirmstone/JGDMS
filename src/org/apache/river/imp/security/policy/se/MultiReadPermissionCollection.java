@@ -38,8 +38,16 @@ import java.util.logging.Logger;
 
 /**
  * MultiReadPermissionCollection is a wrapper class that enables mutliple
- * reads and RevokablePermissionCollection support.  It only supports
- * a homogenous class PermissionCollection.
+ * reads and synchronized writes, but only supports homogenous PermissionCollection's.
+ * 
+ * MultiReadPermissionCollection maintains a shared cache of underlying 
+ * Permission elements, this is to prevent an Enumeration from receiving a
+ * ConcurrentModificationException, sharing reduces the memory footprint.
+ * 
+ * The cache is replaced whenever the underlying PermissionCollection is
+ * modified.  The cache itself is never mutated, it's reference is simply
+ * changed to a new cache.  Old Enumeration's will refer to stale
+ * cache collections.
  * 
  * TODO Serialization Correctly
  * @version 0.2 2009/11/14
@@ -54,6 +62,12 @@ public final class MultiReadPermissionCollection extends PermissionCollection
     private final transient Lock wl;
     private boolean readOnly; // all access protected by rwl
     private Permission[] permissions; //never instantiate for ide code completion
+    // Read only copy to prevent publication of internal PermissionCollection
+    // state.  For generation of Enumeration<Permission>.
+    // It is volatile because other read locks may update the cache reference
+    // together if it is initially null, only the write lock sets the reference
+    // back to null.
+    private transient volatile ArrayList<Permission> cache;
 
     MultiReadPermissionCollection(Permission p){
         permCl = newPermissionCollection(p);
@@ -61,6 +75,7 @@ public final class MultiReadPermissionCollection extends PermissionCollection
         rl = rwl.readLock();
         wl = rwl.writeLock();
         readOnly = false;
+	cache = null;
     }
     
     @Override
@@ -116,6 +131,7 @@ public final class MultiReadPermissionCollection extends PermissionCollection
         wl.lock();
         try {
             permCl.add(permission);
+	    cache = null;
         }
         finally {wl.unlock();}
     }
@@ -126,11 +142,31 @@ public final class MultiReadPermissionCollection extends PermissionCollection
         try {return permCl.implies(permission);}
         finally {rl.unlock();}
     }
-
+    /* The Enumeration returned uses a cached copy backing ArrayList<Permission>
+     * of elements, to prevent a ConcurrentModificationException when add is 
+     * called, while enumerating. 
+     * The cached copy is never modified, no attempt is made to update it with
+     * any intervening add's.
+     */ 
     @Override
     public Enumeration<Permission> elements() {
         rl.lock();
-        try {return permCl.elements();}
+        try {
+	    ArrayList<Permission> localCache = cache; // Copy the Reference.
+	    // this reference is now stale, an intervening write may set cache
+	    // back to null.
+	    if (localCache == null){
+		localCache = new ArrayList<Permission>(40);
+		Enumeration<Permission> pIt = permCl.elements();
+		while (pIt.hasMoreElements()){
+		    localCache.add(pIt.nextElement());
+		}
+	    }
+	    // The worst that can happen is that more than one is generated or 
+	    // something gets missed, consider an AtomicReference.
+	    cache = localCache; 
+	    return Collections.enumeration(localCache);
+	}
         finally {rl.unlock();}
     }
     
@@ -142,6 +178,7 @@ public final class MultiReadPermissionCollection extends PermissionCollection
         if (pc == null){
             pc = new PermissionHash();
         }
+	pc.add(permission);
         return pc;                    
     }   
     
@@ -226,10 +263,8 @@ public final class MultiReadPermissionCollection extends PermissionCollection
         }
 
         @Override
-        public Enumeration<Permission> elements() {
-            synchronized (this){
-                return Collections.enumeration(permSet);
-            }
+        public Enumeration<Permission> elements() {          
+                return Collections.enumeration(permSet);          
         }      
     }    
 }

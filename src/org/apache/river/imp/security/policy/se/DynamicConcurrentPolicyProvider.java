@@ -48,27 +48,55 @@ import org.apache.river.imp.util.ConcurrentWeakIdentityMap;
  * cost however, that of increased memory usage.</p>
  * 
  * <p>Due to the Java 2 Security system's static design, a Policy Provider
- * can only augment the policy files utilised, that is it can only relax security
+ * can only augment the policy files utilised, a Policy can only relax security
  * by granting additional permissions, this implementation adds an experimental 
  * feature for revoking permissions, however there are some caveats:</p>
  * 
- * <p>Firstly if the Policy.refresh() method is called, followed by the 
- * ProtectionDomain.toString() method, the ProtectionDomain
- * merge the permissions, from the policy with those in the ProtectionDomain, 
- * a ProtectionDomain cannot have Permissions
- * removed, only additional merged. </p>
+ * <p>Background: if ProtectionDomain.toString(), is called a ProtectionDomain will
+ * merge Permissions, from the policy with those in the ProtectionDomain,
+ * in a new private instance of Permissions, thus a ProtectionDomain cannot have 
+ * Permission's removed, only additional merged.  A ProtectionDomain must
+ * be created with the dynamic constructor otherwise it will never consult
+ * the policy.  The AccessController.checkPermission(Permission) method
+ * consults the current AccessControlContext, which contains all
+ * ProtectionDomain's on the current thread's stack, before consulting the
+ * AccessControllContext.checkPermission(Permission), it calls
+ * AccessControllContext.optimize() which  removes all duplicate ProtectionDomains
+ * in the ProtectionDomain array[]'s from the
+ * enclosing AccessContolContext for the execution domain and the nested
+ * AccessControlContext for the privileged domain (the privileged domain is
+ * an array of ProtectionDomain's on the stack since the last 
+ * AccessController.doPriveleged() call).  The optimize() method also calls
+ * the DomainCombiner, which, for example, gives the SubjectDomainCombiner the 
+ * opportunity to manipulate the ProtectionDomain's in the privileged array, in the
+ * SubjectDomainCombiner's case, it creates new copies of the ProtectionDomain's
+ * with new Principal[]'s injected.  The optimize() method returns a new
+ * optimized AccessControlContext.
+ * </p><p>
+ * Now the AccessController calls the new AccessControlContext.checkPermission(Permission),
+ * at this stage, each ProtectionDomain, if created with the dynamic constructor
+ * consults the Policy, calling Policy.implies(ProtectionDomain, Permission).
+ * </p><p>
+ * If any calls to the policy return false, the ProtectionDomain then checks its
+ * internal Permissions and if they return false, it returns false.  The first
+ * ProtectionDomain in the AccessControlContext to return false causes the 
+ * AccessController.checkPermission(Permission) to throw an AccessControlException
+ * </p><p>
+ * To optimise the time taken to check Permission's the ProtectionDomain's
+ * should either be static, which excludes the Policy, or dynamic with
+ * a null PermissionCollection in it's constructor, </p>
  * 
  * <p>So in order to prevent dynamic grants from finding
  * their way into a ProtectionDomain's private PermissionCollection,
  * one would have to ensure that no dynamically grantable permissions are 
- * returned via the methods:</p>
+ * returned via the method:</p>
  * <p>
- * getPermissions(Codesource source) or
- * getPermissions(ProtectionDomain domain)
+ * getPermissions(ProtectionDomain domain) and
+ * getPermissions(Codesource source) as a precaution.
  * </p>
  * <p>This is different to the behaviour of the existing Jini 2.0
  * DynamicPolicyProvider implementation where dynamically granted Permissions
- * are added.
+ * are added and can escape into the ProtectionDomain's private PermissionCollection.
  * 
  * However when a Policy is checked via implies(ProtectionDomain d, Permission p)
  * this implementation checks the dynamic grants
@@ -77,17 +105,12 @@ import org.apache.river.imp.util.ConcurrentWeakIdentityMap;
  * and if it returns dynamically granted permissions, then those permissions
  * cannot be revoked.</p>
  * <p>
- * It is thus reccommeded that Static policy files only be used for files
- * where the level of trust is relatively static.  This is the only implementation
- * where a dyanamic grant can be removed.  In the case of Proxy trust, a proxy
- * is no longer trusted when it has lost contact with it's Principal (server)
- * because the server cannot be asked if it trusts it's proxy and the proxy
- * cannot be given a thread of control to find it's server because it has
- * already attained too many Permissions.  In this new implementation it should
- * be possible to revoke AllPermission and grant Permissions dynamically as 
- * trust is gained.</p>
- * <p>
- * This may cause some undesireable side effects in existing programs.
+ * It is thus reccommeded that Static policy files only be used for setting
+ * up your priveleged code and use UmbrellaGrantPermission's and grant 
+ * all other Permission's using dynamic grants.  This minimises the double 
+ * checking of Permission, that occurs when a ProtectionDomain is constructed
+ * so it contains a default PermissionCollection that is not null.
+ *
  * </p><p>
  * To make the best utilisation of this Policy provider, set the System property:
  * </p>,<p>
@@ -110,12 +133,16 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	    public ProtectionDomain run() { return Object.class.getProtectionDomain(); }
 	});
     
-    // A set of PolicyEntries constituting this Policy.
-    // PolicyEntry is lighter weight than PermissionCollection.
-    private final ReentrantReadWriteLock rwl;
-    private final ReadLock rl;
-    private final WriteLock wl;    
-    private final Set<PermissionGrant> dynamicGrants; // protected by rwl
+    /* reference update Protected by grantLock, this array reference must only 
+     * be copied or replaced, it must never be read directly or operated on 
+     * unless holding grantLock.
+     * Local methods must first copy the reference before using the array in
+     * loops etc in case the reference is updated.
+     */
+    private volatile PermissionGrant[] pGrants;
+    /* This lock protects adding and removal of PermissionGrant's*/
+    private final Object grantLock;
+    //private final Set<PermissionGrant> dynamicGrants; // protected by rwl
     private volatile Policy basePolicy; // effectively final looks after its own sync
     private final ConcurrentMap<ProtectionDomain, PermissionCollection> cache;
     private volatile boolean basePolicyIsDynamic; // Don't use cache if true.
@@ -134,10 +161,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
     
     
     public DynamicConcurrentPolicyProvider(){
-        rwl = new ReentrantReadWriteLock();
-        rl = rwl.readLock();
-        wl = rwl.writeLock();
-        dynamicGrants = new HashSet<PermissionGrant>(30);
+	pGrants = new PermissionGrant[0];
         basePolicy = null;
         cache = new ConcurrentWeakIdentityMap<ProtectionDomain, PermissionCollection>();
         basePolicyIsDynamic = false;
@@ -149,6 +173,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         dwl = drwl.writeLock();
         denied = new HashSet<Denied>(30);
         checkDenied = false;
+	grantLock = new Object();
     }
     
     /**
@@ -307,17 +332,26 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
                     ": Base policy is not dynamic and returned false" );
         }
         // If the base policy doesn't imply a Permission then we should check for dynamic grants
-        Collection<Permission> dynamicallyGrantedPermissions = new HashSet<Permission>();
-        try {
-            rl.lock();
-            Iterator<PermissionGrant> it = dynamicGrants.iterator();
-            while (it.hasNext()) {
-                PermissionGrant ge = it.next();
-                if ( ge.implies(domain)) {
-                    dynamicallyGrantedPermissions.addAll( Arrays.asList(ge.getPermissions()));
-                }
-            }               
-        } finally { rl.unlock(); }
+        Collection<Permission> dynamicallyGrantedPermissions = new HashSet<Permission>(pGrants.length);
+//        try {
+//            rl.lock();
+//            Iterator<PermissionGrant> it = dynamicGrants.iterator();
+//            while (it.hasNext()) {
+//                PermissionGrant ge = it.next();
+//                if ( ge.implies(domain)) {
+//                    dynamicallyGrantedPermissions.addAll( Arrays.asList(ge.getPermissions()));
+//                }
+//            }               
+//        } finally { rl.unlock(); }
+	PermissionGrant[] grantsRefCopy = pGrants; // In case the grants volatile reference is updated.
+	int l = grantsRefCopy.length;
+	for ( int i = 0; i < l; i++){
+	    if (grantsRefCopy[i].implies(domain)) {
+		dynamicallyGrantedPermissions.addAll( 
+			Arrays.asList(grantsRefCopy[i].getPermissions())
+			);
+	    }
+	}
         if (loggable) {
             logger.log(Level.FINEST, "Grants: " + dynamicallyGrantedPermissions.toString());
         }
@@ -341,6 +375,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             logger.log(Level.FINEST, "PermissionCollection: " + pc.toString());
         }
         // We have added dynamic grants, lets expand them
+	// But UmbrellaGrant's are to enable easy dynamic GrantPermission's?
         expandUmbrella(pc);
         return pc.implies(permission);
     }
@@ -355,16 +390,30 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         cache.clear();
         basePolicy.refresh();
         // Clean up any void grants.
-        try {
-            wl.lock();
-            Iterator<PermissionGrant> it = dynamicGrants.iterator();
-            while (it.hasNext()){
-                PermissionGrant pe = it.next();
-                if ( pe.isVoid()){
-                    it.remove();
-                }
-            }
-        } finally {wl.unlock();}
+	synchronized (grantLock) {
+	    // This lock doesn't stop reads to grants only other volatile reference updates.
+	    // Manipulating, alterations (writes) to the pGrants array is prohibited.
+	    int l = pGrants.length;
+	    ArrayList<PermissionGrant> grantHolder 
+		    = new ArrayList<PermissionGrant>(l);
+	    for ( int i = 0; i < l; i++ ){
+		if ( pGrants[i].isVoid()) continue;
+		grantHolder.add(pGrants[i]);
+	    }
+	    PermissionGrant[] remaining = new PermissionGrant[grantHolder.size()];
+	    pGrants = grantHolder.toArray(remaining); // Volatile reference update.
+	}
+	
+//        try {
+//            wl.lock();
+//            Iterator<PermissionGrant> it = dynamicGrants.iterator();
+//            while (it.hasNext()){
+//                PermissionGrant pe = it.next();
+//                if ( pe.isVoid()){
+//                    it.remove();
+//                }
+//            }
+//        } finally {wl.unlock();}
         ensureDependenciesResolved();
     }
 
@@ -406,10 +455,17 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         if (loggable){
             logger.log(Level.FINEST, "Granting: " + pe.toString());
         }
-        try {
-            wl.lock();
-            dynamicGrants.add(pe);           
-        } finally {wl.unlock();}
+	HashSet<PermissionGrant> holder = new HashSet<PermissionGrant>(pGrants.length +1 );
+	synchronized (grantLock){
+	    holder.addAll(Arrays.asList(pGrants));
+	    holder.add(pe);
+	    PermissionGrant [] updated = new PermissionGrant[holder.size()];
+	    pGrants = holder.toArray(updated);
+	}
+//        try {
+//            wl.lock();
+//            dynamicGrants.add(pe);           
+//        } finally {wl.unlock();}
     }
     
     // documentation inherited from DynamicPolicy.getGrants
@@ -424,20 +480,28 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	    principals = principals.clone();
 	    checkNullElements(principals);
 	}
-        Collection<Permission> cperms = new HashSet<Permission>();
-        try {
-            rl.lock();
-            Iterator<PermissionGrant> it = dynamicGrants.iterator();
-            while (it.hasNext()) {
-                PermissionGrant ge = it.next();
-                // We want to capture
-                // all grants that may be granted by other means.
-                // such as ProtectionDomain, Certificates, CodeSource or Principals alone.
-                if ( ge.implies(loader, principals)) {
-                    cperms.addAll(Arrays.asList(ge.getPermissions()));
-                }     
-            }
-        } finally { rl.unlock(); }
+        Collection<Permission> cperms = new HashSet<Permission>(pGrants.length);
+//        try {
+//            rl.lock();
+//            Iterator<PermissionGrant> it = dynamicGrants.iterator();
+//            while (it.hasNext()) {
+//                PermissionGrant ge = it.next();
+//                // We want to capture
+//                // all grants that may be granted by other means.
+//                // such as ProtectionDomain, Certificates, CodeSource or Principals alone.
+//                if ( ge.implies(loader, principals)) {
+//                    cperms.addAll(Arrays.asList(ge.getPermissions()));
+//                }     
+//            }
+//        } finally { rl.unlock(); }
+	PermissionGrant [] grantsRefCopy = pGrants; // Interim updates not seen.
+	int l = grantsRefCopy.length;
+	for ( int i = 0; i < l; i++ ){
+	    if ( grantsRefCopy[i].implies(loader, principals) ){
+		cperms.addAll(Arrays.asList(grantsRefCopy[i].getPermissions()));
+	    }
+	}
+	
         Permission[] perms = cperms.toArray(new Permission[cperms.size()]);        
         return perms;
     }
@@ -469,10 +533,26 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             AccessController.checkPermission(new GrantPermission(perms));
         }
         // If we get to here, the caller has permission.
-        try {
-            wl.lock();
-            dynamicGrants.addAll(grants);
-        } finally {wl.unlock();}
+	// This is slightly naughty calling a pGrants method, however if it
+	// changes between now and gaining the lock, only the length of the
+	// HashSet is potentially not optimal, keeping the HashSet creation
+	// outside of the lock reduces the lock held duration.
+	HashSet<PermissionGrant> holder 
+		    = new HashSet<PermissionGrant>(grants.size() + pGrants.length);
+	    holder.addAll(grants);
+	synchronized (grantLock) {	    
+	    int l = pGrants.length;
+	    for ( int i = 0; i < l; i++ ){
+		if (pGrants[i].isVoid()) continue;
+		holder.add(pGrants[i]);
+	    }
+	    PermissionGrant[] updated = new PermissionGrant[holder.size()];
+	    pGrants = holder.toArray(updated);
+	}
+//        try {
+//            wl.lock();
+//            dynamicGrants.addAll(grants);
+//        } finally {wl.unlock();}
     }
 
     public void revoke(List<PermissionGrant> grants) {
@@ -483,11 +563,21 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             return;
         }
         AccessController.checkPermission(new RevokePermission());
-        try {
-            wl.lock();
-            dynamicGrants.removeAll(grants);
-        } finally {wl.unlock();}
-        cache.clear();
+	HashSet<PermissionGrant> holder = new HashSet<PermissionGrant>(pGrants.length);
+	synchronized (grantLock){
+	    int l = pGrants.length;
+	    for (int i = 0; i < l; i++){
+		if (pGrants[i].isVoid() || grants.contains(pGrants[i])) continue;
+		holder.add(pGrants[i]);
+	    }
+	    PermissionGrant[] updated = new PermissionGrant[holder.size()];
+	    pGrants = holder.toArray(updated);
+	}
+//        try {
+//            wl.lock();
+//            dynamicGrants.removeAll(grants);
+//        } finally {wl.unlock();}
+//        cache.clear();	
     }
 
     public List<PermissionGrant> getPermissionGrants() {
@@ -497,12 +587,17 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             return bp.getPermissionGrants();
         }
         ArrayList<PermissionGrant> grants;
-        try {
-            rl.lock();
-            grants = new ArrayList<PermissionGrant>(dynamicGrants.size());
-            grants.addAll(dynamicGrants);
-            return grants;
-        }finally {rl.unlock();}
+	PermissionGrant[] grantRefCopy = pGrants; // A local reference copy.
+	int l = grantRefCopy.length;
+	grants = new ArrayList<PermissionGrant>(l);
+	grants.addAll(Arrays.asList(grantRefCopy));
+	return grants;
+//        try {
+//            rl.lock();
+//            grants = new ArrayList<PermissionGrant>(dynamicGrants.size());
+//            grants.addAll(dynamicGrants);
+//            return grants;
+//        }finally {rl.unlock();}
     }
 
     public void add(List<Denied> denials) {

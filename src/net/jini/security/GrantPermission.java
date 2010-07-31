@@ -554,7 +554,7 @@ public final class GrantPermission extends Permission {
      * of permissions.
      */
     private static String constructName(Permission[] pa) {
-	StringBuffer sb = new StringBuffer();
+	StringBuffer sb = new StringBuffer(60);
 	for (int i = 0; i < pa.length; i++) {
 	    Permission p = pa[i];
 	    if (p instanceof UnresolvedPermission) {
@@ -763,7 +763,7 @@ public final class GrantPermission extends Permission {
 	    new ObjectStreamField("perms", List.class, true)
 	};
 
-	private List perms = new ArrayList();
+	private List perms = new ArrayList(40);
 	private Implier implier = new Implier();
 
 	public synchronized void add(Permission p) {
@@ -774,8 +774,10 @@ public final class GrantPermission extends Permission {
 		throw new SecurityException(
 		    "can't add to read-only PermissionCollection");
 	    }
-	    perms.add(p);
-	    implier.add((GrantPermission) p);
+	    if (!perms.contains(p)){
+		perms.add(p);
+		implier.add((GrantPermission) p);
+	    }
 	}
 	
 	public synchronized Enumeration elements() {

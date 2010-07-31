@@ -27,41 +27,32 @@ import java.security.ProtectionDomain;
 import java.security.UnresolvedPermission;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Set;
+import java.util.Vector;
 import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
- * Example Implementation alternative of Permissions implemented for concurrency, 
- * note this couldn't extend Permissions as it is declared final.
+ * ConcurrentPermission's is a replacement for java.security.Permissions, 
+ * it doesn't extend Permissions.
  * 
- * Note that if there is heavy contention for one Permission class
- * type, due to synchronization, concurrency will
- * suffer.  This is due to the original PermissionsCollection spec requiring
+ * If there is heavy contention for one Permission class
+ * type, concurrency may suffer due to internal synchronization.
+ * This is due to the original PermissionsCollection spec requiring
  * that all implementations do their own synchronization, this is a design
  * mistake, similar to Vector. 
  * 
- * This is an example class without optimisation, it will be slower
- * for single threaded applications and consume more memory.
- * 
- * It would also be possible to create an unlock method that permitted
- * adding or revoking permissions to this collection while it is referenced
- * from within a PermissionDomain, however that would break the contract of
- * setReadOnly().  This might make sense if implementing a SecurityManager or
- * it might not, it's just an observation that Permissions defined in policy
- * files, which are not dynamically granted, are not revokeable as a
- * Policy only augments the PermissionCollection associated with (referenced by)
- * a PermissionDomain.  However it would probably be best to extend
- * ProtectionDomain to alter this behaviour as it merges PermissionCollection's,
- * so you would end up with the Permissions implementation again, unless using the
- * constructor that sets the permissions as static, which is totally
- * contradictory.  So the best way to make a Permission revokeable is to 
- * grant it dynamically.
+ * ConcurrentPermission's defined behaviour for #elements() differs from
+ * PermissionCollection.  It is safe to alter ConcurrentPermissions while
+ * Enumerating through it's elements.  ConcurrentPermission's keeps a cache
+ * of elements, but makes no guarantees that new elements will be
+ * added during an Enumeration.
  * 
  * TODO: Serialization properly
  * @version 0.4 2009/11/10
@@ -119,12 +110,7 @@ implements Serializable {
             pc.add(permission);
             return;             
         } else {
-            PermissionCollection fresh = permission.newPermissionCollection();
-            if (fresh == null) {
-                fresh = new MultiReadPermissionCollection(permission);
-            } else {
-                fresh.add(permission);
-            }
+            PermissionCollection fresh = new MultiReadPermissionCollection(permission);   
             PermissionCollection existed = 
                     permsMap.putIfAbsent(permission.getClass(), fresh);
             if (existed != null) {
@@ -164,7 +150,11 @@ implements Serializable {
     /**
      * This Enumeration is not intended for concurrent access,
      * PermissionCollection's underlying state is protected by defensive copying, 
-     * it wont affect the thread safety of ConcurrentPermission.
+     * performed by MultiReadPermissionCollection, which creates a shared cache
+     * of the contained Permission's for each PermissionCollection, while holding a read lock
+     * this prevents the client having to deal with a ConcurrentModificationException.
+     * Thus allowing modification of the PermissionCollection while the
+     * contents are being Enumerated.
      * 
      * Any number of these Enumerations may be utilised , each accessed by 
      * a separate thread.
@@ -179,10 +169,13 @@ implements Serializable {
         ArrayList<PermissionCollection> elem = 
                 new ArrayList<PermissionCollection>(permsMap.size() 
                                     + unresolved.awaitingResolution() + 2);
+	// Unresolved Permission's are added first in case the are resolved in 
+	// the interim, meaning that they may also be present in resolved form
+	// also.  To do the reverse would risk some Permission's being absent.
         if (unresolved.awaitingResolution() > 0) {
             elem.add(unresolved);
         }
-        elem.addAll(permsMap.values());
+        elem.addAll(permsMap.values());	
         Iterator<PermissionCollection> perms = elem.iterator();
         return new PermissionEnumerator(perms);                 
     }
@@ -201,15 +194,15 @@ implements Serializable {
     }
     
     /*
-     * This Enumeration is not intended for concurrent access,
-     * PermissionCollection's underlying state is protected by defensive copying, 
-     * it wont affect the thread safety of ConcurrentPermission.
+     * This Enumeration is not intended for concurrent access, underlying
+     * PermissionCollection's need to be protected by MultiReadPermissionCollection's
+     * cache, so updates wont affect the thread safety of ConcurrentPermission.
      * 
      * Any number of these Enumerations may be utilised , each accessed by 
      * a separate thread.
      * 
      * @author Peter Firmstone
-     */
+     */   
     private final static class PermissionEnumerator implements Enumeration<Permission> {
         private final Iterator<PermissionCollection> epc;
         private volatile Enumeration<Permission> currentPermSet;
@@ -220,23 +213,15 @@ implements Serializable {
         }
 
         private Enumeration<Permission> getNextPermSet(){
-            Set<Permission> permissionSet = new HashSet<Permission>();
             if (epc.hasNext()){
                 PermissionCollection pc = epc.next();               
-                /* Local copy of the set containing a snapshot of 
-                 * references to Permission objects present at an instant in time,
-                 * we can Enumerate over, without contention or exception.  
-                 * We only take what we need as we need it, minimising memory.
-                 * Each object gets its own Enumeration.
+                /* We only take what we need, as we need it, minimising memory use.
+                 * Each underlying PermissionCollection adds its own Enumeration.
+		 * MultiReadPermissionCollection caches the elements so we
+		 * are protected from ConcurrentModificationException's
                  */
-                if ( pc instanceof Permissions){
-                    synchronized (pc){
-                        Enumeration<Permission> e = pc.elements();
-                        while (e.hasMoreElements()) {
-                            permissionSet.add(e.nextElement());
-                        }
-                    }
-                } else if ( pc instanceof PermissionPendingResolutionCollection ){
+                if ( pc instanceof PermissionPendingResolutionCollection ){
+		    Set<Permission> permissionSet = new HashSet<Permission>();
                     Enumeration<Permission> e = pc.elements();
                     while (e.hasMoreElements()) {
                         PermissionPendingResolution p = 
@@ -244,14 +229,15 @@ implements Serializable {
                         UnresolvedPermission up = p.asUnresolvedPermission();
                         permissionSet.add(up);
                     }
+		    return Collections.enumeration(permissionSet);
                 } else {
                     Enumeration<Permission> e = pc.elements();
-                    while (e.hasMoreElements()) {
-                        permissionSet.add(e.nextElement());
-                    }
+                    return e;
                 }
-            }
-            return Collections.enumeration(permissionSet);
+            } else {
+		Vector<Permission> empty = new Vector<Permission>(0);
+		return empty.elements();
+	    }
         }
 
         public boolean hasMoreElements() {        
