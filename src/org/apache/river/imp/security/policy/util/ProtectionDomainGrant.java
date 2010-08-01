@@ -77,10 +77,10 @@ class ProtectionDomainGrant extends PrincipalGrant {
     }
     
     /*
-     * Checks if passed ProtectionDomain matches this PolicyEntry. Null ProtectionDomain of
-     * PolicyEntry implies any ProtectionDomain; non-null ProtectionDomain's are
+     * Checks if passed ProtectionDomain matches this PermissionGrant. Null ProtectionDomain of
+     * PermissionGrant implies any ProtectionDomain; non-null ProtectionDomain's are
      * compared with equals() and if false are compared by ClassLoader and
-     * CodeSource, in case of PermissionDomain's created by a DomainCombiner
+     * CodeSource, in case of new PermissionDomain's created by a DomainCombiner
      */   
     // for grant
     public boolean impliesProtectionDomain(ProtectionDomain pd) {

@@ -395,10 +395,10 @@ public class DefaultPolicyScanner {
 
     /**
      * Compound token representing <i>keystore </i> clause. See policy format
-     * {@link org.apache.harmony.security.DefaultPolicy description}for details.
+     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.harmony.security.fortress.DefaultPolicyParser
-     * @see org.apache.harmony.security.DefaultPolicyScanner
+     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
+     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
      */
     public static class KeystoreEntry {
 
@@ -415,10 +415,10 @@ public class DefaultPolicyScanner {
 
     /**
      * Compound token representing <i>grant </i> clause. See policy format
-     * {@link org.apache.harmony.security.DefaultPolicy description}for details.
+     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.harmony.security.fortress.DefaultPolicyParser
-     * @see org.apache.harmony.security.DefaultPolicyScanner
+     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
+     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
      */
     public static class GrantEntry {
 
@@ -460,10 +460,10 @@ public class DefaultPolicyScanner {
     /**
      * Compound token representing <i>principal </i> entry of a <i>grant </i>
      * clause. See policy format
-     * {@link org.apache.harmony.security.DefaultPolicy description}for details.
+     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.harmony.security.fortress.DefaultPolicyParser
-     * @see org.apache.harmony.security.DefaultPolicyScanner
+     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
+     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
      */
     public static class PrincipalEntry {
 
@@ -488,10 +488,10 @@ public class DefaultPolicyScanner {
     /**
      * Compound token representing <i>permission </i> entry of a <i>grant </i>
      * clause. See policy format
-     * {@link org.apache.harmony.security.DefaultPolicy description}for details.
+     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.harmony.security.fortress.DefaultPolicyParser
-     * @see org.apache.harmony.security.DefaultPolicyScanner
+     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
+     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
      */
     public static class PermissionEntry {
 

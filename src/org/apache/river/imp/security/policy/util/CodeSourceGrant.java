@@ -64,8 +64,8 @@ class CodeSourceGrant extends PrincipalGrant {
     }
     
     /**
-     * Checks if passed CodeSource matches this PolicyEntry. Null CodeSource of
-     * PolicyEntry implies any CodeSource; non-null CodeSource forwards to its
+     * Checks if passed CodeSource matches this PermissionGrant. Null CodeSource of
+     * PermissionGrant implies any CodeSource; non-null CodeSource forwards to its
      * imply() method.
      */
     protected boolean impliesCodeSource(CodeSource codeSource) {

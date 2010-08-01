@@ -35,8 +35,8 @@ import java.security.Principal;
  * execution thread. So the policy refers to this model definition of 
  * acceptable principal and compares it with the actual principal. 
  * 
- * @see PolicyEntry
- * @see org.apache.harmony.security.DefaultPolicy
+ * @see PermissionGrant
+ * @see org.apache.river.imp.security.policy.se.ConcurrentPolicyFile
  */
 public final class UnresolvedPrincipal implements Principal {
 

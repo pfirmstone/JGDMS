@@ -57,9 +57,10 @@ import org.apache.river.imp.security.policy.util.DefaultPolicyScanner.PrincipalE
 /**
  * This is a basic loader of policy files. It delegates lexical analysis to 
  * a pluggable scanner and converts received tokens to a set of 
- * {@link org.apache.harmony.security.PolicyEntry PolicyEntries}. 
- * For details of policy format, see the 
- * {@link org.apache.harmony.security.DefaultPolicy default policy description}.
+ * {@link org.apache.river.security.PermissionGrant PermissionGrant's}. 
+ * For details of policy format, which should be identical to Sun's Java Policy
+ * files see the 
+ * {@link org.apache.river.imp.security.policy.ConcurrentPolicyFile default policy description}.
  * <br>
  * For ordinary uses, this class has just one public method <code>parse()</code>, 
  * which performs the main task.
@@ -69,9 +70,9 @@ import org.apache.river.imp.security.policy.util.DefaultPolicyScanner.PrincipalE
  * This implementation is effectively thread-safe, as it has no field references 
  * to data being processed (that is, passes all the data as method parameters).
  * 
- * @see org.apache.harmony.security.DefaultPolicy
- * @see org.apache.harmony.security.DefaultPolicyScanner
- * @see org.apache.harmony.security.PolicyEntry
+ * @see org.apache.river.imp.security.policy.ConcurrentPolicyFile
+ * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
+ * @see org.apache.river.security.PermissionGrant
  */
 public class DefaultPolicyParser implements PolicyParser {
 
@@ -97,16 +98,16 @@ public class DefaultPolicyParser implements PolicyParser {
     /**
      * This is the main business method. It manages loading process as follows:
      * the associated scanner is used to parse the stream to a set of 
-     * {@link org.apache.harmony.security.DefaultPolicyScanner.GrantEntry composite tokens},
-     * then this set is iterated and each token is translated to a PolicyEntry.
-     * Semantically invalid tokens are ignored, the same as void PolicyEntries.
+     * {@link org.apache.river.imp.security.policy.util.DefaultPolicyScanner.GrantEntry composite tokens},
+     * then this set is iterated and each token is translated to a PermissionGrant.
+     * Semantically invalid tokens are ignored, the same as void PermissionGrant's.
      * <br>
      * A policy file may refer to some KeyStore(s), and in this case the first
      * valid reference is initialized and used in processing tokens.   
      * 
      * @param location an URL of a policy file to be loaded
      * @param system system properties, used for property expansion
-     * @return a collection of PolicyEntry objects, may be empty
+     * @return a collection of PermissionGrant objects, may be empty
      * @throws Exception IO error while reading location or file syntax error 
      */
     public Collection<PermissionGrant> parse(URL location, Properties system)
@@ -148,7 +149,7 @@ public class DefaultPolicyParser implements PolicyParser {
     }
 
     /**
-     * Translates GrantEntry token to PolicyEntry object. It goes step by step, 
+     * Translates GrantEntry token to PermissionGrant object. It goes step by step, 
      * trying to resolve each component of the GrantEntry:
      * <ul>
      * <li> If <code>codebase</code> is specified, expand it and construct an URL.
@@ -166,19 +167,19 @@ public class DefaultPolicyParser implements PolicyParser {
      * In fact, property expansion in the steps above is conditional and is ruled by
      * the parameter <i>resolve</i>.  
      * <br>
-     * Finally a new PolicyEntry is created, which associates the trinity 
+     * Finally a new PermissionGrant is created, which associates the trinity 
      * of resolved URL, Certificates and Principals to a set of granted Permissions.
      * 
      * @param ge GrantEntry token to be resolved
      * @param ks KeyStore for resolving Certificates, may be <code>null</code> 
      * @param system system properties, used for property expansion 
      * @param resolve flag enabling/disabling property expansion
-     * @return resolved PolicyEntry
+     * @return resolved PermissionGrant
      * @throws Exception if unable to resolve codebase, signers or principals 
      * of the GrantEntry
      * @see DefaultPolicyScanner.PrincipalEntry
      * @see DefaultPolicyScanner.PermissionEntry
-     * @see org.apache.harmony.security.PolicyUtils
+     * @see org.apache.river.imp.security.policy.util.PolicyUtils
      */
     protected PermissionGrant resolveGrant(DefaultPolicyScanner.GrantEntry ge,
             KeyStore ks, Properties system, boolean resolve) throws Exception {
@@ -230,9 +231,6 @@ public class DefaultPolicyParser implements PolicyParser {
                 .permissions(permissions.toArray(new Permission[permissions.size()]))
                 .context(PermissionGrantBuilder.CODESOURCE)
                 .build();
-        
-//        return new PolicyEntry(new CodeSource(codebase, signers), principals,
-//                permissions);
     }
 
     /**

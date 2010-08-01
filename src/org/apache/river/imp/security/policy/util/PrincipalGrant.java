@@ -84,9 +84,9 @@ abstract class PrincipalGrant implements PermissionGrant {
     protected boolean implies(Principal[] prs) {
         if ( principals.isEmpty()) return true;
         if ( prs == null || prs.length == 0 ) return false;
-        // PolicyEntry Principals match if equal or if they are Groups and
+        // PermissionGrant Principals match if equal or if they are Groups and
         // the Principals being tested are their members.  Every Principal
-        // in this PolicyEntry must have a match.
+        // in this PermissionGrant must have a match.
         List<Principal> princp = Arrays.asList(prs);
         int matches = 0;
         Iterator<Principal> principalItr = principals.iterator();
