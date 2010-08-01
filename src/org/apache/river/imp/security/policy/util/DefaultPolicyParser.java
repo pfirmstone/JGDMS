@@ -60,7 +60,7 @@ import org.apache.river.imp.security.policy.util.DefaultPolicyScanner.PrincipalE
  * {@link org.apache.river.security.PermissionGrant PermissionGrant's}. 
  * For details of policy format, which should be identical to Sun's Java Policy
  * files see the 
- * {@link org.apache.river.imp.security.policy.ConcurrentPolicyFile default policy description}.
+ * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile default policy description}.
  * <br>
  * For ordinary uses, this class has just one public method <code>parse()</code>, 
  * which performs the main task.
@@ -70,9 +70,9 @@ import org.apache.river.imp.security.policy.util.DefaultPolicyScanner.PrincipalE
  * This implementation is effectively thread-safe, as it has no field references 
  * to data being processed (that is, passes all the data as method parameters).
  * 
- * @see org.apache.river.imp.security.policy.ConcurrentPolicyFile
+ * @see org.apache.river.imp.security.policy.se.ConcurrentPolicyFile
  * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
- * @see org.apache.river.security.PermissionGrant
+ * @see org.apache.river.api.security.PermissionGrant
  */
 public class DefaultPolicyParser implements PolicyParser {
 
@@ -81,7 +81,7 @@ public class DefaultPolicyParser implements PolicyParser {
 
     /** 
      * Default constructor, 
-     * {@link org.apache.harmony.security.DefaultPolicyScanner DefaultPolicyScanner} 
+     * {@link org.apache.river.imp.security.policy.util.DefaultPolicyScanner DefaultPolicyScanner} 
      * is used. 
      */
     public DefaultPolicyParser() {
