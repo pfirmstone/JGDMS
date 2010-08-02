@@ -511,6 +511,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         while (grantsItr.hasNext()){
             PermissionGrant grant = grantsItr.next();
             Permission[] perms = grant.getPermissions().clone();
+	    checkNullElements(perms);
             AccessController.checkPermission(new GrantPermission(perms));
 	    allowed.put(grant, perms);
         }
@@ -568,12 +569,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	    }
 	    PermissionGrant[] updated = new PermissionGrant[holder.size()];
 	    pGrants = holder.toArray(updated);
-	}
-//        try {
-//            wl.lock();
-//            dynamicGrants.removeAll(grants);
-//        } finally {wl.unlock();}
-//        cache.clear();	
+	}	
     }
 
     public List<PermissionGrant> getPermissionGrants() {
