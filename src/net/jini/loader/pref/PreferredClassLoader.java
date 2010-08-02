@@ -1152,7 +1152,7 @@ public class PreferredClassLoader extends URLClassLoader
          * cached permissions with those from the Policy.
          * ProtectionDomain(CodeSource, PermissionCollection)
          * By utilising this earlier constructor it also prevents
-         * RevokeablePolicy, hence the constructor change.  
+         * RevokeableDynamicPolicy, hence the constructor change.  
 	 */
 	ProtectionDomain pd = new ProtectionDomain(
 	    new CodeSource((urls.length > 0 ? urls[0] : null),
