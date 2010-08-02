@@ -168,7 +168,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	pGrants = new PermissionGrant[0];
         basePolicy = null;
         cache = new ConcurrentWeakIdentityMap<ProtectionDomain, PermissionCollection>();
-	grantCache = new ConcurrentHashMap<PermissionGrant, Permission[]>(20, 0.75F, 1);
+	grantCache = new ConcurrentWeakIdentityMap<PermissionGrant, Permission[]>();
         basePolicyIsDynamic = false;
         revokeable = true;
         logger = Logger.getLogger("net.jini.security.policy");
@@ -428,15 +428,13 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
                 .context(PermissionGrantBuilder.CLASSLOADER)
                 .build();
 	// We built this grant it's safe to trust.
-	Permission[] p = grantCache.putIfAbsent(pe, permissions);
-	if ( p == null ){
-	    // This grant is new, in the grantCache and we trust it.
-	    List<PermissionGrant> l = new ArrayList<PermissionGrant>(1);
-	    l.add(pe);
-	    processGrants(l);
-	    if (loggable){
-		logger.log(Level.FINEST, "Granting: " + pe.toString());
-	    }
+	grantCache.put(pe, permissions); // Replace any existing too.
+	// This grant is new, in the grantCache and we trust it.
+	List<PermissionGrant> l = new ArrayList<PermissionGrant>(1);
+	l.add(pe);
+	processGrants(l);
+	if (loggable){
+	    logger.log(Level.FINEST, "Granting: " + pe.toString());
 	}
     }
     
@@ -561,7 +559,11 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	synchronized (grantLock){
 	    int l = pGrants.length;
 	    for (int i = 0; i < l; i++){
-		if (pGrants[i].isVoid() || grants.contains(pGrants[i])) continue;
+		if (pGrants[i].isVoid() || grants.contains(pGrants[i])) {
+		    // should we consider removing from grantCache?
+		    // For now we just let GC clean it up.
+		    continue;
+		}
 		holder.add(pGrants[i]);
 	    }
 	    PermissionGrant[] updated = new PermissionGrant[holder.size()];
@@ -586,12 +588,6 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	grants = new ArrayList<PermissionGrant>(l);
 	grants.addAll(Arrays.asList(grantRefCopy));
 	return grants;
-//        try {
-//            rl.lock();
-//            grants = new ArrayList<PermissionGrant>(dynamicGrants.size());
-//            grants.addAll(dynamicGrants);
-//            return grants;
-//        }finally {rl.unlock();}
     }
 
     public void add(List<Denied> denials) {
