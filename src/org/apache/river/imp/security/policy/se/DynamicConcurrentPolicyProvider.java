@@ -381,17 +381,6 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	    PermissionGrant[] remaining = new PermissionGrant[grantHolder.size()];
 	    pGrants = grantHolder.toArray(remaining); // Volatile reference update.
 	}
-	
-//        try {
-//            wl.lock();
-//            Iterator<PermissionGrant> it = dynamicGrants.iterator();
-//            while (it.hasNext()){
-//                PermissionGrant pe = it.next();
-//                if ( pe.isVoid()){
-//                    it.remove();
-//                }
-//            }
-//        } finally {wl.unlock();}
         ensureDependenciesResolved();
     }
 
@@ -441,6 +430,9 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
     // documentation inherited from DynamicPolicy.getGrants
     public Permission[] getGrants(Class cl, Principal[] principals) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
+	if (basePolicyIsDynamic){
+	    return ((DynamicPolicy)basePolicy).getGrants(cl, principals);
+	}
         ClassLoader loader = null;
         if( cl != null ) {
             loader = cl.getClassLoader();
@@ -479,7 +471,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         // because PermissionGrant's are given references to ProtectionDomain's
         // we must check the caller has this permission.
         AccessController.checkPermission(new RuntimePermission("getProtectionDomain"));
-        if (revokeable){
+        if ( basePolicyIsDynamic && revokeable){
             RevokeableDynamicPolicy bp = (RevokeableDynamicPolicy) basePolicy;
             bp.grant(grants);
             return;
@@ -574,7 +566,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 
     public List<PermissionGrant> getPermissionGrants() {
         if (initialized == false) throw new RuntimeException("Object not initialized");
-        if (revokeable){
+        if ( basePolicyIsDynamic && revokeable){
             RevokeableDynamicPolicy bp = (RevokeableDynamicPolicy) basePolicy;
             return bp.getPermissionGrants();
         }
