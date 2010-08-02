@@ -550,7 +550,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 
     public void revoke(List<PermissionGrant> grants) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
-        if (revokeable){
+        if (basePolicyIsDynamic && revokeable){
             RevokeableDynamicPolicy bp = (RevokeableDynamicPolicy) basePolicy;
             bp.revoke(grants);
             return;
