@@ -258,12 +258,12 @@
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/policyFileProvider/NullPolicy.td"/>*pass*-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/joinmanager/GetDiscoveryManager.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/joinmanager/TerminateDiscovery.td"/>-->
-        <property name="run.tests" value="com/sun/jini/test/impl/joinmanager/ZRegisterStorm.td"/>
+        <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/ZRegisterStorm.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipalSame.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipal.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantNoPrincipalCase02.td"/>-->
-        <!--<property name="run.tests" value=""/>-->
+        <property name="run.tests" value="com/sun/jini/test/spec/loader/pref/preferredClassLoader/GetPermissionsSecurityException.td"/>
         <!--<property name="run.tests" value=""/>-->
         <!--<property name="run.tests" value=""/>-->
         <!--<property name="run.tests" value=""/>-->
@@ -285,7 +285,7 @@
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,
         eventmailbox,jeri,iiop,jrmp,reliability,scalability,thread,renewalservice"/>-->
-        <property name="run.categories" value="policyprovider"/>
+        <property name="run.categories" value="loader"/>
         <testrun>
              <!-- Run one or more test categories -->
             <arg value="-categories"/>
