@@ -60,6 +60,7 @@ class CertificateGrant extends CodeSourceGrant {
     public boolean equals(Object o){
         if (o == null) return false;
         if (o == this) return true;
+	if (o.hashCode() != this.hashCode()) return false;
         if (o instanceof CertificateGrant){
             CertificateGrant c = (CertificateGrant) o;
             if ( !super.equals(o)) return false;

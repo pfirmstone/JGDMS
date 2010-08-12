@@ -43,6 +43,7 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
     public boolean equals(Object o){
         if (o == null) return false;
         if (o == this) return true;
+	if (o.hashCode() != this.hashCode()) return false;
         if (o instanceof ClassLoaderGrant && super.equals(o)){
             return true;
         }

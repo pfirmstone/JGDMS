@@ -55,6 +55,7 @@ class CodeSourceGrant extends PrincipalGrant {
     public boolean equals(Object o){
         if (o == null) return false;
         if (o == this) return true;
+	if (o.hashCode() != this.hashCode()) return false;
         if (o instanceof CodeSourceGrant){
             CodeSourceGrant c = (CodeSourceGrant) o;
             if ( !super.equals(o)) return false;

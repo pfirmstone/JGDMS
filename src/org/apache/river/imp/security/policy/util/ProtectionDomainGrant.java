@@ -58,6 +58,7 @@ class ProtectionDomainGrant extends PrincipalGrant {
     public boolean equals(Object o){
         if (o == null) return false;
         if (o == this) return true;
+	if (o.hashCode() != this.hashCode()) return false;
         if (o instanceof ProtectionDomainGrant){
             ProtectionDomainGrant c = (ProtectionDomainGrant) o;
             if ( !super.equals(o)) return false;
