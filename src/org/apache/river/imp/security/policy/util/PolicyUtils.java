@@ -32,6 +32,7 @@ import java.net.URL;
 import java.security.AccessController;
 import java.security.Permission;
 import java.security.PermissionCollection;
+import java.security.Permissions;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
 import java.security.Security;

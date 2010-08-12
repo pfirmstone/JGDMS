@@ -311,7 +311,8 @@ public class GetPermissions extends AbstractTestBase {
                          + name + ", false, loader)\n"
                          + "  returned:" + classLoaded.toString() + "\n"
                          + "  expected:throws SecurityException";
-
+		ProtectionDomain pd = classLoaded.getProtectionDomain();
+		message += " Permissions: " + pd.getPermissions().toString();
                 // Fast fail approach
                 throw new TestException(message);
             } else if (expectSecurityException) {

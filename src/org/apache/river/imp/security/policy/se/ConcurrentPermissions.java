@@ -106,17 +106,15 @@ implements Serializable {
         }
         // this get saves unnecessary object creation.
         PermissionCollection pc = permsMap.get(permission.getClass());
-        if (pc != null){                       
-            pc.add(permission);
-            return;             
-        } else {
-            PermissionCollection fresh = new MultiReadPermissionCollection(permission);   
+        if (pc == null){                       
+            pc = new MultiReadPermissionCollection(permission);   
             PermissionCollection existed = 
-                    permsMap.putIfAbsent(permission.getClass(), fresh);
+                    permsMap.putIfAbsent(permission.getClass(), pc);
             if (existed != null) {
-                existed.add(permission);
+                pc = existed;
             }
-        }        
+        } 
+	pc.add(permission);
     }    
     
     /**

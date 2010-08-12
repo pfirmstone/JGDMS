@@ -22,7 +22,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
@@ -35,6 +34,7 @@ import net.jini.security.policy.PolicyInitializationException;
 import net.jini.security.policy.UmbrellaGrantPermission;
 import org.apache.river.api.security.Denied;
 import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.ExecutionContextManager;
 import org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.api.security.RevokePermission;
@@ -158,10 +158,10 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
     // avoid dead locks due to bug 4911907
     /* This lock Protects denied */
     private final ReentrantReadWriteLock drwl;
-    private final ReadLock drl;
-    private final WriteLock dwl;
-    private final Set<Denied> denied;
-    private volatile boolean checkDenied;
+//    private final ReadLock drl;
+//    private final WriteLock dwl;
+//    private final Set<Denied> denied;
+//    private volatile boolean checkDenied;
     
     
     public DynamicConcurrentPolicyProvider(){
@@ -174,10 +174,10 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         logger = Logger.getLogger("net.jini.security.policy");
         loggable = logger.isLoggable(Level.FINEST);
         drwl = new ReentrantReadWriteLock();
-        drl = drwl.readLock();
-        dwl = drwl.writeLock();
-        denied = new HashSet<Denied>(30);
-        checkDenied = false;
+//        drl = drwl.readLock();
+//        dwl = drwl.writeLock();
+//        denied = new HashSet<Denied>(30);
+//        checkDenied = false;
 	grantLock = new Object();
     }
     
@@ -225,15 +225,15 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         if (initialized == false) throw new RuntimeException("Object not initialized");
         // Investigate bug 4911907, do we need to do anything more here? Is this sufficient.
         if (sysDomain == null ) System.out.println("System Domain is null");
-        basePolicy.implies(sysDomain, new AllPermission());
-        PermissionCollection pc = getPermissions(sysDomain);
-        pc = PolicyUtils.toConcurrentPermissionsCopy(pc);
-        cache.putIfAbsent(sysDomain, pc);
+        implies(sysDomain, new AllPermission());
+        //PermissionCollection pc = getPermissions(sysDomain);
+        //pc = PolicyUtils.toConcurrentPermissionsCopy(pc);
+        //cache.putIfAbsent(sysDomain, pc);
         ProtectionDomain own = this.getClass().getProtectionDomain();
-        basePolicy.implies(own, new AllPermission());
-        PermissionCollection mypc = getPermissions(own);
-        mypc = PolicyUtils.toConcurrentPermissionsCopy(mypc);
-        cache.putIfAbsent(own, mypc);
+        implies(own, new AllPermission());
+        //PermissionCollection mypc = getPermissions(own);
+        //mypc = PolicyUtils.toConcurrentPermissionsCopy(mypc);
+        //cache.putIfAbsent(own, mypc);
         new GrantPermission(new UmbrellaGrantPermission());
     }
 
@@ -279,21 +279,21 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
     public boolean implies(ProtectionDomain domain, Permission permission) {
         if (initialized == false) throw new RuntimeException("Object not initialized");
         if (basePolicyIsDynamic){
-            // Total delegation revoke and deny not supported.
+            // Total delegation revoke and deny supported only by underlying policy.
             return basePolicy.implies(domain, permission);
         }
-        // Will this ProtectionDomain and Permission be denied?
-        if (checkDenied){
-            try {
-                drl.lock();
-                Iterator<Denied> itr = denied.iterator();
-                while (itr.hasNext()){
-                    if ( !itr.next().allow(domain, permission)){
-                        return false;
-                    }
-                }
-            } finally { drl.unlock(); }
-        }
+//        // Will this ProtectionDomain and Permission be denied?
+//        if (checkDenied){
+//            try {
+//                drl.lock();
+//                Iterator<Denied> itr = denied.iterator();
+//                while (itr.hasNext()){
+//                    if ( !itr.next().allow(domain, permission)){
+//                        return false;
+//                    }
+//                }
+//            } finally { drl.unlock(); }
+//        }
         // First check our cache if the basePolicy is not dynamic.
         PermissionCollection pc = cache.get(domain);
         if ( pc != null ) {
@@ -321,10 +321,10 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	}
         // Once we get to here pc is definitely not null and we have the
         // copy referenced in the cache.
-        if (loggable){
-            logger.log(Level.FINEST, domain + permission.toString() + 
-                    ": Base policy is not dynamic and returned false" );
-        }
+//        if (loggable){
+//            logger.log(Level.FINEST, domain + permission.toString() + 
+//                    ": Base policy is not dynamic and returned false" );
+//        }
         // If the base policy doesn't imply a Permission then we should check for dynamic grants
         Collection<Permission> dynamicallyGrantedPermissions = new HashSet<Permission>(pGrants.length);
 	PermissionGrant[] grantsRefCopy = pGrants; // In case the grants volatile reference is updated.
@@ -336,9 +336,9 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 		dynamicallyGrantedPermissions.addAll(Arrays.asList(perms));
 	    }
 	}
-        if (loggable) {
-            logger.log(Level.FINEST, "Grants: " + dynamicallyGrantedPermissions.toString());
-        }
+//        if (loggable) {
+//            logger.log(Level.FINEST, "Grants: " + dynamicallyGrantedPermissions.toString());
+//        }
         if (dynamicallyGrantedPermissions.isEmpty()) {
             // We have no dynamic grants
             return false;
@@ -349,9 +349,9 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
         }
         // If we get refreshed the cache could be empty, which is more pedantic
         // however the result may still be true so we'll return it anyway.
-        if (loggable) {
-            logger.log(Level.FINEST, "PermissionCollection: " + pc.toString());
-        }
+//        if (loggable) {
+//            logger.log(Level.FINEST, "PermissionCollection: " + pc.toString());
+//        }
         // We have added dynamic grants, lets expand them
 	// But UmbrellaGrant's are to enable easy dynamic GrantPermission's?
         expandUmbrella(pc);
@@ -548,6 +548,8 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             return;
         }
         AccessController.checkPermission(new RevokePermission());
+	HashSet<Class> removed = new HashSet<Class>();
+	List<Runnable> jobs = null;
 	HashSet<PermissionGrant> holder = new HashSet<PermissionGrant>(pGrants.length);
 	synchronized (grantLock){
 	    int l = pGrants.length;
@@ -555,13 +557,21 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 		if (pGrants[i].isVoid() || grants.contains(pGrants[i])) {
 		    // should we consider removing from grantCache?
 		    // For now we just let GC clean it up.
+		    Permission [] perms = grantCache.get(pGrants[i]);
+		    int len = perms.length;
+		    for ( int c =0; c < len ; c++ ){
+			removed.add(perms[c].getClass());
+		    }
 		    continue;
 		}
 		holder.add(pGrants[i]);
 	    }
 	    PermissionGrant[] updated = new PermissionGrant[holder.size()];
 	    pGrants = holder.toArray(updated);
-	}	
+	    jobs = Controller.revoke(removed);
+	}
+	//TODO jobs to tidy up after revocation.
+	
     }
 
     public List<PermissionGrant> getPermissionGrants() {
@@ -578,35 +588,9 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	return grants;
     }
 
-    public void add(List<Denied> denials) {
-        if (initialized == false) throw new RuntimeException("Object not initialized");
-        AccessController.checkPermission(new RuntimePermission("getProtectionDomain"));
-        AccessController.checkPermission(new RevokePermission());
-        checkDenied = true;
-        try{
-            dwl.lock();
-            denied.addAll(denials);
-        } finally { dwl.unlock();}
-    }
 
-    public void remove(List<Denied> denials) {
-        if (initialized == false) throw new RuntimeException("Object not initialized");
-        try{
-            dwl.lock();
-            denied.removeAll(denials);
-            if ( denied.isEmpty()) { checkDenied = false; }
-        } finally { dwl.unlock();}
-    }
-
-    public List<Denied> getDenied() {
-        if (initialized == false) throw new RuntimeException("Object not initialized");
-        List<Denied> denials;
-        try{
-            drl.lock();
-            denials = new ArrayList<Denied>(denied.size());
-            denials.addAll(denied);
-            return denials;
-        } finally { dwl.unlock();}
+    public ExecutionContextManager getExecutionContextManager(Permission p) {
+	return Controller.getECManager(p);
     }
 
 }

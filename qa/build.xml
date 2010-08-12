@@ -264,7 +264,7 @@
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipal.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantNoPrincipalCase02.td"/>-->
         <property name="run.tests" value="com/sun/jini/test/spec/loader/pref/preferredClassLoader/GetPermissionsSecurityException.td"/>
-        <!--<property name="run.tests" value=""/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/spec/loader/pref/preferredClassProvider/LoadClassesSecurityExceptionHttpCann.td"/>-->
         <!--<property name="run.tests" value=""/>-->
         <!--<property name="run.tests" value=""/>-->
         <!--<property name="run.tests" value=""/>-->

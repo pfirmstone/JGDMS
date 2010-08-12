@@ -75,7 +75,7 @@ class CertificateGrant extends CodeSourceGrant {
     
     @Override
     public boolean implies(ProtectionDomain pd) {
-        if ( denied.allow(pd, null)){
+        if ( denied.allow(pd)){
             Certificate[] c = null;
             Principal[] pals = null;
             if (pd != null){

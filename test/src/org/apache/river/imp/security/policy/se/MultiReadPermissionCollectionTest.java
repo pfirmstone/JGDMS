@@ -52,9 +52,9 @@ public class MultiReadPermissionCollectionTest {
         Permission permission0 = new RuntimePermission("getClassLoader");
         MultiReadPermissionCollection instance = new MultiReadPermissionCollection(permission0);
         instance.setReadOnly();
-        SecurityException exp = new SecurityException("attempt to add a Permission to a readonly Permissions object");
+        SecurityException exp = new SecurityException("attempt to add a Permission to a readonly PermissionCollection");
         String result = null;
-        Permission permission1 = new AuthenticationPermission("javax.security.auth.x500.X500Principal \"CN=serverRSA\"", "listen");
+        Permission permission1 = new RuntimePermission("getProtectionDomain");
         try {
             instance.add(permission1);
         }catch (SecurityException e) {

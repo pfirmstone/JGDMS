@@ -53,13 +53,13 @@ import net.jini.loader.pref.PreferredClassLoader;
 public class QATestPreferredClassLoader extends PreferredClassLoader {
 
     /** Flag to indicate that loadClass is invoked */
-    public boolean loadClassIsInvoked;
+    public volatile boolean loadClassIsInvoked;
 
     /** Flag to indicate that findClass is invoked */
-    public boolean findClassIsInvoked;
+    public volatile boolean findClassIsInvoked;
 
     /** The URLs from which to load classes and resources */
-    public URL[] urls;
+    private URL[] urls;
 
     /** The parent class loader for delegation */
     private ClassLoader parent;

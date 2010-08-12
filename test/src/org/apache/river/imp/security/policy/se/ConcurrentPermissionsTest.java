@@ -16,6 +16,7 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.PropertyPermission;
 import java.util.logging.LoggingPermission;
+import net.jini.security.AccessPermission;
 import net.jini.security.AuthenticationPermission;
 import org.apache.river.imp.security.policy.se.ConcurrentPermissions;
 import org.junit.After;
@@ -110,6 +111,34 @@ public class ConcurrentPermissionsTest {
         assertEquals(expResult, result);
     }
     /**
+     * Test of implies method, of class ConcurrentPermissions, when there is
+     * no PermissionCollection, present it is created by ConcurrentPermissions,
+     * when it resolves an Unresolved Permission during an implies call,
+     * this check ensures that the Permission isn't added to the collection
+     * by mistake.
+     * 
+     * This occurred during a refactoring of ConcurrentPermission's and
+     * MultiReadPermissionCollection, relating to the addition of 
+     * UmbrellaPermissionGrant's to the RevokeableDynamicPolicy when 
+     * elements() returned a ConcurrentModificationException.  This test
+     * case was proven to fail on 12th August 2010 - Peter Firmstone.
+     */
+    @Test
+    public void doubleImpliesUnresolved() {
+        System.out.println("doubleImplies - consistent results");
+        Permission permission = new AccessPermission("unlucky");
+	Permission unresolved = 
+		new UnresolvedPermission("net.jini.security.AccessPermission", 
+		"lucky", null, null);
+        ConcurrentPermissions instance = new ConcurrentPermissions();
+	instance.add(unresolved);
+        boolean expResult = false;
+        boolean result = instance.implies(permission);
+	result = instance.implies(permission);
+	assertEquals(expResult, result);
+    }
+    
+    /**
      * Test of elements method, of class ConcurrentPermissions.
      * TODO Concurrent adds.
      */
@@ -165,7 +194,7 @@ public class ConcurrentPermissionsTest {
         while (en.hasMoreElements()){
             result.add(en.nextElement());
         }
-        assertTrue(expectedResult.equals(result));
+        assertTrue(result.containsAll(expectedResult));
         assertTrue(instance.implies(permission0));
         assertTrue(instance.implies(permission1));
         assertTrue(instance.implies(permission2));

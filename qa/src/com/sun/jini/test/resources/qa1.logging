@@ -162,15 +162,15 @@ net.jini.iiop.IiopExporter.level = INFO
 net.jini.loader.level = FINEST
 net.jini.loader.pref.PreferredClassLoader.level = FINEST
 net.jini.loader.pref.PreferredClassLoader.preferred.level = FINEST
-#net.jini.loader.pref.PreferredClassLoader.exception.level = INFO
-#net.jini.loader.pref.PreferredClassProvider.level = INFO
+net.jini.loader.pref.PreferredClassLoader.exception.level = FINEST
+net.jini.loader.pref.PreferredClassProvider.level = FINEST
 
 # For Security: trust, integrity, policy and permission granting,
 #               proxy trust verification
-net.jini.security.level = INFO
+net.jini.security.level = FINEST
 #net.jini.security.trust.level = INFO
 #net.jini.security.integrity.level = INFO
-#net.jini.security.policy.level = INFO
+net.jini.security.policy.level = FINEST
 
 # For HTTPMD
 net.jini.url.httpmd.level = INFO

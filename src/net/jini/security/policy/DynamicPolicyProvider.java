@@ -7,6 +7,7 @@ package net.jini.security.policy;
 
 import java.util.List;
 import org.apache.river.api.security.Denied;
+import org.apache.river.api.security.ExecutionContextManager;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.imp.security.policy.cdc.DynamicPolicyProviderImpl;
 import java.security.AccessControlException;
@@ -324,16 +325,7 @@ public class DynamicPolicyProvider extends Policy implements RevokeableDynamicPo
         return instance.getPermissionGrants();
     }
 
-    public void add(List<Denied> denials) {
-        instance.add(denials);
+    public ExecutionContextManager getExecutionContextManager(Permission p) {
+	return instance.getExecutionContextManager(p);
     }
-
-    public void remove(List<Denied> denials) {
-        instance.remove(denials);
-    }
-
-    public List<Denied> getDenied() {
-        return instance.getDenied();
-    }
-   
 }

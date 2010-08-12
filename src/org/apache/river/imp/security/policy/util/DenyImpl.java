@@ -78,7 +78,7 @@ public class DenyImpl implements Denied {
         return code;
     }
     
-    public boolean allow(ProtectionDomain pd,java.security.Permission perm){
+    public boolean allow(ProtectionDomain pd){
         CodeSource cs = pd.getCodeSource();
         cs = normalizeCodeSource(cs);
         if (code.contains(cs)) return false;

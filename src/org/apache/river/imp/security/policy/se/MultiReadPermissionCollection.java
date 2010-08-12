@@ -60,8 +60,8 @@ public final class MultiReadPermissionCollection extends PermissionCollection
     private final transient ReadWriteLock rwl;
     private final transient Lock rl;
     private final transient Lock wl;
-    private boolean readOnly; // all access protected by rwl
-    private Permission[] permissions; //never instantiate for ide code completion
+    private boolean readOnly; // never instantiate for ide code completion of Serialization Proxy
+    private Permission[] permissions; //never instantiate for ide code completion of Serialization Proxy
     // Read only copy to prevent publication of internal PermissionCollection
     // state.  For generation of Enumeration<Permission>.
     // It is volatile because other read locks may update the cache reference
@@ -74,7 +74,6 @@ public final class MultiReadPermissionCollection extends PermissionCollection
         rwl = new ReentrantReadWriteLock();
         rl = rwl.readLock();
         wl = rwl.writeLock();
-        readOnly = false;
 	cache = null;
     }
     
@@ -82,7 +81,7 @@ public final class MultiReadPermissionCollection extends PermissionCollection
     public boolean isReadOnly(){
         rl.lock();
         try{  
-            return readOnly;
+            return permCl.isReadOnly();
         }finally {rl.unlock();}
     }
     
@@ -90,7 +89,8 @@ public final class MultiReadPermissionCollection extends PermissionCollection
     public void setReadOnly(){
         wl.lock();
         try{
-            readOnly = true;
+            super.setReadOnly();
+	    permCl.setReadOnly();
         }finally {wl.unlock();}
     }
     
@@ -125,9 +125,6 @@ public final class MultiReadPermissionCollection extends PermissionCollection
 
     @Override
     public void add(Permission permission) {
-        if (readOnly) {
-            throw new SecurityException("attempt to add a Permission to a readonly Permissions object");
-        } 
         wl.lock();
         try {
             permCl.add(permission);
@@ -178,7 +175,6 @@ public final class MultiReadPermissionCollection extends PermissionCollection
         if (pc == null){
             pc = new PermissionHash();
         }
-	pc.add(permission);
         return pc;                    
     }   
     
@@ -199,7 +195,10 @@ public final class MultiReadPermissionCollection extends PermissionCollection
     }
     
     private Object writeReplace(){
-        return new SerializationProxy(this);
+	rl.lock();
+        try {
+            return new SerializationProxy(permCl);
+        }finally {rl.unlock();}
     }
     
     private void readObject(ObjectInputStream stream) throws InvalidObjectException {

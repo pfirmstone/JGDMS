@@ -26,24 +26,10 @@ import java.security.ProtectionDomain;
  * code.  To be utilised the implementation must have the RuntimePermission
  * "getProtectionDomain"
  * 
- * The implementation may deny a Permission on any grounds, but it must be
+ * The implementation may deny a ProtectionDomain on any grounds, but it must be
  * consistent and return the same result on every occassion.
  * 
- * Denied must implement a robust implementation of equals() and hashCode()
- * 
- * Denied can only deny Permissions that are Revokeable, Permission's granted
- * by underlying Policy's cannot be denied, as the Permission's will become
- * merged within a ProtectionDomain's own Permissions collection.
- * 
- * Under certain circumstances it may be possible to deny any and all Permission
- * to ProtectionDomains if we have control of the creation of those
- * ProtectionDomain's, passing in a null PermissionCollection.
- * The underlying Policy also must not grant that ProtectionDomain any Permissions,
- * only under these circumstances is it possible to Denied any or all Permission.
- * 
- * Denied code must be kept to a minimum, as every implies() will be checked.
- * 
- * Denied may also be used in combination with a PermissionGrant based on
+ * Denied will be used in combination with a PermissionGrant based on
  * Code signer Certificate's to deny individual CodeSource's or URL's with
  * known vulnerabilities.
  * 
@@ -51,13 +37,13 @@ import java.security.ProtectionDomain;
  */
 public interface Denied {
     /**
-     * Denied is used by a RevokeableDynamicPolicy, to cut short permission checks
-     * or allow the Policy.implies method to continue to execute to its
-     * normal conclusion.
+     * Denied is used by a PermissionGrantBuilder, to filter out unwanted
+     * ProtectionDomain implies based on any set of conditions.  This is useful
+     * for a PermissionGrant that generically grant's for one 
      * 
      * @param pd
      * @param perm may be null;
      * @return
      */
-    public boolean allow(ProtectionDomain pd, Permission perm);
+    public boolean allow(ProtectionDomain pd);
 }
