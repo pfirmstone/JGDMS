@@ -282,18 +282,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             // Total delegation revoke and deny supported only by underlying policy.
             return basePolicy.implies(domain, permission);
         }
-//        // Will this ProtectionDomain and Permission be denied?
-//        if (checkDenied){
-//            try {
-//                drl.lock();
-//                Iterator<Denied> itr = denied.iterator();
-//                while (itr.hasNext()){
-//                    if ( !itr.next().allow(domain, permission)){
-//                        return false;
-//                    }
-//                }
-//            } finally { drl.unlock(); }
-//        }
+	if (permission == null) throw new NullPointerException("permission not allowed to be null");
         // First check our cache if the basePolicy is not dynamic.
         PermissionCollection pc = cache.get(domain);
         if ( pc != null ) {

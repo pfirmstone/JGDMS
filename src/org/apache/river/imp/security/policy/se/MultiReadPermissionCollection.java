@@ -50,7 +50,7 @@ import java.util.logging.Logger;
  * cache collections.
  * 
  * TODO Serialization Correctly
- * @version 0.2 2009/11/14
+ * @version 0.3 2010/08/12
  * @author Peter Firmstone
  */
 public final class MultiReadPermissionCollection extends PermissionCollection 
