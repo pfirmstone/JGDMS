@@ -76,8 +76,8 @@ public interface PermissionGrant {
     boolean equals(Object o);
 
     /**
-     * Returns an unmodifiable collection of permissions defined by this
-     * PermissionGrant, may be <code>null</code>.
+     * Returns an array of permissions defined by this PermissionGrant, array
+     * may be null, but non null array must not contain any null elements.
      * @return
      */
     Permission[] getPermissions();
