@@ -76,12 +76,6 @@ public interface RevokeableDynamicPolicy {
      * a Permission related to the one being managed is revoked, in which case
      * the cache of AccessControlContext's previously checked are cleared.
      * 
-     * The ExecutionContextManager is specific only to one permission, this 
-     * is the enabler for the reduced checkPermission calls, since a
-     * Permission should behave in a persistent manner, once it passes, it
-     * should always pass, unless revoked.
-     * 
-     * 
      * @param p Permission the ExecutionContextManager will check.
      * @return a new ExecutionContextManager instance.
      */
