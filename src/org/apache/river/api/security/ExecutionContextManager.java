@@ -138,8 +138,10 @@ public interface ExecutionContextManager {
      * 
      * @param p Permission to be checked, if result not already in cache.
      * @throws java.security.AccessControlException
+     * @throws java.lang.NullPointerException 
      */
-    public void checkPermission(Permission p) throws AccessControlException;
+    public void checkPermission(Permission p) throws AccessControlException,
+	    NullPointerException;
     
     /**
      * <p>

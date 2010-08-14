@@ -196,6 +196,7 @@ class ECM implements ExecutionContextManager{
     }
 
     public void checkPermission(Permission p) throws AccessControlException {
+	if (p == null ) throw new NullPointerException("Permission null");
 	Thread currentThread = Thread.currentThread();
 	AccessControlContext executionContext = AccessController.getContext();
 	rl.lock();
