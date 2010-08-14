@@ -70,6 +70,9 @@ class ECM implements ExecutionContextManager{
 	 * is executed.
 	 */ 
 	executionCache = new ConcurrentWeakIdentityMap<AccessControlContext, Set<Thread>>();
+	/* Thread association is utilised to track a thread as it enters and
+	 * leaves the ExecutionContextManager try finally block.
+	 */ 
 	threadAssociation = new ConcurrentHashMap<Thread, Set<AccessControlContext>>();
 	/* The association is only made while threads are within the clients
 	 * try finally block.

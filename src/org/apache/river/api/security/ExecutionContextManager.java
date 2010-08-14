@@ -18,28 +18,31 @@
 package org.apache.river.api.security;
 
 import java.security.AccessControlException;
+import java.security.AccessControlContext;
 import java.security.Permission;
-import java.util.Set;
 
 /**
  * <p>
  * An ExecutionContextManager is designed to be repeatedly called, where calling
- * AccessController.checkPermission(Permission) is too great an overhead.
+ * AccessController.checkPermission(Permission) is usually too great an overhead.
  * </p><p>
  * The ExecutionContextManager will only call 
  * AccessControlContext.checkPermission(Permission) once, for each context.  This
  * ensures checkPermission isn't re called, until the context changes, or
  * the Permission checked by this ExecutionContextManager experiences a 
- * revoke for any ProtectionDomain via a RevokeableDynamicPolicy.
+ * revoke for any dynamic ProtectionDomain using a RevokeableDynamicPolicy.
  * </p><p>
  * A Reaper may be submitted to the ExecutionContextManager to be executed
  * when a Permission Revocation matching the stored Permission occurs.
  * </p><p>
- * Use of this class is not limited to Revokeable Permission's.
+ * Use of this class is not limited to Revokeable Permission's, although a
+ * revocation event will cause #checkPermission(Permission) and #end() to block
+ * until the revocation process is complete.
  * </p><p>
  * Typical usage:
  * </p>
  * <code>
+ * <PRE>
  * ecm.begin(reaper);
  * try{
  *	    ecm.checkPermission(permissionA);
@@ -49,6 +52,7 @@ import java.util.Set;
  * } finally {
  *	    ecm.end();
  * }
+ * </PRE>
  * </code>
  * <p>
  * When protecting method's, the method must return from the try block.
@@ -77,9 +81,12 @@ public interface ExecutionContextManager {
      * AccessControlContext into the execution cache.
      * <p></p>
      * The execution cache is used to monitor methods or protected blocks that
-     * must be intercepted 
+     * must be intercepted.
+     * If desired, the reaper can be used to simply set a volatile variable, 
+     * in the original object, so a check in the final block can throw 
+     * an AccessControlException.
      * </p>
-     * @param r - Reaper provided to clean up if Revocation occurs during
+     * @param r Reaper provided to clean up if Revocation occurs during
      * the execution that follows this call, until the try block exits, 
      * the current thread is not interrupted, rather the reaper is expected
      * to know what resources need to be closed.
@@ -90,9 +97,9 @@ public interface ExecutionContextManager {
      * <p>
      * This is a call made by a Security Delegate, or other Object used to
      * control access to privileged methods or constructors, similar to the
-     * AccessControll.checkPermission(Permission) call, but with the Permission
-     * pre defined and unchanging.  The Permission check is optimised,
-     * typically a method may only be concerned with a single Permission check,
+     * AccessControll.checkPermission(Permission) call.  
+     * The Permission check is optimised.
+     * Typically a method may only be concerned with a single Permission check,
      * but in many existing cases, the AccessController check is too expensive 
      * to be called on every method invocation.  The ExecutionContextManager 
      * should optimise this call by ensuring that checkPermission(Permission) is only
@@ -102,23 +109,29 @@ public interface ExecutionContextManager {
      * RevokeableDynamicPolicy revokes a Permission with the same class,
      * in which case the Permission must be checked again.
      * </p><p>
-     * Typically where it is not feasable to call AccessController.checkPermission
-     * on every invocation, those objects are usually guarded or have the
-     * checkPermission method called in the constructor.
+     * Typically in the Java platform it isn't feasable to call 
+     * AccessController.checkPermission on every invocation, as a result,
+     * there are guarded objects or security sensitive objects have
+     * SecurityManager checkPermission(Permission) called in their constructor.
      * </p><p>
      * ExecutionContextManager provides a more thorough form of protection.
      * </p><p>
-     * ExecutionContextManager should be used sparingly, the more generic
-     * or widely applicable the Permission, the more efficient the 
-     * ExecutionContextManager is in memory usage terms.  Clients using
-     * the ECM, should be careful to release references to their permission
-     * objects, used permission checks, since garbage collection is relied
-     * upon to clean up cached AccessControlContext's, conversely, the
-     * permission shouldn't be created in the checkPermission(permission) call,
-     * since this would cause the object to be created on every invocation
-     * and probably garbage collected between invocations.
+     * ExecutionContextManager should be used sparingly and only for repeated
+     * calls, if permission checking only happens occasionaly, use the
+     * AccessController or SecurityManager.
      * </p><p>
-     * This method also add's the current thread and context to the execution 
+     * Clients using the ExecutionContextManager, should be careful
+     * to release references to their Permission objects,
+     * since garbage collection is relied upon to clean up cached 
+     * AccessControlContext's, conversely, Permission objects, shouldn't be
+     * created in the checkPermission( new RuntimePermission("blah")) call,
+     * since this would cause the object to be created on every invocation
+     * and probably garbage collected between invocations, thrashing the cache
+     * and causing an AccessControlContext.checkPermssion(Permission) call
+     * as well.
+     * </p><p>
+     * In addition this method add's the current thread and 
+     * AccessControl context to the execution 
      * cache, it is not removed from that cache until after end() 
      * has been called.
      * </p>
@@ -148,6 +161,7 @@ public interface ExecutionContextManager {
      * which always executes in the event of an exception or normal return.
      * </p>
      * <code>
+     * <PRE>
      * ecm.begin(reaper);
      * try{
      *	    ecm.checkPermission(permission);
@@ -156,6 +170,7 @@ public interface ExecutionContextManager {
      * } finally {
      *	    ecm.end();
      * }
+     * </PRE>
      * </code>
      * <p>
      * This should not be confused with AccessController.doPrivileged blocks
