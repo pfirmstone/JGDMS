@@ -325,7 +325,7 @@ public class DynamicPolicyProvider extends Policy implements RevokeableDynamicPo
         return instance.getPermissionGrants();
     }
 
-    public ExecutionContextManager getExecutionContextManager(Permission p) {
-	return instance.getExecutionContextManager(p);
+    public ExecutionContextManager getExecutionContextManager() {
+	return instance.getExecutionContextManager();
     }
 }

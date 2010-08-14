@@ -28,14 +28,30 @@ import java.util.Set;
  * </p><p>
  * The ExecutionContextManager will only call 
  * AccessControlContext.checkPermission(Permission) once, for each context.  This
- * ensures that checkPermission isn't called again until the context changes, or
+ * ensures checkPermission isn't re called, until the context changes, or
  * the Permission checked by this ExecutionContextManager experiences a 
- * revoke for any ProtectionDomain by the RevokeableDynamicPolicy.
+ * revoke for any ProtectionDomain via a RevokeableDynamicPolicy.
  * </p><p>
- * A Runnable may be submitted to the ExecutionContextManager to be executed
+ * A Reaper may be submitted to the ExecutionContextManager to be executed
  * when a Permission Revocation matching the stored Permission occurs.
  * </p><p>
  * Use of this class is not limited to Revokeable Permission's.
+ * </p><p>
+ * Typical usage:
+ * </p>
+ * <code>
+ * ecm.begin(reaper);
+ * try{
+ *	    ecm.checkPermission(permissionA);
+ *	    ecm.checkPermission(permissionB);
+ *	    // do something
+ *	    return;
+ * } finally {
+ *	    ecm.end();
+ * }
+ * </code>
+ * <p>
+ * When protecting method's, the method must return from the try block.
  * </p>
  * @author Peter Firmstone
  * @see RevokeableDynamicPolicy
@@ -43,6 +59,32 @@ import java.util.Set;
  * @see AccessControlContext
  */
 public interface ExecutionContextManager {
+    
+    /**
+     * <p>
+     * Marks the beginning of Management of the Execution context, of the
+     * AccessControlContext and submits a reaper to intercept and clean up
+     * in the event of a revocation during the execution of the try finally
+     * block.  This method may be omitted if a Reaper is not required.  The
+     * consequence of there being no reaper, is that a call in progress during
+     * revocation will return normally immediately after revocation has 
+     * occurred, the permission will have been checked prior to revocation
+     * however and any further permission checks, if they have been revoked
+     * will throw an AccessControlException.
+     * <p></p>
+     * This links the current Thread to a Runnable
+     * Reaper.  The checkPermission() call places the Thread and
+     * AccessControlContext into the execution cache.
+     * <p></p>
+     * The execution cache is used to monitor methods or protected blocks that
+     * must be intercepted 
+     * </p>
+     * @param r - Reaper provided to clean up if Revocation occurs during
+     * the execution that follows this call, until the try block exits, 
+     * the current thread is not interrupted, rather the reaper is expected
+     * to know what resources need to be closed.
+     */
+    void begin(Reaper r);
 
     /**
      * <p>
@@ -68,27 +110,37 @@ public interface ExecutionContextManager {
      * </p><p>
      * ExecutionContextManager should be used sparingly, the more generic
      * or widely applicable the Permission, the more efficient the 
-     * ExecutionContextManager is in memory usage terms.
+     * ExecutionContextManager is in memory usage terms.  Clients using
+     * the ECM, should be careful to release references to their permission
+     * objects, used permission checks, since garbage collection is relied
+     * upon to clean up cached AccessControlContext's, conversely, the
+     * permission shouldn't be created in the checkPermission(permission) call,
+     * since this would cause the object to be created on every invocation
+     * and probably garbage collected between invocations.
      * </p><p>
-     * This method also add's the current context to the current execution 
-     * cache, it is not removed from that cache until after the addAction 
-     * Runnable has been run, or accessControlExit() has been called.
+     * This method also add's the current thread and context to the execution 
+     * cache, it is not removed from that cache until after end() 
+     * has been called.
      * </p>
      * 
-     * @throws java.security.AccessControlException 
+     * @param p Permission to be checked, if result not already in cache.
+     * @throws java.security.AccessControlException
      */
-    public void checkPermission() throws AccessControlException;
+    public void checkPermission(Permission p) throws AccessControlException;
     
     /**
      * <p>
      * This method is to advise the ExecutionContextManager that the
      * current method or protected region has returned, it must
      * always follow the checkPermission() call, in response,
-     * the ECM removes the current context from the execution context cache.
+     * the ECM removes the current context from the execution context cache
+     * and releases the reference to the Runnable reaper.
      * </p><p>
      * If the execution context is still in the cache at the time of 
-     * revocation, the Runnable added by addAction will be run only if 
-     * affected directly by the revocation.  This is determined by
+     * revocation, the reaper will be run only if affected directly by the 
+     * revocation, the thread may be asked to wait for a short period, to
+     * allow the determination to be made. 
+     * Revocation applicability is determined by
      * AccessControlContext.checkPermission(Permission p) where p is the 
      * Permission affected.
      * </p><p>
@@ -96,44 +148,18 @@ public interface ExecutionContextManager {
      * which always executes in the event of an exception or normal return.
      * </p>
      * <code>
+     * ecm.begin(reaper);
      * try{
-     *	    ecm.checkPermission();
+     *	    ecm.checkPermission(permission);
      *	    // do something
      *	    return;
-     * } catch (AccessControlException e) {
-     *	    throw new SecurityException("Method blah caused an...", e);
      * } finally {
-     *	    ecm.accessControlExit();
+     *	    ecm.end();
      * }
      * </code>
      * <p>
      * This should not be confused with AccessController.doPrivileged blocks
      * </p>
      */
-    public void accessControlExit();
-
-    /**
-     * Get the Permission monitored by this ExecutionContextManager.
-     * @return Permission monitored by the ExecutionContextManager
-     */
-    public Permission getPermission();
-
-    /**
-     * <p>
-     * Action to be taken in event that the Permission monitored by this
-     * ExecutionContextManager has experienced a revocation event.  This
-     * allows Sockets to be closed, or any clean up to occur or any other
-     * task that must be performed to reset state.
-     * </p><p>
-     * This may not be the only action performed, since the same
-     * ExecutionContextManager may be used by multiple clients, the Runnable
-     * is only weakly referenced, garbage collection is relied upon for its
-     * removal.
-     * </p><p>
-     * The implementer must have the Permission's required for
-     * execution, no privileges are assigned.
-     * </p>
-     * @param r - Clean up task to be performed.
-     */
-    public void addAction(Runnable r);
+    void end();
 }

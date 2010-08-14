@@ -51,8 +51,9 @@ public interface RevokeableDynamicPolicy {
      * Revokes can only be performed synchronuously with other Revokes.
      * 
      * @param grants
+     * @throws java.lang.Exception if revoke unsuccessful.
      */
-    public void revoke(List<PermissionGrant> grants);
+    public void revoke(List<PermissionGrant> grants) throws Exception;
     /**
      * Get a List copy of the current PermissionGrant's in force.
      * @return
@@ -84,7 +85,7 @@ public interface RevokeableDynamicPolicy {
      * @param p Permission the ExecutionContextManager will check.
      * @return a new ExecutionContextManager instance.
      */
-    public ExecutionContextManager getExecutionContextManager(Permission p);
+    public ExecutionContextManager getExecutionContextManager();
     /**
      * 
      * @return true if Revoke supported.

@@ -583,7 +583,7 @@ public class DynamicPolicyProviderImpl extends Policy implements RevokeableDynam
         throw new UnsupportedOperationException("Not supported.");
     }
 
-    public ExecutionContextManager getExecutionContextManager(Permission p) {
+    public ExecutionContextManager getExecutionContextManager() {
 	throw new UnsupportedOperationException("Not supported yet.");
     }
 }

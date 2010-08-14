@@ -162,6 +162,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 //    private final WriteLock dwl;
 //    private final Set<Denied> denied;
 //    private volatile boolean checkDenied;
+    private final ECM execControlManager;
     
     
     public DynamicConcurrentPolicyProvider(){
@@ -179,6 +180,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 //        denied = new HashSet<Denied>(30);
 //        checkDenied = false;
 	grantLock = new Object();
+	execControlManager = new ECM();
     }
     
     /**
@@ -529,7 +531,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	}
     }
 
-    public void revoke(List<PermissionGrant> grants) {
+    public void revoke(List<PermissionGrant> grants) throws Exception {
         if (initialized == false) throw new RuntimeException("Object not initialized");
         if (basePolicyIsDynamic && revokeable){
             RevokeableDynamicPolicy bp = (RevokeableDynamicPolicy) basePolicy;
@@ -537,7 +539,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
             return;
         }
         AccessController.checkPermission(new RevokePermission());
-	HashSet<Class> removed = new HashSet<Class>();
+	HashSet<Permission> removed = new HashSet<Permission>();
 	List<Runnable> jobs = null;
 	HashSet<PermissionGrant> holder = new HashSet<PermissionGrant>(pGrants.length);
 	synchronized (grantLock){
@@ -549,7 +551,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 		    Permission [] perms = grantCache.get(pGrants[i]);
 		    int len = perms.length;
 		    for ( int c =0; c < len ; c++ ){
-			removed.add(perms[c].getClass());
+			removed.add(perms[c]);
 		    }
 		    continue;
 		}
@@ -557,10 +559,8 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	    }
 	    PermissionGrant[] updated = new PermissionGrant[holder.size()];
 	    pGrants = holder.toArray(updated);
-	    jobs = Controller.revoke(removed);
+	    execControlManager.revoke(removed);
 	}
-	//TODO jobs to tidy up after revocation.
-	
     }
 
     public List<PermissionGrant> getPermissionGrants() {
@@ -577,9 +577,8 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	return grants;
     }
 
-
-    public ExecutionContextManager getExecutionContextManager(Permission p) {
-	return Controller.getECManager(p);
+    public ExecutionContextManager getExecutionContextManager() {
+	return execControlManager;
     }
 
 }

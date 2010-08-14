@@ -77,7 +77,7 @@ public interface PermissionGrant {
 
     /**
      * Returns an array of permissions defined by this PermissionGrant, array
-     * may be null, but non null array must not contain any null elements.
+     * may be null, but array must not contain null elements.
      * @return
      */
     Permission[] getPermissions();
