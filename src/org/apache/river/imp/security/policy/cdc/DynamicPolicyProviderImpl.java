@@ -575,7 +575,7 @@ public class DynamicPolicyProviderImpl extends Policy implements RevokeableDynam
         throw new UnsupportedOperationException("Not supported.");
     }
 
-    public void revoke(List<PermissionGrant> grants) {
+    public void revoke(List<PermissionGrant> grants) throws Exception {
         throw new UnsupportedOperationException("Not supported.");
     }
 
