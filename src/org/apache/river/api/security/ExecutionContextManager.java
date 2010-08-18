@@ -20,6 +20,7 @@ package org.apache.river.api.security;
 import java.security.AccessControlException;
 import java.security.AccessControlContext;
 import java.security.Permission;
+import java.util.Collection;
 
 /**
  * <p>
@@ -64,7 +65,7 @@ import java.security.Permission;
  */
 public interface ExecutionContextManager {
     
-    /**
+    /*
      * <p>
      * Marks the beginning of Management of the Execution context, of the
      * AccessControlContext and submits a reaper to intercept and clean up
@@ -91,7 +92,8 @@ public interface ExecutionContextManager {
      * the current thread is not interrupted, rather the reaper is expected
      * to know what resources need to be closed.
      */
-    void begin(Reaper r);
+    // To Be removed
+    //void begin(Reaper r);
 
     /**
      * <p>
@@ -116,9 +118,8 @@ public interface ExecutionContextManager {
      * </p><p>
      * ExecutionContextManager provides a more thorough form of protection.
      * </p><p>
-     * ExecutionContextManager should be used sparingly and only for repeated
-     * calls, if permission checking only happens occasionaly, use the
-     * AccessController or SecurityManager.
+     * ExecutionContextManager should be used for repeated
+     * calls, it caches the results from the AccessControlContext.
      * </p><p>
      * Clients using the ExecutionContextManager, should be careful
      * to release references to their Permission objects,
@@ -136,14 +137,14 @@ public interface ExecutionContextManager {
      * has been called.
      * </p>
      * 
-     * @param p Permission to be checked, if result not already in cache.
+     * @param perms Permissions to be checked, if result not already in cache.
      * @throws java.security.AccessControlException
      * @throws java.lang.NullPointerException 
      */
-    public void checkPermission(Permission p) throws AccessControlException,
+    public void checkPermission(Collection<Permission> perms) throws AccessControlException,
 	    NullPointerException;
     
-    /**
+    /*
      * <p>
      * This method is to advise the ExecutionContextManager that the
      * current method or protected region has returned, it must
@@ -178,5 +179,6 @@ public interface ExecutionContextManager {
      * This should not be confused with AccessController.doPrivileged blocks
      * </p>
      */
-    void end();
+    // To be removed
+    //void end();
 }
