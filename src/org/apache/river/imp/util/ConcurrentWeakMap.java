@@ -21,6 +21,7 @@ package org.apache.river.imp.util;
 
 import java.lang.ref.ReferenceQueue;
 import java.lang.ref.SoftReference;
+import java.lang.ref.WeakReference;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -31,10 +32,11 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
- * Identity-based sofly referenced hash map, safe for concurrent threads.
+ * A Sofly referenced hash map, safe for concurrent threads.
  * 
  * Based on an underlying ConcurrentHashMap, it doesn't accept null keys.
  *
+ * Key's must not be mutated, soing so will cause strange results.
  *
  * @param K - key
  * @param V - value
@@ -42,11 +44,28 @@ import java.util.concurrent.ConcurrentMap;
  *
  * @since 2.3
  */
-public class ConcurrentSoftIdentityMap<K, V> implements ConcurrentMap<K, V> {
+public class ConcurrentWeakMap<K, V> implements ConcurrentMap<K, V> {
     // ConcurrentHashMap must be protected from null values;
-    private final ConcurrentHashMap<Key, V> map = new ConcurrentHashMap<Key, V>();
-    private final ReferenceQueue queue = new ReferenceQueue();
-
+    private final ConcurrentHashMap<Key, V> map;
+    private final ReferenceQueue queue;
+    
+    public ConcurrentWeakMap(int initialCapacity, float loadFactor, int concurrencyLevel ){
+	map = new ConcurrentHashMap<Key, V>(initialCapacity, loadFactor, concurrencyLevel);
+	queue = new ReferenceQueue();
+    }
+    
+    public ConcurrentWeakMap(int initialCapacity, float loadFactor){
+	this(initialCapacity, loadFactor, 16);
+    }
+    
+    public ConcurrentWeakMap(int initialCapacity ){
+	this(initialCapacity, 0.75F, 16);
+    }
+    
+    public ConcurrentWeakMap(){
+	this(16, 0.75F, 16);
+    }
+    
     /**
      * Associates value with given key, returning value previously associated
      * with key, or null if none.
@@ -102,7 +121,7 @@ public class ConcurrentSoftIdentityMap<K, V> implements ConcurrentMap<K, V> {
 	}
     }
 
-    private static class Key<T> extends SoftReference<T> {
+    private static class Key<T> extends WeakReference<T> {
 	private final int hash;
 
         @SuppressWarnings("unchecked")
@@ -111,26 +130,24 @@ public class ConcurrentSoftIdentityMap<K, V> implements ConcurrentMap<K, V> {
 	    if (q == null) {return new Key(k);}
 	    return new Key(k, q);	  
 	}
-
+	
 	private Key(T k) {
 	    super(k);
-	    hash = System.identityHashCode(k);
+	    hash = k.hashCode();
 	}
 
 	private Key(T k, ReferenceQueue<? super T> q) {
 	    super(k, q);
-	    hash = System.identityHashCode(k);
+	    hash = k.hashCode();
 	}
 
         @Override
 	public boolean equals(Object o) {
-	    if (this == o) {
-		return true;
-	    } else if (!(o instanceof Key)) {
-		return false;
-	    }
+	    if (this == o) return true;
+	    // Don't worry about hashcode because they're already equal.
+	    if (!(o instanceof Key)) return false;    
 	    Object k1 = get(), k2 = ((Key) o).get();
-	    return (k1 != null && k2 != null && k1 == k2);
+	    return (k1 != null && k1.equals(k2));
 	}
 
         @Override

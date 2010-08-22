@@ -37,25 +37,9 @@ import java.util.Collection;
  * when a Permission Revocation matching the stored Permission occurs.
  * </p><p>
  * Use of this class is not limited to Revokeable Permission's, although a
- * revocation event will cause #checkPermission(Permission) and #end() to block
+ * revocation event will cause #checkPermission(Permission) to block
  * until the revocation process is complete.
  * </p><p>
- * Typical usage:
- * </p>
- * <code>
- * <PRE>
- * ecm.begin(reaper);
- * try{
- *	    ecm.checkPermission(permissionA);
- *	    ecm.checkPermission(permissionB);
- *	    // do something
- *	    return;
- * } finally {
- *	    ecm.end();
- * }
- * </PRE>
- * </code>
- * <p>
  * When protecting method's, the method must return from the try block.
  * </p>
  * @author Peter Firmstone
@@ -64,36 +48,6 @@ import java.util.Collection;
  * @see AccessControlContext
  */
 public interface ExecutionContextManager {
-    
-    /*
-     * <p>
-     * Marks the beginning of Management of the Execution context, of the
-     * AccessControlContext and submits a reaper to intercept and clean up
-     * in the event of a revocation during the execution of the try finally
-     * block.  This method may be omitted if a Reaper is not required.  The
-     * consequence of there being no reaper, is that a call in progress during
-     * revocation will return normally immediately after revocation has 
-     * occurred, the permission will have been checked prior to revocation
-     * however and any further permission checks, if they have been revoked
-     * will throw an AccessControlException.
-     * <p></p>
-     * This links the current Thread to a Runnable
-     * Reaper.  The checkPermission() call places the Thread and
-     * AccessControlContext into the execution cache.
-     * <p></p>
-     * The execution cache is used to monitor methods or protected blocks that
-     * must be intercepted.
-     * If desired, the reaper can be used to simply set a volatile variable, 
-     * in the original object, so a check in the final block can throw 
-     * an AccessControlException.
-     * </p>
-     * @param r Reaper provided to clean up if Revocation occurs during
-     * the execution that follows this call, until the try block exits, 
-     * the current thread is not interrupted, rather the reaper is expected
-     * to know what resources need to be closed.
-     */
-    // To Be removed
-    //void begin(Reaper r);
 
     /**
      * <p>
@@ -141,44 +95,6 @@ public interface ExecutionContextManager {
      * @throws java.security.AccessControlException
      * @throws java.lang.NullPointerException 
      */
-    public void checkPermission(Collection<Permission> perms) throws AccessControlException,
-	    NullPointerException;
-    
-    /*
-     * <p>
-     * This method is to advise the ExecutionContextManager that the
-     * current method or protected region has returned, it must
-     * always follow the checkPermission() call, in response,
-     * the ECM removes the current context from the execution context cache
-     * and releases the reference to the Runnable reaper.
-     * </p><p>
-     * If the execution context is still in the cache at the time of 
-     * revocation, the reaper will be run only if affected directly by the 
-     * revocation, the thread may be asked to wait for a short period, to
-     * allow the determination to be made. 
-     * Revocation applicability is determined by
-     * AccessControlContext.checkPermission(Permission p) where p is the 
-     * Permission affected.
-     * </p><p>
-     * This should be executed in the finally{} block of a try catch statement,
-     * which always executes in the event of an exception or normal return.
-     * </p>
-     * <code>
-     * <PRE>
-     * ecm.begin(reaper);
-     * try{
-     *	    ecm.checkPermission(permission);
-     *	    // do something
-     *	    return;
-     * } finally {
-     *	    ecm.end();
-     * }
-     * </PRE>
-     * </code>
-     * <p>
-     * This should not be confused with AccessController.doPrivileged blocks
-     * </p>
-     */
-    // To be removed
-    //void end();
+    public void checkPermission(Collection<Permission> perms) 
+	    throws AccessControlException, NullPointerException;
 }
