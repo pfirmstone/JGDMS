@@ -39,7 +39,7 @@ handlers = java.util.logging.ConsoleHandler
 # level setting (set below) to limit messages printed to
 # the console.
 
-.level = FINEST
+.level = INFO
 
 ############################################################
 # Handler specific properties: formatters and logger levels
@@ -50,7 +50,7 @@ handlers = java.util.logging.ConsoleHandler
 # to the given level and above.
 
 java.util.logging.ConsoleHandler.formatter = java.util.logging.SimpleFormatter
-java.util.logging.ConsoleHandler.level = FINEST
+java.util.logging.ConsoleHandler.level = INFO
 
 # For messages printed to a file, do the following:
 # - use either a standard or XML formatter
@@ -104,10 +104,10 @@ java.util.logging.FileHandler.level = INFO
 #  FINEST (lowest value) 
 
 # For Everything
-sun.rmi.level = FINEST
-net.jini.level = FINEST
+sun.rmi.level = INFO
+net.jini.level = INFO
 
-com.sun.jini.level = FINEST
+com.sun.jini.level = INFO
 
 # For the LogManager
 com.sun.jini.logging.LogManager.level = INFO
@@ -123,8 +123,8 @@ net.jini.jrmp.JrmpExporter.level = INFO
 
 # For Jini ERI
 net.jini.jeri.level = INFO
-net.jini.jeri.BasicInvocationDispatcher.level = 600
-net.jini.jeri.BasicInvocationHandler.level = 600
+net.jini.jeri.BasicInvocationDispatcher.level = INFO
+net.jini.jeri.BasicInvocationHandler.level = INFO
 #net.jini.jeri.BasicJeriExporter.level = INFO
 #net.jini.jeri.BasicObjectEndpoint.level = INFO
 
@@ -159,18 +159,18 @@ net.jini.jeri.BasicInvocationHandler.level = 600
 net.jini.iiop.IiopExporter.level = INFO
 
 # For Preferred Classes
-net.jini.loader.level = FINEST
-net.jini.loader.pref.PreferredClassLoader.level = FINEST
-net.jini.loader.pref.PreferredClassLoader.preferred.level = FINEST
-net.jini.loader.pref.PreferredClassLoader.exception.level = FINEST
-net.jini.loader.pref.PreferredClassProvider.level = FINEST
+net.jini.loader.level = INFO
+net.jini.loader.pref.PreferredClassLoader.level = INFO
+net.jini.loader.pref.PreferredClassLoader.preferred.level = INFO
+net.jini.loader.pref.PreferredClassLoader.exception.level = INFO
+net.jini.loader.pref.PreferredClassProvider.level = INFO
 
 # For Security: trust, integrity, policy and permission granting,
 #               proxy trust verification
-net.jini.security.level = FINEST
+net.jini.security.level = INFO
 #net.jini.security.trust.level = INFO
 #net.jini.security.integrity.level = INFO
-net.jini.security.policy.level = FINEST
+net.jini.security.policy.level = INFO
 
 # For HTTPMD
 net.jini.url.httpmd.level = INFO
