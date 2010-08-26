@@ -2075,7 +2075,7 @@
                 value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager"/>
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="run-categories" inheritall="false" >
-            <reference refid="run.categories" />
+            <property name="run.categories" value="${run.categories}" />
         </ant>
     </target>
 
