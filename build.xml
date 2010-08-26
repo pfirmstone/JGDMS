@@ -227,7 +227,8 @@
 			 destdir="${doc.api.dir}"
 			 doctitle="${javadoc.doc-title}"
 			 linkoffline="${jdk.doc.url} ${jdk.packages}"
-			 serialwarn="yes"
+			 serialwarn="${verbose}"
+                         verbose="${verbose}"
 			 source="5"
 			 use="true"
 			 version="true"
@@ -335,7 +336,8 @@
 			 destdir="${doc.spec.api.dir}"
 			 doctitle="${javadoc.spec.doc-title}"
 			 linkoffline="${jdk.doc.url} ${jdk.packages}"
-			 serialwarn="yes"
+			 serialwarn="${verbose}"
+                         verbose="${verbose}"
 			 source="5"
 			 use="true"
 			 version="true"
@@ -498,7 +500,7 @@
     </target>
 
     <target name="checkconfigurationfile.jar"
-		depends="jarwrapper.jar,start.jar">
+		depends="jarwrapper.jar">
         <delete file="${lib.dir}/checkconfigurationfile.jar" quiet="true"/>
         <jarwrapper>
             <arg value="-manifest=${src.manifest.dir}/checkconfigurationfile.mf"/>
@@ -1602,7 +1604,7 @@
         </jar>
     </target>
 
-    <target name="outrigger.jar" depends="stubs,outrigger-snaplogstore.jar">
+    <target name="outrigger.jar" depends="outrigger-snaplogstore.jar">
         <property name="outrigger.deps" location="${build.deps.dir}/outrigger.deps" />
         <classdep output="${outrigger.deps}">
             <arg value="-cp"/>
@@ -2069,10 +2071,11 @@
         e.g. ant -Dharness.servicemode=transient qa.run
     -->
     <target name="qa.run" depends="" description="Run QA tests">
+        <property name="run.categories"
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager"/>
         <!-- Call qa subcomponent build -->
-        <ant dir="qa" target="run-categories" inheritall="false">
-            <property name="run.categories"
-                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread"/>
+        <ant dir="qa" target="run-categories" inheritall="false" >
+            <reference refid="run.categories" />
         </ant>
     </target>
 
@@ -2118,7 +2121,7 @@
         <ant dir="examples/hello" target="jars" inheritall="false" />
     </target>
 
-    <!-- TODO cleanup and find out where exactly to publish to -->
+    <!-- TODO: cleanup and find out where exactly to publish to -->
     <!-- Note that you need the Maven Ant tasks (http://maven.apache.org/ant-tasks/)
         installed to use this task -->
     <target name="deploy-artifacts" depends="jars">

@@ -135,6 +135,7 @@
         <taskdef name="jtreg" classname="com.sun.javatest.regtest.Main$$Ant"
                 classpath="${jtreg.home}/lib/jtreg.jar" />
         <echo file="${jtreg.dir}/test.props" message="jsk.home=${river.home}"/>
+        <!--<echo file="${jtreg.dir}/test.props" message="sun.security.krb5.debug=true" append="true-->
         <!--Change the httpd port number here-->
         <!--<echo file="${jtreg.dir}/test.props" message="jsk.port=8081" append="true"/>-->
         <!--Code Coverage Options-->
@@ -160,7 +161,9 @@
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <!--<arg value="-status:fail"/>-->
             <!--<arg value="-Djava.security.debug=access,failure"/>-->
+            <!--<arg value="-Dsun.security.krb5.debug=true"/>-->
             <arg value="-Djavatest.maxOutputSize=500000"/>
+            <!--<arg value="net/jini/jeri/kerberos/UnitTests/runTestPerformance.sh" />-->
             <!--<arg value="-Bug:6307813"/>-->
             <!--<arg value="net/jini/security/policy/DynamicPolicyProvider/dynamicBasePolicy/Test.java"/>-->
             <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
@@ -206,7 +209,8 @@
                 src/com/sun/jini/resources/qaDefaults.properties-->
                 <!-- JDK extension directories (include our lib-ext dirs, for the custom policy providers) -->
                 <!--<jvmarg value="-Xbootclasspath/a:${river-ext.lib-dir}"/>-->
-                <jvmarg value="-Djava.ext.dirs=${ext.dirs}" />
+                <jvmarg value="-Djava.ext.dirs=${ext.dirs}"/>
+                <jvmarg value="-Djava.util.logging.manager=com.sun.jini.logging.LogManager"/>
                 <!--Use the following security manager if you need to discover which jar
                 file requires a particular permission, note this only works for the harness here -->
                 <!--<jvmarg value="-Djava.security.manager=com.sun.jini.tool.ProfilingSecurityManager"/>-->
@@ -303,13 +307,14 @@
 			 breakiterator="yes"
 			 destdir="${doc.api.dir}"
 			 doctitle="${javadoc.doc-title}"
-			 serialwarn="false"
+			 serialwarn="${verbose}"
 			 source="5"
-             linkoffline="${jdk.doc.url} ${jdk.packages}"
+                         linkoffline="${jdk.doc.url} ${jdk.packages}"
 			 use="true"
 			 version="true"
 			 windowtitle="${javadoc.win-title}"
-             maxmemory="96M">
+                         maxmemory="96M"
+                         verbose="${verbose}">
             <bottom><![CDATA[${api.copyright}]]></bottom>
             <classpath refid="javadoc.classpath"/>
             <sourcepath>

@@ -49,6 +49,7 @@
     <property name="test.results" value="${test}/results"/>
 
     <!-- Standard directory locations -->
+    <property name="doc.dir" location="${doc}"/>
     <property name="doc.api.dir" location="${doc.api}"/>
     <property name="doc.spec.api.dir" location="${doc.spec.api}"/>
     <property name="src.dir" location="${src}"/>
@@ -97,6 +98,13 @@
     <property name="river.src.dir" location="${river.home}/${src}"/>
 
     <property name="asm.jars.pattern" value="asm*.jar" />
+
+    <property name="debug" value="${ant.debug}"/>
+    <property name="verbose" value="false"/>
+    <!-- Possible values for 'debuglevel': lines,source,vars -->
+    <property name="debuglevel" value="none"/>
+    <property name="nowarn" value="true"/>
+    <property name="deprecation" value="false"/>
 
     <patternset id="java.source">
         <include name="**/*.java"/>
@@ -160,28 +168,29 @@
 
     <property name="jre.ext.dir" location="${java.home}/lib/ext"/>
 
-    <!-- Possible values for 'debug': lines,source,vars -->
-    <property name="debug" value="none"/>
-
     <macrodef name="javac-cmd" description="Run javac">
         <attribute name="source.pat" default="java.source"/>
         <attribute name="source.dir"/>
         <attribute name="dest.dir"/>
         <attribute name="debug" default="${debug}"/>
+        <attribute name="debuglevel" default="${debuglevel}"/>
         <attribute name="source" default="5"/>
         <attribute name="target" default="jsr14"/>
+        <attribute name="deprecation" default="${deprecation}"/>
+        <attribute name="verbose" default="${verbose}"/>
+        <attribute name="nowarn" default="${nowarn}"/>
         <element name="javac-cmd-elements" implicit="true" optional="true"/>
         <sequential>
             <javac fork="yes"
-                    debug="yes"
-                    debuglevel="@{debug}"
-                    deprecation="yes"
+                    debug="@{debug}"
+                    debuglevel="@{debuglevel}"
+                    deprecation="@{deprecation}"
                     destdir="@{dest.dir}"
-                    nowarn="no"
+                    nowarn="@{nowarn}"
                     source="@{source}"
                     srcdir="@{source.dir}"
                     target="@{target}"
-                    verbose="yes">
+                    verbose="@{verbose}">
                 <patternset refid="@{source.pat}"/>
                 <javac-cmd-elements/>
             </javac>
