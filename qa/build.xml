@@ -1761,11 +1761,11 @@
             <arg line="com.sun.jini.test.share.ConstrainableTestLease"/>
             <arg line="com.sun.jini.test.share.UnreadableTestLease"/>
             <arg line="com.sun.jini.test.share.ConstrainableUnreadableTestLease"/>
-
         </classdep>
         <jar destfile="${lib.dir}/qa1-renewalservice-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/spec/io/marshalledinstance/*.class"/>
+                <includesfile name="${qa1-renewalservice-dl.deps}" />
             </fileset>
         </jar>
         <classdep output="${qa1-renewalservice-dl.deps}">
