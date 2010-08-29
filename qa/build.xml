@@ -88,6 +88,7 @@
             description="Clean up build">
         <delete dir="${jtreg.dir}/JTwork"/>
         <delete dir="${jtreg.dir}/JTreport"/>
+        <delete dir="${basedir}/result"/>
     </target>
 
     <target name="clean-build">
