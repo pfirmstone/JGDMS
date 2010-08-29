@@ -29,10 +29,10 @@
 # com.sun.jini.jsk.home=${user.home}/river/jtsk/trunk
 
 # Location of the harness installation
-# com.sun.jini.qa.home=${user.home}/river/qatests/trunk/source/vob/qa
+# com.sun.jini.qa.home=${user.home}/river/jtsk/trunk/qa
 
 # Location of the tests installation
-# com.sun.jini.test.home=${user.home}/river/qatests/trunk/source/vob/qa
+# com.sun.jini.test.home=${user.home}/river/jtsk/trunk/qa
 
 ######################################################
 #
@@ -172,13 +172,13 @@ com.sun.jini.qa.harness.timeout=0
 com.sun.jini.qa.harness.configs=none
 
 # current domain
-com.sun.jini.jsk.domain=east.sun.com
+com.sun.jini.jsk.domain=apache.org
 
 # Generate an index.html results file and place each test result
 # in a separate file
 com.sun.jini.qa.harness.generateHtml=false
-com.sun.jini.qa.harness.generateHtml.resultLog=index.html
-com.sun.jini.qa.harness.generateHtml.title=
+com.sun.jini.qa.harness.generateHtml.resultLog=result$/index.html
+com.sun.jini.qa.harness.generateHtml.title=Apache River QA test results
 com.sun.jini.qa.harness.generateHtml.links=qaHarness.prop logging.properties
 com.sun.jini.qa.harness.generateHtml.removePassResults=false
 com.sun.jini.qa.harness.generateHtml.testOrderJsp=http://jiniautot.east:8080/autot/ReloadTestOrder.jsp

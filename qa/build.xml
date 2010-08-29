@@ -34,7 +34,7 @@
     <property name="trust.dir" location="harness/trust"/>
 
     <!-- javadoc setings -->
-    <property name="javadoc.doc-title" value="Apache River v${version} QA Harness and Test API Documentation"/>
+    <property name="javadoc.doc-title" value="${product.title} QA Harness and Test API Documentation"/>
     <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
 
     <!-- jtreg environment setup -->
@@ -69,11 +69,16 @@
     <property name="ext.dirs" refid="ext.dirs.path" />
     <property name="log.config" location="${src.dir}/com/sun/jini/test/resources/qa1.logging" />
     <property name="security.policy" location="harness/policy/qa.policy" />
-    <!--possible values: jrmp,jeri,jsse,http,https,kerberos,none -->
-    <!--<property name="harness.configs" value="http,jrmp,jeri"/>-->
+    <!--possible values: any combination of jrmp,jeri,jsse,http,https,kerberos,none
+        default: none -->
     <property name="harness.configs" value="none"/>
-    <!-- possible values: activatable,transient -->
-    <property name="harness.servicemode" value="transient"/>
+    <!-- possible values: activatable,transient,persistent
+        default: activatable -->
+    <property name="harness.servicemode" value="activatable"/>
+    <!-- enable this property if you want the QA harness to generate
+        HTML reports for each test in the qa/results directory -->
+    <property name="harness.generateHtml" value="false"/>
+    <property name="harness.generateHtml.title" value="${product.title} QA test results"/>
 
     <!-- resources to copy to classes dir -->
     <property name="resources" value="**/resources*/**, **/*.td, **/*.properties,
@@ -199,6 +204,8 @@
         <delete file="${jtreg.dir}/test.props"/>
     </target>
 
+
+
     <macrodef name="testrun">
         <element name="tr-elements" optional="true" implicit="true"/>
         <sequential>
@@ -210,7 +217,6 @@
                 <!-- JDK extension directories (include our lib-ext dirs, for the custom policy providers) -->
                 <!--<jvmarg value="-Xbootclasspath/a:${river-ext.lib-dir}"/>-->
                 <jvmarg value="-Djava.ext.dirs=${ext.dirs}"/>
-                <jvmarg value="-Djava.util.logging.manager=com.sun.jini.logging.LogManager"/>
                 <!--Use the following security manager if you need to discover which jar
                 file requires a particular permission, note this only works for the harness here -->
                 <!--<jvmarg value="-Djava.security.manager=com.sun.jini.tool.ProfilingSecurityManager"/>-->
@@ -220,6 +226,7 @@
                 <jvmarg value="-Djava.security.policy=${security.policy}" />
                 <!--<jvmarg value="-Djava.security.debug=access" />-->
                 <jvmarg value="-Djava.util.logging.config.file=${log.config}" />
+                <jvmarg value="-Djava.util.logging.manager=com.sun.jini.logging.LogManager"/>
                 <jvmarg value="-Dcom.sun.jini.jsk.home=${river.home}" />
                 <jvmarg value="-Dcom.sun.jini.qa.home=${basedir}" />
                 <!--We have a problem with path to properties and the src directory
@@ -228,9 +235,10 @@
                 the path to those property files in jar archives needs looking into
                 this is now solved by setting the -->
                 <jvmarg value="-Dcom.sun.jini.test.home=${basedir}" />
-                <!--<jvmarg value="-DsearchPath=${basedir}/src,${basedir},${searchPath}"/>-->
                 <jvmarg value="-Dcom.sun.jini.qa.harness.harnessJar=${basedir}/lib/jiniharness.jar"/>
                 <jvmarg value="-Dcom.sun.jini.qa.harness.configs=${harness.configs}" />
+                <jvmarg value="-Dcom.sun.jini.qa.harness.generateHtml=${harness.generateHtml}" />
+                <jvmarg value="-Dcom.sun.jini.qa.harness.generateHtml.title=${harness.generateHtml.title}" />
                 <!-- VM args for each test run: include our JDK extension directories
                 $${com.sun.jini.qa.harness.globalvmargs},-Dcom.sun.jini.test.home=$${com.sun.jini.test.home},-Dcom.sun.jini.test.port=$${com.sun.jini.test.port},-Dcom.sun.jini.qa.harness.policies=&lt;url: com/sun/jini/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
                 <!--<jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>-->
@@ -238,7 +246,7 @@
                 <arg path="${src.dir}/com/sun/jini/test/resources/qaHarness.prop" />
                 <arg value="-testJar"/>
                 <arg path="${lib.dir}/jinitests.jar" />
-                <!-- Run harness in transient or activatable mode -->
+                <!-- Run harness in activatable (default), transient or persistent mode -->
                 <arg value="-com.sun.jini.qa.harness.serviceMode"/>
                 <arg value="${harness.servicemode}" />
                 <tr-elements/>
