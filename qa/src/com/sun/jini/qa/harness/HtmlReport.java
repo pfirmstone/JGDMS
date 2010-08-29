@@ -25,6 +25,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.Properties;
 import java.util.StringTokenizer;
 
 /**
@@ -79,6 +80,7 @@ public class HtmlReport {
 	if (config.isMaster()) {
 	    printStats();
 	    printTimes();
+            printEnvironment();
 	}
 
 	out.println("</TR>");
@@ -226,6 +228,42 @@ public class HtmlReport {
 	out.println("</PRE>");
 	out.println("</TD>");
 	out.println();
+    }
+
+    /**
+     * Prints information about the test environment.
+     */
+    private void printEnvironment() throws IOException {
+        String installDir = "com.sun.jini.qa.home";//XXX note 'qa'
+        String jskHome = "com.sun.jini.jsk.home";
+        out.println();
+        out.println("<TD>");
+        out.println("<PRE>Installation directory of the JSK:");
+        out.println("      " + jskHome + "="
+		   + config.getStringConfigVal(jskHome, null));
+        out.println("Installation directory of the harness:");
+        out.println("      " + installDir + "="
+		   + config.getStringConfigVal(installDir, null));
+	//out.println("   Categories being tested:");
+        //out.println("      categories=" + categoryString);
+        out.println("</PRE>");
+        out.println("</TD>");
+
+        Properties properties = System.getProperties();
+        out.println("<TD>");
+        out.println("<PRE>JVM information:");
+        out.println("      " + properties.getProperty("java.vm.name","unknown")
+                     + ", " + properties.getProperty("java.vm.version")
+                     + ", " + properties.getProperty("sun.arch.data.model","32")
+		     + " bit VM mode");
+        out.println("      " + properties.getProperty("java.vm.vendor",""));
+        out.println("OS information:");
+        out.println("      " + properties.getProperty("os.name","unknown")
+                           + ", " + properties.getProperty("os.version")
+                           + ", " + properties.getProperty("os.arch"));
+        out.println("</PRE>");
+        out.println("</TD>");
+        out.println();
     }
 
     /**
