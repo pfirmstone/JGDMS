@@ -20,8 +20,12 @@ package net.jini.core.event;
 
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.ObjectStreamClass;
+import java.io.ObjectStreamField;
+import java.rmi.MarshalledObject;
 import net.jini.io.Convert;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.MiToMoOutputStream;
@@ -155,7 +159,11 @@ public class RemoteEvent extends java.util.EventObject {
 	this.eventID = eventID;
 	this.seqNum = seqNum;
         Convert convert = Convert.getInstance();
-	this.handback = convert.toMarshalledInstance(handback);
+	if ( handback != null ){
+	    this.handback = convert.toMarshalledInstance(handback);
+	} else {
+	    this.handback = null;
+	}
     }
     /**
      * Constructs a RemoteEvent object.
@@ -175,7 +183,7 @@ public class RemoteEvent extends java.util.EventObject {
      * @param handback  a <tt>MarshalledInstance</tt> that was passed in 
      *                  as part of the original event registration.
      */
-    public RemoteEvent(MarshalledInstance handback, Object source, long eventID,
+    public RemoteEvent( Object source, MarshalledInstance handback, long eventID,
             long seqNum ) {
 	super(source);
         this.source = source;
@@ -216,25 +224,36 @@ public class RemoteEvent extends java.util.EventObject {
     @Deprecated
     public java.rmi.MarshalledObject getRegistrationObject() {
         Convert convert = Convert.getInstance();
-	return convert.toRmiMarshalledObject(handback);
+	if (handback != null) return convert.toRmiMarshalledObject(handback);
+	return null;
     }
     
     public MarshalledInstance getRegisteredObject() {
 	return handback;      
     }
-
+    
     /**
      * Serialization support, the serialized form of this object converts
      * a java.rmi.MarshalledObject, later when support for marshalling to
      * java.rmi.MarshalledObject Serialized Form is dropped, this
      * method can still convert old events if neccessary.
+     * I need a test to confirm that this is backward serializable compatible.
      */
     private void readObject(java.io.ObjectInputStream stream)
 	throws java.io.IOException, ClassNotFoundException
     {
-	ObjectInputStream newStream = new MoToMiInputStream(stream);
-        newStream.defaultReadObject();
+	if (stream instanceof MoToMiInputStream){
+	    stream.defaultReadObject();
+	    super.source = source;
+	    return;
+	}
+	MoToMiInputStream in = new MoToMiInputStream(stream);
+	RemoteEvent ev = (RemoteEvent) in.readObject();
+	this.source = ev.source;
 	super.source = source;
+	this.eventID = ev.eventID;
+	this.handback = ev.handback;
+	this.seqNum = ev.seqNum;	
     }
     
     /**
@@ -245,7 +264,19 @@ public class RemoteEvent extends java.util.EventObject {
      * @throws java.io.IOException
      */
     private void writeObject(java.io.ObjectOutputStream stream) throws IOException{
-        ObjectOutputStream newOutStream = new MiToMoOutputStream(stream);
-        newOutStream.defaultWriteObject();
+	if (stream instanceof MiToMoOutputStream){
+	    stream.defaultWriteObject();
+	    return;
+	}
+	MiToMoOutputStream out = new MiToMoOutputStream(stream);
+	out.writeObject(this);
+    }
+    
+    protected void setState(Object source, long eventID, long seqNum, MarshalledInstance handback){
+	super.source = source;
+	this.source = source;
+	this.eventID = eventID;
+	this.seqNum = seqNum;
+	this.handback = handback;
     }
 }

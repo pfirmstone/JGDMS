@@ -284,14 +284,14 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      *         when an empty set of registrars is input.
      */
 
-    public RemoteDiscoveryEvent(MarshalledInstance handback,
-                                Object source,
+    public RemoteDiscoveryEvent(Object source,
                                 long eventID,
                                 long seqNum,
+				MarshalledInstance handback,
                                 boolean discarded,
                                 Map groups)    throws IOException
     {
-	super(handback, source, eventID, seqNum);
+	super( source, handback, eventID, seqNum);
 	this.discarded = discarded;
         if(groups != null) {
             /* If the set of registrars is empty, throw exception */
@@ -701,15 +701,26 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
     private void readObject(ObjectInputStream s)  
                                throws IOException, ClassNotFoundException
     {
-        ObjectInputStream fois = new MoToMiInputStream(s); // convert to java.rmi.MarshalledObject
-        fois.defaultReadObject();
-        /* Verify source */
-        if(source == null) {
-            throw new InvalidObjectException("RemoteDiscoveryEvent.readObject "
-                                            +"failure - source field is null");
-        }//endif
-        /* Retrieve the value of the integrity flag */
-        integrity = MarshalledWrapper.integrityEnforced(s);
+        if (s instanceof MoToMiInputStream){
+	    s.defaultReadObject();
+	    /* Verify source */
+	    if(source == null) {
+		throw new InvalidObjectException("RemoteDiscoveryEvent.readObject "
+						+"failure - source field is null");
+	    }//endif
+	    /* Retrieve the value of the integrity flag */
+	    integrity = MarshalledWrapper.integrityEnforced(s);
+	    return;
+	}
+	ObjectInputStream fois = new MoToMiInputStream(s); // convert to java.rmi.MarshalledObject
+        RemoteDiscoveryEvent ev = (RemoteDiscoveryEvent) fois.readObject();
+	this.discarded = ev.discarded;
+	this.groups = ev.groups;
+	this.integrity = ev.integrity;
+	this.marshalledRegs = ev.marshalledRegs;
+	this.regs = ev.regs;
+	//RemoteEvent
+	setState(ev.getSource(), ev.getID(), ev.getSequenceNumber(), ev.getRegisteredObject());
     }//end readObject
     
     /**
@@ -720,8 +731,12 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      * @throws java.io.IOException
      */
     private void writeObject(java.io.ObjectOutputStream stream) throws IOException{
-        ObjectOutputStream newOutStream = new MiToMoOutputStream(stream); // Convert from java.rmi.MarshalledObject
-        newOutStream.defaultWriteObject();
+        if (stream instanceof MiToMoOutputStream){
+	    stream.defaultWriteObject();
+	    return;
+	}
+	MiToMoOutputStream out = new MiToMoOutputStream(stream);
+	out.writeObject(this);
     }//end writeObject  
 
 }//end class RemoteDiscoveryEvent

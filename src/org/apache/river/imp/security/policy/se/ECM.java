@@ -97,27 +97,38 @@ class ECM implements ExecutionContextManager{
 	AccessControlContext executionContext = AccessController.getContext();
 	HashSet<Permission> permissions = new HashSet<Permission>(perms.size());
 	permissions.addAll(perms);
-	rl.lock();
-	try {
-	    // checkedCache - the permission check, fast for repeated calls.
-	    Iterator<Permission> permiter = permissions.iterator();
-	    while (permiter.hasNext()){
-		Permission p = permiter.next();
-		Set<AccessControlContext> checked = checkedCache.get(p);
-		if (checked == null ){
-		    checked = Collections.synchronizedSet(new HashSet<AccessControlContext>());
-		    Set<AccessControlContext> existed = checkedCache.putIfAbsent(p, checked);
-		    if (existed != null){
-			checked = existed;
-		    }
-		}
-		if ( checked.contains(executionContext)) continue; // it's passed before.
-		executionContext.checkPermission(p); // Throws AccessControlException
-		// If we get here cache the AccessControlContext.
-		checked.add(executionContext);
-	    }
-	} finally {
-	    rl.unlock();
+	Iterator<Permission> permiter = permissions.iterator();
+	while (permiter.hasNext()){
+	    Permission p = permiter.next();
+	    checkPermission(p, executionContext);
 	}
+	
+    }
+
+    public void checkPermission(Permission perm) throws AccessControlException, NullPointerException {
+	AccessControlContext executionContext = AccessController.getContext();
+	checkPermission(perm, executionContext);
+    }
+    
+    private void checkPermission(Permission perm, AccessControlContext context)
+	    throws AccessControlException, NullPointerException {
+//	rl.lock();
+//	try {
+	    // checkedCache - the permission check, fast for repeated calls.	   
+	    Set<AccessControlContext> checked = checkedCache.get(perm);
+	    if (checked == null ){
+		checked = Collections.synchronizedSet(new HashSet<AccessControlContext>());
+		Set<AccessControlContext> existed = checkedCache.putIfAbsent(perm, checked);
+		if (existed != null){
+		    checked = existed;
+		}
+	    }
+	    if ( checked.contains(context)) return; // it's passed before.
+	    context.checkPermission(perm); // Throws AccessControlException
+	    // If we get here cache the AccessControlContext.
+	    checked.add(context);	    
+//	} finally {
+//	    rl.unlock();
+//	}
     }
 }

@@ -442,13 +442,18 @@ import org.apache.river.api.util.Facade;
  */
 public class JoinManager {
     
+    @SuppressWarnings("deprecation")
     private static void discard(DiscoveryListenerManagement dlm, 
             PortableServiceRegistrar proxy, Logger logger){
         try {
             if (dlm instanceof RegistrarManagement){
                 RegistrarManagement rm = (RegistrarManagement) dlm;
                 rm.discard(proxy);
-            } else {
+            } else if ( dlm instanceof DiscoveryManagement 
+		    && proxy instanceof ServiceRegistrar) {
+		DiscoveryManagement dm = (DiscoveryManagement) dlm;
+		dm.discard((ServiceRegistrar) proxy);
+	    } else {
                 throw new UnsupportedOperationException("Not instance of " +
                         "RegistrarManagement");
             }

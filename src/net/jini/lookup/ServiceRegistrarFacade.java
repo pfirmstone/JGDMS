@@ -58,7 +58,7 @@ public class ServiceRegistrarFacade implements ServiceRegistrar, Facade<Portable
                 @SuppressWarnings(value = "unchecked")
                 MarshalledInstance hback = convert.toMarshalledInstance(handback);
                 StreamServiceRegistrar ssr = (StreamServiceRegistrar) sr;
-                return ssr.notify(hback, tmpl, transitions, listener, leaseDuration);
+                return ssr.notify(tmpl, transitions, listener, hback, leaseDuration);
             } catch (IOException ex) {
                 throw new RemoteException("ServiceRegistrarFacade threw exception",ex);
             }

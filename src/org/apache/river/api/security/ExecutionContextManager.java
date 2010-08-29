@@ -97,4 +97,7 @@ public interface ExecutionContextManager {
      */
     public void checkPermission(Collection<Permission> perms) 
 	    throws AccessControlException, NullPointerException;
+    
+    public void checkPermission(Permission perm) throws AccessControlException,
+	    NullPointerException;
 }

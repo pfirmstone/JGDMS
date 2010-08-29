@@ -77,10 +77,10 @@ public interface StreamServiceRegistrar extends PortableServiceRegistrar{
      * @throws java.rmi.RemoteException
      * @since 2.2.0
      */
-    EventRegistration notify(MarshalledInstance handback,
+    public EventRegistration notify(
                              ServiceTemplate tmpl,
 			     int transitions,
-			     RemoteEventListener listener,
+			     RemoteEventListener listener,MarshalledInstance handback,
 			     long leaseDuration)
 	throws IOException;
 

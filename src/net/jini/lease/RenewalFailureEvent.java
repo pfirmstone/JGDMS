@@ -71,11 +71,11 @@ public abstract class RenewalFailureEvent extends RemoteEvent {
      * @param seqNum the sequence number of this event
      * @param handback the client handback
      */
-    public RenewalFailureEvent(MarshalledInstance handback,
-                               LeaseRenewalSet  source, 
-			       long             seqNum)
+    public RenewalFailureEvent(LeaseRenewalSet  source, 
+			       long             seqNum,
+			       MarshalledInstance handback)
     {
-	super(handback, source, LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID, seqNum);
+	super( source,handback, LeaseRenewalSet.RENEWAL_FAILURE_EVENT_ID, seqNum);
     }
 
     /**

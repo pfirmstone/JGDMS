@@ -74,7 +74,7 @@ implements Serializable {
      * causes it to throw an exception.
      */ 
     private transient final PermissionPendingResolutionCollection unresolved;
-    private ConcurrentHashMap<Class<?>, PermissionCollection> permsMap;
+    private transient ConcurrentHashMap<Class<?>, PermissionCollection> permsMap;
     private transient volatile boolean allPermission;
     
     /* Let Permissions, UnresolvedPermission and 

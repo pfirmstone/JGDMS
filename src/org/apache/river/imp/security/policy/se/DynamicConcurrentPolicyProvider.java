@@ -42,6 +42,7 @@ import org.apache.river.api.security.RevokeableDynamicPolicy;
 import org.apache.river.imp.security.policy.util.PermissionGrantBuilderImp;
 import org.apache.river.imp.security.policy.util.PolicyUtils;
 import org.apache.river.imp.util.ConcurrentWeakIdentityMap;
+import org.apache.river.imp.util.ConcurrentWeakMap;
 
 /**
  * <p>This is a Dynamic Policy Provider that supports concurrent access,
@@ -169,7 +170,7 @@ public class DynamicConcurrentPolicyProvider implements RevokeableDynamicPolicyS
 	pGrants = new PermissionGrant[0];
         basePolicy = null;
         cache = new ConcurrentWeakIdentityMap<ProtectionDomain, PermissionCollection>();
-	grantCache = new ConcurrentWeakIdentityMap<PermissionGrant, Permission[]>();
+	grantCache = new ConcurrentWeakMap<PermissionGrant, Permission[]>();
         basePolicyIsDynamic = false;
         revokeable = true;
         logger = Logger.getLogger("net.jini.security.policy");

@@ -409,7 +409,7 @@ public class LookupUnmarshalException extends Exception {
     }
     
     public MarshalledInstance[] getMarshalledInstRegistrars(){
-        // Defensive copy.
+        // Defensive copy. TODO: Java 6 only method revise
          return Arrays.copyOf(marshalledRegistrars, marshalledRegistrars.length);
     }
     
@@ -499,32 +499,38 @@ public class LookupUnmarshalException extends Exception {
     private void readObject(ObjectInputStream s)  
                                throws IOException, ClassNotFoundException
     {
+	if (s instanceof MoToMiInputStream){
+	    s.defaultReadObject();
+	     /* Verify marshalledRegistrars and exceptions fields */
+	    if(marshalledRegistrars == null) {
+		throw new InvalidObjectException
+				("LookupUnmarshalException.readObject "
+				 +"failure - marshalledRegistrars field is null");
+	    }//endif
+	    if(exceptions == null) {
+		throw new InvalidObjectException
+					  ("LookupUnmarshalException.readObject "
+					   +"failure - exceptions field is null");
+	    }//endif
+	    if(marshalledRegistrars.length == 0) {
+		throw new InvalidObjectException
+				 ("LookupUnmarshalException.readObject "
+				  +"failure - marshalledRegistrars.length == 0");
+	    }//endif
+	    if(exceptions.length != marshalledRegistrars.length) {
+		throw new InvalidObjectException
+			       ("LookupUnmarshalException.readObject failure - "
+				+"exceptions.length ("+exceptions.length
+				+") is not equal to marshalledRegistrars.length "
+				+"("+marshalledRegistrars.length+")");
+	    }//endif
+	    return;
+	}
         ObjectInputStream fois = new MoToMiInputStream(s); // convert to java.rmi.MarshalledObject
-        fois.defaultReadObject();
-        /* Verify marshalledRegistrars and exceptions fields */
-        if(marshalledRegistrars == null) {
-            throw new InvalidObjectException
-                            ("LookupUnmarshalException.readObject "
-                             +"failure - marshalledRegistrars field is null");
-        }//endif
-        if(exceptions == null) {
-            throw new InvalidObjectException
-                                      ("LookupUnmarshalException.readObject "
-                                       +"failure - exceptions field is null");
-        }//endif
-        if(marshalledRegistrars.length == 0) {
-            throw new InvalidObjectException
-                             ("LookupUnmarshalException.readObject "
-                              +"failure - marshalledRegistrars.length == 0");
-        }//endif
-        if(exceptions.length != marshalledRegistrars.length) {
-            throw new InvalidObjectException
-                           ("LookupUnmarshalException.readObject failure - "
-                            +"exceptions.length ("+exceptions.length
-                            +") is not equal to marshalledRegistrars.length "
-                            +"("+marshalledRegistrars.length+")");
-        }//endif
-
+        LookupUnmarshalException lue = (LookupUnmarshalException) fois.readObject();
+	this.exceptions = lue.exceptions;
+	this.registrars = lue.registrars;
+	this.marshalledRegistrars = lue.marshalledRegistrars;
     }//end readObject
     
     /**
@@ -535,8 +541,12 @@ public class LookupUnmarshalException extends Exception {
      * @throws java.io.IOException
      */
     private void writeObject(java.io.ObjectOutputStream stream) throws IOException{
+	if (stream instanceof MiToMoOutputStream){
+	    stream.defaultWriteObject();	    
+	    return;
+	}
         ObjectOutputStream newOutStream = new MiToMoOutputStream(stream); // Convert from java.rmi.MarshalledObject
-        newOutStream.defaultWriteObject();
+        newOutStream.writeObject(this);
     }
 
 }//end class LookupUnmarshalException

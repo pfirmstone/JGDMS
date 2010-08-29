@@ -84,7 +84,7 @@ public MiToMoOutputStream(OutputStream out) throws IOException {
                             Long moSuid = new Long(8988374069173025854L); //MarshalledObject serialVersionUID
                             fields[i].set(tempDesc, moSuid);
                             continue;
-                        }
+                        }   
                         Object fieldValue = fields[i].get(desc);
                         try {
                             fields[i].set(tempDesc, fieldValue);

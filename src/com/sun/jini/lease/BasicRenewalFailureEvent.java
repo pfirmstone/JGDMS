@@ -110,13 +110,13 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
      *        <code>null</code> in which case <code>getThrowable</code> will
      *        return <code>null</code>.
      */
-    public BasicRenewalFailureEvent(MarshalledInstance handback,
-                                    LeaseRenewalSet source, 
+    public BasicRenewalFailureEvent(LeaseRenewalSet source, 
 				    long seqNum,
+				    MarshalledInstance handback,
 				    MarshalledInstance marshalledLease,
 				    MarshalledInstance marshalledThrowable) 
     {
-	super(handback, source, seqNum);
+	super( source, seqNum, handback);
 	this.marshalledThrowable = marshalledThrowable;
 	this.marshalledLease = marshalledLease;
     }

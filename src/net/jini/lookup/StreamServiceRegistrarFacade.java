@@ -42,8 +42,8 @@ public class StreamServiceRegistrarFacade implements StreamServiceRegistrar,
         psr = registrar;
     }
 
-    public EventRegistration notify(MarshalledInstance handback,
-            ServiceTemplate tmpl, int transitions, RemoteEventListener listener,
+    public EventRegistration notify(
+            ServiceTemplate tmpl, int transitions, RemoteEventListener listener,MarshalledInstance handback,
             long leaseDuration) throws RemoteException {
         try {
             if ( psr instanceof net.jini.core.lookup.ServiceRegistrar) {

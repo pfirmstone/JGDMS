@@ -41,7 +41,6 @@ import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.id.Uuid;
 import net.jini.lookup.JoinManager;
-import net.jini.lookup.ServiceIDListener;
 import net.jini.security.ProxyPreparer;
 
 
@@ -50,7 +49,6 @@ import com.sun.jini.logging.Levels;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
 import net.jini.discovery.DiscoveryListenerManagement;
-import net.jini.io.MiToMoOutputStream;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages

@@ -271,7 +271,7 @@
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/policyFileProvider/NullPolicy.td"/>*pass*-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/joinmanager/GetDiscoveryManager.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/joinmanager/TerminateDiscovery.td"/>-->
-        <property name="run.tests" value="com/sun/jini/test/impl/joinmanager/ZRegisterStorm.td"/>
+        <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/ZRegisterStorm.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipalSame.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipal.td"/>-->
@@ -279,9 +279,9 @@
         <!--<property name="run.tests" value="com/sun/jini/test/spec/loader/pref/preferredClassLoader/GetPermissionsSecurityException.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/loader/pref/preferredClassProvider/LoadClassesSecurityExceptionHttpCann.td"/>-->
         <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/NullCases.td"/>-->
-        <!--<property name="run.tests" value=""/>-->
-        <!--<property name="run.tests" value=""/>-->
-        <!--<property name="run.tests" value=""/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/revokableDynamicPolicyProvider/OptimisedPermissionCheck.td"/>-->
+        <!--<property name="run.tests" value="com/sun/jini/test/impl/servicediscovery/event/DiscardDownReDiscover.td"/>-->
+        <property name="run.tests" value="com/sun/jini/test/spec/servicediscovery/event/SetAttrServiceChanged.td"/>
         <!--<property name="run.tests" value=""/>-->
         <testrun>
             <!-- Run specific test(s) -->
@@ -298,7 +298,7 @@
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,
         eventmailbox,jeri,iiop,jrmp,reliability,scalability,thread,renewalservice"/>-->
-        <property name="run.categories" value="loader"/>
+        <property name="run.categories" value="servicediscovery"/>
         <testrun>
              <!-- Run one or more test categories -->
             <arg value="-categories"/>
