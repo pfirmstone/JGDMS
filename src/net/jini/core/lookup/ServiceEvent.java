@@ -125,13 +125,13 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	       "[serviceID=").append(getServiceID()).append(
 	       ", transition=");
 	switch (getTransition()) {
-	    case ServiceRegistrar.TRANSITION_MATCH_MATCH:
+	    case PortableServiceRegistrar.TRANSITION_MATCH_MATCH:
 		sBuffer.append("TRANSITION_MATCH_MATCH");
 		break;
-	    case ServiceRegistrar.TRANSITION_MATCH_NOMATCH:
+	    case PortableServiceRegistrar.TRANSITION_MATCH_NOMATCH:
 		sBuffer.append("TRANSITION_MATCH_NOMATCH");
 		break;
-	    case ServiceRegistrar.TRANSITION_NOMATCH_MATCH:
+	    case PortableServiceRegistrar.TRANSITION_NOMATCH_MATCH:
 		sBuffer.append("TRANSITION_NOMATCH_MATCH");
 		break;
 	    default:
@@ -143,6 +143,29 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	    ", seqNum=").append(getSequenceNumber()).append(
 	    ", handback=").append(getRegisteredObject());
 	return sBuffer.append("]").toString();
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if ( !super.equals(o)) return false;
+	// Super's are equal, let's check this
+	if ( o instanceof ServiceEvent ){
+	    ServiceEvent that = (ServiceEvent) o;
+	    if ( serviceID != null && serviceID.equals(that.serviceID) &&
+		    transition == that.transition )
+	    {
+		return true;
+	    }
+	}
+	return false;
+    }
+
+    @Override
+    public int hashCode() {
+	int hash = super.hashCode();
+	hash = 97 * hash + (this.serviceID != null ? this.serviceID.hashCode() : 0);
+	hash = 97 * hash + this.transition;
+	return hash;
     }
 
     /**

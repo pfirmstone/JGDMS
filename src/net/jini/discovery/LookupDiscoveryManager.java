@@ -34,7 +34,6 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.EmptyConfiguration;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.PortableServiceRegistrar;
-import net.jini.core.lookup.ServiceRegistrar;
 
 /** 
  * This class is a helper utility class that organizes and manages all
@@ -443,7 +442,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  and send no event at all.
          */
 	public void discovered(DiscoveryEvent e) {
-            ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
+            PortableServiceRegistrar[] proxys = e.getPRegistrars();
             Map groupsMap = e.getGroups();
             HashMap discoveredGroupsMap = new HashMap(proxys.length);
 	    for(int i=0; i<proxys.length; i++) {
@@ -545,7 +544,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  </pre>
          */
 	public void discarded(DiscoveryEvent e) {
-	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
+	    PortableServiceRegistrar[] proxys = e.getPRegistrars();
             Map groupsMap = e.getGroups();
             HashMap discardedGroupsMap = new HashMap(proxys.length);
 	    for(int i=0; i<proxys.length; i++) {
@@ -630,7 +629,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  may simply update state and send no event at all.
          */
 	public void discovered(DiscoveryEvent e) {
-            ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
+            PortableServiceRegistrar[] proxys = e.getPRegistrars();
             Map groupsMap = e.getGroups();
             HashMap discoveredGroupsMap = new HashMap(proxys.length);
             HashMap changedGroupsMap    = new HashMap(proxys.length);
@@ -785,7 +784,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  </pre>
          */
 	public void discarded(DiscoveryEvent e) {
-	    ServiceRegistrar[] proxys = e.getRegistrars();
+	    PortableServiceRegistrar[] proxys = e.getPRegistrars();
             Map groupsMap = e.getGroups();
             HashMap discardedGroupsMap = new HashMap(proxys.length);
             HashMap changedGroupsMap   = new HashMap(proxys.length);
@@ -828,7 +827,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          */
         public void changed(DiscoveryEvent e) {
             /* update the groups of each changed registrar */
-            ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
+            PortableServiceRegistrar[] proxys = e.getPRegistrars();
             Map groupsMap = e.getGroups();
             HashMap changedGroupsMap = new HashMap(proxys.length);
 	    for(int i=0; i<proxys.length; i++) {
@@ -1309,13 +1308,13 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      * @deprecated replaced by {@link #getPRegistrars()}
      */
     @Deprecated
-    public ServiceRegistrar[] getRegistrars() {
+    public net.jini.core.lookup.ServiceRegistrar[] getRegistrars() {
 	PortableServiceRegistrar[] psr = getPRegistrars();
         int l = psr.length;
-        ServiceRegistrar[] sr = new ServiceRegistrar[l];
+        net.jini.core.lookup.ServiceRegistrar[] sr = new net.jini.core.lookup.ServiceRegistrar[l];
         for ( int i = 0; i < l; i++){
-            if (psr[i] instanceof ServiceRegistrar){
-                sr[i] = (ServiceRegistrar) psr[i];
+            if (psr[i] instanceof net.jini.core.lookup.ServiceRegistrar){
+                sr[i] = (net.jini.core.lookup.ServiceRegistrar) psr[i];
             }else{
                 sr[i] = new ServiceRegistrarFacade(psr[i]);
             }
@@ -1368,7 +1367,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      * @deprecated 
      */
     @Deprecated
-    public void discard(ServiceRegistrar proxy) {
+    public void discard(net.jini.core.lookup.ServiceRegistrar proxy) {
         discard((PortableServiceRegistrar) proxy);
     }//end discard
     
@@ -1422,7 +1421,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      * @deprecated replaced by {@link #getFrom(PortableServiceRegistrar)}
      */
     @Deprecated
-    public int getFrom(ServiceRegistrar proxy) {
+    public int getFrom(net.jini.core.lookup.ServiceRegistrar proxy) {
 	return getFrom(proxy);
     }
     

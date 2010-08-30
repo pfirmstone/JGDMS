@@ -29,7 +29,6 @@ import net.jini.config.EmptyConfiguration;
 import net.jini.config.NoSuchEntryException;
 import net.jini.discovery.DiscoveryEvent;
 import net.jini.discovery.DiscoveryListener;
-import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.lease.LeaseListener;
 import net.jini.lease.LeaseRenewalEvent;
@@ -53,7 +52,6 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceMatches;
-import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
 
 import java.io.IOException;
@@ -810,8 +808,8 @@ public class ServiceDiscoveryManager {
 
     /** A wrapper class for a ServiceRegistrar. */
     private final static class ProxyReg  {
-	public ServiceRegistrar proxy;
-	public ProxyReg(ServiceRegistrar proxy) {
+	public PortableServiceRegistrar proxy;
+	public ProxyReg(PortableServiceRegistrar proxy) {
 	    if(proxy == null)  throw new IllegalArgumentException
                                                      ("proxy cannot be null");
 	    this.proxy = proxy;
@@ -2504,15 +2502,15 @@ public class ServiceDiscoveryManager {
     private class DiscMgrListener implements DiscoveryListener {
 	/* New or previously discarded proxy has been discovered. */
 	public void discovered(DiscoveryEvent e) {
-	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
+	    PortableServiceRegistrar[] proxys = e.getPRegistrars();
 	    ArrayList newProxys = new ArrayList(1);
 	    ArrayList notifies  = null;
 	    for(int i=0; i<proxys.length; i++) {
                 /* Prepare each lookup service proxy before using it. */
                 try {
                     proxys[i]
-                          = (ServiceRegistrar)registrarPreparer.prepareProxy
-                                                                   (proxys[i]);
+                          = (PortableServiceRegistrar) 
+			  registrarPreparer.prepareProxy(proxys[i]);
                     logger.log(Level.FINEST, "ServiceDiscoveryManager - "
                               +"discovered lookup service proxy prepared: {0}",
                                proxys[i]);
@@ -2544,7 +2542,7 @@ public class ServiceDiscoveryManager {
 
 	/* Previously discovered proxy has been discarded. */
 	public void discarded(DiscoveryEvent e) {
-	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
+	    PortableServiceRegistrar[] proxys = e.getPRegistrars();
 	    ArrayList notifies;
 	    ArrayList drops = new ArrayList(1);
 	    synchronized(proxyRegSet) {
@@ -2759,7 +2757,7 @@ public class ServiceDiscoveryManager {
      * @deprecated 
      */
     @Deprecated
-    public ServiceDiscoveryManager(DiscoveryManagement discoveryMgr,
+    public ServiceDiscoveryManager(net.jini.discovery.DiscoveryManagement discoveryMgr,
                                    LeaseRenewalManager leaseMgr)
                                                             throws IOException
     {
@@ -2838,7 +2836,7 @@ public class ServiceDiscoveryManager {
      * @see net.jini.config.Configuration
      * @see net.jini.config.ConfigurationException
      */
-    public ServiceDiscoveryManager(DiscoveryManagement discoveryMgr,
+    public ServiceDiscoveryManager(net.jini.discovery.DiscoveryManagement discoveryMgr,
                                    LeaseRenewalManager leaseMgr,
                                    Configuration config)
                                                 throws IOException,
@@ -3207,10 +3205,10 @@ public class ServiceDiscoveryManager {
      * @deprecated 
      */
     @Deprecated
-    public DiscoveryManagement getDiscoveryManager() {
+    public net.jini.discovery.DiscoveryManagement getDiscoveryManager() {
 	checkTerminated();
-        if ( discMgr instanceof DiscoveryManagement){
-            return (DiscoveryManagement) discMgr;
+        if ( discMgr instanceof net.jini.discovery.DiscoveryManagement){
+            return (net.jini.discovery.DiscoveryManagement) discMgr;
         }
 	return null;
     }//end getDiscoveryManager
@@ -3667,7 +3665,7 @@ public class ServiceDiscoveryManager {
     }//end createLookupCache
 
     /** Returns element from proxyRegSet that corresponds to the given proxy.*/
-    private ProxyReg findReg(ServiceRegistrar proxy) {
+    private ProxyReg findReg(PortableServiceRegistrar proxy) {
 	Iterator iter = proxyRegSet.iterator();
 	while(iter.hasNext()) {
 	    ProxyReg reg =(ProxyReg)iter.next();
@@ -3737,10 +3735,17 @@ public class ServiceDiscoveryManager {
             dm.discard(proxy);
         } 
         // This will need to be commented out for Java cdc Personal Basis Profile
-        else if (discMgr instanceof DiscoveryManagement){
-            DiscoveryManagement dm = (DiscoveryManagement) discMgr;
-	    dm.discard( (ServiceRegistrar) proxy);           
-            }
+        else {
+	    try {
+		if (discMgr instanceof net.jini.discovery.DiscoveryManagement){
+		net.jini.discovery.DiscoveryManagement dm = (net.jini.discovery.DiscoveryManagement) discMgr;
+		dm.discard( (net.jini.core.lookup.ServiceRegistrar) proxy);           
+		}
+	    } catch (NoClassDefFoundError er) {
+		 // This is expected for Java CDC, ServiceRegistrar or 
+		// DiscoveryManagement is not supported.
+	    }
+	}
     }//end discard
 
     /** Cancels the given event lease. */
@@ -3777,15 +3782,16 @@ public class ServiceDiscoveryManager {
                            | PortableServiceRegistrar.TRANSITION_MATCH_MATCH   );
         if (proxy instanceof StreamServiceRegistrar){
             e = ((StreamServiceRegistrar)proxy).notify( tmpl, transition, listenerProxy, null, duration);
-        }
-        try {
-            // This should be the only occurrance of ServiceRegistrar in this class.
-            if (proxy instanceof net.jini.core.lookup.ServiceRegistrar){
-                e = ((net.jini.core.lookup.ServiceRegistrar)proxy).notify(tmpl, transition, listenerProxy, null, duration);
-            }
-        } catch (NoClassDefFoundError er) {
-             // This is expected for Java CDC, ServiceRegistrar is not supported.
-        }
+        } else {
+	    try {
+		// This should be the only occurrance of ServiceRegistrar in this class.
+		if (proxy instanceof net.jini.core.lookup.ServiceRegistrar){
+		    e = ((net.jini.core.lookup.ServiceRegistrar)proxy).notify(tmpl, transition, listenerProxy, null, duration);
+		}
+	    } catch (NoClassDefFoundError er) {
+		 // This is expected for Java CDC, ServiceRegistrar is not supported.
+	    }
+	}
         /* Proxy preparation -
          * 
          * Prepare the proxy to the lease on the event registration just
@@ -3911,8 +3917,9 @@ public class ServiceDiscoveryManager {
                 discMgr = (DiscoveryListenerManagement) thisConfig.getEntry(
                                     COMPONENT_NAME,
                                     "discoveryManager",
-                                    DiscoveryManagement.class);
-	    } catch(NoSuchEntryException ex) {
+                                    net.jini.discovery.DiscoveryManagement.class);
+	    } catch (NoClassDefFoundError er) {
+		// Java CDC
 		try {
 		    // All new Discovery Managers Must implement RegistrarManagement
 		    // I'm not entirely happy with the name, perhaps it shoud
@@ -3922,10 +3929,24 @@ public class ServiceDiscoveryManager {
 						    "registrarManager",
 				    RegistrarManagement.class);
 		
-            } catch(NoSuchEntryException e) { /* use default */
-                discMgr = new LookupDiscoveryManager
-                                   (new String[] {""}, null, null, thisConfig);
-            }
+		} catch(NoSuchEntryException e) { /* use default */
+		    discMgr = new LookupDiscoveryManager
+				       (new String[] {""}, null, null, thisConfig);
+		}
+	    } catch (NoSuchEntryException ex) {
+		try {
+		    // All new Discovery Managers Must implement RegistrarManagement
+		    // I'm not entirely happy with the name, perhaps it shoud
+		    // be discoveryManager2?  or something?
+		    discMgr = (DiscoveryListenerManagement) thisConfig.getEntry(
+				    COMPONENT_NAME,
+						    "registrarManager",
+				    RegistrarManagement.class);
+		
+		} catch(NoSuchEntryException e) { /* use default */
+		    discMgr = new LookupDiscoveryManager
+				       (new String[] {""}, null, null, thisConfig);
+		}
             }
 	}//endif
 	discMgr.addDiscoveryListener(discMgrListener); 

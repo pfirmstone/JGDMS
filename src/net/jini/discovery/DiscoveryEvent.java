@@ -139,31 +139,8 @@ public class DiscoveryEvent extends EventObject {
      * 
      * @return the set of registrars to which this event applies.
      */
-    public StreamServiceRegistrar[] getStreamRegistrars() {
-        int l = regs.length;
-        ArrayList<StreamServiceRegistrar> sr = new ArrayList<StreamServiceRegistrar>(l);
-        for ( int i = 0; i < l; i++ ){
-            if (regs[i] instanceof StreamServiceRegistrar) {
-                sr.add( (StreamServiceRegistrar) regs[i]);
-            } else {
-                sr.add( new StreamServiceRegistrarFacade(regs[i]));
-            }
-        }
-        StreamServiceRegistrar[] sra = new StreamServiceRegistrar[sr.size()];
-        return sr.toArray(sra);
-    }
-    
-    /**
-     * Return the set of registrars to which this event applies.
-     * The same array is returned on every call; a copy is not made.
-     * 
-     * I'm going to experiment with returning a copy to see if anything
-     * breaks.
-     * 
-     * @return the set of registrars to which this event applies.
-     */
     public PortableServiceRegistrar[] getPRegistrars() {
-        return regs.clone();      
+        return regs;      
     }
     
     /**

@@ -20,12 +20,7 @@ package net.jini.core.event;
 
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
-import java.io.ObjectStreamClass;
-import java.io.ObjectStreamField;
-import java.rmi.MarshalledObject;
+import java.util.EventObject;
 import net.jini.io.Convert;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.MiToMoOutputStream;
@@ -88,7 +83,7 @@ import net.jini.io.MoToMiInputStream;
  * @since 1.0
  * @version 2.0
  */
-public class RemoteEvent extends java.util.EventObject {
+public class RemoteEvent extends java.util.EventObject implements Comparable {
     /**
      * Serialization is broken for Serializing to River Releases earlier than
      * 2.2.0, however it will succeed 
@@ -230,6 +225,89 @@ public class RemoteEvent extends java.util.EventObject {
     
     public MarshalledInstance getRegisteredObject() {
 	return handback;      
+    }
+    
+    /* Because the source is also in the parent EventObject and the parent
+     * doesn't itself override equals, the RemoteEvent's are considered 
+     * equal if all fields are equal.  This is conformant with the
+     * idempotent requirement.
+     */ 
+    @Override
+    public boolean equals(Object o){
+	if ( this == o ) return true;
+	if ( !(o instanceof RemoteEvent)) return false;
+	RemoteEvent that = (RemoteEvent) o;
+	if ( (eventID == that.eventID) &&
+		( handback == that.handback || handback.equals(that.handback)) &&
+		( seqNum == that.seqNum ) &&
+		( source == that.source || source.equals(that.source)))
+	{
+	    return true;
+	}
+	return false;
+    }
+
+    @Override
+    public int hashCode() {
+	int hash = 5;
+	hash = 97 * hash + (this.source != null ? this.source.hashCode() : 0);
+	hash = 97 * hash + (int) (this.eventID ^ (this.eventID >>> 32));
+	hash = 97 * hash + (int) (this.seqNum ^ (this.seqNum >>> 32));
+	hash = 97 * hash + (this.handback != null ? this.handback.hashCode() : 0);
+	return hash;
+    }
+     
+    /**
+     * This implementation ignores the fact that remote events may not be
+     * fully equal.  Instead, it just ensures that equal events return 0.
+     * All other orderings then rely on eventID followed by seqNum.  Which
+     * are ordered as intended.
+     * 
+     * The combination of eventID and sequence number and Object provide a 
+     * unique identity. The combination of eventID and Object should uniquely
+     * identify the type.
+     * 
+     * Objects with equal identity but whose equals method returns false
+     * throw an IllegalStateException.
+     * 
+     * @throws IllegalStateException if identity is the same but objects are not equal.
+     * @throws ClassCastException if classes of different types not comparable.
+     */ 
+    public int compareTo(Object o) {
+	if (equals(o)) return 0; // Only return 0 if actually equal.
+	if (o instanceof RemoteEvent ){
+	    RemoteEvent that = (RemoteEvent) o;
+	    if ( eventID < that.eventID ) return -1;
+	    if ( eventID > that.eventID ) return 1;
+	    // If we get to here eventID's are equal.
+	    if ( seqNum < that.seqNum ) return -1;
+	    if ( seqNum > that.seqNum ) return 1;
+	    // If we get to here sequence numbers are equal.
+	    if ( source != null && that.source != null) {
+		int thisHash = source.hashCode();
+		int otherHash = that.source.hashCode();
+		if ( thisHash < otherHash ) return -1;
+		if ( thisHash > otherHash ) return 1;
+	    }
+	    if ( source == that.source || source.equals(that.source)) {
+		throw new IllegalStateException("RemoteEvent's not equal but " +
+			"eventID Object and sequence numbers equal");
+	    }
+	    // If we get here we are very unlucky, since the object isn't equal
+	    // lets check our own hashcodes.
+	    int thisHash = hashCode();
+	    int otherHash = that.hashCode();
+	    if ( thisHash < otherHash ) return -1;
+	    if ( thisHash > otherHash ) return 1;
+	    if ( !this.getClass().equals(that.getClass())) {
+		throw new ClassCastException("Different subclasses were uncomparable");
+	    }
+	    throw new IllegalStateException("something went wrong " +
+		    this.getClass().getCanonicalName() + " has unlucky hashcode" +
+		    "implementation, objects not equal but hashcodes are " +
+		    "not comparable, try to improve hashcode");
+	}
+	throw new ClassCastException("Compared object not a RemoteEvent");	
     }
     
     /**
