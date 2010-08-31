@@ -73,8 +73,8 @@
         default: none -->
     <property name="harness.configs" value="none"/>
     <!-- possible values: activatable,transient,persistent
-        default: activatable -->
-    <property name="harness.servicemode" value="activatable"/>
+        default: transient -->
+    <property name="harness.servicemode" value="transient"/>
     <!-- enable this property if you want the QA harness to generate
         HTML reports for each test in the qa/results directory -->
     <property name="harness.generateHtml" value="false"/>
@@ -84,10 +84,13 @@
     <property name="resources" value="**/resources*/**, **/*.td, **/*.properties,
         **/*.policy, **/*.config, **/*.logging, **/*.prop" />
 
-    <target name="clean" depends="clean-build, clean-lib, clean-trust, clean-doc"
+    <target name="clean" depends="clean-result, clean-build, clean-lib, clean-trust, clean-doc"
             description="Clean up build">
         <delete dir="${jtreg.dir}/JTwork"/>
         <delete dir="${jtreg.dir}/JTreport"/>
+    </target>
+
+    <target name="clean-result">
         <delete dir="${basedir}/result"/>
     </target>
 
