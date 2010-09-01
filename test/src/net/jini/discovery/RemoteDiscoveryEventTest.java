@@ -191,7 +191,7 @@ private static class PSR implements PortableServiceRegistrar, Serializable {
 //	fail("The test case is a prototype.");
 //    }
     
-    @Test
+/*    @Test
     public void testSerialization() {
 	ObjectOutputStream oos = null;
 	System.out.println("test serialization");
@@ -224,7 +224,7 @@ private static class PSR implements PortableServiceRegistrar, Serializable {
 		Logger.getLogger(RemoteDiscoveryEventTest.class.getName()).log(Level.SEVERE, null, ex);
 	    }
 	}
-    }
+    }*/
     
 
 }

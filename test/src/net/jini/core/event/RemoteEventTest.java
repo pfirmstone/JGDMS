@@ -87,20 +87,8 @@ public class RemoteEventTest {
     public void getRegistrationObject() {
 	System.out.println("getRegistrationObject");
 	RemoteEvent instance = e;
-	MarshalledObject expResult = mo;
-	@SuppressWarnings("deprecation")
-	MarshalledObject result = instance.getRegistrationObject();
-	assertEquals(expResult, result);
-    }
-
-    /**
-     * Test of getRegisteredObject method, of class RemoteEvent.
-     */
-    @Test
-    public void getRegisteredObject() {
-	System.out.println("getRegisteredObject");
-	RemoteEvent instance = e;
 	MarshalledObject expResult = m;
+	@SuppressWarnings("deprecation")
 	MarshalledObject result = instance.getRegistrationObject();
 	assertEquals(expResult, result);
     }

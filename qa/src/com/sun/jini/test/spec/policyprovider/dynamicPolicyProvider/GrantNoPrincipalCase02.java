@@ -453,7 +453,7 @@ public class GrantNoPrincipalCase02 extends DynamicPolicyProviderTestBase {
              * Policy.getPermissions(CodeSource).
              */
             callGetPermissionsNoGranted(s, pmAsided);
-            callGetPermissions(s, pmAll, true, null);
+            callGetPermissions(s, pmAll, null);
         }
     }
 }
