@@ -53,7 +53,7 @@ import static org.mockito.Mockito.*;
 public class RemoteDiscoveryEventTest {
     String s = "happy";
     Object source = "source";
-    MarshalledInstance<String> m = null;
+    MarshalledObject<String> m = null;
     RemoteDiscoveryEvent e = null;
     MarshalledObject<String> mo = null;
     Map groups = new HashMap(1);
@@ -128,8 +128,7 @@ private static class PSR implements PortableServiceRegistrar, Serializable {
     public void setUp() {
 	groups.put(psr, g);
 	try {
-	    m = new MarshalledInstance<String>(s);
-	    mo = m.convertToMarshalledObject();
+	    m = new MarshalledObject<String>(s);
 	    e = new RemoteDiscoveryEvent(source, 10L, 25L, m, true, groups );
 	} catch (IOException ex) {
 	    Logger.getLogger(RemoteDiscoveryEventTest.class.getName()).log(Level.SEVERE, null, ex);
@@ -196,7 +195,7 @@ private static class PSR implements PortableServiceRegistrar, Serializable {
     public void testSerialization() {
 	ObjectOutputStream oos = null;
 	System.out.println("test serialization");
-	MarshalledInstance expResult = m;
+	MarshalledObject expResult = m;
 	try {
 	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
 	    oos = new ObjectOutputStream(baos);
@@ -206,11 +205,11 @@ private static class PSR implements PortableServiceRegistrar, Serializable {
 	    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
 	    ObjectInputStream ois = new ObjectInputStream(bais);
 	    RemoteDiscoveryEvent result = (RemoteDiscoveryEvent) ois.readObject();
-	    MarshalledInstance miResult = result.getRegisteredObject();
+	    MarshalledObject moResult = result.getRegistrationObject();
 	    Object srcResult = result.getSource();
 	    long iDResult = result.getID();
 	    long seqResult = result.getSequenceNumber();
-	    assertEquals(expResult, miResult);
+	    assertEquals(expResult, moResult);
 	    assertEquals(source, srcResult);
 	    assertEquals(10L, iDResult);
 	    assertEquals(25L, seqResult);

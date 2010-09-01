@@ -27,9 +27,7 @@ import java.rmi.MarshalledObject;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalledInstance;
-import org.junit.AfterClass;
 import org.junit.Before;
-import org.junit.BeforeClass;
 import org.junit.Test;
 import static org.junit.Assert.*;
 
@@ -43,7 +41,7 @@ public class RemoteEventTest {
     }
     String s = "happy";
     Object source = "source";
-    MarshalledInstance<String> m = null;
+    MarshalledObject<String> m = null;
     RemoteEvent e = null;
     MarshalledObject<String> mo = null;
 
@@ -51,12 +49,11 @@ public class RemoteEventTest {
     @SuppressWarnings("deprecation")
     public void setUp() {
 	try {
-	    m = new MarshalledInstance<String>(s);
-	    mo = m.convertToMarshalledObject();
+	    m = new MarshalledObject<String>(s);
 	} catch (IOException ex) {
 	    Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
 	}
-	e = new RemoteEvent(source, m, 10L, 25L );
+	e = new RemoteEvent(source, 10L, 25L,m);
     }
 
     /**
@@ -103,8 +100,8 @@ public class RemoteEventTest {
     public void getRegisteredObject() {
 	System.out.println("getRegisteredObject");
 	RemoteEvent instance = e;
-	MarshalledInstance expResult = m;
-	MarshalledInstance result = instance.getRegisteredObject();
+	MarshalledObject expResult = m;
+	MarshalledObject result = instance.getRegistrationObject();
 	assertEquals(expResult, result);
     }
     
@@ -112,7 +109,7 @@ public class RemoteEventTest {
     public void testSerialization() {
 	ObjectOutputStream oos = null;
 	System.out.println("test serialization");
-	MarshalledInstance expResult = m;
+	MarshalledObject expResult = m;
 	try {
 	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
 	    oos = new ObjectOutputStream(baos);
@@ -122,11 +119,11 @@ public class RemoteEventTest {
 	    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
 	    ObjectInputStream ois = new ObjectInputStream(bais);
 	    RemoteEvent result = (RemoteEvent) ois.readObject();
-	    MarshalledInstance miResult = result.getRegisteredObject();
+	    MarshalledObject moResult = result.getRegistrationObject();
 	    Object srcResult = result.getSource();
 	    long iDResult = result.getID();
 	    long seqResult = result.getSequenceNumber();
-	    assertEquals(expResult, miResult);
+	    assertEquals(expResult, moResult);
 	    assertEquals(source, srcResult);
 	    assertEquals(10L, iDResult);
 	    assertEquals(25L, seqResult);

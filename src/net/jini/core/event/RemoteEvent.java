@@ -18,13 +18,7 @@
 
 package net.jini.core.event;
 
-
-import java.io.IOException;
-import java.util.EventObject;
-import net.jini.io.Convert;
-import net.jini.io.MarshalledInstance;
-import net.jini.io.MiToMoOutputStream;
-import net.jini.io.MoToMiInputStream;
+import java.rmi.MarshalledObject;
 
 /**
  * The base class or superclass for remote events.
@@ -33,7 +27,7 @@ import net.jini.io.MoToMiInputStream;
  * to the object in which the event occurred, a long which identifies the
  * kind of event relative to the object in which the event occurred, a long
  * which indicates the sequence number of this instance of the event kind,
- * and a MarshalledInstance that is to be handed back when the notification
+ * and a MarshalledObject that is to be handed back when the notification
  * occurs.  The combination of the event identifier and the object reference
  * obtained from the RemoteEvent object should uniquely identify the event
  * type.
@@ -81,15 +75,11 @@ import net.jini.io.MoToMiInputStream;
  * @author Sun Microsystems, Inc.
  *
  * @since 1.0
- * @version 2.0
  */
-public class RemoteEvent extends java.util.EventObject implements Comparable {
-    /**
-     * Serialization is broken for Serializing to River Releases earlier than
-     * 2.2.0, however it will succeed 
-     * @serial
-     */
+public class RemoteEvent extends java.util.EventObject {
+
     private static final long serialVersionUID = 1777278867291906446L;
+
     /**
      * The event source.
      *
@@ -112,19 +102,11 @@ public class RemoteEvent extends java.util.EventObject implements Comparable {
     protected long seqNum;
 
     /**
-     * The handback object, there is a remote possibility that this object
-     * is required to be accessed by a subclass, the visibility has been 
-     * changed from protected to private, this may break binary compatibility
-     * for some.
-     * 
-     * The serial form of this field is java.rmi.MarshalledObject, this class
-     * uses stream based converters to convert to and from MarshalledObject
-     * during serialization and deserialization.
-     * 
-     * @see MarshalledObject
+     * The handback object.
+     *
      * @serial
      */
-    private MarshalledInstance handback;
+    protected MarshalledObject handback;
 
     /**
      * Constructs a RemoteEvent object.
@@ -143,49 +125,14 @@ public class RemoteEvent extends java.util.EventObject implements Comparable {
      * @param seqNum    a <tt>long</tt> containing the event sequence number
      * @param handback  a <tt>MarshalledObject</tt> that was passed in 
      *                  as part of the original event registration.
-     * @deprecated As of Release 2.2.0 this method cannot be supported on
-     * the Java CDC Personal Profile 1.12 platform.
      */
-    @Deprecated
     public RemoteEvent(Object source, long eventID, long seqNum,
-		       java.rmi.MarshalledObject handback) {
+		       MarshalledObject handback) {
 	super(source);
 	this.source = source;
 	this.eventID = eventID;
 	this.seqNum = seqNum;
-        Convert convert = Convert.getInstance();
-	if ( handback != null ){
-	    this.handback = convert.toMarshalledInstance(handback);
-	} else {
-	    this.handback = null;
-	}
-    }
-    /**
-     * Constructs a RemoteEvent object.
-     * <p>
-     * The abstract state contained in a RemoteEvent object includes a 
-     * reference to the object in which the event occurred, a long which 
-     * identifies the kind of event relative to the object in which the 
-     * event occurred, a long which indicates the sequence number of this 
-     * instance of the event kind, and a MarshalledInstance that is to be 
-     * handed back when the notification occurs. The combination of the 
-     * event identifier and the object reference obtained from the 
-     * RemoteEvent object should uniquely identify the event type.
-     * 
-     * @param source    an <tt>Object</tt> representing the event source
-     * @param eventID   a <tt>long</tt> containing the event identifier
-     * @param seqNum    a <tt>long</tt> containing the event sequence number
-     * @param handback  a <tt>MarshalledInstance</tt> that was passed in 
-     *                  as part of the original event registration.
-     */
-    public RemoteEvent( Object source, MarshalledInstance handback, long eventID,
-            long seqNum ) {
-	super(source);
-        this.source = source;
-        this.eventID = eventID;
-        this.seqNum = seqNum;
-        this.handback = handback;
-           
+	this.handback = handback;
     }
 
     /**
@@ -216,145 +163,17 @@ public class RemoteEvent extends java.util.EventObject implements Comparable {
      * @return the MarshalledObject that was provided as a parameter to
      *         the event interest registration method, if any. 
      */
-    @Deprecated
-    public java.rmi.MarshalledObject getRegistrationObject() {
-        Convert convert = Convert.getInstance();
-	if (handback != null) return convert.toRmiMarshalledObject(handback);
-	return null;
-    }
-    
-    public MarshalledInstance getRegisteredObject() {
-	return handback;      
-    }
-    
-    /* Because the source is also in the parent EventObject and the parent
-     * doesn't itself override equals, the RemoteEvent's are considered 
-     * equal if all fields are equal.  This is conformant with the
-     * idempotent requirement.
-     */ 
-    @Override
-    public boolean equals(Object o){
-	if ( this == o ) return true;
-	if ( !(o instanceof RemoteEvent)) return false;
-	RemoteEvent that = (RemoteEvent) o;
-	if ( (eventID == that.eventID) &&
-		( handback == that.handback || handback.equals(that.handback)) &&
-		( seqNum == that.seqNum ) &&
-		( source == that.source || source.equals(that.source)))
-	{
-	    return true;
-	}
-	return false;
+    public MarshalledObject getRegistrationObject() {
+	return handback;
     }
 
-    @Override
-    public int hashCode() {
-	int hash = 5;
-	hash = 97 * hash + (this.source != null ? this.source.hashCode() : 0);
-	hash = 97 * hash + (int) (this.eventID ^ (this.eventID >>> 32));
-	hash = 97 * hash + (int) (this.seqNum ^ (this.seqNum >>> 32));
-	hash = 97 * hash + (this.handback != null ? this.handback.hashCode() : 0);
-	return hash;
-    }
-     
     /**
-     * This implementation ignores the fact that remote events may not be
-     * fully equal.  Instead, it just ensures that equal events return 0.
-     * All other orderings then rely on eventID followed by seqNum.  Which
-     * are ordered as intended.
-     * 
-     * The combination of eventID and sequence number and Object provide a 
-     * unique identity. The combination of eventID and Object should uniquely
-     * identify the type.
-     * 
-     * Objects with equal identity but whose equals method returns false
-     * throw an IllegalStateException.
-     * 
-     * @throws IllegalStateException if identity is the same but objects are not equal.
-     * @throws ClassCastException if classes of different types not comparable.
-     */ 
-    public int compareTo(Object o) {
-	if (equals(o)) return 0; // Only return 0 if actually equal.
-	if (o instanceof RemoteEvent ){
-	    RemoteEvent that = (RemoteEvent) o;
-	    if ( eventID < that.eventID ) return -1;
-	    if ( eventID > that.eventID ) return 1;
-	    // If we get to here eventID's are equal.
-	    if ( seqNum < that.seqNum ) return -1;
-	    if ( seqNum > that.seqNum ) return 1;
-	    // If we get to here sequence numbers are equal.
-	    if ( source != null && that.source != null) {
-		int thisHash = source.hashCode();
-		int otherHash = that.source.hashCode();
-		if ( thisHash < otherHash ) return -1;
-		if ( thisHash > otherHash ) return 1;
-	    }
-	    if ( source == that.source || source.equals(that.source)) {
-		throw new IllegalStateException("RemoteEvent's not equal but " +
-			"eventID Object and sequence numbers equal");
-	    }
-	    // If we get here we are very unlucky, since the object isn't equal
-	    // lets check our own hashcodes.
-	    int thisHash = hashCode();
-	    int otherHash = that.hashCode();
-	    if ( thisHash < otherHash ) return -1;
-	    if ( thisHash > otherHash ) return 1;
-	    if ( !this.getClass().equals(that.getClass())) {
-		throw new ClassCastException("Different subclasses were uncomparable");
-	    }
-	    throw new IllegalStateException("something went wrong " +
-		    this.getClass().getCanonicalName() + " has unlucky hashcode" +
-		    "implementation, objects not equal but hashcodes are " +
-		    "not comparable, try to improve hashcode");
-	}
-	throw new ClassCastException("Compared object not a RemoteEvent");	
-    }
-    
-    /**
-     * Serialization support, the serialized form of this object converts
-     * a java.rmi.MarshalledObject, later when support for marshalling to
-     * java.rmi.MarshalledObject Serialized Form is dropped, this
-     * method can still convert old events if neccessary.
-     * I need a test to confirm that this is backward serializable compatible.
+     * Serialization support
      */
     private void readObject(java.io.ObjectInputStream stream)
 	throws java.io.IOException, ClassNotFoundException
     {
-	if (stream instanceof MoToMiInputStream){
-	    stream.defaultReadObject();
-	    super.source = source;
-	    return;
-	}
-	MoToMiInputStream in = new MoToMiInputStream(stream);
-	RemoteEvent ev = (RemoteEvent) in.readObject();
-	this.source = ev.source;
+	stream.defaultReadObject();
 	super.source = source;
-	this.eventID = ev.eventID;
-	this.handback = ev.handback;
-	this.seqNum = ev.seqNum;	
-    }
-    
-    /**
-     * This method is an interim temporary measure to provide a transition
-     * period for the Serialized form in Apache River versions prior to
-     * 2.2.0
-     * @param stream
-     * @throws java.io.IOException
-     */
-    private void writeObject(java.io.ObjectOutputStream stream) throws IOException{
-	if (stream instanceof MiToMoOutputStream){
-	    stream.defaultWriteObject();
-	    return;
-	}
-	MiToMoOutputStream out = new MiToMoOutputStream(stream);
-	out.writeObject(this);
-    }
-    
-    protected void setState(Object source, long eventID, long seqNum, MarshalledInstance handback){
-	super.source = source;
-	this.source = source;
-	this.eventID = eventID;
-	this.seqNum = seqNum;
-	this.handback = handback;
     }
 }

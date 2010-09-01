@@ -17,8 +17,6 @@
  */
 package net.jini.core.lookup;
 
-import net.jini.io.MarshalledInstance;
-
 /**
  * This class is used for remote events sent by the lookup service.  It
  * extends RemoteEvent with methods to obtain the service ID of the matched
@@ -62,7 +60,6 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * @param serviceID the serviceID of the item that triggered the event
      * @param transition the transition that triggered the event
      */
-    @Deprecated
     public ServiceEvent(Object source,
 			long eventID,
 			long seqNo,
@@ -75,28 +72,6 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	this.transition = transition;
     }
 
-    /**
-     * Simple constructor.
-     *
-     * @param source the source of this ServiceEvent
-     * @param eventID the registration eventID
-     * @param seqNo the sequence number of this event
-     * @param handback the client handback
-     * @param serviceID the serviceID of the item that triggered the event
-     * @param transition the transition that triggered the event
-     */
-    public ServiceEvent(Object source,
-			long eventID,
-			long seqNo,
-			MarshalledInstance handback,
-			ServiceID serviceID,
-			int transition)
-    {
-	super(source, handback, eventID, seqNo);
-	this.serviceID = serviceID;
-	this.transition = transition;
-    }
-    
     /** Returns the serviceID of the item that triggered the event. 
      *
      * @return a <tt>ServiceID</tt> object representing the service ID value
@@ -125,13 +100,13 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	       "[serviceID=").append(getServiceID()).append(
 	       ", transition=");
 	switch (getTransition()) {
-	    case PortableServiceRegistrar.TRANSITION_MATCH_MATCH:
+	    case ServiceRegistrar.TRANSITION_MATCH_MATCH:
 		sBuffer.append("TRANSITION_MATCH_MATCH");
 		break;
-	    case PortableServiceRegistrar.TRANSITION_MATCH_NOMATCH:
+	    case ServiceRegistrar.TRANSITION_MATCH_NOMATCH:
 		sBuffer.append("TRANSITION_MATCH_NOMATCH");
 		break;
-	    case PortableServiceRegistrar.TRANSITION_NOMATCH_MATCH:
+	    case ServiceRegistrar.TRANSITION_NOMATCH_MATCH:
 		sBuffer.append("TRANSITION_NOMATCH_MATCH");
 		break;
 	    default:
@@ -141,31 +116,8 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	sBuffer.append(", source=").append(source).append(
 	    ", eventID=").append(getID()).append(
 	    ", seqNum=").append(getSequenceNumber()).append(
-	    ", handback=").append(getRegisteredObject());
+	    ", handback=").append(getRegistrationObject());
 	return sBuffer.append("]").toString();
-    }
-    
-    @Override
-    public boolean equals(Object o){
-	if ( !super.equals(o)) return false;
-	// Super's are equal, let's check this
-	if ( o instanceof ServiceEvent ){
-	    ServiceEvent that = (ServiceEvent) o;
-	    if ( serviceID != null && serviceID.equals(that.serviceID) &&
-		    transition == that.transition )
-	    {
-		return true;
-	    }
-	}
-	return false;
-    }
-
-    @Override
-    public int hashCode() {
-	int hash = super.hashCode();
-	hash = 97 * hash + (this.serviceID != null ? this.serviceID.hashCode() : 0);
-	hash = 97 * hash + this.transition;
-	return hash;
     }
 
     /**
