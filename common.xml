@@ -190,7 +190,8 @@
                     source="@{source}"
                     srcdir="@{source.dir}"
                     target="@{target}"
-                    verbose="@{verbose}">
+                    verbose="@{verbose}"
+                    includeantruntime="false">
                 <patternset refid="@{source.pat}"/>
                 <javac-cmd-elements/>
             </javac>
