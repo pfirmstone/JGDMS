@@ -18,21 +18,18 @@
 
 package net.jini.loader;
 
-import java.io.IOException;
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
+import java.rmi.server.RMIClassLoader;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.HashSet;
 import java.util.Map;
 import java.util.WeakHashMap;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import net.jini.security.Security;
 
 /**
  * Provides static methods for loading classes using {@link
- * CodebaseAccessClassLoader} with optional verification that the codebase URLs
+ * RMIClassLoader} with optional verification that the codebase URLs
  * used to load classes provide content integrity (see {@link
  * Security#verifyCodebaseIntegrity
  * Security.verifyCodebaseIntegrity}).
@@ -41,18 +38,7 @@ import net.jini.security.Security;
  * @since 2.0
  **/
 public final class ClassLoading {
-  	private static Logger logger = Logger.getLogger( ClassLoading.class.getName() );
-// 	private static HashSet<String>noprefs = new HashSet<String>();
-// 	
-// 	public synchronized static void neverPrefer( String name ) {
-// 		logger.fine("neverPrefer("+name+")");
-// 		noprefs.add( name );
-// 	}
-// 
-// 	public synchronized static void honorPreferenceFor( String name ) {
-// 		logger.fine("honorPreferenceFor("+name+")");
-// 		noprefs.remove( name );
-// 	}
+
     /**
      * per-thread cache (weakly) mapping verifierLoader values to
      * (soft) sets of codebase values that have been verified (to
@@ -64,8 +50,8 @@ public final class ClassLoading {
 
     /**
      * Loads a class using {@link
-     * CodebaseAccessClassLoader#loadClass(String,String,ClassLoader)
-     * CodebaseAccessClassLoader.loadClass}, optionally verifying that the
+     * RMIClassLoader#loadClass(String,String,ClassLoader)
+     * RMIClassLoader.loadClass}, optionally verifying that the
      * codebase URLs provide content integrity.
      *
      * <p>If <code>verifyCodebaseIntegrity</code> is <code>true</code>
@@ -86,19 +72,19 @@ public final class ClassLoading {
      * other exception, then this method throws that exception.
      *
      * <p>This method then invokes {@link
-     * CodebaseAccessClassLoader#loadClass(String,String,ClassLoader)
-     * CodebaseAccessClassLoader.loadClass} with <code>codebase</code> as the
+     * RMIClassLoader#loadClass(String,String,ClassLoader)
+     * RMIClassLoader.loadClass} with <code>codebase</code> as the
      * first argument (or <code>null</code> if in the previous step
      * <code>Security.verifyCodebaseIntegrity</code> was invoked and
      * it threw a <code>SecurityException</code>), <code>name</code>
      * as the second argument, and <code>defaultLoader</code> as the
-     * third argument.  If <code>CodebaseAccessClassLoader.loadClass</code>
+     * third argument.  If <code>RMIClassLoader.loadClass</code>
      * throws a <code>ClassNotFoundException</code>, then this method
      * throws a <code>ClassNotFoundException</code>; if
-     * <code>CodebaseAccessClassLoader.loadClass</code> throws any other
+     * <code>RMIClassLoader.loadClass</code> throws any other
      * exception, then this method throws that exception; otherwise,
      * this method returns the <code>Class</code> returned by
-     * <code>CodebaseAccessClassLoader.loadClass</code>.
+     * <code>RMIClassLoader.loadClass</code>.
      *
      * @param codebase the list of URLs (separated by spaces) to load
      * the class from, or <code>null</code>
@@ -107,7 +93,7 @@ public final class ClassLoading {
      *
      * @param defaultLoader the class loader value (possibly
      * <code>null</code>) to pass as the <code>defaultLoader</code>
-     * argument to <code>CodebaseAccessClassLoader.loadClass</code>
+     * argument to <code>RMIClassLoader.loadClass</code>
      *
      * @param verifyCodebaseIntegrity if <code>true</code>, verify
      * that the codebase URLs provide content integrity
@@ -122,11 +108,11 @@ public final class ClassLoading {
      *
      * @throws MalformedURLException if
      * <code>Security.verifyCodebaseIntegrity</code> or
-     * <code>CodebaseAccessClassLoader.loadClass</code> throws a
+     * <code>RMIClassLoader.loadClass</code> throws a
      * <code>MalformedURLException</code>
      *
      * @throws ClassNotFoundException if
-     * <code>CodebaseAccessClassLoader.loadClass</code> throws a
+     * <code>RMIClassLoader.loadClass</code> throws a
      * <code>ClassNotFoundException</code>
      *
      * @throws NullPointerException if <code>name</code> is
@@ -137,7 +123,7 @@ public final class ClassLoading {
 				  ClassLoader defaultLoader,
 				  boolean verifyCodebaseIntegrity,
 				  ClassLoader verifierLoader)
-	throws IOException, ClassNotFoundException
+	throws MalformedURLException, ClassNotFoundException
     {
 	SecurityException verifyException = null;
 	if (verifyCodebaseIntegrity && codebase != null) {
@@ -148,57 +134,8 @@ public final class ClassLoading {
 		codebase = null;
 	    }
 	}
-//        if( logger.isLoggable(Level.FINEST) ) {
-//                logger.log(Level.FINEST, "loadClass(url="+codebase+",class="+name+
-//                                ") with="+defaultLoader+", noprefs="+isNeverPreferred(name),
-//                        new Throwable("loadClass("+name+")") );
-//        } else if( logger.isLoggable(Level.FINER) ) {
-//                logger.finer("loadClass(url="+codebase+",class="+name+
-//                                ") with="+defaultLoader+", noprefs="+isNeverPreferred(name));
-//        }
-//        if( logger.isLoggable(Level.FINEST) ) {
-//                synchronized( noprefs ) {
-//                        logger.finest("Check Pref \""+name+"\" in "+noprefs );
-//                }
-//        }
-//        if( isNeverPreferred(name) ) {
-//                // defaultLoader is the remote loader, only use it's classLoader
-//                if( defaultLoader != null ) {
-//                        // If it's loaded by the system class loader, don't use it
-//                        if( defaultLoader.getClass().getClassLoader() != null ) {
-//                                logger.fine("Loading with defaultLoader: "+
-//                                                defaultLoader+" which was loaded from "+
-//                                                defaultLoader.getClass().getClassLoader() );
-//                                Class c = Class.forName( name, true,
-//                                        CodebaseAccessClassLoader.getSystemContextClassLoader( defaultLoader ) );
-//                                logger.fine("Loaded "+c.getName()+" using: "+c.getClassLoader() );
-//                                return c;
-//                        }
-//                }
-//
-//                if (logger.isLoggable(Level.FINE))
-//                        logger.fine("\""+name+"\" is never preferred and there is no " +
-//                                "defaultLoader, so calling forName()" +
-//                                ", ctx loader="+Thread.currentThread().getContextClassLoader()+
-//                                ", thisLoader="+ClassLoading.class.getClassLoader() );
-//                Class c = Class.forName( name, true, CodebaseAccessClassLoader.getSystemContextClassLoader( null ) );
-//                if (logger.isLoggable(Level.FINE))  {
-//                        logger.fine("Loaded "+
-//                                c.getName()+" using: "+c.getClassLoader() );
-//                }
-//                return c;
-//        }
- 
-        if (logger.isLoggable(Level.FINE)) {
-                logger.fine( "Using ("+(defaultLoader != null ?
-                                defaultLoader.getClass().getClassLoader() : null)+
-                        "="+defaultLoader+") to download: "+name+" from "+codebase );
-        }
-        try {
-                Class c = CodebaseAccessClassLoader.loadClass(codebase, name, defaultLoader );
-                if (logger.isLoggable(Level.FINE))
-                        logger.fine("Loaded "+c.getName()+" using: "+c.getClassLoader() );
-                return c;      
+	try {
+	    return RMIClassLoader.loadClass(codebase, name, defaultLoader);
 	} catch (ClassNotFoundException e) {
 	    if (verifyException != null) {
 		// assume that the verify exception is more important
@@ -212,8 +149,8 @@ public final class ClassLoading {
 
     /**
      * Loads a dynamic proxy class using {@link
-     * CodebaseAccessClassLoader#loadProxyClass(String,String[],ClassLoader)
-     * CodebaseAccessClassLoader.loadProxyClass}, optionally verifying that the
+     * RMIClassLoader#loadProxyClass(String,String[],ClassLoader)
+     * RMIClassLoader.loadProxyClass}, optionally verifying that the
      * codebase URLs provide content integrity.
      *
      * <p>If <code>verifyCodebaseIntegrity</code> is <code>true</code>
@@ -234,20 +171,20 @@ public final class ClassLoading {
      * exception, then this method throws that exception.
      *
      * <p>This method invokes {@link
-     * CodebaseAccessClassLoader#loadProxyClass(String,String[],ClassLoader)
-     * CodebaseAccessClassLoader.loadProxyClass} with <code>codebase</code> as
+     * RMIClassLoader#loadProxyClass(String,String[],ClassLoader)
+     * RMIClassLoader.loadProxyClass} with <code>codebase</code> as
      * the first argument (or <code>null</code> if in the previous
      * step <code>Security.verifyCodebaseIntegrity</code> was invoked
      * and it threw a <code>SecurityException</code>),
      * <code>interfaceNames</code> as the second argument, and
      * <code>defaultLoader</code> as the third argument.  If
-     * <code>CodebaseAccessClassLoader.loadProxyClass</code> throws a
+     * <code>RMIClassLoader.loadProxyClass</code> throws a
      * <code>ClassNotFoundException</code>, then this method throws a
      * <code>ClassNotFoundException</code>; if
-     * <code>CodebaseAccessClassLoader.loadProxyClass</code> throws any other
+     * <code>RMIClassLoader.loadProxyClass</code> throws any other
      * exception, then this method throws that exception; otherwise,
      * this method returns the <code>Class</code> returned by
-     * <code>CodebaseAccessClassLoader.loadProxyClass</code>.
+     * <code>RMIClassLoader.loadProxyClass</code>.
      *
      * @param codebase the list of URLs (separated by spaces) to load
      * classes from, or <code>null</code>
@@ -257,7 +194,7 @@ public final class ClassLoading {
      *
      * @param defaultLoader the class loader value (possibly
      * <code>null</code>) to pass as the <code>defaultLoader</code>
-     * argument to <code>CodebaseAccessClassLoader.loadProxyClass</code>
+     * argument to <code>RMIClassLoader.loadProxyClass</code>
      *
      * @param verifyCodebaseIntegrity if <code>true</code>, verify
      * that the codebase URLs provide content integrity
@@ -272,11 +209,11 @@ public final class ClassLoading {
      *
      * @throws MalformedURLException if
      * <code>Security.verifyCodebaseIntegrity</code> or
-     * <code>CodebaseAccessClassLoader.loadProxyClass</code> throws a
+     * <code>RMIClassLoader.loadProxyClass</code> throws a
      * <code>MalformedURLException</code>
      *
      * @throws ClassNotFoundException if
-     * <code>CodebaseAccessClassLoader.loadProxyClass</code> throws a
+     * <code>RMIClassLoader.loadProxyClass</code> throws a
      * <code>ClassNotFoundException</code>
      *
      * @throws NullPointerException if <code>interfaceNames</code> is
@@ -288,7 +225,7 @@ public final class ClassLoading {
 				       ClassLoader defaultLoader,
 				       boolean verifyCodebaseIntegrity,
 				       ClassLoader verifierLoader)
-	throws IOException, ClassNotFoundException
+	throws MalformedURLException, ClassNotFoundException
     {
 	SecurityException verifyException = null;
 	if (verifyCodebaseIntegrity && codebase != null) {
@@ -300,7 +237,7 @@ public final class ClassLoading {
 	    }
 	}
 	try {
-	    return CodebaseAccessClassLoader.loadProxyClass(codebase, interfaceNames,
+	    return RMIClassLoader.loadProxyClass(codebase, interfaceNames,
 						 defaultLoader);
 	} catch (ClassNotFoundException e) {
 	    if (verifyException != null) {
