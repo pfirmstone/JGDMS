@@ -6,9 +6,9 @@
  * to you under the Apache License, Version 2.0 (the
  * "License"); you may not use this file except in compliance
  * with the License. You may obtain a copy of the License at
- * 
+ *
  *      http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -29,6 +29,7 @@ import net.jini.config.EmptyConfiguration;
 import net.jini.config.NoSuchEntryException;
 import net.jini.discovery.DiscoveryEvent;
 import net.jini.discovery.DiscoveryListener;
+import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.lease.LeaseListener;
 import net.jini.lease.LeaseRenewalEvent;
@@ -52,6 +53,7 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceMatches;
+import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
 
 import java.io.IOException;
@@ -70,19 +72,15 @@ import java.util.logging.Logger;
 import java.util.Map;
 import java.util.Random;
 import java.util.Set;
-import net.jini.core.lookup.PortableServiceRegistrar;
-import net.jini.core.lookup.StreamServiceRegistrar;
-import net.jini.discovery.DiscoveryListenerManagement;
-import net.jini.discovery.RegistrarManagement;
 
 /**
  * The <code>ServiceDiscoveryManager</code> class is a helper utility class
- * that any client-like entity can use to "discover" services registered 
+ * that any client-like entity can use to "discover" services registered
  * with any number of lookup services of interest. On behalf of such
  * entities, this class maintains - as much as possible - up-to-date
  * state information about both the lookup services the entity wishes
  * to query, and the services the entity wishes to acquire and use.
- * By maintaining current service state information, the entity can 
+ * By maintaining current service state information, the entity can
  * implement efficient mechanisms for service access and usage.
  * <p>
  * There are three basic usage patterns for this class. In order of
@@ -96,8 +94,8 @@ import net.jini.discovery.RegistrarManagement;
  *        to services that match criteria defined by the entity; services
  *        which are registered with one or more lookup services managed
  *        by the <code>ServiceDiscoveryManager</code> on behalf of the entity.
- *        The cache can be viewed as a set of service references that the 
- *        entity can access locally as needed through one of the public, 
+ *        The cache can be viewed as a set of service references that the
+ *        entity can access locally as needed through one of the public,
  *        non-remote methods provided in the cache's interface. Thus, rather
  *        than making costly remote queries of multiple lookup services at
  *        the point in time when the entity needs the service, the entity
@@ -111,7 +109,7 @@ import net.jini.discovery.RegistrarManagement;
  *        the entity can execute a local query on the cache rather than
  *        one or more remote queries on the lookup services to acquire
  *        an instance that is available. To employ this pattern, the entity
- *        invokes the method 
+ *        invokes the method
  *        {@link net.jini.lookup.ServiceDiscoveryManager#createLookupCache
  *        createLookupCache}.
  *   <li> The entity can register with the event mechanism provided by the
@@ -121,7 +119,7 @@ import net.jini.discovery.RegistrarManagement;
  *        such as removal from all lookup services, or attribute set changes.
  *        Although interacting with a local cache of services in the way
  *        described in the first pattern can be very useful to entities that
- *        need frequent access to multiple services, some client-like 
+ *        need frequent access to multiple services, some client-like
  *        entities may wish to interact with the cache in a reactive manner.
  *        For example, an entity such as a service browser typically wishes
  *        to be notified of the arrival of new services of interest as well
@@ -132,12 +130,12 @@ import net.jini.discovery.RegistrarManagement;
  *        either pattern can be satisfied. To employ this pattern, the entity
  *        must create a cache and supply it with an instance of the
  *        {@link net.jini.lookup.ServiceDiscoveryListener
- *        ServiceDiscoveryListener} interface that will receive instances of 
+ *        ServiceDiscoveryListener} interface that will receive instances of
  *        {@link net.jini.lookup.ServiceDiscoveryEvent ServiceDiscoveryEvent}
  *        when events of interest, related to the services in the cache, occur.
- *   <li> The entity, through the public API of the 
- *        <code>ServiceDiscoveryManager</code>, can directly query the lookup 
- *        services managed by the <code>ServiceDiscoveryManager</code> for 
+ *   <li> The entity, through the public API of the
+ *        <code>ServiceDiscoveryManager</code>, can directly query the lookup
+ *        services managed by the <code>ServiceDiscoveryManager</code> for
  *        services of interest; employing semantics similar to the semantics
  *        employed in a typical lookup service query made through the
  *        {@link net.jini.core.lookup.ServiceRegistrar ServiceRegistrar}
@@ -151,7 +149,7 @@ import net.jini.discovery.RegistrarManagement;
  *        to query lookup service(s) can certainly make such queries through
  *        the {@link net.jini.core.lookup.ServiceRegistrar ServiceRegistrar}
  *        interface, the <code>ServiceDiscoveryManager</code> provides a broad
- *        API with semantics that are richer than the semantics of the 
+ *        API with semantics that are richer than the semantics of the
  *        {@link net.jini.core.lookup.ServiceRegistrar#lookup lookup} methods
  *        provided by the {@link net.jini.core.lookup.ServiceRegistrar
  *        ServiceRegistrar}. This API encapsulates functionality that many
@@ -161,16 +159,16 @@ import net.jini.discovery.RegistrarManagement;
  *        instantiates this class with the desired parameters, and then
  *        invokes the appropriate version of the
  *        {@link net.jini.lookup.ServiceDiscoveryManager#lookup lookup}
- *        method when the entity wishes to acquire a service that matches 
+ *        method when the entity wishes to acquire a service that matches
  *        desired criteria.
  * </ul>
  * <p>
  * All three mechanisms just described - local queries on the cache,
- * service discovery notification, and remote lookups - employ the same 
- * template-matching scheme as that employed in the 
+ * service discovery notification, and remote lookups - employ the same
+ * template-matching scheme as that employed in the
  * {@link net.jini.core.lookup.ServiceRegistrar ServiceRegistrar} interface.
- * Additionally, each mechanism allows the entity to supply an object 
- * referred to as a <i>filter</i>; an instance of 
+ * Additionally, each mechanism allows the entity to supply an object
+ * referred to as a <i>filter</i>; an instance of
  * {@link net.jini.lookup.ServiceItemFilter ServiceItemFilter}. A filter
  * is a non-remote object that defines additional matching criteria that the
  * <code>ServiceDiscoveryManager</code> applies when searching for the
@@ -187,7 +185,7 @@ import net.jini.discovery.RegistrarManagement;
  * supply the <code>ServiceDiscoveryManager</code> or
  * {@link net.jini.lookup.LookupCache LookupCache} with a filter that,
  * when applied to a candidate proxy, performs a set of operations that
- * is referred to as <i>proxy preparation</i>. As described in the 
+ * is referred to as <i>proxy preparation</i>. As described in the
  * documentation for {@link net.jini.security.ProxyPreparer}, proxy
  * preparation typically includes operations such as, verifying trust
  * in the proxy, specifying client constraints, and dynamically granting
@@ -233,25 +231,25 @@ import net.jini.discovery.RegistrarManagement;
  *
  *
  * <a name="cacheTaskManager">
- * <table summary="Describes the cacheTaskManager configuration entry" 
+ * <table summary="Describes the cacheTaskManager configuration entry"
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>cacheTaskManager</code></font>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Type: <td> {@link com.sun.jini.thread.TaskManager}
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Default: <td> <code>new 
+ *     Default: <td> <code>new
  *             {@link com.sun.jini.thread.TaskManager#TaskManager()
  *                                   TaskManager}(10, (15*1000), 1.0f)</code>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
- *       <td> The object that pools and manages the various threads 
- *            executed by each of the lookup caches created by this 
+ *       <td> The object that pools and manages the various threads
+ *            executed by each of the lookup caches created by this
  *            utility. There is one such task manager created for each
  *            cache. The default manager creates a maximum of 10 threads,
  *            waits 15 seconds before removing idle threads, and uses a
@@ -264,28 +262,28 @@ import net.jini.discovery.RegistrarManagement;
  * </table>
  *
  * <a name="discardTaskManager">
- * <table summary="Describes the discardTaskManager configuration entry" 
+ * <table summary="Describes the discardTaskManager configuration entry"
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>discardTaskManager</code></font>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Type: <td> {@link com.sun.jini.thread.TaskManager}
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Default: <td> <code>new 
+ *     Default: <td> <code>new
  *             {@link com.sun.jini.thread.TaskManager#TaskManager()
  *                                   TaskManager}(10, (15*1000), 1.0f)</code>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
- *       <td> The object that pools and manages the threads, executed 
- *            by a cache, that wait on verification events after a 
- *            previousy discovered service has been discarded. The 
- *            default manager creates a maximum of 10 threads, waits 
- *            15 seconds before removing idle threads, and uses a load 
+ *       <td> The object that pools and manages the threads, executed
+ *            by a cache, that wait on verification events after a
+ *            previousy discovered service has been discarded. The
+ *            default manager creates a maximum of 10 threads, waits
+ *            15 seconds before removing idle threads, and uses a load
  *            factor of 1.0 when determining whether to create a new
  *            thread. For each cache that is created in this utility,
  *            a single, separate instance of this task manager will be
@@ -301,13 +299,13 @@ import net.jini.discovery.RegistrarManagement;
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>discardWait</code></font>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Type: <td> <code>long</code>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Default: <td> <code>2*(5*60*1000)</code>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
  *       <td> The value used to affect the behavior of the mechanism
@@ -326,18 +324,18 @@ import net.jini.discovery.RegistrarManagement;
  * </table>
  *
  * <a name="discoveryManager">
- * <table summary="Describes the discoveryManager configuration entry" 
+ * <table summary="Describes the discoveryManager configuration entry"
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>discoveryManager</code></font>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Type: <td> {@link net.jini.discovery.DiscoveryManagement}
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Default: <td> <code> new 
+ *     Default: <td> <code> new
  *    {@link net.jini.discovery.LookupDiscoveryManager#LookupDiscoveryManager(
  *      java.lang.String[],
  *      net.jini.core.discovery.LookupLocator[],
@@ -346,7 +344,7 @@ import net.jini.discovery.RegistrarManagement;
  *                       new java.lang.String[] {""},
  *                       new {@link net.jini.core.discovery.LookupLocator}[0],
  *                       null, config)</code>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
  *       <td> The object used to manage the discovery processing
@@ -359,45 +357,45 @@ import net.jini.discovery.RegistrarManagement;
  * </table>
  *
  * <a name="eventLeasePreparer">
- * <table summary="Describes the eventLeasePreparer configuration entry" 
+ * <table summary="Describes the eventLeasePreparer configuration entry"
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>eventLeasePreparer</code></font>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *       Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
  *                     </code>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *   Description:
  *     <td> Preparer for the leases returned when a cache registers
  *          with the event mechanism of any of the discovered lookup
  *          services. This item is used only by the caches (both
  *          internal and external) that are created by this utility,
- *          and not by the utility itself. 
+ *          and not by the utility itself.
  *          <p>
  *          Currently, no methods of the returned proxy are invoked by
  *          this utility.
  * </table>
  *
  * <a name="eventListenerExporter">
- * <table summary="Describes the eventListenerExporter configuration entry" 
+ * <table summary="Describes the eventListenerExporter configuration entry"
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>eventListenerExporter</code></font>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *       Type: <td> {@link net.jini.export.Exporter}
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *       Default: <td> <code> new 
+ *       Default: <td> <code> new
  *                {@link net.jini.jeri.BasicJeriExporter#BasicJeriExporter(
  *                                        net.jini.jeri.ServerEndpoint,
  *                                        net.jini.jeri.InvocationLayerFactory,
@@ -415,7 +413,7 @@ import net.jini.discovery.RegistrarManagement;
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *   Description:
  *     <td> Exporter for the remote event listener that each cache
- *          supplies to the lookup services whose event mechanisms 
+ *          supplies to the lookup services whose event mechanisms
  *          those caches register with. Note that for each cache that
  *          is created in this utility, a single, separate instance
  *          of this exporter will be retrieved and employed by that
@@ -426,33 +424,33 @@ import net.jini.discovery.RegistrarManagement;
  *          referenced. This means that the listener will not "go away"
  *          unintentionally. Additionally, that exporter also sets the
  *          <code>keepAlive</code> flag to <code>false</code> to allow
- *          the VM in which this utility runs to "go away" when 
+ *          the VM in which this utility runs to "go away" when
  *          desired; and not be kept alive simply because the listener
  *          is still exported.
  * </table>
  *
  * <a name="leaseManager">
- * <table summary="Describes the leaseManager configuration entry" 
+ * <table summary="Describes the leaseManager configuration entry"
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>leaseManager</code></font>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Type: <td> {@link net.jini.lease.LeaseRenewalManager}
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Default: <td> <code> new 
+ *     Default: <td> <code> new
  *       {@link net.jini.lease.LeaseRenewalManager#LeaseRenewalManager(
  *        net.jini.config.Configuration) LeaseRenewalManager}(config)</code>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
  *       <td> The object used to manage any event leases returned
  *            to a cache that has registered with the event mechanism
  *            of the various discovered lookup services. This entry will
- *            be retrieved from the configuration only if no lease 
+ *            be retrieved from the configuration only if no lease
  *            renewal manager is specified in the constructor. This item
  *            is used only by the caches (both internal and external)
  *            that are created by this utility, and not by the utility
@@ -460,20 +458,20 @@ import net.jini.discovery.RegistrarManagement;
  * </table>
  *
  * <a name="registrarPreparer">
- * <table summary="Describes the registrarPreparer configuration entry" 
+ * <table summary="Describes the registrarPreparer configuration entry"
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
  *     <code>registrarPreparer</code></font>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *       Type: <td> {@link net.jini.security.ProxyPreparer}
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *       Default: <td> <code>new {@link net.jini.security.BasicProxyPreparer}()
  *                     </code>
- * 
+ *
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *   Description:
  *     <td> Preparer for the proxies to the lookup services that are
@@ -503,7 +501,7 @@ import net.jini.discovery.RegistrarManagement;
  * <table border="1" cellpadding="5"
  *        summary="Describes the information logged by ServiceDiscoveryManager,
  *                 and the levels at which that information is logged">
- * 
+ *
  *
  * <caption halign="center" valign="top">
  *   <b><code>net.jini.lookup.ServiceDiscoveryManager</code></b>
@@ -653,10 +651,10 @@ public class ServiceDiscoveryManager {
         }//end constructor
 
         /** Returns true if the current instance of this task must be run
-         *  after at least one task in task manager queue. 
-         *  
-         *  The criteria for determining what value to return is as follows: 
-         *  
+         *  after at least one task in task manager queue.
+         *
+         *  The criteria for determining what value to return is as follows:
+         *
          *    If there is at least one task in the given task list that is
          *    associated with the same serviceID as this task, and that task
          *    has a sequence number less than the sequence number of this task,
@@ -666,7 +664,6 @@ public class ServiceDiscoveryManager {
          *  @param tasks the tasks to consider.
          *  @param size elements with index less than size are considered.
          */
-	@Override
         public boolean runAfter(List tasks, int size) {
             for(int i=0; i<size; i++) {
                 TaskManager.Task t = (TaskManager.Task)tasks.get(i);
@@ -692,10 +689,10 @@ public class ServiceDiscoveryManager {
     /** Class that defines the listener that will receive local events from
      *  the internal LookupCache used in the blocking versions of lookup().
      */
-    private final static class ServiceDiscoveryListenerImpl 
+    private final static class ServiceDiscoveryListenerImpl
                                           implements ServiceDiscoveryListener
     {
-	ArrayList<ServiceItem> items = new ArrayList<ServiceItem>(1);
+	ArrayList items = new ArrayList(1);
 	public synchronized void serviceAdded(ServiceDiscoveryEvent event) {
 	    items.add(event.getPostEventServiceItem());
 	    this.notifyAll();
@@ -710,7 +707,7 @@ public class ServiceDiscoveryManager {
 	}
     }//end class ServiceDiscoveryManager.ServiceDiscoveryListenerImpl
 
-    /** 
+    /**
      * Data structure used to group together the lease and event sequence
      * number. For each LookupCache, there is a HashMap that maps a ProxyReg
      * to an EventReg.
@@ -724,20 +721,20 @@ public class ServiceDiscoveryManager {
 	public long seqNo;
 	/* The Event notification lease */
 	public Lease lease;
-        /* The pending events */
-        public ArrayList pending;
-        /* The number of pending LookupTasks */
-        public int lookupsPending;
+	/* The pending events */
+	public ArrayList pending;
+	/* The number of pending LookupTasks */
+	public int lookupsPending;
         public EventReg(Object source, long eventID, long seqNo, Lease lease) {
 	    this.source  = source;
             this.eventID = eventID;
 	    this.seqNo   = seqNo;
 	    this.lease   = lease;
-            this.pending = new ArrayList();
-            this.lookupsPending = 0;
+	    this.pending = new ArrayList();
+	    this.lookupsPending = 0;
 	}
     }//end class ServiceDiscoveryManager.EventReg
-    
+
     /**
      * Used in the LookupCache. For each LookupCache, there is a HashMap that
      * maps ServiceId to a ServiceItemReg. The ServiceItemReg class helps
@@ -745,10 +742,9 @@ public class ServiceDiscoveryManager {
      */
     private final static class ServiceItemReg  {
 	/* Maps ServiceRegistrars to their latest registered item */
-	private final Map<PortableServiceRegistrar, ServiceItem> items =
-		new HashMap<PortableServiceRegistrar, ServiceItem>();
+	private final Map items = new HashMap();
 	/* The ServiceRegistrar currently being used to track changes */
-	private volatile PortableServiceRegistrar proxy;
+	private ServiceRegistrar proxy;
 	/* Flag that indicates that the ServiceItem has been discarded. */
 	private boolean bDiscarded = false;
         /* The discovered service, prior to filtering. */
@@ -758,17 +754,17 @@ public class ServiceDiscoveryManager {
         /* Creates an instance of this class, and associates it with the given
          * lookup service proxy.
          */
-	public ServiceItemReg(PortableServiceRegistrar proxy, ServiceItem item) {
+	public ServiceItemReg(ServiceRegistrar proxy, ServiceItem item) {
 	    this.proxy = proxy;
 	    addProxy(proxy, item);
 	    this.item = item;
-	}  
+	}
 	/* Adds the given proxy to the 'proxy-to-item' map. This method is
          * called from this class' constructor, LookupTask, NotifyEventTask,
          * and ProxyRegDropTask.  Returns true if the proxy is being used
 	 * to track changes, false otherwise.
          */
-	public boolean addProxy(PortableServiceRegistrar proxy, ServiceItem item) {
+	public boolean addProxy(ServiceRegistrar proxy, ServiceItem item) {
 	    items.put(proxy, item);
 	    return proxy.equals(this.proxy);
 	}
@@ -777,14 +773,14 @@ public class ServiceDiscoveryManager {
 	 * was being used to track changes, then pick a new one and return
 	 * its current item, else return null.
          */
-	public ServiceItem removeProxy(PortableServiceRegistrar proxy) {
+	public ServiceItem removeProxy(ServiceRegistrar proxy) {
 	    items.remove(proxy);
 	    if (proxy.equals(this.proxy)) {
 		if (items.isEmpty()) {
 		    this.proxy = null;
 		} else {
 		    Map.Entry ent = (Map.Entry) items.entrySet().iterator().next();
-		    this.proxy = (PortableServiceRegistrar) ent.getKey();
+		    this.proxy = (ServiceRegistrar) ent.getKey();
 		    return (ServiceItem) ent.getValue();
 		}//endif
 	    }//endif
@@ -796,7 +792,7 @@ public class ServiceDiscoveryManager {
 	public boolean hasNoProxys() {
 	    return items.isEmpty();
 	}
-	/* Marks the ServiceItem as discarded. */ 
+	/* Marks the ServiceItem as discarded. */
 	public void setDiscarded(boolean b) {
 	    bDiscarded = b;
 	}
@@ -808,12 +804,12 @@ public class ServiceDiscoveryManager {
 
     /** A wrapper class for a ServiceRegistrar. */
     private final static class ProxyReg  {
-	public PortableServiceRegistrar proxy;
-	public ProxyReg(PortableServiceRegistrar proxy) {
+	public ServiceRegistrar proxy;
+	public ProxyReg(ServiceRegistrar proxy) {
 	    if(proxy == null)  throw new IllegalArgumentException
                                                      ("proxy cannot be null");
 	    this.proxy = proxy;
-	}//end constructor	    
+	}//end constructor
 
 	public boolean equals(Object obj) {
 	    if (obj instanceof ProxyReg){
@@ -826,11 +822,11 @@ public class ServiceDiscoveryManager {
 	}//end hashCode
 
     }//end class ServiceDiscoveryManager.ProxyReg
-    
+
     /** The Listener class for the LeaseRenewalManager. */
     private final class LeaseListenerImpl implements LeaseListener {
-	private PortableServiceRegistrar proxy;
-	public LeaseListenerImpl(PortableServiceRegistrar proxy) {
+	private ServiceRegistrar proxy;
+	public LeaseListenerImpl(ServiceRegistrar proxy) {
 	    this.proxy = proxy;
 	}
 	/* When lease renewal fails, we discard the proxy  */
@@ -881,7 +877,7 @@ public class ServiceDiscoveryManager {
          *  process succeeds (no RemoteExceptions), it then executes the
          *  LookupTask to query the given ServiceRegistrar for a "snapshot"
          *  of its current state with respect to services that match the
-         *  given template. 
+         *  given template.
          *
          *  Note that the order of execution of the two tasks is important.
          *  That is, the LookupTask must be executed only after registration
@@ -912,21 +908,21 @@ public class ServiceDiscoveryManager {
 		if(duration < 0)  return;
                 try {
                     EventReg eventReg = registerListener(reg.proxy,
-                                                         tmpl, 
+                                                         tmpl,
                                                          lookupListenerProxy,
                                                          duration);
-                    eventReg.lookupsPending++;
+		    eventReg.lookupsPending++;
                     synchronized(serviceIdMap) {
                         /* Cancel the lease if the cache has been terminated */
                         if(bCacheTerminated) {
                             cancelLease(eventReg.lease);
-                            return; 
+			    return;
                         } else {
                             eventRegMap.put(reg, eventReg);
                         }//endif
                     }//end sync(serviceIdMap)
                     /* Execute the LookupTask only if there were no problems */
-                    (new LookupTask(reg, this.getSeqN(), eventReg)).run();
+		    (new LookupTask(reg, this.getSeqN(), eventReg)).run();
                 } catch (Exception e) {
                     boolean cacheTerminated;
                     synchronized(serviceIdMap) {
@@ -945,14 +941,14 @@ public class ServiceDiscoveryManager {
 
 	/** This class requests a "snapshot" of the given registrar's state.*/
         private final class LookupTask extends CacheTask {
-            private EventReg eReg;
+	    private EventReg eReg;
             public LookupTask(ProxyReg reg, long seqN, EventReg eReg) {
                 super(reg, seqN);
-                this.eReg = eReg;
+		this.eReg = eReg;
 	    }
             public void run() {
                 logger.finest("ServiceDiscoveryManager - LookupTask started");
-		PortableServiceRegistrar proxy = reg.proxy;
+		ServiceRegistrar proxy = reg.proxy;
 		ServiceMatches matches;
                 /* For the given lookup, get all services matching the tmpl */
 		try {
@@ -960,7 +956,7 @@ public class ServiceDiscoveryManager {
 		} catch (Exception e) {
                     boolean cacheTerminated;
                     synchronized(serviceIdMap) {
-                        eReg.lookupsPending--;
+			eReg.lookupsPending--;
                         cacheTerminated = bCacheTerminated;
                     }//end sync
                     ServiceDiscoveryManager.this.fail
@@ -1002,24 +998,24 @@ public class ServiceDiscoveryManager {
                                                               taskSeqN++);
                         cacheTaskMgr.add(t);
                     }//end loop
-                    /* 3. Handle events that came in prior to lookup */
-                    eReg.lookupsPending--;
+		    /* 3. Handle events that came in prior to lookup */
+		    eReg.lookupsPending--;
 		    for (iter = eReg.pending.iterator(); iter.hasNext(); ) {
 			NotifyEventTask t = (NotifyEventTask) iter.next();
 			t.thisTaskSeqN = taskSeqN++; // assign new seqN
 			cacheTaskMgr.add(t);
-                    }
-                    eReg.pending.clear();
+		    }
+		    eReg.pending.clear();
                 }//end sync(serviceIdMap)
                 logger.finest("ServiceDiscoveryManager - LookupTask "
                               +"completed");
             }//end run
 
             /** Returns true if the current instance of this task must be run
-             *  after at least one task in the task manager queue. 
-             *  
-             *  The criteria for determining what value to return: 
-             *  
+             *  after at least one task in the task manager queue.
+             *
+             *  The criteria for determining what value to return:
+             *
              *    If the task list contains any RegisterListenerTasks,
              *    other LookupTasks, or NotifyEventTasks associated with
              *    this task's lookup service (ProxyReg), if those tasks
@@ -1028,12 +1024,11 @@ public class ServiceDiscoveryManager {
              *    true). Otherwise this task can be run immediately
              *    (return false).
              *
-             *  This method was added to address Bug ID 6291851. 
+             *  This method was added to address Bug ID 6291851.
              *
              *  @param tasks the tasks to consider.
              *  @param size elements with index less than size are considered.
              */
-	    @Override
             public boolean runAfter(List tasks, int size) {
                 for(int i=0; i<size; i++) {
                     CacheTask t = (CacheTask)tasks.get(i);
@@ -1064,7 +1059,7 @@ public class ServiceDiscoveryManager {
                 logger.finest("ServiceDiscoveryManager - ProxyRegDropTask "
                               +"started");
 		synchronized(serviceIdMap) {
-		    //lease has already been cancelled by removeProxyReg 
+		    //lease has already been cancelled by removeProxyReg
 		    if(eventRegMap.containsKey(reg)) {
 		       eventRegMap.remove(reg);
                     }
@@ -1104,7 +1099,7 @@ public class ServiceDiscoveryManager {
             public void run() {
                 logger.finest("ServiceDiscoveryManager - DiscardServiceTask "
                               +"started");
-                        removeServiceNotify(item);
+		removeServiceNotify(item);
                 logger.finest("ServiceDiscoveryManager - DiscardServiceTask "
                               +"completed");
             }//end run
@@ -1147,35 +1142,15 @@ public class ServiceDiscoveryManager {
                 if( (item != null) && (item.service == null) ) {
                     return;
                 }//endif
-                /* Handle the event by the transition type, and by whether 
+                /* Handle the event by the transition type, and by whether
                  * the associated ServiceItem is an old, previously discovered
                  * item, or a newly discovered item.
                  */
-                if(transition == PortableServiceRegistrar.TRANSITION_MATCH_NOMATCH) {
-                    logger.finer("ServiceDiscoveryManager.NotifyEventTask - "
-                                 +"transition=TRANSITION_MATCH_NOMATCH");
+		if(transition == ServiceRegistrar.TRANSITION_MATCH_NOMATCH) {
                     handleMatchNoMatch(reg.proxy, sid, item);
                 } else {//(transition == NOMATCH_MATCH or MATCH_MATCH)
-                    if (logger.isLoggable(Level.FINER)) {
-                        if(transition == 
-                                   PortableServiceRegistrar.TRANSITION_MATCH_MATCH)
-                        {
-                            logger.finer("ServiceDiscoveryManager."
-                                         +"NotifyEventTask - "
-                                         +"transition="
-                                         +"TRANSITION_MATCH_MATCH");
-                        } else if(transition == 
-                                   PortableServiceRegistrar.TRANSITION_NOMATCH_MATCH)
-                        { 
-                            logger.finer("ServiceDiscoveryManager."
-                                         +"NotifyEventTask - "
-                                         +"transition="
-                                         +"TRANSITION_NOMATCH_MATCH");
-                        }//endif
-                    }//endif
-
                     (new NewOldServiceTask(reg, item,
-                       (transition == PortableServiceRegistrar.TRANSITION_MATCH_MATCH),
+                       (transition == ServiceRegistrar.TRANSITION_MATCH_MATCH),
                                                thisTaskSeqN)).run();
                 }//endif(transition)
                 logger.finest("ServiceDiscoveryManager - NotifyEventTask "
@@ -1183,10 +1158,10 @@ public class ServiceDiscoveryManager {
             }//end run
 
             /** Returns true if the current instance of this task must be run
-             *  after at least one task in the task manager queue. 
-             *  
-             *  The criteria for determining what value to return: 
-             *  
+             *  after at least one task in the task manager queue.
+             *
+             *  The criteria for determining what value to return:
+             *
              *    If the task list contains any RegisterListenerTasks
              *    or LookupTasks associated with this task's lookup service
              *    (ProxyReg), and if those tasks were queued prior to this
@@ -1196,12 +1171,12 @@ public class ServiceDiscoveryManager {
              *    Additionally, if the task list contains any other
              *    ServiceIdTasks associated with this task's service ID
              *    which were queued prior to this task, then run those
-             *    tasks before this task. 
-             *    
+             *    tasks before this task.
+             *
              *    If the criteria outlined above is not satisfied, then this
              *    task can be run immediately (return false).
              *
-             *  This method was added to address Bug ID 6291851. 
+             *  This method was added to address Bug ID 6291851.
              *
              *  @param tasks the tasks to consider.
              *  @param size elements with index less than size are considered.
@@ -1279,7 +1254,7 @@ public class ServiceDiscoveryManager {
                     }//end loop
                 }//end sync
                 /* The thread was not interrupted, time expired.
-                 * 
+                 *
                  * If the service ID is still contained in the serviceIdMap,
                  * then a MATCH_NOMATCH event did not arrive, which is
                  * interpreted here to mean that the service is still up.
@@ -1357,16 +1332,16 @@ public class ServiceDiscoveryManager {
         }//end class LookupCacheImpl.ServiceDiscardTimerTask
 
 	/** Task class used to asynchronously process the service state
-         *  ("snapshot"), matching this cache's template, that was retrieved 
+         *  ("snapshot"), matching this cache's template, that was retrieved
          *  from the given lookup service.
          *
          *  After retrieving the snapshot S, the LookupTask queues an instance
          *  of this task for each service referenced in S. This task determines
          *  if the given service is an already-discovered service (is currently
-         *  in this cache's serviceIdMap), or is a new service. This task 
+         *  in this cache's serviceIdMap), or is a new service. This task
          *  handles the service differently, depending on whether the service
-         *  is a new or old. 
-         *  
+         *  is a new or old.
+         *
          *  a. if the item is old, then this task will:
          *     - compare the given item from the snapshot to the UN-filtered
          *       item in given itemReg
@@ -1377,25 +1352,25 @@ public class ServiceDiscoveryManager {
          *       else
          *           do nothing
          *     - apply the filter to the given item
-         *       if(filter fails) 
+         *       if(filter fails)
          *           send removed event
          *       else if(filter passes)
          *           set the filtered item in the itemReg in the map
          *       else if (filter is indefinite)
-         *           discard item 
+         *           discard item
          *           send removed event
          *           queue another filter attempt for later
          *  b. if the given item is newly discovered, then this task will:
          *     - create a new ServiceItemReg containing the given item
          *     - place the new itemReg in the serviceIdMap
          *     - apply the filter to the given item
-         *       if(filter fails) 
+         *       if(filter fails)
          *           remove the item from the map but
          *           send NO removed event
          *       else if(filter passes)
          *           send added event for the FILTERED item
          *       else if (filter is indefinite)
-         *           discard item 
+         *           discard item
          *           queue another filter attempt for later but
          *           send NO removed event
          */
@@ -1431,7 +1406,7 @@ public class ServiceDiscoveryManager {
 		    } else {
 			changed = true;
 		    }
-                    }//end sync(serviceIdMap)
+                }//end sync(serviceIdMap)
                 if(changed) {//a. old, previously discovered item
                     itemMatchMatchChange(reg.proxy, srvcItem,
                                          itemReg, matchMatchEvent);
@@ -1450,7 +1425,7 @@ public class ServiceDiscoveryManager {
 	/** Task class used to asynchronously disassociate the given lookup
          *  service proxy from the given ServiceItemReg. This task is created
          *  and queued in both the LookupTask, and the ProxyRegDropTask.
-         *  
+         *
          *  When the LookupTask determines that the service referenced by the
          *  given ServiceItemReg is an "orphan", the LookupTask queues an
          *  instance of this task. A service is an orphan if it is referenced
@@ -1459,19 +1434,19 @@ public class ServiceDiscoveryManager {
          *  Note that the existence of orphans is possible when events from
          *  a particular lookup service are missed; that is, there is a "gap"
          *  in the event sequence numbers.
-         *  
+         *
          *  When a previously discovered lookup service is discarded, the
          *  ProxyRegDropTask is initiated, and that task creates and queues
          *  an instance of this task for each mapping in this cache's
          *  serviceIdMap.
-         *  
+         *
          *  This task removes the given lookup service proxy from the set
          *  associated with the service item referenced in the given
          *  ServiceItemReg, and determines whether that service is still
          *  associated with at least one lookup service. If the service is
          *  no longer associated with any other lookup service in the managed
          *  set of lookup services, the mapping that references the given
-         *  ServiceItemReg is removed from the serviceIdMap, and a 
+         *  ServiceItemReg is removed from the serviceIdMap, and a
          *  serviceRemoved event is sent.
          *
          *  In this way, other tasks from this cache operating on the same
@@ -1492,7 +1467,7 @@ public class ServiceDiscoveryManager {
             public void run() {
                 logger.finest("ServiceDiscoveryManager - UnmapProxyTask "
                               +"started");
-		PortableServiceRegistrar proxy = null;
+		ServiceRegistrar proxy = null;
                 ServiceItem item;
                 synchronized(itemReg) {
                     item = itemReg.removeProxy(reg.proxy);//disassociate the LUS
@@ -1555,7 +1530,7 @@ public class ServiceDiscoveryManager {
          */
         private long taskSeqN = 0;
 
-	public LookupCacheImpl(ServiceTemplate tmpl, 
+	public LookupCacheImpl(ServiceTemplate tmpl,
 			       ServiceItemFilter filter,
 			       ServiceDiscoveryListener sListener,
 			       long leaseDuration)     throws RemoteException
@@ -1607,7 +1582,7 @@ public class ServiceDiscoveryManager {
             /* Un-export the remote listener for events from lookups. */
 	    try {
                 lookupListenerExporter.unexport(true);
-	    } catch(IllegalStateException e) { 
+	    } catch(IllegalStateException e) {
                 logger.log(Level.FINEST,
                            "IllegalStateException occurred while unexporting "
                            +"the cache's remote event listener",
@@ -1668,13 +1643,13 @@ public class ServiceDiscoveryManager {
                         discardIt = true;
                     }//endif
 		}//end sync(itemReg)
-            if(discardIt) {
+		if(discardIt) {
 		    ServiceID sid = (ServiceID)e.getKey();
 		    serviceDiscardTimerTaskMgr.add
                                      ( new ServiceDiscardTimerTask(sid) );
 		    cacheTaskMgr.add(new DiscardServiceTask(filteredItem));
 		    return;
-            }//endif
+		}//endif
 	    }//end loop
 	}//end LookupCacheImpl.discard
 
@@ -1694,7 +1669,7 @@ public class ServiceDiscoveryManager {
          *     contained in the <code>serviceIdMap</code>
          *   - is not currently discarded
          *   - satisfies the given <code>ServiceItemFilter</code>
-         *    
+         *
          *  Note that the <code>filter</code> parameter is a "2nd stage"
          *  filter. That is, for each <code>itemReg</code> element in the
          *  <code>serviceIdMap</code>, the "1st stage" filter corresponding
@@ -1703,15 +1678,15 @@ public class ServiceDiscoveryManager {
          *  that <code>itemReg</code>. The <code>ServiceItemFilter</code>
          *  applied here is supplied by the entity interacting with the cache,
          *  and provides a second filtering process. Thus, this method
-         *  applies the given <code>filter</code> parameter to the 
+         *  applies the given <code>filter</code> parameter to the
          *  <code>filteredItem</code> field (not the <code>item</code> field)
          *  of each non-discarded <code>itemReg</code> element in the
          *  <code>serviceIdMap</code>.
-         * 
+         *
          *  This method returns all the instances of <code>ServiceItem</code>
          *  that pass the given <code>filter</code>; and it discards all the
          *  items that produce an indefinite result when that
-         *  <code>filter</code> is applied. 
+         *  <code>filter</code> is applied.
          */
 	private ServiceItem[] getServiceItems(ServiceItemFilter filter2) {
 	    ArrayList items = new ArrayList(1);
@@ -1763,7 +1738,7 @@ public class ServiceDiscoveryManager {
                 addServiceNotify(items[i],listener);
             }//end loop
 	}//end LookupCacheImpl.addListener
-	
+
 	// This method's javadoc is inherited from an interface of this class
 	public void removeListener(ServiceDiscoveryListener listener){
 	    checkCacheTerminated();
@@ -1809,7 +1784,7 @@ public class ServiceDiscoveryManager {
 	    removeUselessTask(reg);
             cacheTaskMgr.add(t);
 	}//end LookupCacheImpl.removeProxyReg
-	
+
 	/* Throws IllegalStateException if this lookup cache has been
          * terminated
          */
@@ -1827,7 +1802,7 @@ public class ServiceDiscoveryManager {
          *  sequence number and, based on whether or not a "gap" is found in
          *  in the event sequence, creates and places on the queue, either a
          *  LookupTask (if a gap was found) or a NotifyTask.
-         * 
+         *
          *  Recall that the Event specification states that if the sequence
          *  numbers of two successive events differ by only 1, then one can
          *  be assured that no events were missed. On the other hand, if
@@ -1842,11 +1817,11 @@ public class ServiceDiscoveryManager {
          *  events have been missed if it finds no gaps in the event sequence,
          *  this method queues the notification of the entity by requesting
          *  the execution of a NotifyEventTask.
-         *  
+         *
          *  Note that when a lookup service is discovered, this utility
          *  registers with that lookup service's event mechanism for service
          *  events related to the services of interest. Upon registering with
-         *  the event mechanism, a data structure (of type EventReg) 
+         *  the event mechanism, a data structure (of type EventReg)
          *  containing information about that registration is placed in a
          *  Map for later processing when events do arrive. If the timing is
          *  right, it is possible that a service event may arrive between the
@@ -1860,7 +1835,7 @@ public class ServiceDiscoveryManager {
          *  listener registration caused this method to be invoked in the
          *  first place).
 	 */
-	private void notifyServiceMap(Object eventSource, 
+	private void notifyServiceMap(Object eventSource,
                                       long eventID,
 				      long seqNo,
 				      ServiceID sid,
@@ -1894,14 +1869,14 @@ public class ServiceDiscoveryManager {
                     t = new NotifyEventTask
                                     (reg, sid, item, transition, taskSeqN++);
 		    if (eReg.lookupsPending > 0) {
-                        eReg.pending.add(t);
-                        return;
+			eReg.pending.add(t);
+			return;
 		    }
 		} else if (eReg.lookupsPending > 1) {
 		    // gap in event sequence, but snapshot already pending
-                    return;
+		    return;
                 } else {//gap in event sequence, request snapshot
-                    eReg.lookupsPending++;
+		    eReg.lookupsPending++;
                     t = new LookupTask(reg, taskSeqN++, eReg);
                     if( logger.isLoggable(Levels.HANDLED) ) {
                         String msg ="notifyServiceMap - GAP in event sequence "
@@ -1940,7 +1915,7 @@ public class ServiceDiscoveryManager {
 
         /** For the given TaskManager, this method removes all pending and
          *  active tasks.
-         */ 
+         */
         private void terminateTaskMgr(TaskManager taskMgr) {
             synchronized(taskMgr) {
                 /* Remove all pending tasks */
@@ -2001,7 +1976,7 @@ public class ServiceDiscoveryManager {
          *     be called for each previously discovered service
          * Note that this method is never called when a MATCH_NOMATCH event
          * is received; such an event is always handled in NotifyEventTask.
-         * 
+         *
          * When this method is called, it may send one of the following events
          * or combination of events:
          *  - a service changed event
@@ -2013,7 +1988,7 @@ public class ServiceDiscoveryManager {
          * case, the service is also discarded.
          *
          * A service changed event is sent when the service passes the filter,
-         * and it is determined that the service's attributes have changed. 
+         * and it is determined that the service's attributes have changed.
          * In this case, the old and new service proxies are treated as the
          * same if one of the following conditions is met:
          *  - this method was called because of the receipt of a
@@ -2035,7 +2010,7 @@ public class ServiceDiscoveryManager {
          *  That is, either a MATCH_MATCH event was received, or it wasn't,
          *  (and if it wasn't, then a full byte-wise comparison is performed
          *  to determine whether the proxies are still the same).
-         *  
+         *
          *  To understand when the 'else' part of the if-else-block is
          *  executed, consider the following conditions:
          *   - there is more than one lookup service with which the service
@@ -2045,9 +2020,9 @@ public class ServiceDiscoveryManager {
          *     to the cache)
          *   - before the service registers with LUS-1, the service is
          *     replaced with a new version
-         *   - the NOMATCH_MATCH event resulting from the service's 
-         *     registration with LUS-1 is received BEFORE receiving the 
-         *     MATCH_NOMATCH/NOMATCH_MATCH event sequence that will 
+         *   - the NOMATCH_MATCH event resulting from the service's
+         *     registration with LUS-1 is received BEFORE receiving the
+         *     MATCH_NOMATCH/NOMATCH_MATCH event sequence that will
          *     ultimately result from the re-registration of that new
          *     version with LUS-0
          *  When the above conditions occur, the NOMATCH_MATCH event that
@@ -2059,8 +2034,8 @@ public class ServiceDiscoveryManager {
          *
          *  This method applies the filter only after the above comparisons
          *  and determinations have been completed.
-         */ 
-	private void itemMatchMatchChange(PortableServiceRegistrar proxy,
+         */
+	private void itemMatchMatchChange(ServiceRegistrar proxy,
                                           ServiceItem newItem,
                                           ServiceItemReg itemReg,
                                           boolean matchMatchEvent )
@@ -2111,10 +2086,10 @@ public class ServiceDiscoveryManager {
             if(newFilteredItem != null) {
                 /* Passed the filter, okay to send event(s). */
                 if(attrsChanged) changeServiceNotify(newFilteredItem,
-                                        oldFilteredItem);
+                                                     oldFilteredItem);
                 if(versionChanged) {
                     if (!itemRegIsDiscarded) {
-                    removeServiceNotify(oldFilteredItem);
+			removeServiceNotify(oldFilteredItem);
 		    }//endif
                     addServiceNotify(newFilteredItem);
                 }//endif
@@ -2210,7 +2185,7 @@ public class ServiceDiscoveryManager {
 	}//end LookupCacheImpl.serviceNotifyDo
 
         private void initCache() throws RemoteException {
-            /* Get the exporter for the remote event listener from the 
+            /* Get the exporter for the remote event listener from the
              * configuration.
              */
             try {
@@ -2288,8 +2263,8 @@ public class ServiceDiscoveryManager {
          *  <code>serviceIdMap</code> is left unchanged.
 	 */
   	private ServiceItem filterMaybeDiscard(ServiceItem item,
-                                               PortableServiceRegistrar proxy,
-				               boolean sendEvent) 
+                                               ServiceRegistrar proxy,
+				               boolean sendEvent)
         {
             if( (item == null) || (item.service == null) ) return null;
             if(filter == null) {
@@ -2374,8 +2349,8 @@ public class ServiceDiscoveryManager {
          *  contain a <code>ServiceItemReg</code> corresponding to the
          *  given <code>ServiceItem</code>, then this method simply returns.
 	 */
-  	private void discardRetryLater(ServiceItem item, 
-                                       PortableServiceRegistrar proxy,
+  	private void discardRetryLater(ServiceItem item,
+                                       ServiceRegistrar proxy,
                                        boolean sendEvent) {
             ServiceItemReg itemReg = null;
             synchronized(serviceIdMap) {
@@ -2408,7 +2383,7 @@ public class ServiceDiscoveryManager {
          *  and wakes up the <code>ServiceDiscardTimerTask</code> if the given
          *  <code>item</code> is discarded; otherwise, sends a removed event.
 	 */
-  	private void handleMatchNoMatch(PortableServiceRegistrar proxy,
+  	private void handleMatchNoMatch(ServiceRegistrar proxy,
                                         ServiceID srvcID,
                                         ServiceItem item)
         {
@@ -2459,14 +2434,14 @@ public class ServiceDiscoveryManager {
 	}//end LookupCacheImpl.cancelDiscardTask
 
     }//end class ServiceDiscoveryManager.LookupCacheImpl
-    
+
     /* Name of this component; used in config entry retrieval and the logger.*/
     private static final String COMPONENT_NAME
                                    = "net.jini.lookup.ServiceDiscoveryManager";
     /* Logger used by this utility. */
     private static final Logger logger = Logger.getLogger(COMPONENT_NAME);
     /* The discovery manager to use (passed in, or create one). */
-    private DiscoveryListenerManagement discMgr;
+    private DiscoveryManagement discMgr;
     /* Indicates whether the discovery manager was created internally or not */
     private boolean discMgrInternal = false;
     /* The listener added to discMgr that receives DiscoveryEvents */
@@ -2474,13 +2449,13 @@ public class ServiceDiscoveryManager {
     /* The LeaseRenewalManager to use (passed in, or create one). */
     private LeaseRenewalManager leaseRenewalMgr;
     /* Contains all of the discovered lookup services (ServiceRegistrar). */
-    private final ArrayList<ProxyReg> proxyRegSet = new ArrayList<ProxyReg>(1);
+    private final ArrayList proxyRegSet = new ArrayList(1);
     /* Contains all of the DiscoveryListener's employed in lookup discovery. */
-    private final ArrayList<DiscoveryListener> listeners = new ArrayList<DiscoveryListener>(1);
+    private final ArrayList listeners = new ArrayList(1);
     /* Random number generator for use in lookup. */
     private final Random random = new Random();
     /* Contains all of the instances of LookupCache that are requested. */
-    private final ArrayList<LookupCache> caches = new ArrayList<LookupCache>(1);
+    private final ArrayList caches = new ArrayList(1);
 
     /* Flag to indicate if the ServiceDiscoveryManager has been terminated. */
     private boolean bTerminated = false;
@@ -2502,15 +2477,15 @@ public class ServiceDiscoveryManager {
     private class DiscMgrListener implements DiscoveryListener {
 	/* New or previously discarded proxy has been discovered. */
 	public void discovered(DiscoveryEvent e) {
-	    PortableServiceRegistrar[] proxys = e.getPRegistrars();
+	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
 	    ArrayList newProxys = new ArrayList(1);
 	    ArrayList notifies  = null;
 	    for(int i=0; i<proxys.length; i++) {
                 /* Prepare each lookup service proxy before using it. */
                 try {
                     proxys[i]
-                          = (PortableServiceRegistrar) 
-			  registrarPreparer.prepareProxy(proxys[i]);
+                          = (ServiceRegistrar)registrarPreparer.prepareProxy
+                                                                   (proxys[i]);
                     logger.log(Level.FINEST, "ServiceDiscoveryManager - "
                               +"discovered lookup service proxy prepared: {0}",
                                proxys[i]);
@@ -2526,7 +2501,7 @@ public class ServiceDiscoveryManager {
 		synchronized(proxyRegSet) {
 		    proxyRegSet.add(reg);
 		    newProxys.add(reg);
-		}//end sync(proxyRegSet)		
+		}//end sync(proxyRegSet)
 	    }//end loop
 	    synchronized(listeners) {
 		if(!listeners.isEmpty())
@@ -2542,7 +2517,7 @@ public class ServiceDiscoveryManager {
 
 	/* Previously discovered proxy has been discarded. */
 	public void discarded(DiscoveryEvent e) {
-	    PortableServiceRegistrar[] proxys = e.getPRegistrars();
+	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
 	    ArrayList notifies;
 	    ArrayList drops = new ArrayList(1);
 	    synchronized(proxyRegSet) {
@@ -2579,7 +2554,7 @@ public class ServiceDiscoveryManager {
 	    }//end loop
 	}
     }//end cacheAddProxy
-    
+
     /** Removes the given proxy from all the caches maintained by the SDM. */
     private void dropProxy(ProxyReg reg ) {
 	synchronized(caches) {
@@ -2605,21 +2580,21 @@ public class ServiceDiscoveryManager {
      *   <li> the entity uses a {@link net.jini.lookup.LookupCache
      *        LookupCache} to locally store and manage discovered services
      *        so that those services can be accessed quickly
-     *   <li> the entity registers with the event mechanism provided by a 
+     *   <li> the entity registers with the event mechanism provided by a
      *        {@link net.jini.lookup.LookupCache LookupCache} to be notified
      *        when services of interest are discovered
      *   <li> the entity uses the <code>ServiceDiscoveryManager</code> to
-     *        perform remote queries of the lookup services, employing richer 
+     *        perform remote queries of the lookup services, employing richer
      *        semantics than that provided through the standard
      *        {@link net.jini.core.lookup.ServiceRegistrar ServiceRegistrar}
      *        interface
      * </ul>
      * <p>
-     * Although the first two usage patterns emphasize the use of a cache 
+     * Although the first two usage patterns emphasize the use of a cache
      * object, that cache is acquired only through an instance of the
      * <code>ServiceDiscoveryManager</code> class.
      * <p>
-     * It is important to note that some of the methods of this class 
+     * It is important to note that some of the methods of this class
      * ({@link net.jini.lookup.ServiceDiscoveryManager#createLookupCache
      * createLookupCache} and the <i>blocking</i> versions of
      * {@link net.jini.lookup.ServiceDiscoveryManager#lookup lookup} to
@@ -2629,11 +2604,11 @@ public class ServiceDiscoveryManager {
      * requires a remote object (a listener) to be exported to the lookup
      * service(s). Both the process of registering with a lookup service's
      * event mechanism and the process of exporting a remote object are
-     * processes that can result in a {@link java.rmi.RemoteException}. 
+     * processes that can result in a {@link java.rmi.RemoteException}.
      * <p>
      * In order to facilitate the exportation of the remote listener
      * just described, the <code>ServiceDiscoveryManager</code> class
-     * instantiates an inner class that implements the 
+     * instantiates an inner class that implements the
      * {@link net.jini.core.event.RemoteEventListener RemoteEventListener}
      * interface. Although this class defines, instantiates, and exports this
      * remote listener, <i>it is the entity's responsibility</i> to provide a
@@ -2654,13 +2629,13 @@ public class ServiceDiscoveryManager {
      * <p>
      * If it is required that the remote event listener be exported under
      * JRMP instead of Jini ERI, then the entity that employs this utility
-     * must specify this in its configuration. For example, the entity's 
+     * must specify this in its configuration. For example, the entity's
      * configuration would need to contain something like the following:
      * <p>
      * <blockquote>
      * <pre>
      * import net.jini.jrmp.JrmpExporter;
-     * 
+     *
      * application.configuration.component.name {
      *    .......
      *    .......
@@ -2668,9 +2643,9 @@ public class ServiceDiscoveryManager {
      *    .......
      *    .......
      * }//end application.configuration.component.name
-     * 
+     *
      * net.jini.lookup.ServiceDiscoveryManager {
-     * 
+     *
      *    serverExporter = new JrmpExporter();
      *
      * }//end net.jini.lookup.ServiceDiscoveryManager
@@ -2705,7 +2680,7 @@ public class ServiceDiscoveryManager {
      * distribution is located in the directory <b><i>/files/jini/lib</i></b>,
      * and will be served by an HTTP server listening on port
      * <b><i>8082</i></b>. If the application is run with its codebase
-     * property set to 
+     * property set to
      * <code>-Djava.rmi.server.codebase="http://myHost:8082/sdm-dl.jar"</code>,
      * the lookup service(s) should then be able to access the remote listener
      * exported under JRMP by the <code>ServiceDiscoveryManager</code> on
@@ -2726,9 +2701,9 @@ public class ServiceDiscoveryManager {
      * discovery process, a process that can throw an
      * <code>IOException</code>.
      *
-     * @param discoveryMgr the <code>DiscoveryManagement</code> 
-     *  		implementation through which notifications 
-     *  		that indicate a lookup service has been 
+     * @param discoveryMgr the <code>DiscoveryManagement</code>
+     *  		implementation through which notifications
+     *  		that indicate a lookup service has been
      *  		discovered or discarded will be received.
      *  		If the value of the argument is <code>null</code>,
      *                  then an instance of the
@@ -2736,8 +2711,8 @@ public class ServiceDiscoveryManager {
      *  		class will be constructed to listen for events
      *  		announcing the discovery of only those lookup
      *  		services that are members of the public group.
-     * 
-     * @param leaseMgr the <code>LeaseRenewalManager</code> to use. A 
+     *
+     * @param leaseMgr the <code>LeaseRenewalManager</code> to use. A
      *  		value of <code>null</code> may be passed as the
      *  		<code>LeaseRenewalManager</code> argument. If
      *  		the value of the argument is <code>null</code>,
@@ -2745,8 +2720,8 @@ public class ServiceDiscoveryManager {
      *  		<code>LeaseRenewalManager</code> class will be
      *  		created, initially managing no
      *  		<code>Lease</code> objects.
-     * 
-     * @throws IOException because construction of a  
+     *
+     * @throws IOException because construction of a
      *  		<code>ServiceDiscoveryManager</code> may initiate
      *  		the multicast discovery process which can throw
      *  		an <code>IOException</code>.
@@ -2754,20 +2729,10 @@ public class ServiceDiscoveryManager {
      * @see net.jini.discovery.DiscoveryManagement
      * @see net.jini.core.event.RemoteEventListener
      * @see net.jini.core.lookup.ServiceRegistrar
-     * @deprecated 
      */
-    @Deprecated
-    public ServiceDiscoveryManager(net.jini.discovery.DiscoveryManagement discoveryMgr,
+    public ServiceDiscoveryManager(DiscoveryManagement discoveryMgr,
                                    LeaseRenewalManager leaseMgr)
                                                             throws IOException
-    {
-        try {
-            init(discoveryMgr, leaseMgr, EmptyConfiguration.INSTANCE);
-        } catch(ConfigurationException e) { /* swallow this exception */ }
-    }//end constructor
-    
-    public ServiceDiscoveryManager(DiscoveryListenerManagement discoveryMgr,
-            LeaseRenewalManager leaseMgr) throws IOException
     {
         try {
             init(discoveryMgr, leaseMgr, EmptyConfiguration.INSTANCE);
@@ -2789,7 +2754,7 @@ public class ServiceDiscoveryManager {
      * <p>
      * This constructor takes three arguments: an object that implements the
      * <code>DiscoveryManagement</code> interface, a reference to an instance
-     * of the <code>LeaseRenewalManager</code> class, and a 
+     * of the <code>LeaseRenewalManager</code> class, and a
      * <code>Configuration</code> object. The constructor throws an
      * <code>IOException</code> because construction of a
      * <code>ServiceDiscoveryManager</code> may initiate the multicast
@@ -2798,9 +2763,9 @@ public class ServiceDiscoveryManager {
      * <code>ConfigurationException</code> when an exception occurs while
      * retrieving an item from the given <code>Configuration</code>
      *
-     * @param discoveryMgr the <code>DiscoveryManagement</code> 
-     *  		implementation through which notifications 
-     *  		that indicate a lookup service has been 
+     * @param discoveryMgr the <code>DiscoveryManagement</code>
+     *  		implementation through which notifications
+     *  		that indicate a lookup service has been
      *  		discovered or discarded will be received.
      *  		If the value of the argument is <code>null</code>,
      *                  then an instance of the
@@ -2808,8 +2773,8 @@ public class ServiceDiscoveryManager {
      *  		class will be constructed to listen for events
      *  		announcing the discovery of only those lookup
      *  		services that are members of the public group.
-     * 
-     * @param leaseMgr the <code>LeaseRenewalManager</code> to use. A 
+     *
+     * @param leaseMgr the <code>LeaseRenewalManager</code> to use. A
      *  		value of <code>null</code> may be passed as the
      *  		<code>LeaseRenewalManager</code> argument. If
      *  		the value of the argument is <code>null</code>,
@@ -2817,8 +2782,8 @@ public class ServiceDiscoveryManager {
      *  		<code>LeaseRenewalManager</code> class will be
      *  		created, initially managing no
      *  		<code>Lease</code> objects.
-     * 
-     * @throws IOException because construction of a  
+     *
+     * @throws IOException because construction of a
      *  		<code>ServiceDiscoveryManager</code> may initiate
      *  		the multicast discovery process which can throw
      *  		an <code>IOException</code>.
@@ -2836,7 +2801,7 @@ public class ServiceDiscoveryManager {
      * @see net.jini.config.Configuration
      * @see net.jini.config.ConfigurationException
      */
-    public ServiceDiscoveryManager(net.jini.discovery.DiscoveryManagement discoveryMgr,
+    public ServiceDiscoveryManager(DiscoveryManagement discoveryMgr,
                                    LeaseRenewalManager leaseMgr,
                                    Configuration config)
                                                 throws IOException,
@@ -2845,50 +2810,39 @@ public class ServiceDiscoveryManager {
         init(discoveryMgr, leaseMgr, config);
     }//end constructor
 
-    public ServiceDiscoveryManager(DiscoveryListenerManagement discoveryMgr,
-                                   LeaseRenewalManager leaseMgr,
-                                   Configuration config)
-                                                throws IOException,
-                                                       ConfigurationException
-    {
-        init(discoveryMgr, leaseMgr, config);
-    }//end constructor
-    
     /** Sends discarded event to each listener waiting for discarded lookups.*/
-    private void listenerDropped(ArrayList<PortableServiceRegistrar> drops,
-            ArrayList<DiscoveryListener> notifies) {
-	PortableServiceRegistrar[] proxys = new PortableServiceRegistrar[drops.size()];
+    private void listenerDropped(ArrayList drops, ArrayList notifies) {
+	ServiceRegistrar[] proxys = new ServiceRegistrar[drops.size()];
 	drops.toArray(proxys);
 	listenerDropped(proxys, notifies);
     }//end listenerDropped
 
     /** Sends discarded event to each listener waiting for discarded lookups.*/
-    private void listenerDropped(PortableServiceRegistrar[] proxys,
-            ArrayList<DiscoveryListener> notifies){
+    private void listenerDropped(ServiceRegistrar[] proxys,ArrayList notifies){
 	Iterator iter = notifies.iterator();
 	while (iter.hasNext()) {
 	    DiscoveryEvent evt = new DiscoveryEvent
-                                        ( this,proxys.clone() );
+                                        ( this,
+                                          (ServiceRegistrar[])proxys.clone() );
 	    ((DiscoveryListener)iter.next()).discarded(evt);
 	}//end loop
     }//end listenerDropped
 
     /** Sends discovered event to each listener listening for new lookups. */
-    private void listenerDiscovered(PortableServiceRegistrar proxy,
-            ArrayList<DiscoveryListener> notifies){
+    private void listenerDiscovered(ServiceRegistrar proxy,ArrayList notifies){
 	Iterator iter = notifies.iterator();
 	while (iter.hasNext()) {
 	    DiscoveryEvent evt = new DiscoveryEvent
                                         ( this,
-                                          new PortableServiceRegistrar[]{proxy} );
+                                          new ServiceRegistrar[]{proxy} );
 	    ((DiscoveryListener)iter.next()).discovered(evt);
 	}//end loop
     }//end listenerDiscovered
-   
+
     /** Returns array of ServiceRegistrar created from the proxyRegSet */
-    private PortableServiceRegistrar[] buildServiceRegistrar() {
+    private ServiceRegistrar[] buildServiceRegistrar() {
 	int k = 0;
-	PortableServiceRegistrar[] proxys = new PortableServiceRegistrar[proxyRegSet.size()];
+	ServiceRegistrar[] proxys = new ServiceRegistrar[proxyRegSet.size()];
 	Iterator iter = proxyRegSet.iterator();
 	while(iter.hasNext()) {
 	    ProxyReg reg = (ProxyReg)iter.next();
@@ -2903,7 +2857,7 @@ public class ServiceDiscoveryManager {
      * set</i>) for a service reference that matches criteria defined by the
      * entity that invokes this method. The semantics of this method are
      * similar to the semantics of the <code>lookup</code> method provided
-     * by the <code>ServiceRegistrar</code> interface; employing the same 
+     * by the <code>ServiceRegistrar</code> interface; employing the same
      * template-matching scheme. Additionally, this method allows any entity
      * to supply an object referred to as a <i>filter</i>. Such an object is
      * a non-remote object that defines additional matching criteria that the
@@ -2926,11 +2880,11 @@ public class ServiceDiscoveryManager {
      * service is returned, not <i>which</i> service.
      * <p>
      * Note that, unlike other versions of <code>lookup</code> provided
-     * by the <code>ServiceDiscoveryManager</code>, this version does not 
+     * by the <code>ServiceDiscoveryManager</code>, this version does not
      * <i>block</i>. That is, this version will return immediately upon
      * failure (or success) to find a service matching the input criteria.
      *
-     * It is important to understand this characteristic because there is 
+     * It is important to understand this characteristic because there is
      * a common usage scenario that can cause confusion when this version
      * of <code>lookup</code> is used but fails to discover the expected
      * service of interest. Suppose an entity creates a service discovery
@@ -2959,7 +2913,7 @@ public class ServiceDiscoveryManager {
      *               matching criteria that should be applied in addition to
      *               the template-matching employed when searching for desired
      *               services. If <code>null</code> is input to this parameter,
-     *               then only template-matching will be employed to find the 
+     *               then only template-matching will be employed to find the
      *               desired services.
      *
      * @return a single instance of <code>ServiceItem</code> corresponding to
@@ -2975,7 +2929,7 @@ public class ServiceDiscoveryManager {
      */
     public ServiceItem lookup(ServiceTemplate tmpl, ServiceItemFilter filter) {
 	checkTerminated();
-	PortableServiceRegistrar[] proxys;
+	ServiceRegistrar[] proxys;
 	synchronized(proxyRegSet) {
 	    proxys =  buildServiceRegistrar();
 	}
@@ -2983,7 +2937,7 @@ public class ServiceDiscoveryManager {
 	if(len == 0 ) return null;
 	int rand = Math.abs(random.nextInt()) % len;
 	for(int i=0; i<len; i++) {
-	    PortableServiceRegistrar proxy = proxys[(i + rand) % len];
+	    ServiceRegistrar proxy = proxys[(i + rand) % len];
 	    ServiceItem sItem = null;
 	    try {
                 int maxMatches = ( (filter != null) ? Integer.MAX_VALUE : 1 );
@@ -3004,7 +2958,7 @@ public class ServiceDiscoveryManager {
      * Queries each available lookup service in the managed set for a service
      * that matches the input criteria. The semantics of this method are
      * similar to the semantics of the <code>lookup</code> method provided by
-     * the <code>ServiceRegistrar</code> interface; employing the same 
+     * the <code>ServiceRegistrar</code> interface; employing the same
      * template-matching scheme. Additionally, this method allows any entity
      * to supply an object referred to as a <i>filter</i>. Such an object is
      * a non-remote object that defines additional matching criteria that the
@@ -3021,7 +2975,7 @@ public class ServiceDiscoveryManager {
      * entities that invoke this method typically care only that <i>a</i>
      * service is returned, not <i>which</i> service.
      * <p>
-     * Note that this version of <code>lookup</code> provides a 
+     * Note that this version of <code>lookup</code> provides a
      * <i>blocking</i> feature that is controlled through the
      * <code>waitDur</code> parameter. That is, this version will not return
      * until either a service that matches the input criteria has been
@@ -3049,7 +3003,7 @@ public class ServiceDiscoveryManager {
      *                are unpredictable and undefined.
      * @param filter  an instance of <code>ServiceItemFilter</code> containing
      *                matching criteria that should be applied in addition
-     *                to the template-matching employed when searching for 
+     *                to the template-matching employed when searching for
      *                desired services. If <code>null</code> is input to this
      *                parameter, then only template-matching will be employed
      *                to find the desired services.
@@ -3057,7 +3011,7 @@ public class ServiceDiscoveryManager {
      *                ending the "search" and returning <code>null</code>.
      *                If a non-positive value is input to this parameter,
      *                then this method will not wait; it will simply query
-     *                the available lookup services and return a matching 
+     *                the available lookup services and return a matching
      *                service reference or <code>null</code>.
      *
      * @return a single instance of <code>ServiceItem</code> corresponding to
@@ -3066,11 +3020,11 @@ public class ServiceDiscoveryManager {
      *         service can be found. Note that if multiple services matching
      *         the input criteria exist, it is arbitrary as to which reference
      *         is returned.
-     * 
+     *
      * @throws java.lang.InterruptedException this exception occurs when the
      *         entity interrupts this method by invoking the interrupt method
      *         from the <code>Thread</code> class.
-     * 
+     *
      * @throws java.rmi.RemoteException typically, this exception occurs when
      *         a RemoteException occurs either as a result of an attempt
      *         to export a remote listener, or an attempt to register with the
@@ -3102,7 +3056,7 @@ public class ServiceDiscoveryManager {
              * objects waiting on the cache's listener. If the notifications
              * happen to occur before commencing the wait on the listener
              * object (see below), then the wait will never be interrupted
-             * because the interrupts were sent before the wait() method 
+             * because the interrupts were sent before the wait() method
              * was invoked. Synchronizing on the listener and the listener's
              * serviceAdded() method, and creating the cache only after the
              * lock has been acquired, together will prevent this situation
@@ -3155,36 +3109,36 @@ public class ServiceDiscoveryManager {
      * wish to use the <code>LookupCache</code> class to store and manage
      * "discovered" services is to create a separate cache for each service
      * type of interest.
-     * 
+     *
      * @param tmpl template to match. It uses template-matching
-     *        semantics to identify the service(s) to acquire from 
-     *        lookup services in the managed set. If this value is 
-     *        <code>null</code>, it is the equivalent of passing a 
-     *        <code>ServiceTemplate</code> constructed with all 
+     *        semantics to identify the service(s) to acquire from
+     *        lookup services in the managed set. If this value is
+     *        <code>null</code>, it is the equivalent of passing a
+     *        <code>ServiceTemplate</code> constructed with all
      *        <code>null</code> arguments (all wildcards).
-     * @param filter used to apply additional matching criteria to any 
+     * @param filter used to apply additional matching criteria to any
      *        <code>ServiceItem</code> found through template-matching.
      *        If this value is <code>null</code>, no additional filtering
-     *        will be applied beyond the template-matching. 
-     * @param listener object that will receive notifications when 
-     *        services matching the input criteria are discovered for 
-     *        the first time, or have encountered a state change such as 
-     *        removal from all lookup services or attribute set changes. 
-     *        If this value is <code>null</code>, the cache resulting from 
+     *        will be applied beyond the template-matching.
+     * @param listener object that will receive notifications when
+     *        services matching the input criteria are discovered for
+     *        the first time, or have encountered a state change such as
+     *        removal from all lookup services or attribute set changes.
+     *        If this value is <code>null</code>, the cache resulting from
      *        that invocation will send no such notifications.
      *
      * @return LookupCache used to query the cache for services of
      * 	      interest, manage the cache's event mechanism for service
      *        discoveries, or terminate the cache.
-     * 
+     *
      * @throws java.rmi.RemoteException typically, this exception occurs when
-     *         a RemoteException occurs as a result of an attempt to export 
+     *         a RemoteException occurs as a result of an attempt to export
      *         the remote listener that receives service events from the
      *         lookup services in the managed set.
      *
      * @see net.jini.lookup.ServiceItemFilter
      */
-    public LookupCache createLookupCache(ServiceTemplate tmpl, 
+    public LookupCache createLookupCache(ServiceTemplate tmpl,
 					 ServiceItemFilter filter,
 					 ServiceDiscoveryListener listener)
                                                         throws RemoteException
@@ -3202,30 +3156,20 @@ public class ServiceDiscoveryManager {
      *
      *  @return DiscoveryManagement implementation
      *  @see net.jini.discovery.DiscoveryManagement
-     * @deprecated 
      */
-    @Deprecated
-    public net.jini.discovery.DiscoveryManagement getDiscoveryManager() {
+    public DiscoveryManagement getDiscoveryManager() {
 	checkTerminated();
-        if ( discMgr instanceof net.jini.discovery.DiscoveryManagement){
-            return (net.jini.discovery.DiscoveryManagement) discMgr;
-        }
-	return null;
+	return discMgr;
     }//end getDiscoveryManager
-    
-    public DiscoveryListenerManagement getDiscoveryListenerManager() {
-        checkTerminated();
-        return discMgr;
-    }
 
-    /** 
+    /**
      * The <code>getLeaseRenewalManager</code> method will return an
      * instance of the <code>LeaseRenewalManager</code> class. The
      * object returned by this method manages the leases requested and
-     * held by the <code>ServiceDiscoveryManager</code>. In general, these 
-     * leases correspond to the registrations made by the 
+     * held by the <code>ServiceDiscoveryManager</code>. In general, these
+     * leases correspond to the registrations made by the
      * <code>ServiceDiscoveryManager</code> with the event mechanism of
-     * each lookup service in the managed set. 
+     * each lookup service in the managed set.
      *
      * @return LeaseRenewalManager for this instance of the
      *         <code>ServiceDiscoveryManager</code>.
@@ -3235,15 +3179,15 @@ public class ServiceDiscoveryManager {
 	checkTerminated();
 	return leaseRenewalMgr;
     }//end getLeaseRenewalManager
-    
-    /** 
+
+    /**
      * The <code>terminate</code> method performs cleanup duties
      * related to the termination of the event mechanism for lookup
      * service discovery, the event mechanism for service discovery,
      * and the cache management duties of the
-     * <code>ServiceDiscoveryManager</code>.  
-     * <p> 
-     * For each instance of <code>LookupCache</code> created and 
+     * <code>ServiceDiscoveryManager</code>.
+     * <p>
+     * For each instance of <code>LookupCache</code> created and
      * managed by the <code>ServiceDiscoveryManager</code>, the
      * <code>terminate</code> method will do the following:
      * <ul>
@@ -3253,16 +3197,16 @@ public class ServiceDiscoveryManager {
      * created by the <code>ServiceDiscoveryManager</code> itself,
      * terminate all discovery processing being performed by that
      * manager object on behalf of the entity.
-     * <p> 
+     * <p>
      * <li>Cancel all event leases granted by each lookup service in
      * the managed set of lookup services.
      * <p>
-     * <li>Un-export all remote listener objects registered with each 
-     * lookup service in the managed set.  
-     * <p> 
+     * <li>Un-export all remote listener objects registered with each
+     * lookup service in the managed set.
+     * <p>
      * <li>Terminate all threads involved in the process of retrieving
      * and storing references to discovered services of interest.
-     * </ul> 
+     * </ul>
      * Calling any method after the termination will result in an
      * <code>IllegalStateException</code>.
      *
@@ -3299,7 +3243,7 @@ public class ServiceDiscoveryManager {
      * Queries each available lookup service in the managed set for service(s)
      * that match the input criteria. The semantics of this method are
      * similar to the semantics of the <code>lookup</code> method provided by
-     * the <code>ServiceRegistrar</code> interface; employing the same 
+     * the <code>ServiceRegistrar</code> interface; employing the same
      * template-matching scheme. Additionally, this method allows any entity
      * to supply an object referred to as a <i>filter</i>. Such an object is
      * a non-remote object that defines additional matching criteria that the
@@ -3319,14 +3263,14 @@ public class ServiceDiscoveryManager {
      * of elements in the returned set will be no greater than the value of
      * the <code>maxMatches</code> parameter, but may be less.
      * <p>
-     * Note that this version of <code>lookup</code> does not provide a 
+     * Note that this version of <code>lookup</code> does not provide a
      * <i>blocking</i> feature. That is, this version will return immediately
      * with whatever number of service references it can find, up to
      * the number indicated in the <code>maxMatches</code> parameter. If
      * no services matching the input criteria can be found on the first
      * attempt, an empty array is returned.
      *
-     * It is important to understand this characteristic because there is 
+     * It is important to understand this characteristic because there is
      * a common usage scenario that can cause confusion when this version
      * of <code>lookup</code> is used but fails to discover any instances
      * of the expected service of interest. Suppose an entity creates a
@@ -3344,22 +3288,22 @@ public class ServiceDiscoveryManager {
      * given enough time to complete its own (lookup) discovery processing.
      *
      * @param tmpl       an instance of <code>ServiceTemplate</code>
-     *                   corresponding to the object to use for 
+     *                   corresponding to the object to use for
      *                   template-matching when searching for desired services.
-     *                   If <code>null</code> is input to this parameter, 
-     *                   this method will use a <i>wildcarded</i> template 
+     *                   If <code>null</code> is input to this parameter,
+     *                   this method will use a <i>wildcarded</i> template
      *                   (will match all services) when performing
      *                   template-matching. Note that the effects of modifying
      *                   contents of this parameter before this method returns
      *                   are unpredictable and undefined.
      * @param maxMatches this method will return no more than this number of
      *                   service references
-     * @param filter     an instance of <code>ServiceItemFilter</code> 
-     *                   containing matching criteria that should be applied 
-     *                   in addition to the template-matching employed when 
-     *                   searching for desired services. If <code>null</code> 
-     *                   is input to this parameter, then only 
-     *                   template-matching will be employed to find the 
+     * @param filter     an instance of <code>ServiceItemFilter</code>
+     *                   containing matching criteria that should be applied
+     *                   in addition to the template-matching employed when
+     *                   searching for desired services. If <code>null</code>
+     *                   is input to this parameter, then only
+     *                   template-matching will be employed to find the
      *                   desired services.
      *
      * @return an array of instances of <code>ServiceItem</code> where each
@@ -3374,12 +3318,12 @@ public class ServiceDiscoveryManager {
     public ServiceItem[] lookup(ServiceTemplate tmpl,
                                 int maxMatches,
 			        ServiceItemFilter filter)
-    { 
+    {
 	checkTerminated();
 	if (maxMatches < 1)
 	    throw new IllegalArgumentException("maxMatches must be > 0");
         /* retrieve the lookup service(s) to query for matching service(s) */
-	PortableServiceRegistrar[] proxys;
+	ServiceRegistrar[] proxys;
 	synchronized(proxyRegSet) {
 	    proxys =  buildServiceRegistrar();
 	}
@@ -3390,17 +3334,17 @@ public class ServiceDiscoveryManager {
 	    int rand = (Math.abs(random.nextInt())) % len;
 	    for(int i=0; i<len; i++) {
                 int max = maxMatches;
-		PortableServiceRegistrar proxy = proxys[(i + rand) % len];
+		ServiceRegistrar proxy = proxys[(i + rand) % len];
 		try {
                     /* If a filter is to be applied (filter != null), then
-                     * the value of the maxMatches parameter will not 
+                     * the value of the maxMatches parameter will not
                      * suffice when querying the current lookup service.
                      * This is because although services returned from a
                      * query of the lookup service will match the template,
                      * some of those services may get filtered out. Thus,
                      * asking for exactly maxMatches may result in fewer
                      * matching services than actually are contained in
-                     * the lookup. Thus, all matching services are 
+                     * the lookup. Thus, all matching services are
                      * requested by passing in "infinity" for the maximum
                      * number of matches (Integer.MAX_VALUE).
                      */
@@ -3447,7 +3391,7 @@ public class ServiceDiscoveryManager {
      * Queries each available lookup service in the managed set for service(s)
      * that match the input criteria. The semantics of this method are
      * similar to the semantics of the <code>lookup</code> method provided by
-     * the <code>ServiceRegistrar</code> interface; employing the same 
+     * the <code>ServiceRegistrar</code> interface; employing the same
      * template-matching scheme. Additionally, this method allows any entity
      * to supply an object referred to as a <i>filter</i>. Such an object is
      * a non-remote object that defines additional matching criteria that the
@@ -3462,7 +3406,7 @@ public class ServiceDiscoveryManager {
      * of elements in the returned set will be no greater than the value of
      * the <code>maxMatches</code> parameter, but may be less.
      * <p>
-     * Note that this version of <code>lookup</code> provides a 
+     * Note that this version of <code>lookup</code> provides a
      * <i>blocking</i> feature that is controlled through the
      * <code>waitDur</code> parameter in conjunction with the
      * <code>minMatches</code> and the <code>maxMatches</code> parameters.
@@ -3472,13 +3416,13 @@ public class ServiceDiscoveryManager {
      *    <li> the number of matching services found on the first attempt is
      *         greater than or equal to the value of the
      *         <code>minMatches</code> parameter, in which case this method
-     *         returns each of the services found up to the value of 
+     *         returns each of the services found up to the value of
      *         the <code>maxMatches</code> parameter
      *    <li> the number of matching services found <i>after</i> the first
      *         attempt (that is, after the method enters the "wait state")
      *         is at least as great as the value of the
      *         <code>minMatches</code> parameter in which case this method
-     *         returns each of the services found up to the value of 
+     *         returns each of the services found up to the value of
      *         the <code>maxMatches</code> parameter
      *    <li> the amount of time that has passed since this method entered
      *         the wait state exceeds the value of the <code>waitDur</code>
@@ -3493,7 +3437,7 @@ public class ServiceDiscoveryManager {
      * references were found, but this method continued to wait until the end
      * of the designated time period.
      * <p>
-     * If, while waiting for the minimum number of desired services to 
+     * If, while waiting for the minimum number of desired services to
      * be discovered, the entity decides that it no longer wishes to wait the
      * entire period for this method to return, the entity may interrupt this
      * method by invoking the interrupt method from the <code>Thread</code>
@@ -3508,26 +3452,26 @@ public class ServiceDiscoveryManager {
      * limitations).
      *
      * @param tmpl        an instance of <code>ServiceTemplate</code>
-     *                    corresponding to the object to use for 
+     *                    corresponding to the object to use for
      *                    template-matching when searching for desired
      *                    services. If <code>null</code> is input to this
      *                    parameter, this method will use a
-     *                    <i>wildcarded</i> template  (will match all 
-     *                    services) when performing template-matching. Note 
-     *                    that the effects of modifying contents of this 
-     *                    parameter before this method returns are 
+     *                    <i>wildcarded</i> template  (will match all
+     *                    services) when performing template-matching. Note
+     *                    that the effects of modifying contents of this
+     *                    parameter before this method returns are
      *                    unpredictable and undefined.
      * @param minMatches  this method will immediately exit the wait state
      *                    and return once this number of service references
      *                    is found
      * @param maxMatches  this method will return no more than this number of
      *                    service references
-     * @param filter      an instance of <code>ServiceItemFilter</code> 
-     *                    containing matching criteria that should be applied 
-     *                    in addition to the template-matching employed when 
-     *                    searching for desired services. If <code>null</code> 
-     *                    is input to this parameter, then only 
-     *                    template-matching will be employed to find the 
+     * @param filter      an instance of <code>ServiceItemFilter</code>
+     *                    containing matching criteria that should be applied
+     *                    in addition to the template-matching employed when
+     *                    searching for desired services. If <code>null</code>
+     *                    is input to this parameter, then only
+     *                    template-matching will be employed to find the
      *                    desired services.
      * @param waitDur     the amount of time (in milliseconds) to wait before
      *                    ending the "search" and returning an empty array.
@@ -3542,11 +3486,11 @@ public class ServiceDiscoveryManager {
      *         the criteria represented in the input parameters; or an
      *         empty array if no matching service can be found within the
      *         time allowed.
-     * 
+     *
      * @throws java.lang.InterruptedException this exception occurs when the
      *         entity interrupts this method by invoking the interrupt method
      *         from the <code>Thread</code> class.
-     * 
+     *
      * @throws java.lang.IllegalArgumentException this exception occurs when
      *         one of the following conditions is satisfied:
      * <p><ul> <li>the <code>minMatches</code> parameter is non-positive
@@ -3554,7 +3498,7 @@ public class ServiceDiscoveryManager {
      *         <li>the value of <code>maxMatches</code> is <i>less than</i>
      *             the value of <code>minMatches</code>
      *    </ul>
-     * 
+     *
      * @throws java.rmi.RemoteException typically, this exception occurs when
      *         a RemoteException occurs either as a result of an attempt
      *         to export a remote listener, or an attempt to register with the
@@ -3596,7 +3540,7 @@ public class ServiceDiscoveryManager {
          * objects waiting on the cache's listener. If the notifications
          * happen to occur before commencing the wait on the listener
          * object (see below), then the wait will never be interrupted
-         * because the interrupts were sent before the wait() method 
+         * because the interrupts were sent before the wait() method
          * was invoked. Synchronizing on the listener and the listener's
          * serviceAdded() method, and creating the cache only after the
          * lock has been acquired, together will prevent this situation
@@ -3624,13 +3568,13 @@ public class ServiceDiscoveryManager {
 	cache.terminate();
 	ServiceItem [] r = new ServiceItem[sItemSet.size()];
 	sItemSet.toArray(r);
-	return r; 
+	return r;
     }//end lookup
 
     /** From the given set of ServiceMatches, randomly selects and returns
      *  a ServiceItem that matches the given filter (if applicable).
-     */    
-    private ServiceItem getMatchedServiceItem(ServiceMatches sm, 
+     */
+    private ServiceItem getMatchedServiceItem(ServiceMatches sm,
 					      ServiceItemFilter filter)
     {
 	int len = sm.items.length;
@@ -3648,7 +3592,7 @@ public class ServiceDiscoveryManager {
 
     /** Creates a LookupCache with specific lease duration. */
     private LookupCacheImpl createLookupCache
-                                        (ServiceTemplate tmpl, 
+                                        (ServiceTemplate tmpl,
 					 ServiceItemFilter filter,
 					 ServiceDiscoveryListener listener,
 					 long leaseDuration)
@@ -3665,7 +3609,7 @@ public class ServiceDiscoveryManager {
     }//end createLookupCache
 
     /** Returns element from proxyRegSet that corresponds to the given proxy.*/
-    private ProxyReg findReg(PortableServiceRegistrar proxy) {
+    private ProxyReg findReg(ServiceRegistrar proxy) {
 	Iterator iter = proxyRegSet.iterator();
 	while(iter.hasNext()) {
 	    ProxyReg reg =(ProxyReg)iter.next();
@@ -3683,21 +3627,21 @@ public class ServiceDiscoveryManager {
      *  itself has already been terminated, or if the cache in which the
      *  failure occurred has been terminated, then the failure is logged
      *  at the HANDLED level, and the lookup service proxy is not discarded.
-     *  
+     *
      *  Also, note that if the discovery manager employed by this utility has
      *  already been terminated, then the attempt to discard the given lookup
      *  service proxy will result in an <code>IllegalStateException</code>.
-     *  Since this method is called from within the tasks run by this 
+     *  Since this method is called from within the tasks run by this
      *  utility, and since propagating an <code>IllegalStateException</code>
      *  out into the ThreadGroup of those tasks is undesirable, this method
      *  does not propagate <code>IllegalStateException</code>s that occur as
      *  a result of an attempt to discard a lookup service proxy from the
      *  discovery manager.
-     * 
+     *
      *  For more information, refer to Bug 4490358 and 4858211.
      */
     private void fail(Throwable e,
-                      PortableServiceRegistrar proxy,
+                      ServiceRegistrar proxy,
                       String sourceClass,
                       String sourceMethod,
                       String msg,
@@ -3729,23 +3673,8 @@ public class ServiceDiscoveryManager {
     }//end fail
 
     /** Discards a ServiceRegistrar through the discovery manager.*/
-    private void discard(PortableServiceRegistrar proxy) {
-        if (discMgr instanceof RegistrarManagement){ // which it should be.
-            RegistrarManagement dm = (RegistrarManagement) discMgr;
-            dm.discard(proxy);
-        } 
-        // This will need to be commented out for Java cdc Personal Basis Profile
-        else {
-	    try {
-		if (discMgr instanceof net.jini.discovery.DiscoveryManagement){
-		net.jini.discovery.DiscoveryManagement dm = (net.jini.discovery.DiscoveryManagement) discMgr;
-		dm.discard( (net.jini.core.lookup.ServiceRegistrar) proxy);           
-		}
-	    } catch (NoClassDefFoundError er) {
-		 // This is expected for Java CDC, ServiceRegistrar or 
-		// DiscoveryManagement is not supported.
-	    }
-	}
+    private void discard(ServiceRegistrar proxy) {
+	discMgr.discard(proxy);
     }//end discard
 
     /** Cancels the given event lease. */
@@ -3764,36 +3693,25 @@ public class ServiceDiscoveryManager {
      *  given proxy, and returns both the lease and the event sequence number
      *  from the event registration wrapped in the locally-defined class,
      *  <code>EventReg</code>.
-     * 
+     *
      *  This method is called from the <code>RegisterListenerTask</code>. If
      *  a <code>RemoteException</code> occurs during the event registration
      *  attempt, this method discards the lookup service and returns
      *  <code>null</code>.
      */
-    private EventReg registerListener(PortableServiceRegistrar proxy,
+    private EventReg registerListener(ServiceRegistrar proxy,
 			              ServiceTemplate tmpl,
 			              RemoteEventListener listenerProxy,
-			              long duration)  throws IOException
+			              long duration)  throws RemoteException
     {
         /* Register with the event mechanism of the given lookup service */
         EventRegistration e = null;
-        int transition = (   PortableServiceRegistrar.TRANSITION_NOMATCH_MATCH
-                           | PortableServiceRegistrar.TRANSITION_MATCH_NOMATCH
-                           | PortableServiceRegistrar.TRANSITION_MATCH_MATCH   );
-        if (proxy instanceof StreamServiceRegistrar){
-            e = ((StreamServiceRegistrar)proxy).notify( tmpl, transition, listenerProxy, null, duration);
-        } else {
-	    try {
-		// This should be the only occurrance of ServiceRegistrar in this class.
-		if (proxy instanceof net.jini.core.lookup.ServiceRegistrar){
-		    e = ((net.jini.core.lookup.ServiceRegistrar)proxy).notify(tmpl, transition, listenerProxy, null, duration);
-		}
-	    } catch (NoClassDefFoundError er) {
-		 // This is expected for Java CDC, ServiceRegistrar is not supported.
-	    }
-	}
+        int transition = (   ServiceRegistrar.TRANSITION_NOMATCH_MATCH
+                           | ServiceRegistrar.TRANSITION_MATCH_NOMATCH
+                           | ServiceRegistrar.TRANSITION_MATCH_MATCH   );
+        e = proxy.notify(tmpl, transition, listenerProxy, null, duration);
         /* Proxy preparation -
-         * 
+         *
          * Prepare the proxy to the lease on the event registration just
          * returned. Because lease management (renewal and cancellation)
          * involves remote calls, lease proxies should be prepared before
@@ -3843,7 +3761,7 @@ public class ServiceDiscoveryManager {
 	    int len =  tmpl.attributeSetTemplates.length;
 	    attributeSetTemplates = new Entry[len];
 	    System.arraycopy(tmpl.attributeSetTemplates, 0,
-                             attributeSetTemplates, 0, len); 
+                             attributeSetTemplates, 0, len);
 	}
 	return new ServiceTemplate(tmpl.serviceID,
                                    serviceTypes,
@@ -3866,11 +3784,11 @@ public class ServiceDiscoveryManager {
 	}//end loop
 	return false;
     }//end isArrayContainsServiceItems
-    
+
     /* Convenience method that encapsulates the retrieval of the configurable
      * items from the given <code>Configuration</code> object.
      */
-    private void init(DiscoveryListenerManagement discoveryMgr,
+    private void init(DiscoveryManagement discoveryMgr,
                       LeaseRenewalManager leaseMgr,
                       Configuration config)
                                     throws IOException, ConfigurationException
@@ -3913,64 +3831,37 @@ public class ServiceDiscoveryManager {
 	if(discMgr == null) {
 	    discMgrInternal = true;
             try {
-                // Old DiscoverManagement interface.
-                discMgr = (DiscoveryListenerManagement) thisConfig.getEntry(
-                                    COMPONENT_NAME,
-                                    "discoveryManager",
-                                    net.jini.discovery.DiscoveryManagement.class);
-	    } catch (NoClassDefFoundError er) {
-		// Java CDC
-		try {
-		    // All new Discovery Managers Must implement RegistrarManagement
-		    // I'm not entirely happy with the name, perhaps it shoud
-		    // be discoveryManager2?  or something?
-		    discMgr = (DiscoveryListenerManagement) thisConfig.getEntry(
-				    COMPONENT_NAME,
-						    "registrarManager",
-				    RegistrarManagement.class);
-		
-		} catch(NoSuchEntryException e) { /* use default */
-		    discMgr = new LookupDiscoveryManager
-				       (new String[] {""}, null, null, thisConfig);
-		}
-	    } catch (NoSuchEntryException ex) {
-		try {
-		    // All new Discovery Managers Must implement RegistrarManagement
-		    // I'm not entirely happy with the name, perhaps it shoud
-		    // be discoveryManager2?  or something?
-		    discMgr = (DiscoveryListenerManagement) thisConfig.getEntry(
-				    COMPONENT_NAME,
-						    "registrarManager",
-				    RegistrarManagement.class);
-		
-		} catch(NoSuchEntryException e) { /* use default */
-		    discMgr = new LookupDiscoveryManager
-				       (new String[] {""}, null, null, thisConfig);
-		}
+                discMgr = (DiscoveryManagement)thisConfig.getEntry
+                                                   (COMPONENT_NAME,
+                                                    "discoveryManager",
+                                                    DiscoveryManagement.class);
+            } catch(NoSuchEntryException e) { /* use default */
+                discMgr = new LookupDiscoveryManager
+                                   (new String[] {""}, null, null, thisConfig);
             }
 	}//endif
-	discMgr.addDiscoveryListener(discMgrListener); 
+	discMgr.addDiscoveryListener(discMgrListener);
     }//end init
 
 
     /** Applies the given <code>filter</code> to the given <code>item</code>,
      *  and returns <code>true</code> if the <code>filter</code> returns a
-     *  <code>pass</code> value; otherwise, returns <code>false</code>. 
+     *  <code>pass</code> value; otherwise, returns <code>false</code>.
      *  <p>
-     *  Note that as described in the specification of 
+     *  Note that as described in the specification of
      *  <code>ServiceItemFilter</code>, when the <code>item</code> passes
      *  the <code>filter</code>, the <code>service</code> field of
      *  the <code>item</code> is replaced with the filtered form of the
-     *  object previously contained in that field. Additionally, if the 
+     *  object previously contained in that field. Additionally, if the
      *  <code>filter</code> returns <code>indefinite</code>, then as specified,
      *  the <code>service</code> field is replaced with <code>null</code>
      *  (in which case, this method returns <code>false</code>).
      *  <p>
-     *  This method is used by the non-blocking version(s) of the 
+     *  This method is used by the non-blocking version(s) of the
      *  <code>lookup</code> method of the <code>ServiceDiscoveryManager</code>,
      *  as well as when second-stage filtering is performed in the
      *  <code>LookupCache</code>.
-     */    
+     */
     private boolean filterPassFail(ServiceItem item, ServiceItemFilter filter){
         if( (item == null) || (item.service == null) )  return false;
         if(filter == null)  return true;
