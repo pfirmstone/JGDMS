@@ -67,7 +67,8 @@
     </path>
 
     <property name="ext.dirs" refid="ext.dirs.path" />
-    <property name="log.config" location="${src.dir}/com/sun/jini/test/resources/qa1.logging" />
+    <property name="log.config" value="${src.dir}/com/sun/jini/test/resources/qa1.logging" />
+    <property name="log.config.file" location="${log.config}" />
     <property name="security.policy" location="harness/policy/qa.policy" />
     <!--possible values: any combination of jrmp,jeri,jsse,http,https,kerberos,none
         default: none -->
@@ -229,7 +230,7 @@
                 <!--<jvmarg value="-Djava.security.policy==${security.policy}" />-->
                 <jvmarg value="-Djava.security.policy=${security.policy}" />
                 <!--<jvmarg value="-Djava.security.debug=access" />-->
-                <jvmarg value="-Djava.util.logging.config.file=${log.config}" />
+                <jvmarg value="-Djava.util.logging.config.file=${log.config.file}" />
                 <jvmarg value="-Djava.util.logging.manager=com.sun.jini.logging.LogManager"/>
                 <jvmarg value="-Dcom.sun.jini.jsk.home=${river.home}" />
                 <jvmarg value="-Dcom.sun.jini.qa.home=${basedir}" />
