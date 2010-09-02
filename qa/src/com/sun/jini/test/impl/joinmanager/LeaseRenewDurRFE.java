@@ -111,8 +111,6 @@ import java.util.StringTokenizer;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
-import net.jini.discovery.DiscoveryListenerManagement;
-import net.jini.discovery.RegistrarManagement;
 
 /**
  * This class verifies that the current implementation of the 
@@ -453,7 +451,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 
         /* create SDM to retrieve ref to TestService-i from lookup */
         sdm = new ServiceDiscoveryManager
-                                    ((DiscoveryListenerManagement) ldm, null, sysConfig.getConfiguration());
+                                    (ldm, null, sysConfig.getConfiguration());
     }//end setup
 
     /** For each separate TestService started during setup, do the following:
@@ -1229,8 +1227,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             outerProxy = TestServiceProxy.createTestServiceProxy
                                           (innerProxy, proxyID, val, renewDur);
             joinMgr = new JoinManager(outerProxy, null, serviceID,
-                                      (DiscoveryListenerManagement) ldm, 
-                                      null, config);
+                                      ldm, null, config);
         }//end doInit
 
         public TrustVerifier getProxyVerifier() {
