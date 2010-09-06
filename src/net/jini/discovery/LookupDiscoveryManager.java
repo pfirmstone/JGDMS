@@ -18,22 +18,18 @@
 
 package net.jini.discovery;
 
-import org.apache.river.api.util.Facade;
-import net.jini.lookup.ServiceRegistrarFacade;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.EmptyConfiguration;
 import net.jini.core.discovery.LookupLocator;
-import net.jini.core.lookup.PortableServiceRegistrar;
+import net.jini.core.lookup.ServiceRegistrar;
 
 /** 
  * This class is a helper utility class that organizes and manages all
@@ -93,10 +89,7 @@ import net.jini.core.lookup.PortableServiceRegistrar;
  * @see net.jini.discovery.DiscoveryLocatorManagement
  * 
  */
-@SuppressWarnings("deprecation")
 public class LookupDiscoveryManager implements DiscoveryManagement,
-                                               RegistrarManagement,
-                                               DiscoveryListenerManagement,
                                                DiscoveryGroupManagement,
                                                DiscoveryLocatorManagement
 {
@@ -124,25 +117,23 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      *  accessing or modifying the contents of this set, the appropriate
      *  synchronization must be applied.
      */
-    private final ArrayList<ProxyReg> discoveredSet = 
-            new ArrayList<ProxyReg>(300);
+    private final ArrayList discoveredSet = new ArrayList(1);
     /** Contains the instances of <code>DiscoveryListener</code> that clients
      *  register with the <code>LookupDiscoveryManager</code>. The elements
      *  of this set receive discovered events, discarded events and, when
      *  appropriate, changed events.
      */
-    private final ArrayList<DiscoveryListener> listeners = 
-            new ArrayList<DiscoveryListener>(300);
+    private final ArrayList listeners = new ArrayList(1);
     /** The <code>LookupDiscovery</code> utility used to manage the group
      *  discovery mechanism. Note that this object cannot be accessed outside
      *  of this <code>LookupDiscoveryManager</code>.
      */
-    private final LookupDiscovery lookupDisc;
+    private LookupDiscovery lookupDisc;
     /** The listener that receives discovered, discarded, and changed events
      *  from the <code>LookupDiscovery</code> utility that manages group
      *  discovery on behalf of this <code>LookupDiscoveryManager</code>.
      */
-    private final DiscoveryListener groupListener = new GroupDiscoveryListener();
+    private DiscoveryListener groupListener = new GroupDiscoveryListener();
     /** The <code>LookupLocatorDiscovery</code> utility used to manage the
      *  locator discovery mechanism. Note that this object cannot be accessed
      *  outside of this <code>LookupDiscoveryManager</code>.
@@ -153,7 +144,6 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      *  discovery on behalf of this <code>LookupDiscoveryManager</code>.
      */
     private DiscoveryListener locatorListener = new LocatorDiscoveryListener();
-
 
     /** Wrapper class in which each instance corresponds to a lookup service
      *  that has been discovered via either group discovery, locator discovery,
@@ -166,9 +156,9 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      */
     private final class ProxyReg  {
         /** The discovered registrar to be managed */
-	private final PortableServiceRegistrar proxy;
+	public ServiceRegistrar proxy;
         /** The groups to which the discovered registrar belongs */
-        private volatile List<String> memberGroups;
+        public String[] memberGroups;
         /** Special-purpose flag used in the discard process. This flag is
          *  only relevant to <code>LocatorDiscoveryListener.discarded</code>.
          *  This flag is set to <code>true</code> only when the method
@@ -209,7 +199,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  value of <code>true</code> in this flag is equivalent to a
          *  communication discard.
          */
-        public volatile boolean commDiscard = false;
+        public boolean commDiscard = false;
         /** Integer restricted to the values 0, 1, 2, and 3. Each value 
          *  represents a bit (or set of bits) that, when set, indicates the
          *  mechanism (group discovery, locator discovery, or both) through
@@ -221,14 +211,14 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *       = 2 (bit 1 set)    ==> discovered by only locator discovery
          *       = 3 (bits 1&2 set) ==> discovered by both group and locator
          */
-	private volatile int from;
+	private int from;
         /** Indicates whether the registrar referenced by this class is
          *  currently in the process of being discarded. This flag is used to
          *  prevent access, or inadvertent modifications to, the discovered
          *  state of registrars that are in the process of being discarded,
          *  but which have not yet been removed from the managed set.
          */
-	private volatile boolean bDiscarded = false;
+	private boolean bDiscarded = false;
         /** Constructs an instance of this wrapper class.
          *
          *  @param proxy        reference to a registrar that has been newly
@@ -238,17 +228,9 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  @param from         indicates the mechanism by which the registrar
          *                      was discovered (group or locator discovery).
          *                      The only values which are valid for this
-         *                      parameter are FROM_GROUP or FROM_LOCATOR.        
+         *                      parameter are FROM_GROUP or FROM_LOCATOR.
          */
-        
-//        public ProxyReg(ServiceRegistrar proxy,
-//                        String[] memberGroups,
-//                        int from)
-//        {
-//            this((PortableServiceRegistrar) proxy, memberGroups, from);
-//        }
-        
-        public ProxyReg(PortableServiceRegistrar proxy,
+        public ProxyReg(ServiceRegistrar proxy,
                         String[] memberGroups,
                         int from)
         {
@@ -261,19 +243,18 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
                                  +"FROM_GROUP or FROM_LOCATOR");
             }//endif
 	    this.proxy        = proxy;
-	    this.memberGroups = new ArrayList<String>(memberGroups.length);
-            this.memberGroups.addAll(Arrays.asList(memberGroups));
+	    this.memberGroups = memberGroups;
 	    this.from         = from;
 	}//end constructor	    
 
 	public boolean equals(Object obj) {
 	    if (obj instanceof ProxyReg){
-		return getProxy().equals(((ProxyReg) obj).getProxy());
+		return proxy.equals(((ProxyReg)obj).proxy);
 	    } else return false;
 	}//end equals
 
 	public int hashCode() {
-	    return getProxy().hashCode();
+	    return proxy.hashCode();
 	}//end hashCode
 	
         /** Sets the appropriate bit in the 'from' variable to indicate the
@@ -319,7 +300,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  @return <code>int</code> representing either group discovery (1),
          *          or locator discovery (2), or both (3).
          */
-	public int getFrom() {
+	public synchronized int getFrom() {
 	    return this.from;
 	}//end getFrom
 
@@ -373,24 +354,25 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  which ultimately will result in the registrar being discarded
          *  from the <code>LookupLocatorDiscovery</code>.
          */
-	public void discard() {	   
-	    bDiscarded = true;
-	    //end sync
+	public void discard() {
+	    synchronized(this) {
+		bDiscarded = true;
+	    }//end sync
             /* Give group discovery priority to avoid race condition. When
              * appropriate, locator discard will eventually occur as a result
              * of the first group discard.
              */
 	    if((from & FROM_GROUP) != 0) {
-                lookupDisc.discard(getProxy());
+                lookupDisc.discard(proxy);
 	    } else if((from & FROM_LOCATOR) != 0) {
-                locatorDisc.discard(getProxy());
+                locatorDisc.discard(proxy);
             }//endif
 	}//end discard
 
         /** Accessor method that returns the value of the <code>boolean</code>
          *  variable <code>bDiscarded</code>.
          */
-	public boolean isDiscarded() {
+	public synchronized boolean isDiscarded() {
 	    return bDiscarded;
 	}
 
@@ -398,27 +380,19 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  containing the names of the groups to which the registrar
          *  referenced in this class belongs.
          */
-        public String[] getMemberGroups() {
-            String [] mg;
-            List<String> thismg = memberGroups; // copy the reference
-            mg = thismg.toArray(new String[thismg.size()]);          
-            return mg;
+        public synchronized  String[] getMemberGroups() {
+            return memberGroups;
         }//end getMemberGroups
 
         /** Modifier method that changes the set of member groups - stored in
          *  this class and associated with the registrar referenced in this
          *  class - to the given set of member groups.
          */
-        public void setMemberGroups(String[] newMemberGroups) {
-            List<String> nmg = new ArrayList<String>(newMemberGroups.length);
-            nmg.addAll(Arrays.asList(newMemberGroups));
-            memberGroups = nmg; // change reference to new List of Member Groups
+        public synchronized  void setMemberGroups(String[] newMemberGroups) {
+            memberGroups = newMemberGroups;
         }//end setMemberGroups
-
-        public PortableServiceRegistrar getProxy() {
-            return proxy;
-        }
     }//end class ProxyReg
+
     /** Class that defines the listener that is registered with the
      *  <code>LookupLocatorDiscovery</code> that performs locator discovery
      *  on behalf of this <code>LookupDiscoveryManager</code>.
@@ -442,7 +416,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  and send no event at all.
          */
 	public void discovered(DiscoveryEvent e) {
-            PortableServiceRegistrar[] proxys = e.getPRegistrars();
+            ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
             HashMap discoveredGroupsMap = new HashMap(proxys.length);
 	    for(int i=0; i<proxys.length; i++) {
@@ -544,7 +518,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  </pre>
          */
 	public void discarded(DiscoveryEvent e) {
-	    PortableServiceRegistrar[] proxys = e.getPRegistrars();
+	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
             HashMap discardedGroupsMap = new HashMap(proxys.length);
 	    for(int i=0; i<proxys.length; i++) {
@@ -552,10 +526,10 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
                     ProxyReg reg = findReg(proxys[i]);
                     if(reg != null) {
                         String[] newGroups = (String[])groupsMap.get
-                                                                   (reg.getProxy());
+                                                                   (reg.proxy);
                         if( removeDiscoveredSet(reg,FROM_LOCATOR) ) {
                             /* Locator discovery only, always send discarded */
-                            discardedGroupsMap.put(reg.getProxy(),newGroups);
+                            discardedGroupsMap.put(reg.proxy,newGroups);
                         } else {//group and loc discovery
                             if( reg.commDiscard ) {//unreachable, send later
                                 reg.discard();//discard from LookupDiscovery
@@ -629,7 +603,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  may simply update state and send no event at all.
          */
 	public void discovered(DiscoveryEvent e) {
-            PortableServiceRegistrar[] proxys = e.getPRegistrars();
+            ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
             HashMap discoveredGroupsMap = new HashMap(proxys.length);
             HashMap changedGroupsMap    = new HashMap(proxys.length);
@@ -646,12 +620,12 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
                     } else {//previously discovered by group, by loc or by both
                         String[] oldGroups = reg.getMemberGroups();
                         String[] newGroups = (String[])groupsMap.get
-                                                                  (reg.getProxy());
+                                                                  (reg.proxy);
                         if( groupSetsEqual(oldGroups,newGroups) ) {//by loc
                             reg.addFrom(FROM_GROUP);//send no event
                         } else {//by group or by both, send changed event
                             reg.setMemberGroups(newGroups);//update groups
-                            changedGroupsMap.put(reg.getProxy(),newGroups);
+                            changedGroupsMap.put(reg.proxy,newGroups);
                         }//endif
                     }//endif
                 }//end sync(discoveredSet)
@@ -784,7 +758,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  </pre>
          */
 	public void discarded(DiscoveryEvent e) {
-	    PortableServiceRegistrar[] proxys = e.getPRegistrars();
+	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
             HashMap discardedGroupsMap = new HashMap(proxys.length);
             HashMap changedGroupsMap   = new HashMap(proxys.length);
@@ -793,17 +767,17 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
                     ProxyReg reg = findReg(proxys[i]);
                     if(reg != null) {
                         String[] newGroups = (String[])groupsMap.get
-                                                                   (reg.getProxy());
+                                                                   (reg.proxy);
                         if( removeDiscoveredSet(reg,FROM_GROUP) ) {
                             /* group discovery only, always send discarded */
-                            discardedGroupsMap.put(reg.getProxy(),newGroups);
+                            discardedGroupsMap.put(reg.proxy,newGroups);
                         } else {//discovered by group and locator
                             String[] desiredGroups = lookupDisc.getGroups();
                             if( !stillInterested(newGroups,desiredGroups) ) {
                                 String[] oldGroups = reg.getMemberGroups();
                                 if( !groupSetsEqual(oldGroups,newGroups) ) {
                                     reg.setMemberGroups(newGroups);
-                                    changedGroupsMap.put(reg.getProxy(),newGroups);
+                                    changedGroupsMap.put(reg.proxy,newGroups);
                                 }//endif(!groupSetsEqual ==> groups changed)
                             } else {//stillInterested ==> communication discard
                                 reg.discard();//from LookupLocatorDiscovery
@@ -827,7 +801,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          */
         public void changed(DiscoveryEvent e) {
             /* update the groups of each changed registrar */
-            PortableServiceRegistrar[] proxys = e.getPRegistrars();
+            ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
             HashMap changedGroupsMap = new HashMap(proxys.length);
 	    for(int i=0; i<proxys.length; i++) {
@@ -835,9 +809,9 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
                     ProxyReg reg = findReg(proxys[i]);
                     if(reg != null) {//previously discovered
                         String[] newGroups = (String[])groupsMap.get
-                                                                   (reg.getProxy());
+                                                                   (reg.proxy);
                         reg.setMemberGroups(newGroups);
-                        changedGroupsMap.put(reg.getProxy(),newGroups);
+                        changedGroupsMap.put(reg.proxy,newGroups);
                     }//endif
                 }//end sync(discoveredSet)
             }//end loop
@@ -845,7 +819,6 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
             notifyListener(changedGroupsMap, CHANGED);
         }//end changed
     }//end class GroupDiscoveryListener
-
 
     /** 
      * Constructs an instance of this class that will organize and manage 
@@ -881,9 +854,6 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      *         initiate the discovery process, which can throw an
      *         <code>IOException</code> when socket allocation occurs.
      *
-     * @throws net.jini.config.ConfigurationException Since River 2.2.0 this 
-     *          breaks source code compatiblity, the contract but not 
-     *          binary compatibility.
      * @throws java.lang.NullPointerException this exception occurs when
      *         either one or more of the elements of the <code>groups</code>
      *         parameter is <code>null</code>, or one or more elements of
@@ -895,18 +865,14 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
     public LookupDiscoveryManager(String[] groups,  
 				  LookupLocator[] locators,
 				  DiscoveryListener listener)
-                                   throws IOException, ConfigurationException
+                                                           throws IOException
     {
-        /* By allowing the ConfigurationException we can set some private
-         * references to final. This breaks the contract, but not binary
-         * compatibility. Developers will need to change their source code
-         * when they recompile.
-         */ 
-        //try {
-            this(groups, locators, listener, 
+        try {
+            beginDiscovery(groups, locators, listener, 
                            EmptyConfiguration.INSTANCE);
-        //} catch(ConfigurationException e) { /* swallow this exception */ }
+        } catch(ConfigurationException e) { /* swallow this exception */ }
     }//end constructor
+
     /** 
      * Constructs an instance of this class, using the given 
      * <code>Configuration</code>, that will organize and manage all
@@ -964,23 +930,9 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
 				  LookupLocator[] locators,
 				  DiscoveryListener listener,
                                   Configuration config)
-                throws IOException, ConfigurationException, NullPointerException
+                                    throws IOException, ConfigurationException
     {
-        /*
-         * Using the given <code>Configuration</code>, initializes the current
-         * instance of this utility, and initiates the discovery process for
-         * the given set of groups and the given set of locators. Whenever a
-         * lookup service is discovered, discarded, or changed, the appropriate
-         * notification will be sent to the given listener.
-         */
-        /* Initiate the discovery process */
-        if(listener != null) listeners.add(listener);
-        /* Configure for group discovery */
- 	lookupDisc = new LookupDiscovery(groups, config);
-	lookupDisc.addDiscoveryListener(groupListener);
-        /* Configure for locator discovery */
-	locatorDisc = new LookupLocatorDiscovery(locators, config);
-	locatorDisc.addDiscoveryListener(locatorListener);
+        beginDiscovery(groups, locators, listener, config);
     }//end constructor
 
     /**
@@ -1269,7 +1221,7 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
             if(discoveredSet.isEmpty()) return;
 	    for(int i=0; i< discoveredSet.size(); i++) {
                 ProxyReg reg = (ProxyReg)discoveredSet.get(i);
-                groupsMap.put(reg.getProxy(),reg.getMemberGroups());
+                groupsMap.put(reg.proxy,reg.getMemberGroups());
 	    }
 	}
         notifyListener(listener, groupsMap, DISCOVERED);
@@ -1305,48 +1257,19 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      *
      * @see net.jini.core.lookup.ServiceRegistrar
      * @see net.jini.discovery.DiscoveryManagement#removeDiscoveryListener
-     * @deprecated replaced by {@link #getPRegistrars()}
      */
-    @Deprecated
-    public net.jini.core.lookup.ServiceRegistrar[] getRegistrars() {
-	PortableServiceRegistrar[] psr = getPRegistrars();
-        int l = psr.length;
-        net.jini.core.lookup.ServiceRegistrar[] sr = new net.jini.core.lookup.ServiceRegistrar[l];
-        for ( int i = 0; i < l; i++){
-            if (psr[i] instanceof net.jini.core.lookup.ServiceRegistrar){
-                sr[i] = (net.jini.core.lookup.ServiceRegistrar) psr[i];
-            }else{
-                sr[i] = new ServiceRegistrarFacade(psr[i]);
-            }
-        }
-        return sr;
-    }
-    
-    /**
-     * Returns an array of instances of <code>ServiceRegistrar</code>, each
-     * corresponding to a proxy to one of the currently discovered lookup
-     * services. For each invocation of this method, a new array is returned.
-     *
-     * @return array of instances of <code>ServiceRegistrar</code>, each
-     *         corresponding to a proxy to one of the currently discovered
-     *         lookup services
-     *
-     * @see net.jini.core.lookup.ServiceRegistrar
-     * @see net.jini.discovery.DiscoveryManagement#removeDiscoveryListener
-     */
-    public PortableServiceRegistrar[] getPRegistrars() {
-	ArrayList<PortableServiceRegistrar> proxySet;
+    public ServiceRegistrar[] getRegistrars() {
+	ArrayList proxySet = new ArrayList(1);;
 	synchronized(discoveredSet) {
-            proxySet = new ArrayList<PortableServiceRegistrar>(discoveredSet.size());
 	    int k = 0;
 	    Iterator iter = discoveredSet.iterator();
 	    while(iter.hasNext()) {
 		ProxyReg reg = (ProxyReg)iter.next();
 		if(!reg.isDiscarded())
-		    proxySet.add(reg.getProxy());
+		    proxySet.add(reg.proxy);
 	    }
 	}
-	PortableServiceRegistrar[] ret = new PortableServiceRegistrar[proxySet.size()];
+	ServiceRegistrar[] ret = new ServiceRegistrar[proxySet.size()];
 	proxySet.toArray(ret);
 	return ret;
     }
@@ -1364,28 +1287,8 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      *
      * @see net.jini.core.lookup.ServiceRegistrar
      * @see net.jini.discovery.DiscoveryManagement#discard
-     * @deprecated 
      */
-    @Deprecated
-    public void discard(net.jini.core.lookup.ServiceRegistrar proxy) {
-        discard((PortableServiceRegistrar) proxy);
-    }//end discard
-    
-    /**
-     * Removes an instance of <code>ServiceRegistrar</code> from the
-     * managed set of lookup services, making the corresponding lookup
-     * service eligible for re-discovery. This method takes no action if
-     * the parameter input to this method is <code>null</code>, or if it
-     * does not match (using <code>equals</code>) any of the elements in
-     * the managed set.
-     *
-     * @param proxy the instance of <code>ServiceRegistrar</code> to discard
-     *              from the managed set of lookup services
-     *
-     * @see net.jini.core.lookup.ServiceRegistrar
-     * @see net.jini.discovery.DiscoveryManagement#discard
-     */
-    public void discard(PortableServiceRegistrar proxy) {
+    public void discard(ServiceRegistrar proxy) {
         if(proxy == null) return;
 	ProxyReg reg = findReg(proxy);
 	if(reg != null) {
@@ -1418,36 +1321,20 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      * @param proxy  a ServiceRegistrar object
      * @return an <code>int</code> indicating whether the proxy   
      *         was obtained through group or locator discovery. 
-     * @deprecated replaced by {@link #getFrom(PortableServiceRegistrar)}
      */
-    @Deprecated
-    public int getFrom(net.jini.core.lookup.ServiceRegistrar proxy) {
-	return getFrom(proxy);
-    }
-    
-    /** Return where the proxy come from. 
-     * @param proxy  a ServiceRegistrar object
-     * @return an <code>int</code> indicating whether the proxy   
-     *         was obtained through group or locator discovery.
-     *         Returns 0 if proxy not found. 
-     */
-    public int getFrom(PortableServiceRegistrar proxy) {
+    public int getFrom(ServiceRegistrar proxy) {
 	ProxyReg reg = findReg(proxy);
-	if(reg != null) return reg.getFrom();
+	if(reg != null)
+	    return reg.getFrom();
 	return 0;
     }
 
-    private ProxyReg findReg(PortableServiceRegistrar proxy) {
-        while (proxy instanceof Facade){ //always ensure we have uncovered any facades.
-            @SuppressWarnings("unchecked")
-                Facade<PortableServiceRegistrar> f = (Facade<PortableServiceRegistrar>) proxy;
-                proxy = f.reveal();
-        }
+    private ProxyReg findReg(ServiceRegistrar proxy) {
 	synchronized(discoveredSet) {
 	    Iterator iter = discoveredSet.iterator();
 	    while(iter.hasNext()) {
 		ProxyReg reg =(ProxyReg)iter.next();
-		if(reg.getProxy().equals(proxy))
+		if(reg.proxy.equals(proxy))
 		    return reg;
 	    }
 	}
@@ -1564,5 +1451,47 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
         }
         return newMap;
     }//end deepCopy
+
+    /**
+     * Using the given <code>Configuration</code>, initializes the current
+     * instance of this utility, and initiates the discovery process for
+     * the given set of groups and the given set of locators. Whenever a
+     * lookup service is discovered, discarded, or changed, the appropriate
+     * notification will be sent to the given listener.
+     *
+     * @param groups the set of group names to discover
+     *
+     * @param locators the set of locators to discover
+     *
+     * @param listener the listener that will be notified when a targeted
+     *                 lookup service is discovered, discarded, or changed.
+     *
+     * @param config   an instance of <code>Configuration</code>, used to
+     *                 obtain the objects needed to configure this utility
+     *
+     * @throws java.lang.NullPointerException either input array contains at
+     *         least one <code>null</code> element
+     *
+     * @throws java.io.IOException an exception occurred initiating discovery
+     *
+     * @throws net.jini.config.ConfigurationException indicates an exception
+     *         occurred while retrieving an item from the given
+     *         <code>Configuration</code>
+     */
+    private void beginDiscovery(String[] groups,  
+                                LookupLocator[] locators,
+                                DiscoveryListener listener,
+                                Configuration config)
+                                    throws IOException, ConfigurationException
+    {
+        /* Initiate the discovery process */
+        if(listener != null) listeners.add(listener);
+        /* Configure for group discovery */
+ 	lookupDisc = new LookupDiscovery(groups, config);
+	lookupDisc.addDiscoveryListener(groupListener);
+        /* Configure for locator discovery */
+	locatorDisc = new LookupLocatorDiscovery(locators, config);
+	locatorDisc.addDiscoveryListener(locatorListener);
+    }//end beginDiscovery
 
 }//end class LookupDiscoveryManager

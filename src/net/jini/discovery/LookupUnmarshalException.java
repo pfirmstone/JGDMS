@@ -30,7 +30,6 @@ import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import java.util.ArrayList;
 import java.util.Arrays;
-import net.jini.core.lookup.StreamServiceRegistrar;
 import net.jini.io.Convert;
 import net.jini.io.MarshalledInstance;
 import net.jini.io.MiToMoOutputStream;
@@ -329,13 +328,11 @@ public class LookupUnmarshalException extends Exception {
      *         each element corresponds to a successfully unmarshalled object.
      */
     public ServiceRegistrar[] getRegistrars() {
+        ArrayList<ServiceRegistrar> sr = new ArrayList<ServiceRegistrar>();
         int l = registrars.length;
-        ArrayList<ServiceRegistrar> sr = new ArrayList<ServiceRegistrar>(l);
         for ( int i = 0; i < l; i++){
             if (registrars[i] instanceof ServiceRegistrar) {
                 sr.add((ServiceRegistrar) registrars[i]);
-            } else {
-                sr.add(new ServiceRegistrarFacade(registrars[i]));
             }
         }
         ServiceRegistrar[] sra = new ServiceRegistrar[sr.size()];
@@ -344,7 +341,7 @@ public class LookupUnmarshalException extends Exception {
     
     /**
      * Accessor method that returns an array consisting of instances of 
-     * <code>StreamServiceRegistrar</code>, where each element of the array
+     * <code>PortableServiceRegistrar</code>, where each element of the array
      * corresponds to a successfully unmarshalled object. Note that the
      * same array is returned on each invocation of this method; that is,
      * a copy is not made.
@@ -352,20 +349,9 @@ public class LookupUnmarshalException extends Exception {
      * @return array of instances of <code>PortableServiceRegistrar</code>, where
      *         each element corresponds to a successfully unmarshalled object.
      */
-    public StreamServiceRegistrar[] getStreamRegistrars() {
+    public PortableServiceRegistrar[] getPRegistrars() {
         // Defensive copy.
-        int l = registrars.length;
-        ArrayList<StreamServiceRegistrar> sr = new ArrayList<StreamServiceRegistrar>(l);
-        for ( int i = 0; i < l; i++){
-            if (registrars[i] instanceof StreamServiceRegistrar) {
-                sr.add((StreamServiceRegistrar) registrars[i]);
-            } else {
-                sr.add(new StreamServiceRegistrarFacade(registrars[i]));
-            }
-        }
-        StreamServiceRegistrar[] sra = new StreamServiceRegistrar[sr.size()];
-        return sr.toArray(sra);
-        
+        return Arrays.copyOf(registrars, registrars.length);
     }//end getRegistrars
 
     /**
@@ -409,7 +395,7 @@ public class LookupUnmarshalException extends Exception {
     }
     
     public MarshalledInstance[] getMarshalledInstRegistrars(){
-        // Defensive copy. TODO: Java 6 only method revise
+        // Defensive copy.
          return Arrays.copyOf(marshalledRegistrars, marshalledRegistrars.length);
     }
     
@@ -499,38 +485,32 @@ public class LookupUnmarshalException extends Exception {
     private void readObject(ObjectInputStream s)  
                                throws IOException, ClassNotFoundException
     {
-	if (s instanceof MoToMiInputStream){
-	    s.defaultReadObject();
-	     /* Verify marshalledRegistrars and exceptions fields */
-	    if(marshalledRegistrars == null) {
-		throw new InvalidObjectException
-				("LookupUnmarshalException.readObject "
-				 +"failure - marshalledRegistrars field is null");
-	    }//endif
-	    if(exceptions == null) {
-		throw new InvalidObjectException
-					  ("LookupUnmarshalException.readObject "
-					   +"failure - exceptions field is null");
-	    }//endif
-	    if(marshalledRegistrars.length == 0) {
-		throw new InvalidObjectException
-				 ("LookupUnmarshalException.readObject "
-				  +"failure - marshalledRegistrars.length == 0");
-	    }//endif
-	    if(exceptions.length != marshalledRegistrars.length) {
-		throw new InvalidObjectException
-			       ("LookupUnmarshalException.readObject failure - "
-				+"exceptions.length ("+exceptions.length
-				+") is not equal to marshalledRegistrars.length "
-				+"("+marshalledRegistrars.length+")");
-	    }//endif
-	    return;
-	}
         ObjectInputStream fois = new MoToMiInputStream(s); // convert to java.rmi.MarshalledObject
-        LookupUnmarshalException lue = (LookupUnmarshalException) fois.readObject();
-	this.exceptions = lue.exceptions;
-	this.registrars = lue.registrars;
-	this.marshalledRegistrars = lue.marshalledRegistrars;
+        fois.defaultReadObject();
+        /* Verify marshalledRegistrars and exceptions fields */
+        if(marshalledRegistrars == null) {
+            throw new InvalidObjectException
+                            ("LookupUnmarshalException.readObject "
+                             +"failure - marshalledRegistrars field is null");
+        }//endif
+        if(exceptions == null) {
+            throw new InvalidObjectException
+                                      ("LookupUnmarshalException.readObject "
+                                       +"failure - exceptions field is null");
+        }//endif
+        if(marshalledRegistrars.length == 0) {
+            throw new InvalidObjectException
+                             ("LookupUnmarshalException.readObject "
+                              +"failure - marshalledRegistrars.length == 0");
+        }//endif
+        if(exceptions.length != marshalledRegistrars.length) {
+            throw new InvalidObjectException
+                           ("LookupUnmarshalException.readObject failure - "
+                            +"exceptions.length ("+exceptions.length
+                            +") is not equal to marshalledRegistrars.length "
+                            +"("+marshalledRegistrars.length+")");
+        }//endif
+
     }//end readObject
     
     /**
@@ -541,12 +521,8 @@ public class LookupUnmarshalException extends Exception {
      * @throws java.io.IOException
      */
     private void writeObject(java.io.ObjectOutputStream stream) throws IOException{
-	if (stream instanceof MiToMoOutputStream){
-	    stream.defaultWriteObject();	    
-	    return;
-	}
         ObjectOutputStream newOutStream = new MiToMoOutputStream(stream); // Convert from java.rmi.MarshalledObject
-        newOutStream.writeObject(this);
+        newOutStream.defaultWriteObject();
     }
 
 }//end class LookupUnmarshalException

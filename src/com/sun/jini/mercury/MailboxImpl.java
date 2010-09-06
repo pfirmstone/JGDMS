@@ -898,9 +898,9 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         // Get shorthand reference to the discovery manager
 	try {
             lookupDiscMgr  = 
-                (DiscoveryListenerManagement)Config.getNonNullEntry(config,
+                (DiscoveryManagement)Config.getNonNullEntry(config,
 	            MERCURY, "discoveryManager",
-                    DiscoveryListenerManagement.class);
+                    DiscoveryManagement.class);
             if(lookupDiscMgr instanceof DiscoveryGroupManagement) {
                  // Verify proper initial state ---> NO_GROUPS
                 String[] groups =

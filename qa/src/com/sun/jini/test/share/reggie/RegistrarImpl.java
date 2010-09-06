@@ -75,7 +75,6 @@ import net.jini.discovery.*;
 import com.sun.jini.reliableLog.ReliableLog;
 import com.sun.jini.reliableLog.LogException;
 import com.sun.jini.reliableLog.LogHandler;
-import net.jini.config.ConfigurationException;
 
 /**
  * The server side of an implementation of the lookup service.  Multiple
@@ -3937,15 +3936,10 @@ public class RegistrarImpl implements Registrar {
 	    }
 	}
 	log.snapshot();
-        discoer = null;
-        try {
 	discoer = new LookupDiscoveryManager(lookupGroups, lookupLocators,
 					     null);
-        } catch (ConfigurationException e) {
-            throw new IOException("LookupDiscoveryManager constructor threw exeption", e);
-        }
 	joiner = new JoinManager(proxy, lookupAttrs, myServiceID,
-				 (DiscoveryListenerManagement) discoer, null);
+				 discoer, null);
 	/* start up all the daemon threads */
 	serviceExpirer.start();
 	eventExpirer.start();

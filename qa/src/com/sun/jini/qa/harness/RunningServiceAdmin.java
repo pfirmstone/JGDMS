@@ -27,8 +27,6 @@ import java.util.logging.Level;
 import java.util.NoSuchElementException;
 
 // net.jini
-import java.util.logging.Logger;
-import net.jini.config.ConfigurationException;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceTemplate;
 import net.jini.discovery.LookupDiscoveryManager;
@@ -139,10 +137,7 @@ public class RunningServiceAdmin extends AbstractServiceAdmin implements Admin {
 	    manager = new LookupDiscoveryManager(getGroups(),
 						 getLocators(),
 						 listener);
-        } catch (ConfigurationException e) {
-            throw new TestException("failed to create a LookupDiscoveryManager",
-				    e);
-        } catch (IOException e) {
+	} catch (IOException e) {
 	    throw new TestException("failed to create a LookupDiscoveryManager",
 				    e);
 	}
