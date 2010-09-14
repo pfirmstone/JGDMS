@@ -82,7 +82,7 @@ public class TaskManager {
     /** Read-only view of tasks */
     protected final List roTasks = Collections.unmodifiableList(tasks);
     /** Active threads */
-    protected final List<TaskThread> threads = new ArrayList<TaskThread>();
+    protected final List threads = new ArrayList();
     /** Maximum number of threads allowed */
     protected final int maxThreads;
     /** Idle time before a thread should exit */
@@ -130,10 +130,10 @@ public class TaskManager {
 	tasks.add(t);
 	boolean poke = true;
 	while (threads.size() < maxThreads && needThread()) {
-            TaskThread thread;
+	    Thread th;
 	    try {
-                thread = new TaskThread();
-                thread.start();
+		th = new TaskThread();
+		th.start();
 	    } catch (Throwable tt) {
 		try {
 		    logger.log(threads.isEmpty() ?
@@ -143,7 +143,7 @@ public class TaskManager {
 		}
 		break;
 	    }
-	    threads.add(thread);
+	    threads.add(th);
 	    poke = false;
 	}
 	if (poke &&
@@ -228,11 +228,10 @@ public class TaskManager {
 		if (i < firstPending) {
 		    firstPending--;
 		    for (int j = threads.size(); --j >= 0; ) {
-			TaskThread thread = threads.get(j);
-			if (thread.getTask() == t) {
-			    if ( !thread.isCurrentThread()) {
-                                thread.interrupt();
-                            }
+			TaskThread thread = (TaskThread)threads.get(j);
+			if (thread.task == t) {
+			    if (thread != Thread.currentThread())
+				thread.interrupt();
 			    break;
 			}
 		    }
@@ -250,7 +249,7 @@ public class TaskManager {
     public synchronized void terminate() {
 	terminated = true;
 	for (int i = threads.size(); --i >= 0; ) {
-	    (threads.get(i)).interrupt();
+	    ((Thread)threads.get(i)).interrupt();
 	}
     }
 
@@ -268,29 +267,15 @@ public class TaskManager {
 	return maxThreads;
     }
 
-    private class TaskThread implements Runnable {
+    private class TaskThread extends Thread {
 
 	/** The task being run, if any */
-	private Task task;
-        private final Thread thread;
+	public Task task = null;
 
 	public TaskThread() {
-            task = null;
-            thread = new Thread(this, "task");
-            thread.setDaemon(true);
+	    super("task");
+	    setDaemon(true);
 	}
-        
-        public void start(){
-            thread.start();
-        }
-        
-        public boolean isCurrentThread() {
-            return ( Thread.currentThread() == thread);
-        }
-        
-        public void interrupt() {
-            thread.interrupt();
-        }
 
 	/**
 	 * Find the next task that can be run, and mark it taken by
@@ -308,7 +293,7 @@ public class TaskManager {
 			tasks.add(firstPending, t);
 		    }
 		    firstPending++;
-		    setTask(t);
+		    task = t;
 		    return true;
 		}
 	    }
@@ -320,16 +305,16 @@ public class TaskManager {
 		synchronized (TaskManager.this) {
 		    if (terminated)
 			return;
-		    if (getTask() != null) {
+		    if (task != null) {
 			for (int i = firstPending; --i >= 0; ) {
-			    if (tasks.get(i) == getTask()) {
+			    if (tasks.get(i) == task) {
 				tasks.remove(i);
 				firstPending--;
 				break;
 			    }
 			}
-			setTask(null);
-			thread.interrupted(); // clear interrupt bit
+			task = null;
+			interrupted(); // clear interrupt bit
 		    }
 		    if (!takeTask()) {
 			try {
@@ -343,7 +328,7 @@ public class TaskManager {
 		    }
 		}
 		try {
-		    getTask().run();
+		    task.run();
 		} catch (Throwable t) {
 		    try {
 			logger.log(Level.WARNING, "Task.run exception", t);
@@ -352,13 +337,5 @@ public class TaskManager {
 		}
 	    }
 	}
-
-        public Task getTask() {
-            return task;
-        }
-
-        public void setTask(Task task) {
-            this.task = task;
-        }
     }
 }
