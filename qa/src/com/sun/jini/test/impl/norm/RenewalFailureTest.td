@@ -10,4 +10,4 @@ com.sun.jini.test.impl.norm.renew_grant=300000
 com.sun.jini.test.impl.norm.renew_count=2
 com.sun.jini.test.impl.norm.tryShutdown=true
 include0=norm.properties
-testLoggingProperties=<file: tests/logging/normFullLogging.properties>
+testLoggingProperties=<file: src/com/sun/jini/test/resources/qa1_debug.logging>
