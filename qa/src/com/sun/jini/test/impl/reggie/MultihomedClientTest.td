@@ -10,7 +10,8 @@ reggieClasses=${com.sun.jini.jsk.home}/lib/reggie.jar
 reggieConfig=<url:com/sun/jini/test/impl/reggie/resources/reggie.config>
 startConfig=<url:com/sun/jini/test/impl/reggie/resources/start.config>
 lookupConfig=<url:com/sun/jini/test/impl/reggie/resources/lookupdiscovery.config>
-logging=<file:tests/logging/multihomedClientTestLogging.properties>
+#logging=<file:tests/logging/multihomedClientTestLogging.properties>
+logging=${java.util.logging.config.file}
 metaInf=<file: lib/qa1-multihomedmetainf.jar>
 timeout=10
 
