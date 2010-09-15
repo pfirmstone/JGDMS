@@ -27,7 +27,7 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.config.NoSuchEntryException;
 import net.jini.core.lookup.ServiceID;
-import net.jini.discovery.DiscoveryListenerManagement;
+import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscovery;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
@@ -149,11 +149,11 @@ public class Server implements Hello, ServerProxyTrust, ProxyAccessor {
 	Proxy smartProxy = Proxy.create(serverProxy);
 
 	/* Get the discovery manager, for discovering lookup services */
-	DiscoveryListenerManagement discoveryManager;
+	DiscoveryManagement discoveryManager;
 	try {
-	    discoveryManager = (DiscoveryListenerManagement) config.getEntry(
+	    discoveryManager = (DiscoveryManagement) config.getEntry(
 		"com.sun.jini.example.hello.Server", "discoveryManager",
-		DiscoveryListenerManagement.class);
+		DiscoveryManagement.class);
 	} catch (NoSuchEntryException e) {
             /* Use the public group */
 	    discoveryManager = new LookupDiscovery(

@@ -38,6 +38,7 @@ import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
+import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.lease.LeaseRenewalManager;
 import net.jini.lookup.JoinManager;
@@ -47,7 +48,6 @@ import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
-import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * Utility class that combines <code>JoinManager</code> with persistence.
@@ -120,7 +120,7 @@ public class JoinState extends LogHandler implements SubStore {
      * must also implement <code>DiscoveryGroupManagement</code> and
      * <code>DiscoveryLocatorManagement</code>.
      */
-    private DiscoveryListenerManagement dm;
+    private DiscoveryManagement dm;
 
     /** Our join manager */
     private JoinManager joinMgr;
@@ -302,8 +302,8 @@ public class JoinState extends LogHandler implements SubStore {
 	throws ConfigurationException, IOException
     {
 	try {
-	    dm = (DiscoveryListenerManagement) Config.getNonNullEntry(
-		config, NORM, "discoveryManager", DiscoveryListenerManagement.class);
+	    dm = (DiscoveryManagement) Config.getNonNullEntry(
+		config, NORM, "discoveryManager", DiscoveryManagement.class);
 	    if (!(dm instanceof DiscoveryGroupManagement)) {
 		throw new ConfigurationException(
 		    "Entry for component " + NORM +

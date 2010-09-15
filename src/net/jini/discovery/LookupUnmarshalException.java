@@ -18,22 +18,12 @@
 
 package net.jini.discovery;
 
-import net.jini.lookup.StreamServiceRegistrarFacade;
-import net.jini.lookup.ServiceRegistrarFacade;
 import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.PortableServiceRegistrar;
 
 import java.io.InvalidObjectException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
-import java.util.ArrayList;
-import java.util.Arrays;
-import net.jini.io.Convert;
-import net.jini.io.MarshalledInstance;
-import net.jini.io.MiToMoOutputStream;
-import net.jini.io.MoToMiInputStream;
 
 /**
  * When unmarshalling an instance of <code>MarshalledObject</code>, different
@@ -49,22 +39,22 @@ import net.jini.io.MoToMiInputStream;
  * This class provides a mechanism that clients of the lookup discovery 
  * service may use for efficient handling of the exceptions that may 
  * occur when unmarshalling elements of a set of marshalled instances 
- * of the <code>PortableServiceRegistrar</code> interface. When elements in such
+ * of the <code>ServiceRegistrar</code> interface. When elements in such
  * a set are unmarshalled, the <code>LookupUnmarshalException</code> class
  * may be used to collect and report pertinent information generated when
  * failure occurs while unmarshalling the elements of the set.
  * <p>
  * The information that may be of interest to entities that receive this
  * exception class is contained in the following fields: a set of
- * <code>PortableServiceRegistrar</code> instances in which each element is the
+ * <code>ServiceRegistrar</code> instances in which each element is the
  * result of a successful unmarshalling attempt, a set of marshalled instances
- * of <code>PortableServiceRegistrar</code> in which each element could not be
+ * of <code>ServiceRegistrar</code> in which each element could not be
  * successfully unmarshalled, and a set of exceptions (<code>IOException<code>,
  * <code>ClassNotFoundException</code>, or some unchecked exception) in which
  * each element corresponds to one of the unmarshalling failures.
  * <p>
  * Thus, when exceptional conditions occur while unmarshalling a set of 
- * marshalled instances of <code>PortableServiceRegistrar</code>, this class can
+ * marshalled instances of <code>ServiceRegistrar</code>, this class can
  * be used not only to indicate that an exceptional condition has occurred,
  * but also to provide information that can be used to perform error handling 
  * activities such as: determining if it is feasible to continue with 
@@ -72,12 +62,11 @@ import net.jini.io.MoToMiInputStream;
  * <p>
  * Note that this exception class should be used only to report exceptional
  * conditions occurring when unmarshalling a set of marshalled instances 
- * of the <code>PortableServiceRegistrar</code> interface.
+ * of the <code>ServiceRegistrar</code> interface.
  *
  * @author Sun Microsystems, Inc.
  *
  * @see net.jini.core.lookup.ServiceRegistrar
- * @see net.jini.core.lookup.PortableServiceRegistrar
  */
 public class LookupUnmarshalException extends Exception {
 
@@ -91,16 +80,16 @@ public class LookupUnmarshalException extends Exception {
      *
      * @serial
      */
-    private PortableServiceRegistrar[] registrars = null;
+    private ServiceRegistrar[] registrars = null;
 
     /**
-     * Array containing the set of <code>PortableServiceRegistrar</code> instances
+     * Array containing the set of <code>ServiceRegistrar</code> instances
      * that could not be unmarshalled. This set should not be <code>null</code>
      * and should contain at least one element.
      *
      * @serial
      */
-    private MarshalledInstance[] marshalledRegistrars = null;
+    private MarshalledObject[] marshalledRegistrars = null;
 
     /**
      * Array containing the set of exceptions that occurred during the
@@ -108,7 +97,7 @@ public class LookupUnmarshalException extends Exception {
      * of <code>IOException</code>, <code>ClassNotFoundException</code>, or
      * some unchecked exception. Furthermore, there should be a one-to-one
      * correspondence between each element in this set and each element in
-     * the set of still-to-be-unmarshalled <code>PortableServiceRegistrar</code>
+     * the set of still-to-be-unmarshalled <code>ServiceRegistrar</code>
      * instances. That is, the element of this set corresponding to index i
      * should be an instance of the exception that occurred while attempting
      * to unmarshal the element at index i of <code>marshalledRegistrars<code>.
@@ -123,11 +112,11 @@ public class LookupUnmarshalException extends Exception {
      * Constructs a new instance of <code>LookupUnmarshalException</code>.
      *
      * @param registrars           Array containing the set of instances of
-     *                             <code>PortableServiceRegistrar</code> that were
+     *                             <code>ServiceRegistrar</code> that were
      *                             successfully unmarshalled.
      *                            
      * @param marshalledRegistrars Array containing the set of marshalled
-     *                             <code>PortableServiceRegistrar</code> instances
+     *                             <code>ServiceRegistrar</code> instances
      *                             that could not be unmarshalled.
      *                   
      * @param exceptions           Array containing the set of exceptions that
@@ -156,111 +145,9 @@ public class LookupUnmarshalException extends Exception {
      *         either the <code>marshalledRegistrars</code> parameter or the
      *         <code>exceptions</code> parameter has zero length; or when the
      *         lengths of those two parameters are not equal.
-     * @deprecated 
      */
-    @Deprecated
-    public LookupUnmarshalException(PortableServiceRegistrar[] registrars,
+    public LookupUnmarshalException(ServiceRegistrar[] registrars,
                                     MarshalledObject[] marshalledRegistrars,
-                                    Throwable[]        exceptions) 
-    {
-        super();
-        MarshalledInstance[] jmo = asMarshalledInstance(marshalledRegistrars);
-        init(registrars,jmo,exceptions);
-    }//end constructor
-
-    /**
-     * Constructs a new instance of <code>LookupUnmarshalException</code>.
-     *
-     * @param registrars           Array containing the set of instances of
-     *                             <code>PortableServiceRegistrar</code> that were
-     *                             successfully unmarshalled.
-     *                            
-     * @param marshalledRegistrars Array containing the set of marshalled
-     *                             <code>PortableServiceRegistrar</code> instances
-     *                             that could not be unmarshalled.
-     *                   
-     * @param exceptions           Array containing the set of exceptions that
-     *                             occurred during the unmarshalling process.
-     *                             Each element in this set should be an
-     *                             instance of <code>IOException</code>,
-     *                             <code>ClassNotFoundException</code>, or
-     *                             some unchecked exception. Furthermore,
-     *                             there should be a one-to-one correspondence
-     *                             between each element in this set and
-     *                             each element in the
-     *                             <code>marshalledRegistrars</code> parameter.
-     * <p>
-     *                             That is, the element of this set
-     *                             corresponding to index i should be an
-     *                             instance of the exception that occurred
-     *                             while attempting to unmarshal the element
-     *                             at index i of the
-     *                             <code>marshalledRegistrars</code> parameter.
-     *
-     * @param message              <code>String</code> describing the nature
-     *                             of the exception
-     *
-     * @throws java.lang.NullPointerException this exception occurs
-     *         when <code>null</code> is input for either the
-     *         <code>marshalledRegistrars</code> parameter or the
-     *         <code>exceptions</code> parameter.
-     * @throws java.lang.IllegalArgumentException this exception occurs when
-     *         either the <code>marshalledRegistrars</code> parameter or the
-     *         <code>exceptions</code> parameter has zero length; or when the
-     *         lengths of those two parameters are not equal.
-     * @deprecated 
-     */
-    @Deprecated
-    public LookupUnmarshalException(PortableServiceRegistrar[] registrars,
-                                    MarshalledObject[] marshalledRegistrars,
-                                    Throwable[]        exceptions, 
-                                    String             message) 
-    {
-        super(message);
-        MarshalledInstance[] mi = asMarshalledInstance(marshalledRegistrars);
-        init(registrars,mi,exceptions);
-    }//end constructor
-    
-    /**
-     * Constructs a new instance of <code>LookupUnmarshalException</code>.
-     *
-     * @param registrars           Array containing the set of instances of
-     *                             <code>PortableServiceRegistrar</code> that were
-     *                             successfully unmarshalled.
-     *                            
-     * @param marshalledRegistrars Array containing the set of marshalled
-     *                             <code>PortableServiceRegistrar</code> instances
-     *                             that could not be unmarshalled.
-     *                   
-     * @param exceptions           Array containing the set of exceptions that
-     *                             occurred during the unmarshalling process.
-     *                             Each element in this set should be an
-     *                             instance of <code>IOException</code>,
-     *                             <code>ClassNotFoundException</code>, or
-     *                             some unchecked exception. Furthermore,
-     *                             there should be a one-to-one correspondence
-     *                             between each element in this set and
-     *                             each element in the
-     *                             <code>marshalledRegistrars</code> parameter.
-     * <p>
-     *                             That is, the element of this set
-     *                             corresponding to index i should be an
-     *                             instance of the exception that occurred
-     *                             while attempting to unmarshal the element
-     *                             at index i of the
-     *                             <code>marshalledRegistrars</code> parameter.
-     *
-     * @throws java.lang.NullPointerException this exception occurs
-     *         when <code>null</code> is input for either the
-     *         <code>marshalledRegistrars</code> parameter or the
-     *         <code>exceptions</code> parameter.
-     * @throws java.lang.IllegalArgumentException this exception occurs when
-     *         either the <code>marshalledRegistrars</code> parameter or the
-     *         <code>exceptions</code> parameter has zero length; or when the
-     *         lengths of those two parameters are not equal.
-     */
-    public LookupUnmarshalException(PortableServiceRegistrar[] registrars,
-                                    MarshalledInstance[] marshalledRegistrars,
                                     Throwable[]        exceptions) 
     {
         super();
@@ -271,11 +158,11 @@ public class LookupUnmarshalException extends Exception {
      * Constructs a new instance of <code>LookupUnmarshalException</code>.
      *
      * @param registrars           Array containing the set of instances of
-     *                             <code>PortableServiceRegistrar</code> that were
+     *                             <code>ServiceRegistrar</code> that were
      *                             successfully unmarshalled.
      *                            
      * @param marshalledRegistrars Array containing the set of marshalled
-     *                             <code>PortableServiceRegistrar</code> instances
+     *                             <code>ServiceRegistrar</code> instances
      *                             that could not be unmarshalled.
      *                   
      * @param exceptions           Array containing the set of exceptions that
@@ -308,15 +195,15 @@ public class LookupUnmarshalException extends Exception {
      *         <code>exceptions</code> parameter has zero length; or when the
      *         lengths of those two parameters are not equal.
      */
-    public LookupUnmarshalException(PortableServiceRegistrar[] registrars,
-                                    MarshalledInstance[] marshalledRegistrars,
+    public LookupUnmarshalException(ServiceRegistrar[] registrars,
+                                    MarshalledObject[] marshalledRegistrars,
                                     Throwable[]        exceptions, 
                                     String             message) 
     {
         super(message);
         init(registrars,marshalledRegistrars,exceptions);
     }//end constructor
-    
+
     /**
      * Accessor method that returns an array consisting of instances of 
      * <code>ServiceRegistrar</code>, where each element of the array
@@ -328,77 +215,25 @@ public class LookupUnmarshalException extends Exception {
      *         each element corresponds to a successfully unmarshalled object.
      */
     public ServiceRegistrar[] getRegistrars() {
-        ArrayList<ServiceRegistrar> sr = new ArrayList<ServiceRegistrar>();
-        int l = registrars.length;
-        for ( int i = 0; i < l; i++){
-            if (registrars[i] instanceof ServiceRegistrar) {
-                sr.add((ServiceRegistrar) registrars[i]);
-            }
-        }
-        ServiceRegistrar[] sra = new ServiceRegistrar[sr.size()];
-        return sr.toArray(sra);
-    }//end getRegistrars
-    
-    /**
-     * Accessor method that returns an array consisting of instances of 
-     * <code>PortableServiceRegistrar</code>, where each element of the array
-     * corresponds to a successfully unmarshalled object. Note that the
-     * same array is returned on each invocation of this method; that is,
-     * a copy is not made.
-     *
-     * @return array of instances of <code>PortableServiceRegistrar</code>, where
-     *         each element corresponds to a successfully unmarshalled object.
-     */
-    public PortableServiceRegistrar[] getPRegistrars() {
-        // Defensive copy.
-        return Arrays.copyOf(registrars, registrars.length);
+        return registrars;
     }//end getRegistrars
 
     /**
      * Accessor method that returns an array consisting of instances of 
      * <code>MarshalledObject</code>, where each element of the array is a
-     * marshalled instance of the <code>PortableServiceRegistrar</code> interface,
+     * marshalled instance of the <code>ServiceRegistrar</code> interface,
      * and corresponds to an object that could not be successfully
      * unmarshalled. Note that the same array is returned on each invocation
      * of this method; that is, a copy is not made.
      *
-     * @return array of marshalled instances of <code>PortableServiceRegistrar</code>,
+     * @return array of marshalled instances of <code>ServiceRegistrar</code>,
      *         where each element corresponds to an object in which failure
      *         occurred while attempting to unmarshal the object.
      */
-    @Deprecated
     public MarshalledObject[] getMarshalledRegistrars() {
-        return asMarshalledObject(marshalledRegistrars);
+        return marshalledRegistrars;
     }//end getMarshalledRegistrars
-    
-    @Deprecated
-    private MarshalledInstance[] asMarshalledInstance(MarshalledObject[] mo) {
-        Convert convert = Convert.getInstance();
-        int l = mo.length;
-        MarshalledInstance[] mi = new MarshalledInstance[l];
-        for (int i = 0; i < l; i++){
-            mi[i] = convert.toMarshalledInstance(mo[i]);
-        }
-        return mi;
-    }
-    
-    @Deprecated
-    @SuppressWarnings("unchecked")
-    private MarshalledObject[] asMarshalledObject(MarshalledInstance[] mi){
-        Convert convert = Convert.getInstance();
-        int l = mi.length;
-        MarshalledObject[] rmiMo = new MarshalledObject[l];
-        for (int i = 0; i < l; i++){
-            rmiMo[i] = convert.toRmiMarshalledObject(mi[i]);
-        }
-        return rmiMo;
-    }
-    
-    public MarshalledInstance[] getMarshalledInstRegistrars(){
-        // Defensive copy.
-         return Arrays.copyOf(marshalledRegistrars, marshalledRegistrars.length);
-    }
-    
+
     /**
      * Accessor method that returns an array consisting of instances of 
      * <code>Throwable</code>, where each element of the array corresponds
@@ -421,19 +256,18 @@ public class LookupUnmarshalException extends Exception {
      *         the unmarshalling process.
      */
     public Throwable[] getExceptions() {
-        // Defensive copy.
-        return Arrays.copyOf(exceptions, exceptions.length);
+        return exceptions;
     }//end getExceptions
 
     /**
      * Initializes the abstract state of this class.
      *
      * @param registrars           Array containing the set of instances of
-     *                             <code>PortableServiceRegistrar</code> that were
+     *                             <code>ServiceRegistrar</code> that were
      *                             successfully unmarshalled.
      *                            
      * @param marshalledRegistrars Array containing the set of marshalled
-     *                             <code>PortableServiceRegistrar</code> instances
+     *                             <code>ServiceRegistrar</code> instances
      *                             that could not be unmarshalled.
      *                   
      * @param exceptions           Array containing the set of exceptions that
@@ -448,8 +282,8 @@ public class LookupUnmarshalException extends Exception {
      *         <code>exceptions</code> parameter has zero length; or when the
      *         lengths of those two parameters are not equal.
      */
-    private void init(PortableServiceRegistrar[] registrars,
-                      MarshalledInstance[] marshalledRegistrars,
+    private void init(ServiceRegistrar[] registrars,
+                      MarshalledObject[] marshalledRegistrars,
                       Throwable[]        exceptions) {
         /* Verify the input arguments */
         if(marshalledRegistrars == null) {
@@ -485,8 +319,7 @@ public class LookupUnmarshalException extends Exception {
     private void readObject(ObjectInputStream s)  
                                throws IOException, ClassNotFoundException
     {
-        ObjectInputStream fois = new MoToMiInputStream(s); // convert to java.rmi.MarshalledObject
-        fois.defaultReadObject();
+        s.defaultReadObject();
         /* Verify marshalledRegistrars and exceptions fields */
         if(marshalledRegistrars == null) {
             throw new InvalidObjectException
@@ -512,17 +345,5 @@ public class LookupUnmarshalException extends Exception {
         }//endif
 
     }//end readObject
-    
-    /**
-     * This method is an interim temporary measure to provide a transition
-     * period for the Serialized form in Apache River versions prior to
-     * 2.2.0
-     * @param stream
-     * @throws java.io.IOException
-     */
-    private void writeObject(java.io.ObjectOutputStream stream) throws IOException{
-        ObjectOutputStream newOutStream = new MiToMoOutputStream(stream); // Convert from java.rmi.MarshalledObject
-        newOutStream.defaultWriteObject();
-    }
 
 }//end class LookupUnmarshalException

@@ -59,6 +59,7 @@ import net.jini.discovery.DiscoveryEvent;
 import net.jini.discovery.DiscoveryChangeListener;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
+import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.discovery.LookupDiscoveryRegistration;
 import net.jini.discovery.RemoteDiscoveryEvent;
@@ -139,7 +140,6 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * This class is the server side of an implementation of the lookup
@@ -278,7 +278,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
     /** Earliest expiration time over all active registrations */
     private long minExpiration = Long.MAX_VALUE;
     /** The lookup discovery manager this service's join manager will use */
-    private DiscoveryListenerManagement joinMgrLDM;
+    private DiscoveryManagement joinMgrLDM;
     /** Manager for discovering and registering with lookup services */
     private JoinManager joinMgr;
     /** Task manager for sending remote discovery events */
@@ -5290,11 +5290,11 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
         /* Get the discovery manager to pass to this service's join manager. */
         try {
             joinMgrLDM  = 
-                (DiscoveryListenerManagement)Config.getNonNullEntry
+                (DiscoveryManagement)Config.getNonNullEntry
                                                   (config,
                                                    COMPONENT_NAME,
                                                    "discoveryManager",
-                                                   DiscoveryListenerManagement.class);
+                                                   DiscoveryManagement.class);
             if( joinMgrLDM instanceof DiscoveryGroupManagement ) {
                 String[] groups0 =
                            ((DiscoveryGroupManagement)joinMgrLDM).getGroups();

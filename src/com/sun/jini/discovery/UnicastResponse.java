@@ -19,9 +19,7 @@
 package com.sun.jini.discovery;
 
 import java.util.Arrays;
-import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.lookup.ServiceRegistrarFacade;
 
 /**
  * Class representing the values obtained as the result of unicast discovery.
@@ -38,16 +36,12 @@ public class UnicastResponse {
     /** The lookup service member groups. */
     protected String[] groups;
     /** The lookup service proxy. */
-    protected PortableServiceRegistrar registrar;
-    
+    protected ServiceRegistrar registrar;
+
     /**
      * Creates new <code>UnicastResponse</code> instance containing the given
      * values.  The <code>groups</code> array is copied; a <code>null</code>
      * value is considered equivalent to an empty array.
-     * 
-     * This constructor has been changed in 2.2.0 to break binary compatibility
-     * with 2.2.1 however it is still compile time compatible.  I figured
-     * that client code will utilise this class, but be unlikely to construct it.
      *
      * @param host the lookup service host
      * @param port the lookup service listen port
@@ -61,9 +55,9 @@ public class UnicastResponse {
     public UnicastResponse(String host,
 			   int port,
 			   String[] groups,
-			   PortableServiceRegistrar registrar)
+			   ServiceRegistrar registrar)
     {
-	groups = (groups != null) ? groups.clone() : new String[0];
+	groups = (groups != null) ? (String[]) groups.clone() : new String[0];
 	if (host == null ||
 	    registrar == null ||
 	    Arrays.asList(groups).contains(null))
@@ -108,28 +102,13 @@ public class UnicastResponse {
 
     /**
      * Returns the lookup service proxy.
-     * 
+     *
      * @return the lookup service proxy
-     * @since 2.2.0
      */
-    public PortableServiceRegistrar getPRegistrar() {
+    public ServiceRegistrar getRegistrar() {
 	return registrar;
     }
-    
-    /**
-     * Returns the lookup service proxy.
-     * 
-     * @return the lookup service proxy
-     * @deprecated replaced by {@link #getPRegistrar()}
-     */
-    @Deprecated
-    public ServiceRegistrar getRegistrar() {
-        if(registrar instanceof ServiceRegistrar ){
-            return (ServiceRegistrar)registrar;
-        }
-        return new ServiceRegistrarFacade(registrar);
-    }
-    
+
     /**
      * Returns a string representation of this response.
      *

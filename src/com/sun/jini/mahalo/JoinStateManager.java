@@ -36,11 +36,13 @@ import net.jini.config.ConfigurationException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceID;
+import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.id.Uuid;
 import net.jini.lookup.JoinManager;
+import net.jini.lookup.ServiceIDListener;
 import net.jini.security.ProxyPreparer;
 
 
@@ -48,7 +50,7 @@ import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
-import net.jini.discovery.DiscoveryListenerManagement;
+import net.jini.io.MiToMoOutputStream;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages
@@ -78,7 +80,7 @@ class JoinStateManager extends LogHandler {
      * Object used to find lookups. Has to implement DiscoveryManagement
      * and DiscoveryLocatorManagement as well as DiscoveryGroupManagement.
      */
-    private DiscoveryListenerManagement dm;
+    private DiscoveryManagement dm;
 
     /**
      * <code>JoinManager</code> that is handling the details of binding
@@ -180,9 +182,9 @@ class JoinStateManager extends LogHandler {
 	         lookupLocatorPreparer);
 	}
 //TODO - defer creation of default LDM
-	dm = (DiscoveryListenerManagement)
+	dm = (DiscoveryManagement)
 	    Config.getNonNullEntry(config, TxnManager.MAHALO,
-		"discoveryManager", DiscoveryListenerManagement.class, 
+		"discoveryManager", DiscoveryManagement.class, 
 		new LookupDiscoveryManager(
                     DiscoveryGroupManagement.NO_GROUPS, null, null, config));
         if(initlogger.isLoggable(Level.CONFIG)) {
@@ -321,7 +323,7 @@ class JoinStateManager extends LogHandler {
 	    initlogger.log(Level.FINEST, "Creating JoinManager");
         }
 	mgr = new JoinManager(service, attributes, serviceID, 
-            (DiscoveryListenerManagement) dm, null, config);
+            dm, null, config);
         // Once we are running we don't need the attributes,
         // locators, and groups fields, null them out (the
         // state is in the mgr and dm.

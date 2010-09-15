@@ -29,7 +29,6 @@ import net.jini.lookup.JoinManager;
 
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * With respect to the current implementation of the <code>JoinManager</code>
@@ -67,8 +66,7 @@ public class TerminateSemantics extends AbstractBaseTest {
         super.setup(sysConfig);
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
-                                        (DiscoveryListenerManagement) null,
-                                        null,
+                                        null,null,
 					sysConfig.getConfiguration());
     }//end setup
 

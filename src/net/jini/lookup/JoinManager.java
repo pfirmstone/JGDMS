@@ -53,10 +53,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import net.jini.core.lookup.PortableServiceRegistrar;
-import net.jini.discovery.DiscoveryListenerManagement;
-import net.jini.discovery.RegistrarManagement;
-import org.apache.river.api.util.Facade;
 
 /**
  * A goal of any well-behaved service is to advertise the facilities and
@@ -441,31 +437,7 @@ import org.apache.river.api.util.Facade;
  * @see java.util.logging.Logger
  */
 public class JoinManager {
-    
-    private static void discard(DiscoveryListenerManagement dlm, 
-            PortableServiceRegistrar proxy, Logger logger){
-        try {
-            if (dlm instanceof RegistrarManagement){
-                RegistrarManagement rm = (RegistrarManagement) dlm;
-                rm.discard(proxy);
-            } else {
-                throw new UnsupportedOperationException("Not instance of " +
-                        "RegistrarManagement");
-            }
-        } catch(IllegalStateException e1) {
-           logger.log(Level.FINEST,
-                      "JoinManager - cannot discard lookup, "
-                      +"discovery manager already terminated",
-                      e1);
-        } catch(UnsupportedOperationException ex){
-            logger.log(Level.FINEST,
-                      "JoinManager - cannot discard lookup, "
-                      +"DiscoveryManager not supported on this" +
-                      " platform, use RegistrarManagement instead.",
-                      ex);
-        }
-    }
-     
+
     /** Implementation Note:
      *
      *  This class executes a number of tasks asynchronously. Each task is
@@ -1173,7 +1145,7 @@ public class JoinManager {
          *  this class, and with which this join manager's service will be
          *  registered.
          */
-	public PortableServiceRegistrar proxy;
+	public ServiceRegistrar proxy;
         /** The <i>prepared</i> registration proxy returned by this class'
          *  associated lookup service when this join manager registers its
          *  associated service.
@@ -1201,12 +1173,12 @@ public class JoinManager {
 	 *               which the sub-tasks referenced in this class will be
 	 *               executed in order
          */
-	public ProxyReg(PortableServiceRegistrar proxy) {
+	public ProxyReg(ServiceRegistrar proxy) {
 	    if(proxy == null)  throw new IllegalArgumentException
                                                       ("proxy can't be null");
 	    this.proxy = proxy;
-	}//end constructor
-        
+	}//end constructor	    
+
         /** Convenience method that adds new sub-tasks to this class' 
          *  task queue.
          *
@@ -1354,12 +1326,17 @@ public class JoinManager {
 		    LogUtil.logThrow(logger, Level.INFO, ProxyReg.class, "fail",
 			"JoinManager - failure for lookup service proxy: {0}",
 			new Object[] { proxy }, e);
-		    discard(discMgr, proxy, logger);
+		    try {
+			discMgr.discard(proxy);
+		    } catch(IllegalStateException e1) {
+		       logger.log(Level.FINEST,
+				  "JoinManager - cannot discard lookup, "
+				  +"discovery manager already terminated",
+				  e1);
+		    }
 		}//endif
 	    }//end sync(this)
 	}//end ProxyReg.fail
-        
-
 
 	/** Returns true if the both objects' associated proxies are equal. */
 	public boolean equals(Object obj) {
@@ -1382,15 +1359,15 @@ public class JoinManager {
 	/* Invoked when new or previously discarded lookup is discovered. */
 	public void discovered(DiscoveryEvent e) {
 	    synchronized(joinSet) {
-		PortableServiceRegistrar[] proxys
-				       = (PortableServiceRegistrar[])e.getPRegistrars();
+		ServiceRegistrar[] proxys
+				       = (ServiceRegistrar[])e.getRegistrars();
 		for(int i=0;i<proxys.length;i++) {
 		    /* Prepare the proxy to the discovered lookup service
 					 * before interacting with it.
 					 */
 		    try {
 			proxys[i]
-			  = (PortableServiceRegistrar)registrarPreparer.prepareProxy
+			  = (ServiceRegistrar)registrarPreparer.prepareProxy
 								   (proxys[i]);
 			logger.log(Level.FINEST, "JoinManager - discovered "
 				   +"lookup service proxy prepared: {0}",
@@ -1400,7 +1377,7 @@ public class JoinManager {
 			    DiscMgrListener.class, "discovered", "failure "
 			    + "preparing discovered ServiceRegistrar proxy: "
 			    + "{0}", new Object[] { proxys[i] }, e1);
-			discard( discMgr, proxys[i], logger);
+			discMgr.discard(proxys[i]);
 			continue;
 		    }
 		    /* If the serviceItem is a lookup service, don't need to
@@ -1499,11 +1476,11 @@ public class JoinManager {
      *  references a proxy to one of the lookup services with which this
      *  join manager's service is registered.
      */
-    private final ArrayList<ProxyReg> joinSet = new ArrayList<ProxyReg>(1);
+    private final ArrayList joinSet = new ArrayList(1);
     /** Contains the discovery manager that discovers the lookup services
      *  with which this join manager will register its associated service.
      */
-    private DiscoveryListenerManagement discMgr = null;
+    private DiscoveryManagement discMgr = null;
     /** Contains the discovery listener registered by this join manager with
      *  the discovery manager so that this join manager is notified whenever
      *  one of the desired lookup services is discovered or discarded.
@@ -1635,29 +1612,12 @@ public class JoinManager {
      * @see net.jini.discovery.DiscoveryManagement
      * @see net.jini.discovery.LookupDiscoveryManager
      * @see net.jini.lease.LeaseRenewalManager
-     * @deprecated {@link replaced by #JoinManager(Object, Entry[],
-     * ServiceIDListener, LeaseRenewalManager, DiscoveryListenerManagement)}
      */
-    @Deprecated
      public JoinManager(Object serviceProxy,
                         Entry[] attrSets,
 			ServiceIDListener callback,
 			DiscoveryManagement discoveryMgr,
 			LeaseRenewalManager leaseMgr)    throws IOException
-    {
-        discMgr = discoveryMgr;
-        try {
-           createJoinManager(null, serviceProxy, attrSets, callback, leaseMgr,
-                             EmptyConfiguration.INSTANCE);
-        } catch(ConfigurationException e) { /* swallow this exception */ }
-    }//end constructor
-     
-     public JoinManager(Object serviceProxy,
-                        Entry[] attrSets,
-			ServiceIDListener callback,
-                        DiscoveryListenerManagement discoveryMgr,
-			LeaseRenewalManager leaseMgr
-                        )    throws IOException
     {
         discMgr = discoveryMgr;
         try {
@@ -1769,7 +1729,6 @@ public class JoinManager {
      * @see net.jini.config.Configuration
      * @see net.jini.config.ConfigurationException
      */
-     @Deprecated
      public JoinManager(Object serviceProxy,
                         Entry[] attrSets,
 			ServiceIDListener callback,
@@ -1783,19 +1742,6 @@ public class JoinManager {
                           callback, leaseMgr, config);
     }//end constructor
 
-     public JoinManager(Object serviceProxy,
-                        Entry[] attrSets,
-			ServiceIDListener callback,
-                        DiscoveryListenerManagement discoveryMgr,
-                        LeaseRenewalManager leaseMgr,			
-                        Configuration config)
-                                    throws IOException, ConfigurationException
-    {
-        discMgr = discoveryMgr;
-        createJoinManager(null, serviceProxy, attrSets,
-                          callback, leaseMgr, config);
-    }//end constructor
-     
     /** 
      * Constructs an instance of this class that will register the
      * service with all discovered lookup services, using the supplied 
@@ -1845,7 +1791,6 @@ public class JoinManager {
      * @see net.jini.discovery.LookupDiscoveryManager
      * @see net.jini.lease.LeaseRenewalManager
      */
-     @Deprecated
      public JoinManager(Object serviceProxy,
                         Entry[] attrSets,
 			ServiceID serviceID,
@@ -1860,22 +1805,6 @@ public class JoinManager {
         } catch(ConfigurationException e) { /* swallow this exception */ }
     }//end constructor
 
-     public JoinManager(Object serviceProxy,
-                        Entry[] attrSets,
-			ServiceID serviceID,
-                        DiscoveryListenerManagement discoveryMgr,
-                        LeaseRenewalManager leaseMgr
-			)
-                        throws IOException
-    {
-        discMgr = discoveryMgr;
-        try {
-           createJoinManager(serviceID, serviceProxy, attrSets,
-                             (ServiceIDListener)null, leaseMgr,
-                             EmptyConfiguration.INSTANCE);
-        } catch(ConfigurationException e) { /* swallow this exception */ }
-    }//end constructor
-     
     /** 
      * Constructs an instance of this class, configured using the items
      * retrieved through the given <code>Configuration</code>, that will
@@ -1940,25 +1869,11 @@ public class JoinManager {
      * @see net.jini.config.Configuration
      * @see net.jini.config.ConfigurationException
      */
-     @Deprecated
      public JoinManager(Object serviceProxy,
                         Entry[] attrSets,
 			ServiceID serviceID,
 			DiscoveryManagement discoveryMgr,
 			LeaseRenewalManager leaseMgr,
-                        Configuration config)
-                                    throws IOException, ConfigurationException
-    {
-        discMgr = discoveryMgr;
-        createJoinManager(serviceID, serviceProxy, attrSets,
-                          (ServiceIDListener)null, leaseMgr, config);
-    }//end constructor
-     
-     public JoinManager(Object serviceProxy,
-                        Entry[] attrSets,
-			ServiceID serviceID,
-                        DiscoveryListenerManagement discoveryMgr,
-                        LeaseRenewalManager leaseMgr,			
                         Configuration config)
                                     throws IOException, ConfigurationException
     {
@@ -1984,54 +1899,16 @@ public class JoinManager {
      * 
      * @see net.jini.discovery.DiscoveryManagement
      * @see net.jini.discovery.LookupDiscoveryManager
-     * @deprecated replaced by {@link #discoveryManager()}
      */
-    @Deprecated
     public DiscoveryManagement getDiscoveryManager(){
         synchronized(this) {
             if(bTerminated) {
                 throw new IllegalStateException("join manager was terminated");
             }//endif
         }//end sync
-        // Don't need to worry about facades, all implementers of the new 
-        // interfaces implement DiscoveryManagement, at least until this method is removed. 
-        if (discMgr instanceof DiscoveryManagement){
-            return (DiscoveryManagement) discMgr;
-        }
-	return null;
-        
+	return discMgr; 
     }//end getDiscoveryManager
-    
-    /** 
-     * Returns the instance of <code>DiscoveryListenerManagement</code> that was
-     * either passed into the constructor, or that was created as a result
-     * of <code>null</code> being input to that parameter.
-     * <p>
-     * The object returned by this method encapsulates the mechanism by which
-     * either the <code>JoinManager</code> or the entity itself can set
-     * discovery listeners and discard previously discovered lookup services
-     * when they are found to be unavailable.
-     *
-     * @return the instance of the <code>DiscoveryListenerManagement</code> interface
-     *         that was either passed into the constructor, or that was
-     *         created as a result of <code>null</code> being input to that
-     *         parameter.
-     * 
-     * @see net.jini.discovery.DiscoveryListenerManagement
-     * @see net.jini.discovery.RegistrarManagement
-     * @see net.jini.discovery.LookupDiscoveryManager
-     */
-    public DiscoveryListenerManagement discoveryManager(){
-        synchronized(this) {
-            if(bTerminated) {
-                throw new IllegalStateException("join manager was terminated");
-            }//endif
-        }//end sync
-        // Don't need to worry about revealing facades, they do that in their
-        // constructor.
-	return discMgr;
-    }//end getDiscoveryManager
-    
+
     /** 
      * Returns the instance of the <code>LeaseRenewalManager</code> class
      * that was either passed into the constructor, or that was created
@@ -2061,7 +1938,6 @@ public class JoinManager {
 	return leaseRenewalMgr;
     }//end getLeaseRenewalManager
 
-
     /** 
      * Returns an array of <code>ServiceRegistrar</code> objects, each
      * corresponding to a lookup service with which the service is currently
@@ -2075,7 +1951,7 @@ public class JoinManager {
      * 
      * @see net.jini.core.lookup.ServiceRegistrar
      */
-    public PortableServiceRegistrar[] getPJoinSet() {
+    public ServiceRegistrar[] getJoinSet() {
         synchronized(this) {
             if(bTerminated) {
                 throw new IllegalStateException("join manager was terminated");
@@ -2090,38 +1966,11 @@ public class JoinManager {
                     retList.add(proxyReg.proxy);
                 }//endif
 	    }//end loop
-            return ( (PortableServiceRegistrar[])(retList.toArray
-                                 (new PortableServiceRegistrar[retList.size()]) ) );
-	}//end sync(joinSet)
-    }//end getPJoinSet
-    
-    @Deprecated
-    public ServiceRegistrar[] getJoinSet() {
-        synchronized(this) {
-            if(bTerminated) {
-                throw new IllegalStateException("join manager was terminated");
-            }//endif
-        }//end sync
-	synchronized(joinSet) {
-            ArrayList<ServiceRegistrar> retList = 
-                    new ArrayList<ServiceRegistrar>(joinSet.size());
-	    int k = 0;
-	    for (Iterator iter = joinSet.iterator(); iter.hasNext(); ) {
-                ProxyReg proxyReg = (ProxyReg)iter.next();
-                if(proxyReg.srvcRegistration != null) {//test registration flag
-                    PortableServiceRegistrar psr = proxyReg.proxy;
-                    if (psr instanceof ServiceRegistrar){
-                        retList.add((ServiceRegistrar)psr);
-                    }else{
-                        retList.add(new ServiceRegistrarFacade(psr));
-                    }
-                }//endif
-	    }//end loop
             return ( (ServiceRegistrar[])(retList.toArray
                                  (new ServiceRegistrar[retList.size()]) ) );
 	}//end sync(joinSet)
     }//end getJoinSet
-    
+
     /** 
      * Returns an array containing the set of attributes currently associated
      * with the service. If the service is not currently associated with an
@@ -2711,12 +2560,10 @@ public class JoinManager {
 	if(discMgr == null) {
 	    bCreateDiscMgr = true;
             try {
-                // Changed to the new Interface which all DiscoveryManagers
-                // must implement.
-                discMgr = (DiscoveryListenerManagement)config.getEntry
+                discMgr = (DiscoveryManagement)config.getEntry
                                                  (COMPONENT_NAME,
                                                   "discoveryManager",
-                                                  DiscoveryListenerManagement.class);
+                                                  DiscoveryManagement.class);
             } catch(NoSuchEntryException e) { /* use default */
                 discMgr = new LookupDiscoveryManager
                                      (new String[] {""}, null, null, config);
@@ -2730,11 +2577,7 @@ public class JoinManager {
      *  such an element, returns that element; otherwise returns
      *  <code>null</code>.
      */
-    private ProxyReg findReg(PortableServiceRegistrar proxy) {
-        while ( proxy instanceof Facade){
-            Facade f = (Facade)proxy;
-            proxy = (PortableServiceRegistrar) f.reveal();
-        }
+    private ProxyReg findReg(ServiceRegistrar proxy) {
 	for (Iterator iter = joinSet.iterator(); iter.hasNext(); ) {
 	    ProxyReg reg =(ProxyReg)iter.next();
 	    if(reg.proxy.equals(proxy))  return reg;

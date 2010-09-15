@@ -31,7 +31,6 @@ import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.lookup.JoinManager;
 
 import net.jini.core.entry.Entry;
-import net.jini.discovery.DiscoveryListenerManagement;
 
 /** Regression test for bug #4671109.
  *
@@ -169,7 +168,7 @@ public class AddAttributesRace extends AbstractBaseTest {
 	joinMgrSrvcID = new JoinManager(testService,
 					serviceAttrs,
 					serviceID,
-					(DiscoveryListenerManagement) ldm,
+					ldm,
 					leaseMgr,
 					getConfig().getConfiguration());
 	joinMgrList.add(joinMgrSrvcID);

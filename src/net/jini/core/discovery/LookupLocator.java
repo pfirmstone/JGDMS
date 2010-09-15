@@ -29,16 +29,11 @@ import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.UnknownHostException;
+import java.rmi.MarshalledObject;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import javax.net.SocketFactory;
-import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.StreamServiceRegistrar;
-import net.jini.lookup.ServiceRegistrarFacade;
-import net.jini.lookup.StreamServiceRegistrarFacade;
-import net.jini.io.MarshalledInstance;
-import net.jini.io.MoToMiInputStream;
 
 /**
  * A utility class that performs unicast discovery, using version 1 of the
@@ -47,7 +42,6 @@ import net.jini.io.MoToMiInputStream;
  * @author Sun Microsystems, Inc.
  *
  * @since 1.0
- * @see{net.jini.discovery.LookupLocatorDiscovery}
  */
 public class LookupLocator implements Serializable {
     private static final long serialVersionUID = 1448769379829432795L;
@@ -313,7 +307,6 @@ public class LookupLocator implements Serializable {
 	return port;
     }
 
-
     /**
      * Perform unicast discovery and return the ServiceRegistrar
      * object for the given lookup service.  Unicast discovery is
@@ -330,38 +323,13 @@ public class LookupLocator implements Serializable {
      * @throws IOException an error occurred during discovery
      * @throws ClassNotFoundException if a class required to unmarshal the
      * <code>ServiceRegistrar</code> proxy cannot be found
-     * @deprecated replaced by {@link #reveal()}
      */
-    @Deprecated
     public ServiceRegistrar getRegistrar()
 	throws IOException, ClassNotFoundException
     {
 	return getRegistrar(defaultTimeout);
     }
-    
-    /**
-     * Perform unicast discovery and return the PortableServiceRegistrar
-     * object for the given lookup service.  Unicast discovery is
-     * performed anew each time this method is called.
-     * <code>LookupLocator</code> implements this method to simply invoke
-     * {@link #getRegistrar(int)} with a timeout value, which is determined
-     * by the value of the <code>net.jini.discovery.timeout</code> system
-     * property.  If the property is set, is not negative, and can be parsed as
-     * an <code>Integer</code>, the value of the property is used as the timeout
-     * value. Otherwise, a default value of <code>60</code> seconds is assumed.
-     *
-     * @return the PortableServiceRegistrar for the lookup service denoted by
-     * this LookupLocator object
-     * @throws IOException an error occurred during discovery
-     * @throws ClassNotFoundException if a class required to unmarshal the
-     * <code>ServiceRegistrar</code> proxy cannot be found
-     */
-    public StreamServiceRegistrar getStreamRegistrar()
-	throws IOException, ClassNotFoundException
-    {
-	return getStreamRegistrar(defaultTimeout);
-    }
-    
+
     /**
      * Perform unicast discovery and return the ServiceRegistrar
      * object for the given lookup service, with the given discovery timeout.
@@ -383,82 +351,8 @@ public class LookupLocator implements Serializable {
      * @throws ClassNotFoundException if a class required to unmarshal the
      * <code>ServiceRegistrar</code> proxy cannot be found
      * @throws IllegalArgumentException if <code>timeout</code> is negative
-     * @deprecated replaced by {@link #reveal(int)}
      */
-    @Deprecated
     public ServiceRegistrar getRegistrar(int timeout)
-            throws IOException, ClassNotFoundException
-    {
-        PortableServiceRegistrar psr = getPortableRegistrar(timeout);
-	if ( psr instanceof ServiceRegistrar) {
-            return (ServiceRegistrar) psr;
-        }
-        return new ServiceRegistrarFacade(psr);
-    }
-    
-    /**
-     * Perform unicast discovery and return the StreamServiceRegistrar
-     * object for the given lookup service, with the given discovery timeout.
-     * Unicast discovery is performed anew each time this method is called.
-     * <code>LookupLocator</code> implements this method to use the values
-     * of the <code>host</code> and <code>port</code> field in determining
-     * the host and port to connect to.
-     * 
-     * The Java CDC platform can only recieve implementations of
-     * PortableServiceRegistrar or StreamServiceRegistrar, however this
-     * method will return a ServiceRegistrar, wrapped as
-     * a StreamServiceRegistrar, the notify method will be converted on
-     * platforms that support java.rmi.MarshalledObject and will throw
-     * an UnsupportedMethodException on those that don't.
-     *
-     * <p>
-     * If a connection can be established to start unicast discovery
-     * but the remote end fails to respond within the given time
-     * limit, an exception is thrown.
-     *
-     * @param timeout the maximum time to wait for a response, in
-     * milliseconds.  A value of <code>0</code> specifies an infinite timeout.
-     * @return the StreamServiceRegistrar for the lookup service denoted by
-     * this LookupLocator object
-     * @throws IOException an error occurred during discovery
-     * @throws ClassNotFoundException if a class required to unmarshal the
-     * <code>ServiceRegistrar</code> proxy cannot be found
-     * @throws IllegalArgumentException if <code>timeout</code> is negative
-     */
-    public StreamServiceRegistrar getStreamRegistrar(int timeout)
-            throws IOException, ClassNotFoundException
-    {
-        PortableServiceRegistrar psr = getPortableRegistrar(timeout);
-        if ( psr instanceof StreamServiceRegistrar){
-            return (StreamServiceRegistrar) psr;
-        }
-        return new StreamServiceRegistrarFacade(psr);
-    }
-
-    /**
-     * Perform unicast discovery and return the PortableServiceRegistrar
-     * object for the given lookup service, with the given discovery timeout.
-     * Unicast discovery is performed anew each time this method is called.
-     * <code>LookupLocator</code> implements this method to use the values
-     * of the <code>host</code> and <code>port</code> field in determining
-     * the host and port to connect to.
-     *
-     * <p>
-     * If a connection can be established to start unicast discovery
-     * but the remote end fails to respond within the given time
-     * limit, an exception is thrown.
-     *
-     * @param timeout the maximum time to wait for a response, in
-     * milliseconds.  A value of <code>0</code> specifies an infinite timeout.
-     * @param true if a ServiceRegistrar instance is to be returned.
-     * @return the ServiceRegistrar for the lookup service denoted by
-     * this LookupLocator object
-     * @throws IOException an error occurred during discovery
-     * @throws ClassNotFoundException if a class required to unmarshal the
-     * <code>PortableServiceRegistrar</code> proxy cannot be found
-     * @throws IllegalArgumentException if <code>timeout</code> is negative
-     */
-    private PortableServiceRegistrar getPortableRegistrar(int timeout)
 	throws IOException, ClassNotFoundException
     {
 	InetAddress[] addrs = null;
@@ -473,9 +367,7 @@ public class LookupLocator implements Serializable {
             } else {
                 sock = sf.createSocket(host, port);
             }
-            PortableServiceRegistrar psr = 
-                    getRegistrarFromSocket(sock, timeout);
-	    return psr;
+	    return getRegistrarFromSocket(sock, timeout);
 	}
 	IOException ioEx = null;
 	SecurityException secEx = null;
@@ -488,9 +380,7 @@ public class LookupLocator implements Serializable {
                 } else {
                     sock = sf.createSocket(addrs[i], port);
                 }
-                PortableServiceRegistrar psr = 
-                        getRegistrarFromSocket(sock, timeout);
-                return psr;		
+		return getRegistrarFromSocket(sock, timeout);
 	    } catch (ClassNotFoundException ex) {
 		cnfEx = ex;
 	    } catch (IOException ex) {
@@ -512,7 +402,7 @@ public class LookupLocator implements Serializable {
     }
 
     // Convenience method to do unicast discovery on a socket
-    private static PortableServiceRegistrar getRegistrarFromSocket(Socket sock,
+    private static ServiceRegistrar getRegistrarFromSocket(Socket sock,
 							   int timeout)
 	throws IOException, ClassNotFoundException
     {
@@ -532,12 +422,10 @@ public class LookupLocator implements Serializable {
 		new DataOutputStream(sock.getOutputStream());
 	    dstr.writeInt(protoVersion);
 	    dstr.flush();
-            // Convert any MarshalledObject into MarshalledInstance.
 	    ObjectInputStream istr =
-		new MoToMiInputStream(sock.getInputStream());
-            // Reminder, should we check codebase integrity or make it an option?
-	    PortableServiceRegistrar registrar =
-		(PortableServiceRegistrar)((MarshalledInstance)istr.readObject()).get(false);
+		new ObjectInputStream(sock.getInputStream());
+	    ServiceRegistrar registrar =
+		(ServiceRegistrar)((MarshalledObject)istr.readObject()).get();
 	    for (int grpCount = istr.readInt(); --grpCount >= 0; ) {
 		istr.readUTF(); // ensure proper format, then discard
 	    }

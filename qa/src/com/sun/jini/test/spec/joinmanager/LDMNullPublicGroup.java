@@ -32,7 +32,6 @@ import net.jini.lookup.JoinManager;
 import net.jini.core.discovery.LookupLocator;
 
 import java.util.ArrayList;
-import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * This class verifies that when <code>null</code> is input to the
@@ -65,14 +64,12 @@ public class LDMNullPublicGroup extends AbstractBaseTest {
         super.setup(sysConfig);
         logger.log(Level.FINE, "creating a callback join manager ...");
         joinMgrCallback = new JoinManager(testService,serviceAttrs,callback,
-                                          (DiscoveryListenerManagement) discoveryMgr,
-                                          leaseMgr,
+                                          discoveryMgr,leaseMgr,
 					  sysConfig.getConfiguration());
         joinMgrList.add(joinMgrCallback);
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
-                                        (DiscoveryListenerManagement) discoveryMgr,
-                                        leaseMgr,
+                                        discoveryMgr,leaseMgr,
 					sysConfig.getConfiguration());
         joinMgrList.add(joinMgrSrvcID);
     }//end setup

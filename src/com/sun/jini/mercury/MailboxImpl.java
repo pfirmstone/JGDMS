@@ -130,7 +130,6 @@ import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.discovery.DiscoveryGroupManagement;
-import net.jini.discovery.DiscoveryListenerManagement;
 import net.jini.discovery.DiscoveryLocatorManagement;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.LookupDiscoveryManager;
@@ -394,7 +393,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * This can always be obtained from the JoinManager, so
      * this is just used as a shortcut.
      */
-    private DiscoveryListenerManagement lookupDiscMgr = null;
+    private DiscoveryManagement lookupDiscMgr = null;
 
     /** The attributes to use when joining lookup services */
     private Entry[] baseLookupAttrs = new Entry[] { 

@@ -27,7 +27,6 @@ import net.jini.lookup.JoinManager;
 import net.jini.core.lookup.ServiceRegistrar;
 
 import java.util.ArrayList;
-import net.jini.discovery.DiscoveryListenerManagement;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -70,14 +69,12 @@ public class GetJoinSetCallback extends AbstractBaseTest {
         if(callbackJM) {
             jm = new JoinManager(testService,serviceAttrs,
                                  new SrvcIDListener(testService),
-                                 (DiscoveryListenerManagement) getLookupDiscoveryManager(),
-                                 leaseMgr,
+                                 getLookupDiscoveryManager(),leaseMgr,
 				 sysConfig.getConfiguration());
             nServiceIDEventsExpected = 1;
         } else {//create a join manager that sends the generated ID in an event
             jm = new JoinManager(testService,serviceAttrs,serviceID,
-                                 (DiscoveryListenerManagement) getLookupDiscoveryManager(),
-                                 leaseMgr,
+                                 getLookupDiscoveryManager(),leaseMgr,
 				 sysConfig.getConfiguration());
             nServiceIDEventsExpected = 0;
         }//endif

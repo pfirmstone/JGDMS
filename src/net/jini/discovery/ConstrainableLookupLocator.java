@@ -18,8 +18,6 @@
 
 package net.jini.discovery;
 
-import net.jini.lookup.StreamServiceRegistrarFacade;
-import net.jini.lookup.ServiceRegistrarFacade;
 import com.sun.jini.discovery.Discovery;
 import com.sun.jini.discovery.DiscoveryConstraints;
 import com.sun.jini.discovery.UnicastResponse;
@@ -35,17 +33,15 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
-import net.jini.core.lookup.PortableServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.StreamServiceRegistrar;
 
 /**
  * <code>LookupLocator</code> subclass which supports constraint operations
  * through the {@link RemoteMethodControl} interface.  The constraints of a
  * <code>ConstrainableLookupLocator</code> instance control how it performs
- * unicast discovery, and apply only to its {@link LookupLocator#getPRegistrar()
- * getPRegistrar()} and {@link LookupLocator#getPRegistrar(int)
- * getPRegistrar(int)} methods.  The constraints may also be used by other
+ * unicast discovery, and apply only to its {@link LookupLocator#getRegistrar()
+ * getRegistrar()} and {@link LookupLocator#getRegistrar(int)
+ * getRegistrar(int)} methods.  The constraints may also be used by other
  * utilities, such as {@link LookupLocatorDiscovery}, to determine how unicast
  * discovery should be performed on behalf of a given
  * <code>ConstrainableLookupLocator</code> instance.  Untrusted
@@ -92,7 +88,7 @@ import net.jini.core.lookup.StreamServiceRegistrar;
  * used) perform unicast discovery to the host <code>target_host</code> on port
  * 4160 using discovery protocol version 2, with a socket read timeout of
  * 120000 milliseconds unless one was explicitly specified using the {@link
- * #getPRegistrar(int)} method.
+ * #getRegistrar(int)} method.
  */
 public final class ConstrainableLookupLocator
     extends LookupLocator implements RemoteMethodControl
@@ -101,9 +97,7 @@ public final class ConstrainableLookupLocator
 
     private static final int DEFAULT_TIMEOUT = 60 * 1000;
     private static final Method getRegistrarMethod;
-    private static final Method getStreamRegistrarMethod;
     private static final Method getRegistrarTimeoutMethod;
-    private static final Method getStreamRegistrarTimeoutMethod;
     static {
 	try {
 	    // REMIND: lookup methods on ConstrainableLookupLocator instead?
@@ -111,10 +105,6 @@ public final class ConstrainableLookupLocator
 		"getRegistrar", new Class[0]);
 	    getRegistrarTimeoutMethod = LookupLocator.class.getMethod(
 		"getRegistrar", new Class[]{ int.class });
-          	    getStreamRegistrarMethod = LookupLocator.class.getMethod(
-		"getStreamRegistrar", new Class[0]);
-	    getStreamRegistrarTimeoutMethod = LookupLocator.class.getMethod(
-		"getStreamRegistrar", new Class[]{ int.class });  
 	} catch (NoSuchMethodException e) {
 	    throw new AssertionError(e);
 	}
@@ -137,7 +127,7 @@ public final class ConstrainableLookupLocator
      * The <code>url</code> must be a valid URL of scheme <code>"jini"</code> as
      * described in <code>LookupLocator(String)</code>.  A <code>null
      * constraints</code> value is interpreted as mapping both
-     * <code>getPRegistrar</code> methods to empty constraints.
+     * <code>getRegistrar</code> methods to empty constraints.
      *
      * @param url the URL to use
      * @param constraints the constraints to apply to unicast discovery, or
@@ -162,7 +152,7 @@ public final class ConstrainableLookupLocator
      * rethrown.
      *
      * <p>A <code>null constraints</code> value is interpreted as mapping both
-     * <code>getPRegistrar</code> methods to empty constraints. The
+     * <code>getRegistrar</code> methods to empty constraints. The
      * <code>host</code> and <code>port</code> must satisfy the requirements of
      * the <code>LookupLocator(String, int)</code> constructor.
      *
@@ -184,10 +174,10 @@ public final class ConstrainableLookupLocator
 
     /**
      * Performs unicast discovery as specified by 
-     * <code>LookupLocator.getPRegistrar()</code> with the following differences.
+     * <code>LookupLocator.getRegistrar()</code> with the following differences.
      * <ul>
      * <li> It applies the supplied constraints (if any) for this method.
-     * <li> It does not invoke the <code>getPRegistrar(int)</code> method.
+     * <li> It does not invoke the <code>getRegistrar(int)</code> method.
      * <li> If no timeout constraints are specified, this method assumes a
      * default timeout of 60 seconds.  A non default timeout can only be
      * specified through the supplied constraints, the
@@ -199,69 +189,25 @@ public final class ConstrainableLookupLocator
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
-     * @deprecated replaced by {@link #getStreamRegistrar()}
      */
-    @Deprecated
-    @Override
     public ServiceRegistrar getRegistrar()
 	throws IOException, ClassNotFoundException
     {
-	PortableServiceRegistrar psr = getRegistrar((constraints != null) ?
+	return getRegistrar((constraints != null) ?
 	    constraints.getConstraints(getRegistrarMethod) :
 	    InvocationConstraints.EMPTY);
-        if ( psr instanceof ServiceRegistrar){
-            return (ServiceRegistrar) psr;
-        }
-        return new ServiceRegistrarFacade(psr);
     }
-    
+
     /**
      * Performs unicast discovery as specified by 
-     * <code>LookupLocator.getStreeamRegistrar()</code> with the following differences.
-     * <ul>
-     * <li> It applies the supplied constraints (if any) for this method.
-     * <li> It does not invoke the <code>getPRegistrar(int)</code> method.
-     * <li> If no timeout constraints are specified, this method assumes a
-     * default timeout of 60 seconds.  A non default timeout can only be
-     * specified through the supplied constraints, the
-     * <code>net.jini.discovery.timeout</code> system property is ignored.
-     * </ul>
-     * <code>ConstrainableLookupLocator</code> implements this method to use the
-     * values of the <code>host</code> and <code>port</code> field in
-     * determining the host and port to connect to.
-     * @throws java.io.IOException 
-     * @throws java.lang.ClassNotFoundException 
-     * @throws net.jini.io.UnsupportedConstraintException if the
-     * discovery-related constraints contain conflicts, or otherwise cannot be
-     * processed
-     * @since 2.2.0
-     */
-    @Override
-    public StreamServiceRegistrar getStreamRegistrar()
-	throws IOException, ClassNotFoundException
-    {
-	PortableServiceRegistrar psr = getRegistrar((constraints != null) ?
-	    constraints.getConstraints(getStreamRegistrarMethod) :
-	    InvocationConstraints.EMPTY);
-        if ( psr instanceof StreamServiceRegistrar){
-            return (StreamServiceRegistrar) psr;
-        }
-        return new StreamServiceRegistrarFacade(psr);
-    }
-    
-    /**
-     * Performs unicast discovery as specified by 
-     * <code>LookupLocator.getPRegistrar(int)</code>, additionally applying the
+     * <code>LookupLocator.getRegistrar(int)</code>, additionally applying the
      * supplied discovery constraints. The <code>timeout</code> is considered a
      * requirement with respect to other constraints specified for this
      * instance.
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
-     * @deprecated replaced by {@link #getStreamRegistrar(int)}
      */
-    @Deprecated
-    @Override
     public ServiceRegistrar getRegistrar(int timeout)
 	throws IOException, ClassNotFoundException
     {
@@ -270,42 +216,7 @@ public final class ConstrainableLookupLocator
 	    InvocationConstraints.EMPTY;
 	Collection reqs = new ArrayList(ic.requirements());
 	reqs.add(new UnicastSocketTimeout(timeout));
-	PortableServiceRegistrar psr =
-                getRegistrar(new InvocationConstraints(reqs, ic.preferences()));
-        if ( psr instanceof ServiceRegistrar){
-            return (ServiceRegistrar) psr;
-        }
-        return new ServiceRegistrarFacade(psr);
-    }
-    
-    /**
-     * Performs unicast discovery as specified by 
-     * <code>LookupLocator.getStreamRegistrar(int)</code>, additionally applying the
-     * supplied discovery constraints. The <code>timeout</code> is considered a
-     * requirement with respect to other constraints specified for this
-     * instance.
-     * @throws java.io.IOException 
-     * @throws java.lang.ClassNotFoundException 
-     * @throws net.jini.io.UnsupportedConstraintException if the
-     * discovery-related constraints contain conflicts, or otherwise cannot be
-     * processed
-     * @since 2.2.0
-     */
-    @Override
-    public StreamServiceRegistrar getStreamRegistrar(int timeout)
-	throws IOException, ClassNotFoundException
-    {
-	InvocationConstraints ic = (constraints != null) ?
-	    constraints.getConstraints(getStreamRegistrarTimeoutMethod) :
-	    InvocationConstraints.EMPTY;
-	Collection reqs = new ArrayList(ic.requirements());
-	reqs.add(new UnicastSocketTimeout(timeout));
-	PortableServiceRegistrar psr =
-                getRegistrar(new InvocationConstraints(reqs, ic.preferences()));
-        if ( psr instanceof StreamServiceRegistrar){
-            return (StreamServiceRegistrar) psr;
-        }
-        return new StreamServiceRegistrarFacade(psr);
+	return getRegistrar(new InvocationConstraints(reqs, ic.preferences()));
     }
 
     /**
@@ -327,7 +238,7 @@ public final class ConstrainableLookupLocator
 	return constraints;
     }
 
-    private PortableServiceRegistrar getRegistrar(InvocationConstraints constraints)
+    private ServiceRegistrar getRegistrar(InvocationConstraints constraints)
 	throws IOException, ClassNotFoundException
     {
 	UnicastResponse resp = new MultiIPDiscovery() {	    
@@ -340,6 +251,6 @@ public final class ConstrainableLookupLocator
 		    s, dc.getUnfulfilledConstraints(), null, null, null);
 	    }
 	}.getResponse(host, port, constraints);
-	return resp.getPRegistrar();
+	return resp.getRegistrar();
     }
 }
