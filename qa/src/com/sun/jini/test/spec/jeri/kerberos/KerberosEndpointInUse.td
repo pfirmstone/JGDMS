@@ -15,3 +15,5 @@ testjvmargs=${testjvmargs},\
 -DserverKeytabLocation=${com.sun.jini.qa.harness.kerberos.aggregatePasswordFile},\
 -Djeri.transport.kerberosServer=${com.sun.jini.qa.harness.kerberos.serverPrincipal},\
 -Djeri.transport.kerberosClient=${com.sun.jini.qa.harness.kerberos.clientPrincipal}
+
+com.sun.jini.qa.harness.verifier=com.sun.jini.qa.harness.SkipTestVerifier

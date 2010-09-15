@@ -2072,7 +2072,7 @@
     -->
     <target name="qa.run" depends="" description="Run QA tests">
         <property name="run.categories"
-                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox"/>
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri"/>
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="run-categories" inheritall="false" >
             <property name="run.categories" value="${run.categories}" />
