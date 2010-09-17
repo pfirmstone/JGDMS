@@ -407,7 +407,6 @@
 			jsk-resources.jar,
 			jsk-platform.jar,
 			jsk-policy.jar,
-                        concurrent-policy-util.jar,
 			sun-util.jar" />
 
     <target name="services.jars" depends="toolswrappers.jars,
@@ -836,30 +835,6 @@
         <jar destfile="${lib-ext.dir}/jsk-policy.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${jsk-policy.deps}"/>
-        </jar>
-    </target>
-
-        <target name="concurrent-policy-util.jar" depends="compile">
-        <property name="concurrent-policy-util.deps" 
-                location="${build.deps.dir}/concurrent-policy-util.deps"/>
-        <classdep output="${concurrent-policy-util.deps}"
-                classpathref="classdep.classes.classpath">
-            <arg value="-cp"/>
-            <arg path="${build.classes.dir}"/>
-            <arg value="-files"/>
-            <arg value="org.apache.river.imp.security.policy.se.ConcurrentPolicyFile"/>
-            <arg value="org.apache.river.imp.security.policy.se.DynamicConcurrentPolicyProvider"/>
-            <arg line="-in org.apache.river"/>
-            <arg line="-out org.apache.river.api"/>
-            <arg line="-out org.apache.river.imp.security.policy.spi"/>
-        </classdep>
-        <delete file="${lib-ext.dir}/concurrent-policy-util.jar" quiet="true"/>
-        <jar destfile="${lib-ext.dir}/concurrent-policy-util.jar"
-		     index="false">
-            <fileset dir="${build.classes.dir}" 
-                includesfile="${concurrent-policy-util.deps}"/>
-            <fileset dir="${src.manifest.dir}/concurrent-policy-util"
-				 includes="META-INF/services/org.apache.river.imp.security.policy.spi.RevokeableDynamicPolicySpi"/>
         </jar>
     </target>
 
