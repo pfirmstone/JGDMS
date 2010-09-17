@@ -67,10 +67,7 @@ import net.jini.core.lease.Lease;
  * 
  * @author Sun Microsystems, Inc.
  * @see Lease 
- * @deprecated not replaced, only used by {@link LeaseRenewalSet} which is also 
- * deprecated.
  */
-@Deprecated
 public class LeaseUnmarshalException extends Exception {
     private static final long serialVersionUID = -6736107321698417489L;
 

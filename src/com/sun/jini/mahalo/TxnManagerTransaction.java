@@ -18,6 +18,7 @@
 package com.sun.jini.mahalo;
 
 import net.jini.id.Uuid;
+import net.jini.core.lease.Lease;
 import net.jini.core.transaction.*;
 import net.jini.core.transaction.server.*;
 import net.jini.security.ProxyPreparer;
@@ -31,13 +32,18 @@ import com.sun.jini.logging.Levels;
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 
+import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.util.Enumeration;
 
+import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.Map;
 import java.util.Vector;
 
 /**

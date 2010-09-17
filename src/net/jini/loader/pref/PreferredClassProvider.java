@@ -32,6 +32,7 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLClassLoader;
+import java.rmi.server.RMIClassLoader;
 import java.rmi.server.RMIClassLoaderSpi;
 import java.security.AccessController;
 import java.security.CodeSource;
@@ -48,20 +49,19 @@ import java.util.WeakHashMap;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.loader.ClassAnnotation;
-import net.jini.loader.CodebaseAccessClassLoader;
 import net.jini.loader.DownloadPermission;
 
 /**
- * An <code>CodebaseAccessClassLoader</code> provider that supports preferred
+ * An <code>RMIClassLoader</code> provider that supports preferred
  * classes.
  *
- * <p>See the {@link CodebaseAccessClassLoader} specification for information
- * about how to install and configure the <code>CodebaseAccessClassLoader</code>
+ * <p>See the {@link RMIClassLoader} specification for information
+ * about how to install and configure the <code>RMIClassLoader</code>
  * service provider.
  *
  * <p><code>PreferredClassProvider</code> uses instances of {@link
  * PreferredClassLoader} to load classes from codebase URL paths
- * supplied to <code>CodebaseAccessClassLoader.loadClass</code> methods.
+ * supplied to <code>RMIClassLoader.loadClass</code> methods.
  *
  * <p><code>PreferredClassProvider</code> does not enforce {@link
  * DownloadPermission} by default, but a subclass can configure it to
@@ -79,7 +79,7 @@ import net.jini.loader.DownloadPermission;
  *
  * The following section defines terms and describes behaviors common
  * to how <code>PreferredClassProvider</code> implements the abstract
- * methods of <code>CodebaseAccessClassLoaderSpi</code>.  Where applicable, these
+ * methods of <code>RMIClassLoaderSpi</code>.  Where applicable, these
  * definitions and descriptions are relative to the instance of
  * <code>PreferredClassProvider</code> on which a method is invoked
  * and the context in which it is invoked.
@@ -282,10 +282,10 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     /**
      * Creates a new <code>PreferredClassProvider</code>.
      *
-     * <p>This constructor is used by the {@link CodebaseAccessClassLoader}
+     * <p>This constructor is used by the {@link RMIClassLoader}
      * service provider location mechanism when
      * <code>PreferredClassProvider</code> is configured as the
-     * <code>CodebaseAccessClassLoader</code> provider class.
+     * <code>RMIClassLoader</code> provider class.
      *
      * <p>If there is a security manager, its {@link
      * SecurityManager#checkCreateClassLoader checkCreateClassLoader}
@@ -387,7 +387,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 
     /**
      * Provides the implementation for {@link
-     * CodebaseAccessClassLoaderSpi#loadClass(String,String,ClassLoader)}.
+     * RMIClassLoaderSpi#loadClass(String,String,ClassLoader)}.
      *
      * <p><code>PreferredClassProvider</code> implements this method
      * as follows:
@@ -684,7 +684,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 
     /**
      * Provides the implementation for {@link
-     * CodebaseAccessClassLoaderSpi#getClassAnnotation(Class)}.
+     * RMIClassLoaderSpi#getClassAnnotation(Class)}.
      *
      * <p><code>PreferredClassProvider</code> implements this method
      * as follows:
@@ -1416,14 +1416,23 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     }
 
     /** map from weak(key=string) to [URL[], soft(key)] */
-    private final static Map pathToURLsCache = new WeakHashMap(5);
+    private static Map pathToURLsCache = new WeakHashMap(5);
 
     /**
      * Return the class loader to be used as the parent for an RMI class
      * loader used in the current execution context.
      */
     private static ClassLoader getRMIContextClassLoader() {
-		return CodebaseAccessClassLoader.getParentContextClassLoader();
+	/*
+	 * The current implementation simply uses the current thread's
+	 * context class loader.
+	 */
+	return (ClassLoader) AccessController.doPrivileged(
+	    new PrivilegedAction() {
+		public Object run() {
+		    return Thread.currentThread().getContextClassLoader();
+		}
+	    });
     }
 
     /**
@@ -1657,15 +1666,13 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 					    final boolean requireDlPerm)
     {
 	checkInitialized();
-	return CodebaseAccessClassLoader.createClassLoader( urls, parent, requireDlPerm,
-			PreferredClassLoader.getLoaderAccessControlContext(urls) );
-//	return (ClassLoader)
-//	    AccessController.doPrivileged(new PrivilegedAction() {
-//		public Object run() {
-//		    return new PreferredClassLoader(urls, parent, null,
-//						    requireDlPerm);
-//		}
-//	    }, PreferredClassLoader.getLoaderAccessControlContext(urls));
+	return (ClassLoader)
+	    AccessController.doPrivileged(new PrivilegedAction() {
+		public Object run() {
+		    return new PreferredClassLoader(urls, parent, null,
+						    requireDlPerm);
+		}
+	    }, PreferredClassLoader.getLoaderAccessControlContext(urls));
     }
 
     /**
@@ -1690,7 +1697,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    }
 	    hashValue = h;
 	}
-        
+
 	public int hashCode() {
 	    return hashValue;
 	}

@@ -26,7 +26,6 @@ import java.net.MalformedURLException;
 import java.net.URL;
 import java.rmi.RemoteException;
 import java.security.AccessControlContext;
-import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.DomainCombiner;
 import java.security.Permission;
@@ -51,8 +50,6 @@ import javax.security.auth.Subject;
 import javax.security.auth.SubjectDomainCombiner;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.SecurityContextSource;
-import org.apache.river.api.security.ExecutionContextManager;
-import org.apache.river.api.security.RevokeableDynamicPolicy;
 
 /**
  * Provides methods for executing actions with privileges enabled, for
@@ -169,11 +166,7 @@ public final class Security {
 	AccessController.doPrivileged(new PrivilegedAction() {
 	    public Object run() { return new ClassContextAccess(); }
 	});
-    /**
-     * ExecutionContextManager 
-     * null unless found, never returned.
-     */
-     private static volatile ExecutionContextManager ecm = null;
+
     /**
      * Non-instantiable.
      */
@@ -554,67 +547,6 @@ public final class Security {
 		}
 	    }
 	});
-    }
-    
-    /**
-     * <p>
-     * An optimised permission check, using the following strategies to
-     * reduce the cost of checking Permission:
-     * </p>
-     * <OL>
-     * <LI>Multiple permission checks may be performed together, the current
-     * execution AccessControlContext is only obtained once per invocation
-     * of this method, since identified as an expensive native code call. 
-     * The returned AccessControlContext is used for all Permission checks.
-     * <LI>The result from an AccessControlContext.checkPermission(Permission)
-     * call is cached for that AccessControlContext, so checkPermission will 
-     * only be called once, if it succeeds. If a RevokeableDynamicPolicy 
-     * is installed, checkPermission may be called again, on a following
-     * invocation if a Permission revocation has cleared it's result from the cache.
-     * <LI>Permission's are only stored in the cache based on equality, implies
-     * is not called in the cache.  This doesn't widen the scope of the cache
-     * since the tradeoff is that some implies calls are expensive.
-     * <LI>The cache used is backed by a SoftReference based ConcurrentHashMap
-     * </OL>
-     * <p>
-     * This is designed to be used in combination with Permission checks
-     * for Permission's that are Revokeable, but may also be used for optimising other
-     * non revokeable Permission checks.  A non revokeable Permission is a 
-     * Permission that guards a reference or prevents object creation, but
-     * does not prevent use of a privelege or object, if it reference escapes.
-     * see the RevokeableDynamicPolicy for details.
-     * </p><p>
-     * By lessening the cost of Permission calls it is intended that the performance
-     * impact of security checking be reduced sufficiently to provide a 
-     * wider scope for revokeable Permissions.
-     * </p><p>
-     * If a RevokeableDynamicPolicy is not installed, this method will call
-     * AccessController.checkPermission, without any optimisations.
-     * </p>
-     * @param permissions
-     * @throws java.lang.NullPointerException
-     * @throws java.security.AccessControlException
-     * @see RevokeableDynamicPolicy
-     * @see ExecutionContextManager
-     * @see AccessController
-     * @see AccessControlContext
-     */
-    public static void checkPermission(Collection<Permission> permissions)
-	    throws NullPointerException, AccessControlException
-    {
-	if (ecm == null){
-	    Policy policy = getPolicy();
-	    if (!(policy instanceof RevokeableDynamicPolicy)) {
-		Iterator<Permission> perms = permissions.iterator();
-		while (perms.hasNext()){
-		    Permission perm = perms.next();
-		    AccessController.checkPermission(perm);
-		}
-		return;
-	    }
-	    ecm = ((RevokeableDynamicPolicy) policy).getExecutionContextManager();
-	}
-	ecm.checkPermission(permissions);
     }
     
     /**

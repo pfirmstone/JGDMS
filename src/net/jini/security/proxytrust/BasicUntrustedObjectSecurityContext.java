@@ -62,15 +62,6 @@ public final class BasicUntrustedObjectSecurityContext
      * neither modified nor retained; subsequent changes to that argument
      * have no effect on the instance created.
      *
-     * If additional permissions are passed in these will be added to a new 
-     * ProtectionDomain and set readonly, additional Permission's may be
-     * granted by a Policy, however any permissions granted at construction
-     * time will always be valid and cannot be revoked.
-     * 
-     * If permissions is null or empty then all BasicUntrustedObjectSecurityContext
-     * instances will share the same ProtectionDomain with all other instances
-     * without additional permissions.
-     *
      * @param permissions additional permissions to allow, or
      * <code>null</code> if no additional permissions should be allowed
      * @throws NullPointerException if any element of the argument is

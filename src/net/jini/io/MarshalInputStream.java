@@ -23,18 +23,19 @@ import java.io.InputStream;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
+import java.net.MalformedURLException;
+import java.rmi.server.RMIClassLoader;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import net.jini.loader.ClassLoading;
-import net.jini.loader.CodebaseAccessClassLoader;
 import net.jini.security.Security;
 
 /**
  * An extension of <code>ObjectInputStream</code> that implements the
  * dynamic class loading semantics of Java(TM) Remote Method
  * Invocation (Java RMI) argument and result
- * unmarshalling (using {@link CodebaseAccessClassLoader}).  A
+ * unmarshalling (using {@link RMIClassLoader}).  A
  * <code>MarshalInputStream</code> is intended to read data written by
  * a corresponding {@link MarshalOutputStream}.
  *
@@ -45,10 +46,10 @@ import net.jini.security.Security;
  * class descriptors in the stream using {@link ClassLoading#loadClass
  * ClassLoading.loadClass} and {@link ClassLoading#loadProxyClass
  * ClassLoading.loadProxyClass} (which, in turn, use {@link
- * CodebaseAccessClassLoader#loadClass(String,String,ClassLoader)
- * CodebaseAccessClassLoader.loadClass} and {@link
- * CodebaseAccessClassLoader#loadProxyClass(String,String[],ClassLoader)
- * CodebaseAccessClassLoader.loadProxyClass}), optionally with codebase
+ * RMIClassLoader#loadClass(String,String,ClassLoader)
+ * RMIClassLoader.loadClass} and {@link
+ * RMIClassLoader#loadProxyClass(String,String[],ClassLoader)
+ * RMIClassLoader.loadProxyClass}), optionally with codebase
  * annotation strings written by a <code>MarshalOutputStream</code>.
  *
  * <p>By default, a <code>MarshalInputStream</code> ignores all

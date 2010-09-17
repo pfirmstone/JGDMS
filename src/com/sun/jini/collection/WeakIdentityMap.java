@@ -23,32 +23,26 @@ import java.lang.ref.WeakReference;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Set;
 
 /**
- * Identity-based weak hash map.  Updated to support Generics and Map<K,V> on
- * 22nd March 2010
+ * Identity-based weak hash map.
  *
- * @param K Object Key used for identity
- * @param V Object Value
  * @author Sun Microsystems, Inc.
- * @author Peter Firmstone 
- * @version 2.0 - Generic Support and Map<K,V> added.
+ *
  * @since 2.0
  */
-public class WeakIdentityMap<K,V> implements Map<K,V>{
+public class WeakIdentityMap {
 
     // REMIND: optimize implementation (clone new java.util.WeakHashMap?)
 
-    private final Map<Key, V> map = new HashMap<Key, V>();
+    private final Map map = new HashMap();
     private final ReferenceQueue queue = new ReferenceQueue();
 
     /**
      * Associates value with given key, returning value previously associated
      * with key, or null if none.
      */
-    public V put(K key, V value) {
+    public Object put(Object key, Object value) {
 	processQueue();
 	return map.put(Key.create(key, queue), value);
     }
@@ -56,7 +50,7 @@ public class WeakIdentityMap<K,V> implements Map<K,V>{
     /**
      * Returns value associated with given key, or null if none.
      */
-    public V get(Object key) {
+    public Object get(Object key) {
 	processQueue();
 	return map.get(Key.create(key, null));
     }
@@ -65,7 +59,7 @@ public class WeakIdentityMap<K,V> implements Map<K,V>{
      * Removes association for given key, returning value previously associated
      * with key, or null if none.
      */
-    public V remove(Object key) {
+    public Object remove(Object key) {
 	processQueue();
 	return map.remove(Key.create(key, null));
     }
@@ -73,7 +67,7 @@ public class WeakIdentityMap<K,V> implements Map<K,V>{
     /**
      * Returns collection containing all values currently held in this map.
      */
-    public Collection<V> values() {
+    public Collection values() {
 	processQueue();
 	return map.values();
     }
@@ -93,28 +87,30 @@ public class WeakIdentityMap<K,V> implements Map<K,V>{
 	}
     }
 
-    private static class Key<T> extends WeakReference<T> {
+    private static class Key extends WeakReference {
 
 	private final int hash;
 
-        @SuppressWarnings("unchecked")
 	static Key create(Object k, ReferenceQueue q) {
-	    //if (k == null) {return null;} Not so sure we should return null
-            if (q == null) {return new Key(k);} 
-            return new Key(k, q);
+	    if (k == null) {
+		return null;
+	    } else if (q == null) {
+		return new Key(k);
+	    } else {
+		return new Key(k, q);
+	    }
 	}
 
-	private Key(T k) {
+	private Key(Object k) {
 	    super(k);
 	    hash = System.identityHashCode(k);
 	}
 
-	private Key(T k, ReferenceQueue<? super T> q) {
+	private Key(Object k, ReferenceQueue q) {
 	    super(k, q);
 	    hash = System.identityHashCode(k);
 	}
 
-        @Override
 	public boolean equals(Object o) {
 	    if (this == o) {
 		return true;
@@ -125,37 +121,8 @@ public class WeakIdentityMap<K,V> implements Map<K,V>{
 	    return (k1 != null && k2 != null && k1 == k2);
 	}
 
-        @Override
 	public int hashCode() {
 	    return hash;
 	}
-    }
-
-    public int size() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    public boolean isEmpty() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    public boolean containsKey(Object key) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    public boolean containsValue(Object value) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    public void putAll(Map<? extends K, ? extends V> m) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    public Set<K> keySet() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
-
-    public Set<Entry<K, V>> entrySet() {
-        throw new UnsupportedOperationException("Not supported yet.");
     }
 }

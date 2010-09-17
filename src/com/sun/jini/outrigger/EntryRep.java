@@ -34,10 +34,12 @@ import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
+import java.rmi.server.RMIClassLoader;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Iterator;
 import java.util.Comparator;
 import java.util.WeakHashMap;
 import java.util.logging.Logger;
@@ -48,8 +50,6 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.loader.ClassLoading;
-import net.jini.loader.CodebaseAccessClassLoader;
-import net.jini.space.JavaSpace;
 
 /**
  * An <code>EntryRep</code> object contains a packaged
@@ -234,7 +234,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
 	if (validate)
 	    ensureValidClass(realClass);
 	className = realClass.getName();
-	codebase = CodebaseAccessClassLoader.getClassAnnotation(realClass);
+	codebase = RMIClassLoader.getClassAnnotation(realClass);
 
 	/*
 	 * Build up the per-field and superclass information through
@@ -489,10 +489,6 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
 	} catch (MarshalException e) {
 	    // because we call findHash() w/ false, should never happen
 	    throw new AssertionError(e);
-	} catch (IOException e) {
-	    // see above
-	    throw throwNewUnusableEntryException("I/O Error " +
-		"associated with entry of type " + className, e);
 	}
     }
 

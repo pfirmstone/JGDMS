@@ -50,7 +50,6 @@ import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
-import net.jini.io.MiToMoOutputStream;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages
@@ -726,7 +725,7 @@ class JoinStateManager extends LogHandler {
         // this makes sure that the attribute's code base is preserved
         // and when we unpack to discard attributes who's codebase
         // has been lost without throwing away those we can still deal with.
-        // ObjectOutput newOut = new MiToMoOutputStream(out);
+         
         out.writeInt(attributes.length);
         for (int i=0; i<attributes.length; i++) {
             out.writeObject(new MarshalledObject(attributes[i]));

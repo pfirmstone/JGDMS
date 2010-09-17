@@ -22,10 +22,10 @@ import net.jini.core.entry.Entry;
 import net.jini.lookup.entry.ServiceControlled;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.rmi.MarshalledObject;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Comparator;
-import net.jini.io.MarshalledInstance;
 
 /**
  * Some simple utilities for manipulating lookup service attributes.
@@ -345,7 +345,7 @@ public class LookupAttributes {
 	    c == Short.class)
 	    return o1.equals(o2);
 	try {
-	    return new MarshalledInstance(o1).equals(new MarshalledInstance(o2));
+	    return new MarshalledObject(o1).equals(new MarshalledObject(o2));
 	} catch (IOException ex) {
 	    throw new IllegalArgumentException("unexpected IOException");
 	}

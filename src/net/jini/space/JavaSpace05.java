@@ -18,12 +18,17 @@
 package net.jini.space;
 
 import java.rmi.MarshalledObject;
+import java.rmi.MarshalException;
 import java.rmi.RemoteException;
 import java.util.Collection;
 import java.util.List;
 
+import net.jini.core.entry.Entry;
+import net.jini.core.entry.UnusableEntryException;
 import net.jini.core.event.EventRegistration;
+import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
+import net.jini.core.lease.Lease;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import net.jini.entry.UnusableEntriesException;

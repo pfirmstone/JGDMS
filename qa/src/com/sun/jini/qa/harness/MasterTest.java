@@ -17,7 +17,6 @@
  */
 package com.sun.jini.qa.harness;
 
-import com.sun.jini.tool.ProfilingSecurityManager;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;

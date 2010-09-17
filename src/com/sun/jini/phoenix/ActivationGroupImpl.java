@@ -32,6 +32,7 @@ import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.activation.*;
 import java.rmi.server.ExportException;
+import java.rmi.server.RMIClassLoader;
 import java.rmi.server.RemoteObject;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.AccessController;
@@ -54,7 +55,6 @@ import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
-import net.jini.loader.CodebaseAccessClassLoader;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
@@ -617,7 +617,7 @@ public class ActivationGroupImpl extends ActivationGroup
      * <p>Otherwise:
      *
      * <p>The class for the object is loaded by invoking {@link
-     * CodebaseAccessClassLoader#loadClass(String,String) CodebaseAccessClassLoader.loadClass}
+     * RMIClassLoader#loadClass(String,String) RMIClassLoader.loadClass}
      * passing the class location (obtained by invoking {@link
      * ActivationDesc#getLocation getLocation} on the activation
      * descriptor) and the class name (obtained by invoking {@link
@@ -693,7 +693,7 @@ public class ActivationGroupImpl extends ActivationGroup
 	    }
 
 	    String className = desc.getClassName();
-	    final Class cl = CodebaseAccessClassLoader.loadClass(desc.getLocation(),
+	    final Class cl = RMIClassLoader.loadClass(desc.getLocation(),
 						      className);
 	    final Thread t = Thread.currentThread();
 	    final ClassLoader savedCcl = t.getContextClassLoader();
