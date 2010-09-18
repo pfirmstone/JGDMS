@@ -132,7 +132,7 @@ public class ConfirmingILFactory extends BasicILFactory {
 		null,
 		"Permit incoming remote call?" +
 		"\n  Client: " + (client != null
-				  ? client.toString() : "not active") +
+				  ? client.getClientHost() : "not active") +
 		"\n  Object: " + obj +
 		"\n  Method: " + method.getName() +
 		"\n  Call id: " + callId,
