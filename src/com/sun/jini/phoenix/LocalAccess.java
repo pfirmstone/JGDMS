@@ -29,6 +29,8 @@ import net.jini.export.ServerContext;
 import net.jini.io.context.ClientHost;
 
 /**
+ * Definition of an access control only allowing calls from the local host.
+ *
  * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
@@ -39,6 +41,20 @@ class LocalAccess {
     private LocalAccess() {
     }
 
+    /**
+     * Checks whether a call was made by a local host.
+     * Specifically, this means that if, in the dispatched call,
+     * there is a ServerContext and it contains an element
+     * that is an instance of ClientHost, then if the InetAddress
+     * returned by ClientHost.getClientHost is not a local
+     * network interface (according to NetworkInterface.getByInetAddress)
+     * or not a loopback address
+     * (according to NetworkInterface.isLoopBackAddress),
+     * the call will be rejected; in all other cases,
+     * the call will be accepted.
+     * 
+     * @throws AccessControlException when the origin is not a local host
+     */
     public static synchronized void check() {
 	ClientHost host = null;
 	try {
@@ -52,8 +68,8 @@ class LocalAccess {
 	Boolean ok = (Boolean) cache.get(addr);
 	if (ok == null) {
 	    try {
-		ok = Boolean.valueOf(NetworkInterface.getByInetAddress(
-					addr) != null);
+		ok = Boolean.valueOf(addr != null && (NetworkInterface.getByInetAddress(
+					addr) != null || addr.isLoopbackAddress()));
 	    } catch (IOException e) {
 		ok = Boolean.FALSE;
 	    }
