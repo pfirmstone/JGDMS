@@ -32,6 +32,7 @@
 
     <!-- directory settings -->
     <property name="trust.dir" location="harness/trust"/>
+    <property name="result.dir" location="result"/>
 
     <!-- javadoc setings -->
     <property name="javadoc.doc-title" value="${product.title} QA Harness and Test API Documentation"/>
@@ -92,7 +93,7 @@
     </target>
 
     <target name="clean-result">
-        <delete dir="${basedir}/result"/>
+        <delete dir="${result.dir}"/>
     </target>
 
     <target name="clean-build">
@@ -160,7 +161,6 @@
             </filelist>
         </move>
         <move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>
-        <!--<move file="${river.lib-ext.dir}/concurrent-policy-util.jar" todir="${jtreg.dir}/JTlib-tmp"/>-->
         <jtreg  dir="${jtreg.dir}" verbose="all,nopass" failonerror="false"
                 errorproperty="jtreg.fail" failureproperty="jtreg.fail"
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
@@ -187,7 +187,6 @@
             </filelist>
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
-        <!--<move file="${jtreg.dir}/JTlib-tmp/concurrent-policy-util.jar" todir="${river.lib-ext.dir}"/>-->
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>
         <fail if="jtreg.fail"/>
@@ -204,12 +203,9 @@
             </filelist>
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
-        <!--<move file="${jtreg.dir}/JTlib-tmp/concurrent-policy-util.jar" todir="${river.lib-ext.dir}"/>-->
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>
     </target>
-
-
 
     <macrodef name="testrun">
         <element name="tr-elements" optional="true" implicit="true"/>
@@ -269,24 +265,7 @@
     </macrodef>
 
     <target name="run-tests" depends="" description="Execute specific QA test(s)">
-        <!--<property name="run.tests" value="com/sun/jini/test/impl/discoverymanager/RemoveGroupsLocsDiscard.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/impl/locatordiscovery/DelayDiscoveryAfterDiscard.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoGetProperty.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoAccessClass.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoAccessClass.td,com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/SecurityExceptionConstructorNoGetProperty.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/policyFileProvider/NullPolicy.td"/>*pass*-->
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/joinmanager/GetDiscoveryManager.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/joinmanager/TerminateDiscovery.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/ZRegisterStorm.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipalSame.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantPrincipal.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/GrantNoPrincipalCase02.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/loader/pref/preferredClassLoader/GetPermissionsSecurityException.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/loader/pref/preferredClassProvider/LoadClassesSecurityExceptionHttpCann.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/dynamicPolicyProvider/NullCases.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/spec/policyprovider/revokableDynamicPolicyProvider/OptimisedPermissionCheck.td"/>-->
-        <!--<property name="run.tests" value="com/sun/jini/test/impl/servicediscovery/event/DiscardDownReDiscover.td"/>-->
-        <property name="run.tests" value="com/sun/jini/test/spec/servicediscovery/event/SetAttrServiceChanged.td"/>
-        <!--<property name="run.tests" value=""/>-->
+        <property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>
         <testrun>
             <!-- Run specific test(s) -->
             <arg value="-tests"/>
@@ -294,21 +273,34 @@
         </testrun>
     </target>
     
-    <target name="run-all" depends="run-categories, jtreg" description="Execute QA and Jtreg tests">
-    </target>
+    <target name="run-all" depends="run-categories, jtreg" description="Execute QA and Jtreg tests" />
 
     <target name="run-categories" depends="" description="Execute QA test categories">
         <!-- categories can be found under packages com.sun.jini.test.impl and com.sun.jini.test.spec, some of them: -->
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,
         eventmailbox,jeri,iiop,jrmp,reliability,scalability,thread,renewalservice"/>-->
-        <property name="run.categories" value="servicediscovery"/>
+        <property name="run.categories"
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders"/>
         <testrun>
              <!-- Run one or more test categories -->
             <arg value="-categories"/>
             <arg value="${run.categories}" />
         </testrun>
     </target>
+
+    <condition property="resultHtmlAvailable">
+        <or>
+            <available file="${result.dir}/index.html"/>
+            <istrue value="${harness.generateHtml}"/>
+        </or>
+    </condition>
+
+    <target name="collect-result" if="resultHtmlAvailable">
+        <zip basedir="${result.dir}" file="${result.dir}/qaresults-${os.arch}-${os.name}-${java.version}.zip" />
+    </target>
+
+    <target name="run" depends="run-categories,collect-result"/>
 
     <target name="doc" depends="compile"
 		description="Generate javadoc documentation">

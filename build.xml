@@ -306,21 +306,10 @@
             <package name="net.jini.security"/>
             <package name="net.jini.security.policy"/>
             <package name="net.jini.security.proxytrust"/>
-            <package name="org.apache.river.security"/>
-            <package name="org.apache.river.imp.security.policy.se"/>
-            <package name="org.apache.river.imp.security.policy.cdc"/>
-            <package name="org.apache.river.imp.security.policy.spi"/>
-            <package name="org.apache.river.imp.security.policy.util"/>  
-            <package name="org.apache.river.imp.util"/>
             <package name="net.jini.space"/>
             <package name="net.jini.url.file"/>
             <package name="net.jini.url.httpmd"/>
             <package name="net.jini.url.https"/>
-            <package name="org.apache.river.api.security"/>
-            <package name="org.apache.river.api.services.lease"/>
-            <package name="org.apache.river.api.throwable.lease"/>
-            <package name="org.apache.river.api.throwable.rmi"/>
-            <package name="org.apache.river.api.util"/>
         </javadoc>
         <mkdir dir="${doc.api.dir}/doc-files"/>
         <copy file="NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE"/>
@@ -382,12 +371,6 @@
             <package name="net.jini.url.file"/>
             <package name="net.jini.url.httpmd"/>
             <package name="net.jini.url.https"/>
-            <package name="org.apache.river.api.security"/>
-            <package name="org.apache.river.api.services.lease"/>
-            <package name="org.apache.river.api.throwable.lease"/>
-            <package name="org.apache.river.api.throwable.rmi"/>
-            <package name="org.apache.river.api.util"/>
-            
         </javadoc>
         <mkdir dir="${doc.spec.api.dir}/doc-files"/>
         <copy file="NOTICE" tofile="${doc.spec.api.dir}/doc-files/NOTICE"/>
@@ -593,7 +576,10 @@
 		      includes="META-INF/services/com.sun.jini.tool.envcheck.Plugin"/>
         </jar>
     </target>
-    <!-- Scheduled for removal -->
+
+    <!--
+        Deprecated since 2.1 - Scheduled for removal
+    -->
     <target name="jini-core.jar" depends="stubs">
         <delete file="${lib.dir}/jini-core.jar" quiet="true"/>
         <jar destfile="${lib.dir}/jini-core.jar"
@@ -602,7 +588,10 @@
 			 includes="net/jini/core/**"/>
         </jar>
     </target>
-    <!-- Scheduled for removal -->
+
+    <!--
+        Deprecated since 2.1 - Scheduled for removal
+    -->
     <target name="jini-ext.jar" depends="stubs">
         <property name="jini-ext.deps" location="${build.deps.dir}/jini-ext.deps"/>
         <classdep output="${jini-ext.deps}"
@@ -745,13 +734,6 @@
             <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
-            <arg line="-in org.apache.river"/>
-            <!--The following is left out to avoid multiple classes visible on
-            the classpath, if the wrong jar is selected, it may not have
-            the appropriate permission if it is outside the jre/lib/ext 
-            directory where AllPermission is granted-->
-            <arg line="-out org.apache.river.imp.security.policy.se"/>
-            <arg line="-out org.apache.river.imp.security.policy.util"/>
             <arg path="${build.classes.dir}/net/jini/activation"/>
             <arg path="${build.classes.dir}/net/jini/config"/>
             <arg path="${build.classes.dir}/net/jini/constraint"/>
@@ -768,8 +750,6 @@
             <arg path="${build.classes.dir}/org/apache/river/api"/>
             <arg value="net.jini.discovery.ConstrainableLookupLocator"/>
             <arg value="net.jini.discovery.ConstrainableLookupLocatorTrustVerifier"/>
-            <!--<arg value="org.apache.river.api.security.RevokePermission"/>
-            <arg value="org.apache.river.api.security.PermissionGrantBuilder"/>-->
             <arg path="${build.classes.dir}/com/sun/jini/discovery"/>
             <arg value="com.sun.jini.config.ConfigUtil"/>
             <arg value="com.sun.jini.config.KeyStores"/>
@@ -825,11 +805,8 @@
             <arg value="-files"/>
             <arg value="net.jini.security.policy.DynamicPolicyProvider"/>
             <arg value="net.jini.security.policy.PolicyFileProvider"/>
-            <arg value="org.apache.river.api.security.RevokePermission"/>
-            <arg value="org.apache.river.api.security.PermissionGrantBuilder"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
-            <arg line="-in org.apache.river"/>
         </classdep>
         <delete file="${lib-ext.dir}/jsk-policy.jar" quiet="true"/>
         <jar destfile="${lib-ext.dir}/jsk-policy.jar"
@@ -850,7 +827,11 @@
 					   META-INF/services/net.jini.export.ServerContext$$Spi"/>
         </jar>
     </target>
-    <!-- Scheduled for removal -->
+
+    <!--
+        Deprecated since 2.1 - Scheduled for removal
+        Note: the QA suite depends on some of the classes in sun-util.jar
+    -->
     <target name="sun-util.jar"	depends="stubs">
         <property name="sun-util.deps" location="${build.deps.dir}/sun-util.deps"/>
         <classdep output="${sun-util.deps}"
@@ -888,7 +869,10 @@
 				      com/sun/jini/thread/**"/>
         </jar>
     </target>
-   
+
+    <!--
+        Deprecated since 2.1 - Scheduled for removal
+    -->
     <target name="sdm-dl.jar" depends="stubs">
         <property name="sdm-dl.deps" location="${build.deps.dir}/sdm-dl.deps"/>
         <classdep output="${sdm-dl.deps}">
@@ -2039,19 +2023,16 @@
         </preferredlistgen>
     </target>
 
-    <!-- You can specify the following properties (see qa/build.xml):
+    <!-- You can specify the following properties (also see qa/build.xml):
         run.categories
         harness.configs
         harness.servicemode
+        harness.generateHtml
         e.g. ant -Dharness.servicemode=transient qa.run
     -->
     <target name="qa.run" depends="" description="Run QA tests">
-        <property name="run.categories"
-                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders"/>
         <!-- Call qa subcomponent build -->
-        <ant dir="qa" target="run-categories" inheritall="false" >
-            <property name="run.categories" value="${run.categories}" />
-        </ant>
+        <ant dir="qa" target="run" inheritall="false"/>
     </target>
 
     <target name="build" depends="configentry,test,jars,doc,spec-doc"/>
