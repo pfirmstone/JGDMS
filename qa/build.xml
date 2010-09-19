@@ -160,7 +160,7 @@
             </filelist>
         </move>
         <move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>
-        <move file="${river.lib-ext.dir}/concurrent-policy-util.jar" todir="${jtreg.dir}/JTlib-tmp"/>
+        <!--<move file="${river.lib-ext.dir}/concurrent-policy-util.jar" todir="${jtreg.dir}/JTlib-tmp"/>-->
         <jtreg  dir="${jtreg.dir}" verbose="all,nopass" failonerror="false"
                 errorproperty="jtreg.fail" failureproperty="jtreg.fail"
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
@@ -187,7 +187,7 @@
             </filelist>
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
-        <move file="${jtreg.dir}/JTlib-tmp/concurrent-policy-util.jar" todir="${river.lib-ext.dir}"/>
+        <!--<move file="${jtreg.dir}/JTlib-tmp/concurrent-policy-util.jar" todir="${river.lib-ext.dir}"/>-->
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>
         <fail if="jtreg.fail"/>
@@ -204,7 +204,7 @@
             </filelist>
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
-        <move file="${jtreg.dir}/JTlib-tmp/concurrent-policy-util.jar" todir="${river.lib-ext.dir}"/>
+        <!--<move file="${jtreg.dir}/JTlib-tmp/concurrent-policy-util.jar" todir="${river.lib-ext.dir}"/>-->
         <delete dir="${jtreg.dir}/JTlib-tmp"/>
         <delete file="${jtreg.dir}/test.props"/>
     </target>
