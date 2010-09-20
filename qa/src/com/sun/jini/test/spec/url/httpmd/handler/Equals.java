@@ -22,6 +22,8 @@ import java.util.logging.Level;
 
 // java.net
 import java.net.URL;
+import java.net.URLStreamHandler;
+import net.jini.url.httpmd.Handler;
 
 
 /**
@@ -30,7 +32,7 @@ import java.net.URL;
  * Purpose:
  *   This test verifies the behavior of {@link URL#equals(Object)} method
  *   for HTTPMD URL objects.
- *   {@link Handler#sameFile(URL,URL)} method is
+ *   {@link Handler#sameFile(java.net.URL, java.net.URL)} method is
  *   used to see if these HTTPMD URL objects refer to
  *   the same file using the following rules:
  *     - case-insensitive comparison of the protocols and of the
@@ -44,7 +46,7 @@ import java.net.URL;
  *   {@link URL#equals(Object)} method. {@link URL#equals(Object)} method
  *   invokes {@link Handler#equals(URL,URL)} method inherited
  *   from {@link URLStreamHandler} class.
- *   {@link URLStreamHandler#equals(URL,URL)} method uses
+ *   {@link URLStreamHandler#equals(java.net.URL, java.net.URL)} method uses
  *   {@link Handler#sameFile(URL,URL)} method to compare
  *   HTTPMD URL objects.
  *   The cases:

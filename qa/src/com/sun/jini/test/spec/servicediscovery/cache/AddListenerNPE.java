@@ -97,9 +97,6 @@ public class AddListenerNPE extends AbstractBaseTest {
      *     a <code>NullPointerException</code> is not always thrown.
      *  3. Attempts to add a <code>null</code> listener
      *  4. Verifies that a <code>NullPointerException</code> is thrown.
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
 	logger.log(Level.FINE, "requesting a lookup cache");

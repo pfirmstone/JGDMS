@@ -99,7 +99,7 @@ public abstract class BaseTrustVerifierContext extends BaseIsTrustedObjectClass
     /**
      * Method from TrustVerifier.Context interface. Does nothing.
      *
-     * @returns null
+     * @return null
      */
     public ClassLoader getClassLoader() {
         return null;

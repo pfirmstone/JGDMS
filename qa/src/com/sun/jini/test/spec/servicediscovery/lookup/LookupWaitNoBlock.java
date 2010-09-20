@@ -86,9 +86,6 @@ public class LookupWaitNoBlock extends Lookup {
      *  2. Verifies that the service returned is the service expected,
      *     and the <code>lookup</code> method returns immediately without
      *     blocking
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         long waitDur = 30*1000;

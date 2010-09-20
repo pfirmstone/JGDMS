@@ -67,9 +67,6 @@ public class LookupMax extends Lookup {
      *     (<code>null</code> filter parameter) - to query the discovered
      *     lookup services for the desired services. 
      *  2. Verifies that the services returned are the services expected
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         /* Through the service discovery manager, query the discovered lookup

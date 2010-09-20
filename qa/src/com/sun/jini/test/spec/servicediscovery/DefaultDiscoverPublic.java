@@ -72,9 +72,6 @@ public class DefaultDiscoverPublic extends AbstractBaseTest {
      *  2. Retrieves the set of groups the lookup discovery manager is
      *     configured to discover. 
      *  3. Verifies the set of groups contains only the public group.
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         DiscoveryManagement dm = srvcDiscoveryMgr.getDiscoveryManager();

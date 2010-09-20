@@ -79,9 +79,6 @@ public class LookupMinMaxNoBlock extends LookupMinEqualsMax {
      *  2. Verifies that the services returned are the services expected,
      *     and the <code>lookup</code> method returns immediately without
      *     blocking
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         /* Verify immediate return when more than minMatches services are

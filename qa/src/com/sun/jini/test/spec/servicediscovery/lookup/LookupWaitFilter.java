@@ -86,9 +86,6 @@ public class LookupWaitFilter extends LookupWait {
      *     rejects the services that would normally be discovered if the
      *     filter were not applied, the call to the <code>lookup</code>
      *     method blocks for the full amount of time requested
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         /* Verify blocking mechanism in the absense of registered services */

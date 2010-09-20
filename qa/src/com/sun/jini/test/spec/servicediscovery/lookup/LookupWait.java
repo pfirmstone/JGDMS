@@ -100,9 +100,6 @@ public class LookupWait extends AbstractBaseTest {
      *     returned is the service expected, and the <code>lookup</code>
      *     method blocks until the registration of the desired service 
      *     has completed successfully
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         /* Verify blocking mechanism in the absense of registered services */
@@ -133,9 +130,6 @@ public class LookupWait extends AbstractBaseTest {
      *  If the <code>String</code> returned by this method is 
      *  non-<code>null</code>, then the test should declare failure and
      *  display the value returned by this method.
-     *
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if there was no problem.
      */
     protected void verifyBlocking(int nSrvcs,int nAttrs,long waitDur) 
 	throws Exception

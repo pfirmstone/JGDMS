@@ -74,9 +74,6 @@ public class Lookup extends AbstractBaseTest {
      *     (<code>null</code> filter parameter) - to query the discovered
      *     lookup services for the desired service. 
      *  2. Verifies that the service returned is the service expected
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         /* Through the service discovery manager, query the discovered lookup

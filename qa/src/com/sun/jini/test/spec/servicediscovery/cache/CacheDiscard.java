@@ -58,9 +58,6 @@ public class CacheDiscard extends CacheLookup {
      *  3. Discards the retrieved service.
      *  4. Queries the cache again to verify that the service has indeed
      *     been discarded as expected.
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         /* Query the cache for the desired registered service. */

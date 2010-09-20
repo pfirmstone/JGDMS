@@ -208,7 +208,7 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Creates main proxy.
      *
-     * @param implementation
+     * @param impl
      * @return proxy created
      */
     public RemoteMethodControl newMainProxy(Object impl) {
@@ -221,7 +221,7 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Creates main proxy in RMI child loader.
      *
-     * @param implementation
+     * @param impl
      * @return proxy created
      */
     public RemoteMethodControl newRMIMainProxy(Object impl) {
@@ -243,7 +243,7 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Creates boot proxy.
      *
-     * @param implementation
+     * @param impl
      * @return proxy created
      */
     public ProxyTrust newBootProxy(Object impl) {
@@ -259,7 +259,7 @@ public abstract class AbstractTestBase extends QATest {
      *
      * @param obj object for checking
      * @param value expected value
-     * @returns true if obj != null, is instance of Boolean and equal to value
+     * @return true if obj != null, is instance of Boolean and equal to value
      *          and false otherwise
      */
     public boolean isOk(Object obj, boolean value) {

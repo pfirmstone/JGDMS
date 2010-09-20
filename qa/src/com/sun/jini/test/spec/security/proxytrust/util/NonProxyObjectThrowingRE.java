@@ -33,8 +33,6 @@ public class NonProxyObjectThrowingRE extends ValidNonProxyObject {
 
     /**
      * Store given array of objects and creates TrustIterator.
-     *
-     * @param objs array of objects
      */
     public NonProxyObjectThrowingRE() {
         super(new Object[] { new Object() });

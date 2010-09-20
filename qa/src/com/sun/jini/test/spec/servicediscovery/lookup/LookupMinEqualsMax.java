@@ -105,9 +105,6 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
      *  2. Verifies that the services returned are the services expected,
      *     and the <code>lookup</code> method blocks for the expected
      *     amount of time
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         /* Verify blocking mechanism for less than min registered services */
@@ -140,9 +137,6 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
      *  If the <code>String</code> returned by this method is 
      *  non-<code>null</code>, then the test should declare failure and
      *  display the value returned by this method.
-     *
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if there was no problem.
      */
     protected void verifyBlocking(int startVal,int nSrvcs,long waitDur) 
 	throws Exception

@@ -326,7 +326,7 @@ public class VerifyCodebaseIntegrityTest extends QATest {
      * classes whose 'providesIntegrity' methods are expected to be called.
      *
      * @param clNames array of classes for which evaluate the result
-     * @param urls URLs string for which get expected results
+     * @param str URLs string for which get expected results
      * @throws MalformedURLException if any of the URLs are invalid
      */
     protected Class getExpRes(Class[] clNames, String str)

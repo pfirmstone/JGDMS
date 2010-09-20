@@ -93,9 +93,6 @@ public class CacheLookupFilterFilter extends CacheLookup {
      *     of the template matching and the first-stage filtering - to query
      *     the cache for the desired expected service
      *  3. Verifies that the service returned is the service expected
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         /* Create the cache and verify it returns a registered service. */ 

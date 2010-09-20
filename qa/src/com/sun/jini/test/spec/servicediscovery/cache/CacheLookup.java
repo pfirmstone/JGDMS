@@ -87,9 +87,6 @@ public class CacheLookup extends AbstractBaseTest {
      *     applying NO second-stage filtering (<code>null</code> filter 
      *     parameter) - to query the cache for the desired expected service
      *  3. Verifies that the service returned is the service expected
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         /* Create a cache for the services that were registered. */
