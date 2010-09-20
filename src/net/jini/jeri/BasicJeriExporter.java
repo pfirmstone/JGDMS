@@ -19,14 +19,26 @@
 package net.jini.jeri;
 
 import com.sun.jini.jeri.internal.runtime.BasicExportTable;
+import com.sun.jini.logging.Levels;
 import java.lang.ref.WeakReference;
 import java.rmi.Remote;
+import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
+import java.rmi.server.Unreferenced;
+import java.security.AccessControlContext;
+import java.security.PrivilegedAction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.config.Configuration;
 import net.jini.export.Exporter;
+import net.jini.export.ServerContext;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.io.MarshalInputStream;
+import net.jini.io.context.ClientHost;
+import net.jini.io.context.ClientSubject;
+import net.jini.security.Security;
+import net.jini.security.SecurityContext;
 
 /**
  * An <code>Exporter</code> implementation for exporting
@@ -672,7 +684,6 @@ public final class BasicJeriExporter implements Exporter {
      * 
      * @return the string representation for this exporter
      **/
-    @Override
     public String toString() {
 	return "BasicJeriExporter[" + se + "," + id + "]";
     }

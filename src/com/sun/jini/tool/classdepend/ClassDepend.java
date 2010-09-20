@@ -312,7 +312,8 @@ public class ClassDepend {
      * original API of ClassDep.
      * @param dependencyRelationShipMap The initial map before filtering.
      * @param cdp The parameters for filtration.
-     * @see ClassDependParameters, ClassDependencyRelationship
+     * @see ClassDependParameters
+     * @see ClassDependencyRelationship
      * @return Set<ClassDependencyRelationShip> result The result after filtration.
      */
     public Set filterClassDependencyRelationShipMap(Map dependencyRelationShipMap, ClassDependParameters cdp){
@@ -475,7 +476,7 @@ public class ClassDepend {
      * '.*' match classes in the package, names that end in '.**' match classes
      * in the package and it's subpackage.  Other names match the class.
      * @param names
-     * @return 
+     * @return Pattern
      */
     public Pattern createPattern(Collection names) {
 	if (names.isEmpty()) {

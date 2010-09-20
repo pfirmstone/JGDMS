@@ -30,7 +30,8 @@ import java.util.List;
  * return a ClassDependParamters object instance.
  * 
  * @author Peter Firmstone
- * @see ClassDepend, CDPBuilder
+ * @see ClassDepend
+ * @see CDPBuilder
  */
 public class ClassDependParameters {
     /* outsidePackagesOrClasses excluded from search ,excludes the names of classes,
@@ -143,8 +144,8 @@ public class ClassDependParameters {
          * root directory, to decend recursively into and exclude subpackages, 
          * the package pattern should end in .**
          * 
-         * 
-         * @see ClassDepend, ClassDependParameters
+         * @see ClassDepend
+         * @see ClassDependParameters
          * @return CDPBuilder so named optional parameters can be chained
          */
         public CDPBuilder addOutsidePackageOrClass(String outsidePackageOrClass) {
@@ -243,7 +244,9 @@ public class ClassDependParameters {
          * from the dependency search.
          * If false the platform classes returned will depend on the Java
          * platform and version the test is executing on.
-         * @see ClassDepend, ClassDependParameters
+         * 
+         * @see ClassDepend
+         * @see ClassDependParameters
          * @param b
          * @return CDPBuilder - enables optional parameter method chaining.
          */

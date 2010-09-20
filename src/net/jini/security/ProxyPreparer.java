@@ -19,6 +19,9 @@
 package net.jini.security;
 
 import java.rmi.RemoteException;
+import net.jini.config.Configuration;
+import net.jini.core.constraint.RemoteMethodControl;
+import net.jini.security.Security;
 
 /**
  * Performs operations on a newly unmarshalled remote proxy to prepare it for

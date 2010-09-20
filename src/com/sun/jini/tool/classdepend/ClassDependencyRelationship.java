@@ -25,7 +25,6 @@ import java.util.Set;
 /**
  * A container to store class dependency related information for later analysis.
  * @author Peter Firmstone
- * @Threadsafe
  * @see ClassDepend
  */
 public class ClassDependencyRelationship {
@@ -92,7 +91,7 @@ public class ClassDependencyRelationship {
 
     /**
      * Get the classes that this class needs to function.
-     * @return
+     * @return a Set of classes
      */
     public Set getProviders() {
         Set prov = new HashSet();

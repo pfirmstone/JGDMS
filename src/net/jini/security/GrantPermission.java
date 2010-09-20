@@ -41,6 +41,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import net.jini.security.policy.DynamicPolicy;
 
 /**
  * Permission required to dynamically grant permissions by security policy
@@ -554,7 +555,7 @@ public final class GrantPermission extends Permission {
      * of permissions.
      */
     private static String constructName(Permission[] pa) {
-	StringBuffer sb = new StringBuffer(60);
+	StringBuffer sb = new StringBuffer();
 	for (int i = 0; i < pa.length; i++) {
 	    Permission p = pa[i];
 	    if (p instanceof UnresolvedPermission) {
@@ -675,7 +676,7 @@ public final class GrantPermission extends Permission {
     private static class Implier {
 	
 	private final PermissionCollection perms = new Permissions();
-	private final List unresolved =new ArrayList();
+	private final ArrayList unresolved = new ArrayList();
 
 	void add(GrantPermission gp) {
 	    for (int i = 0; i < gp.grants.length; i++) {
@@ -752,8 +753,7 @@ public final class GrantPermission extends Permission {
      * @serial include
      */
     static class GrantPermissionCollection extends PermissionCollection {
-        // All access is synchronized through GrantPermissionCollection
-        // Nothing within should use synchronization 
+
 	private static final long serialVersionUID = 8227621799817733985L;
 
 	/**
@@ -763,7 +763,7 @@ public final class GrantPermission extends Permission {
 	    new ObjectStreamField("perms", List.class, true)
 	};
 
-	private List perms = new ArrayList(40);
+	private List perms = new ArrayList();
 	private Implier implier = new Implier();
 
 	public synchronized void add(Permission p) {
@@ -774,10 +774,8 @@ public final class GrantPermission extends Permission {
 		throw new SecurityException(
 		    "can't add to read-only PermissionCollection");
 	    }
-	    if (!perms.contains(p)){
-		perms.add(p);
-		implier.add((GrantPermission) p);
-	    }
+	    perms.add(p);
+	    implier.add((GrantPermission) p);
 	}
 	
 	public synchronized Enumeration elements() {
