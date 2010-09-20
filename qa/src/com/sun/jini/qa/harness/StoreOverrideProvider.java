@@ -43,13 +43,9 @@ public class StoreOverrideProvider implements OverrideProvider {
     {
 	if ("net.jini.space.JavaSpace".equals(serviceName)) {
 	    String snapStore = "com.sun.jini.outrigger.snaplogstore.LogStore";
-	    String logStore = "com.sun.jini.outrigger.logstore.LogStore";
-	    // 2/3 bias given to snapStore
-	    int selector = new Random().nextInt(3);
-	    String storeClass = (selector == 0) ? logStore : snapStore;
 	    String[] ret = new String[2];
 	    ret[0] = "com.sun.jini.outrigger.store";
-	    ret[1] = "new " + storeClass + "(this)";
+	    ret[1] = "new " + snapStore + "(this)";
 	    return ret;
 	}
 	return new String[0];
