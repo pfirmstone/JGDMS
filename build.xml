@@ -49,7 +49,7 @@
 
     <path id="javadoc.classpath">
         <path refid="river.classes"/>
-        <path refid="asm.jars"/>
+        <path refid="asm.classpath"/>
     </path>
 
     <target name="copy-resources"
