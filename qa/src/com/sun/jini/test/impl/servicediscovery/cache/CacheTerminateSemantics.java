@@ -92,9 +92,6 @@ public class CacheTerminateSemantics extends AbstractBaseTest {
      *  2. Verifies that any additional invocation of that cache's
      *     terminate method will result in no further action being
      *     taken
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         /* Terminate the lookup cache */

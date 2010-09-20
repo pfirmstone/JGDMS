@@ -81,9 +81,6 @@ public class ServiceDiscardCacheTerminate extends DiscardServiceUp {
      *  7. Wait for serviceRemoved events.
      *  8. Verifies that expected number of serviceAdded and serviceRemoved
      *     events arrived.
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         long addedWait = getAddedWait();

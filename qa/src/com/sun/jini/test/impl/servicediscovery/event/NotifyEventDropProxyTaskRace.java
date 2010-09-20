@@ -159,9 +159,6 @@ public class NotifyEventDropProxyTaskRace extends AbstractBaseTest {
      *  1. Create a cache to initiate the RegisterListenerTask/LookupTask combo
      *  2. Destroy the lookup service so it won't be re-discovered
      *  3. Discard the lookup service to initiate the DropProxyRegTask
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
 	lus = (ldm.getRegistrars())[0];

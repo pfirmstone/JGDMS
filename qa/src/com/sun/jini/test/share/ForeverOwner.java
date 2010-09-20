@@ -44,7 +44,7 @@ public class ForeverOwner extends TrackingOwner {
      *             Object to notify if there is a failure
      * @param isTwoArg Should the assocated lease be registered
      *             with the one or two arg form
-     * @param util QA harnss utility object
+     * @param config QAConfig object
      */
     public ForeverOwner(long initialExpiration, long maxExtension,
 			long slop, long desiredRenewal, Object notifyOnFailure,

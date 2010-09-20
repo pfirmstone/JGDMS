@@ -52,7 +52,6 @@ public class DiscoveryAdminUtil {
      *                    <code>net.jini.lookup.DiscoveryAdmin</code>, whose
      *                    implementation can be used to administer the member
      *                    groups and the locator port of a lookup service.
-     *  @param config     the <code>QAConfig</code> object for the test
      *
      * @throws java.lang.NullPointerException this exception occurs when
      *         <code>null</code> is input to the <code>serviceObj</code>

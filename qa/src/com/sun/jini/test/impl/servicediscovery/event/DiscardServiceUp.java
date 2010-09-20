@@ -116,9 +116,6 @@ public class DiscardServiceUp extends AbstractBaseTest {
      *     the service remained up or simulates a down service).
      *  8. Verifies that expected number of serviceAdded and serviceRemoved
      *     events arrived.
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         long newLeaseDur = MIN_DISCARD_WAIT/2; //expire relatively quickly

@@ -256,9 +256,6 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
      * 6. Analyze the number of serviceAdded events received
      * 7. Analyze the number of serviceRemoved events received
      * 8. Determine if/how failure has occurred
-     *  
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
         ArrayList caches       = new ArrayList(N_SDM);

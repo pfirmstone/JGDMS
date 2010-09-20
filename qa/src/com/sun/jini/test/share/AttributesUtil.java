@@ -49,8 +49,6 @@ import java.util.logging.Level;
  * functions for processing sets of attributes; functions such as displaying
  * information about the contents of one or more attribute sets, comparing
  * the contents of two such sets, etc.
- *
- * @see com.sun.jini.qa.harness.QATestUtil
  */
 public class AttributesUtil {
 
@@ -91,7 +89,7 @@ public class AttributesUtil {
      *  default values, constructs and returns an instance of the attribute
      *  class <code>net.jini.lookup.entry.ServiceInfo</code>.
      * 
-     *  @param qaUtil <code>com.sun.jini.qa.harness.QATestUtil</code> instance
+     *  @param config <code>com.sun.jini.qa.harness.QAConfig</code> instance
      *                through which the pertinent values in the configuration
      *                file are retrieved
      *
@@ -133,7 +131,7 @@ public class AttributesUtil {
      *  default values, constructs and returns an instance of the attribute
      *  class <code>com.sun.jini.lookup.entry.BasicServiceType</code>.
      * 
-     *  @param qaUtil <code>com.sun.jini.qa.harness.QATestUtil</code> instance
+     *  @param config <code>com.sun.jini.qa.harness.QAConfig</code> instance
      *                through which the pertinent values in the configuration
      *                file are retrieved
      *

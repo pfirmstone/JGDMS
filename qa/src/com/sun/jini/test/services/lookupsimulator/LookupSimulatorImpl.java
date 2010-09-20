@@ -140,10 +140,6 @@ public class LookupSimulatorImpl implements LookupSimulator,
     /** Called by the activation group to create this class in a separate VM.
      * @param activationID required argument containing the activation ID
      *                     assigned by the activation system for this class
-     * @param data         required argument containing data in 
-     *                     MarshalledObject form that will be passed by the
-     *                     activation system to this class (should be null
-     *                     for this class)
      */
     public LookupSimulatorImpl(String[] configArgs,
 			       ActivationID activationID, 

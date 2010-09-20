@@ -48,7 +48,7 @@ public class ConstrainableUnreadableTestLease extends UnreadableTestLease implem
      *                 of the lease.
      * @param id       An <code>int</code> that <code>home</code> can use
      *                 to identify the leased resource.
-     * @param duration The initial expiration of the lease.
+     * @param expiration The initial expiration of the lease.
      */
     public ConstrainableUnreadableTestLease(int id, LeaseBackEnd home, long expiration) {
 	super(id, home, expiration);

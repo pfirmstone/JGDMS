@@ -37,17 +37,14 @@ import java.util.Iterator;
  * sets, etc.
  *
  * @see net.jini.discovery.DiscoveryGroupManagement
- * @see com.sun.jini.qa.harness.QATestUtil
+ * @see com.sun.jini.qa.harness.QAConfig
  */
 public class GroupsUtil {
 
     private static Logger logger = Logger.getLogger("com.sun.jini.qa.harness");
 
-    /** Using an instance of <code>com.sun.jini.qa.harness.QATestUtil</code>,
-     *  displays the contents of the input array which contains the names
-     *  of a set of groups. The contents of that array will be displayed 
-     *  only if the QATestUtil instance is configured to display debugging
-     *  output (qautil.debug=true).
+    /** Displays the contents of the input array which contains the names
+     *  of a set of groups.
      * 
      *  @param groups       <code>String</code> array containing the names of
      *                      the groups to be displayed
@@ -293,7 +290,7 @@ public class GroupsUtil {
      *  this method will attempt to retrieve the member groups item with
      *  no index.
      * 
-     *  @param qaUtil instance of this utility class through which the member
+     *  @param config instance of QAConfig class through which the member
      *                groups will be retrieved
      *  @param index  the index value of the particular configuration item
      *                to retrieve
@@ -312,7 +309,7 @@ public class GroupsUtil {
      *  item, this method attempts the retrieval using an index value of
      *  zero.
      * 
-     *  @param qaUtil instance of this utility class through which the member
+     *  @param config instance of the QAConfig class through which the member
      *                groups will be retrieved
      *
      *  @return String array containing the names or the groups to which the
@@ -331,8 +328,8 @@ public class GroupsUtil {
      *  this method will attempt to retrieve the member groups item with
      *  no index.
      * 
-     *  @param qaUtil instance of this utility class through which the member
-     *                groups string will be retrieved
+     *  @param config instance of the QAConfig class through which the member
+     *                groups will be retrieved
      *  @param index  the index value of the particular configuration item
      *                to retrieve
      *
@@ -355,9 +352,9 @@ public class GroupsUtil {
      *  item, this method attempts the retrieval using an index value of
      *  zero.
      * 
-     *  @param qaUtil instance of this utility class through which the member
-     *                groups string will be retrieved
-     *
+     *  @param config instance of the QAConfig class through which the member
+     *                groups will be retrieved
+     * 
      *  @return comma-separaged String containing the names of the groups in
      *          which the appropriate lookup service is a member
      */

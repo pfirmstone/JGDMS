@@ -46,7 +46,7 @@ abstract public class AbstractTestLeaseFactory extends Object {
      * Constructor requiring the stub for communicating with the 
      *             LeaseBackEndImpl.
      * 
-     * @param stub  the stub class used to communicate with the LeaseBackEnd
+     * @param lbeStub the stub class used to communicate with the LeaseBackEnd
      *              implementation.
      * 
      */

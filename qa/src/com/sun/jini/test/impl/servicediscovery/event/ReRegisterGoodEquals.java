@@ -91,9 +91,6 @@ public class ReRegisterGoodEquals extends AbstractBaseTest {
      *     service.
      *  4. Verifies that the expected number of serviceAdded and serviceRemoved
      *     events are sent by the cache.
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
      */
     protected void applyTestDef() throws Exception {
 	/* Register new proxies */

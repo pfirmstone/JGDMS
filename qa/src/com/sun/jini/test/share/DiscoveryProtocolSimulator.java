@@ -130,15 +130,15 @@ import java.security.PrivilegedActionException;
  *
  * @see net.jini.core.discovery.LookupLocator
  *
- * @see net.jini.discovery.IncomingMulticastAnnouncement.
- * @see net.jini.discovery.IncomingMulticastRequest.
- * @see net.jini.discovery.IncomingUnicastRequest.
- * @see net.jini.discovery.IncomingUnicastResponse.
+ * @see net.jini.discovery.IncomingMulticastAnnouncement
+ * @see net.jini.discovery.IncomingMulticastRequest
+ * @see net.jini.discovery.IncomingUnicastRequest
+ * @see net.jini.discovery.IncomingUnicastResponse
  *
- * @see net.jini.discovery.OutgoingMulticastAnnouncement.
- * @see net.jini.discovery.OutgoingMulticastRequest.
- * @see net.jini.discovery.OutgoingUnicastRequest.
- * @see net.jini.discovery.OutgoingUnicastResponse.
+ * @see net.jini.discovery.OutgoingMulticastAnnouncement
+ * @see net.jini.discovery.OutgoingMulticastRequest
+ * @see net.jini.discovery.OutgoingUnicastRequest
+ * @see net.jini.discovery.OutgoingUnicastResponse
  */
 public class DiscoveryProtocolSimulator {
 

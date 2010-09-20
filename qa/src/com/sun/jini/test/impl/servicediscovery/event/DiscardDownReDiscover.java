@@ -70,10 +70,7 @@ public class DiscardDownReDiscover extends DiscardServiceDown {
     /** Defines the actual steps of this particular test.
      *  
      *  1. After passing the initial discard test, re-registers the service
-     *     verifies that the service is re-discovered.
-     * 
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if the test was successful.
+     *     verifies that the service is re-discovered. 
      */
     protected void applyTestDef() throws Exception {
         super.applyTestDef();

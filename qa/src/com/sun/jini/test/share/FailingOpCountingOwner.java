@@ -150,20 +150,6 @@ public class FailingOpCountingOwner extends FailingOwner {
 
     /**
      * Reset all the call counts.
-     * 
-     * @param xxx
-     * @param xxx
-     * @param xxx
-     * @param xxx
-     * 
-     * @return xxx
-     * 
-     * @exception xxxException
-     *          why/when thrown. 
-     * 
-     * @see    class#method() 
-     * @see    class#method() 
-     * @see    class#method() 
      */
     public synchronized void resetCallCounts() {
 
