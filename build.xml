@@ -47,7 +47,10 @@
     <property name="javadoc.spec.doc-title" value="${product.title} Specification-only API Documentation"/>
     <property name="javadoc.spec.win-title" value="${javadoc.spec.doc-title}"/>
 
-    <path id="javadoc.classpath" refid="river.classes"/>
+    <path id="javadoc.classpath">
+        <path refid="river.classes"/>
+        <path refid="asm.jars"/>
+    </path>
 
     <target name="copy-resources"
 		description="Copies various resources directories to the classes dir."
