@@ -39,10 +39,10 @@ public interface WriteCallback {
      * returned by this method will be invoked by the server side of
      * the remote call before any parameters are read by the transport layer.
      *
-     * @param request The <code>OutboundRequest</code> which will
+     * @param requestIt The <code>OutboundRequest</code> which will
      * be returned by the call to <code>OutboundRequest.newRequest</code>
      *
-     * @param context The <code>OutboundRequestHandle</code> passed to
+     * @param constraints The <code>InvocationConstraints</code> passed to
      * the <code>Endpoint.newRequest</code> method.
      */
     public ReadCallback writeCallback(OutboundRequest requestIt,

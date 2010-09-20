@@ -115,7 +115,7 @@ public interface UserInterface {
     /**
      * Set the number of failures detected for this client
      *
-     * @param the number of failures
+     * @param count the number of failures
      */
     public void setFailureCount(int count);
 

@@ -73,10 +73,8 @@ public class AuditorSummary {
      * The most time remaining on the lease of any entry in the log who's
      * status is "clean" (@see AuditorSummary#cleanEntres)
      *
-     * This field is only valid if <code>cleanEntres</code> is
+     * This field is only valid if <code>cleanEntries</code> is
      * non-zero
-     *
-     * @see AuditorSummary#EntiresCount
      */
     public long longestLease = Long.MIN_VALUE;
 

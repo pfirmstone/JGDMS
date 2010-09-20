@@ -36,7 +36,6 @@ import net.jini.core.entry.Entry;
  *
  * @see com.sun.jini.qa.harness.QAConfig
  * @see com.sun.jini.qa.harness.QATest
- * @see com.sun.jini.qa.harness.QATestUtil
  */
 public class AddLookupAttributesSC extends AddLookupAttributes {
     /** Constructs and returns the set of attributes to add (overrides the

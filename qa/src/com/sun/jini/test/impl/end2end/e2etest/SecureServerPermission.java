@@ -45,7 +45,7 @@ public class SecureServerPermission extends AccessPermission
      * Test whether this permission implies the given permission.
      *
      * @param p the permission to test
-     * @param returns true if this permission implies <code>p</code>
+     * @return true if this permission implies <code>p</code>
      */
     public boolean implies(Permission p) {
         boolean result = super.implies(p) ;

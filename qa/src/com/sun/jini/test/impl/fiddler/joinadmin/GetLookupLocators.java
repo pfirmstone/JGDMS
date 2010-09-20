@@ -46,7 +46,6 @@ import com.sun.jini.qa.harness.AbstractServiceAdmin;
  *
  * @see com.sun.jini.qa.harness.QAConfig
  * @see com.sun.jini.qa.harness.QATest
- * @see com.sun.jini.qa.harness.QATestUtil
  */
 public class GetLookupLocators extends AbstractBaseTest {
 

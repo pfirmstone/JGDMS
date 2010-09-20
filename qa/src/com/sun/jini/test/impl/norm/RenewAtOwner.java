@@ -59,7 +59,6 @@ public class RenewAtOwner extends LeaseOwner {
     /** 
      * Simple constructor 
      * @param initialExpiration Initial expiration time for lease.
-     * @param count Number of times the lease should be renewed
      * @param maxExtension Maximum time this owner will be willing to extend 
      *                     the lease
      * @param desiredExpiration Every lease a renewal service is renewing

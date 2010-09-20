@@ -47,9 +47,7 @@ public abstract class LeaseGrantTestBase extends TestBase {
     private boolean exact = false;
 
     /**
-     * The length of time the lease should be asked for,
-     * Not valid until <code>init()</code> is called.
-     * @see #init
+     * The length of time the lease should be asked for
      */
     protected long durationRequest;
 

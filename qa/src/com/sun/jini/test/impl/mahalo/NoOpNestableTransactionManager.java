@@ -43,16 +43,14 @@ import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.core.transaction.server.CrashCountException;
 
 /**
- * No-op implementation of <code>net.jini.core.lease.Lease</code> that works
- * with the the Landlord protocol.
+ * No-op implementation of 
+ * <code> net.jini.core.transaction.server.NestableTransactionManager</code>.
  */
 public class NoOpNestableTransactionManager 
     implements NestableTransactionManager 
 {
     /**
-     * Create a new <code>NoOpLease</code>.
-     * @param expiration the initial expiration time of the lease in
-     *                 milliseconds since the beginning of the epoch
+     * Create a new <code>NoOpNestableTransactionManager</code>.
      */
     public NoOpNestableTransactionManager()
     {

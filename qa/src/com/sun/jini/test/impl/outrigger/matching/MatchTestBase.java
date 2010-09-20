@@ -58,7 +58,7 @@ public abstract class MatchTestBase extends MatchTestCore {
     /**
      * Sets up the testing environment.
      *
-     * @param args Arguments from the runner for setup.
+     * @param config Arguments from the runner for setup.
      */
     public void setup(QAConfig config) throws Exception {
         super.setup(config);

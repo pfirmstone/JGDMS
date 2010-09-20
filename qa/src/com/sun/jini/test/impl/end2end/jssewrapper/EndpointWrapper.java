@@ -92,10 +92,10 @@ public class EndpointWrapper implements Endpoint, Serializable, TrustEquivalence
      * in a <code>MarshalledObject</code> and written to the output
      * stream returned by the <code>OutboundRequest</code> object.
      *
-     * @param context The <code>SecureCallContext</code> intended for the
-     * wrapped endpoint
-     * @return the <code>OutboundRequest</code> obtained from the
-     * wrapped endpoint
+     * @param constraints The <code>InvocationConstraints</code> intended 
+     *      for the wrapped endpoint
+     * @return the <code>OutboundRequestIterator</code> obtained from the
+     *      wrapped endpoint
      */
     public OutboundRequestIterator newRequest(InvocationConstraints constraints)
     {

@@ -35,8 +35,6 @@ public class ChildOfIntegerMatch extends IntegerMatch {
      * Create a new <code>ChildOfIntegerMatch</code>.  Passes
      * <code>makeUnique</code> to super().  A true value will generate
      * an entry with a unique (originatingHostVM, entryID) pair.
-     *
-     * @see IntergerMatch#UniqueEntry(boolean)
      */
     public ChildOfIntegerMatch(boolean makeUnique) {
         super(makeUnique);

@@ -42,7 +42,7 @@ public interface SmartInterface extends RemoteMethodControl {
     /**
      * Set the test coordinator in the proxy
      *
-     * @param the <code>TestCoordinator</code>
+     * @param coordinator the <code>TestCoordinator</code>
      */
     public void setCoordinator(TestCoordinator coordinator);
 

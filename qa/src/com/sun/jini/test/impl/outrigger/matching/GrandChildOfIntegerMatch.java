@@ -35,8 +35,6 @@ public class GrandChildOfIntegerMatch extends ChildOfIntegerMatch {
      * Create a new <code>GrandChildOfIntegerMatch</code>. Passes
      * <code>makeUnique</code> to super(). A true value will generate
      * an entry with a unique (originatingHostVM, entryID) pair.
-     *
-     * @see GrandChildIntergerMatch#UniqueEntry(boolean)
      */
     public GrandChildOfIntegerMatch(boolean makeUnique) {
         super(makeUnique);
