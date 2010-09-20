@@ -81,6 +81,7 @@
         HTML reports for each test in the qa/results directory -->
     <property name="harness.generateHtml" value="false"/>
     <property name="harness.generateHtml.title" value="${product.title} QA test results"/>
+    <property name="result.zip" value="${result.dir}/qaresults-${os.arch}-${os.name}-${java.version}.zip"/>
 
     <!-- resources to copy to classes dir -->
     <property name="resources" value="**/resources*/**, **/*.td, **/*.properties,
@@ -210,7 +211,7 @@
     <macrodef name="testrun">
         <element name="tr-elements" optional="true" implicit="true"/>
         <sequential>
-            <java classname="com.sun.jini.qa.harness.QARunner" fork="yes" failOnError="true">
+            <java classname="com.sun.jini.qa.harness.QARunner" fork="yes" failOnError="false" resultproperty="testrunresult">
                 <!--Note these arguments only apply to the qa harness, they aren't
                 propagated to client test jvm's to do that you must set the
                 global or client vm args in the file:
@@ -271,36 +272,56 @@
             <arg value="-tests"/>
             <arg value="${run.tests}" />
         </testrun>
+        <antcall target="collect-result"/>
+        <fail>
+            <condition>
+                <not>
+                    <equals arg1="${testrunresult}" arg2="0"/>
+                </not>
+            </condition>
+        </fail>
     </target>
     
-    <target name="run-all" depends="run-categories, jtreg" description="Execute QA and Jtreg tests" />
+    <target name="run-all" depends="run, jtreg" description="Execute QA and Jtreg tests" />
 
     <target name="run-categories" depends="" description="Execute QA test categories">
         <!-- categories can be found under packages com.sun.jini.test.impl and com.sun.jini.test.spec, some of them: -->
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,
         eventmailbox,jeri,iiop,jrmp,reliability,scalability,thread,renewalservice"/>-->
-        <property name="run.categories"
-                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders"/>
+        <property name="run.categories" value="joinmanager"/>
         <testrun>
              <!-- Run one or more test categories -->
             <arg value="-categories"/>
             <arg value="${run.categories}" />
         </testrun>
+        <antcall target="collect-result"/>
+        <fail>
+            <condition>
+                <not>
+                    <equals arg1="${testrunresult}" arg2="0"/>
+                </not>
+            </condition>
+        </fail>
     </target>
 
     <condition property="resultHtmlAvailable">
-        <or>
+        <and>
             <available file="${result.dir}/index.html"/>
             <istrue value="${harness.generateHtml}"/>
-        </or>
+        </and>
     </condition>
 
     <target name="collect-result" if="resultHtmlAvailable">
-        <zip basedir="${result.dir}" file="${result.dir}/qaresults-${os.arch}-${os.name}-${java.version}.zip" />
+        <delete file="${result.zip}" quiet="true"/>
+        <zip basedir="${result.dir}" file="${result.zip}" />
     </target>
 
-    <target name="run" depends="run-categories,collect-result"/>
+    <target name="run">
+        <property name="run.categories"
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders"/>
+        <antcall target="run-categories"/>
+    </target>
 
     <target name="doc" depends="compile"
 		description="Generate javadoc documentation">
