@@ -78,7 +78,7 @@ public class CommitExpiredTest extends TxnManagerTest {
             }
             cr.transaction.commit();
 	    throw new TestException("CannotCommitException is not raised");
-        } catch (UnknownTransactionException cce) {
+        } catch (CannotCommitException cce) {
 
             // Expected exception. Test passed.
             if (DEBUG) {
