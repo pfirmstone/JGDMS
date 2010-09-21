@@ -120,9 +120,9 @@ public class SerializationAdvancedTest extends SerializationTest {
         /**
          * Constructor.
          *
-         * @param p1 the first
+         * @param ic1 the first
          *           {@link net.jini.core.constraint.InvocationConstraint}
-         * @param p2 the second
+         * @param ic2 the second
          *           {@link net.jini.core.constraint.InvocationConstraint}
          * @param exp the expected result of the Test Case
          */
@@ -255,8 +255,6 @@ public class SerializationAdvancedTest extends SerializationTest {
      * {@link net.jini.core.constraint.InvocationConstraint} is guaranteed to
      * produce instances that are comparable with ==.
      *
-     * @param obj {@link net.jini.core.constraint.InvocationConstraint}
-     *            object to check
      * @return true if the returned result is equal to the expected one or
      *         false otherwise
      */

@@ -144,9 +144,6 @@ public class RenewalFailureListenerTest extends AbstractLeaseRenewalServiceTest 
      *     lease.</LI>
      * <LI>The listener must be non-null.</LI>
      * </OL>
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

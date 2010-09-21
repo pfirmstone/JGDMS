@@ -104,9 +104,6 @@ public class EventSequenceWarnTest extends AbstractLeaseRenewalServiceTest {
      * succeed. This is because retransmission of events is valid and in
      * some cases it is impossible to tell if two events with the same
      * sequence number are in fact the same event or different.)
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

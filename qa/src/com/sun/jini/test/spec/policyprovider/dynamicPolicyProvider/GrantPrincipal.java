@@ -85,7 +85,7 @@ import com.sun.jini.test.spec.policyprovider.util.QAPrincipal;
  *  <li> second policy.policyProviderGrant02 file that contains needed
  *       permissions</li>
  *  <li> {@link Util#listClasses} that contains class names to be loaded</li>
- *  <li> {@link Util#QAPrincipal} for test purpose</li>
+ *  <li> {@link QAPrincipal} for test purpose</li>
  * </ul>
  *
  * <b>Actions</b><br><br>

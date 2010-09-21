@@ -393,7 +393,7 @@ public abstract class TestBase extends QATest {
      * way.
      *
      * @param lease     The Lease to be canceled
-     * @param unknownOK If <code>true</code>
+     * @param unknownOk If <code>true</code>
      *                  <code>UnknownLeaseException</code> will be
      *                  ignored when this lease is cancled.
      */
@@ -419,7 +419,7 @@ public abstract class TestBase extends QATest {
      * way.
      *
      * @param lease     The Lease to be canceled
-     * @param unknownOK If <code>true</code>
+     * @param unknownOk If <code>true</code>
      *                  <code>UnknownLeaseException</code> will be
      *                  ignored when this lease is cancled.
      */
@@ -453,7 +453,7 @@ public abstract class TestBase extends QATest {
      * way.
      *
      * @param lease     The Lease to be canceled
-     * @param unknownOK If <code>true</code>
+     * @param unknownOk If <code>true</code>
      *                  <code>UnknownLeaseException</code> will be
      *                  ignored when this lease is cancled.
      */

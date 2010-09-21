@@ -36,7 +36,7 @@ import java.io.IOException;
  *  attributes belonging to the Registrar was indeed modified.
  *
  *  @see net.jini.admin.JoinAdmin
- *  @see com.sun.jini.test.spec.lookupservice.QATest
+ *  @see com.sun.jini.qa.harness.QATest
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

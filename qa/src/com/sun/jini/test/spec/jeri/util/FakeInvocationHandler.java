@@ -86,7 +86,7 @@ public class FakeInvocationHandler implements InvocationHandler {
      * verifies that method parameters are correct.
      *
      * @return ro if <code>ie</code> is not null
-     * @throw ie if not null
+     * @throws ie if not null
      */
     public Object invoke(Object proxy, Method method, Object[] args)
         throws Throwable

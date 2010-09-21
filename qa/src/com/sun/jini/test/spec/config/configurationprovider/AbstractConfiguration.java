@@ -35,18 +35,12 @@ public abstract class AbstractConfiguration implements Configuration {
      */
     public static ClassLoader obtainedCl = null;
 
-    /**
-     * {@inheritDoc}
-     */
     public AbstractConfiguration(String[] options)
             throws ConfigurationException {
 	this(options, null);
         wasCalled = true;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public AbstractConfiguration(String[] options, ClassLoader cl)
 	throws ConfigurationException
     {

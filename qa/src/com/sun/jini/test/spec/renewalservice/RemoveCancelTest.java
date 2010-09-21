@@ -79,9 +79,6 @@ public class RemoveCancelTest extends AbstractLeaseRenewalServiceTest {
 
     /**
      * Assert that removal of a lease from a set will not cancel the lease.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

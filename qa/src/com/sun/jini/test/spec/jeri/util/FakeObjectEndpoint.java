@@ -106,8 +106,8 @@ public class FakeObjectEndpoint implements ObjectEndpoint {
      * Implementation of interface method.
      *
      * @return executeCallReturn if executeCallException is null
-     * @throw executeCallException if executeCallException is not null
-     * @throw AssertionError if executeCallException is not null and
+     * @throws executeCallException if executeCallException is not null
+     * @throws AssertionError if executeCallException is not null and
      *        executeCallException is not instanceof 
      *        IOException, RuntimeException, or Error
      */

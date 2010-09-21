@@ -84,7 +84,8 @@ import com.sun.jini.test.spec.config.util.DefaultTestComponent;
  *       assert that data argument was passed to TestComponent
  *       constructor;
  *    2) If the entry value is a primitive, then the object
- *       returned is an instance of {@link AbstractConfiguration.Primitive}.
+ *       returned is an instance of
+ *       {@link Primitive AbstractConfiguration.Primitive}.
  *       This implementation uses <code>type</code> to perform conversions on
  *       primitive values.
  *     Steps:

@@ -126,9 +126,6 @@ public class ClearEventRegistrationTest extends AbstractLeaseRenewalServiceTest 
      * will only clear the specific event registration, it will not cancel
      * the lease on the renewal set, or affect any other event
      * registration on the set.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

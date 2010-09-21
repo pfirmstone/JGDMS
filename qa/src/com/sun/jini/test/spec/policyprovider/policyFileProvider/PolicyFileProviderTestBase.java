@@ -351,7 +351,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
      * Exception is not thrown. Verify that returned result
      * is equal to expected result.
      *
-     * @param pd the PermissionCollection.
+     * @param pc the PermissionCollection.
      * @param pm permission.
      * @param exp expected result.
      * @param msg string to format log message.
@@ -379,8 +379,8 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
      * Call implies() on PolicyFileProvider passing Permission[].
      *
      * @param pd the ProtectionDomain or null.
-     * @param pm permissions to check.
-     * @param exp expected result.
+     * @param pma permissions to check.
+     * @param expected expected result.
      * @param ifNull then expected result should be false for null
      *        ProtectionDomain.
      *
@@ -486,7 +486,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
      *
      * </pre>
      *
-     * @param array of array of permissions.
+     * @param pma array of array of permissions.
      *
      * @throws TestException if failed
      */
@@ -580,7 +580,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
      *
      * </pre>
      *
-     * @param array of array of permissions.
+     * @param pma array of array of permissions.
      *
      * @throws TestException if failed
      */
@@ -701,7 +701,7 @@ public abstract class PolicyFileProviderTestBase extends AbstractTestBase {
      *
      * </pre>
      *
-     * @param array of array of permissions.
+     * @param pma array of array of permissions.
      *
      * @throws TestException if failed
      */

@@ -111,8 +111,6 @@ public class EventRegistrationTest extends AbstractLeaseRenewalServiceTest {
      *    exhaustively.)</LI>
      *<LI>Assert that when a registration is replaced with a new one that
      *    the same event ID is used.</LI>
-     *
-     * @return the test Status (passed or failed)
      */
     public void run() throws Exception {
 

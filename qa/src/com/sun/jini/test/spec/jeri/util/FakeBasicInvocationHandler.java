@@ -103,8 +103,8 @@ public class FakeBasicInvocationHandler extends BasicInvocationHandler {
      *** "set" method above. If the configured exception is null, then
      *** these methods will call <code>super.<method>(...)</code>.
      ***
-     *** @throw configured exception if not null
-     *** @throw AssertionError if configured exception was set but
+     *** @throws configured exception if not null
+     *** @throws AssertionError if configured exception was set but
      ***        is not an instance of an exception thrown by the method
      ***/
 

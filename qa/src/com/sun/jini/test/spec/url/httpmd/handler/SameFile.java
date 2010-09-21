@@ -23,6 +23,8 @@ import java.util.logging.Level;
 // java.net
 import java.net.URL;
 
+import net.jini.url.httpmd.Handler;
+
 
 /**
  * <pre>

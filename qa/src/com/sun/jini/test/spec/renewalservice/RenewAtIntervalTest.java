@@ -147,8 +147,6 @@ public class RenewAtIntervalTest extends AbstractLeaseRenewalServiceTest {
      * Assert that the renewFor/3 method causes leases to be renewed with
      * a value that is equal to the lease duration specified in the call
      * (3rd argument).
-     * 
-     * @return the test Status (passed or failed)
      */
     public void run() throws Exception {
 

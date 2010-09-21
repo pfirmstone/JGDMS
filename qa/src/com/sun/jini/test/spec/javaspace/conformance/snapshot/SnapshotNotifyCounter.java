@@ -56,7 +56,7 @@ public class SnapshotNotifyCounter extends NotifyCounter {
      * Constructor to init fields of the class and register class itself.
      *
      * @param template Template for which this class counts events.
-     * @param snapshot Snapshot of template.
+     * @param leaseTime
      * @param space Space in which we will create snapshot
      *
      * @exception RemoteException
@@ -85,7 +85,7 @@ public class SnapshotNotifyCounter extends NotifyCounter {
     /**
      * Creates the string representation of this counter.
      *
-     * @returns The string representation.
+     * @return The string representation.
      */
     public String toString() {
         String leaseStr;

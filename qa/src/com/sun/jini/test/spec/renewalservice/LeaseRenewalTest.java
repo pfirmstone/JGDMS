@@ -116,9 +116,6 @@ public class LeaseRenewalTest extends AbstractLeaseRenewalServiceTest {
      * Assert that if the rewnewal service was able to renew the lease
      * before the event occured the lease's expiration will reflect the
      * result of the last successful renewal call.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

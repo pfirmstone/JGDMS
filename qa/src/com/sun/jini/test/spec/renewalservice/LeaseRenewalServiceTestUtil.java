@@ -127,7 +127,7 @@ public class LeaseRenewalServiceTestUtil extends Object {
      * 
      * @param evReg an EventRegistration object whose validity is tested.
      * 
-     * @param source a renewal set which is the expected source of
+     * @param lrSet a renewal set which is the expected source of
      * this event registration.  
      * 
      * @return true if the event registration is valid; false otherwise.
@@ -147,7 +147,7 @@ public class LeaseRenewalServiceTestUtil extends Object {
      * 
      * @param evReg an EventRegistration object whose validity is tested.
      * 
-     * @param source a renewal set which is the expected source of
+     * @param lrSet a renewal set which is the expected source of
      * this event registration.  
      * 
      * @return true if the event registration is valid; false otherwise.
@@ -169,7 +169,7 @@ public class LeaseRenewalServiceTestUtil extends Object {
      * <P>Notes:</P>
      * 
      * @param evReg an EventRegistration object whose validity is tested.
-     * @param source a renewal set which is the expected source of
+     * @param lrSet a renewal set which is the expected source of
      * this event registration.  
      * @param evID the expected event id.
      * 
@@ -325,7 +325,7 @@ public class LeaseRenewalServiceTestUtil extends Object {
      * 
      * @param listnr the RemoteListener to wait on
      * @param numberOfEvents the number of events to wait for
-     * @param waitTime the number of milliseconds to wait before timing out
+     * @param timeOutInMillis the number of milliseconds to wait before timing out
      * 
      * @return true if all events were received, false if timeout occurred
      *  */

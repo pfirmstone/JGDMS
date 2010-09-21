@@ -51,8 +51,8 @@ public class FakeInputStream extends InputStream {
      * Implementation of abstract method.
      * 
      * @return read_ret if read_exc is null
-     * @throw read_exc if read_exc is not null
-     * @throw AssertionError if read_exc is not null and
+     * @throws read_exc if read_exc is not null
+     * @throws AssertionError if read_exc is not null and
      *        read_exc is not instanceof IOException, RuntimeException or Error
      */
     public int read() throws IOException {

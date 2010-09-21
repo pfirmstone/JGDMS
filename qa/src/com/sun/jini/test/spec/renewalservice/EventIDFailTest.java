@@ -112,9 +112,6 @@ public class EventIDFailTest extends AbstractLeaseRenewalServiceTest {
      * Assert that because a given set will only have one expiration
      * warning event registration at a given time all expiration warning
      * events will have the same event ID.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

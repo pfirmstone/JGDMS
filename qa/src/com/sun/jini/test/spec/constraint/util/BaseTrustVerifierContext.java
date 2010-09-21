@@ -35,7 +35,7 @@ public abstract class BaseTrustVerifierContext
     /**
      * Method from TrustVerifier.Context interface. Does nothing.
      *
-     * @returns null
+     * @return null
      */
     public ClassLoader getClassLoader() {
         return null;
@@ -44,7 +44,7 @@ public abstract class BaseTrustVerifierContext
     /**
      * Method from TrustVerifier.Context interface. Does nothing.
      *
-     * @returns null
+     * @return null
      */
     public Collection getCallerContext() {
         return null;

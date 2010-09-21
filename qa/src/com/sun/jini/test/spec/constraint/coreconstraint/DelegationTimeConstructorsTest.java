@@ -222,8 +222,6 @@ public class DelegationTimeConstructorsTest
          * {@link ConnectionTimeConstructorsTest.TestCase} object.
          *
          * @param type     type of the constructor to be tested
-         * @param arg      argument to the constructor
-         * @param expT     expected result of the corresponding getTime() method
          * @param expExcCl expected type of exception while invoking the
          * constructor
          */

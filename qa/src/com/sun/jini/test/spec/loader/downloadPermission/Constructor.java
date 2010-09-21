@@ -102,7 +102,7 @@ public class Constructor extends QATest {
     /**
      * Sets up the testing environment.
      *
-     * @param args Arguments from the runner for setup.
+     * @param sysConfig QAConfig from the runner for setup.
      */
     public void setup(QAConfig sysConfig) throws Exception {
         // Set shared vm mode to be disabled in all cases

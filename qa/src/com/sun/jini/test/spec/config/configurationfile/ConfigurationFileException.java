@@ -18,6 +18,7 @@
 package com.sun.jini.test.spec.config.configurationfile;
 
 import net.jini.config.ConfigurationException;
+import net.jini.config.ConfigurationFile;
 
 /**
  * Subclass of <code>ConfigurationException</code> used in

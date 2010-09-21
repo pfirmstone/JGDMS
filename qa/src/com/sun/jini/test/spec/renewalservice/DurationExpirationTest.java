@@ -97,9 +97,6 @@ public class DurationExpirationTest extends AbstractLeaseRenewalServiceTest {
      * Assert that of the membership duration of a managed lease is less
      * than its expiration time then the lease will not be renewed but it
      * will remain in the set.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

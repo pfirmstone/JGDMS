@@ -100,9 +100,6 @@ public class RenewalTimeTest extends AbstractLeaseRenewalServiceTest {
      * Assert that the expiration time of a returned lease reflects either
      * the original time or the time set as a result of the last
      * successful renewal.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

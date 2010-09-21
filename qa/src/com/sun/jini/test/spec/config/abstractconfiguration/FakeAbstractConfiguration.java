@@ -126,9 +126,6 @@ public class FakeAbstractConfiguration extends AbstractConfiguration {
                 double.class
             }};
     
-    /**
-     * {@inheritDoc}
-     */
     public FakeAbstractConfiguration()
             throws ConfigurationException {
         super();

@@ -111,7 +111,7 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Sets up the testing environment.
      *
-     * @param args Arguments from the runner for setup.
+     * @param config QAConfig from the runner for setup.
      */
     public void setup(QAConfig config) throws Exception {
         this.config = config;
@@ -173,7 +173,7 @@ public abstract class AbstractTestBase extends QATest {
      *
      * @param jar name of jar file to download preferred classes/resources.
      *
-     * @param jar1 (optional) name of (second) jar file to download preferred
+     * @param jar2 (optional) name of (second) jar file to download preferred
      *        classes/resources
      *
      * @throws TestException if could not create

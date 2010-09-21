@@ -77,7 +77,7 @@ public class TestHandler extends Handler {
     /**
      * Parses the string representation of an HTTPMD URL object.
      *
-     * @param u the URL to receive the result of parsing the spec.
+     * @param url the URL to receive the result of parsing the spec.
      * @param spec the String representing the URL that must be parsed.
      * @param start the character index at which to begin parsing.
      * @param limit the character position to stop parsing at.

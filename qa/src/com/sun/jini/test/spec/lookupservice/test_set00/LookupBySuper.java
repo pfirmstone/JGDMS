@@ -34,7 +34,7 @@ import java.rmi.RemoteException;
  *  the Lookup service can be successfully looked up using only the 
  *  super classes it extends (excluding the universally-extended Object class).
  *
- *  @see com.sun.jini.test.spec.lookupservice.QATest
+ *  @see com.sun.jini.qa.harness.QATest
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

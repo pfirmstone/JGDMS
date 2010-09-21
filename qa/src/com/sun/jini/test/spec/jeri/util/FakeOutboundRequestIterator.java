@@ -113,7 +113,7 @@ public class FakeOutboundRequestIterator implements OutboundRequestIterator {
      * Implementation of interface method.
      *
      * @return next <code>hasNextReturn</code> array element
-     * @throw AssertionError if <code>hasNextReturn</code> is null or
+     * @throws AssertionError if <code>hasNextReturn</code> is null or
      *        all elements have been returned
      */
     public boolean hasNext() {
@@ -136,8 +136,8 @@ public class FakeOutboundRequestIterator implements OutboundRequestIterator {
      * 
      * @return next <code>nextReturn</code> array element if nextExc is null
      * @throws nextException if non-null
-     * @throw AssertionError if <code>nextReturn</code> is null or
-     * @throw NoSuchElementException if all elements have been returned
+     * @throws AssertionError if <code>nextReturn</code> is null or
+     * @throws NoSuchElementException if all elements have been returned
      */
     public OutboundRequest next() throws IOException {
         logger.entering(getClass().getName(),"next");

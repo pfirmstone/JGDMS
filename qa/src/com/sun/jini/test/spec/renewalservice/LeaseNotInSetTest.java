@@ -82,8 +82,6 @@ public class LeaseNotInSetTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Assert that the remove method returns null when the lease is
      * not in the set.
-     * 
-     * @return the test Status (passed or failed)
      */
     public void run() throws Exception {
 

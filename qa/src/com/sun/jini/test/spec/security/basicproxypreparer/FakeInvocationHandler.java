@@ -46,7 +46,7 @@ public class FakeInvocationHandler implements InvocationHandler {
      * Specially treat only Object.equals method.
      *
      * @param proxy the proxy object
-     * @param method the method being invoked
+     * @param m the method being invoked
      * @param args the arguments to the specified method
      * @return the value returned by executing the specified method on
      *         the specified proxy with the specified arguments, or null

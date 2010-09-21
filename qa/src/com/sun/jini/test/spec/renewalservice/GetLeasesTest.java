@@ -94,9 +94,6 @@ public class GetLeasesTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Assert that the getLeases method returns all the client leases in
      * the set at the time of the call as an array of type Lease.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

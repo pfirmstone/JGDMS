@@ -99,8 +99,8 @@ public class FakeArgument extends RemoteException implements Serializable {
      * write object exception was passed in, then this method will
      * write the objects state to <code>out</code>.
      *
-     * @throw wo_exc if wo_exc is not null
-     * @throw AssertionError if wo_exc is not null and
+     * @throws wo_exc if wo_exc is not null
+     * @throws AssertionError if wo_exc is not null and
      *        wo_exc is not instanceof IOException, RuntimeException or Error
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
@@ -128,8 +128,8 @@ public class FakeArgument extends RemoteException implements Serializable {
      * <p>If a read object exception is unserialized, then this method
      * will throw that exception.
      *
-     * @throw ro_exc if ro_exc is not null
-     * @throw AssertionError if ro_exc is not null and
+     * @throws ro_exc if ro_exc is not null
+     * @throws AssertionError if ro_exc is not null and
      *        ro_exc is not instanceof IOException, RuntimeException,
      *        ClassNotFoundException or Error
      */

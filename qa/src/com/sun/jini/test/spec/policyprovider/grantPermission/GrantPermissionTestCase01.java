@@ -173,7 +173,7 @@ public class GrantPermissionTestCase01 extends AbstractTestBase {
      *
      * @param pc PermissionCollection to be verified.
      * @param p  Permission to be verified.
-     * @param expected if true then PermissionCollection should imply
+     * @param exp if true then PermissionCollection should imply
      *        passing Permission, otherwise should not imply.
      * @param msg string to format log message.
      *
@@ -198,7 +198,7 @@ public class GrantPermissionTestCase01 extends AbstractTestBase {
      *
      * @param p Permission to be verified.
      * @param pAnother another Permission to be verified.
-     * @param expected if true then Permission should imply
+     * @param exp if true then Permission should imply
      *        another passing Permission, otherwise should not imply.
      *
      * @throws TestException if failed

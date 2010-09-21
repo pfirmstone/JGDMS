@@ -33,6 +33,7 @@ import java.util.Vector;
 
 // davis packages
 import net.jini.url.httpmd.WrongMessageDigestException;
+import net.jini.url.httpmd.Handler;
 
 // java.net
 import java.net.URL;

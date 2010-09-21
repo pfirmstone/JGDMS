@@ -75,9 +75,6 @@ public class MembershipDurationTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Assert that the membership duration argument to the addLease method
      * is interpreted correctly.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

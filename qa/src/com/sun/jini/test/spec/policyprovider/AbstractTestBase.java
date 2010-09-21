@@ -113,7 +113,7 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Sets up the testing environment.
      *
-     * @param args Arguments from the runner for setup.
+     * @param sysConfig QAConfig from the runner for setup.
      */
     public void setup(QAConfig sysConfig) throws Exception {
         // mandatory call to parent

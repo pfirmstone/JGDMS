@@ -63,9 +63,6 @@ public class LeaseDurationTest extends AbstractLeaseRenewalServiceTest {
      * Asserts that for a range of lease duration values given to the
      * createLeaseRenewalSet method, the LRS will only grant times less
      * than or equal to the amount requested.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

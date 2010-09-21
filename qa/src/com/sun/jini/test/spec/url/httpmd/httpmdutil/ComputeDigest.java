@@ -33,6 +33,7 @@ import java.util.Vector;
 
 // davis packages
 import net.jini.url.httpmd.HttpmdUtil;
+import net.jini.url.httpmd.Handler;
 
 // java.io
 import java.io.File;

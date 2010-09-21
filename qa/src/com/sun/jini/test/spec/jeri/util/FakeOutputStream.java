@@ -46,8 +46,8 @@ public class FakeOutputStream extends OutputStream {
     /**
      * Implementation of abstract method.
      * 
-     * @throw write_exc if write_exc is not null
-     * @throw AssertionError if write_exc is null or
+     * @throws write_exc if write_exc is not null
+     * @throws AssertionError if write_exc is null or
      *        write_exc is not instanceof IOException, RuntimeException or Error
      */
     public void write(int b) throws IOException {

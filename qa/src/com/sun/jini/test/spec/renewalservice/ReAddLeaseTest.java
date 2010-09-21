@@ -90,9 +90,6 @@ public class ReAddLeaseTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Assert that when a lease is added to a set in which it already
      * resides that the membership duration is updated appropriately.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

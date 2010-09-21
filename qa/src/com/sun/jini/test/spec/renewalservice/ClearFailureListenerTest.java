@@ -110,9 +110,6 @@ public class ClearFailureListenerTest extends AbstractLeaseRenewalServiceTest {
      * Assert that the clearRenewalFailureListener method operates as
      * expected. Asset that this method may be called multiple times with
      * no ill effect.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

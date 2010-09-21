@@ -132,7 +132,7 @@ public abstract class AbstractLeaseRenewalServiceTest extends QATest {
      *          If index is greater than or equal to the number of LRS 
      *          proxy instances.
      * 
-     * @see    AbstractLeaseRenewalServiceTest#setup() 
+     * @see    #setup(QAConfig)
      */
     public LeaseRenewalService getLRS(int index) {
 
@@ -153,7 +153,7 @@ public abstract class AbstractLeaseRenewalServiceTest extends QATest {
      *          If index is greater than or equal to the number of LRS 
      *          proxy instances.
      * 
-     * @see    AbstractLeaseRenewalServiceTest#setup() 
+     * @see    #setup(QAConfig)
      */
     public LeaseRenewalService getLRS() {
 	return getLRS(0);

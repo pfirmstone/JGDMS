@@ -118,9 +118,6 @@ public class RenewalFailureEventTest extends AbstractLeaseRenewalServiceTest {
      * Assert that the RenewalFailureEvent object returns the excepted
      * lease and the last Throwable from a series of indefinite renewal
      * failures.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

@@ -116,9 +116,6 @@ public class NewListenerEventTest extends AbstractLeaseRenewalServiceTest {
      * delivery attempts on the original listener failed or were
      * indeterminate, implementations may chose to send some ot all of
      * these events to the new listener.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

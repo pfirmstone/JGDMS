@@ -36,17 +36,11 @@ public class ValidConfiguration implements Configuration {
      */
     public static ClassLoader obtainedCl = null;
 
-    /**
-     * {@inheritDoc}
-     */
     public ValidConfiguration(String[] options) throws ConfigurationException {
 	this(options, null);
         wasCalled = true;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public ValidConfiguration(String[] options, ClassLoader cl)
 	throws ConfigurationException
     {
@@ -54,25 +48,16 @@ public class ValidConfiguration implements Configuration {
         obtainedCl = cl;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public Object getEntry(String component, String name, Class type)
             throws ConfigurationException {
         throw new AssertionError();
     };
 
-    /**
-     * {@inheritDoc}
-     */
     public Object getEntry(String component, String name, Class type,
             Object defaultValue) throws ConfigurationException {
         throw new AssertionError();
     };
 
-    /**
-     * {@inheritDoc}
-     */
     public Object getEntry(String component, String name, Class type,
             Object defaultValue, Object data) throws ConfigurationException {
         throw new AssertionError();

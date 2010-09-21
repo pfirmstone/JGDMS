@@ -36,7 +36,7 @@ import java.util.Iterator;
  * contents of one or more locator sets, comparing the contents of two such
  * sets, etc.
  *
- * @see com.sun.jini.qa.harness.QATestUtil
+ * @see com.sun.jini.qa.harness.QAConfig
  */
 public class LocatorsUtil {
 
@@ -341,7 +341,7 @@ public class LocatorsUtil {
      *  that index exists in the resource configuration file, then
      *  this method will attempt to retrieve the prot item with no index.
      * 
-     *  @param qaUtil instance of this utility class through which the port
+     *  @param config instance of the QAConfig class through which the port
      *                will be retrieved
      *  @param index  the index value of the particular configuration item
      *                to retrieve
@@ -369,7 +369,7 @@ public class LocatorsUtil {
      *  started. If there is no such configuration item, this method attempts
      *  the retrieval using an index value of zero.
      * 
-     *  @param qaUtil instance of this utility class through which the port
+     *  @param config instance of the QAConfig class through which the port
      *                will be retrieved
      *
      *  @return String representing the locator url constructed from the

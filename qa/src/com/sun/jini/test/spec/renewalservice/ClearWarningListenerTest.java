@@ -92,9 +92,6 @@ public class ClearWarningListenerTest extends AbstractLeaseRenewalServiceTest {
      * Assert that the clearExpirationWarningListener method operates as
      * expected. Assert that this method may be called multiple times with
      * no ill effect.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

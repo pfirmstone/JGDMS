@@ -79,7 +79,7 @@ abstract public class TrackingOwner extends LeaseOwner {
      *             Expect value of the renewDuration parameter
      * @param notifyOnFailure
      *             Object to notify if there is an early failure
-     * @param util QA harnss utility object
+     * @param config QAConfig object
      */
     public TrackingOwner(long initialExpiration, long maxExtension,
 			 long desiredExpiration, long slop,

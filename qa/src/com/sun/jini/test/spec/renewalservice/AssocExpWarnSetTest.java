@@ -91,8 +91,6 @@ public class AssocExpWarnSetTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Assert that the set returned as the source of the
      * ExpirationWarningEvent is the set which is about to expire.
-     * 
-     * @return the test Status (passed or failed)
      */
     public void run() throws Exception {
 

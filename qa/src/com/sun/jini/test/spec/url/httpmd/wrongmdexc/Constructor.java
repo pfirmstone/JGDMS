@@ -49,7 +49,7 @@ import net.jini.url.httpmd.WrongMessageDigestException;
  *   This test tries to create
  *   {@link WrongMessageDigestException} object
  *   with the specified detail message using the
- *   {@link WrongMessageDigestException(String)}
+ *   {@link WrongMessageDigestException#WrongMessageDigestException(String)}
  *   constructor.
  *
  * Infrastructure:

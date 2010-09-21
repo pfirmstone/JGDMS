@@ -91,8 +91,6 @@ public class IllegalLeaseTest extends AbstractLeaseRenewalServiceTest {
      * Assert that attempts to add a non-expired set lease into a set from the
      * same service throws an IllegalArgumentException.  Adding the same lease
      * to more than one set should succeed.
-     * 
-     * @return the test Status (passed or failed)
      */
     public void run() throws Exception {
 

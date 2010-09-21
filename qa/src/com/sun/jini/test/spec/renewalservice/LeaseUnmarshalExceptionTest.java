@@ -101,9 +101,6 @@ public class LeaseUnmarshalExceptionTest
      * de-serialized, a LeaseUnmarshalException is thrown and the
      * getMarshalledLeases, getStillMarshalledLeases, and getExceptions
      * methods work as advertised.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

@@ -61,8 +61,6 @@ public class GetLeaseTest extends AbstractLeaseRenewalServiceTest {
 
     /**
      * Assert that the getLease method returns the lease of the set itself.
-     * 
-     * @return the test Status (passed or failed)
      */
     public void run() throws Exception {
 

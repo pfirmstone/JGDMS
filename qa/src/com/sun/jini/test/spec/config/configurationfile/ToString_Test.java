@@ -51,7 +51,7 @@ import com.sun.jini.test.spec.config.util.FakeClassLoader;
  * <pre>
  * Purpose:
  *   This test verifies the behavior of the toString() method of
- *   {@link CofigurationFile} class. There are four forms of constructor:
+ *   {@link ConfigurationFile} class. There are four forms of constructor:
  *   1) public ConfigurationFile(String[] options)
  *   2) public ConfigurationFile(String[] options, ClassLoader cl)
  *   3) public ConfigurationFile(Reader reader, String[] options)
@@ -306,7 +306,6 @@ public class ToString_Test extends QATest {
      * list in  class description
      * @param forReader File, URL or null for constructing reader if needed
      * @param options is used as constructor parameter
-     * @param cl is used as constructor parameter
      */
     protected void checkVariant(
             Object testCase,

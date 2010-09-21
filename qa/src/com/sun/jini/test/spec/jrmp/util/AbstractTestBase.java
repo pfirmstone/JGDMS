@@ -102,7 +102,7 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Sets up the testing environment.
      *
-     * @param config Configuration for setup.
+     * @param sysConfig Configuration for setup.
      */
     public void setup(QAConfig sysConfig) throws Exception {
         // mandatory call to parent
@@ -145,18 +145,6 @@ public abstract class AbstractTestBase extends QATest {
 
     /**
      * Constructs JrmpExporter using appropriate constructor.
-     *
-     * @param cType  Constuctor being used for constructing JrmpExporter.
-     *        Possible values:
-     *        NOARG_FACTORY - public JrmpExporter()
-     *        PORT_FACTORY - public JrmpExporter(int port)
-     *        SOCKS_FACTORY - public JrmpExporter(int port,
-     *                                            RMIClientSocketFactory csf,
-     *                                            RMIServerSocketFactory ssf)
-     *        ID_FACTORY - public JrmpExporter(ActivationID id, int port)
-     *        ID_SOCKS_FACTORY - public JrmpExporter(ActivationID id, int port,
-     *                                               RMIClientSocketFactory csf,
-     *                                               RMIServerSocketFactory ssf)
      *
      * @return Constructed JrmpExporter
      */

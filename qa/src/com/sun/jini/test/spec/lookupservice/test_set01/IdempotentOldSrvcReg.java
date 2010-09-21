@@ -67,7 +67,7 @@ import net.jini.core.lookup.ServiceRegistration;
  *  during the initial registration. This is done because we are testing
  *  for idempotency of the registration of EXISTING services.
  *
- *  @see com.sun.jini.test.spec.lookupservice.QATest
+ *  @see com.sun.jini.qa.harness.QATest
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

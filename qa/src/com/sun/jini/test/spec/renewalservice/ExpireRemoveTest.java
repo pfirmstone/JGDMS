@@ -96,9 +96,7 @@ public class ExpireRemoveTest extends AbstractLeaseRenewalServiceTest {
      * 
      * <P>Notes:<BR>For more information see the LRS specification 
      * section 9.3 page 108.</P>
-     * 
-     * @return the test Status (passed or failed)
-     *  */
+     */
     public void run() throws Exception {
 
 	// Announce where we are in the test

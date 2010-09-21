@@ -57,7 +57,7 @@ import com.sun.jini.test.spec.policyprovider.util.QAPrincipal;
  *
  * <b>Test Description</b><br><br>
  *
- * This test is additional test to {@link #GrantNoPrincipalCase01} <br>
+ * This test is additional test to {@link GrantNoPrincipalCase01} <br>
  *
  * This test verifies that
  * <ol>

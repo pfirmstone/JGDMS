@@ -95,7 +95,7 @@ public abstract class AbstractMuxTest implements Test {
      * is the value of the com.sun.jini.test.spec.jeri.mux.listenPort property
      * or 9090 if this property is not set.
      *
-     * @returns A port on which the test can start a listen operation
+     * @return A port on which the test can start a listen operation
      */
     public int getPort() {
         return port;
@@ -127,7 +127,7 @@ public abstract class AbstractMuxTest implements Test {
      * Returns a logger named com.sun.jini.test.spec.jeri.mux that can be
      * used while executing a test.
      *
-     * @returns A logger for use in testing.
+     * @return A logger for use in testing.
      */
     public static Logger getLogger(){
         return log;

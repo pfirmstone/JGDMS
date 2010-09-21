@@ -115,9 +115,6 @@ public class AssocRenewalFailSetTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Assert that the set returned as the source of the RenewalFailureEvent is
      * the set on which the renewal attempt failed.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

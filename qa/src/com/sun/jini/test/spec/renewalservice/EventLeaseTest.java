@@ -156,9 +156,6 @@ public class EventLeaseTest extends AbstractLeaseRenewalServiceTest {
      * <LI>The lease that caused the renewal failure event is removed from the
      *     lease renewal set.</LI>
      * </OL>
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

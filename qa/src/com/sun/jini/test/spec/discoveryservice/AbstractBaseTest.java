@@ -2701,12 +2701,6 @@ abstract public class AbstractBaseTest extends QATest {
      *       <code>InetAddress</code> of each element to the respective 
      *       ports and <code>InetAddress</code>s of the given locators.
      * 
-     * @param locSet this method will determine whether or not the given
-     *               locator is contained in this <code>Set</code> of
-     *               <code>LookupLocator</code>s.
-     * @param loc    this method will determine whether or not this
-     *               <code>LookupLocator</code> is contained in the given set.
-     * 
      * @return <code>true</code> if the given set of locators contains the
      *         given locator; <code>false</code> otherwise.
      */

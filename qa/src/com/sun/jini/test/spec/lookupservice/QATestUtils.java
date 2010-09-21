@@ -51,7 +51,7 @@ import java.util.logging.Level;
  *  member class, and most methods, contained in this class is public 
  *  and static; this class does not need to be instantiated.
  *
- *  @see com.sun.jini.test.spec.lookupservice.QATest
+ *  @see QATest
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  */
 public class QATestUtils {
@@ -138,8 +138,6 @@ public class QATestUtils {
 
         /** Creates a SrvcAttrTuple with the given transition value
          *  and null reference arrays of service items and attributes.
-         *  @param srvcItems the array of registered service items
-         *  @param attrs array of Entry type elements containing attributes
          *  @param srvcObj the service component of the new tuple
          *  @param attrObj the attribute component of the new tuple
          *  @param transition the transition component of the new tuple
@@ -158,11 +156,8 @@ public class QATestUtils {
 
         /** Creates a SrvcAttrTuple with the "unknown" (0) transition value
          *  and null reference arrays of service items and attributes.
-         *  @param srvcItems the array of registered service items
-         *  @param attrs array of Entry type elements containing attributes
          *  @param srvcObj the service component of the new tuple
          *  @param attrObj the attribute component of the new tuple
-         *  @param transition the transition component of the new tuple
          */
         public SrvcAttrTuple(Object srvcObj,
                              Object attrObj)
@@ -331,7 +326,6 @@ public class QATestUtils {
      *  the element that equals the given attribute Object; returning the
      *  element index if a match is found and -1 otherwise
      *  @param obj attribute object to search for
-     *  @param srvcItems array of attributes to search
      *  @return int (array index or -1 if no match found)
      */
     public static int getAttrIndx(Object     obj,

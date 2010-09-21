@@ -558,8 +558,8 @@ public abstract class DynamicPolicyProviderTestBase extends AbstractTestBase {
      * Call implies() on ProtectionDomain passing Permission[].
      *
      * @param pd the ProtectionDomain or null.
-     * @param pm permission granted earlier or null.
-     * @param exp expected result.
+     * @param pma permissions granted earlier or null.
+     * @param expected expected result.
      * @param ifNull then expected result should be false for null
      *        ProtectionDomain.
      *

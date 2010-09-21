@@ -160,7 +160,7 @@ public class NotifyCounter
     /**
      * Creates the string representation of this counter.
      *
-     * @returns The string representation.
+     * @return The string representation.
      */
     public String toString() {
         String leaseStr;

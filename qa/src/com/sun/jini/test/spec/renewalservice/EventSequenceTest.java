@@ -165,9 +165,6 @@ public class EventSequenceTest extends AbstractLeaseRenewalServiceTest {
 
     /**
      * Assert that events arrive in strictly increasing order.<BR>
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

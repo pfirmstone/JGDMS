@@ -41,7 +41,7 @@ import java.rmi.RemoteException;
  *
  *  @see net.jini.admin.JoinAdmin
  *  @see net.jini.core.discovery.LookupLocator
- *  @see com.sun.jini.test.spec.lookupservice.QATest
+ *  @see com.sun.jini.qa.harness.QATest
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

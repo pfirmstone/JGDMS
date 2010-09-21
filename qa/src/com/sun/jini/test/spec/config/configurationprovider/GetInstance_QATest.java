@@ -114,7 +114,7 @@ public abstract class GetInstance_QATest extends QATest {
      * resource content.
      *
      * @param base subdirectory name
-     * @param conf desired content of the resource file
+     * @param content desired content of the resource file
      * @return created class loader
      */
     protected URL[] createUrls(String base, String content)
@@ -138,7 +138,7 @@ public abstract class GetInstance_QATest extends QATest {
      * resource content.
      *
      * @param base subdirectory name
-     * @param conf desired content of the resource file
+     * @param content desired content of the resource file
      * @return created class loader
      */
     protected URLClassLoader createClassLoader(String base, String content)

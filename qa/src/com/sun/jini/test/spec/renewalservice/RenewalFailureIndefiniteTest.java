@@ -114,9 +114,6 @@ public class RenewalFailureIndefiniteTest
     /**
      * Asserts that an event get delivered for an indefinite exception
      * only after the expiration time of the client lease.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

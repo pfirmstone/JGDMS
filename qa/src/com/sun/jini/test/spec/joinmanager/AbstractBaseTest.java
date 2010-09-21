@@ -463,14 +463,6 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  lookup services that have been started. Waits at least nSecsJoin
      *  seconds, but no more than 2*nSecsJoin seconds to allow for the
      *  possibility that more events than expected may arrive.
-     *  
-     *  This method will return <code>null</code> if there are no problems.
-     *  If the <code>String</code> returned by this method is 
-     *  non-<code>null</code>, then the test should declare failure and
-     *  display the value returned by this method.
-     *
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if there was no problem.
      */
     protected void verifyJoin() throws Exception {
         logger.log(Level.FINE, "waiting at least "+nSecsJoin
@@ -521,9 +513,6 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  If the <code>String</code> returned by this method is 
      *  non-<code>null</code>, then the test should declare failure and
      *  display the value returned by this method.
-     *
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if there was no problem.
      */
     protected void verifyJoin(int nEventsExpected) throws Exception {
         verifyJoin();
@@ -600,9 +589,6 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  If the <code>String</code> returned by this method is 
      *  non-<code>null</code>, then the test should declare failure and
      *  display the value returned by this method.
-     *
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if there was no problem.
      */
     protected void verifyAttrsInJoinMgr(JoinManager joinMgr, Entry[] attrs) 
 	throws Exception
@@ -636,9 +622,6 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  If the <code>String</code> returned by this method is 
      *  non-<code>null</code>, then the test should declare failure and
      *  display the value returned by this method.
-     *
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if there was no problem.
      */
     protected void verifyPropagation(Entry[] attrs) throws Exception {
         verifyPropagation(attrs, 0);
@@ -658,9 +641,6 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  If the <code>String</code> returned by this method is 
      *  non-<code>null</code>, then the test should declare failure and
      *  display the value returned by this method.
-     *
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if there was no problem.
      */
     protected void verifyPropagation(Entry[] attrs, int nSecsWait) 
 	throws Exception

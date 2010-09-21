@@ -57,7 +57,6 @@ import java.util.ArrayList;
  * 
  * @see com.sun.jini.test.spec.lookupdiscovery.MulticastMonitorChange
  * @see com.sun.jini.test.spec.lookupdiscovery.MulticastMonitorReplace
- * @see com.sun.jini.test.spec.lookupdiscovery.MulticastMonitorReplaceAll
  * @see com.sun.jini.test.spec.lookupdiscovery.MulticastMonitorReplaceNone
  * @see com.sun.jini.test.spec.lookupdiscovery.MulticastMonitorStop
  * @see com.sun.jini.test.spec.lookupdiscovery.MulticastMonitorTerminate

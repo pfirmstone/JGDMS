@@ -44,7 +44,7 @@ public class TransactionMultipleTakeTest extends AbstractTakeTestBase {
     /**
      * Sets up the testing environment.
      *
-     * @param args Arguments from the runner for setup.
+     * @param config QAConfig from the runner for setup.
      */
     public void setup(QAConfig config) throws Exception {
 

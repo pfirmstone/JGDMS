@@ -72,7 +72,7 @@ public class SimpleEntry implements Entry, Cloneable {
     /**
      * Verifies that a SimpleEntry matches a template(this SimpleEntry).
      * @param se SimpleEntry needed to be checked.
-     * @returns Result of comparing.
+     * @return Result of comparing.
      */
     public boolean implies(SimpleEntry se) {
         if (se == null) {
@@ -85,7 +85,7 @@ public class SimpleEntry implements Entry, Cloneable {
     /**
      * Compare this SimpleEntry with another one.
      * @param o SimpleEntry needed to be checked.
-     * @returns Result of comparing.
+     * @return Result of comparing.
      */
     public boolean equals(Object o) {
         if (o == this) {
@@ -123,7 +123,7 @@ public class SimpleEntry implements Entry, Cloneable {
 
     /**
      * Creates the string representation of this SimpleEntry.
-     * @returns The string representation.
+     * @return The string representation.
      */
     public String toString() {
         return "SimpleEntry: [name = " + name + ", id = " + id + "]";

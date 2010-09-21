@@ -54,7 +54,7 @@ import java.rmi.RemoteException;
  *  is returned is then compared against the expected set of class type
  *  descriptors. 
  *
- *  @see com.sun.jini.test.spec.lookupservice.QATest
+ *  @see com.sun.jini.qa.harness.QATest
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

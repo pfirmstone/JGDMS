@@ -98,9 +98,6 @@ public class LeaseUnmarshalNoneTest
      * Assert that if none of the leases in the array can be de-serialized
      * a LeaseUnmarhalException is thrown and getMarshalledLeases method
      * returns a 0 length array.
-     *
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

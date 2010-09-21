@@ -308,8 +308,7 @@ public class LeaseExpirationTest extends AbstractLeaseRenewalServiceTest {
      * results in it being removed from its renewal set and no further
      * action is taken on the lease for a period up to and including
      * its expiration time plus one half.
-     * 
-     * @return the test Status (passed or failed) */
+     */
     public void run() throws Exception {
 
 	// Announce where we are in the test

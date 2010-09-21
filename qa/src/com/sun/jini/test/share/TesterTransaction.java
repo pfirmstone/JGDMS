@@ -72,7 +72,7 @@ public class TesterTransaction implements TransactionConstants {
     /**
      * Send a <code>prepare</code> message to the participants,
      *
-     * @returns the state of the transaction after the messages.
+     * @return the state of the transaction after the messages.
      */
     public synchronized int sendPrepare()
             throws UnknownTransactionException, RemoteException {
@@ -83,7 +83,7 @@ public class TesterTransaction implements TransactionConstants {
     /**
      * Send a <code>prepareAndCommit</code> message to the participants,
      *
-     * @returns the state of the transaction after the messages.
+     * @return the state of the transaction after the messages.
      */
     public synchronized int sendPrepareAndCommit()
             throws UnknownTransactionException, RemoteException {
@@ -92,9 +92,7 @@ public class TesterTransaction implements TransactionConstants {
     }
 
     /**
-     * Send a <code>commit</code> message to the participants,
-     *
-     * @returns the state of the transaction after the messages.
+     * Send a <code>commit</code> message to the participants.
      */
     public synchronized void sendCommit()
             throws UnknownTransactionException, RemoteException {
@@ -103,9 +101,7 @@ public class TesterTransaction implements TransactionConstants {
     }
 
     /**
-     * Send a <code>abort</code> message to the participants,
-     *
-     * @returns the state of the transaction after the messages.
+     * Send a <code>abort</code> message to the participants.
      */
     public synchronized void sendAbort()
             throws UnknownTransactionException, RemoteException {

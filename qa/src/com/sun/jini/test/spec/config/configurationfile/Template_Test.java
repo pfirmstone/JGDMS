@@ -335,7 +335,6 @@ public abstract class Template_Test extends QATest {
      * @param testCase test case from according to testCases
      * @param forReader File, URL or null for constructing reader if needed
      * @param options is used as constructor parameter
-     * @param cl is used as constructor parameter
      * @return instance of created ConfigurationFile object
      */
     protected ConfigurationFile callConstructor(

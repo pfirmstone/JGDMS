@@ -134,9 +134,6 @@ public class ExpirationListenerTest extends AbstractLeaseRenewalServiceTest {
      * <LI>A minWarning value that exceeds the current duration of the 
      * set's lease causes immediate delivery of the ExpirationWarningEvent.</LI>
      * </OL>
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

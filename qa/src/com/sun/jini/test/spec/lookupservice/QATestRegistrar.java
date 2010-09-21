@@ -351,7 +351,7 @@ public abstract class QATestRegistrar extends QATest {
      *  After processing the appropriate data in the argument list, the values
      *  of a number of this class' fields are set, the codebase system property
      *  is set, and the RMI security manager is set.
-     *  @param args command line arguments for the current QA test
+     *  @param config QAConfig for the current QA test
      *  @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */

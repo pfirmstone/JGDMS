@@ -81,7 +81,7 @@ public abstract class AbstractTestBase extends QATest {
 
     /**
      * Second timeout for testing in ms.
-     * Must be greater then ({@link timeout1} + 5000)
+     * Must be greater then ({@link #timeout1} + 5000)
      */
     protected long timeout2 = 0;
 
@@ -101,7 +101,7 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Sets up the testing environment.
      *
-     * @param args Arguments from the runner for setup.
+     * @param config QAConfig from the runner for setup.
      */
     public void setup(QAConfig config) throws Exception {
 

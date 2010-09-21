@@ -109,9 +109,6 @@ public class IndefiniteRenewalTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Assert that if the rewnewal service was unable to call renew before the
      * lease expired, then the Throwable returned in the event object is null.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

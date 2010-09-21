@@ -129,8 +129,6 @@ public class SerializationTest extends QATest {
      * subsequent deserialization for the specified object produce the object
      * that is equivalent (==) to the specified object.
      *
-     * @param obj {@link net.jini.core.constraint.InvocationConstraint}
-     *            object to check
      * @return true if the specified object after serialization and subsequent
      *         deserialization is equivalent (==) to the specified object or
      *         false otherwise

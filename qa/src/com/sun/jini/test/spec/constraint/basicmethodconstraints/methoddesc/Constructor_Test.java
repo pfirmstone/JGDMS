@@ -192,11 +192,8 @@ public class Constructor_Test extends QATest {
      * Run MethodDesc constructor for valid test case.
      *
      * @param testCase value according to test cases description
-     * @param verify whether to verify if proxies are trusted
-     * @param methodConstraints method constraints to use when verifying 
+     * @param constraints InvocationConstraints to use when verifying
      *	      and setting constraints
-     * @param permissions permissions to grant, or <code>null</code> if no
-     *	      permissions should be granted
      */
     protected MethodDesc callConstructor(
             int testCase,

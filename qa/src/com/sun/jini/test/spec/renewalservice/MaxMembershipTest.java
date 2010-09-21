@@ -103,9 +103,6 @@ public class MaxMembershipTest extends AbstractLeaseRenewalServiceTest {
      * Assert that if a lease is added to a renewal set with a membership
      * duration of Long.MAX_VALUE then its membership expiration is
      * Long.MAX_VALUE.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 

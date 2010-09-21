@@ -36,7 +36,7 @@ public class RMCPTImpl extends RMCImpl implements ProxyTrust {
     /**
      * Method from ProxyTrust interface. Does nothing.
      *
-     * @returns null
+     * @return null
      */
     public TrustVerifier getProxyVerifier() throws RemoteException {
         return null;

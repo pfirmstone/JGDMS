@@ -61,10 +61,7 @@ public class RenewingRemoteListener extends RememberingRemoteListener {
     protected Lease lastLeaseRenewed = null;
 
     /**
-     * Constructor requiring a renewal duration value and a
-     * PrintWriter for output messages.
-     * 
-     * @param pw  all output messages are written to this PrintWriter
+     * Constructor requiring a renewal duration value and an Exporter.
      * 
      * @exception RemoteException
      *          Remote initialization problem.  

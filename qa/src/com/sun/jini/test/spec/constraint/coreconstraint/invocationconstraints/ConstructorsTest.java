@@ -664,7 +664,6 @@ public class ConstructorsTest extends AbstractConstructorsTest {
      * @param tc    test case object
      * @param req   constraints specified as requirements
      * @param pref  constraints specified as preferences
-     * @param pref  expected type of Exception
      * @throws TestException if any verification fails
      */
     protected void callConstructor(Object tc,
@@ -804,7 +803,6 @@ public class ConstructorsTest extends AbstractConstructorsTest {
      * @param tc    test case object
      * @param req   constraints specified as requirements
      * @param pref  constraints specified as preferences
-     * @param pref  expected type of Exception
      * @throws TestException if any verification fails
      */
     protected void callConstructor(Object tc, Collection req, Collection pref,

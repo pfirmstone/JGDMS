@@ -63,7 +63,7 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Sets up the testing environment.
      *
-     * @param config Configuration for setup.
+     * @param sysConfig Configuration for setup.
      */
     public void setup(QAConfig sysConfig) throws Exception {
         // mandatory call to parent
@@ -93,11 +93,6 @@ public abstract class AbstractTestBase extends QATest {
 
     /**
      * Constructs IiopExporter using appropriate constructor.
-     *
-     * @param cType  Constuctor being used for constructing JrmpExporter.
-     *        Possible values:
-     *        NOARG_FACTORY - public IiopExporter()
-     *        ORB_FACTORY - public IiopExporter(ORB orb)
      *
      * @return Constructed IiopExporter
      */

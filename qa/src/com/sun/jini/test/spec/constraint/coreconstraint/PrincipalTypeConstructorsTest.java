@@ -934,7 +934,6 @@ public class PrincipalTypeConstructorsTest extends AbstractConstructorsTest {
      *     instance created.
      * </pre>
      * @param tc Test Case object
-     * @param pr principal to be used as the argument for the constructor
      * @param ex expected type of exception that should be thrown by the
      * constructor or null if no exception is expected
      * @throws TestException if any verification fails

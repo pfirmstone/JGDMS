@@ -32,6 +32,7 @@ import java.security.Security;
 // utility classes
 import com.sun.jini.test.spec.policyprovider.util.Item;
 import com.sun.jini.test.spec.policyprovider.util.Util;
+import com.sun.jini.test.spec.policyprovider.util.QABadPolicy;
 
 
 /**
@@ -56,7 +57,7 @@ import com.sun.jini.test.spec.policyprovider.util.Util;
  *
  * <ul><lh>This test requires the following infrastructure:</lh>
  *  <li> {@link Util#listClasses}</li>
- *  <li> {@link Util#QABadPolicy}</li>
+ *  <li> {@link QABadPolicy}</li>
  * </ul>
  *
  * <b>Actions</b><br><br>
@@ -76,7 +77,7 @@ import com.sun.jini.test.spec.policyprovider.util.Util;
  *         of Policy interface:
  *      <ul>
  *        <li> Obtain any class name from {@link Util#listClasses}.
- *             This array contains some helper classes using for {@link Grant}
+ *             This array contains some helper classes for the
  *             test case. All of these classes are placed in the
  *             qa1.jar and qa1-policy-provider.jar and can be loaded using http,
  *             file based url by PreferredClassLoader or by default loader.
@@ -91,7 +92,7 @@ import com.sun.jini.test.spec.policyprovider.util.Util;
  *         thrown.
  *    </li>
  *    <li> again reset ...PolicyFileProvider.basePolicyClass security property
- *         to {@link Util#QABadPolicy} class that
+ *         to {@link QABadPolicy} class that
  *         does not declare a public no-arg constructor.
  *    </li>
  *    <li> construct PolicyFileProvider object using non-argument

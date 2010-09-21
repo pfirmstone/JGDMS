@@ -126,9 +126,6 @@ public class GetJoinSetCallback extends AbstractBaseTest {
      *  If the <code>String</code> returned by this method is 
      *  non-<code>null</code>, then the test should declare failure and
      *  display the value returned by this method.
-     *
-     *  @return a <code>String</code> containing a failure message, or
-     *           <code>null</code> if there was no problem.
      */
     protected void verifyNewArray() throws Exception {
         ServiceRegistrar[] newJoinRegs = jm.getJoinSet();

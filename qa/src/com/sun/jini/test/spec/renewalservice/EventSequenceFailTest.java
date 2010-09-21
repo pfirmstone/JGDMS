@@ -119,8 +119,6 @@ public class EventSequenceFailTest extends AbstractLeaseRenewalServiceTest {
      * Assert that the events of the RenewalFailureEvent type sent to a
      * newly registered listener are in the same sequence as those sent to
      * the previously registered listener.
-     * 
-     * @return the test Status (passed or failed)
      */
     public void run() throws Exception {
 

@@ -111,9 +111,6 @@ public class NormalEventReturnTest extends AbstractLeaseRenewalServiceTest {
      * actually needed. Assert that once either method of a given
      * RenewalFailureEvent object returns normally, future calls on that
      * method must return the same object and may not throw an exception.
-     * 
-     * @return the test Status (passed or failed)
-     * 
      */
     public void run() throws Exception {
 
