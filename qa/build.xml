@@ -71,6 +71,7 @@
     <property name="log.config" value="${src.dir}/com/sun/jini/test/resources/qa1.logging" />
     <property name="log.config.file" location="${log.config}" />
     <property name="security.policy" location="harness/policy/qa.policy" />
+    <property name="harness.props" location="${src.dir}/com/sun/jini/test/resources/qaHarness.prop"/>
     <!--possible values: any combination of jrmp,jeri,jsse,http,https,kerberos,none
         default: none -->
     <property name="harness.configs" value="none"/>
@@ -245,7 +246,7 @@
                 $${com.sun.jini.qa.harness.globalvmargs},-Dcom.sun.jini.test.home=$${com.sun.jini.test.home},-Dcom.sun.jini.test.port=$${com.sun.jini.test.port},-Dcom.sun.jini.qa.harness.policies=&lt;url: com/sun/jini/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
                 <!--<jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>-->
                 <jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs}"/>
-                <arg path="${src.dir}/com/sun/jini/test/resources/qaHarness.prop" />
+                <arg path="${harness.props}" />
                 <arg value="-testJar"/>
                 <arg path="${lib.dir}/jinitests.jar" />
                 <!-- Run harness in activatable (default), transient or persistent mode -->
@@ -314,6 +315,8 @@
 
     <target name="collect-result" if="resultHtmlAvailable">
         <delete file="${result.zip}" quiet="true"/>
+        <copy file="${log.config}" tofile="${result.dir}/logging.properties"/>
+        <copy file="${harness.props}" tofile="${result.dir}/qaHarness.prop"/>
         <zip basedir="${result.dir}" file="${result.zip}" />
     </target>
 
