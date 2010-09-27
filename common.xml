@@ -202,7 +202,7 @@
         <element name="plg-elements" implicit="true"/>
         <sequential>
             <java classname="com.sun.jini.tool.PreferredListGen"
-			      failonerror="true" >
+                    fork="true" failonerror="true" >
                 <plg-elements/>
             </java>
         </sequential>
@@ -214,8 +214,8 @@
         <element name="cd-elements" implicit="yes" />
         <sequential>
             <java classname="com.sun.jini.tool.ClassDep" 
-                  failonerror="true" logError="true"
-                  output="@{output}">
+                  fork="true" failonerror="true"
+                  logError="true" output="@{output}">
                 <classpath refid="@{classpathref}"/>
                 <cd-elements />
             </java>
@@ -227,7 +227,7 @@
         <element name="jw-elements" implicit="yes" />
         <sequential>
             <java classname="com.sun.jini.tool.JarWrapper"
-                    failonerror="true">
+                    fork="true" failonerror="true">
                 <classpath refid="@{classpathref}"/>
                 <jw-elements />
             </java>
