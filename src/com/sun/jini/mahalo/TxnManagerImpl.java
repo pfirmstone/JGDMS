@@ -933,7 +933,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 		}	
 		
 	} else {	
-	    throw new NullPointerException("No such transaction ["+id+"]");
+	    throw new UnknownTransactionException("No such transaction ["+id+"]");
 	}
 
 	txntr.abort(waitFor);
