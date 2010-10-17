@@ -55,10 +55,10 @@ com.sun.jini.qa.harness.dldir.8080=${com.sun.jini.jsk.home}$/lib-dl
 com.sun.jini.qa.harness.runkitserver=true
 
 # http port of the QA download JAR files
-com.sun.jini.qa.port=8081
+com.sun.jini.qa.port=9081
 
 # download directory for QA JAR files
-com.sun.jini.qa.harness.dldir.8081=${com.sun.jini.qa.home}$/lib
+com.sun.jini.qa.harness.dldir.9081=${com.sun.jini.qa.home}$/lib
 
 # class server and properties for the tests
 com.sun.jini.test.port=8082

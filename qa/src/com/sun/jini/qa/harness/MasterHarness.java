@@ -254,6 +254,7 @@ class MasterHarness {
 		    socketList.add(socket.accept());
 		}
 	    } catch (Exception e) {
+		outStream.println("Problem with KEEPALIVE_PORT:" + KEEPALIVE_PORT );
 		outStream.println("Unexpected exception:");
 		e.printStackTrace(outStream);
 		System.exit(1);
