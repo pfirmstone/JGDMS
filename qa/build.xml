@@ -267,7 +267,7 @@
     </macrodef>
 
     <target name="run-tests" depends="" description="Execute specific QA test(s)">
-        <property name="run.tests" value="com/sun/jini/test/impl/joinmanager/LeaseRenewDurRFE.td"/>
+	<fail message="use 'ant -Drun.tests=com/sun/jini/test/impl/yourowntest.td run-tests'" unless="run.tests" />
         <testrun>
             <!-- Run specific test(s) -->
             <arg value="-tests"/>
@@ -342,7 +342,7 @@
 			 use="true"
 			 version="true"
 			 windowtitle="${javadoc.win-title}"
-                         maxmemory="96M"
+                         maxmemory="120M"
                          verbose="${verbose}">
             <bottom><![CDATA[${api.copyright}]]></bottom>
             <classpath refid="javadoc.classpath"/>
