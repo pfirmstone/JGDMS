@@ -137,7 +137,7 @@
     </target>
 
     <target name="compile" depends="copy-resources" description="Build classes">
-        <javac-cmd source.dir="${src.dir}" dest.dir="${build.classes.dir}">
+        <javac-cmd debug="on" source.dir="${src.dir}" dest.dir="${build.classes.dir}">
             <classpath refid="river.jars"/>
         </javac-cmd>
     </target>
@@ -342,7 +342,7 @@
 			 use="true"
 			 version="true"
 			 windowtitle="${javadoc.win-title}"
-                         maxmemory="120M"
+                         maxmemory="256M"
                          verbose="${verbose}">
             <bottom><![CDATA[${api.copyright}]]></bottom>
             <classpath refid="javadoc.classpath"/>
