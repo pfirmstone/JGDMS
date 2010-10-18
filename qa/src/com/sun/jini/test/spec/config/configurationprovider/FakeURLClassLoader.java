@@ -18,33 +18,11 @@
 
 package com.sun.jini.test.spec.config.configurationprovider;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
-import java.io.File;
-import java.io.FilePermission;
-import java.io.InputStream;
 import java.io.IOException;
 import java.net.URL;
-import java.net.URLConnection;
 import java.net.URLStreamHandlerFactory;
 import java.net.URLClassLoader;
 import java.util.Enumeration;
-import java.util.NoSuchElementException;
-import java.util.StringTokenizer;
-import java.util.jar.Manifest;
-import java.util.jar.Attributes;
-import java.util.jar.Attributes.Name;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedExceptionAction;
-import java.security.AccessController;
-import java.security.AccessControlContext;
-import java.security.SecureClassLoader;
-import java.security.CodeSource;
-import java.security.Permission;
-import java.security.PermissionCollection;
-import sun.misc.Resource;
-import sun.misc.URLClassPath;
-import sun.net.www.ParseUtil;
 
 /**
  * That is fake class loader that is equal to URLClassLoader
