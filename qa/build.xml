@@ -331,22 +331,23 @@
         <delete dir="${doc.api.dir}" quiet="true"/>
         <mkdir  dir="${doc.api.dir}"/>
 
-        <!-- TODO: find out why this takes so much memory on Windows -->
-        <javadoc author="true"
-			 breakiterator="yes"
-			 destdir="${doc.api.dir}"
-			 doctitle="${javadoc.doc-title}"
-			 serialwarn="${verbose}"
-			 source="5"
-                         linkoffline="${jdk.doc.url} ${jdk.packages}"
-			 use="true"
-			 version="true"
-			 windowtitle="${javadoc.win-title}"
-                         maxmemory="256M"
-                         verbose="${verbose}">
+        <javadoc
+                author="true"
+                breakiterator="yes"
+                destdir="${doc.api.dir}"
+                doctitle="${javadoc.doc-title}"
+                serialwarn="${verbose}"
+                source="5"
+                linkoffline="${jdk.doc.url} ${jdk.packages}"
+                use="true"
+                version="true"
+                windowtitle="${javadoc.win-title}"
+                maxmemory="256M"
+                verbose="${verbose}"
+                >
             <bottom><![CDATA[${api.copyright}]]></bottom>
-            <classpath refid="javadoc.classpath"/>
             <sourcepath>
+                <pathelement path="${src.dir}/../../src/"/>
                 <pathelement path="${src.dir}"/>
             </sourcepath>
             <package name="com.sun.jini.qa.*"/>
