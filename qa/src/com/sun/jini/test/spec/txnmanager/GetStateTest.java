@@ -193,14 +193,18 @@ public class GetStateTest extends TxnManagerTest {
             // things happened too quickly so transaction now gone
         }
 
+        long timeout = System.currentTimeMillis() + 10 * 60 * 1000;
         try {
-            while (true) {
+            while (System.currentTimeMillis() < timeout) {
                 state = str.mgr.getState(str.id);
+                if(state != ABORTED) {
+                	throw new TestException("Non-aborted state after abort call");
+                }
             }
-        } catch (TransactionException bte) {
+        } catch (UnknownTransactionException bte) {
             // Expected exception. Second test passed.
             return;
         } catch (RemoteException re) {}
-        throw new TestException( "TransactionException is not raised");
+        throw new TestException( "UnknownTransactionException is not raised");
     }
 }
