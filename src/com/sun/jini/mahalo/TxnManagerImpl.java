@@ -919,19 +919,14 @@ class TxnManagerImpl /*extends RemoteServer*/
             "Retrieved TxnManagerTransaction: {0}", txntr);
 	}
 	
-	if(txntr != null) {		
-		
-		switch(txntr.getState()) {
-			case TransactionConstants.COMMITTED:
-				if(doExpiryCheck && !ensureCurrent(txntr)) {
-					throw new TimeoutExpiredException("Cannot abort, transaction probably expired", true);
-				} else {
-					throw new CannotAbortException("Already committed");
-				}
-			case TransactionConstants.ABORTED :
-				throw new CannotAbortException("Transaction previously aborted");							
-		}	
-		
+	if(txntr != null) {
+		if(txntr.getState() == TransactionConstants.COMMITTED) {
+			if(doExpiryCheck && !ensureCurrent(txntr)) {
+				throw new TimeoutExpiredException("Cannot abort, transaction probably expired", true);
+			} else {
+				throw new CannotAbortException("Already committed");
+			}
+		}
 	} else {	
 	    throw new UnknownTransactionException("No such transaction ["+id+"]");
 	}
