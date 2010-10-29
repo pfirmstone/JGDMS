@@ -1,0 +1,5 @@
+In order to enable building of skunk extra parts,
+run:
+   ant switch
+
+
