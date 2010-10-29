@@ -581,14 +581,16 @@
         </jar>
     </target>
 
-    <target name="extra.jar" >
+    <target name="extra.jar" depends="compile" >
         <!-- hooks for extra.jar build (RIVER-359) -->
         
-        <!-- move to sep compile.extra target ? -->
+        <!-- move to sep compile.extra target or add to compile target? -->
         <javac-cmd source.dir="${src-extra.dir}" dest.dir="${build.classes.dir}">
-            <classpath refid="asm.classpath" />
         </javac-cmd>
-
+        <delete file="${lib.dir}/extra.jar" quiet="true"/>
+        <jar destfile="${lib.dir}/extra.jar" index="false">
+            <fileset dir="${build.classes.dir}" includes="org/apache/river/extra/**"/>
+        </jar>
     </target>
     
     <!--
