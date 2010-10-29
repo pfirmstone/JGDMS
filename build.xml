@@ -583,6 +583,12 @@
 
     <target name="extra.jar" >
         <!-- hooks for extra.jar build (RIVER-359) -->
+        
+        <!-- move to sep compile.extra target ? -->
+        <javac-cmd source.dir="${src-extra.dir}" dest.dir="${build.classes.dir}">
+            <classpath refid="asm.classpath" />
+        </javac-cmd>
+
     </target>
     
     <!--

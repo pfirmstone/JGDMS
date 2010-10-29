@@ -55,6 +55,9 @@
     <property name="src.dir" location="${src}"/>
     <property name="src.manifest.dir" location="${src}/manifest"/>
     <property name="src.configentry.dir" location="${src}/configentry"/>
+
+    <property name="src-extra.dir" location="src-extra"/>
+
     <property name="poms.dir" location="${poms}"/>
     <property name="build.dir" location="${build}"/>
     <property name="build.classes.dir" location="${build.classes}"/>
