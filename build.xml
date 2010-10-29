@@ -427,10 +427,16 @@
             browser-dl.jar" />
 
     <target name="compile" description="Build classes"
-		depends="copy-resources">
+		depends="copy-resources,copy-extlibs">
         <javac-cmd source.dir="${src.dir}" dest.dir="${build.classes.dir}">
             <classpath refid="asm.classpath" />
         </javac-cmd>
+    </target>
+
+    <target name="copy-extlibs" >
+        <copy todir="lib">
+            <fileset dir="extlibs" includes="*.jar"/>
+        </copy>
     </target>
 
     <target name="install-policy"
@@ -464,9 +470,7 @@
 
     <target name="clean-jars"
 		description="Deletes the lib, lib-dl, and lib-ext directories.">
-        <delete dir="${lib.dir}" quiet="true">
-            <exclude name="${asm.jars.pattern}"/>
-        </delete>
+        <delete dir="${lib.dir}" quiet="true" />
         <delete dir="${lib-dl.dir}"	quiet="true"/>
         <delete dir="${lib-ext.dir}" quiet="true"/>
     </target>
