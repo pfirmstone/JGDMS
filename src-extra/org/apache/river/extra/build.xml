@@ -18,12 +18,15 @@
  !-->
 <project name="extra-switch" basedir="." >
 
-    <target name="switch" >
+    <target name="switch" depends="switch-selfhealing">
+    </target>
+    
+    <target name="switch-selfhealing" >
         <exec executable="svn" failonerror="true" >
             <arg value="switch" />
             <arg value="https://svn.apache.org/repos/asf/incubator/river/jtsk/skunk/Extra_SelfHealingProxy/src/org/apache/river/extra/selfhealing" />
             <arg value="selfhealing" />
         </exec>
     </target>
-    
+
 </project>
