@@ -21,10 +21,21 @@
     <target name="switch" depends="switch-selfhealing">
     </target>
     
+    <target name="unswitch" depends="unswitch-selfhealing">
+    </target>
+
     <target name="switch-selfhealing" >
         <exec executable="svn" failonerror="true" >
             <arg value="switch" />
             <arg value="https://svn.apache.org/repos/asf/incubator/river/jtsk/skunk/Extra_SelfHealingProxy/src/org/apache/river/extra/selfhealing" />
+            <arg value="selfhealing" />
+        </exec>
+    </target>
+
+    <target name="unswitch-selfhealing" >
+        <exec executable="svn" failonerror="true" >
+            <arg value="switch" />
+            <arg value="https://svn.apache.org/repos/asf/incubator/river/jtsk/trunk/src-extra/org/apache/river/extra/selfhealing" />
             <arg value="selfhealing" />
         </exec>
     </target>
