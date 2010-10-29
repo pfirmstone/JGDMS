@@ -18,11 +18,13 @@
  !-->
 <project name="extra-switch" basedir="." >
 
+<!--
     <target name="switch" depends="switch-selfhealing">
     </target>
     
     <target name="unswitch" depends="unswitch-selfhealing">
     </target>
+    -->
 
     <target name="switch-selfhealing" >
         <exec executable="svn" failonerror="true" >
