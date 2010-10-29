@@ -383,6 +383,7 @@
 		depends="river.jars,
             toolswrappers.jars,
             services.jars,
+            extra.jar,
             browser.jars" />
 
     <target name="river.jars" depends="stubs,
@@ -580,8 +581,12 @@
         </jar>
     </target>
 
+    <target name="extra.jar" >
+        <!-- hooks for extra.jar build (RIVER-359) -->
+    </target>
+    
     <!--
-        Deprecated since 2.1 - Scheduled for removal
+        Deprecated since 2.1 - Scheduled for removal (RIVER-365)
     -->
     <target name="jini-core.jar" depends="stubs">
         <delete file="${lib.dir}/jini-core.jar" quiet="true"/>
@@ -593,7 +598,7 @@
     </target>
 
     <!--
-        Deprecated since 2.1 - Scheduled for removal
+        Deprecated since 2.1 - Scheduled for removal (RIVER-365)
     -->
     <target name="jini-ext.jar" depends="stubs">
         <property name="jini-ext.deps" location="${build.deps.dir}/jini-ext.deps"/>
