@@ -1,5 +1,15 @@
 In order to enable building of skunk extra parts,
+
 run:
-   ant switch
+
+   ant switch-selfhealing
+   ant switch-helpers
+
+to remove:
+
+   ant unswitch-selfhealing
+   ant unswitch-helpers
+
+
 
 

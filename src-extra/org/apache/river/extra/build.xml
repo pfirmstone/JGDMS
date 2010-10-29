@@ -40,4 +40,11 @@
         </exec>
     </target>
 
+    <target name="switch-helpers" >
+        <exec executable="svn" failonerror="true" >
+            <arg value="switch" />
+            <arg value="https://svn.apache.org/repos/asf/incubator/river/jtsk/skunk/sijskes/SimpleJeri/src/org/apache/river/extra/helpers" />
+            <arg value="helpers" />
+        </exec>
+    </target>
 </project>
