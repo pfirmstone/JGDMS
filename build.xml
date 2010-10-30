@@ -2169,5 +2169,5 @@
         </junit>
     </target>
 
-    <target name="ci.build" description="hudson build target" depends="all.clean,release,diagnostics" />
+    <target name="ci-build" description="hudson build target" depends="all.clean,release,diagnostics" />
 </project>
