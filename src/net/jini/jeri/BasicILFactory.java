@@ -21,7 +21,6 @@ package net.jini.jeri;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.security.Permission;
 import java.rmi.Remote;
 import java.rmi.server.ExportException;
 import java.security.Permission;

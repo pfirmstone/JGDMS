@@ -21,7 +21,6 @@ package com.sun.jini.jeri.internal.mux;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.thread.Executor;
 import com.sun.jini.thread.GetThreadPoolAction;
-import java.io.BufferedOutputStream;
 import java.io.EOFException;
 import java.io.IOException;
 import java.io.InputStream;

@@ -31,7 +31,6 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.InboundRequest;
 import net.jini.jeri.RequestDispatcher;
-import net.jini.jeri.ServerEndpoint;
 
 /**
  * Provides server-side connection management using the <a

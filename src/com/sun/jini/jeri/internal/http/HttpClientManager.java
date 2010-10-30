@@ -21,9 +21,7 @@ package com.sun.jini.jeri.internal.http;
 import com.sun.jini.collection.SoftCache;
 import com.sun.jini.thread.Executor;
 import com.sun.jini.thread.GetThreadPoolAction;
-import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**

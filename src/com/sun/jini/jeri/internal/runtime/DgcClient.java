@@ -29,7 +29,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.security.auth.Subject;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.jeri.BasicInvocationHandler;

@@ -33,7 +33,6 @@ import net.jini.jeri.Endpoint;
 import net.jini.jeri.InvocationDispatcher;
 import net.jini.jeri.RequestDispatcher;
 import net.jini.jeri.ServerEndpoint;
-import net.jini.jeri.ServerEndpoint.ListenContext;
 import net.jini.jeri.ServerEndpoint.ListenCookie;
 import net.jini.jeri.ServerEndpoint.ListenEndpoint;
 import net.jini.jeri.ServerEndpoint.ListenHandle;

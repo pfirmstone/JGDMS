@@ -59,7 +59,6 @@ import java.net.UnknownHostException;
 import java.nio.channels.SocketChannel;
 import java.security.AccessControlContext;
 import java.security.AccessController;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;

@@ -18,9 +18,7 @@
 package com.sun.jini.jeri.internal.runtime;
 
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.OutputStream;
-import java.io.PrintStream;
 
 /**
  * This class implements a BASE64 Character encoder as specified in RFC1521.
