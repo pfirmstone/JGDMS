@@ -17,16 +17,16 @@
  */
 package com.sun.jini.landlord;
 
-import net.jini.core.lease.*;
-import net.jini.id.Uuid;
-import net.jini.id.ReferentUuid;
 import com.sun.jini.lease.AbstractLeaseMap;
-
 import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.Iterator;
 import java.util.HashMap;
 import java.util.ConcurrentModificationException;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.LeaseMapException;
+import net.jini.id.Uuid;
+import net.jini.id.ReferentUuid;
 
 /**
  * Implementation of <code>LeaseMap</code> for <code>LandlordLease</code>.
@@ -53,7 +53,7 @@ public class LandlordLeaseMap extends AbstractLeaseMap {
      * @param landlordUuid a universally unique id that has been
      *                 assigned to the server granting of the lease.
      *                 Ideally the <code>Uuid</code> {@link
-     *                 ReferentUuid.getUuid landlord.getUuid} would
+     *                 ReferentUuid#getReferentUuid landlord.getUuid} would
      *                 return if <code>landlord</code> implemented
      *                 {@link ReferentUuid}. Used to determine when
      *                 two leases can be batched together. 

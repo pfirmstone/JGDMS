@@ -17,8 +17,6 @@
  */
 package com.sun.jini.landlord;
 
-import java.lang.reflect.Method;
-import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
@@ -41,7 +39,7 @@ final public class ConstrainableLandlordLeaseMap extends LandlordLeaseMap {
      * @param landlordUuid a universally unique id that has been
      *                 assigned to the server granting of the lease.
      *                 Ideally the <code>Uuid</code> {@link
-     *                 ReferentUuid.getUuid landlord.getUuid} would
+     *                 ReferentUuid#getReferentUuid landlord.getUuid} would
      *                 return if <code>landlord</code> implemented
      *                 {@link ReferentUuid}. Used to determine when
      *                 leases can be added to this map.

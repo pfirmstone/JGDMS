@@ -159,7 +159,7 @@ final public class ConstrainableLandlordLease extends LandlordLease
      * <code>canBatch</code> needs to check if this lease and
      * the passed in lease have compatible constraints, this
      * is the set of methods to compare. Structured so we can
-     * use {@link ConstrainableProxyUtil.equivalentConstraints}.
+     * use {@link ConstrainableProxyUtil#equivalentConstraints}.
      */
     private static final Method[] comparableMethodsMapArray =  {
 	renewMethod, renewMethod,
