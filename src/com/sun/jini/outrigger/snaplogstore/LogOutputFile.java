@@ -28,7 +28,6 @@ import java.io.FileDescriptor;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
-import java.rmi.server.LogStream;
 import java.util.ArrayList;
 import java.util.Observable;
 import java.util.logging.Level;
@@ -87,7 +86,7 @@ class LogOutputFile extends LogFile implements LogOps {
      * <code>File</code> argument for the filled file as the argument
      * to <code>Observer</code>.
      *
-     * @see LogStream#LogStream(String)
+     * @see com.sun.jini.mercury.LogStream#LogStream(String)
      * @see #observable()
      */
     LogOutputFile(String basePath, int maxOps) throws IOException {

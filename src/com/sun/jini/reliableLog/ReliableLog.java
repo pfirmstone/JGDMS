@@ -18,7 +18,18 @@
 
 package com.sun.jini.reliableLog;
 
-import java.io.*;
+import java.io.BufferedInputStream;
+import java.io.DataInputStream;
+import java.io.DataOutput;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileDescriptor;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.RandomAccessFile;
+import java.io.SyncFailedException;
 
 /**
  * This class is a simple implementation of a reliable Log.  The
@@ -407,7 +418,7 @@ public class ReliableLog {
      * Generates a version filename prepended with the stable storage
      * directory path with the given version number as a suffix.
      *
-     * @param version filename prefix
+     * @param prefix filename prefix
      * @param ver version number
      */
     private String versionName(String prefix, int ver) {
