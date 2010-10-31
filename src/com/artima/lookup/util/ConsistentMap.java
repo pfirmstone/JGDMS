@@ -70,7 +70,7 @@ public class ConsistentMap extends AbstractMap implements Serializable {
      * are unmodifiable.
      *
      * @param init the map whose elements are to be placed into this map.
-     * @throw NullPointerException if the passed <code>init</code> reference
+     * @throws  NullPointerException if the passed <code>init</code> reference
      *     is <code>null</code>
      */
     public ConsistentMap(Map init) {

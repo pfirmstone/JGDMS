@@ -62,7 +62,7 @@ interface MailboxBackEnd extends Landlord, Administrable, MailboxAdmin,
      * Enable delivery of events for the given registration
      * to the specified target
      *
-     * @param uuid The unique registration identifier
+     * @param registrationID The unique registration identifier
      *
      * @param target The designated delivery target for event notifications
      *
@@ -74,7 +74,7 @@ interface MailboxBackEnd extends Landlord, Administrable, MailboxAdmin,
     /**
      * Disable delivery of events for the given registration
      *
-     * @param uuid The unique registration identifier
+     * @param registrationID The unique registration identifier
      *
      * @see net.jini.event.MailboxRegistration#disableDelivery
      */
@@ -95,7 +95,7 @@ interface MailboxBackEnd extends Landlord, Administrable, MailboxAdmin,
     /**
      * Get next batch of events for the given registration.
      *
-     * @param uuid The unique registration identifier
+     * @param regId The unique registration identifier
      *
      */
     public Collection getNextBatch(Uuid regId, Uuid iterId, 
@@ -119,7 +119,7 @@ interface MailboxBackEnd extends Landlord, Administrable, MailboxAdmin,
     /**
      * Collect remote events for the associated registration.
      *
-     * @param uuid The unique registration identifier
+     * @param registrationID The unique registration identifier
      *
      * @param theEvent The event to store and/or forward
      *

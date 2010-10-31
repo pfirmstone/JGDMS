@@ -95,7 +95,7 @@ final class ConsistentMapEntry implements Map.Entry, Serializable {
      * all instances of this class are unmodifiable, this method always throws
      * <code>UnsupportedOperationException</code>.
      *
-     * @throw UnsupportedOperationException always
+     * @throws UnsupportedOperationException always
      */
     public Object setValue(Object value) {
         throw new UnsupportedOperationException();

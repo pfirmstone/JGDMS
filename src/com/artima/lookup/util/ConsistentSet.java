@@ -70,7 +70,7 @@ public class ConsistentSet extends AbstractSet implements Serializable {
      * are unmodifiable.
      *
      * @param init the collection whose elements are to be placed into this set.
-     * @throw NullPointerException if the passed <code>init</code> reference
+     * @throws NullPointerException if the passed <code>init</code> reference
      *     is <code>null</code>
      */
     public ConsistentSet(Collection init) {
