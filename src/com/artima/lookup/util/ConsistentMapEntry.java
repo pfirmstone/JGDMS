@@ -19,8 +19,6 @@
 package com.artima.lookup.util;
 
 import java.util.Map;
-import java.util.Set;
-import java.util.AbstractMap;
 import java.io.Serializable;
 
 /**

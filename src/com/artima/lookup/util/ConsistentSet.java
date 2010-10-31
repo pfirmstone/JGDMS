@@ -18,7 +18,6 @@
 
 package com.artima.lookup.util;
 
-import java.util.Set;
 import java.util.HashSet;
 import java.util.Collection;
 import java.util.AbstractSet;
