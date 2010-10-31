@@ -1144,7 +1144,7 @@ public class PreferredListGen {
      * arguments are added to the set of roots.
      *
      * @return the <code>Collection</code> of roots
-     @ @throws IllegalArgumentException if any of the proxies supplied via
+     * @throws IllegalArgumentException if any of the proxies supplied via
      *         the <code>addProxy</code> method could not be found.
      */
     private Collection getRoots() {

@@ -19,7 +19,6 @@ package com.sun.jini.outrigger;
 
 import com.sun.jini.config.Config;
 import com.sun.jini.constants.TimeConstants;
-import com.sun.jini.constants.TxnConstants;
 import com.sun.jini.landlord.Landlord;
 import com.sun.jini.landlord.LandlordUtil;
 import com.sun.jini.landlord.LeasedResource;
@@ -37,7 +36,6 @@ import net.jini.activation.ActivationGroup;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationProvider;
 import net.jini.config.ConfigurationException;
-import net.jini.config.NoSuchEntryException;
 
 import net.jini.export.Exporter;
 import net.jini.jeri.BasicJeriExporter;
@@ -66,18 +64,11 @@ import net.jini.core.transaction.TransactionException;
 import net.jini.core.transaction.UnknownTransactionException;
 import net.jini.core.transaction.server.ServerTransaction;
 import net.jini.core.transaction.server.TransactionManager;
-import net.jini.core.transaction.server.TransactionParticipant;
 import net.jini.lookup.entry.ServiceInfo;
-import net.jini.lookup.entry.ServiceType;
 import net.jini.space.InternalSpaceException;
 import net.jini.space.JavaSpace;
 
-import java.io.File;
-import java.io.FileOutputStream;
 import java.io.IOException;
-import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
-import java.rmi.Remote;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
@@ -90,7 +81,6 @@ import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedActionException;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -506,8 +496,6 @@ public class OutriggerServerImpl
      * @param wrapper    the wrapper that intercepts 
      *                   incoming remote calls before delegating
      *                   them to <code>this</code>.
-     * @return A remote reference to the server (e.g. a stub or dynamic
-     *         proxy).
      * @throws IOException if there is problem recovering data
      *         from disk, exporting the server, or unpacking 
      *         <code>data</code>.

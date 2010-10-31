@@ -22,19 +22,18 @@ import com.sun.jini.landlord.Landlord;
 import com.sun.jini.start.ServiceProxyAccessor;
 
 import java.rmi.MarshalledObject;
+import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEventListener;
-import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseDeniedException;
-import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import net.jini.core.transaction.server.TransactionParticipant;
 
 import net.jini.id.Uuid;
+import net.jini.space.InternalSpaceException;
 
 /**
  * This interface is the private wire protocol to the Outrigger
@@ -95,7 +94,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * @param tmpl The template that describes the entry being 
      *             searched for. May be <code>null</code> if
      *             any visible entry is acceptable.
-     * @param tr   The transaction the operation should be 
+     * @param txn  The transaction the operation should be
      *             performed under. Maybe be <code>null</code>.
      *             If non-null and entry is found it
      *             will read locked/removed under this 
@@ -161,7 +160,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * @param tmpl The template that describes the entry being 
      *             searched for. May be <code>null</code> if
      *             any visible entry is acceptable.
-     * @param tr   The transaction the operation should be 
+     * @param txn   The transaction the operation should be
      *             performed under. Maybe be <code>null</code>.
      *             If non-null and entry is found it
      *             will read locked/removed under this 
@@ -224,7 +223,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * @param tmpl The template that describes the entry being 
      *             searched for. May be <code>null</code> if
      *             any visible entry is acceptable.
-     * @param tr   The transaction the operation should be 
+     * @param txn   The transaction the operation should be
      *             performed under. Maybe be <code>null</code>.
      *             If non-null and entry is found it
      *             will read locked/removed under this 
@@ -290,7 +289,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      * @param tmpl The template that describes the entry being 
      *             searched for. May be <code>null</code> if
      *             any visible entry is acceptable.
-     * @param tr   The transaction the operation should be 
+     * @param txn   The transaction the operation should be
      *             performed under. Maybe be <code>null</code>.
      *             If non-null and entry is found it
      *             will read locked/removed under this 
@@ -427,7 +426,7 @@ interface OutriggerServer extends TransactionParticipant, Landlord,
      *              makes any transition from unavailable to
      *              available
      * @param listener object to notify when an entry becomes (re)visible
-     * @param leastTime initial requested lease time for the registration
+     * @param leaseTime initial requested lease time for the registration
      * @param handback object to be included with every notification
      * @return An object with information on the registration
      * @throws TransactionException if <code>txn</code> is 

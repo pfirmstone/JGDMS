@@ -18,7 +18,6 @@
 package com.sun.jini.outrigger;
 
 import java.io.IOException;
-import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.List;
 import java.util.Iterator;
@@ -427,7 +426,7 @@ class TxnTable {
 	 * @param manager
 	 *            the <code>TransactionManager</code> for transaction being
 	 *            removed.
-	 * @parma id the manager assigned to the transaction being removed.
+	 * @param id the manager assigned to the transaction being removed.
 	 */
 	void remove(TransactionManager manager, long id) {
 		final Key k = new Key(manager, id, false);
