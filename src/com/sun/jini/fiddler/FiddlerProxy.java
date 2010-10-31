@@ -17,9 +17,6 @@
  */
 package com.sun.jini.fiddler;
 
-import com.sun.jini.fiddler.Fiddler;
-import com.sun.jini.fiddler.ProxyUtil;
-
 import com.sun.jini.proxy.ConstrainableProxyUtil;
 
 import net.jini.admin.Administrable;
@@ -35,8 +32,6 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.RemoteEventListener;
-
-import javax.security.auth.Subject;
 
 import java.lang.reflect.Method;
 import java.io.InvalidObjectException;

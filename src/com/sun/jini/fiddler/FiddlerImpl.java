@@ -17,12 +17,6 @@
  */
 package com.sun.jini.fiddler;
 
-import com.sun.jini.fiddler.Fiddler;
-import com.sun.jini.fiddler.FiddlerAdminProxy;
-import com.sun.jini.fiddler.FiddlerProxy;
-import com.sun.jini.fiddler.FiddlerRegistration;
-import com.sun.jini.fiddler.FiddlerRenewResults;
-
 import com.sun.jini.config.Config;
 
 import com.sun.jini.constants.ThrowableConstants;
@@ -37,7 +31,6 @@ import com.sun.jini.lookup.entry.LookupAttributes;
 import com.sun.jini.proxy.ThrowThis;
 
 import com.sun.jini.reliableLog.ReliableLog;
-import com.sun.jini.reliableLog.LogException;
 import com.sun.jini.reliableLog.LogHandler;
 
 import com.sun.jini.start.LifeCycle;
@@ -104,9 +97,7 @@ import javax.security.auth.login.LoginException;
 import java.lang.reflect.Array;
 
 import java.net.InetAddress;
-import java.net.MalformedURLException;
 
-import java.io.InterruptedIOException;
 import java.io.InputStream;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -120,22 +111,17 @@ import java.rmi.activation.ActivationSystem;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
-import java.rmi.Remote;
 import java.rmi.server.ExportException;
-import java.rmi.server.RemoteObject;
 
-import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.TreeMap;
 import java.util.logging.Level;
@@ -7017,7 +7003,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      *
      * </ul>
      * 
-     * @see RegistrarImpl.LocalLogHandler
+     * @see com.sun.jini.reggie.RegistrarImpl.LocalLogHandler
      */
     private void addLogRecord(LogRecord rec) {
         if(log == null) return;//not persistent, don't log
