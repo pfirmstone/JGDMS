@@ -328,7 +328,7 @@ class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
      * new groups that the lookup discovery service has not yet registered
      * with, will be discovered and joined.
      *
-     * @param  String array containing the names of the groups to add
+     * @param  groups String array containing the names of the groups to add
      * 
      * @throws java.rmi.RemoteException typically, this exception occurs when
      *         there is a communication failure between the client and the
@@ -349,7 +349,7 @@ class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
      * lookup services that are not members of the groups whose names 
      * remain in the managed set will be cancelled at those lookup services.
      *
-     * @param  String array containing the names of the groups to remove
+     * @param  groups String array containing the names of the groups to remove
      * 
      * @throws java.rmi.RemoteException typically, this exception occurs when
      *         there is a communication failure between the client and the
@@ -370,7 +370,7 @@ class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
      * services. Lookup services that are members of groups reflected in
      * the new managed set will be discovered and joined.
      *
-     * @param  String array containing the names of the new groups
+     * @param  groups String array containing the names of the new groups
      * 
      * @throws java.rmi.RemoteException typically, this exception occurs when
      *         there is a communication failure between the client and the
@@ -412,7 +412,7 @@ class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
      * Any lookup services corresponding to the new locators that the lookup
      * discovery service has not yet joined, will be discovered and joined.
      *
-     * @param  array of net.jini.core.discovery.LookupLocator objects to add
+     * @param  locators array of net.jini.core.discovery.LookupLocator objects to add
      *         to the managed set of locators
      * 
      * @throws java.rmi.RemoteException typically, this exception occurs when
@@ -440,7 +440,7 @@ class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
      * remaining in the managed set will be cancelled at those lookup
      * services.
      *
-     * @param  array of net.jini.core.discovery.LookupLocator objects to
+     * @param  locators array of net.jini.core.discovery.LookupLocator objects to
      *         remove from the managed set of locators
      * 
      * @throws java.rmi.RemoteException typically, this exception occurs when
@@ -468,7 +468,7 @@ class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
      * services corresponding to the new locators in the managed set
      * will be discovered and joined.
      *
-     * @param  array of net.jini.core.discovery.LookupLocator objects with
+     * @param  locators array of net.jini.core.discovery.LookupLocator objects with
      *         which to replace the current managed set of locators
      *         remove from the managed set of locators
      * 
