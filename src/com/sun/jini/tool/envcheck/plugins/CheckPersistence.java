@@ -88,7 +88,7 @@ public class CheckPersistence extends AbstractPlugin {
      * <code>persistenceDirectory</code> entries. Check each
      * entry found for validity.
      *
-     * @param sd the descriptor to check, which must be a
+     * @param d the descriptor to check, which must be a
      *        <code>SharedActivatableServiceDescriptor</code
      */
     private void checkDirectory(SharedActivatableServiceDescriptor d) {
