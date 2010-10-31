@@ -19,11 +19,9 @@ package com.sun.jini.reggie;
 
 import com.sun.jini.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
-import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
 import java.rmi.MarshalledObject;
-import java.rmi.RemoteException;
 import net.jini.admin.Administrable;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;

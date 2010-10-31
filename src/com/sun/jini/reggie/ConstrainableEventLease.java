@@ -21,7 +21,6 @@ import com.sun.jini.proxy.ConstrainableProxyUtil;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.lang.reflect.Method;
-import java.rmi.RemoteException;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.Lease;

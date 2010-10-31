@@ -18,7 +18,6 @@
 package com.sun.jini.reggie;
 
 import java.rmi.server.RMIClassLoader;
-import java.io.IOException;
 import java.io.Serializable;
 
 /**

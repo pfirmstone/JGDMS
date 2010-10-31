@@ -45,7 +45,7 @@ import net.jini.loader.ClassLoading;
  * @author Sun Microsystems, Inc.
  *
  * @see ClassMapper
- * @see ClassResolver
+ * see ClassResolver (com.sun.jini.reggie.test.share.ClassResolver?)
  */
 class ServiceType implements Serializable {
 
@@ -178,7 +178,7 @@ class ServiceType implements Serializable {
     * Returns true if this type is equal to <code>type</code> or if this type
     * is equal to a superclass of <code>type</code>.
     *
-    * @param type Type to check if subclass of this class
+    * @param cls Type to check if subclass of this class
     * @return true if <code>type</code> is a subclass of this type, false
     * otherwise
     * @see java.lang.Class#isAssignableFrom
