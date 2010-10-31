@@ -346,6 +346,11 @@
                 verbose="${verbose}"
                 >
             <bottom><![CDATA[${api.copyright}]]></bottom>
+            <classpath>
+                <fileset dir="../../extlibs">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
             <sourcepath>
                 <pathelement path="${src.dir}/../../src/"/>
                 <pathelement path="${src.dir}"/>
