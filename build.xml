@@ -108,6 +108,7 @@
 
     <target name="release-bin" description="Create a binary release"
 		depends="all.build">
+                <!-- TODO: add depends: javadoc-internals and remove from ci-build -->
         <mkdir dir="${dist.dir}"/>
         <delete file="${bin.zip.bundle}"/>
         <zip destfile="${bin.zip.bundle}" roundup="yes">
@@ -318,7 +319,7 @@
         <copy file="NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE"/>
     </target>
 
-    <target name="javadoc-internals" description="JavaDoc including private">
+    <target name="javadoc-internals" description="produces javadoc directory including privates">
         <property name="doc.internals.dir" value="${doc}/internals" />
         <delete dir="${doc.internals.dir}" quiet="true"/>
         <mkdir  dir="${doc.internals.dir}"/>
@@ -339,6 +340,11 @@
 			     scope="packages,types"
 			     description="Implementation Specifics:"/>
             <bottom><![CDATA[${api.copyright}]]></bottom>
+            <classpath>
+                <fileset dir="extlibs">
+                    <include name="*.jar"/>
+                </fileset>
+            </classpath>
             <sourcepath>
                 <pathelement path="${src.dir}"/>
             </sourcepath>
@@ -2198,5 +2204,5 @@
         </junit>
     </target>
 
-    <target name="ci-build" description="hudson build target" depends="all.clean,release,diagnostics" />
+    <target name="ci-build" description="hudson build target" depends="all.clean,release,javadoc-internals,diagnostics" />
 </project>
