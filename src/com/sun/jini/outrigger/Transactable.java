@@ -35,9 +35,8 @@ interface Transactable
     /**
      * Prepare to commit this object's part of the transaction.  Return
      * the prepare's status.
-     *
-     * @see TransactableMgr#prepare
      */
+    //      * @see TransactableMgr#prepare ??
     int prepare(TransactableMgr mgr, OutriggerServerImpl space);
 
     /**

@@ -469,9 +469,9 @@ class KerberosUtil {
      *        construct the GSSCredential, can not be null
      * @param usage intended usage for the GSScredential. The value of
      *        this parameter must be one of: {@link
-     *        GSSCredential.INITIATE_AND_ACCEPT}, {@link
-     *        GSSCredential.ACCEPT_ONLY}, and {@link
-     *        GSSCredential.INITIATE_ONLY}.
+     *        GSSCredential#INITIATE_AND_ACCEPT}, {@link
+     *        GSSCredential#ACCEPT_ONLY}, and {@link
+     *        GSSCredential#INITIATE_ONLY}.
      * @return the requested GSSCredential
      * @throws UnsupportedConstraintException if failed to get the
      *         requested <code>GSSCredential</code>
