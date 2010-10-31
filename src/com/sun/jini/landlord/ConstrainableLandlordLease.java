@@ -20,8 +20,6 @@ package com.sun.jini.landlord;
 import java.lang.reflect.Method;
 import java.io.IOException;
 import java.io.ObjectInputStream;
-import java.io.InvalidObjectException;
-import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.constraint.MethodConstraints;
