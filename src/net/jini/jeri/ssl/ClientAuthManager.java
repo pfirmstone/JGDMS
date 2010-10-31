@@ -133,8 +133,6 @@ class ClientAuthManager extends AuthManager {
      * to use the current session.  Callers should only call this method if
      * client authentication is being used.
      *
-     * @param constraints the requested constraints
-     * @param serverSubject the server subject for the connection
      * @throws SecurityException if the access control context does not have
      *	       the proper AuthenticationPermission
      * @throws UnsupportedConstraintException if the subject does not contain

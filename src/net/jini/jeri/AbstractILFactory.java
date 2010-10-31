@@ -325,7 +325,7 @@ public abstract class AbstractILFactory implements InvocationLayerFactory {
      * qualified interface name; this invocation may throw a
      * <code>SecurityException</code>.
      *
-     * @returns <code>true</code> if the specified interface is non-public;
+     * @return <code>true</code> if the specified interface is non-public;
      * 		otherwise returns <code>false</code> 
      * @throws  SecurityException if the specified interface is non-public
      *		and the security check fails

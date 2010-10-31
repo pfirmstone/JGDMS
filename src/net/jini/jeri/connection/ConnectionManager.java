@@ -48,7 +48,7 @@ import net.jini.jeri.OutboundRequestIterator;
  * to frame and multiplex requests and responses over connections.
  *
  * <p>A <code>ConnectionManager</code> is created by a
- * connection-based {@link Endpoint} implemention to manage
+ * connection-based {@link net.jini.jeri.Endpoint} implemention to manage
  * connections to a particular {@link ConnectionEndpoint}.  The {@link
  * #newRequest newRequest} method is used to send a request to the
  * connection endpoint.

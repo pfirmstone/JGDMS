@@ -101,7 +101,7 @@ public final class ConfidentialityStrength
     /**
      * Simple constructor.
      *
-     * @param val <code>true</code> for <code>STRONG</code>, <code>false</code>
+     * @param value <code>true</code> for <code>STRONG</code>, <code>false</code>
      *	      for <code>WEAK</code>
      */
     private ConfidentialityStrength(boolean value) {

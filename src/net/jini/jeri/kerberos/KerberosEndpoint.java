@@ -1817,7 +1817,7 @@ public final class KerberosEndpoint
 	/** 
 	 * Establish a connection to server.
 	 *
-	 * @param socket socket over which the connection traffic will
+	 * @param sock socket over which the connection traffic will
 	 *        be carried
 	 * @param config a configuration object that specifies how the
 	 *        connection should be setup

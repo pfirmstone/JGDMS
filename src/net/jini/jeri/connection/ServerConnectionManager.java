@@ -39,7 +39,7 @@ import net.jini.jeri.RequestDispatcher;
  * to frame and multiplex requests and responses over connections.
  *
  * <p>A <code>ServerConnectionManager</code> is created by a
- * connection-based {@link ServerEndpoint} implemention to manage
+ * connection-based {@link net.jini.jeri.ServerEndpoint} implemention to manage
  * connections.  The {@link #handleConnection handleConnection} method
  * is used to manage connections for a particular {@link
  * ServerConnection}.
