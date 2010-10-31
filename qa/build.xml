@@ -326,7 +326,8 @@
         <antcall target="run-categories"/>
     </target>
 
-    <target name="doc" depends="compile"
+<!-- depends="compile" -->
+    <target name="doc" 
 		description="Generate javadoc documentation">
         <delete dir="${doc.api.dir}" quiet="true"/>
         <mkdir  dir="${doc.api.dir}"/>
@@ -347,7 +348,7 @@
                 >
             <bottom><![CDATA[${api.copyright}]]></bottom>
             <classpath>
-                <fileset dir="../../extlibs">
+                <fileset dir="${root}/extlibs">
                     <include name="*.jar"/>
                 </fileset>
             </classpath>
