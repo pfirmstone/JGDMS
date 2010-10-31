@@ -22,7 +22,6 @@ import java.io.ObjectOutputStream;
 import java.io.IOException;
 import java.io.StreamCorruptedException;
 import java.rmi.MarshalledObject;
-import java.rmi.RemoteException;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;

@@ -25,10 +25,10 @@ import net.jini.id.Uuid;
 
 import java.io.File;
 import java.io.FileDescriptor;
-import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.RandomAccessFile;
+import java.rmi.server.LogStream;
 import java.util.ArrayList;
 import java.util.Observable;
 import java.util.logging.Level;
