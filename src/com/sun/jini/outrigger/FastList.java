@@ -70,8 +70,9 @@ import java.util.WeakHashMap;
  * <i>The Java(TM) Language Specification<i> details a memory model based on
  * local and global memories, apparently intended as a model for
  * multiprocessor caches.  The specified memory model should be
- * supplemented by William Pugh's {@link
- * http://www.cs.umd.edu/~pugh/java/memoryModel/ work} on the Java
+ * supplemented by William Pugh's 
+ * <a href="http://www.cs.umd.edu/~pugh/java/memoryModel/">work</a> 
+ * on the Java
  * programming language memory model and JSR 133.
  * <p>
  * In particular, the <code>volatile</code> keyword offers no practical
