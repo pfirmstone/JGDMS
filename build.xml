@@ -318,6 +318,35 @@
         <copy file="NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE"/>
     </target>
 
+    <target name="javadoc-internals" description="JavaDoc including private">
+        <property name="doc.internals.dir" value="${doc}/internals" />
+        <delete dir="${doc.internals.dir}" quiet="true"/>
+        <mkdir  dir="${doc.internals.dir}"/>
+        <javadoc author="true"
+			 breakiterator="yes"
+			 destdir="${doc.internals.dir}"
+			 doctitle="${javadoc.doc-title} (internals)"
+			 linkoffline="${jdk.doc.url} ${jdk.packages}"
+			 serialwarn="${verbose}"
+                         verbose="${verbose}"
+                         private="true"
+			 source="5"
+			 use="true"
+			 version="true"
+			 windowtitle="${javadoc.win-title} (internals)">
+            <tag name="com.sun.jini.impl"
+			     enabled="true"
+			     scope="packages,types"
+			     description="Implementation Specifics:"/>
+            <bottom><![CDATA[${api.copyright}]]></bottom>
+            <sourcepath>
+                <pathelement path="${src.dir}"/>
+            </sourcepath>
+        </javadoc>
+        <mkdir dir="${doc.internals.dir}/doc-files"/>
+        <copy file="NOTICE" tofile="${doc.internals.dir}/doc-files/NOTICE"/>
+    </target>
+
     <target name="spec-doc"
 		description="Generates specification-only javadoc documentation"
 		depends="compile">
@@ -2081,7 +2110,7 @@
         <ant dir="examples/hello" target="compile" inheritall="false" />
     </target>
 
-    <target name="all.doc" depends="jars,doc,spec-doc"
+    <target name="all.doc" depends="jars,doc,spec-doc,javadoc-internals"
             description="Generate javadoc for all, including subcomponents">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="doc" inheritall="false" />
