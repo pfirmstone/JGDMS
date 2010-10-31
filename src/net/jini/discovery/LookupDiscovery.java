@@ -2866,7 +2866,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      * @param oldGroups <code>String</code> array containing the member
      *                  groups of the <code>reg</code> parameter prior to
      *                  being changed
-     * @param oldGroups <code>String</code> array containing the current
+     * @param newGroups <code>String</code> array containing the current
      *                  member groups of the <code>reg</code> parameter
      *                  (just after a possible change)
      */

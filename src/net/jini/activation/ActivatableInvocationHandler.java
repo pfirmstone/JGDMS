@@ -767,7 +767,7 @@ public final class ActivatableInvocationHandler
      *
      * @param 	proxy a proxy
      * @param	m a method
-     * @param	arg arguments
+     * @param	args arguments
      * @return	result of reflective invocation
      * @throws	ActivateFailedException if the reflective invocation throws
      *		<code>IllegalAccessException</code> or

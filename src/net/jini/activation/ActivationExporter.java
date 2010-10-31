@@ -243,7 +243,7 @@ public final class ActivationExporter implements Exporter
      * then the ProxyTrust interface won't be added to the list.
      *
      * @param	list the list to fill with interfaces
-     * @param	class the class to get the superinterfaces of
+     * @param	cl the class to get the superinterfaces of
      * @param	isConstrainable true if proxy class implements
      *		RemoteMethodControl
      * @param	checkPublic true if proxy has a non-public class
