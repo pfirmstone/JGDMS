@@ -75,8 +75,8 @@ class EntryHolder implements TransactionConstants {
      * template, or <code>null</code> if none does. Optionally
      * removes (perhaps provisionally) the found entry.
      *
-     * @param tmplRep	The template to match against
-     * @param txnMgr    If non-null the transaction (represented as 
+     * @param tmpl	The template to match against
+     * @param txn       If non-null the transaction (represented as
      *                  a <code>TransactableMgr</code> to perform
      *                  the operation under. May be <code>null</code>
      *                  if the operation is not to be done under
@@ -178,7 +178,7 @@ class EntryHolder implements TransactionConstants {
      * it can read/take it and return <code>true</code>, otherwise
      * return <code>false</code>. If the entry is removed. Note,
      * if the entry is removed, removal is logged.
-     * @param entry The <code>EntryHandle</code> of the entry
+     * @param handle The <code>EntryHandle</code> of the entry
      *              the caller wants to read/take.
      * @param txn   If non-null the transaction to perform
      *              this operation under. Note, if non-null and 
@@ -624,7 +624,7 @@ class EntryHolder implements TransactionConstants {
      *
      * @param tmpls     An array of templates. Query will yield any 
      *                  entry that matches one or more of the templates.
-     * @param txnMgr    Transaction that should be used with the query.
+     * @param txn       Transaction that should be used with the query.
      *                  May be <code>null</code>. If
      *                  non-<code>null</code> any entries yielded by the
      *                  query will be locked under the transaction.
@@ -678,7 +678,7 @@ class EntryHolder implements TransactionConstants {
 	 *
 	 * @param tmpls    An array of templates. Query will yield any 
 	 *                 entry that matches one or more of the templates.
-	 * @param txnMgr   Transaction that should be used with the query.
+	 * @param txn      Transaction that should be used with the query.
 	 *                 May be <code>null</code>. If
 	 *                 non-<code>null</code> any entries yielded by the
 	 *                 query will be locked under the transaction.
@@ -686,8 +686,8 @@ class EntryHolder implements TransactionConstants {
 	 *                 the query should be removed.
 	 * @param now      Estimate of current time used to weed out
 	 *                 expired entries, ok if old
-	 * @return a new ContinuingQuery object.
 	 */
+        // 	 * @return a new ContinuingQuery object. (?)
 	private ContinuingQuery(EntryRep[] tmpls, TransactableMgr txn,
 				boolean takeThem, long now)
 	{
