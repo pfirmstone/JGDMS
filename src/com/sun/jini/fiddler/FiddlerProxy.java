@@ -127,7 +127,7 @@ class FiddlerProxy implements Administrable, LookupDiscoveryService,
      *         there is a communication failure between the client and the
      *         server.
      *
-     * @see net.jini.Administrable
+     * @see net.jini.admin.Administrable
      */
     public Object getAdmin() throws RemoteException {
         return server.getAdmin();

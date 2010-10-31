@@ -2559,7 +2559,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      *         there is a communication failure between the client and the
      *         server.
      *
-     * @see com.sun.jini.fiddler.FiddlerAdminProxy#getAdmin
+     * see com.sun.jini.fiddler.FiddlerAdminProxy#getAdmin (?)
      * @see net.jini.admin.Administrable#getAdmin
      */
     public Object getAdmin() throws NoSuchObjectException, RemoteException {
@@ -2721,7 +2721,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      * new groups that the lookup discovery service has not yet registered
      * with, will be discovered and joined.
      *
-     * @param  String array containing the names of the groups to add
+     * @param  groups String array containing the names of the groups to add
      * 
      * @throws java.rmi.NoSuchObjectException if this method is called during
      *         service initialization or shutdown processing
@@ -2761,7 +2761,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      * lookup services that are not members of the groups whose names 
      * remain in the managed set will be cancelled at those lookup services.
      *
-     * @param  String array containing the names of the groups to remove
+     * @param  groups String array containing the names of the groups to remove
      * 
      * @throws java.rmi.NoSuchObjectException if this method is called during
      *         service initialization or shutdown processing
@@ -2797,7 +2797,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      * services. Lookup services that are members of groups reflected in
      * the new managed set will be discovered and joined.
      *
-     * @param  String array containing the names of the new groups
+     * @param  groups String array containing the names of the new groups
      * 
      * @throws java.rmi.NoSuchObjectException if this method is called during
      *         service initialization or shutdown processing
@@ -2870,7 +2870,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      * Any lookup services corresponding to the new locators that the lookup
      * discovery service has not yet joined, will be discovered and joined.
      *
-     * @param  array of net.jini.core.discovery.LookupLocator objects to add
+     * @param  locators array of net.jini.core.discovery.LookupLocator objects to add
      *         to the managed set of locators
      * 
      * @throws java.rmi.NoSuchObjectException if this method is called during
@@ -2914,7 +2914,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      * remaining in the managed set will be cancelled at those lookup
      * services.
      *
-     * @param  array of net.jini.core.discovery.LookupLocator objects to
+     * @param  locators array of net.jini.core.discovery.LookupLocator objects to
      *         remove from the managed set of locators
      * 
      * @throws java.rmi.NoSuchObjectException if this method is called during
@@ -2958,7 +2958,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      * services corresponding to the new locators in the managed set
      * will be discovered and joined.
      *
-     * @param  array of net.jini.core.discovery.LookupLocator objects with
+     * @param  locators array of net.jini.core.discovery.LookupLocator objects with
      *         which to replace the current managed set of locators
      *         remove from the managed set of locators
      * 
@@ -4649,7 +4649,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      *  registrars that are no longer of interest - through group discovery
      *  - to the given registration.
      *
-     * @param regsMap map whose key values are registrars, and whose map
+     * @param regMap map whose key values are registrars, and whose map
      *                values are data structures of type
      *                <code>LocatorGroupsStruct</code> that contain the
      *                associated locator and member groups of the
@@ -4700,7 +4700,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      *  registrars that are no longer of interest - through locator discovery
      *  - to the given registration.
      *
-     * @param regsMap map whose key values are registrars, and whose map
+     * @param regMap map whose key values are registrars, and whose map
      *                values are data structures of type
      *                <code>LocatorGroupsStruct</code> that contain the
      *                associated locator and member groups of the
@@ -6511,8 +6511,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      * corresponding to the <code>registrationID</code> and
      * <code>leaseID</code> parameters.
      * 
-     * @param regInfo the data structure record corresponding to the
-     *                registration whose lease is to be cancelled
      * @param registrationID   the ID of the data structure record
      *                         corresponding to the registration whose
      *                         lease is to be cancelled
@@ -6700,7 +6698,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      * @param reg       instance of <code>ServiceRegistrar</code> 
      *                  corresponding to the registrar to use as the key
      *                  to the mapping
-     * @param curGroups <code>String</code> array containing the current
+     * @param groups    <code>String</code> array containing the current
      *                  member groups of the registrar referenced by the 
      *                  <code>reg</code> parameter; and which is used
      *                  as the value of the mapping
@@ -6740,7 +6738,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      *  Note that this method must be called from within a synchronization
      *  block.
      *
-     * @param discardedRegs set of registrars that were just discarded
+     * @param dReg set of registrars that were just discarded
      */
     private void maybeRemoveDiscardedRegFromGlobalSet(Object dReg) {
         for(Iterator jtr=registrationByID.values().iterator();jtr.hasNext();){
