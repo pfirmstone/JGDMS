@@ -88,7 +88,7 @@ class LogOutputFile extends LogFile implements LogOps {
      * to <code>Observer</code>.
      *
      * @see LogStream#LogStream(String)
-     * @see observable() 
+     * @see #observable()
      */
     LogOutputFile(String basePath, int maxOps) throws IOException {
 	super(basePath);

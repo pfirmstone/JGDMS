@@ -273,11 +273,6 @@ class TakeMultipleWatcher extends QueryWatcher implements Transactable {
      *              by <code>resolvedWithEntry</code>. Otherwise should be
      *              <code>null</code>.  May only be non-null if throwable
      *              is <code>null</code>.
-     * @param throwable If being resolved by an exception
-     *              the throwable to be thrown and that should be returned
-     *              by <code>resolvedWithThrowable</code> otherwise should
-     *              be <code>null</code>.  May only be non-null if entry is
-     *              <code>null</code>.
      * @throws IllegalArgumentException if both 
      *         <code>entry</code> and <code>throwable</code>
      *         are non-null.

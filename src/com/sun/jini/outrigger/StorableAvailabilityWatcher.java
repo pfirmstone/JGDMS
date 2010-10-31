@@ -129,7 +129,7 @@ class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
      * to do as part of <code>cancel</code> or
      * <code>removeIfExpired</code>. Called after releasing the lock
      * on <code>this</code>.  Will be called at most once.  
-     * @param owner A reference to the owner.
+     * @param server A reference to the owner.
      * @param expired <code>true</code> if being called from 
      *        <code>removeIfExpired</code> and false otherwise. 
      */
