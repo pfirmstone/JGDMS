@@ -139,7 +139,7 @@
         <include name="NOTICE"/>
         <include name="${doc}/info-index.html"/>
         <include name="${doc}/build.html"/>
-        <include name="${doc}/j2se/**"/>
+        <include name="${src-doc}/j2se/**"/>
         <include name="${doc}/manpages-index.html"/>
         <include name="${doc}/proxypreparation.pdf"/>
         <include name="${doc}/release-notes/**"/>

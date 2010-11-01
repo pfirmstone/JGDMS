@@ -32,6 +32,7 @@
     <!-- Standard directory names -->
     <property name="doc" value="doc"/>
     <property name="src" value="src"/>
+    <property name="src-doc" value="src-doc"/>
     <property name="poms" value="poms"/>
     <property name="configentry" value="configentry"/>
     <property name="lib" value="lib"/>
@@ -75,7 +76,7 @@
 
     <!-- Standard javadoc options and settings -->
     <property name="jdk.doc.url" value="http://java.sun.com/j2se/1.4.2/docs/api"/>
-    <property name="jdk.packages" location="${root}/src-doc/j2se"/>
+    <property name="jdk.packages" location="${root}/${src-doc}/j2se"/>
     <property name="api.copyright" value="Copyright 2007-2010, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
 
     <!--## Private package inclusions for use with classdep; the
