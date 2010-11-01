@@ -47,10 +47,12 @@
     <property name="javadoc.spec.doc-title" value="${product.title} Specification-only API Documentation"/>
     <property name="javadoc.spec.win-title" value="${javadoc.spec.doc-title}"/>
 
+<!--
     <path id="javadoc.classpath">
         <path refid="river.classes"/>
         <path refid="asm.classpath"/>
     </path>
+    -->
 
     <target name="copy-resources"
 		description="Copies various resources directories to the classes dir."
@@ -222,8 +224,24 @@
         <fail if="unsupported.jdk">Building ${product.name} requires Java 2 SDK 1.4 or greater.</fail>
     </target>
 
-    <target name="doc" description="Generate javadoc documentation"
-		depends="compile">
+    <target name="doc" depends="javadoc-api" />
+
+    <target name="javadoc" depends="javadoc-api,javadoc-spec,javadoc-internals" />
+
+    <target name="-javadoc-settings">
+        <property name="javadoc.source" value="5" />
+        <sourcepath id="javadoc.sourcepath">
+            <pathelement path="${src.dir}"/>
+        </sourcepath>
+        <path id="javadoc.classpath" >
+            <fileset dir="extlibs">
+                <include name="*.jar"/>
+            </fileset>
+        </path>
+    </target>
+
+    <target name="javadoc-api" depends="-javadoc-settings"
+            description="Generate api javadoc documentation" >
         <delete dir="${doc.api.dir}" quiet="true"/>
         <mkdir  dir="${doc.api.dir}"/>
         <javadoc author="true"
@@ -233,7 +251,7 @@
 			 linkoffline="${jdk.doc.url} ${jdk.packages}"
 			 serialwarn="${verbose}"
                          verbose="${verbose}"
-			 source="5"
+			 source="${javadoc.source}"
 			 use="true"
 			 version="true"
 			 windowtitle="${javadoc.win-title}">
@@ -242,10 +260,10 @@
 			     scope="packages,types"
 			     description="Implementation Specifics:"/>
             <bottom><![CDATA[${api.copyright}]]></bottom>
-            <classpath refid="javadoc.classpath"/>
-            <sourcepath>
-                <pathelement path="${src.dir}"/>
-            </sourcepath>
+
+            <classpath refid="javadoc.classpath" />
+            <sourcepath refid="javadoc.sourcepath" />
+
             <fileset dir="${src.dir}" includes="com/sun/jini/mahalo/MahaloPermission.java"/>
             <package name="com.sun.jini.admin"/>
             <package name="com.sun.jini.config"/>
@@ -319,7 +337,7 @@
         <copy file="NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE"/>
     </target>
 
-    <target name="javadoc-internals" description="produces javadoc directory including privates">
+    <target name="javadoc-internals" depends="-javadoc-settings" description="produces javadoc directory including privates">
         <property name="doc.internals.dir" value="${doc}/internals" />
         <delete dir="${doc.internals.dir}" quiet="true"/>
         <mkdir  dir="${doc.internals.dir}"/>
@@ -331,7 +349,7 @@
 			 serialwarn="${verbose}"
                          verbose="${verbose}"
                          private="true"
-			 source="5"
+			 source="${javadoc.source}"
 			 use="true"
 			 version="true"
 			 windowtitle="${javadoc.win-title} (internals)">
@@ -340,22 +358,16 @@
 			     scope="packages,types"
 			     description="Implementation Specifics:"/>
             <bottom><![CDATA[${api.copyright}]]></bottom>
-            <classpath>
-                <fileset dir="extlibs">
-                    <include name="*.jar"/>
-                </fileset>
-            </classpath>
-            <sourcepath>
-                <pathelement path="${src.dir}"/>
-            </sourcepath>
+            <classpath refid="javadoc.classpath" />
+            <sourcepath refid="javadoc.sourcepath" />
         </javadoc>
         <mkdir dir="${doc.internals.dir}/doc-files"/>
         <copy file="NOTICE" tofile="${doc.internals.dir}/doc-files/NOTICE"/>
     </target>
 
-    <target name="spec-doc"
+    <target name="javadoc-spec" depends="-javadoc-settings"
 		description="Generates specification-only javadoc documentation"
-		depends="compile">
+		>
         <delete dir="${doc.spec.api.dir}" quiet="true"/>
         <mkdir  dir="${doc.spec.api.dir}"/>
         <javadoc author="true"
@@ -365,7 +377,7 @@
 			 linkoffline="${jdk.doc.url} ${jdk.packages}"
 			 serialwarn="${verbose}"
                          verbose="${verbose}"
-			 source="5"
+			 source="${javadoc.source}"
 			 use="true"
 			 version="true"
 			 windowtitle="${javadoc.spec.win-title}">
@@ -373,9 +385,8 @@
 			     enabled="false"
 			     description="ignore"/>
             <classpath refid="javadoc.classpath"/>
-            <sourcepath>
-                <pathelement path="${src.dir}"/>
-            </sourcepath>
+            <sourcepath refid="javadoc.sourcepath" />
+
             <package name="net.jini.activation"/>
             <package name="net.jini.config"/>
             <package name="net.jini.constraint"/>
@@ -2090,7 +2101,7 @@
         <ant dir="qa" target="run" inheritall="false"/>
     </target>
 
-    <target name="build" depends="configentry,test,jars,doc,spec-doc"/>
+    <target name="build" depends="configentry,test,jars,doc,javadoc-spec"/>
 
     <target name="all.build" depends="build"
             description="Build all, including subcomponents">
@@ -2116,7 +2127,7 @@
         <ant dir="examples/hello" target="compile" inheritall="false" />
     </target>
 
-    <target name="all.doc" depends="jars,doc,spec-doc,javadoc-internals"
+    <target name="all.doc" depends="jars,javadoc"
             description="Generate javadoc for all, including subcomponents">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="doc" inheritall="false" />
