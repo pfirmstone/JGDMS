@@ -271,6 +271,7 @@
                         <include name="jsk-lib.jar"/>
                     </fileset>
                 </classpath>
+                <env key="SOUL" value="${soul}"/>
             </java>
         </sequential>
     </macrodef>
