@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class HeartOfTheMachine
 {
-    private static String soulfile = System.getProperty("soul");
+    private static String soul = System.getenv("SOUL");
 
     public HeartOfTheMachine()
     {
@@ -24,7 +24,7 @@ public class HeartOfTheMachine
 
     private boolean hasReasonToLive()
     {
-        File f = new File(soulfile);
+        File f = new File(soul);
         return f.exists();
     }
 
@@ -32,7 +32,7 @@ public class HeartOfTheMachine
     {
         try {
             while( hasReasonToLive() ) {
-                Thread.sleep( TimeUnit.SECONDS.toMillis(30) );
+                Thread.sleep( TimeUnit.SECONDS.toMillis(10) );
             }
             Runtime.getRuntime().halt(999);
         } catch( InterruptedException e ) {
@@ -43,10 +43,10 @@ public class HeartOfTheMachine
 
     public static void start()
     {
-        if( soulfile == null ) {
+        if( soul == null ) {
             return ;
         }
-        
+
         Thread t = new Thread( new Runnable() {
 
             public void run()

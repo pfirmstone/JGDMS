@@ -59,6 +59,9 @@ public abstract class QARunner {
 		}
             }
         );
+
+        HeartOfTheMachine.start();
+
 //	String hostList = System.getProperty("com.sun.jini.qa.harness.testhosts");
 	if (isMasterHost(hostList)) {
 	    boolean allPass = (new MasterHarness(args)).runTests();
