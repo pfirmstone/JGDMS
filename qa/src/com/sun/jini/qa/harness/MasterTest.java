@@ -97,6 +97,9 @@ class MasterTest {
 	    e.printStackTrace();
 	    exit(false, Test.ENV, "Could not read config from System.in");
 	}
+
+        HeartOfTheMachine.start();
+
 	// used to be handled by config.readObject, but this broke SlaveHarness
 	try {
 	    config.loadTestConfiguration();
