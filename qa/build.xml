@@ -348,7 +348,7 @@
                 >
             <bottom><![CDATA[${api.copyright}]]></bottom>
             <classpath>
-                <fileset dir="${root}/extlibs">
+                <fileset dir="${extlibs.dir}">
                     <include name="*.jar"/>
                 </fileset>
             </classpath>

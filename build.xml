@@ -234,7 +234,7 @@
             <pathelement path="${src.dir}"/>
         </path>
         <path id="javadoc.classpath" >
-            <fileset dir="extlibs">
+            <fileset dir="${extlibs.dir}">
                 <include name="*.jar"/>
             </fileset>
         </path>
@@ -481,7 +481,7 @@
 
     <target name="copy-extlibs" >
         <copy todir="lib">
-            <fileset dir="extlibs" includes="*.jar"/>
+            <fileset dir="${extlibs.dir}" includes="*.jar"/>
         </copy>
     </target>
 
