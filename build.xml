@@ -230,9 +230,9 @@
 
     <target name="-javadoc-settings">
         <property name="javadoc.source" value="5" />
-        <sourcepath id="javadoc.sourcepath">
+        <path id="javadoc.sourcepath">
             <pathelement path="${src.dir}"/>
-        </sourcepath>
+        </path>
         <path id="javadoc.classpath" >
             <fileset dir="extlibs">
                 <include name="*.jar"/>
