@@ -45,6 +45,10 @@ grant {
 
 };
 
+grant {
+    permission java.lang.RuntimePermission "getenv.SOUL" ;
+}
+
 /*
  * Harness-specific policy is the same as policy.qaHarness.
  */ 
