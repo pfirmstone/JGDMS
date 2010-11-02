@@ -20,6 +20,7 @@ package com.sun.jini.qa.harness;
 
 import java.io.File;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Logger;
 
 /**
  *
@@ -27,10 +28,26 @@ import java.util.concurrent.TimeUnit;
  */
 public class HeartOfTheMachine
 {
-    private static String soul = null ; // System.getenv("SOUL");
+    private String soul ;
 
-    public HeartOfTheMachine()
+    private HeartOfTheMachine()
     {
+        soul = System.getenv("SOUL");
+
+        if( soul == null ) {
+            return ;
+        }
+
+        Thread t = new Thread( new Runnable() {
+
+            public void run()
+            {
+                ticktack();
+            }
+
+        }, "no heart without soul");
+        t.setDaemon(true);
+        t.start();
     }
 
     private boolean hasReasonToLive()
@@ -54,19 +71,12 @@ public class HeartOfTheMachine
 
     public static void start()
     {
-        if( soul == null ) {
-            return ;
+        try {
+            new HeartOfTheMachine();
+        } catch( Throwable t ) {
+            //System.out.println("Heart NOT started");
+            Logger.getAnonymousLogger().severe("Heart NOT started");
         }
-
-        Thread t = new Thread( new Runnable() {
-
-            public void run()
-            {
-                new HeartOfTheMachine().ticktack();
-            }
-
-        }, "no heart without soul");
-        t.setDaemon(true);
-        t.start();
     }
+
 }
