@@ -16,7 +16,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class HeartOfTheMachine
 {
-    private static String soul = System.getenv("SOUL");
+    private static String soul = null ; // System.getenv("SOUL");
 
     public HeartOfTheMachine()
     {
