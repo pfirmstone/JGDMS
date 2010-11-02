@@ -192,6 +192,15 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
                  */
                 final long postTime = System.currentTimeMillis();
 
+                /*
+                 * Check for late expiration against preTime
+                 * postTime - slop elemnates overflow problems when
+                 * expTime == FOREVER
+                 */
+                if (stillThere && (preTime - slop > expTime)) {
+                    throw new TestException(
+                            "Resource was available after lease expiration");
+                }
 
                 // Check for early expiration against postTime
 		logger.log(Level.FINEST, 
@@ -205,7 +214,6 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
                 if (!stillThere) {
 
                     // No use testing once it is gone
-                	// or time has expired.
                     break;
                 }
 
@@ -237,10 +245,6 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
                     } catch (InterruptedException e) {
                         // Should never happen, and if it does we don't care
                     }
-                } else if (postTime > expTime) {
-                	// Past expiration time and not doing any special tests
-                	// at this time.
-                	break;
                 }
             }
         }
