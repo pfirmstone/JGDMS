@@ -272,6 +272,7 @@
                     </fileset>
                 </classpath>
                 <env key="SOUL" value="${soul}"/>
+                <sysproperty key="SOUL" value="${soul}"/>
             </java>
         </sequential>
     </macrodef>

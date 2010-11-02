@@ -34,9 +34,9 @@ public class HeartOfTheMachine
             while( hasReasonToLive() ) {
                 Thread.sleep( TimeUnit.SECONDS.toMillis(10) );
             }
-            Runtime.getRuntime().halt(999);
+            Runtime.getRuntime().halt(100);
         } catch( InterruptedException e ) {
-            //Runtime.getRuntime().halt(999);
+            // ignore.
         } finally {
         }
     }
