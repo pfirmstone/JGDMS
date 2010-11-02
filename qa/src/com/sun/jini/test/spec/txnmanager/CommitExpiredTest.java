@@ -37,7 +37,14 @@ import com.sun.jini.test.share.TestParticipantImpl;
  * Create a transaction to be expired in fortey seconds
  * then sleep forty seconds.  Next commit the transaction.
  *
- * Expect: CannotCommitException exception
+ * Expect: Either CannotCommitException exception or
+ * UnknownTransactionException, depending on a race between
+ * this test and the cancellation of the expired transaction.
+ * If this thread wins, the transaction is still known to
+ * the manager, but has expired, leading to a
+ * CannotCommitException. If the expiration handling
+ * in the manager wins, the transaction has been
+ * canceled and discarded from the manager.
  */
 public class CommitExpiredTest extends TxnManagerTest {
 
@@ -79,6 +86,14 @@ public class CommitExpiredTest extends TxnManagerTest {
             cr.transaction.commit();
 	    throw new TestException("CannotCommitException is not raised");
         } catch (CannotCommitException cce) {
+
+            // Expected exception. Test passed.
+            if (DEBUG) {
+                cce.printStackTrace();
+                logger.log(Level.INFO, cce.getMessage());
+            }
+        }
+        catch (UnknownTransactionException cce) {
 
             // Expected exception. Test passed.
             if (DEBUG) {
