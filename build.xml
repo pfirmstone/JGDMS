@@ -54,6 +54,10 @@
     </path>
     -->
 
+    <target name="ci-build" description="hudson build target" depends="all.clean,release,javadoc-internals,diagnostics" />
+
+    <target name="qa-build" description="hudson QA build target" depends="all.clean,release,qa.run,diagnostics" />
+
     <target name="copy-resources"
 		description="Copies various resources directories to the classes dir."
 		depends="start.copy-resources, tools.copy-resources">
@@ -2215,5 +2219,4 @@
         </junit>
     </target>
 
-    <target name="ci-build" description="hudson build target" depends="all.clean,release,javadoc-internals,diagnostics" />
 </project>
