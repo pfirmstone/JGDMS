@@ -1165,7 +1165,7 @@ class TxnManagerImpl /*extends RemoteServer*/
      * @see com.sun.jini.mahalo.LeaseManager
      */
     public void cancel(Uuid uuid) throws UnknownLeaseException {
-
+    	
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "cancel", 
@@ -1183,24 +1183,23 @@ class TxnManagerImpl /*extends RemoteServer*/
 
 	int state = txntr.getState();
 
-
 //TODO - need better locking here. getState and expiration need to be checked atomically	
  
-        if ((state == ACTIVE && !ensureCurrent(txntr)) || (state != ACTIVE))
+        if ((state == ACTIVE && txntr.getExpiration()==0) || (state != ACTIVE)) {
 			throw new UnknownLeaseException("unknown transaction");
+        }
 
 		if (state == ACTIVE) {
 
 		try {
 		
 			synchronized (txntr) {	    								
-				if(System.currentTimeMillis() > txntr.getExpiration()) {
+				if(txntr.getExpiration() == 0) {
 					throw new TimeoutExpiredException("Transaction already expired", true);
 				}
 				txntr.setExpiration(0);	// Mark as done
 			}
 
-	    
 	        abort(((Long)tid).longValue(), false);
 	    } catch (TransactionException e) {
 	        throw new
