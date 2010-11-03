@@ -227,10 +227,6 @@
         <mkdir dir="${build.classes.dir}"/>
         <mkdir dir="${build.deps.dir}"/>
         <mkdir dir="${configentry.dir}"/>
-        <!--
-        <mkdir dir="${doc.api.dir}"/>
-        <mkdir dir="${doc.spec.api.dir}"/>
-        -->
         <mkdir dir="${lib-dl.dir}"/>
         <mkdir dir="${lib-ext.dir}"/>
     </target>
