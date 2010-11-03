@@ -54,9 +54,9 @@
     </path>
     -->
 
-    <target name="ci-build" description="hudson build target" depends="all.clean,release,javadoc-internals,diagnostics" />
+    <target name="ci-build" description="hudson build target" depends="diagnostics,all.clean,release,javadoc-internals" />
 
-    <target name="qa-build" description="hudson QA build target" depends="all.clean,release,qa.run,diagnostics" />
+    <target name="qa-build" description="hudson QA build target" depends="diagnostics,all.clean,release,qa.run" />
 
     <target name="copy-resources"
 		description="Copies various resources directories to the classes dir."
