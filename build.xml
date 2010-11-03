@@ -135,12 +135,25 @@
     </target>
 
     <fileset id="river.src.files" dir="${basedir}">
+        <include name="**" />
+        <exclude name="${build}/**"/>
+        <exclude name="${configentry}/**"/>
+        <exclude name="${dist}/**"/>
+        <exclude name="${doc}/**"/>
+        <exclude name="${lib}/**"/>
+        <exclude name="${lib-dl}/**"/>
+        <exclude name="${lib-ext}/**"/>
+        <!-- TODO: remove when archive building is pure river.src.files based -->
+        <exclude name="qa/**"/>
+
+        <!--
         <include name="index.html"/>
         <include name="build.xml"/>
         <include name="common.xml"/>
         <include name="DISCLAIMER"/>
         <include name="LICENSE"/>
         <include name="NOTICE"/>
+
         <include name="${doc}/info-index.html"/>
         <include name="${doc}/build.html"/>
         <include name="${src-doc}/j2se/**"/>
@@ -152,12 +165,18 @@
         <include name="${doc}/smartproxyverification.pdf"/>
         <include name="${doc}/spec-index.html"/>
         <include name="${doc}/specs/html/**"/>
+
         <include name="${src}/**"/>
         <exclude name="${src}/**/*.sh"/>
         <include name="${lib}/${asm.jars.pattern}"/>
         <include name="${poms}/**"/>
         <include name="${test.src}/**"/>
         <include name="${test.lib}/**"/>
+
+        <include name="${src-doc}/**"/>
+        <include name="${extlibssrc-doc}/**"/>
+        -->
+
     </fileset>
 
     <fileset id="examples.src.files" dir="${basedir}/examples">
@@ -210,8 +229,10 @@
         <mkdir dir="${build.classes.dir}"/>
         <mkdir dir="${build.deps.dir}"/>
         <mkdir dir="${configentry.dir}"/>
+        <!--
         <mkdir dir="${doc.api.dir}"/>
         <mkdir dir="${doc.spec.api.dir}"/>
+        -->
         <mkdir dir="${lib-dl.dir}"/>
         <mkdir dir="${lib-ext.dir}"/>
     </target>
