@@ -5,4 +5,4 @@ src-doc/static - static files for docs dir
 src-extra      - 'extra' java source files
 
 
-doc            - scratch directory for building docs
+doc            - doc build results directory
