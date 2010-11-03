@@ -228,11 +228,13 @@
         <fail if="unsupported.jdk">Building ${product.name} requires Java 2 SDK 1.4 or greater.</fail>
     </target>
 
-    <target name="doc" depends="javadoc-api" />
+    <target name="doc" depends="doc-init,javadoc-api,javadoc-spec,javadoc-internals" />
 
-    <target name="javadoc" depends="javadoc-init,javadoc-api,javadoc-spec,javadoc-internals" />
+    <target name="doc-clean" >
+        <delete dir="${doc.dir}" quiet="true"/>
+    </target>
 
-    <target name="-javadoc-settings">
+    <target name="-doc-settings">
         <property name="javadoc.source" value="5" />
         <path id="javadoc.sourcepath">
             <pathelement path="${src.dir}"/>
@@ -244,13 +246,13 @@
         </path>
     </target>
 
-    <target name="javadoc-init" depends="-javadoc-settings" >
+    <target name="doc-init" depends="-doc-settings" >
         <copy todir="${doc.dir}">
             <fileset dir="${src-doc.dir}/static" />
         </copy>
     </target>
 
-    <target name="javadoc-api" depends="-javadoc-settings"
+    <target name="javadoc-api" depends="-doc-settings"
             description="Generate api javadoc documentation" >
         <delete dir="${doc.api.dir}" quiet="true"/>
         <mkdir  dir="${doc.api.dir}"/>
@@ -347,7 +349,7 @@
         <copy file="NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE"/>
     </target>
 
-    <target name="javadoc-internals" depends="-javadoc-settings" description="produces javadoc directory including privates">
+    <target name="javadoc-internals" depends="-doc-settings" description="produces javadoc directory including privates">
         <property name="doc.internals.dir" value="${doc}/internals" />
         <delete dir="${doc.internals.dir}" quiet="true"/>
         <mkdir  dir="${doc.internals.dir}"/>
@@ -375,7 +377,7 @@
         <copy file="NOTICE" tofile="${doc.internals.dir}/doc-files/NOTICE"/>
     </target>
 
-    <target name="javadoc-spec" depends="-javadoc-settings"
+    <target name="javadoc-spec" depends="-doc-settings"
 		description="Generates specification-only javadoc documentation"
 		>
         <delete dir="${doc.spec.api.dir}" quiet="true"/>
@@ -2111,7 +2113,7 @@
         <ant dir="qa" target="run" inheritall="false"/>
     </target>
 
-    <target name="build" depends="configentry,test,jars,doc,javadoc-spec"/>
+    <target name="build" depends="configentry,test,jars,doc"/>
 
     <target name="all.build" depends="build"
             description="Build all, including subcomponents">
@@ -2137,7 +2139,7 @@
         <ant dir="examples/hello" target="compile" inheritall="false" />
     </target>
 
-    <target name="all.doc" depends="jars,javadoc"
+    <target name="all.doc" depends="jars,doc"
             description="Generate javadoc for all, including subcomponents">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="doc" inheritall="false" />
