@@ -1,4 +1,8 @@
 
-extlibs - external libraries used by river
-src-doc - documentation source files
-src-extra - 'extra' java source files
+extlibs        - external libraries used by river
+src-doc        - documentation source files
+src-doc/static - static files for docs dir
+src-extra      - 'extra' java source files
+
+
+doc            - scratch directory for building docs
