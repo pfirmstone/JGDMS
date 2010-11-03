@@ -244,8 +244,8 @@
         </path>
     </target>
 
-    <target name="javadoc-init">
-        <copy todir="doc2">
+    <target name="javadoc-init" depends="-javadoc-settings" >
+        <copy todir="${doc.dir}">
             <fileset dir="${src-doc.dir}/static" />
         </copy>
     </target>
