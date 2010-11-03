@@ -58,6 +58,7 @@
     <property name="src.configentry.dir" location="${src}/configentry"/>
 
     <property name="src-extra.dir" location="src-extra"/>
+    <property name="src-doc.dir" location="src-doc"/>
 
     <property name="poms.dir" location="${poms}"/>
     <property name="build.dir" location="${build}"/>
