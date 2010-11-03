@@ -132,35 +132,13 @@
         <!-- TODO: remove when archive building is pure river.src.files based -->
         <exclude name="qa/**"/>
 
+        <exclude name="${test}/classes/**" />
+        <exclude name="${test}/results/**" />
+
         <!--
-        <include name="index.html"/>
-        <include name="build.xml"/>
-        <include name="common.xml"/>
-        <include name="DISCLAIMER"/>
-        <include name="LICENSE"/>
-        <include name="NOTICE"/>
-
-        <include name="${doc}/info-index.html"/>
-        <include name="${doc}/build.html"/>
-        <include name="${src-doc}/j2se/**"/>
-        <include name="${doc}/manpages-index.html"/>
-        <include name="${doc}/proxypreparation.pdf"/>
-        <include name="${doc}/release-notes/**"/>
+        TODO: why were these excluded from the source archive?
         <exclude name="${doc}/release-notes/new.html"/>
-        <include name="${doc}/simpleproxyverification.pdf"/>
-        <include name="${doc}/smartproxyverification.pdf"/>
-        <include name="${doc}/spec-index.html"/>
-        <include name="${doc}/specs/html/**"/>
-
-        <include name="${src}/**"/>
         <exclude name="${src}/**/*.sh"/>
-        <include name="${lib}/${asm.jars.pattern}"/>
-        <include name="${poms}/**"/>
-        <include name="${test.src}/**"/>
-        <include name="${test.lib}/**"/>
-
-        <include name="${src-doc}/**"/>
-        <include name="${extlibssrc-doc}/**"/>
         -->
 
     </fileset>
