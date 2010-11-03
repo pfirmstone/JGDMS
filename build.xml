@@ -228,9 +228,11 @@
         <fail if="unsupported.jdk">Building ${product.name} requires Java 2 SDK 1.4 or greater.</fail>
     </target>
 
+    <!-- =========== documentation related ============ -->
+
     <target name="doc" depends="doc-init,javadoc-api,javadoc-spec,javadoc-internals" />
 
-    <target name="doc-clean" >
+    <target name="doc-clean" depends="-doc-settings" >
         <delete dir="${doc.dir}" quiet="true"/>
     </target>
 
@@ -437,6 +439,8 @@
         <copy file="NOTICE" tofile="${doc.spec.api.dir}/doc-files/NOTICE"/>
     </target>
 
+    <!-- =========== ... ============ -->
+
     <target name="jars"	description="Generates JAR files"
 		depends="river.jars,
             toolswrappers.jars,
@@ -513,12 +517,10 @@
             reggie.stubs, sdm.stubs, start.stubs">
     </target>
 
-    <target name="clean" depends="clean-dist, clean-jars"
+    <target name="clean" depends="clean-dist, clean-jars, doc-clean"
 		description="Removes all files and dirs created by the build">
         <delete dir="${build.dir}" quiet="true"/>
         <delete dir="${configentry.dir}" quiet="true"/>
-        <delete dir="${doc.api.dir}" quiet="true"/>
-        <delete dir="${doc.spec.api.dir}" quiet="true"/>
     </target>
 
     <target name="clean-dist"
