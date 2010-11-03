@@ -1,0 +1,519 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
+<link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
+<title>Jini Technology Lookup Service Specification</title>
+</head>
+
+<body bgcolor="#ffffff">
+
+<p> </p>
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="90%">
+<tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a>
+</td><td align=right><em>Jini Technology Core Platform Specifications</em></td>
+</tr>
+</table>
+<br clear="all">
+
+
+<hr align="left">
+<table width="90%">
+<tr>
+<td align="right" font size="4"><b>Version 1.1</b></td>
+</tr>
+</table>
+<a name="skip"></a>
+<blockquote>
+<h2>LU - Jini<font size="-1"><sup>TM</sup></font> Lookup Service Specification<br>
+</h2>
+<h3 class="Heading2">
+  <a name="1021843"> </a>LU.1	 Introduction
+</h3>
+<p class="Body">
+  The Jini<font size="-1"><sup>TM</sup></font> lookup service is a fundamental part of the federation infrastructure for a <em class="Emphasis">djinn,</em> the group of devices, resources, and users that are joined by the Jini technology infrastructure. The<em class="Emphasis"> lookup service</em> provides a central registry of services available within the djinn. This lookup service is a primary means for programs to find services within the djinn, and is the foundation for providing user interfaces through which users and administrators can discover and interact with services in the djinn.
+</p>
+<p class="Body">
+  <a name="997331"> </a>Although the primary purpose of this specification is to define the interface to the djinn's central service registry, the interfaces defined here can readily be used in other service registries.
+</p>
+<h4 class="Heading3">
+  <a name="996907"> </a>LU.1.1	 The Lookup Service Model
+</h4>
+<p class="Body">
+  <a name="1021778"> </a>The lookup service maintains a flat collection of <em class="Emphasis">service</em> <em class="Emphasis">items</em>. Each service item represents an instance of a service available within the djinn. The item contains the Java(TM) Remote Method Invocation (Java RMI) stub (if the service is implemented as a remote object) or other object (if the service makes use of a local proxy) that programs use to access the service, and an extensible collection of attributes that describe the service or provide secondary interfaces to the service.
+</p>
+<p class="Body">
+  <a name="997180"> </a>When a new service is created (for example, when a new device is added to the djinn), the service registers itself with the djinn's lookup service, providing an initial collection of attributes. For example, a printer might include attributes indicating speed (in pages per minute), resolution (in dots per inch), and whether duplex printing is supported. Among the attributes might be an indicator that the service is new and needs to be configured.
+</p>
+<p class="Body">
+  <a name="997190"> </a>An administrator uses the event mechanism of the lookup service to receive notifications as new services are registered. To configure the service, the administrator might look for an attribute that provides an applet for this purpose. The administrator might also use an applet to add new attributes, such as the physical location of the service and a common name for it; the service would receive these attribute change requests from the applet and respond by making the changes at the lookup service.
+</p>
+<p class="Body">
+  <a name="997460"> </a>Programs (including other services) that need a particular type of service can use the lookup service to find an instance. A match can be made based on the specific data types for the Java<font size="-1"><sup>TM</sup></font> programming language implemented by the service as well as the specific attributes attached to the service. For example, a program that needs to make use of transactions might look for a service that supports the type <code>net.jini.core.transaction.server.TransactionManager</code> and might further qualify the match by desired location.
+</p>
+<p class="Body">
+  <a name="997193"> </a>Although the collection of service items is flat, a wide variety of hierarchical views can be imposed on the collection by aggregating items according to service types and attributes. The lookup service provides a set of methods to enable incremental exploration of the collection, and a variety of user interfaces can be built by using these methods, allowing users and administrators to browse. Once an appropriate service is found, the user might interact with the service by loading a user interface applet, attached as another attribute on the item.
+</p>
+<p class="Body">
+  <a name="997200"> </a>If a service encounters some problem that needs administrative attention, such as a printer running out of toner, the service can add an attribute that indicates what the problem is. Administrators again use the event mechanism to receive notification of such problems.
+</p>
+<h4 class="Heading3">
+  <a name="997207"> </a>LU.1.2	 Attributes
+</h4>
+<p class="Body">
+  <a name="997454"> </a>The attributes of a service item are represented as a set of attribute sets. An individual <em class="Emphasis">attribute set</em> is represented as an instance of some class for the Java platform, each attribute being a public field of that class. The class provides strong typing of both the set and the individual attributes. A service item can contain multiple instances of the same class with different attribute values, as well as multiple instances of different classes. For example, an item might have multiple instances of a <code>Name</code> class, each giving the common name of the service in a different language, plus an instance of a <code>Location</code> class, an <code>Owner</code> class, and various service-specific classes. The schema used for attributes is not constrained by this specification, but a standard foundation schema for Jini technology-enabled systems is defined in the <em class="Emphasis">Jini<font size="-1"><sup>TM</sup></font> Lookup Attribute Schema Specification</em>.
+</p>
+<p class="Body">
+  <a name="997218"> </a>Concretely, a set of attributes is implemented with a class that correctly implements the interface <code>net.jini.core.entry.Entry</code>, as described in the <em><a href="entry-spec.html#30282">Jini<font size="-1"><sup>TM</sup></font> Entry Specification</em></a>. Operations on the lookup service are defined in terms of template matching, using the same semantics as in the <em><a href="entry-spec.html#30282">Jini<font size="-1"><sup>TM</sup></font> Entry Specification</em></a>, but the definition is augmented to deal with sets of entries and sets of templates. A set of entries matches a set of templates if there is at least one matching entry for every template (with every entry usable as the match for more than one template).
+</p>
+<p class="Body">
+  <a name="1021269"> </a>
+</p>
+<h3 class="Heading2">
+  <a name="1003608"> </a>LU.2	 The ServiceRegistrar
+</h3>
+<p class="Body">
+  The types defined in this specification are in the <code>net.jini.core.lookup</code> package. The following types are imported from other packages and are referenced in unqualified form in the rest of this specification:
+</p>
+<pre  class="Preformatted">
+java.rmi.MarshalledObject
+java.rmi.RemoteException
+java.rmi.UnmarshalException
+java.io.Serializable
+java.io.DataInput
+java.io.DataOutput
+java.io.IOException
+net.jini.core.discovery.LookupLocator
+net.jini.core.entry.Entry
+net.jini.core.lease.Lease
+net.jini.core.event.RemoteEvent
+net.jini.core.event.EventRegistration
+net.jini.core.event.RemoteEventListener
+</pre>
+<h4 class="Heading3">
+  <a name="1021786"> </a>LU.2.1	 ServiceID 
+</h4>
+<p class="Body">
+  <a name="1021787"> </a>Every service is assigned a universally unique identifier (<span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">UUID</span>), represented as an instance of the <code>ServiceID</code> class.
+</p>
+<pre  class="Preformatted">
+public final class ServiceID implements Serializable {
+    public ServiceID(long mostSig, long leastSig) {...}
+    public ServiceID(DataInput in) throws IOException {...}
+    public void writeBytes(DataOutput out) throws IOException
+        {...}
+    public long getMostSignificantBits() {...}
+    public long getLeastSignificantBits() {...}
+}
+</pre>
+<p class="Body">
+  <a name="1021857"> </a>A service ID is a 128-bit value. Service IDs are equal (using the <code>equals</code> method) if they represent the same 128-bit value. For simplicity and reliability, service IDs are normally intended to either be built into services at manufacture/deployment-time, or generated dynamically by lookup services at registration time. As such, the <code>ServiceID</code> constructor merely takes 128 bits of data, to be computed in an implementation-dependent manner. The <code>writeBytes</code> method writes out 16 bytes in standard network byte order. The second constructor reads in 16 bytes in standard network byte order.
+</p>
+<p class="Body">
+  <a name="1020298"> </a>The most significant long can be decomposed into the following unsigned fields:
+</p>
+<pre  class="Preformatted">
+0xFFFFFFFF00000000        time_low
+0x00000000FFFF0000        time_mid
+0x000000000000F000        version
+0x0000000000000FFF        time_hi
+</pre>
+<p class="Body">
+  <a name="1020323"> </a>The least significant long can be decomposed into the following unsigned fields:
+</p>
+<pre  class="Preformatted">
+0xC000000000000000        variant
+0x3FFF000000000000        clock_seq
+0x0000FFFFFFFFFFFF        node
+</pre>
+<p class="Body">
+  <a name="1021879"> </a>The <code>variant</code> field must be 0x2. The <code>version</code> field must be either 0x1 or 0x4. If the <code>version</code> field is 0x4, then the remaining fields are set to values produced by a cryptographically secure random sequence. If the <code>version</code> field is 0x1, then the <code>node</code> field is set to an <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">IEEE</span> 802 address, the <code>clock_seq</code> field is set to a 14-bit random number, and the <code>time_low</code>, <code>time_mid</code>, and <code>time_hi</code> fields are set to the least, middle, and most significant bits (respectively) of a 60-bit timestamp measured in 100-nanosecond units since midnight, October 15, 1582 <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">UTC</span>.
+</p>
+<p class="Body">
+  <a name="1021885"> </a>The <code>toString</code> method returns a 36-character string of five fields separated by hyphens, each field represented in lowercase hexadecimal with the same number of digits as in the field. The order of fields is: <code>time_low</code>, <code>time_mid</code>, <code>version</code> and <code>time_hi</code> treated as a single field, <code>variant</code> and <code>clock_seq</code> treated as a single field, and <code>node</code>.
+</p>
+<h4 class="Heading3">
+  <a name="1003620"> </a>LU.2.2	 ServiceItem 
+</h4>
+<p class="Body">
+  <a name="1020330"> </a>Items are stored in the lookup service using instances of the <code>ServiceItem</code> class.
+</p>
+<pre  class="Preformatted">
+public class ServiceItem implements Serializable {
+    public ServiceItem(ServiceID serviceID,
+                       Object service,
+                       Entry[] attributeSets) {...}
+    public ServiceID serviceID;
+    public Object service;
+    public Entry[] attributeSets;
+}
+</pre>
+<p class="Body">
+  <a name="1021327"> </a>The constructor simply assigns each parameter to the corresponding field.
+</p>
+<p class="Body">
+  <a name="1021958"> </a>Each <code>Entry</code> represents an attribute set. The class must have a public no-arg constructor, and all non-static, non-final, non-transient public fields must be declared with reference types, holding serializable objects. Each such field is serialized separately as a <code>MarshalledObject</code>, and field equality is defined by <code>MarshalledObject.equals</code>. The only relationship constraint on attribute sets within an item is that exact duplicates are eliminated; other than that, multiple attribute sets of the same type are permitted, multiple attribute set types can have a common superclass, and so on.
+</p>
+<p class="Body">
+  <a name="1020358"> </a>The <span style="color: #000000; font-family: Times; font-size: 12pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">net.jini.core.entry.</span><code>UnusableEntryException</code> is not used in the lookup service; alternate semantics for individual operations are defined later in this section.
+</p>
+<h4 class="Heading3">
+  <a name="1003674"> </a>LU.2.3	 ServiceTemplate and Item Matching
+</h4>
+<p class="Body">
+  <a name="1020369"> </a>Items in the lookup service are matched using instances of the <code>ServiceTemplate</code> class.
+</p>
+<pre  class="Preformatted">
+public class ServiceTemplate implements Serializable {
+    public ServiceTemplate(ServiceID serviceID,
+                           Class[] serviceTypes,
+                           Entry[] attributeSetTemplates) {...}
+    public ServiceID serviceID;
+    public Class[] serviceTypes;
+    public Entry[] attributeSetTemplates;
+}
+</pre>
+<p class="Body">
+  <a name="1021892"> </a>The constructor simply assigns each parameter to the corresponding field. A service item (<code>item</code>) matches a service template (<code>tmpl</code>) if:
+</p>
+<ul>
+  <li class="SmartList1"><a name="1021893"> </a><code>item.serviceID</code> equals <code>tmpl.serviceID</code> (or if <code>tmpl.serviceID</code> is <code>null</code>), and <p>
+  <li class="SmartList1"><a name="1020374"> </a><code>item.service</code> is an instance of every type in <code>tmpl.serviceTypes</code>, and<p>
+  <li class="SmartList1"><a name="1020375"> </a><code>item.attributeSets</code> contains at least one matching entry for each entry template in <code>tmpl.attributeSetTemplates</code>.
+</ul>
+<p class="Body">
+  <a name="1020376"> </a>An entry matches an entry template if the class of the template is the same as, or a superclass of, the class of the entry, and every non-<code>null</code> field in the template equals the corresponding field of the entry. Every entry can be used to match more than one template. For both service types and entry classes, type matching is based simply on fully qualified class names. Note that in a service template, for <code>serviceTypes</code> and <code>attributeSetTemplates</code>, a <code>null</code> field is equivalent to an empty array; both represent a wildcard.
+</p>
+<h4 class="Heading3">
+  <a name="1003680"> </a>LU.2.4	 Other Supporting Types
+</h4>
+<p class="Body">
+  <a name="1020532"> </a>The <code>ServiceMatches</code> class is used for the return value when looking up multiple items.
+</p>
+<pre  class="Preformatted">
+public class ServiceMatches implements Serializable {
+    public ServiceMatches(ServiceItem[] items, 
+                          int totalMatches) {...}
+    public ServiceItem[] items;
+    public int totalMatches;
+}
+</pre>
+<p class="Body">
+  <a name="1020553"> </a>The constructor simply assigns each parameter to the corresponding field.
+</p>
+<p class="Body">
+  <a name="1020557"> </a>A <code>ServiceEvent</code> extends <code>RemoteEvent</code> with methods to obtain the service ID of the matched item, the transition that triggered the event, and the new state of the matched item.
+</p>
+<pre  class="Preformatted">
+public abstract class ServiceEvent extends RemoteEvent {
+    public ServiceEvent(Object source,
+                        long eventID,
+                        long seqNum,
+                        MarshalledObject handback,
+                        ServiceID serviceID,
+                        int transition) {...}
+    public ServiceID getServiceID() {...}
+    public int getTransition() {...}
+    public abstract ServiceItem getServiceItem() {...}
+}
+</pre>
+<p class="Body">
+  <a name="1020537"> </a>The <code>getServiceID</code> and <code>getTransition</code> methods return the value of the corresponding constructor parameter. The remaining constructor parameters are the same as in the <code>RemoteEvent</code> constructor.
+</p>
+<p class="Body">
+  <a name="1020538"> </a>The rest of the semantics of both these classes is explained in the next section.
+</p>
+<h4 class="Heading3">
+  <a name="1020410"> </a>LU.2.5	 ServiceRegistrar 
+</h4>
+<p class="Body">
+  <a name="1021813"> </a>The <code>ServiceRegistrar</code> defines the interface to the lookup service. The interface is not a remote interface; each implementation of the lookup service exports proxy objects that implement the <code>ServiceRegistrar</code> interface local to the client, using an implementation-specific protocol to communicate with the actual remote server. All of the proxy methods obey normal <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">Java RMI</span> remote interface semantics except where explicitly noted. Two proxy objects are equal (using the <code>equals</code> method) if they are proxies for the same lookup service.
+</p>
+<p class="Body">
+  <a name="1020454"> </a>Methods are provided to register service items, find items that match a template, receive event notifications when items are modified, and incrementally explore the collection of items along the three major axes: entry class, attribute value, and service type.
+</p>
+<pre  class="Preformatted">
+public interface ServiceRegistrar {
+    ServiceRegistration register(ServiceItem item,
+                                 long leaseDuration)
+        throws RemoteException;
+
+    Object lookup(ServiceTemplate tmpl)
+        throws RemoteException;
+
+    ServiceMatches
+        lookup(ServiceTemplate tmpl, int maxMatches)
+        throws RemoteException;
+
+    int TRANSITION_MATCH_NOMATCH = 1 &lt;&lt; 0;
+    int TRANSITION_NOMATCH_MATCH = 1 &lt;&lt; 1;
+    int TRANSITION_MATCH_MATCH = 1 &lt;&lt; 2;
+
+    EventRegistration notify(ServiceTemplate tmpl,
+                             int transitions,
+                             RemoteEventListener listener,
+                             MarshalledObject handback,
+                             long leaseDuration)
+        throws RemoteException;
+
+    Class[] getEntryClasses(ServiceTemplate tmpl)
+        throws RemoteException;
+
+    Object[] getFieldValues(ServiceTemplate tmpl,
+                            int setIndex,
+                            String field)
+        throws NoSuchFieldException, RemoteException;
+
+    Class[] getServiceTypes(ServiceTemplate tmpl,
+                            String prefix)
+        throws RemoteException;
+
+    ServiceID getServiceID();
+    LookupLocator getLocator() throws RemoteException;
+
+    String[] getGroups() throws RemoteException;
+}
+</pre>
+<p class="Body">
+  <a name="1020463"> </a>Every method invocation on <code>ServiceRegistrar</code> and <code>ServiceRegistration</code> is atomic with respect to other invocations.
+</p>
+<p class="Body">
+  <a name="1020464"> </a>The <code>register</code> method is used to register a new service and to re-register an existing service. The method is defined so that it can be used in an idempotent fashion. Specifically, if a call to <code>register</code> results in a <code>RemoteException</code> (in which case the item might or might not have been registered), the caller can simply repeat the call to <code>register</code> with the same parameters, until it succeeds.
+</p>
+<p class="Body">
+  <a name="1020465"> </a>To register a new service, <code>item.serviceID</code> should be <code>null</code>. In that case, if <code>item.service</code> does not equal (using <code>MarshalledObject.equals</code>) any existing item's service object, then a new service ID will be assigned and included in the returned <code>ServiceRegistration</code> (described in the next section). The service ID is unique over time and space with respect to all other service IDs generated by all lookup services. If <code>item.service</code> does equal an existing item's service object, the existing item is first deleted from the lookup service (even if it has different attributes) and its lease is cancelled, but that item's service ID is reused for the newly registered item.
+</p>
+<p class="Body">
+  <a name="1020466"> </a>To re-register an existing service, or to register the service in any other lookup service, <code>item.serviceID</code> should be set to the same service ID that was returned by the initial registration. If an item is already registered under the same service ID, the existing item is first deleted (even if it has different attributes or a different service instance) and its lease is cancelled by the lookup service. Note that service object equality is not checked in this case, to allow for reasonable evolution of the service (for example, the serialized form of the stub changes or the service implements a new interface).
+</p>
+<p class="Body">
+  <a name="1020467"> </a>Any duplicate attribute sets that are included in a service item are eliminated in the stored representation of the item. The lease duration request (specified in milliseconds) is not exact; the returned lease is allowed to have a shorter (but not longer) duration than what was requested. The registration is persistent across restarts (crashes) of the lookup service until the lease expires or is cancelled.
+</p>
+<p class="Body">
+  <a name="1021822"> </a>The single-parameter form of <code>lookup</code> returns the service object (that is, just <code>ServiceItem.service)</code> from an item matching the template or <code>null</code> if there is no match. If multiple items match the template, it is arbitrary as to which service object is returned by the invocation. If the returned object cannot be deserialized, an <code>UnmarshalException</code> is thrown with the standard <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">Java RMI</span> semantics.
+</p>
+<p class="Body">
+  <a name="1021929"> </a>The two-parameter form of <code>lookup</code> returns at most <code>maxMatches</code> items matching the template, along with the total number of items that match the template. If the number of matches exceeds the specified <code>maxMatches</code> value, it is arbitrary as to which service items will be returned by the invocation. The return value is never <code>null</code>, and the returned items array is <code>null</code> only if <code>maxMatches</code> is zero. For each returned item, if the service object cannot be deserialized, the <code>service</code> field of the item is set to <code>null</code> and no exception is thrown. Similarly, if an attribute set cannot be deserialized, that element of the <code>attributeSets</code> array is set to <code>null</code> and no exception is thrown.
+</p>
+<p class="Body">
+  <a name="1020485"> </a>The <code>notify</code> method is used to register for event notification. The registration is leased; the lease duration request (specified in milliseconds) is not exact. The registration is persistent across restarts (crashes) of the lookup service until the lease expires or is cancelled. The event ID in the returned <code>EventRegistration</code> is unique at least with respect to all other active event registrations at this lookup service with different service templates or transitions.
+</p>
+<p class="Body">
+  <a name="1020486"> </a>While the event registration is in effect, a <code>ServiceEvent</code> is sent to the specified listener whenever a <code>register</code>, lease cancellation or expiration, or attribute change operation results in an item changing state in a way that satisfies the template and transition combination. The <code>transitions</code> parameter is the bitwise OR of any non-empty set of transition values:
+</p>
+<ul>
+  <li class="SmartList1"><a name="1020487"> </a><code>TRANSITION_MATCH_NOMATCH</code>: An event is sent when the changed item matches the template before the operation, but doesn't match the template after the operation (this includes deletion of the item).
+  <li class="SmartList1"><a name="1020488"> </a><code>TRANSITION_NOMATCH_MATCH</code>: An event is sent when the changed item doesn't match the template before the operation (this includes not existing), but does match the template after the operation.
+  <li class="SmartList1"><a name="1020489"> </a><code>TRANSITION_MATCH_MATCH</code>: An event is sent when the changed item matches the template both before and after the operation.
+</ul>
+<p class="Body">
+  <a name="1020490"> </a>The <code>getTransition</code> method of <code>ServiceEvent</code> returns the singleton transition value that triggered the match.
+</p>
+<p class="Body">
+  <a name="1021940"> </a>The <code>getServiceItem</code> method of <code>ServiceEvent</code> returns the new state of the item (the state after the operation) or <code>null</code> if the item was deleted by the operation. Note that this method is declared <code>abstract</code>; a lookup service uses a subclass of <code>ServiceEvent</code> to transmit the new state of the item however it chooses.
+</p>
+<p class="Body">
+  <a name="1020499"> </a>Sequence numbers for a given event ID are strictly increasing. If there is no gap between two sequence numbers, no events have been missed; if there is a gap, events might (but might not) have been missed. For example, a gap might occur if the lookup service crashes, even if no events are lost due to the crash.
+</p>
+<p class="Body">
+  <a name="1020500"> </a>As mentioned earlier, users are allowed to explore a collection of items down each of the major axes: entry class, attribute value, and service type.
+</p>
+<p class="Body">
+  <a name="1020501"> </a>The <code>getEntryClasses</code> method looks at all service items that match the specified template, finds every entry (among those service items) that either doesn't match any entry templates or is a subclass of at least one matching entry template, and returns the set of the (most specific) classes of those entries. Duplicate classes are eliminated, and the order of classes within the returned array is arbitrary. A <code>null</code> reference (not an empty array) is returned if there are no such entries or no matching items. If a returned class cannot be deserialized, that element of the returned array is set to <code>null</code> and no exception is thrown.
+</p>
+<p class="Body">
+  <a name="1020502"> </a>The <code>getFieldValues</code> method looks at all service items that match the specified template, finds every entry (among those service items) that matches <code>tmpl.attributeSetTemplates[setIndex]</code>, and returns the set of values of the specified field of those entries. Duplicate values are eliminated, and the order of values within the returned array is arbitrary. A <code>null</code> reference (not an empty array) is returned if there are no matching items. If a returned value cannot be deserialized, that element of the returned array is set to <code>null</code> and no exception is thrown. <code>NoSuchFieldException</code> is thrown if <code>field</code> does not name a field of the entry template.
+</p>
+<p class="Body">
+  <a name="1020503"> </a>The <code>getServiceTypes</code> method looks at all service items that match the specified template and, for every service item, finds the most specific type (class or interface) or types the service item is an instance of that are neither equal to, nor a superclass of, any of the service types in the template and that have names that start with the specified prefix, and returns the set of all such types. Duplicate types are eliminated, and the order of types within the returned array is arbitrary. A <code>null</code> reference (not an empty array) is returned if there are no such types. If a returned type cannot be deserialized, that element of the returned array is set to <code>null</code> and no exception is thrown.
+</p>
+<p class="Body">
+  <a name="1020504"> </a>Every lookup service assigns itself a service ID when it is first created; this service ID is returned by the <code>getServiceID</code> method. (Note that this does not make a remote call.) A lookup service is always registered with itself under this service ID, and if a lookup service is configured to register itself with other lookup services, it will register with all of them using this same service ID.
+</p>
+<p class="Body">
+  <a name="1020516"> </a>The <code>getLocator</code> method returns a <code>LookupLocator</code> that can be used if necessary for unicast discovery of the lookup service. The definition of this class is given in the <em><a href="discovery-spec.html#40553">Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</em></a>.
+</p>
+<p class="Body">
+  <a name="1020517"> </a>The <code>getGroups</code> method returns the set of groups that this lookup service is currently a member of. The semantics of these groups is defined in the <em><a href="discovery-spec.html#40553">Jini<font size="-1"><sup>TM</sup></font> Discovery and Join Specification</em></a>.
+</p>
+<h4 class="Heading3">
+  <a name="1020411"> </a>LU.2.6	 ServiceRegistration 
+</h4>
+<p class="Body">
+  <a name="1020433"> </a>A registered service item is manipulated using a <code>ServiceRegistration</code> instance.
+</p>
+<pre  class="Preformatted">
+public interface ServiceRegistration {
+    ServiceID getServiceID();
+    Lease getLease();
+    void addAttributes(Entry[] attrSets)
+        throws UnknownLeaseException, RemoteException;
+    void modifyAttributes(Entry[] attrSetTemplates,
+                          Entry[] attrSets)
+        throws UnknownLeaseException, RemoteException;
+    void setAttributes(Entry[] attrSets)
+        throws UnknownLeaseException, RemoteException;
+}
+</pre>
+<p class="Body">
+  <a name="1021832"> </a>Like <code>ServiceRegistrar</code>, this is not a remote interface; each implementation of the lookup service exports proxy objects that implement this interface local to the client. The proxy methods obey normal <span style="color: #000000; font-size: 10pt; font-style: normal; font-weight: normal; text-decoration: none; text-transform: none; vertical-align: baseline">Java RMI</span> remote interface semantics.
+</p>
+<p class="Body">
+  <a name="1021833"> </a>The <code>getServiceID</code> method returns the service ID for this service. (Note that this does not make a remote call.)
+</p>
+<p class="Body">
+  <a name="1020437"> </a>The <code>getLease</code> method returns the lease that controls the service registration, allowing the lease to be renewed or cancelled. (Note that <code>getLease</code> does not make a remote call.)
+</p>
+<p class="Body">
+  <a name="1020441"> </a>The <code>addAttributes</code> method adds the specified attribute sets (those that aren't duplicates of existing attribute sets) to the registered service item. Note that this operation has no effect on existing attribute sets of the service item and can be repeated in an idempotent fashion. <code>UnknownLeaseException</code> is thrown if the registration lease has expired or been cancelled.
+</p>
+<p class="Body">
+  <a name="1021945"> </a>The <code>modifyAttributes</code> method is used to modify existing attribute sets. The lengths of the <code>attrSetTemplates</code> and <code>attrSets</code> arrays must be equal, or <code>IllegalArgumentException</code> is thrown. The service item's attribute sets are modified as follows. For each array index <code>i</code>: if <code>attrSets[i]</code> is <code>null</code>, then every entry that matches <code>attrSetTemplates[i]</code> is deleted; otherwise, for every non-<code>null</code> field in <code>attrSets[i]</code>, the value of that field is stored into the corresponding field of every entry that matches <code>attrSetTemplates[i]</code>. The class of <code>attrSets[i]</code> must be the same as, or a superclass of, the class of <code>attrSetTemplates[i]</code>, or <code>IllegalArgumentException</code> is thrown. If the modifications result in duplicate entries within the service item, the duplicates are eliminated. An <code>UnknownLeaseException</code> is thrown if the registration lease has expired or been cancelled.
+</p>
+<p class="Body">
+  <a name="1020443"> </a>Note that it is possible to use <code>modifyAttributes</code> in ways that are not idempotent. The attribute schema should be designed in such a way that all intended uses of this method can be performed in an idempotent fashion. Also note that <code>modifyAttributes</code> does not provide a means for setting a field to <code>null</code>; it is assumed that the attribute schema is designed in such a way that this is not necessary.
+</p>
+<p class="Body">
+  <a name="1020444"> </a>The <code>setAttributes</code> method deletes all of the service item's existing attributes and replaces them with the specified attribute sets. Any duplicate attribute sets are eliminated in the stored representation of the item. <code>UnknownLeaseException</code> is thrown if the registration lease has expired or been cancelled.
+</p>
+<h4 class="Heading3">
+  <a name="1020426"> </a>LU.2.7	 Serialized Forms
+
+</h4>
+<CENTER>
+<table border="1" bordercolorlight="#FFFFFF" bordercolordark="#000000"
+       cellpadding="5" cellspacing="0" summary="serialized forms of the following classes">
+  <caption></caption>
+  <tr bgcolor="#CCCCCC">
+    <th>Class<br></th>
+    <th>serialVersionUID<br></th>
+    <th>Serialized Fields<br></th>
+  </tr>
+  <tr>
+    <td><code>ServiceID</code><br></td>
+    <td>-7803375959559762239L<br></td>
+    <td><code>long mostSig<br>long leastSig</code><br></td>
+  </tr>
+  <tr>
+    <td><code>ServiceItem</code><br></td>
+    <td>717395451032330758L<br></td>
+    <td><em>all public fields</em></td>
+  </tr>
+  <tr>
+    <td><code>ServiceTemplate</code><br></td>
+    <td>7854483807886483216L<br></td>
+    <td><em>all public fields</em></td>
+  </tr>
+  <tr>
+    <td><code>ServiceMatches</code><br></td>
+    <td>-5518280843537399398L<br></td>
+    <td><em>all public fields</em></td>
+  </tr>
+  <tr>
+    <td><code>ServiceEvent</code><br></td>
+    <td>1304997274096842701L<br></td>
+    <td><code>ServiceID serviceID<br>int transition</code><br></td>
+  </tr>
+</table><p class="Body">
+</CENTER>
+  <a name="1003606"> </a>
+</p>
+
+<h3 class="Heading2">
+  <a name="43987"> </a>LU.3	 History</h3>
+<p>
+<table align="center" border="1" bordercolorlight="#FFFFFF" bordercolordark="#000000" cellpadding="5" cellspacing="0" summary="history of this specification">
+  <caption><p class="Body">
+  <a name="01887"> </a>
+</p>
+</caption>
+  <tr bgcolor="#CCCCCC">
+    <th>Version</th>
+    <th>Description</th>
+  </tr>
+ <tr>
+    <td valign="top">v1.0
+	</td>
+    <td>Initial release of this specification.
+</td>
+  </tr>
+  <tr>
+    <td valign="top">v1.1
+	</td>
+    <td>Correct misspelling of <code>ServiceItem</code> in LU.2.4.
+</td>
+  </tr>
+</table>
+<h3 class="Heading2">
+  <a name="0188"> </a>		 License	 
+</h3>
+<p>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+</blockquote>
+
+<hr>
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="100%"><tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a>
+</td><td align=right><em>Jini Technology Core Platform Specifications</em></td>
+</tr></table>
+<a name="skip"></a>
+
+<hr>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+</body>
+</html>
+
+<!-- This HTML file was initially created with Quadralay WebWorks Publisher 3.5.0 -->
+<!-- by Susan Snyder -->
+<!-- Last updated: 01/25/05 -->

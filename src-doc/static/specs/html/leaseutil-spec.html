@@ -1,0 +1,511 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
+<link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
+<title>Jini Lease Utilities Specification  </title>
+</head>
+
+<body bgcolor="#ffffff">
+
+
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="100%">
+<tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a></td>
+<td align=right><i>A Collection of Jini Technology Helper Utilities and Services Specifications</i></td>
+</tr>
+</table>
+<br clear="all">
+
+
+
+
+<hr align="left">
+<table width="90%">
+<tr>
+<td align="right" font size="4"><b>Version 1.0</b></td>
+</tr>
+</table>
+<a name="skip"></a>
+<blockquote>
+<h2>
+  <a name="1004356"> </a>LM - Jini<font size="-1"><sup>TM</sup></font> Lease Utilities Specification</h2>
+<h3 class="Heading2">
+  <a name="1011663"> </a>LM.1	 Introduction
+</h3>
+<p class="Body">
+  <a name="1011670"> </a>This specification defines helper utility classes, along with supporting interfaces and classes, that encapsulate functionality which provides for the coordination, systematic renewal, and overall management of a set of leases associated with some object on behalf of another object. Currently, this specification defines only one helper utility class:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1011671"> </a>The <code>LeaseRenewalManager</code> helper utility
+</ul>
+
+<h3 class="Heading2">
+  <a name="1011639"> </a>LM.2	 The <code>LeaseRenewalManager</code>
+</h3>
+<p class="Body">
+  <a name="1011615"> </a>The <code>LeaseRenewalManager</code> class (belonging to the package <code>net.jini.lease</code>) encapsulates functionality that provides for the systematic renewal and overall management of a set of leases associated with one or more remote entities on behalf of a local entity.
+</p>
+<p class="Body">
+  <a name="1000050"> </a>The concept of leased resources is fundamental to the Jini technology programming model. Providing a leasing mechanism helps to prevent the accumulation of outdated and unwanted resources in time-based distributed systems, such as the Jini technology infrastructure. The leasing model for Jini network technology (Jini technology), defined in the <a href="lease-spec.html"><em class="Emphasis">Jini Distributed Leasing Specification</em>, Section LE.1.1, "Leasing and Distributed Systems"</a>, requires renewed proof of interest to continue the existence of a leased resource. Thus, any Jini technology-enabled client (Jini client) or Jini technology-enabled service (Jini service) that requests the use of the leased resources provided by another Jini service may be granted access to those resources for a negotiated period of time, and must continue to request renewal of the lease on each resource for as long as the client or service wishes to have access to the resource.
+</p>
+<p class="Body">
+  <a name="1008798"> </a>For example, the Jini lookup service leases two resources: residency in its database and registration with its event notification mechanism. Thus, if a service that is registered with a Jini lookup service wishes to continue its residency beyond the length of the current lease, the service must request a lease renewal from that lookup service. This renewal process must be repeated for as long as the service wishes to maintain its residency in the lookup service. Similarly, if a client has requested that a lookup service notify it of events of interest, then prior to the expiration of the lease on the event registration, the client must request that the lookup service continue to send such events. As with residency in the lookup service, these renewal requests must be repeated for as long as the client wishes to receive event notifications.
+</p>
+<p class="Body">
+  <a name="1000583"> </a>Another example of a Jini service providing leased resources would be a service that implements the <a href="txn-spec.html"><em class="Emphasis">Jini Transaction Specification</em></a> to manage transactions on behalf of registered participants. That specification requires that a transaction must be a leased resource. Therefore, any entity that creates such a transaction object is required to negotiate (with an entity referred to as a <em class="Emphasis">transaction manager</em>) a lease on that object, repeatedly requesting lease renewals prior to the lease's expiration, for as long as the transaction is to remain in effect.
+</p>
+<p class="Body">
+  <a name="1000584"> </a>The <code>LeaseRenewalManager</code> class is designed to be a simple mechanism that provides for the systematic renewal and overall management of leases granted on resources that are provided by Jini services and for which a Jini client or service has registered interest. The <code>LeaseRenewalManager</code> is a utility class, not a remote service. In order to use this utility, an entity must create, in its own address space, an instance of the <code>LeaseRenewalManager</code> to manage the entity's leases locally.
+</p>
+<h4 class="Heading3">
+  <a name="1000048"> </a>LM.2.1	 Other Types
+</h4>
+<p class="Body">
+  <a name="1001020"> </a>The types defined in the specification of the <code>LeaseRenewalManager</code> utility class are in the <code>net.jini.lease</code> package. The following types may be referenced in this specification. Whenever referenced, these types will be referenced in unqualified form:
+</p>
+<pre  class="Preformatted">
+net.jini.config.Configuration
+net.jini.config.ConfigurationException
+net.jini.core.lease.Lease
+net.jini.core.lease.UnknownLeaseException
+net.jini.core.lease.LeaseDeniedException
+java.rmi.RemoteException
+java.rmi.NoSuchObjectException
+java.util.EventObject
+java.util.EventListener
+</code></pre>
+<h3 class="Heading2">
+  <a name="1012466"> </a>LM.3	 The Interface
+</h3>
+<p class="Body">
+  <a name="1012467"> </a>The public methods provided by the <code>LeaseRenewalManager</code> class are:
+</p>
+<pre  class="Preformatted">
+package net.jini.lease;
+
+public class LeaseRenewalManager
+{
+    public LeaseRenewalManager() {...}
+    public LeaseRenewalManager(Configuration config)
+        throws ConfigurationException {...}
+    public LeaseRenewalManager(Lease lease,
+                               long desiredExpiration,
+                               LeaseListener listener) {...}
+    public void renewUntil(Lease lease,
+                           long desiredExpiration,
+                           long renewDuration,
+                           LeaseListener listener) {...}
+    public void renewUntil(Lease lease,
+                           long desiredExpiration,
+                           LeaseListener listener) {...}
+    public void renewFor(Lease lease,
+                         long desiredDuration, 
+                         long renewDuration,
+                         LeaseListener listener) {...}
+    public void renewFor(Lease lease,
+                         long desiredDuration,
+                         LeaseListener listener) {...}
+    public long getExpiration(Lease lease)
+        throws UnknownLeaseException {...}
+    public void setExpiration(Lease lease, 
+                              long  desiredExpiration)
+        throws UnknownLeaseException {...}
+    public void remove(Lease lease) 
+        throws UnknownLeaseException {...}
+    public void cancel(Lease lease)
+        throws UnknownLeaseException, RemoteException {...}
+    public void clear() {...}
+}
+</pre>
+<h3 class="Heading2">
+  <a name="999816"> </a>LM.4	 The Semantics
+</h3>
+<p class="Body">
+  <a name="1008464"> </a>The term <em class="Emphasis">client</em> is used in this specification to refer to the local entity that is using the <code>LeaseRenewalManager</code> to manage a collection of leases on its behalf. This collection is referred to as the <em class="Emphasis">managed set</em>.
+</p>
+<p class="Body">
+  <a name="1011387"> </a>The <code>LeaseRenewalManager</code> distinguishes between two time values associated with lease expiration: the <em class="Emphasis">desired expiration</em> time for the lease and the <em class="Emphasis">actual expiration</em> time granted when the lease is created or last renewed. The desired expiration represents when the client would like the lease to expire. The actual expiration represents when the lease is going to expire if it is not renewed. Both time values are absolute times, not relative time durations. The desired expiration time can be retrieved using the renewal manager's <code>getExpiration</code> method, which is described below. The actual expiration time of a lease object can be retrieved by invoking the <code>getExpiration</code> method directly on the lease (see the <code>Lease</code> interface defined in the <a href="lease-spec.html"><em class="Emphasis">Jini Distributed Leasing Specification</em></a>).
+</p>
+<p class="Body">
+  <a name="1011943"> </a>Each lease in the managed set also has two other associated attributes: a <em class="Emphasis">renewal duration </em>and a <em class="Emphasis">remaining desired duration</em>. The remaining desired duration is always the desired expiration less the current time. The renewal duration is usually a positive number and is the new duration that will be requested when the renewal manager renews the lease, unless the renewal duration is greater than the remaining desired duration. If the renewal duration is greater than the remaining desired duration, then the remaining desired duration will be requested when renewing the lease. One exception is that when the desired expiration is <code>Lease.FOREVER</code>, the renewal duration may be <code>Lease.ANY</code>, in which case <code>Lease.ANY</code> will be requested when renewing the client lease, regardless of the value of the remaining desired duration.
+</p>
+<p class="Body">
+  <a name="1011944"> </a>For example, if the renewal duration associated with a given lease is 360,000 milliseconds, then when the renewal manager renews the lease, it will ask for a new duration of 360,000 milliseconds--unless the lease is going to reach its desired expiration in less than 360,000 milliseconds. If the lease's desired expiration is within 360,000 milliseconds, the renewal manager will ask for the difference between the current time and the desired expiration. If the renewal duration had been <code>Lease.ANY</code>, the renewal manager would have asked for a new duration of <code>Lease.ANY</code>.
+</p>
+<p class="Body">
+  <a name="1012619"> </a>The term <em class="Emphasis">definite exception </em>is used to refer to exceptions that result from operations on a lease (such as a renewal attempt) that are indicative of a permanent failure of the lease. The term <em>indefinite exception</em> refers to exceptions that do not imply anything about the probability of success of any future lease operations. The algorithm used to classify exceptions as  definite or indefinite is implementation-specific.
+</p>
+<p class="Body">
+  <a name="1012623"> </a>The <code>LeaseRenewalManager</code> generates two kinds of local events. The first kind is a <em class="Emphasis">renewal failure event</em> that is generated when the renewal manager finds that it can't renew a lease. The second kind is a <em class="Emphasis">desired expiration reached event,</em> which is generated when a lease's desired expiration is reached. Each event signals that the renewal manager has removed a lease from the managed set without an explicit request by the client. When placing a lease in the managed set, the client can provide either a <code>LeaseListener</code> object that will receive any renewal failure events associated with the lease, or a <code>DesiredExpirationListener</code> (a subinterface of <code>LeaseListener</code>) object that will receive both renewal failure and desired expiration reached events associated with the lease. Both kinds of event are represented by <code>LeaseRenewalEvent</code> objects.
+</p>
+<p class="Body">
+  <a name="1012306"> </a>The <code>LeaseRenewalManager</code> makes a concurrency guarantee. When the <code>LeaseRenewalManager</code> makes a remote call (for example, when requesting the renewal of a lease), any invocations made on the methods of the <code>LeaseRenewalManager</code> will not be blocked. Because of these concurrency guarantees, it is not possible for the various methods that remove leases from the managed set (for example, <code>remove</code>, <code>cancel</code>, and <code>clear</code>) to guarantee that the renewal manager will not attempt to renew leases that have just been removed. Similarly, it is not possible for the methods that change the desired expiration or renewal duration associated with a lease (for example, <code>renewUntil</code>, <code>renewFor</code>, and <code>setExpiration</code>) to guarantee that the next renewal of the lease will request a duration that is consistent with the new desired expiration and/or renewal duration (it will be consistent with either the old pair or the new pair). However, implementations should keep the window where such renewals could occur as small as possible.
+</p>
+<p class="Body">
+  <a name="1012327"> </a>The <code>LeaseRenewalManager</code> makes a similar reentrancy guarantee with respect to <code>LeaseListener</code> and <code>DesiredExpirationListener</code> objects registered with the <code>LeaseRenewalManager</code>. Should the <code>LeaseRenewalManager</code> invoke a method on a registered listener (a local call), calls from that method to any method of the <code>LeaseRenewalManager</code> are guaranteed not to result in a deadlock condition. One implication of this guarantee is that the delivery of events is asynchronous with respect to any call (or sequence of calls) made on the renewal manager after the event occurs; this allows events to be delivered after they have been made moot by intervening calls on the renewal manager. For example, the renewal manager may deliver events regarding leases that were removed from the managed set after the calls that removed the leases in question completed. Implementations should keep the window where such notifications could occur as small as possible.
+</p>
+<p class="Body">
+  <a name="1001119"> </a>The <code>equals</code> method for this class returns true if and only if two instances of this class refer to the same object. That is, <code>x</code> and <code>y</code> are equal instances of this class if and only if <code>x</code> <code>==</code> <code>y</code> has the value <code>true</code>.
+</p>
+<p class="Body">
+  <a name="1000290"> </a>The constructor has three forms: 
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1000291"> </a>The first form of the constructor takes no arguments. This form of the constructor instantiates a <code>LeaseRenewalManager</code> object that initially manages no leases.<p> 
+
+<li class="SmartList1">The second form of the constructor creates a <code>LeaseRenewalManager</code> for which the configuration argument controls implementation-specific details of the behavior of the instance created. This form of the constructor instantiates a <code>LeaseRenewalManager</code> object that initially manages no leases.<p>
+ 
+ <li class="SmartList1"><a name="1000292"> </a>The third form of the constructor creates a <code>LeaseRenewalManager</code> that initially manages a single lease. This form of the constructor requires that a reference to the initial lease be supplied as an argument. This form of the constructor also takes a <code>desiredExpiration</code> argument that represents the desired expiration time for the lease and a reference to a <code>LeaseListener</code> object that should receive notifications of events associated with the lease.
+</ul>
+
+<p class="Body">
+  <a name="1000939"> </a>Creating a <code>LeaseRenewalManager</code> using the third form of the constructor is equivalent to invoking the no-argument constructor followed by an invocation of the three-argument form of the <code>renewUntil</code> method (described later).
+</p>
+<p class="Body">
+  <a name="1012486"> </a>The <code>renewUntil</code> method adds a lease to the set of leases being managed by the <code>LeaseRenewalManager</code>. There are two versions of this method: a four-argument form that allows the client to specify the renewal duration directly, and a three-argument form that infers the renewal duration from the desired expiration argument. The four-argument form will be described first.
+</p>
+<p class="Body">
+  <a name="1005535"> </a>This method takes as arguments: a reference to the lease to manage, the desired expiration time of the lease, the renewal duration time for the lease, and a reference to the <code>LeaseListener</code> object that will receive notification of events associated with this lease. The <code>LeaseListener</code> argument may be <code>null</code>.
+</p>
+<p class="Body">
+  <a name="1008731"> </a>If <code>null</code> is passed as the lease parameter, a <code>NullPointerException</code> will be thrown. If the <code>desiredExpiration</code> parameter is <code>Lease.FOREVER</code>, the <code>renewDuration</code> parameter may be <code>Lease.ANY</code> or any positive value; otherwise, the <code>renewDuration</code> parameter must be a positive value. If the <code>renewDuration</code> parameter does not meet these requirements, an <code>IllegalArgumentException</code> will be thrown.
+</p>
+<p class="Body">
+  <a name="1008732"> </a>If the lease passed to this method is already in the set of managed leases, the listener object, the desired expiration, and the renewal duration associated with that lease will be replaced with the new listener, desired expiration, and renewal duration. 
+</p>
+<p class="Body">
+  <a name="1008503"> </a>A lease will remain in the set of managed leases until one of the following occurs:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1000946"> </a>The lease's desired expiration time is reached; this will generate a desired expiration reached event<code>.</code><p>
+  <li class="SmartList1"><a name="1008736"> </a>An explicit removal of the lease from the set is requested via a <code>cancel</code>, <code>clear</code>, or <code>remove</code> call on the renewal manager.<p>
+  <li class="SmartList1"><a name="1011930"> </a>The lease's actual expiration time is reached before its desired expiration; this will generate a renewal failure event.<p>
+  <li class="SmartList1"><a name="1011938"> </a>The renewal manager tries to renew the lease and gets a definite exception; this will generate a renewal failure event.
+</ul>
+
+<p class="Body">
+  <a name="1005580"> </a>The <code>renewUntil</code> method interprets the value of the <code>desiredExpiration</code> parameter as the <em class="Emphasis">desired</em> absolute system time after which the lease is no longer valid. This argument provides the ability to indicate an expiration time that extends beyond the actual expiration of the lease. If the value passed for this argument does indeed extend beyond the lease's actual expiration time, then the lease will be systematically renewed at appropriate times until one of the conditions listed above occurs. If the value is less than or equal to the actual expiration time, nothing will be done to modify the time when the lease actually expires. That is, the lease will <em class="Emphasis">not</em> be renewed with an expiration time that is less than the actual expiration time of the lease at the time of the call.
+</p>
+<p class="Body">
+  <a name="1005550"> </a>The <code>renewDuration</code> parameter is interpreted as the renewal duration, in milliseconds, to associate with the lease.
+</p>
+<p class="Body">
+  <a name="1000696"> </a>If a non-<code>null</code> object reference is passed in as the <code>LeaseListener</code> parameter, this object will receive notification of exceptional conditions occurring upon a renewal attempt of the lease. In particular, exceptional conditions include the reception of a definite exception or the lease's actual expiration being reached before its desired expiration. If the listener implements the interface <code>DesiredExpirationListener</code> it will also receive notification if the lease's desired expiration is reached while the lease is still in the set.
+</p>
+<p class="Body">
+  <a name="1004736"> </a>If a definite exception occurs during a lease renewal request, the exception will be wrapped in an instance of the <code>LeaseRenewalEvent</code> class (described later) and sent to the listener's <code>notify</code> method.
+</p>
+<p class="Body">
+  <a name="1004737"> </a>If an indefinite exception occurs during a renewal request for a particular lease, renewal requests will continue to be made for that lease until: the lease is renewed successfully, a renewal attempt results in a definite exception, or the lease's actual expiration time has been exceeded. If the lease cannot be successfully renewed before its actual expiration is reached, the exception associated with the most recent renewal attempt will be wrapped in an instance of the <code>LeaseRenewalEvent</code> class and sent to the listener<code>'</code>s <code>notify</code> method.
+</p>
+<p class="Body">
+  <a name="1005710"> </a>If the lease's actual expiration is reached before the lease's desired expiration time and either (1) the last renewal attempt succeeded or (2) there have been no renewal attempts, a <code>LeaseRenewalEvent</code> containing <code>a</code> <code>null</code> exception will be sent to the listener's <code>notify</code> method. Case 1 can occur if the extension granted by the last renewal was very short. Case 2 can occur if the client adds a lease that has already expired (or is about to) to the managed set of leases.
+</p>
+<p class="Body">
+  <a name="1004725"> </a>If <code>null</code> is passed as the value of the <code>LeaseListener</code> parameter, then no notifications will be delivered.
+</p>
+<p class="Body">
+  <a name="1005567"> </a>Calling the three-argument form of <code>renewUntil</code> with a <code>desiredExpiration</code> of <code>Lease.ANY</code> is equivalent to making the following call:
+</p>
+<pre  class="Preformatted">
+renewUntil(lease, Lease.FOREVER, Lease.ANY, listener);
+</code></pre>
+<p class="Body">
+  <a name="1005573"> </a>Otherwise, the three-argument form is equivalent to:
+</p>
+<pre  class="Preformatted">
+renewUntil(lease, desiredExpiration, Lease.FOREVER, listener);
+</code></pre>
+<hr>
+<a name="1008831"> </a><b>Usage Note:</b>  Unless an application has a good reason for doing otherwise, it should use <code>Lease.ANY</code> or <code>Lease.FOREVER</code> for the renewal duration of a given lease. Using these values gives the grantor of the lease the most flexibility in the length of time for which it grants renewals. In most cases, the grantor of a lease is in a better position than the lease holder to make trade-offs between renewal frequency and the risk of holding on to resources longer than necessary. Specifying a value for the renewal duration of a lease might make sense if the holder of the lease has more information on the value of the leased resource than the grantor, or if the holder needs to ensure that there is an upper bound on how long the lease will remain valid.<br>
+<hr>
+<p class="Body">
+  <a name="1011465"> </a>The <code>renewFor</code> method adds a lease to the set of leases being managed by the <code>LeaseRenewalManager</code>. Like <code>renewUntil</code> this method has both three- and four-argument forms. The four-argument form of this method takes as parameters: <code>lease</code>, a reference to the lease to manage; <code>desiredDuration</code>, a <code>long</code>   representing the desired duration of <code>lease</code>; <code>renewDuration</code>, a <code>long</code> representing the renewal duration; and <code>listener</code>, a reference to a <code>LeaseListener</code> object that will receive notifications of events associated with this lease. Both <code>desiredDuration</code> and <code>renewDuration</code> are expressed in milliseconds.
+</p>
+<p class="Body">
+  <a name="1011439"> </a>The semantics of the four-argument form of <code>renewFor</code> are similar to those of the four-argument form of <code>renewUntil</code>, with <code>desiredDuration</code><em class="Emphasis"> + </em>current time being used for the value of the <code>desiredExpiration</code> parameter of <code>renewUntil</code>. The only exception is that, in the context of <code>renewFor</code>, the value of the <code>renewDuration</code> parameter may be <code>Lease.ANY</code> only if the value of the <code>desiredDuration</code> parameter is <em class="Emphasis">exactly</em> <code>Lease.FOREVER</code>.
+</p>
+<p class="Body">
+  <a name="1004762"> </a>This method tests for arithmetic overflow in the desired expiration time computed from the value of <code>desiredDuration</code> parameter (<code>desiredDuration</code> + current time). Should such overflow be present, a value of <code>Lease.FOREVER</code> is used to represent the lease's desired expiration time.
+</p>
+<p class="Body">
+  <a name="1012550"> </a>The three-argument form of this method is equivalent to the following call:
+</p>
+<pre  class="Preformatted">
+renewFor(lease, desiredDuration, Lease.FOREVER, listener);
+</code></pre>
+<p class="Body">
+  <a name="1005624"> </a>Note that for both versions of <code>renewFor</code>, a value of <code>Lease.ANY</code> for the <code>desiredDuration</code> parameter does not have any special semantics associated with it. Calling either version of <code>renewFor</code> with a <code>desiredDuration</code> of <code>Lease.ANY</code> will result in the lease having a desired expiration one millisecond in the past, causing the lease to be immediately dropped from the managed set. The method will not throw an exception in this circumstance. A renewal failure event will be generated if the actual expiration is before the desired expiration; otherwise a desired expiration reached event will be generated.
+</p>
+<p class="Body">
+  <a name="999923"> </a>The <code>getExpiration</code> method returns the current <em class="Emphasis">desired</em> expiration time requested for a particular lease, not the actual expiration that was granted when the lease was created or last renewed. The only argument to this method is the reference to the lease object. If the lease is not in the set of managed leases, an <code>UnknownLeaseException</code> will be thrown.
+</p>
+<p class="Body">
+  <a name="1004776"> </a>The <code>setExpiration</code> method replaces the current desired expiration of a given lease contained in the set of managed leases with a new desired expiration time. The only arguments to this method are the reference to the lease object and the new expiration time.
+</p>
+<p class="Body">
+  <a name="1004783"> </a>An invocation of this method with a lease that is currently a member of the managed set is equivalent to an invocation of the <code>renewUntil</code> method with the lease's current listener input to the listener parameter. In particular, if the value of the expiration parameter is less than or equal to the lease's current actual expiration, this method takes no action.
+</p>
+<p class="Body">
+  <a name="1004784"> </a>An invocation of this method with a lease that is not in the set of managed leases will result in an <code>UnknownLeaseException</code>.
+</p>
+<p class="Body">
+  <a name="999949"> </a>The <code>remove</code> method removes a given lease from the set of managed leases. The only argument to this method is the reference to the lease object. If the lease is not in the set of managed leases, an <code>UnknownLeaseException</code> will be thrown.
+</p>
+<p class="Body">
+  <a name="1004791"> </a>Note that this method does not cancel the given lease; activities such as lease cancellation are left for the client to manage.
+</p>
+<p class="Body">
+  <a name="999975"> </a>The <code>cancel</code> method both removes a given lease from the set of managed leases and cancels the given lease. The only argument to this method is the reference to the lease object. If the lease is not in the set of managed leases, an <code>UnknownLeaseException</code> will be thrown. 
+</p>
+<p class="Body">
+  <a name="1001001"> </a>Any exception (definite or otherwise) occurring during the cancellation of the lease will have no effect on the removal of the lease from the managed set. That is, even if an exception occurs during the <code>cancel</code> operation, the lease will have been removed from the managed set upon return from this method.
+</p>
+<p class="Body">
+  <a name="1000733"> </a>Any exception thrown by the <code>cancel</code> method of the lease object itself may also be thrown by this method.
+</p>
+<p class="Body">
+  <a name="999977"> </a>The <code>clear</code> method removes all leases from the set of managed leases. It does not request the cancellation of those leases. This method takes no arguments.
+</p>
+<h3 class="Heading2">
+  <a name="1001124"> </a>LM.5	 Supporting Interfaces and Classes
+</h3>
+<p class="Body">
+  <a name="1001125"> </a>The <code>LeaseRenewalManager</code> utility class depends on the interfaces <code>LeaseListener</code> and <code>DesiredExpirationListener</code>. Both of these interfaces reference one class, <code>LeaseRenewalEvent</code>.
+</p>
+<h4 class="Heading3">
+  <a name="1001131"> </a>LM.5.1	 The <code>LeaseListener</code> Interface
+</h4>
+<p class="Body">
+  <a name="1005010"> </a>The public methods specified by the <code>LeaseListener</code> interface are as follows:
+</p>
+<pre  class="Preformatted">
+package net.jini.lease;
+
+public interface LeaseListener extends EventListener
+{
+    void notify(LeaseRenewalEvent e);
+}
+</pre>
+<p class="Body">
+  <a name="1012111"> </a>The <code>LeaseListener</code> interface defines the mechanism through which the client receives notification of renewal failure events generated by the renewal manager. These events are delivered using the <code>notify</code> method. Renewal failure events are generated when the <code>LeaseRenewalManager</code> has failed to renew one of the leases that it is managing. Such renewal failures typically occur because one of the following conditions is met:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1005169"> </a>After successfully renewing a lease any number of times and experiencing no failures, the <code>LeaseRenewalManager</code> determines--prior to the next renewal attempt--that the actual expiration time of the lease has passed; implying that any further attempt to renew the lease would be fruitless.<p>
+  <li class="SmartList1"><a name="1005198"> </a>An indefinite exception occurs during each attempt to renew a lease from the point that the first such exception occurs until the point when the <code>LeaseRenewalManager</code> determines that lease's actual expiration time has passed.<p>
+  <li class="SmartList1"><a name="1005224"> </a>A definite exception occurs during a lease renewal attempt.
+</ul>
+
+<p class="Body">
+  <a name="1001197"> </a>It is the responsibility of the client to pass into the <code>LeaseRenewalManager</code> a reference to an object that implements the <code>LeaseListener</code> interface, which defines the actions to take upon receipt of a renewal failure event notification. When one of the above conditions occurs, the <code>LeaseRenewalManager</code> will send an instance of <code>LeaseRenewalEvent</code> to that listener object.
+</p>
+<h5 class="Heading4">
+  <a name="1012131"> </a>LM.5.1.1	 The Semantics
+</h5>
+<p class="Body">
+  <a name="1012132"> </a>The <code>notify</code> method is invoked by the <code>LeaseRenewalManager</code> when it fails to renew a lease because one of the conditions described above has occurred. This method takes one parameter, an instance of the <code>LeaseRenewalEvent</code> class, which contains information about the lease on which the failed renewal attempt was made and information on what caused the failure.
+</p>
+<p class="Body">
+  <a name="1012138"> </a>Note that prior to invoking the <code>notify</code> method, the <code>LeaseRenewalManager</code> removes the lease that could not be renewed from the managed set of leases. Note also that because of the reentrancy guarantee made by the <code>LeaseRenewalManager</code>, new leases can be added safely from within the <code>notify</code> method.
+</p>
+<h4 class="Heading3">
+  <a name="1012146"> </a>LM.5.2	 The <code>DesiredExpirationListener</code> Interface
+</h4>
+<p class="Body">
+  <a name="1012157"> </a>The public methods specified by the <code>DesiredExpirationListener</code> interface are as follows:
+</p>
+<pre  class="Preformatted">
+package net.jini.lease;
+
+public interface DesiredExpirationListener
+    extends LeaseListener
+{
+    void expirationReached(LeaseRenewalEvent e);
+}
+</pre>
+<p class="Body">
+  <a name="1012013"> </a>The <code>expirationReached</code> method receives desired expiration reached events. These are generated when the <code>LeaseRenewalManager</code> removes a lease from the managed set because the lease's desired expiration has been reached. Note that any object that has been registered to receive desired expiration reached events will also receive renewal failure events.
+</p>
+<p class="Body">
+  <a name="1012014"> </a>It is the responsibility of the client to pass into the <code>LeaseRenewalManager</code> a reference to an object that implements the <code>DesiredExpirationListener</code> interface, which defines the actions to take upon receipt of a desired expiration reached event notification.
+</p>
+<h5 class="Heading4">
+  <a name="1004956"> </a>LM.5.2.1	 The Semantics
+</h5>
+<p class="Body">
+  <a name="1012080"> </a>The <code>expirationReached</code> method is invoked by the <code>LeaseRenewalManager</code> when a lease in the managed set reaches its desired expiration. This method takes one parameter: an instance of the <code>LeaseRenewalEvent</code> class, which contains information about the lease who's desired expiration has been reached.
+</p>
+<p class="Body">
+  <a name="1012169"> </a>Note that prior to invoking the <code>expirationReached</code> method, the <code>LeaseRenewalManager</code> removes the affected lease from the managed set of leases. Note also that because of the reentrancy guarantee made by the <code>LeaseRenewalManager</code>, callbacks into the renewal manager can be made safely from within the <code>expirationReached</code> method.
+</p>
+<h4 class="Heading3">
+  <a name="1004950"> </a>LM.5.3	 The <code>LeaseRenewalEvent</code> Class
+</h4>
+<p class="Body">
+  <a name="1004913"> </a>This class defines the local event that is sent by the <code>LeaseRenewalManager</code> to the client's registered listener when the <code>LeaseRenewalManager</code> generates a renewal failure event or desired expiration reached event. As previously stated, a renewal failure event typically occurs because the actual expiration time of a lease has been reached before a successful renewal request could be made, or a renewal request resulted in a definite exception. A desired expiration reached event occurs when a lease reaches its desired expiration time at or before its actual expiration. The <code>LeaseRenewalEvent</code> class encapsulates information about the lease on which such an event occurs and, if it is a renewal failure, the cause.
+</p>
+<pre  class="Preformatted">
+package net.jini.lease;
+
+public class LeaseRenewalEvent extends EventObject
+{
+    public LeaseRenewalEvent(LeaseRenewalManager source,
+                             Lease lease,
+                             long expiration,
+                             Throwable ex) {...}
+    public Lease getLease() {...}
+    public long getExpiration() {...}
+    public Throwable getException() {...}
+}
+</pre>
+<p class="Body">
+  <a name="1001397"> </a>The <code>LeaseRenewalEvent</code> class is a subclass of the <code>EventObject</code> class, adding the following additional items of abstract state: a reference to the associated <code>Lease</code> object; a <code>long</code> value representing the desired expiration of the lease; and the exception (if any) that caused the event to be sent. In addition to the methods of the <code>EventObject</code> class, this class defines methods through which this additional state may be retrieved.
+</p>
+<h5 class="Heading4">
+  <a name="1001405"> </a>LM.5.3.1	 The Semantics
+</h5>
+<p class="Body">
+  <a name="1005090"> </a>The constructor of the <code>LeaseRenewalEvent</code> class takes the following parameters as input:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1005091"> </a>A reference to the instance of the <code>LeaseRenewalManager</code> that generated the event<p>
+  <li class="SmartList1"><a name="1005092"> </a>The lease associated with this event<p>
+  <li class="SmartList1"><a name="1005093"> </a>The desired expiration time of the lease<p>
+  <li class="SmartList1"><a name="1005118"> </a>The <code>Throwable</code> associated with the last renewal attempt (if any)
+</ul>
+
+<p class="Body">
+  <a name="1005097"> </a>The <code>getLease</code> method returns a reference to the <code>Lease</code> object associated with the event. This method takes no arguments.
+</p>
+<p class="Body">
+  <a name="1001407"> </a>The <code>getExpiration</code> method returns a <code>long</code> value representing the desired expiration of the <code>Lease</code> object associated with the event. This method takes no arguments.
+</p>
+<p class="Body">
+  <a name="1001425"> </a>The <code>getException</code> method returns the exception, if any, that is associated with the event. This method takes no arguments. If the <code>LeaseRenewalEvent</code> represents a desired expiration reached event this method will return <code>null</code>. 
+</p>
+<p class="Body">
+  <a name="1012036"> </a>If the <code>LeaseRenewalEvent</code> represents a renewal failure event the <code>getException</code> method will return the exception that caused the event to be sent. The conditions under which a renewal failure event may be sent, and the related values returned by this method, are as follows:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1008843"> </a>When any lease in the managed set has passed its actual expiration time, and either the most recent renewal attempt was successful or there have been no renewal attempts, the <code>LeaseRenewalManager</code> will cease any further attempts to renew the lease, and will send a <code>LeaseRenewalEvent</code> with no associated exception. In this case, invoking this method will return <code>null</code>.<p>
+  <li class="SmartList1"><a name="1005737"> </a>For any lease from the managed set for which the most recent renewal attempt was unsuccessful because of the occurrence of a indefinite exception, the <code>LeaseRenewalManager</code> will continue to attempt to renew the affected lease at the appropriate times until: the renewal succeeds, the lease's actual expiration time has passed, or a renewal attempt throws a definite exception. If a definite exception is thrown or the lease expires, the <code>LeaseRenewalManager</code> will cease any further attempts to renew the lease, and will send a <code>LeaseRenewalEvent</code> containing the exception associated with the last renewal attempt.<p>
+  <li class="SmartList1"><a name="1005355"> </a>If, while attempting to renew a lease from the managed set, a definite exception is encountered, the <code>LeaseRenewalManager</code> will cease any further attempts to renew the lease, and will send a <code>LeaseRenewalEvent</code> containing the particular exception that occurred.
+</ul>
+
+<h4 class="Heading3">
+  <a name="1012222"> </a>LM.5.4	 Serialized Forms
+<p><CENTER>
+<table border="1" bordercolorlight="#FFFFFF" bordercolordark="#000000"
+       cellpadding="5" cellspacing="0" Summary="serialized form of <code>LeaseRenewalEvent</code>">
+  <caption></caption>
+  <tr bgcolor="#CCCCCC">
+    <th>Class<br></th>
+    <th>serialVersionUID<br></th>
+    <th>Serialized Fields<br></th>
+  </tr>
+  <tr>
+    <td><code>LeaseRenewalEvent</code><br></td>
+    <td>-626399341646348302L<br></td>
+    <td><code>Lease lease<br>long expiration<br>Throwable ex</code><br></td>
+  </tr>
+</table>
+</CENTER>
+<h3 class="Heading2">
+  <a name="43987"> </a>LM.6	 History</h3>
+<p>
+<table align="center" border="1" bordercolorlight="#FFFFFF" bordercolordark="#000000" cellpadding="5" cellspacing="0" summary="history of this specification">
+  <caption><p class="Body">
+  <a name="01887"> </a>
+</p>
+</caption>
+  <tr bgcolor="#CCCCCC">
+    <th>Version</th>
+    <th>Description</th>
+  </tr>
+ <tr>
+    <td valign="top">v1.0
+	</td>
+    <td>Initial release of this specification.
+</td>
+  </tr>
+</table>
+
+<h3 class="Heading2">
+  <a name="0188"> </a>		 License	 
+</h3>
+<p>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+</blockquote>
+
+<hr>
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="100%"><tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a>
+<td align=right><em>A Collection of Jini Technology Helper Utilities and Services Specifications</em></td>
+</tr></table>
+<a name="skip"></a>
+
+<hr>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+</body>
+</html>
+
+<!-- This HTML file was initially created with Quadralay WebWorks Publisher 3.5.0 -->
+<!-- by Susan Snyder -->
+<!-- Last updated: 01/27/05 -->

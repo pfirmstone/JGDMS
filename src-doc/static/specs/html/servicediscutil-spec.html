@@ -1,0 +1,852 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<html>
+
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=ISO-8859-1">
+<meta name="GENERATOR" content="Quadralay WebWorks Publisher 5.0.4">
+<link rel="StyleSheet" href="standard.css" type="text/css" media="screen">
+<title>Jini Service Discovery Utilities Specification  </title>
+</head>
+
+<body bgcolor="#ffffff">
+
+
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="100%">
+<tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a></td>
+<td align=right><em>A Collection of Jini Technology Helper Utilities and Services Specifications</em></td>
+</tr>
+</table>
+<br clear="all">
+
+
+<hr align="left">
+<table width="90%">
+<tr>
+<td align="right" font size="4"><b>Version 2.0</b></td>
+</tr>
+</table>
+<a name="skip"></a>
+<blockquote>
+<h2>
+  <a name="1010752"> </a>SD - Jini<font size="-1"><sup>TM</sup></font> Service Discovery Utilities Specification
+</h2>
+<h3 class="Heading2">
+  <a name="1015774"> </a>SD.1	 Introduction
+</h3>
+<p class="Body">
+  <a name="1019491"> </a>This specification defines helper utility classes, along with supporting interfaces and classes, that encapsulate functionality that can help a Jini<font size="-1"><sup>TM</sup></font> technology-enabled service or client (<em class="Emphasis">Jini service</em> or <em class="Emphasis">Jini client</em>) in acquiring services of interest that are registered with the various lookup services with which the service or client wishes to interact. Currently, the service discovery utilities specification defines only one helper utility class:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1018684"> </a>The <code>ServiceDiscoveryManager</code> helper utility
+</ul>
+
+<h3 class="Heading2">
+  <a name="1018664"> </a>SD.2	 The <code>ServiceDiscoveryManager</code>
+</h3>
+<p class="Body">
+  <a name="1019825"> </a>The interactions of an entity that operates in a client-like fashion within a Jini<font size="-1"><sup>TM</sup></font> application environment are generally distinguished by the fact that the entity first discovers one or more Jini lookup services, then queries one or more of the discovered lookup services for references to Jini services that the entity may employ in some task. This process, in which Jini services as well as Jini clients may participate, is often referred to as <em class="Emphasis">service discovery</em>. Since services and clients can perform both <em class="Emphasis">lookup discovery</em> and <em class="Emphasis">service discovery</em>, the primary characteristic that distinguishes a Jini service<em class="Emphasis"> </em>from a client is the service's ability to be registered with a lookup service. Thus, with respect to service discovery, there is no difference between a Jini service and a Jini client.
+</p>
+<p class="Body">
+  <a name="1019826"> </a>Because there is no need to make such a distinction, the terms <em class="Emphasis">entity</em> and <em class="Emphasis">client-like entity </em>will be used interchangeably throughout this specification to refer to Jini clients or services that create an instance of the <code>ServiceDiscoveryManager</code> (from the package <code>net.jini.lookup</code>) and use the public methods of that class to perform and manage their service discovery duties.
+</p>
+<p class="Body">
+  <a name="1001772"> </a>Once a client-like entity discovers a set of lookup services and retrieves references to desired services from those lookup services, the entity may choose to discontinue query-related discovery processing. That is, having obtained references to all of the services it wishes to employ, the entity may view the references it holds to the lookup services as no longer necessary.
+</p>
+<p class="Body">
+  <a name="1002885"> </a>But over the execution life of any such entity, partial failures such as system crashes or network outages may intermittently affect the availability of some of those services of interest. This results in a need to re-query the lookup services to find references to new instances of the service that can replace the unavailable instance. Such scenarios make it desirable for a client-like entity to maintain its references to the lookup services it queries. If an instance of a service is found to be unavailable, the entity can query those lookup services to obtain an instance of the service that is available.
+</p>
+<p class="Body">
+  <a name="1002929"> </a>Since a query on a lookup service is a remote call, such calls are much more costly in terms of overhead and failure risk than are local calls. This cost is magnified when an entity must make frequent queries for multiple services, so an entity may find it desirable to cache the services it obtains from the original queries on the lookup services. Furthermore, by populating the cache with multiple instances of the desired services, redundancy in the availability of those services can be provided. Thus, if an instance of a service is found to be unavailable when needed, the entity can execute a local query on the cache rather than one or more remote queries on the lookup services to obtain an instance which is available.
+</p>
+<p class="Body">
+  <a name="1005756"> </a>Typically, an entity will request the creation of a separate cache for each service type of interest. The cache provides a method with which the entity can retrieve an element of the cache. In general, the particular service reference that is returned should not matter to the entity. It should only matter that <em class="Emphasis">a</em> service reference has been returned, not <em class="Emphasis">which</em> service reference. If for some reason it does matter to an entity which service reference is returned, then the cache also provides a mechanism that will allow the entity to retrieve all elements of the cache. The entity can then iterate through each element, selecting the particular reference it desires.
+</p>
+<p class="Body">
+  <a name="1002934"> </a>Although interacting with a local cache of services in this way can be very useful to entities that need frequent access to multiple services, some client-like entities may wish to interact with the cache in a reactive manner. For example, an entity such as a service browser typically wishes to be <em class="Emphasis">notified</em> of the arrival of new services of interest as well as any changes in the state of the current services in the cache. Polling for such changes is usually viewed as undesirable. If the cache were to also provide an event mechanism with notification semantics, the needs of both types of entity could be satisfied.
+</p>
+<p class="Body">
+  <a name="1020600"> </a>From the scenarios discussed above, one could conclude that when acting in a client-like fashion, it is desirable for an entity to maintain, as much as possible, up-to-date knowledge of the availability of the <em class="Emphasis">lookup</em> services of interest as well as the state information associated with all other types of services in which the entity is interested. By maintaining current service state information, the entity can implement efficient mechanisms for service access and usage.
+</p>
+<p class="Body">
+  <a name="1002968"> </a>The <code>ServiceDiscoveryManager</code> class is a helper utility class that any entity can use to create and populate a cache such as that described previously, and with which the entity can register for notification of the availability of services of interest. Like the <code>JoinManager</code> utility class, this class needs to be notified when a desired lookup service is discovered. For information on the <code>JoinManager</code> utility class, refer to the <em class="Emphasis"><a href="joinutil-spec.html">Jini Join Utilities Specification</a></em>.
+</p>
+<p class="Body">
+  <a name="1006502"> </a>Unlike the <code>JoinManager</code>, the <code>ServiceDiscoveryManager</code> does not register the entity as a service with discovered lookup services. Although both the <code>JoinManager</code> and the <code>ServiceDiscoveryManager</code> perform lookup discovery event handling for the entities that employ them, the <code>JoinManager</code> performs <em class="Emphasis">join</em> processing for Jini services, while the <code>ServiceDiscoveryManager</code> performs <em class="Emphasis">service discovery and management</em> processing both for clients and for services. Thus, typical usage patterns for Jini services wishing to find and use other Jini services generally indicate the employment of both the <code>JoinManager</code> and the <code>ServiceDiscoveryManager</code> utilities, whereas Jini clients would typically use only the <code>ServiceDiscoveryManager</code>.
+</p>
+<p class="Body">
+  <a name="1002991"> </a>The <code>ServiceDiscoveryManager</code> class can be asked to "discover" services an entity is interested in using, and to cache the references to those services as each is found. The cache can be viewed as a set of service references that the entity can access locally as needed through one of the public, non-remote methods provided in the cache's interface. A service reference added to the cache will be removed from the cache when all of the lookup services with which that service is registered have been discarded.
+</p>
+<p class="Body">
+  <a name="1003041"> </a>The <code>ServiceDiscoveryManager</code> class also provides a mechanism for an entity to request that it be notified when a service of interest is discovered for the first time or has encountered a state change such as removal from all lookup services or attribute set changes.
+</p>
+<p class="Body">
+  <a name="1003321"> </a>For convenience, this class also provides versions of a method named <code>lookup</code>, which employs invocation semantics similar to the semantics of the <code>lookup</code> method of the <code>ServiceRegistrar</code> interface defined in the <a href="lookup-spec.html"><em class="Emphasis">Jini Lookup Service Specification</em></a>. This method may be useful to entities that need to find services on an infrequent basis, or when the cost of making a remote call is outweighed by the overhead of maintaining a local cache (for example, because of limited resources).
+</p>
+<p class="Body">
+  <a name="1003020"> </a>All three mechanisms described above--local queries on the cache, service discovery notification, and remote lookups--employ the same template matching scheme as that described in the <a href="lookup-spec.html"><em class="Emphasis">Jini Lookup Service Specification</em></a>. Additionally, each mechanism allows the entity to supply an object referred to as a <em class="Emphasis">filter</em>. Such an object is a non-remote object that defines additional matching criteria that the <code>ServiceDiscoveryManager</code> applies when searching for the entity's services of interest. This filtering facility is particularly useful to entities that wish to extend the capabilities of the standard template matching scheme.
+</p>
+<p class="Body">
+  <a name="1002152"> </a>The <code>ServiceDiscoveryManager</code> is a utility class, not a remote service. Client-like entities that wish to use this utility will create an instance of the <code>ServiceDiscoveryManager</code> in the entity's address space so as to manage the entity's "lookup state" locally.
+</p>
+<h4 class="Heading3">
+  <a name="1000765"> </a>SD.2.1	 The Object Types
+</h4>
+<p class="Body">
+  <a name="1006176"> </a>The types defined in the specification of the <code>ServiceDiscoveryManager</code> utility class are in the <code>net.jini.lookup</code> package. The following types may be referenced in this chapter. Whenever referenced, these object types will be referenced in unqualified form:
+</p>
+<pre  class="Preformatted"><br>net.jini.core.discovery.LookupLocator
+net.jini.core.lease.Lease
+net.jini.core.lookup.ServiceEvent
+net.jini.core.lookup.ServiceItem
+net.jini.core.lookup.ServiceMatches
+net.jini.core.lookup.ServiceRegistrar
+net.jini.core.lookup.ServiceTemplate
+net.jini.config.Configuration
+net.jini.config.ConfigurationException
+net.jini.discovery.DiscoveryListener
+net.jini.discovery.DiscoveryManagement
+net.jini.discovery.LookupDiscoveryManager
+net.jini.io.MarshalledInstance
+net.jini.lease.LeaseRenewalManager
+net.jini.lookup.LookupCache
+net.jini.lookup.ServiceDiscoveryEvent
+net.jini.lookup.ServiceDiscoveryListener
+net.jini.lookup.ServiceItemFilter
+net.jini.security.ProxyPreparer
+java.io.IOException
+java.rmi.server.UnicastRemoteObject
+java.rmi.MarshalledObject
+java.rmi.RemoteException
+java.util.EventListener
+java.util.EventObject
+java.util.Set
+</code></pre>
+<h3 class="Heading2">
+  <a name="999665"> </a>SD.3	 The Interface
+</h3>
+<p class="Body">
+  <a name="1015313"> </a>The public interface provided by the <code>ServiceDiscoveryManager</code> class defines methods that allow an entity to request that references to services matching criteria defined by the entity be found in discovered lookup services and cached for local retrieval. This interface also defines methods for retrieving the manager objects employed by this utility, and for performing termination processing.
+</p>
+<pre  class="Preformatted">
+package net.jini.lookup;
+
+public class ServiceDiscoveryManager {
+    public ServiceDiscoveryManager
+                          (DiscoveryManagement discoveryMgr,
+                           LeaseRenewalManager leaseMgr)
+                                 throws IOException {...}
+    public ServiceDiscoveryManager
+                          (DiscoveryManagement discoveryMgr,
+                           LeaseRenewalManager leaseMgr,
+                           ConFiguration config)
+         throws IOException, ConfigurationException {...}
+    public LookupCache createLookupCache
+                        (ServiceTemplate tmpl,
+                         ServiceItemFilter filter,
+                         ServiceDiscoveryListener listener)
+                                 throws RemoteException {...}
+    public ServiceItem lookup(ServiceTemplate tmpl,
+                              ServiceItemFilter filter) {...}
+    public ServiceItem lookup(ServiceTemplate tmpl,
+                              ServiceItemFilter filter,
+                              long waitDur)
+                                 throws InterruptedException,
+                                        RemoteException {...}
+    public ServiceItem[] lookup
+                             (ServiceTemplate tmpl,
+                              int maxMatches,
+                              ServiceItemFilter filter) {...}
+    public ServiceItem[] lookup(ServiceTemplate tmpl,
+                                int minMatches,
+                                int maxMatches,
+                                ServiceItemFilter filter,
+                                long waitDur)
+                                 throws InterruptedException,
+                                        RemoteException {...}
+    public DiscoveryManagement getDiscoveryManager() {...}
+    public LeaseRenewalManager getLeaseRenewalManager() {...}
+    public void terminate() {...}
+}
+</code></pre>
+<h3 class="Heading2">
+  <a name="999816"> </a>SD.4	 The Semantics
+</h3>
+<p class="Body">
+  <a name="1006256"> </a>The <code>ServiceDiscoveryManager</code> makes certain concurrency guarantees with respect to the methods it defines. When a method of <code>ServiceDiscoveryManager</code> invokes a remote method, although such an invocation may block other remote calls made in the <code>ServiceDiscoveryManager</code>, invocations of local methods will not be blocked.
+</p>
+<h4 class="Heading3">
+  <a name="1006224"> </a>SD.4.1	 The Methods
+</h4>
+<p class="Body">
+  <a name="1018828"> </a>The <code>ServiceDiscoveryManager</code> helper utility class defines a number of public methods in addition to its constructor. This utility defines a factory method that allows the entity to create a local cache for storing references to desired services that have been previously discovered. Additionally, this class defines a set of methods that the entity may use to query (remotely) each discovered lookup service for other services that are of interest to the entity.
+</p>
+<p class="Body">
+  <a name="1018880"> </a><code>The equals</code> method for the <code>ServiceDiscoveryManager</code> class returns true if and only if two instances of this class refer to the same object. That is, <code>x</code> and <code>y</code> are equal instances of this class if and only if <code>x</code> <code>==</code> <code>y</code> has the value <code>true</code>.
+</p>
+<h5 class="Heading4">
+  <a name="1018859"> </a>SD.4.1.1	 The Constructor
+</h5>
+<p class="Body">
+  <a name="1018826"> </a>The constructor for <code>ServiceDiscoveryManager</code> has two versions. Each version of the constructor throws <code>IOException</code> because construction of a <code>ServiceDiscoveryManager</code> may initiate the multicast discovery process, a process that can throw <code>IOException</code>.
+</p>
+<p>
+The only difference between the two versions of the constructor is the absence or presence of a parameter of type <code>Configuration</code>, which is used to classify the constructors as either <em>non-configurable</em> or <em>configurable</em>, respectively.
+<p>
+The input parameters shared by both versions of the constructor are as follows:
+<ul>
+<li>An instance of <code>DiscoveryManagement</code>, through which notifications that indicate a lookup service has been discovered or discarded will be received
+
+<li>An instance of <code>LeaseRenewalManager</code>, which is used by the <code>ServiceDiscoveryManager</code> to manage the leases on any event registrations requested by the <code>ServiceDiscoveryManager</code> from the lookup services with which it interacts.
+</ul>
+<p class="Body">
+  <a name="1003175"> </a>It is important to note that at a minimum, the object input as the first argument of either version of the constructor must satisfy the contract defined in the <code>DiscoveryManagement</code> interface. That is, that object must provide the <code>ServiceDiscoveryManager</code> with the ability to set discovery listeners and to discard previously discovered lookup services when they are found to be unavailable.
+</p>
+<p class="Body">
+  <a name="1002035"> </a>For either version of the constructor, <code>null</code> may be passed as the <code>DiscoveryManagement</code> argument. If that argument is <code>null</code>, an instance of the <code>LookupDiscoveryManager</code> utility class will be constructed to discover only those lookup services that are members of the public group, unless, in the case of the configurable version of the constructor, this default behavior is overriden through the use of the configuration mechanism (see below).
+</p>
+<p class="Body">
+  <a name="1002036"> </a>For either version of the constructor, <code>null</code> may be passed as the <code>LeaseRenewalManager</code> argument. If that argument is <code>null</code>, an instance of the <code>LeaseRenewalManager</code> class will be created, initially managing no <code>Lease</code> objects.
+<p>
+As noted, the configurable version of the constructor is characterized by an additional parameter of type <code>Configuration</code>. Through that parameter, the configurable version of the constructor can be used to customize the behavior of the resulting <code>ServiceDiscoveryManager</code> instance. Such customizations are implementation dependent. A <code>NullPointerException</code> is thrown if <code>null</code> is passed as the value of that parameter. A <code>ConfigurationException</code> is thrown to indicate that a problem occurred while attempting to retrieve an item from the given <code>Configuration</code>.
+<p>
+Creating a <code>ServiceDiscoveryManager</code> using the non-configurable version of the constructor will result in a <code>ServiceDiscoveryManager</code> having only basic, default behavior. Thus, the use of the configurable version of the constructor is strongly encouraged.
+</p>
+<h5 class="Heading4">
+  <a name="1018866"> </a>SD.4.1.2	 The <code>createLookupCache</code> Method
+</h5>
+<p class="Body">
+  <a name="1002308"> </a>The <code>createLookupCache</code> method allows an entity to request that the <code>ServiceDiscoveryManager</code> create a new managed set (or cache) and populate it with services, which match criteria defined by the entity, and whose references are registered with one or more of the lookup services the entity has targeted for discovery.
+</p>
+<p class="Body">
+  <a name="1006330"> </a>This method returns an object of type <code>LookupCache</code>. Through this return value, the entity can query the cache for services of interest, manage the cache's event mechanism for service discoveries, or terminate the cache. The definition of the <code>LookupCache</code> interface is presented later in this specification.
+</p>
+<p class="Body">
+  <a name="1020449"> </a>An entity typically uses the object returned by this method to provide <em class="Emphasis">local</em> storage of, and access to, references to services that it is interested in using. Entities that need frequent access to numerous services will find the object returned by this method quite useful because acquisition of those service references is provided through local method invocations. Additionally, because the object returned by this method provides an event mechanism, it is also useful to entities wishing to simply monitor, in an event-driven manner, the state changes that occur in the services of interest.
+</p>
+<p class="Body">
+  <a name="1020456"> </a>The <code>createLookupCache</code> method takes three arguments: an instance of <code>ServiceTemplate</code>, an instance of <code>ServiceItemFilter</code>, and an instance of <code>ServiceDiscoveryListener</code>. Both the interfaces <code>ServiceItemFilter</code> and <code>ServiceDiscoveryListener</code> are presented later in this chapter.
+</p>
+<p class="Body">
+  <a name="1015551"> </a>Together, the <code>tmpl</code> and the <code>filter</code> arguments define the criteria that service references must satisfy to be discovered. The <code>listener</code> argument references an object that will receive notifications when services that satisfy the input criteria are discovered for the first time, or have encountered a state change such as removal from all lookup services or attribute set changes. If <code>null</code> is input to the <code>listener</code> argument for a particular invocation of this method, the cache resulting from that invocation will send no such notifications.
+</p>
+<p class="Body">
+  <a name="1019813"> </a>The <code>tmpl</code> argument employs template matching semantics that are identical to the semantics described in the <a href="lookup-spec.html#1003674"><em class="Emphasis">Jini Lookup Service Specification,</em> Section&nbsp;LU.2.3, "ServiceTemplate and Item Matching"</a>) to identify the service(s) to acquire from lookup services in the managed set. The object passed to the <code>filter</code> argument is then used to apply additional criteria that must be satisfied by any service references found through template matching. The additional criteria defined by the <code>filter</code> parameter are application-specific, and therefore must be defined by the client-like entity itself (as described in <a href="servicediscutil-spec.html#1004630">Section&nbsp;SD.5.2, "The ServiceItemFilter Interface"</a>). Furthermore, once an instance of the cache is created, the filter associated with that instance will not change during the life of that particular cache. If the filter is changed so that its original behavior is modified, the effect on the cache is undefined.
+</p>
+<p class="Body">
+  <a name="1003381"> </a>As a convenience, a <code>null</code> reference input to the <code>tmpl</code> argument is treated as equivalent to inputting a <code>ServiceTemplate</code> constructed with all <code>null</code> arguments (all <em class="Emphasis">wildcards</em>). That is, the cache will attempt to discover all services contained in each lookup service in the managed set. If a <code>null</code> value is passed as the <code>filter</code> argument, then only template matching will be employed to find the desired services.
+</p>
+<p class="Body">
+  <a name="1006302"> </a>Entities that invoke this method must take care not to modify the contents of the object input through the <code>tmpl</code> parameter after the cache has been created. Doing so could cause the state of the cache to become corrupted or inconsistent. It is for this reason that the effects of modifying the contents of the <code>tmpl</code> parameter, after this method is invoked, are undefined.
+</p>
+<div style="color: #000000; font-family: Times; font-size: 11pt; font-style: normal; font-weight: bold; margin-bottom: 8pt; margin-left: 36pt; margin-right: 0pt; margin-top: 13pt; text-align: left; text-decoration: none; text-indent: -36pt; text-transform: none; vertical-align: baseline">
+<a name="1003637"> </a>Events and the Cache<br>
+</div>
+<p class="Body">
+  <a name="1003641"> </a>To keep its contents up to date, the cache must register with the event mechanism of each lookup service in the managed set. From the point of view of the cache, a service is "discovered" when it receives a remote event from one of those lookup services notifying the cache of the existence of a service matching the input criteria. In addition, whenever one of the cache's discovered services experiences a state change in one of the lookup services in which it is registered, the cache will receive a remote event identifying that state change whenever the change satisfies the matching criteria.
+</p>
+<p class="Body">
+  <a name="1003440"> </a>For a number of reasons the cache may receive multiple events corresponding to the same Jini service. For example, a particular Jini service may be registered with more than one lookup service from the managed set. If the cache requests events from each lookup service using a template configured with no restriction along the service ID search axis and little or no restriction along the attribute search axis, the cache will receive a notification each time one of the following events occurs at any of the those lookup services:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1018852"> </a>The service, matching the template, is registered with one of the lookup services.<p>
+  <li class="SmartList1"><a name="1018853"> </a>The lease of the matching service is cancelled or expires.<p>
+  <li class="SmartList1"><a name="1003458"> </a>An attribute set associated with the matching service is modified in some way.
+</ul>
+
+<p class="Body">
+  <a name="1003459"> </a>Just as the cache requests that it be notified of state changes in matching services occurring within each lookup service, an entity may request that the cache deliver events that indicate analogous state changes in the service references stored in the cache.
+</p>
+<p class="Body">
+  <a name="1007798"> </a>There are two significant differences in the event mechanism between the lookup services and the cache, and the event mechanism between the cache and the client-like entity. First and foremost, the events sent from the lookup services to the cache are <em class="Emphasis">remote</em> events, whereas the events sent from the cache to the entity are <em class="Emphasis">local</em> events. Second, each registration or state-change event sent from the cache to the entity may actually have been a result of multiple corresponding events received by the cache from a set of lookup services. Thus, there is a many-to-one relationship between the events received by the cache and the events sent by the cache.
+</p>
+<p class="Body">
+  <a name="1005481"> </a>For many entities that use the cache's event mechanism to interact with the cache's discovered services, knowledge of the number of distinct service references, as well as identification of the lookup services with which those references are registered, is of no interest. Such entities typically are interested only in acquiring <em class="Emphasis">a</em> reference--not <em class="Emphasis">all</em> references--to the desired services. Thus, the relationship between the two event mechanisms described previously allows the <code>ServiceDiscoveryManager</code> to hide the lookup services with which the cache interacts from the entity. For entities that are interested in the additional information, the cache provides methods separate from the event mechanism for obtaining such information.
+</p>
+<p class="Body">
+  <a name="1003516"> </a>To summarize, although the cache may receive <em class="Emphasis">multiple</em> events signaling a state change related to a particular matching service, the cache will typically send only a <em class="Emphasis">single</em> corresponding event to the entity. That is, for any matching service:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1003587"> </a>The cache will send a <em class="Emphasis">service discovery event</em> to the entity only once: after the cache acquires the <em class="Emphasis">first</em> reference to the matching service.<p>
+  <li class="SmartList1"><a name="1003592"> </a>The cache will send a <em class="Emphasis">service removal event</em> to the entity only once: after every reference to the service has had its lease expire or cancelled; that is, only after all references to the matching service have been removed from every lookup service in the cache's managed set.<p>
+  <li class="SmartList1"><a name="1005130"> </a>For each set of event(s) notifying the cache that a particular modification has been made to the attribute set associated with one of the service references, one <em class="Emphasis">service modification event</em> will be sent to the entity, but <em class="Emphasis">only if</em> the attribute set state reflected in the received event represents an actual change in the service's current attribute set state (as maintained by the cache).
+</ul>
+
+<p class="Body">
+  <a name="1005135"> </a>With respect to the state of the attribute sets associated with the service references stored in the cache, the cache should be viewed as maintaining a single attribute set state for each collection of service references that represent the same service. That single state will always be equivalent to the state reflected in the last attribute set modification event received by the cache.
+</p>
+<p class="Body">
+  <a name="1019942"> </a>For example, suppose each of three different references to a service that matches the input criteria is registered with three lookup services in the managed set. Suppose the attribute sets associated with each service reference are modified in exactly the same way. For this specific case, the cache would receive three events--one from each lookup service--signaling these modifications. Upon receipt of the first event, the cache modifies its current notion of the service's attribute set state, and then notifies the entity of the change, but only if the state reflected in the event represents a change in the current state. Because the remaining two events received by the cache represent the same state change as that represented in the first event, the cache sends no other notification.
+</p>
+<p class="Body">
+  <a name="1005146"> </a>Next, suppose a second modification, different from the first, is made on only two of the service references, and a third unique modification is made on the remaining service reference. In this case, the cache will still receive three events, but how the cache handles the events is dependent on the order of arrival of the events. For simplicity, call the three events <img src="images/servicediscutil-spec19.gif" alt="e 1" height="19" width="14">
+, <img src="images/servicediscutil-spec21.gif" alt="e 2" height="19" width="14">
+, and <img src="images/servicediscutil-spec23.gif" alt="e 3" height="19" width="14">
+. Use <img src="images/servicediscutil-spec18.gif" alt="the letter s" height="19" width="13">
+ to represent the cache's current notion of the service's attribute set state, and use <img src="images/servicediscutil-spec26.gif" alt="s 1" height="19" width="13">
+ and <img src="images/servicediscutil-spec27.gif" alt="s 2" height="19" width="13">
+ to represent the states resulting after each attribute modification has occurred. In this example, <img src="images/servicediscutil-spec20.gif" alt="e 1" height="19" width="14">
+ and <img src="images/servicediscutil-spec22.gif" alt="e 2" height="19" width="14">
+ will be sent to the cache after each of the service's attribute sets is modified to <img src="images/servicediscutil-spec28.gif" alt="s 1" height="19" width="13">
+ in their respective lookup services. Event <img src="images/servicediscutil-spec24.gif" alt="e 3" height="19" width="14">
+ is sent after the service's attribute sets are modified to <img src="images/servicediscutil-spec29.gif" alt="s 2" height="19" width="13">
+ in the remaining lookup service.
+</p>
+<p class="Body">
+  <a name="1019962"> </a>If the order of arrival is <img src="images/servicediscutil-speca.gif" alt="e 1" height="19" width="14">
+, <img src="images/servicediscutil-spec2.gif" alt="e 2" height="19" width="14">
+, and then <img src="images/servicediscutil-spec3.gif" alt="e 3" height="19" width="14">
+, the cache will change <img src="images/servicediscutil-spec4.gif" alt="s" height="19" width="13">
+ into <img src="images/servicediscutil-spec5.gif" alt="s 1" height="19" width="13">
+ and notify the entity after the arrival of <img src="images/servicediscutil-spec6.gif" alt="e 1" height="19" width="14">
+ but will do nothing upon the arrival of <img src="images/servicediscutil-spec7.gif" alt="e 2" height="19" width="14">
+. Upon the arrival of <img src="images/servicediscutil-spec8.gif" alt="e 3" height="19" width="14">
+, the cache will change <img src="images/servicediscutil-spec9.gif" alt="s" height="19" width="15">
+ (which is now <img src="images/servicediscutil-spec10.gif" alt="s 1" height="19" width="13">
+) into <img src="images/servicediscutil-spec11.gif" alt="s 2" height="19" width="13">
+. If the order of arrival of the events is <img src="images/servicediscutil-spec12.gif" alt="e 1" height="19" width="14">
+, <img src="images/servicediscutil-spec13.gif" alt="e 3" height="19" width="14">
+, and then <img src="images/servicediscutil-spec14.gif" alt="e 2" height="19" width="14">
+, the cache will first change <img src="images/servicediscutil-spec15.gif" alt="s" height="19" width="13">
+ into <img src="images/servicediscutil-spec16.gif" alt="s 1" height="19" width="13">
+, then into <img src="images/servicediscutil-spec17.gif" alt="s 2" height="19" width="13">
+, and then back into <img src="images/servicediscutil-spec25.gif" alt="s 1" height="21" width="15">
+ again. Furthermore, for each state change made, the cache will send a notification to the entity.
+</p>
+<p class="Body">
+  <a name="1003657"> </a>Thus, the events generated by the cache's event mechanism and sent by the cache to the entity are more representative of the state changes that occur in the cache than in the lookup services.
+</p>
+<p class="Body">
+  <a name="1003524"> </a>An entity may register for events from the cache in one of two ways. The entity may supply an instance of <code>ServiceDiscoveryListener</code> to the <code>listener</code> argument of the <code>createLookupCache</code> method, or it may invoke a method on the cache to add a listener to the cache. Thus, an entity may register for events from the cache at any time during the execution life of the cache.
+</p>
+<p class="Body">
+  <a name="1007820"> </a>Similarly, the cache provides a method that an entity, which is currently registered for events from the cache, may use at any time to unregister with the cache's event mechanism.
+</p>
+<h5 class="Heading4">
+  <a name="1018873"> </a>SD.4.1.3	 The <code>lookup</code> Method
+</h5>
+<p class="Body">
+  <a name="1007821"> </a>The <code>lookup</code> method queries each available lookup service in the managed set for service reference(s) that match criteria defined by the entity that invokes this method. Entities typically employ this method when they need infrequent access to services and when the cost of making remote queries is outweighed by the overhead of maintaining a local cache (for example, because of resource limitations).
+</p>
+<p class="Body">
+  <a name="1005498"> </a>The <code>lookup</code> method has four versions, each version falling into one of two categories: those versions of this method that return a single instance of <code>ServiceItem</code> and those versions that return a set of service references as an array of <code>ServiceItem</code> objects.
+</p>
+<p class="Body">
+  <a name="1005597"> </a>Two arguments are common to all versions of this method: an instance of <code>ServiceTemplate</code> and an instance of <code>ServiceItemFilter</code>.
+</p>
+<p class="Body">
+  <a name="1005629"> </a>Within each category, the versions of <code>lookup</code> differ only in whether or not a particular version provides what is referred to as a "wait" (or blocking) feature. That is, each category contains both a non-blocking version of <code>lookup</code> which returns immediately when unable to find the desired service, and a blocking version which returns only after waiting a specified amount of time for the desired service to be discovered. The particular version of <code>lookup</code> that an entity employs is typically determined by the entity's intended usage pattern.
+</p>
+<p class="Body">
+  <a name="1005533"> </a>The descriptions that follow refer to all versions of the <code>lookup</code> method, except where explicitly noted.
+</p>
+<p class="Body">
+  <a name="1003777"> </a>The <code>tmpl</code> argument and the <code>filter</code> argument both have semantics identical to that defined for these arguments in the description of the <code>createLookupCache</code> method above. In particular,
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1003825"> </a>A <code>null</code> reference value for the <code>tmpl</code> parameter is treated as the equivalent of a "wildcarded" <code>ServiceTemplate</code>.<p>
+  <li class="SmartList1"><a name="1003834"> </a>If <code>null</code> is the value for the <code>filter</code> parameter, only template matching will be employed to find the desired services.<p>
+  <li class="SmartList1"><a name="1005831"> </a>The effects of modifying the contents of the <code>tmpl</code> parameter while the invocation is in progress are unpredictable and undefined.
+</ul>
+
+<p class="Body">
+  <a name="1005540"> </a>If no service can be found that matches the desired criteria, then the versions of <code>lookup</code> from the first category--those that return a single instance of <code>ServiceItem</code>--will return <code>null</code>, whereas the versions from the second category--those that return an array of <code>ServiceItem</code> instances--will return an empty array.
+</p>
+<p class="Body">
+  <a name="1003880"> </a>The versions of <code>lookup</code> from the first category can be used in a fashion similar to the first form of the <code>lookup</code> method defined in the <code>ServiceRegistrar</code> interface described in the <a href="lookup-spec.html"><em class="Emphasis">Jini Lookup Service Specification</em></a>. That is, an entity would typically invoke one of these versions of <code>lookup</code> when it wishes to find a <em class="Emphasis">single</em> service reference and the particular lookup service with which that service reference is registered is unimportant to the entity.
+</p>
+<p class="Body">
+  <a name="1018917"> </a>Each version of <code>lookup</code> defined in the <code>ServiceDiscoveryManager</code> differs with the corresponding version of <code>lookup</code> in <code>ServiceRegistrar</code> in the following ways:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1018918"> </a>The versions of <code>lookup</code> defined in the <code>ServiceDiscoveryManager</code> query <em class="Emphasis">multiple</em> lookup services (the order in which the lookup services are queried is dependent on the implementation).<p>
+  <li class="SmartList1"><a name="1003938"> </a>The versions of <code>lookup</code> defined in the <code>ServiceDiscoveryManager</code> can apply additional selection criteria, in the form of a filter object, when deciding whether a service reference found through standard template matching should be returned to the entity.
+</ul>
+
+<p class="Body">
+  <a name="1003905"> </a>The versions of <code>lookup</code> that return an array of <code>ServiceItem</code> objects can be used in a fashion similar to the second form of <code>lookup</code> defined in the <code>ServiceRegistrar</code> interface. That is, an entity would typically invoke these versions of <code>lookup</code> when it wishes to find <em class="Emphasis">multiple</em> service references that satisfy the input criteria. Each of the versions of <code>lookup</code> that return an array of <code>ServiceItem</code> objects takes as one of its arguments an <code>int</code> parameter, <code>maxMatches</code>, that represents the maximum number of matches that should be returned. The array returned by these methods will contain no more than <code>maxMatches</code> service references, although it may contain fewer than that number.
+</p>
+<p class="Body">
+  <a name="1003941"> </a>As with the versions of <code>lookup</code> that return a single instance of <code>ServiceItem</code>, multiple queries and filtering are also notable differences between the second-category versions of this method and their counterpart in <code>ServiceRegistrar</code>.
+</p>
+<p class="Body">
+  <a name="1018974"> </a>For each version of <code>lookup</code>, whenever a lookup service query returns a <code>null</code> service reference, the filter is bypassed, and the service reference is excluded from the return object. On the other hand, if the query returns a non-<code>null</code> service reference in which the associated array of attribute contains one or more <code>null</code> elements, the filter is still applied and the service reference is included in the return object.
+</p>
+<p class="Body">
+  <a name="1006091"> </a>Each version of <code>lookup</code> may be confronted with duplicate references during a search for a service of interest. This is because the same service may register with more than one lookup service in the managed set. As with the cache, when a set of service references is returned by <code>lookup</code>, each service reference in the return set will be unique with respect to all other service references in the set, as determined by the <code>equals</code> method provided by each reference.
+</p>
+<p class="Body">
+  <a name="1019887"> </a>If it is determined that a lookup service is unavailable (due to an exception or some other non-fatal error) while interacting with a lookup service from the managed set, all versions of <code>lookup</code> will invoke the <code>discard</code> method on the instance of <code>DiscoveryManagement</code> being employed by the <code>ServiceDiscoveryManager</code>. Doing so will result in the unavailable lookup service being discarded and made eligible for rediscovery.
+</p>
+<p class="Body">
+  <a name="1019888"> </a>Recall that the propagation of modifications to a service's attributes across a set of lookup services typically occurs asynchronously. It is for this reason that while invoking <code>lookup</code> to find a set of matching services, it is possible that the set returned may contain multiple references having the same service ID with different attributes. Note that although this sort of inconsistent state can also occur if the entity employs a cache, the cache will eventually reflect the correct state.
+</p>
+<div style="color: #000000; font-family: Times; font-size: 11pt; font-style: normal; font-weight: bold; margin-bottom: 8pt; margin-left: 36pt; margin-right: 0pt; margin-top: 13pt; text-align: left; text-decoration: none; text-indent: -36pt; text-transform: none; vertical-align: baseline">
+<a name="1005892"> </a>The Blocking Feature of <code>lookup</code><br>
+</div>
+<p class="Body">
+  <a name="1005547"> </a>As noted above, each category contains a version of <code>lookup</code> that provides a feature in which the entity can request that if the number of service references found throughout the available lookup services does not fall into a desired range, the method will wait a finite period of time until either an acceptable minimum number of service references are discovered or the specified time period has passed.
+</p>
+<p class="Body">
+  <a name="1005940"> </a>The versions of <code>lookup</code> providing this blocking feature each takes as one of its parameters a value of type long that represents the number of milliseconds to wait for the service to be discovered. In addition to <code>RemoteException</code> (described previously for these methods), each of these versions of <code>lookup</code> may throw an <code>InterruptedException</code>.
+</p>
+<p class="Body">
+  <a name="1006724"> </a>One of these blocking versions of <code>lookup</code> implicitly uses a value of one for both the acceptable minimum and the allowable maximum number of service references to discover. The other blocking version requires that the entity specify the range through the <code>minMatches</code> and <code>maxMatches</code> parameters, respectively.
+</p>
+<p class="Body">
+  <a name="1005947"> </a>Prior to blocking, each of these versions of <code>lookup</code> first queries each available lookup service in an attempt to retrieve a satisfactory number of matching services. Whether or not the method actually blocks is dependent on how many matching service references are found during the query process. Blocking occurs only if after querying <em class="Emphasis">all</em> of the available lookup services, the number of matching services found is less than the acceptable minimum. If the waiting period (measured from when blocking first begins) passes before that minimum number of service references is found, the method will return the service references that have been discovered up to that point. If the waiting period passes and no services have been found, <code>null</code> or an empty array (depending on the version of <code>lookup</code>) will be returned.
+</p>
+<p class="Body">
+  <a name="1005999"> </a>If, after querying all of the available lookup services, the number of services found to satisfy the desired criteria is greater than or equal to the specified minimum but less than the specified maximum, the method will return the currently discovered service references without blocking. If the initial query process produces the desired maximum number of service references, the method will return the results immediately.
+</p>
+<p class="Body">
+  <a name="1005666"> </a>The blocking versions of <code>lookup</code> are quite useful to entities that cannot proceed until such a service of interest is found. If a non-positive value is input to the <code>waitDur</code> argument, then the method will not wait. It will simply query the available lookup services and employ the return semantics described above.
+</p>
+<p class="Body">
+  <a name="1006047"> </a>The values of the <code>minMatches</code> and <code>maxMatches</code> arguments must both be positive, and <code>maxMatches</code> must be greater than or equal to <code>minMatches</code>; otherwise, an <code>IllegalArgumentException</code> will be thrown.
+</p>
+<p class="Body">
+  <a name="1011928"> </a>The blocking versions of <code>lookup</code> make a concurrency guarantee with respect to the discovery of new lookup services during the wait period. That is, while waiting for the desired service reference(s) to be discovered, if one or more of the targeted--but previously unavailable--lookup services is discovered and added to the managed set, those new lookup services will also be queried for the service(s) of interest.
+</p>
+<p class="Body">
+  <a name="1020057"> </a>In addition, the blocking versions of <code>lookup</code> throw <code>InterruptedException</code>. When an entity invokes either version with valid parameters, the entity may decide during the wait period that it no longer wishes to wait the entire period for the method to return. Thus, while the method is blocking on the discovery of matching service(s), it may be interrupted by invoking the <code>interrupt</code> method from the <code>Thread</code> class. The intent of this mechanism is to allow the entity to interrupt a blocking <code>lookup</code> in the same way it would a sleeping thread.
+</p>
+<h5 class="Heading4">
+  <a name="1018941"> </a>SD.4.1.4	 The <code>getDiscoveryManager</code> Method
+</h5>
+<p class="Body">
+  <a name="1003279"> </a>The <code>getDiscoveryManager</code> method returns an object that implements the <code>DiscoveryManagement</code> interface. The object returned by this method provides the <code>ServiceDiscoveryManager</code> with the ability to set discovery listeners and to discard previously discovered lookup services when they are found to be unavailable. This method takes no arguments.
+</p>
+<h5 class="Heading4">
+  <a name="1018948"> </a>SD.4.1.5	 The <code>getLeaseRenewalManager</code> Method
+</h5>
+<p class="Body">
+  <a name="1006743"> </a>The <code>getLeaseRenewalManager</code> method returns a <code>LeaseRenewalManager</code> object. The object returned by this method manages the leases requested and held by the <code>ServiceDiscoveryManager</code>. In general, these leases correspond to the registrations made by the <code>ServiceDiscoveryManager</code> with the event mechanism of each lookup service in the managed set. This method takes no arguments.
+</p>
+<h5 class="Heading4">
+  <a name="1018955"> </a>SD.4.1.6	 The <code>terminate</code> Method
+</h5>
+<p class="Body">
+  <a name="1020488"> </a>The <code>terminate</code> method performs cleanup duties related to the termination of the event mechanism for <em class="Emphasis">lookup service</em> discovery, the event mechanism for <em class="Emphasis">service</em> discovery, and the cache management duties of the <code>ServiceDiscoveryManager</code>. That is, the <code>terminate</code> method will terminate each <code>LookupCache</code> instance created and managed by the <code>ServiceDiscoveryManager</code>. Additionally, if the discovery manager employed by the <code>ServiceDiscoveryManager</code> was created by the <code>ServiceDiscoveryManager</code> itself, then the <code>terminate</code> method will also terminate that discovery manager.
+</p>
+<p class="Body">
+  <a name="1019726"> </a>Note that if the discovery manager was created externally and supplied to the <code>ServiceDiscoveryManager</code>, then any reference to that discovery manager held by the entity will remain valid, even after the <code>ServiceDiscoveryManager</code> has been terminated. Similarly, if the entity holds a reference to the lease renewal manager employed by the <code>ServiceDiscoveryManager</code>, that reference will also remain valid after termination, whether lease renewal manager was created externally or by the <code>ServiceDiscoveryManager</code> itself.
+</p>
+<p class="Body">
+  <a name="1011707"> </a>The <code>ServiceDiscoveryManager</code> makes certain concurrency guarantees with respect to an invocation of <code>terminate</code> while other method invocations are in progress. The termination process described above will not begin until completion of all invocations of the public methods defined in the public interface of <code>ServiceDiscoveryManager</code>; that is, until completion of invocations of <code>createLookupCache</code>, <code>lookup</code>, <code>getDiscoveryManager</code>, and <code>getLeaseRenewalManager</code>.
+</p>
+<p class="Body">
+  <a name="1020497"> </a>Upon completion of the termination process, the semantics of all current and future method invocations on the terminated instance of the <code>ServiceDiscoveryManager</code> are undefined.
+</p>
+<h4 class="Heading3">
+  <a name="1019335"> </a>SD.4.2	 Exporting <code>RemoteEventListener</code> Objects
+</h4>
+<p class="Body">
+  <a name="1019336"> </a>A subset of the methods on the <code>ServiceDiscoveryManager</code>, when invoked, will result in a request for registration with the event mechanism of one or more lookup services. The methods that result in such a request are <code>createLookupCache</code> and the blocking versions of the <code>lookup</code> method.
+</p>
+<p class="Body">
+  <a name="1019337"> </a>Any entity that invokes one of these methods must export, to each lookup service with which a registration occurs, the stub classes of the <code>RemoteEventListener</code> object through which instances of <code>RemoteEvent</code> will be received. Furthermore, each of these methods must throw <code>RemoteException</code>. The reasons that a <code>RemoteException</code> can occur fall into one of the following categories:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1019338"> </a>Each of these methods attempts to export a remote object, a process that can throw <code>RemoteException</code>.<p>
+  <li class="SmartList1"><a name="1019339"> </a>Each of these methods attempts to register with the event mechanism of at least one lookup service, a process that can throw <code>RemoteException</code>.
+</ul>
+
+<p class="Body">
+  <a name="1019870"> </a>How each of the affected methods handle the <code>RemoteException</code> is dependent on the reason for the exception. If a <code>RemoteException</code> (or any other non-fatal exception or error) is thrown during an attempt to register for events from a lookup service, that lookup service will be discarded and made eligible for rediscovery. On the other hand, if a <code>RemoteException</code> occurs during an attempt to export the listener, the method from which that attempt is made will re-throw the same exception.
+</p>
+<p class="Body">
+  <a name="1019341"> </a>The potential for <code>RemoteException</code> during the export process imposes the following requirement: the <em class="Emphasis">same</em> instance of the listener must be exported to each lookup service from which events will be requested. Furthermore, the creation and export of the listener must occur prior to the event registration process. This requirement guarantees that should a <code>RemoteException</code> occur after the registration process has begun, the exception will not be propagated and event processing will continue.
+</p>
+<p class="Body">
+  <a name="1019342"> </a>To understand the significance of this requirement, consider the scenario in which a different instance of the listener is exported to each lookup service. If a new lookup service is discovered after the event process has begun for the other lookup services in the managed set, a new instance of the listener must be created and exported. Should a <code>RemoteException</code> occur during the export process, the exception will be propagated and all event processing will stop--a result that many entities may view as undesirable.
+</p>
+<p class="Body">
+  <a name="1020614"> </a>To facilitate exporting the listener, the entity--whether it is a Jini client or a Jini service--is responsible for providing and advertising a mechanism through which each lookup service will acquire the listener's stub classes.
+</p>
+<p class="Body">
+  <a name="1020615"> </a>For example, one implementation of the <code>ServiceDiscoveryManager</code> might provide a special JAR file containing only the listener stub classes to optimize download time. By including this JAR file in the entity's <code>java.rmi.server.codebase</code> property (in the appropriate format, specifying transport protocol and location), the entity <em class="Emphasis">advertises</em> the mechanism that lookup services can employ to acquire the stub classes. By executing a process to serve up the JAR file (for example, an HTTP server), the mechanism through which each lookup service acquires those stub classes is <em class="Emphasis">provided</em>.
+</p>
+<p class="Body">
+  <a name="1019345"> </a>It is important to note that should such a mechanism not be made available to each lookup service with which event registration will be requested, a "silent failure" can occur repeatedly. If the mechanism is not available, each lookup service cannot acquire the exported listener. Because each lookup service cannot acquire the exported listener, any attempts to register for events will fail. Whenever an attempt to register for events fails, the associated lookup service will be discarded and made eligible for rediscovery. Upon rediscovery of the discarded lookup service, the cycle repeats when a new attempt to register for events is made.
+</p>
+<h3 class="Heading2">
+  <a name="1004159"> </a>SD.5	 Supporting Interfaces and Classes
+</h3>
+<p class="Body">
+  <a name="1020552"> </a>The <code>ServiceDiscoveryManager</code> utility class depends on the following interfaces defined in the <a href="lookup-spec.html#"><em class="Emphasis">Jini Lookup Service Specification</em></a>: <code>ServiceTemplate</code>, <code>ServiceItem</code>, and <code>ServiceMatches</code>. This class also depends on a number of interfaces, each defined in this section; those interfaces are <code>DiscoveryManagement</code>, <code>ServiceItemFilter</code><strong class="Strong">, </strong><code>ServiceDiscoveryListener</code>, and <code>LookupCache</code>. 
+</p>
+<p class="Body">
+  <a name="1004284"> </a>The <code>ServiceDiscoveryManager</code> class references the following concrete classes: <code>LookupDiscoveryManager</code> and <code>LeaseRenewalManager</code>, each described in a separate chapter of this document, and <code>ServiceDiscoveryEvent</code>, which is defined in this chapter.
+</p>
+<h4 class="Heading3">
+  <a name="1001982"> </a>SD.5.1	 The <code>DiscoveryManagement</code> Interface
+</h4>
+<p class="Body">
+  <a name="1004298"> </a>Although it is not necessary for the <code>ServiceDiscoveryManager</code> itself to execute the discovery process, it does need to be notified when one of the lookup services it wishes to query is discovered or discarded. Thus, at a minimum, the <code>ServiceDiscoveryManager</code> requires access to the instances of <code>DiscoveryEvent</code> sent to the listeners registered with the event mechanism of the discovery process. The instance of <code>DiscoveryManagement</code> passed to the constructor of the <code>ServiceDiscoveryManager</code> provides a mechanism for acquiring access to those events. For a complete description of the semantics of the methods of this interface, refer to the <a href="discoveryutil-spec.html"><em class="Emphasis">Jini Discovery Utilities Specification</em></a>.
+</p>
+<p class="Body">
+  <a name="1020119"> </a>One noteworthy item about the semantics of the <code>ServiceDiscoveryManager</code> is the effect that invocations of the <code>discard</code> method of <code>DiscoveryManagement</code> have on any cache objects created by the <code>ServiceDiscoveryManager</code>. The <code>DiscoveryManagement</code> interface specifies that the <code>discard</code> method will remove a particular lookup service from the managed set of lookup services already discovered, allowing that lookup service to be rediscovered. Invoking this method will result in the flushing of the lookup service from the appropriate cache. This effect ultimately causes a discard notification to be sent to all <code>DiscoveryListener</code> objects registered with the event mechanism of the discovery process (including all listeners registered by the <code>ServiceDiscoveryManager</code>).
+</p>
+<p class="Body">
+  <a name="1004350"> </a>The receipt of an event notification indicating that a lookup service from the managed set has been discarded must ultimately result in the cancellation and removal of all event leases that were granted by the discarded lookup service and that are managed by the <code>LeaseRenewalManager</code> on behalf of the <code>ServiceDiscoveryManager</code>.
+</p>
+<p class="Body">
+  <a name="1004332"> </a>Furthermore, every service reference stored in the cache that is registered with the discarded lookup service but is not registered with any of the remaining lookup services in the managed set will be "discarded" as well. That is, all previously discovered service references that are registered with only unavailable lookup services will be removed from the cache and made eligible for service rediscovery.
+</p>
+<h4 class="Heading3">
+  <a name="1004630"> </a>SD.5.2	 The <code>ServiceItemFilter</code> Interface
+</h4>
+<p class="Body">
+  <a name="1004631"> </a>The <code>ServiceItemFilter</code> interface defines the methods used by an object such as the <code>ServiceDiscoveryManager</code> or the <code>LookupCache</code> to apply additional selection criteria when searching for services in which an entity has registered interest. It is the responsibility of the entity requesting the application of additional criteria to construct an implementation of this interface that defines the additional criteria, and to pass the resulting object (referred to as a <em>filter</em>) into the object that will apply it.
+<p>
+The filtering mechanism provided by implementations of this interface is particularly useful to entities that wish to extend the capabilities of the standard template matching scheme. For example, because template matching does not allow one to search for services based on a range of attribute values, this additional matching mechanism can be exploited by the entity to ask the managing object to find all registered printer services that have a resolution attribute between say, 300 dpi and 1200 dpi.
+<p>
+In addition to (or instead of) applying additional matching criteria to candidate service proxies initially found through template matching, this filtering mechanism can also be used to extend the selection process so that only proxies that are safe to use are returned to the entity. To do this, the entity would use this interface to supply the <code>ServiceDiscoveryManager</code> or <code>LookupCache</code> with a filter that, when applied to a candidate proxy, performs a set of operations that is referred to as <em>proxy preparation</em>. As described in the <a href="../api/net/jini/security/ProxyPreparer.html">specification for the <code>ProxyPreparer</code> class</a>, proxy preparation typically includes operations such as, verifying trust in the proxy, specifying client constraints, and dynamically granting necessary permissions to the proxy. </p>
+<pre  class="Preformatted">
+package net.jini.lookup;
+
+public interface ServiceItemFilter {
+<code>    public</code> boolean check(ServiceItem item);
+}
+</pre>
+<h5 class="Heading4">
+  <a name="1004643"> </a>SD.5.2.1	 The Semantics
+</h5>
+<p class="Body">
+  <a name="1004644"> </a>The <code>check</code> method defines the implementation of the additional selection criteria (additional matching and/or proxy preparation) to apply to a <code>ServiceItem</code> object found through standard template matching. This method takes one argument: the <code>ServiceItem</code> object to test against the additional criteria.
+<p>
+Neither a <code>null</code> reference nor a <code>ServiceItem</code> object containing <code>null</code> fields will be passed into this method by the <code>ServiceDiscoveryManager</code> or the <code>LookupCache</code>.
+<p>
+If the parameter passed to this method is a <code>ServiceItem</code> object that has non-<code>null</code> fields but is associated with attribute sets containing <code>null</code> entries, this method must process that parameter in a reasonable manner.
+<p>
+Although this method returns a <code>boolean</code>, there are actually three possible return states that can occur. Those states are classified by the value of the returned <code>boolean</code> in combination with the (possibly modified) contents of the <code>ServiceItem</code> object that was input to this method. The three possible return states are summarized as follows:
+	<ul>
+	<li>If the input object satisfies any additional matching criteria that are specified, and if the proxy is successfully prepared (when requested), then the <code>check</code> method returns <code>true</code> and the service field of the <code>ServiceItem</code> parameter is either left unchanged (when proxy preparation is not requested) or is replaced with the prepared proxy. When this state is returned by the <code>check</code> method, it is said that the object <em>passed</em> (the <code>check</code> method of) the filter; or that the filter returned a <em>pass</em> condition.
+	<li>If either the input object does not satisfy any additional matching criteria that are specified, or if proxy preparation is requested but fails because of a definite exception (such as a <code>SecurityException</code>), then the <code>check</code> method returns <code>false</code>. When this state is returned by the <code>check</code> method, it is said that the object <em>failed</em> (the <code>check</code> method of) the filter; or that the filter returned a <em>failure</em> condition.
+	<li>If the input object satisfies any additional matching criteria that are specified, and proxy preparation is requested but fails because of an indefinite exception (such as a <code>RemoteException</code>), then the <code>check</code> method returns <code>true</code> and the service field of the <code>ServiceItem</code> parameter is replaced with <code>null</code>. In this case, the object has neither passed nor failed the filter. Thus, when this state is returned by the <code>check</code> method, it is said that the results of the filtering process are <em>indefinite</em>.
+	</ul>
+<p>
+With respect to a remote operation such as proxy preparation, the term <em>indefinite exception</em> refers to a class of exception where any such exception does not allow assertions to be made about the probability of success (or failure) of future attempts to prepare the proxy. A <code>RemoteException</code> caused by a transient communciation failure is one such example of an exception that can be classified as an indefinite exception. Thus, whenever the filtering process returns an indefinite result, the object that applied the filter (the <code>ServiceDiscoveryManager</code> or the <code>LookupCache</code>) will attempt to apply the filter again, at a later time, when success may be possible.
+<p>
+Alternatively, the term <em>definite exception</em> refers to a class of exception where any such exception is indicative of a permanent failure. That is, when an operation fails as a result of an exception that can be classified as a definite exception, that exception allows one to assert that any future attempts to perform the failed operation will also be met with failure. A <code>SecurityException</code> is an example of a definite exception in the case of proxy preparation. Thus, when the filtering process results in failure, that failure occurs either because the object being filtered does not currently match the given criteria, or a definite exception occurs as a result of proxy preparation (or both). In either case, because it is a virtual certainty that failure will again result on all future attempts to filter the object (that is, perform matching and/or proxy preparation), no attempt is made to retry the operation.
+<p>
+Except for the modifications that may result from filtering as previously described, this method must not modify any other aspect of the contents of the input <code>ServiceItem</code> object because doing so can result in unpredictable and undesirable effects on future processing by the <code>ServiceDiscoveryManager</code>. Therefore, the effects of such modifications are undefined.
+<h4 class="Heading3">
+  <a name="1004648"> </a>SD.5.3	 The <code>ServiceDiscoveryEvent</code> Class
+</h4>
+<p class="Body">
+  <a name="1020364"> </a>The <code>ServiceDiscoveryEvent</code> class encapsulates the service discovery information made available by the event mechanism of the <code>LookupCache</code>. All listeners that an entity has registered with the cache's event mechanism will receive an event of type <code>ServiceDiscoveryEvent</code> upon the discovery, removal, or modification of one of the cache's services, as described previously in "<a href="servicediscutil-spec.html#1003637">Events and the Cache</a>."
+</p>
+<p class="Body">
+  <a name="1020368"> </a>This class is a subclass of the class <code>EventObject</code>. In addition to the methods of the <code>EventObject</code> class, this class provides two additional accessor methods that can be used to retrieve the additional state associated with the event: <code>getPreEventServiceItem</code> and <code>getPostEventServiceItem</code>.
+</p>
+<p class="Body">
+  <a name="1004792"> </a>The <code>getSource</code> method of the <code>EventObject</code> class returns the instance of <code>LookupCache</code> from which the given event originated.
+</p>
+<pre  class="Preformatted">
+package net.jini.lookup;
+
+public class ServiceDiscoveryEvent extends EventObject {
+<code>    public</code> ServiceDiscoveryEvent(Object source,
+                                 ServiceItem preEventItem,
+                                 ServiceItem postEventItem)
+<code>                                                {...}
+</code>
+<code>    public</code> ServiceItem getPreEventServiceItem()<code> {...}
+    public</code> ServiceItem getPostEventServiceItem() <code>{...}
+</code>}
+</pre>
+<h5 class="Heading4">
+  <a name="1004661"> </a>SD.5.3.1	 The Semantics
+</h5>
+<p class="Body">
+  <a name="1004662"> </a>The constructor of <code>ServiceDiscoveryEvent</code> takes three arguments: 
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1006810"> </a>An instance of <code>Object</code> corresponding to the instance of <code>LookupCache</code> from which the given event originated<p>
+  <li class="SmartList1"><a name="1006811"> </a>A <code>ServiceItem</code> reference representing the state of the service (associated with the given event) <em class="Emphasis">prior to</em> the occurrence of the event<p>
+  <li class="SmartList1"><a name="1006812"> </a>A <code>ServiceItem</code> reference representing the state of the service <em class="Emphasis">after</em> the occurrence of the event
+</ul>
+
+<p class="Body">
+  <a name="1006803"> </a>If <code>null</code> is passed as the <code>source</code> parameter for the constructor, a <code>NullPointerException</code> will be thrown.
+</p>
+<p class="Body">
+  <a name="1006815"> </a>Depending on the nature of the discovery event, a <code>null</code> reference may be passed as one or the other of the remaining parameters, but never both. If <code>null</code> is passed as both the <code>preEventItem</code> and the <code>postEventItem</code> parameters, a <code>NullPointerException</code> will be thrown.
+</p>
+<p class="Body">
+  <a name="1006813"> </a>Note that the constructor will not modify the contents of either <code>ServiceItem</code> argument. Doing so can result in unpredictable and undesirable effects on future processing by the <code>ServiceDiscoveryManager</code>. That is why the effects of any such modification to the contents of either input parameter are undefined.
+</p>
+<p class="Body">
+  <a name="1006814"> </a>The <code>getPreEventServiceItem</code> method returns an instance of <code>ServiceItem</code> containing the service reference corresponding to the given event. The service state reflected in the returned service item is the state of the service <em class="Emphasis">prior</em> to the occurrence of the event.
+</p>
+<p class="Body">
+  <a name="1004843"> </a>If the event is a discovery event (as opposed to a removal or modification event), then this method will return <code>null</code> because the discovered service had no state in the cache prior to its discovery.
+</p>
+<p class="Body">
+  <a name="1004846"> </a>The <code>getPostEventServiceItem</code> method returns an instance of <code>ServiceItem</code> containing the service reference corresponding to the given event. The service state reflected in the returned service item is the state of the service <em class="Emphasis">after</em> the occurrence of the event.
+</p>
+<p class="Body">
+  <a name="1004847"> </a>If the event is a removal event, then this method will return <code>null</code> because the discovered service has no state in the cache after it is removed from the cache.
+</p>
+<p class="Body">
+  <a name="1006861"> </a>Because making a copy can be a very expensive process, neither accessor method returns a copy of the service reference associated with the event. Rather, each method returns the appropriate service reference from the cache itself. Due to this cost, listeners (see <a href="servicediscutil-spec.html#1004669">Section&nbsp;SD.5.4, "The ServiceDiscoveryListener Interface"</a> below) that receive a <code>ServiceDiscoveryEvent</code> must not modify the contents of the object returned by these methods; doing so could cause the state of the cache to become corrupted or inconsistent because the objects returned by these methods are also members of the cache. This potential for corruption or inconsistency is why the effects of modifying the object returned by either accessor method are undefined.
+</p>
+<h4 class="Heading3">
+  <a name="1004669"> </a>SD.5.4	 The <code>ServiceDiscoveryListener</code> Interface
+</h4>
+<p class="Body">
+  <a name="1004670"> </a>The <code>ServiceDiscoveryListener</code> interface defines the methods used by objects such as a <code>LookupCache</code> to notify an entity that events of interest related to the elements of the cache have occurred. It is the responsibility of the entity wishing to be notified of the occurrence of such events to construct an object that implements the <code>ServiceDiscoveryListener</code> interface and then register that object with the cache's event mechanism. Any implementation of this interface must define the actions to take upon receipt of an event notification. The action taken is dependent on both the application and the particular event that has occurred.
+<p>
+For more information on the event mechanism provided by the cache, refer to the section titled <a href="servicediscutil-spec.html#1003637">"Events and the Cache"</a>.</p>
+<pre  class="Preformatted">
+package net.jini.lookup;
+
+public interface ServiceDiscoveryListener {
+<code>    public</code> void serviceAdded(ServiceDiscoveryEvent event)<code>;
+    public</code> void serviceRemoved(ServiceDiscoveryEvent event)<code>;
+    public</code> void serviceChanged(ServiceDiscoveryEvent event)<code>;
+</code>}
+</pre>
+<h5 class="Heading4">
+  <a name="1004682"> </a>SD.5.4.1	 The Semantics
+</h5>
+<p class="Body">
+  <a name="1004683"> </a>When the cache receives from one of the managed lookup services, an event signaling the <em>registration</em> of a service of interest for the <em>first time</em> (or for the first time since the service has been discarded), the cache applies any requested filtering and, if the service of interest passes the filter (or if no filtering was requested), the cache invokes the <code>serviceAdded</code> method on all instances of <code>ServiceDiscoveryListener</code> that are registered with the cache. Invoking the <code>serviceAdded</code> method notifies the entity that a service of interest that matches any additional selection criteria has been discovered, and is safe to use (if proxy preparation was requested).
+<p>
+When the cache receives, from a managed lookup service, an event signaling the <em>removal</em> of a service of interest from the <em>last</em> such lookup service with which it was registered, the cache invokes the <code>serviceRemoved</code> method on all instances of <code>ServiceDiscoveryListener</code> that are registered with the cache; doing so notifies the entity that a service of interest has been discarded.
+<p>
+In addition to the scenarios just described, the cache may also receive, from a managed lookup service, a notification indicating that one of the following events has occurred:
+	<ul>
+	<li>The service has changed in some fundamental way (for example, the service is replaced with a new version), as determined by <code>MarshalledInstance.fullyEquals</code>
+	<li>The attributes of interest (across the attribute sets of all references to the service) have been uniquely modified
+	</ul>
+<p>
+Note that when determining whether the proxy referenced in the event is fundamentally different from the corresponding proxy held by the cache (the proxy that references the same service as the proxy from the event), the cache applies <code>MarshalledInstance.fullyEquals</code> to the <em>unprepared</em> forms of both proxies.
+<p class="Body">
+  <a name="1004928"> </a>When the cache receives, from a managed lookup service, a notification indicating that one of the above events has occurred, the cache will first apply any requested filtering to the service referenced by the event; after which the cache will invoke either the <code>serviceChanged</code> method or the <code>serviceRemoved</code> method, possibly followed by the <code>serviceAdded</code> method. Which of those methods the cache ultimately invokes is dependent on the nature of the notification from the lookup service as well as the results of any filtering that is performed.
+<p>
+If the event from the lookup service indicates that attributes of the service have been modified, and if either no filtering is requested or the service referenced by the event passes the filter, then the cache invokes the <code>serviceChanged</code> method on all instances of <code>ServiceDiscoveryListener</code> that are registered with the cache. Invoking the <code>serviceChanged</code> method notifies the entity that the attributes of the previously discovered service have been changed in some way that is still of interest to the entity.
+<p>
+If the event from the lookup service indicates that the previously discovered service itself has changed, then if either filtering is not requested or the service passes the requested filter, the cache invokes the <code>serviceRemoved</code> method and then the <code>serviceAdded</code> method on all instances of <code>ServiceDiscoveryListener that are registered with the cache. Invoking the serviceRemoved</code> method followed by the <code>serviceAdded</code> method notifies the entity that the previously discovered service has been replaced with a new reference.
+<p>
+If, on the other hand, filtering is requested but the service fails the filter, then the cache invokes only the <code>serviceRemoved</code> method on all instances of <code>ServiceDiscoveryListener</code> that are registered with the cache. In this case, the <code>serviceRemoved</code> method is invoked because the cache has concluded that the previously discovered service has been replaced with a new reference that is either no longer of interest to the entity, or is not safe to use.
+<p>
+Finally, if filtering is requested but the filtering process results in an indefinite state, then the cache first invokes the <code>serviceRemoved</code> method (to indicate to the entity that the service is currently unusable), and then periodically retries the filter for an implementation-dependent amount of time that is likely to exceed the typical service lease duration, until either a failure occurs or a pass occurs. If a pass occurs within the retry time period, the cache invokes the <code>serviceAdded</code> method because the cache has concluded that the previously discovered service has been replaced with a new reference that is still of interest to the entity, and is now safe to use.</p>
+<p>
+The methods described above -- <code>serviceAdded</code>, <code>serviceRemoved</code>, and <code>serviceChanged</code> -- each take a single parameter of type <code>ServiceDiscoveryEvent</code>, which contains references to the service item corresponding to the event, including representations of the service's state both before and after the event.
+<p>
+Except for possible modifications that result from filtering, each method defined by this interface must not modify the contents of the <code>ServiceDiscoveryEvent</code> parameter; doing so can result in unpredictable and undesirable effects on future processing by the <code>ServiceDiscoveryManager</code>. Therefore, the effects of such modifications are undefined.
+<p>
+The <code>ServiceDiscoveryListener</code> interface makes the following concurrency guarantee: for any given listener object that implements this interface or any sub-interface, no two methods defined by the interface or sub-interface will be invoked at the same time by the same cache. This applies to different invocations of the same or different methods, on the same or different listeners registered with a single cache. For example, the <code>serviceRemoved</code> method of one listener will not be invoked while the invocation of another listener's <code>serviceAdded</code>, <code>serviceRemoved</code> or <code>serviceChanged</code> method is in progress. Similarly, the one listener's <code>serviceRemoved</code> method will not be invoked while that same listener's <code>serviceAdded</code> or <code>serviceChanged</code> method is in progress.
+<p>
+Finally, it should be noted that the intent of the methods of this interface is to allow the recipient of the <code>ServiceDiscoveryEvent</code> to be informed that a service has been added to, removed from, or modified in the cache. Calls to these methods are synchronous to allow the entity that makes the call (for example, a thread that interacts with the various lookup services of interest) to determine whether or not the call succeeded. However, it is not part of the semantics of the call that the notification return can be delayed while the recipient of the call reacts to the occurrence of the event. It is therefore highly recommended that implementations of this interface avoid time consuming operations and return from the method as quickly as possible. For example, one strategy might be to simply note the occurrence of the <code>ServiceDiscoveryEvent</code> and perform any time-consuming event handling asynchronously.
+<h4 class="Heading3">
+  <a name="1015444"> </a>SD.5.5	 The <code>LookupCache</code> Interface
+</h4>
+<p class="Body">
+  <a name="1000994"> </a>The <code>LookupCache</code> interface defines the methods provided by the object created and returned by the <code>ServiceDiscoveryManager</code> when an entity invokes the <code>createLookupCache</code> method. Within this object are stored the discovered service references that match criteria defined by the entity. Through this interface the entity may retrieve one or more of the stored service references, register and unregister with the cache's event mechanism, and terminate all of the cache's processing.
+</p>
+<pre  class="Preformatted">
+package net.jini.lookup;
+
+public interface LookupCache {
+<code>    public</code> ServiceItem   lookup(ServiceItemFilter filter);
+
+<code>    public</code> ServiceItem[] lookup(ServiceItemFilter filter,
+                                int maxMatches);
+
+<code>    public</code> void addListener
+                         (ServiceDiscoveryListener listener);
+<code>    public</code> void removeListener
+                         (ServiceDiscoveryListener listener);
+
+<code>    public</code> void discard(Object serviceReference);
+
+<code>    public</code> void terminate();
+}
+</pre>
+<h5 class="Heading4">
+  <a name="1007904"> </a>SD.5.5.1	 The Semantics
+</h5>
+<p class="Body">
+  <a name="1015333"> </a>Depending on which version is invoked, the <code>lookup</code> method of the <code>LookupCache</code> interface returns one or more elements--each matching the input criteria--that were stored in the associated cache. The object that is returned is either a single instance of <code>ServiceItem</code> or a set of service references in the form of an array of <code>ServiceItem</code> objects. Each service item that is returned by either form of this method must have been previously discovered both to be registered with one or more of the lookup services in the managed set and to match criteria defined by the entity.
+</p>
+<p class="Body">
+  <a name="1007053"> </a>One argument is common to both forms of <code>lookup</code>: an instance of <code>ServiceItemFilter</code>. The semantics of the <code>filter</code> argument are identical to those of the <code>filter</code> argument specified for a number of the methods defined in the interface of the <code>ServiceDiscoveryManager</code> utility class. This argument is intended to allow an entity to separate its filtering into two steps: an initial filter (referred to as a <em>first stage</em> filter) applied during the discovery phase and then a <em>second stage</em> filter applied upon retrieval from the cache. As with the methods of the <code>ServiceDiscoveryManager</code>, if <code>null</code> is the value of this argument, then no additional filtering will be performed.
+</p>
+<p class="Body">
+  <a name="1007356"> </a>The second form of the <code>lookup</code> method of the <code>LookupCache</code> interface takes an additional argument: a parameter of type <code>int</code> that represents the maximum number of matches that should be returned. The array returned by this form of <code>lookup</code> will contain no more than the requested number of service references, although it may contain fewer than that number. The value input to this argument must be positive; otherwise, an <code>IllegalArgumentException</code> will be thrown.
+</p>
+<p class="Body">
+  <a name="1007395"> </a>If the cache is empty, or if no service can be found that matches the input criteria, then the first form of <code>lookup</code> will return <code>null</code>, whereas the second form of <code>lookup</code> will return an empty array. The algorithm used to select the return element(s) from the set of matching service references is implementation dependent.
+</p>
+<p class="Body">
+  <a name="1007396"> </a>Neither form of the <code>lookup</code> method of the <code>LookupCache</code> interface returns a copy of the matching service reference(s) that were selected; rather, each form returns the actual service reference(s) from the cache itself. Because the actual service reference(s) are returned, entities that invoke either form of this method must not modify the contents of the returned reference(s). Modifying the returned service reference(s) could cause the state of the cache to become corrupted or inconsistent. This potential for corruption or inconsistency is why the effects of modifying the service reference(s) returned by either form of <code>lookup</code> is undefined.
+</p>
+<p class="Body">
+  <a name="1007063"> </a>Typically, an entity will request the creation of a separate cache for each service type of interest. When the entity simply needs a reference to a service of a particular type, the entity should invoke the first form of <code>lookup</code> to retrieve one element from the cache; in this case, which particular service reference that is returned will not, in general, matter to the entity. If for some reason it does matter to an entity which service reference is returned, then the entity can invoke the second form of <code>lookup</code> requesting that <code>Integer.MAX_VALUE</code> service references be returned; doing so will return all elements of the cache that match the input criteria. The entity can then iterate through each element, selecting the desired reference.
+</p>
+<p class="Body">
+  <a name="1007096"> </a>The <code>addListener</code> method will register a <code>ServiceDiscoveryListener</code> object with the event mechanism of a <code>LookupCache</code>. This listener object will receive a <code>ServiceDiscoveryEvent</code> upon the discovery, removal, or modification of one of the cache's services, as described previously in "<a href="servicediscutil-spec.html#1003637">Events and the Cache</a>." This method takes one argument: a reference to the <code>ServiceDiscoveryListener</code> object to register.
+</p>
+<p class="Body">
+  <a name="1019312"> </a>If <code>null</code> is input to the <code>addListener</code> method, a <code>NullPointerException</code> is thrown. If the object input is a duplicate (using the <code>equals</code> method) of another element in the set of listeners, no action is taken.
+</p>
+<p class="Body">
+  <a name="1019306"> </a>Once a listener is registered, it will be notified of all service references discovered to date, and will be notified as new services are discovered and existing services are modified or discarded.
+</p>
+<p class="Body">
+  <a name="1019307"> </a>The <code>LookupCache</code> makes a reentrancy guarantee with respect to any <code>ServiceDiscoveryListener</code> objects registered with it. Should the <code>LookupCache</code> invoke a method on a registered listener (a local call), any call from that method to a local method of the <code>LookupCache</code> is guaranteed not to result in a deadlock condition.
+</p>
+<p class="Body">
+  <a name="1002384"> </a>The <code>removeListener</code> method will remove a <code>ServiceDiscoveryListener</code> object from the set of listeners currently registered with a <code>LookupCache</code>. Once all listeners are removed from the cache's set of listeners, the cache will send no more <code>ServiceDiscoveryEvent</code> notifications. This method takes one argument: a reference to the <code>ServiceDiscoveryListener</code> object to remove.
+</p>
+<p class="Body">
+  <a name="1007123"> </a>If the parameter value to <code>removeListener</code> is <code>null</code>, or if the listener passed to this method does not exist in the set of listeners maintained by the implementation class, then this method will take no action.
+</p>
+<p class="Body">
+  <a name="1012214"> </a>If an entity determines that a service reference retrieved from the cache is no longer available, the entity should request the removal of that reference from the cache. The mechanism for discarding an unavailable service from the cache is provided by the <code>discard</code> method of the <code>LookupCache</code> interface. The discard method takes one argument: an instance of <code>Object</code> whose reference is the service reference to remove from the cache. If the proxy input to this method is <code>null</code>, or if it matches (using the <code>equals</code> method) none of the service references in the cache, this method takes no action.
+</p>
+<p class="Body">
+  <a name="1019022"> </a>The <code>discard</code> method not only deletes the service reference from the cache, but also causes a notification to be sent to all registered listeners indicating that the service has been discarded (see the description of the <code>serviceRemoved</code> method in the section that specifies the <code>ServiceDiscoveryListener</code> interface). The service is guaranteed to have been removed from the cache when this method completes successfully; the service is then said to have been <code>discarded.</code> No such guarantee is made with respect to when the discard event is sent to the client's registered listeners. That is, the event that notifies the client that the service has been discarded may or may not be sent asynchronously.
+</p>
+<p class="Body">
+  <a name="1002449"> </a>With respect to discarding services, there is a situation that must be handled by all implementations of the <code>LookupCache</code>. Because the <code>LookupCache</code> discovers a service through a lookup service rather than through the service itself, there is a danger that, unless the <code>LookupCache</code> takes action (described below), once a service has been discarded, it may never be rediscovered. This can happen because even though a service may be discarded from the cache, it may not be discarded from the lookup services with which it is registered.
+</p>
+<p class="Body">
+  <a name="1019544"> </a>To understand this situation, it might help to first consider the conditions under which a service is normally discarded from the cache and then rediscovered. An entity typically discards a service when the entity determines that the service has become unavailable. Recall that a service usually becomes unavailable to an entity when the service crashes, the service is shut down, or the link between the entity and the service experiences a <em class="Emphasis">network partition</em>. Under normal circumstances, when a well-defined service becomes unavailable because it has crashed or has been shut down, and the entity--after determining that the service is unavailable--discards the service, the cache will rediscover the service when the service comes back on line. The service is rediscovered because a well-behaved service will typically reregister with each lookup service with which it was registered prior to crashing or shutting down. Note that such a service will reregister even when its original lease with a lookup service is still valid. When the service reregisters with a lookup service, the lookup service notifies the cache's listener that a reregistration has occurred, and the service is then rediscovered.
+</p>
+<p class="Body">
+  <a name="1019545"> </a>A special case of the scenario just described involves services that choose to persist their leases. Typically, when a service that persists its leases comes back on line after a crash or a shutdown, the service will <em class="Emphasis">not</em> reregister with any lookup service for which the associated lease is still valid. If none of the service's leases expire during the period in which the service is down, then when the service comes back on line, it will never reregister with any of the desired lookup services, and the cache will never be notified that the discarded service has become available once again. 
+</p>
+<p class="Body">
+  <a name="1019793"> </a>Therefore it is important to note that there are conditions that may hinder rediscovering certain types of services that were discarded as a result of a crash or shutdown. This situation should not occur with any frequency because services that persist their leases are expected to be less common than other types of services. However, there is a common scenario in which <em class="Emphasis">any</em> type of service may be discarded but never rediscovered. This new scenario is characterized not by service crashes or shutdowns, but by communication failures. In this situation, communication failures cause only the entity to view the service as unavailable; that is <em class="Emphasis">each lookup service in the managed set can still communicate with the service</em>.
+</p>
+<p class="Body">
+  <a name="1019635"> </a>As with service crashes or shutdowns, communication failures between the entity and the service can also cause the entity to discard the service. But problems can arise when the communication failures occur between the entity and the service, but not between the service and any of the lookup services in the managed set. Although the service never goes down, it is still discarded by the entity because the inability to communicate with the service causes the entity to view the service as unavailable. But because the service can still communicate with the lookup services, the service will continue renewing its residency in each lookup service. Thus, since none of the service's leases expire, the service never reregisters with any of the lookup services, and the lookup services will never send events to the cache's listener that cause the service to be rediscovered.
+</p>
+<p class="Body">
+  <a name="1019404"> </a>To address the scenarios described above, all implementations must do the following when a service is discarded from the cache:
+</p>
+<ul>
+
+  <li class="SmartList1"><a name="1019414"> </a>Place the reference to the discarded service in separate storage, and remove the reference from the cache's storage (to guarantee that subsequent queries of the cache do not return that same unavailable reference).<p>
+  <li class="SmartList1"><a name="1019415"> </a>Wait an implementation-dependent amount of time that is likely to exceed the typical service lease duration.<p>
+  <li class="SmartList1"><a name="1019423"> </a>If a <code>ServiceEvent</code> with a transition equal to <code>TRANSITION_MATCH_NOMATCH</code> is received (indicating that the service's lease has expired), then the service reference that was set aside can be flushed, and the service is then truly discarded.<p>
+  <li class="SmartList1"><a name="1019416"> </a>If such a <code>ServiceEvent</code> is not received (indicating that a transient communication failure probably occurred), the service reference that was set aside should be placed back in the cache's local storage, and if the entity is registered for events from the cache, the appropriate event should be sent to the entity's registered listener.
+</ul>
+
+<p class="Body">
+  <a name="1019389"> </a>The <code>terminate</code> method performs cleanup duties related to the termination of the processing being performed by a particular instance of <code>LookupCache</code>. For that instance, this method cancels all event leases granted by the lookup services that supplied the contents of the cache, and unexports all remote listener objects registered with those lookup services. The <code>terminate</code> method is typically called when the entity is no longer interested in the contents of the <code>LookupCache</code>. Upon completion of the termination process, the semantics of all current and future method invocations on the current instance of <code>LookupCache</code> are undefined.
+</p>
+<p class="Body">
+  <a name="1019010"> </a>
+<h3 class="Heading2">
+  <a name="01886"> </a>SD.6	 History	 
+</h3>
+ 
+
+
+<table align="center" border="1" bordercolorlight="#FFFFFF" bordercolordark="#000000" cellpadding="5" cellspacing="0" summary="changes made to this specification">
+  <caption><p class="Body">
+  <a name="01887"> </a>
+</p>
+</caption>
+  <tr bgcolor="#CCCCCC">
+    <th>Version</th>
+    <th>Description</th>
+  </tr>
+ <tr>
+    <td valign="top">v1.0
+	</td>
+    <td>Initial release of this specification.
+</td>
+  </tr>
+    <tr>
+    <td valign="top">v2.0</td>
+    <td>New constructors added to accommodate configuration, along with supporting text.<br>
+New specification for the determining when two service proxies are "fully" equal.<br>
+Additions to the specifications for <code>ServiceItemFilter</code> and <code>ServiceDiscoveryListener</code> that allow for tri-state filters and retrying filters when transient failures occur.<br>
+Changed some wording throughout this specification related to filtering and how filtering now may entail more than matching.<br>
+Miscellaneous corrections.</td>
+  </tr>
+</table>
+<h3 class="Heading2">
+  <a name="0188"> </a>		 License	 
+</h3>
+<p>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+</blockquote>
+
+<hr>
+<a href="#skip" title="Skip navigation bar"></a>
+<table width="100%"><tr>
+<td align=left><a href="../../spec-index.html">Spec Index</a>
+<td align=right><em>A Collection of Jini Technology Helper Utilities and Services Specifications</em></td>
+</tr></table>
+<a name="skip"></a>
+
+<hr>
+Licensed to the Apache Software Foundation (ASF) under one
+or more contributor license agreements.  See the NOTICE file
+distributed with this work for additional information
+regarding copyright ownership. The ASF licenses this file
+to you under the Apache License, Version 2.0 (the
+"License"); you may not use this file except in compliance
+with the License. You may obtain a copy of the License at
+<ul>
+     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+</ul>
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+
+</body>
+</html>
+
+<!-- This HTML file was initially created with Quadralay WebWorks Publisher 3.5.0 -->
+<!-- by Susan Snyder -->
+<!-- Last updated: 01/27/05 -->
