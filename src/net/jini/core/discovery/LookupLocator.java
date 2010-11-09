@@ -36,12 +36,17 @@ import javax.net.SocketFactory;
 import net.jini.core.lookup.ServiceRegistrar;
 
 /**
- * A utility class that performs unicast discovery, using version 1 of the
- * unicast discovery protocol.
+ * LookupLocator supports unicast discovery, using only version 1 of the
+ * unicast discovery protocol.  These methods are deprecated, it's main
+ * purpose now is to contain a host name and port number.  It is used
+ * as a parameter in LookupLocatorDiscovery constructors.  LookupLocatorDiscovery
+ * has methods to perform Discovery using either version 1 or 2 with 
+ * constraints.
  *
  * @author Sun Microsystems, Inc.
  *
  * @since 1.0
+ * @see LookupLocatorDiscovery
  */
 public class LookupLocator implements Serializable {
     private static final long serialVersionUID = 1448769379829432795L;
@@ -323,7 +328,9 @@ public class LookupLocator implements Serializable {
      * @throws IOException an error occurred during discovery
      * @throws ClassNotFoundException if a class required to unmarshal the
      * <code>ServiceRegistrar</code> proxy cannot be found
+     * @deprecated Only supports Discovery V1.
      */
+    @Deprecated
     public ServiceRegistrar getRegistrar()
 	throws IOException, ClassNotFoundException
     {
@@ -351,7 +358,9 @@ public class LookupLocator implements Serializable {
      * @throws ClassNotFoundException if a class required to unmarshal the
      * <code>ServiceRegistrar</code> proxy cannot be found
      * @throws IllegalArgumentException if <code>timeout</code> is negative
+     * @deprecated Only supports Discovery V1.
      */
+    @Deprecated
     public ServiceRegistrar getRegistrar(int timeout)
 	throws IOException, ClassNotFoundException
     {
