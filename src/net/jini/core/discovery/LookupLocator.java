@@ -34,6 +34,8 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import javax.net.SocketFactory;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.discovery.ConstrainableLookupLocator;
+import net.jini.discovery.LookupLocatorDiscovery;
 
 /**
  * LookupLocator supports unicast discovery, using only version 1 of the
