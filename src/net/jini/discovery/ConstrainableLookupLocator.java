@@ -172,6 +172,26 @@ public final class ConstrainableLookupLocator
 	this.constraints = constraints;
     }
 
+    @Override
+    public int hashCode() {
+	int hash = super.hashCode();
+	hash = 79 * hash + (this.constraints != null ? this.constraints.hashCode() : 0);
+	return hash;
+    }
+    
+    public boolean equals(Object o){
+	if ( this == o ) return true;
+	if ( o == null ) return false;
+	if ( !(super.equals(o))) return false;
+	if ( o instanceof ConstrainableLookupLocator ) {
+	    ConstrainableLookupLocator that = (ConstrainableLookupLocator) o;
+	    if ( constraints != null ) {
+		if ( constraints.equals(that.constraints) ) return true;
+	    } else if ( constraints == that.constraints) return true;
+	}
+	return false;
+    }
+
     /**
      * Performs unicast discovery as specified by 
      * <code>LookupLocator.getRegistrar()</code> with the following differences.
