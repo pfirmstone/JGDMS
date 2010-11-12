@@ -102,9 +102,11 @@ public class RegistrySunExporter extends SunJrmpExporter {
          * This method is an overridden method from UnicastServerRef which is
          * a sun internal implementation class.
          * 
-         * @depreciated no replacement
+         * @deprecated no replacement
          * @see java.rmi.server.RemoteCall
 	 */
+	@Deprecated
+	@Override
 	public void dispatch(Remote obj, RemoteCall call) throws IOException {
 	    try {
 		useCodebaseOnly.invoke(call.getInputStream(), new Object[0]);

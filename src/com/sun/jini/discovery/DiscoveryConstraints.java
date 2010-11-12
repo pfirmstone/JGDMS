@@ -75,6 +75,42 @@ public class DiscoveryConstraints {
     private final MulticastMaxPacketSize maxPacketSize;
     private final MulticastTimeToLive timeToLive;
     private final UnicastSocketTimeout socketTimeout;
+    private final int hashcode;
+
+    @Override
+    public int hashCode() {
+	return hashcode;
+    }
+    
+    @Override
+    public boolean equals(Object o){
+	if ( o == this ) return true;
+	if ( o.hashCode() != hashcode) return false;
+	if ( o instanceof DiscoveryConstraints) {
+	    DiscoveryConstraints that = (DiscoveryConstraints) o;
+	    if ( unfulfilled != null ) {
+		if ( !unfulfilled.equals(that.unfulfilled) ) return false;
+	    } else if ( unfulfilled != that.unfulfilled) return false;
+	    if (  protocolVersions != null ) {
+		if ( !protocolVersions.equals(that.protocolVersions) ) return false;
+	    } else if ( protocolVersions!= that.protocolVersions) return false;
+	    if (  connectionAbsoluteTime != null ) {
+		if ( !connectionAbsoluteTime.equals(that.connectionAbsoluteTime) ) return false;
+	    } else if ( connectionAbsoluteTime != that.connectionAbsoluteTime) return false;
+	    if (preferredProtocolVersion != that.preferredProtocolVersion) return false;
+	    if ( maxPacketSize  != null ) {
+		if ( !maxPacketSize.equals(that.maxPacketSize) ) return false;
+	    } else if ( maxPacketSize != that.maxPacketSize) return false;    
+	    if (  timeToLive != null ) {
+		if ( !timeToLive.equals(that.timeToLive) ) return false;
+	    } else if ( timeToLive != that.timeToLive) return false;
+	    if (  socketTimeout != null ) {
+		if ( !socketTimeout.equals(that.socketTimeout) ) return false;
+	    } else if ( socketTimeout != that.socketTimeout) return false;    		
+	    return true;	    
+	}
+	return false;
+    }
 
     /**
      * Empty method which serves as a {@link MethodConstraints} key for looking
@@ -163,6 +199,15 @@ public class DiscoveryConstraints {
 	connectionAbsoluteTime = s.isEmpty() ?
 				    null :
 				    (ConnectionAbsoluteTime) getElement(s);
+	int hash = 7;
+	hash = 41 * hash + (this.unfulfilled != null ? this.unfulfilled.hashCode() : 0);
+	hash = 41 * hash + (this.protocolVersions != null ? this.protocolVersions.hashCode() : 0);
+	hash = 41 * hash + this.preferredProtocolVersion;
+	hash = 41 * hash + (this.connectionAbsoluteTime != null ? this.connectionAbsoluteTime.hashCode() : 0);
+	hash = 41 * hash + (this.maxPacketSize != null ? this.maxPacketSize.hashCode() : 0);
+	hash = 41 * hash + (this.timeToLive != null ? this.timeToLive.hashCode() : 0);
+	hash = 41 * hash + (this.socketTimeout != null ? this.socketTimeout.hashCode() : 0);
+	hashcode = hash;
     }
 
     /**

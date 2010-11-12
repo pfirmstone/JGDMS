@@ -68,7 +68,9 @@ import net.jini.security.ProxyPreparer;
  * discovering entity supply this class with specific information about the
  * desired lookup services; namely, the location of the device(s) hosting
  * each lookup service. This information is supplied through an instance
- * of the {@link net.jini.core.discovery.LookupLocator LookupLocator} class.
+ * of the {@link net.jini.core.discovery.LookupLocator LookupLocator} class,
+ * or its subclass {@link net.jini.discovery.ConstrainableLookupLocator
+ * ConstrainableLookupLocator}.
  *
  * @com.sun.jini.impl <!-- Implementation Specifics -->
  *
