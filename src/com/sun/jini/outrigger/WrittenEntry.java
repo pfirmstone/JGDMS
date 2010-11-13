@@ -34,10 +34,10 @@ package com.sun.jini.outrigger;
  * @author Sun Microsystems, Inc.
  *
  * @see OutriggerServerImpl#write
- * @see OutriggerServerImpl#getMatch(EntryRep,Transaction,long,boolean,boolean,RemoteEventListener,long)
  * @see Notifier
  * 
  */
+// @see OutriggerServerImpl#getMatch(EntryRep,Transaction,long,boolean,boolean,RemoteEventListener,long)
 class WrittenEntry {
     /** The time at which this entry was written. */
     private long		timestamp;
