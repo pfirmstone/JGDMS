@@ -49,7 +49,7 @@ import com.sun.jini.logging.Levels;
  *
  * @author Sun Microsystems, Inc.
  *
- * @see com.sun.jini.lookup.JoinManager
+ * @see JoinManager
  * @see JoinAdminState
  */
 class JoinStateManager implements StorableObject {

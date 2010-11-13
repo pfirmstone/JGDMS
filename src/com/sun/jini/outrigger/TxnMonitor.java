@@ -19,7 +19,6 @@ package com.sun.jini.outrigger;
 
 import com.sun.jini.config.Config;
 import com.sun.jini.thread.TaskManager;
-import com.sun.jini.thread.RetryTask;
 import com.sun.jini.thread.WakeupManager;
 
 import net.jini.config.Configuration;

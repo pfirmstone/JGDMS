@@ -85,7 +85,7 @@ class TxnMgrProxy implements TransactionManager, Administrable, Serializable,
      * Creates a transaction manager proxy, returning an instance
      * that implements RemoteMethodControl if the server does too.
      *
-     * @param mailbox the server proxy
+     * @param txnMgr the server proxy
      * @param id the ID of the server
      */
     static TxnMgrProxy create(TxnManager txnMgr, Uuid id) {

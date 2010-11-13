@@ -45,8 +45,8 @@ import com.sun.jini.thread.WakeupManager;
  *
  * @see JavaSpace#notify
  * @see OutriggerServerImpl#notify
- * @see NotifyChit
  */
+// @see NotifyChit
 class Notifier implements com.sun.jini.constants.TimeConstants {
     /** 
      * The object to use for the <code>source</code> when creating

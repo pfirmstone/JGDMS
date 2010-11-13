@@ -144,8 +144,6 @@ class JoinStateManager extends LogHandler {
      *               this is the initial incarnation of this service, 
      *               the object used to get the initial set of groups,
      *               locators, and deployer defined attributes.
-     * @param logPath Path to service's stable storage area. If 
-     *            <code>null</code> then changes will not be persisted.
      * @param service The proxy object to register with lookups.
      * @param baseAttributes Any attributes the implementation wants
      *                       attached, only used if this is the
@@ -715,8 +713,8 @@ class JoinStateManager extends LogHandler {
      * <p>
      * Packages each attribute in its own <code>MarshalledObject</code> so
      * a bad codebase on an attribute class will not corrupt the whole array.
-     * @see JoinAdminActivationState#readAttributes
-     */  
+     */
+    // @see JoinAdminActivationState#readAttributes
     static private void writeAttributes(Entry[] attributes,
                                         ObjectOutput out)
         throws IOException
@@ -741,9 +739,9 @@ class JoinStateManager extends LogHandler {
      * Will try and recover as many attributes as possible.
      * Attributes which can't be recovered won't be returned but they
      * will remain in the log.
-     *   
-     * @see JoinAdminActivationState#writeAttributes
-     */  
+     * 
+     */
+    // @see JoinAdminActivationState#writeAttributes
     static private Entry[] readAttributes(ObjectInput in)
         throws IOException, ClassNotFoundException
     {

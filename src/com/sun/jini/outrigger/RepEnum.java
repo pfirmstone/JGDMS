@@ -17,8 +17,6 @@
  */
 package com.sun.jini.outrigger;
 
-import java.util.Enumeration;
-
 /**
  * An internal interface for enumerating through <code>EntryRep</code>
  * objects inside a JavaSpace server.

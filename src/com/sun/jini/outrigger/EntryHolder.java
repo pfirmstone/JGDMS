@@ -270,8 +270,8 @@ class EntryHolder implements TransactionConstants {
      * transaction at this time. If this is a <code>take</code>, it it
      * is removed or provisionally removed. If this operation is under
      * a transaction, the entry is locked appropriately.
-     * @see grab -- a helper routine 
      */
+    // @see grab -- a helper routine
     private boolean
 	confirmAvailability(EntryRep rep, EntryHandle handle,
 	      TransactableMgr txn, boolean takeIt, long time,

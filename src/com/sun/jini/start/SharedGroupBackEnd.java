@@ -27,11 +27,10 @@ import java.rmi.Remote;
  * @author Sun Microsystems, Inc.
  *
  * @see net.jini.admin.Administrable
- * @see com.sun.jini.start.SharedGroupAdmin
- *
+ * 
  * @since 1.2
  */
-
+//@see com.sun.jini.start.SharedGroupAdmin
 interface SharedGroupBackEnd extends SharedGroup, Remote
 {
     // No additional methods

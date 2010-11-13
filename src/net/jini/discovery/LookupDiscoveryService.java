@@ -19,7 +19,6 @@ package net.jini.discovery;
 
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.RemoteEventListener;
-import net.jini.core.lookup.ServiceID;
 
 import java.rmi.RemoteException;
 import java.rmi.MarshalledObject;

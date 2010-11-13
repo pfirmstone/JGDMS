@@ -39,7 +39,6 @@ import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.Comparator;
 import java.util.WeakHashMap;
 import java.util.logging.Logger;
@@ -50,6 +49,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.loader.ClassLoading;
+import net.jini.space.JavaSpace;
 
 /**
  * An <code>EntryRep</code> object contains a packaged

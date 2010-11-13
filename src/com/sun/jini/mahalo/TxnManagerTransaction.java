@@ -386,7 +386,7 @@ class TxnManagerTransaction
      * caller if the change was successful. Calls to this method
      * synchronize around the manager-side state variable appropriately.
      *
-     * @param int state the new desired state
+     * @param state the new desired state
      */
     boolean modifyTxnState(int state) {
         if (operationsLogger.isLoggable(Level.FINER)) {
@@ -422,7 +422,7 @@ class TxnManagerTransaction
     /**
      * Implementation of the join method. 
      *
-     * @param part The joining <code>TransactionParticpant</code>
+     * @param preparedPart The joining <code>TransactionParticpant</code>
      *
      * @param crashCount The crashcount associated with the joining
      *			 <code>TransactionParticipant</code>

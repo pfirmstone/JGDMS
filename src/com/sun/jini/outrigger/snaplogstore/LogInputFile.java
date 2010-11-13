@@ -28,13 +28,11 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.jini.space.InternalSpaceException;
-import net.jini.id.Uuid;
 
 /**
  * A class to help you read log files created by <code>LogOutputFile</code>.
@@ -64,8 +62,8 @@ class LogInputFile extends LogFile {
      * are currently being created
      *
      * @see java.util.Iterator
-     * @see LogStream#LogStream(String)
      */
+    // @see LogStream#LogStream(String)
     static Iterator logs(String basePath, boolean returnAll)
 	throws IOException
     {
@@ -143,8 +141,8 @@ class LogInputFile extends LogFile {
      * should be getting <code>LogInputFile</code> objects.  When
      * nested classes arrive, this constructor can be properly
      * protected.
-     * @see logs
      */
+    // @see logs
     private LogInputFile(LogFile desc, File path) throws IOException {
 	super(desc.baseDir, desc.baseFile);
 	file = path;

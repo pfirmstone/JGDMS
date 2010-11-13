@@ -22,7 +22,6 @@ import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.net.DatagramPacket;
-import java.net.InetAddress;
 import net.jini.core.lookup.ServiceID;
 
 /**

@@ -85,10 +85,10 @@ class LogOutputFile extends LogFile implements LogOps {
      * <code>Observable</code> notification for this event passes a
      * <code>File</code> argument for the filled file as the argument
      * to <code>Observer</code>.
-     *
-     * @see com.sun.jini.mercury.LogStream#LogStream(String)
+     * 
      * @see #observable()
      */
+    //@see com.sun.jini.mercury.LogStream#LogStream(String)
     LogOutputFile(String basePath, int maxOps) throws IOException {
 	super(basePath);
 	ArrayList inDir = new ArrayList();
