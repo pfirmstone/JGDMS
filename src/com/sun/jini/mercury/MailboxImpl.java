@@ -4426,10 +4426,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      *
      * Note that event state is kept separately and maintained by the 
      * event logging mechanism.
-     * 
-     * @see Mailbox.LocalLogHandler
      */
-
+    //@see Mailbox.LocalLogHandler
     private void takeSnapshot(OutputStream  out) throws IOException {
         if (operationsLogger.isLoggable(Level.FINER)) {
 	    operationsLogger.entering(mailboxSourceClass, 
@@ -4475,9 +4473,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * from the snapshot file; and then modifying that base state according
      * to the records retrieved from the log file. This method is invoked to
      * perform the first step in that reconstruction. 
-     * 
-     * @see Mailbox.LocalLogHandler
      */
+    // @see Mailbox.LocalLogHandler
     private void recoverSnapshot(InputStream in)
 	throws IOException, ClassNotFoundException
     {

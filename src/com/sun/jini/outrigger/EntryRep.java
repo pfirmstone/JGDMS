@@ -502,7 +502,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
      * an object of the same class with the same values for each field.
      * This is <em>not</em> a template match -- see <code>matches</code>.
      *
-     * @see matches
+     * @see #matches
      */
     public boolean equals(Object o) {
 	// The other passed in was null--obviously not equal

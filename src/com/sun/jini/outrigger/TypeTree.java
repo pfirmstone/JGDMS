@@ -43,8 +43,8 @@ class TypeTree {
 
     /**
      * A generator used to randomize the order of iterator returns
-     * @see #RandomizedIterator
      */
+    // @see #RandomizedIterator
     static final private Random numgen = new Random();
 
     /**
@@ -62,9 +62,8 @@ class TypeTree {
 
     /**
      * An iterator that will walk through a list of known types.
-     *
-     * @see #RandomizedIterator
      */
+    // @see #RandomizedIterator
     private abstract class TypeTreeIterator implements Iterator {
 	protected int cursor;		// the current position in the list
 	protected Object[] typearray;	// the list of types as an array

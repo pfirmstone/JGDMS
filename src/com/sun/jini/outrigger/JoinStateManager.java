@@ -50,8 +50,8 @@ import com.sun.jini.logging.Levels;
  * @author Sun Microsystems, Inc.
  *
  * @see JoinManager
- * @see JoinAdminState
  */
+// @see JoinAdminState
 class JoinStateManager implements StorableObject {
     /** <code>ProxyPreparer</code> for <code>LookupLocators</code> */
     private ProxyPreparer lookupLocatorPreparer;
@@ -532,8 +532,8 @@ class JoinStateManager implements StorableObject {
      * <p>
      * Packages each attribute in its own <code>MarshalledObject</code> so
      * a bad codebase on an attribute class will not corrupt the whole array.
-     * @see JoinAdminActivationState#readAttributes
-     */  
+     */
+    // @see JoinAdminActivationState#readAttributes
     static private void writeAttributes(Entry[] attributes,
                                         ObjectOutputStream out)
         throws IOException
@@ -558,9 +558,8 @@ class JoinStateManager implements StorableObject {
      * Will try and recover as many attributes as possible.
      * Attributes which can't be recovered won't be returned but they
      * will remain in the log.
-     *   
-     * @see JoinAdminActivationState#writeAttributes
-     */  
+     */
+    // @see JoinAdminActivationState#writeAttributes
     static private Entry[] readAttributes(ObjectInputStream in)
         throws IOException, ClassNotFoundException
     {

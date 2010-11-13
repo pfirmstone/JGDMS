@@ -23,8 +23,8 @@ package com.sun.jini.outrigger;
  *
  * @author Sun Microsystems, Inc.
  *
- * @see SpaceProxy
  */
+// @see SpaceProxy
 class ThrowThis implements java.io.Serializable {
     static final long serialVersionUID = -7432214583908049814L;
 

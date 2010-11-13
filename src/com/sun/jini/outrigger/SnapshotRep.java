@@ -66,8 +66,8 @@ import net.jini.core.entry.Entry;
  *
  * @author Sun Microsystems, Inc.
  *
- * @see SpaceProxy#snapshot
  */
+// @see SpaceProxy#snapshot
 class SnapshotRep implements Entry {
     static final long serialVersionUID = 5126328162389368097L;
 

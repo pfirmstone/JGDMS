@@ -231,8 +231,8 @@ class TxnMonitorTask extends RetryTask
      * all), we simply add each lease in this task to the monitor's
      * queue.
      *
-     * @see TxnEntryHandle#monitor
      */
+    // @see TxnEntryHandle#monitor
     //!! Would it be worth the overhead to make TxnEntryHandle.monitor
     //!! search for the transaction with the smallest set of leases?  -arnold
     synchronized void addSibling(Txn txn) {

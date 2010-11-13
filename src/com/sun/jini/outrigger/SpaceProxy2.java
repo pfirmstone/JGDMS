@@ -68,8 +68,8 @@ import com.sun.jini.landlord.LandlordLease;
  *
  * @author Sun Microsystems, Inc.
  *
- * @see OutriggerSpace
  */
+// @see OutriggerSpace
 class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 			     Serializable 
 {

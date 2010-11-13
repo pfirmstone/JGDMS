@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.mercury;
 
 import java.io.Serializable;
@@ -41,9 +42,7 @@ class RemoteEventIteratorData implements Serializable {
     /**
      * Creates a new RemoteEventIteratorData instance.
      * @param uuid value of <code>uuid</code> field.
-     * @param reps value of <code>events</code> field.
-     * @param intialLeaseDuration value of <code>intialLeaseDuration</code> 
-     *        field.
+     * @param events value of <code>events</code> field.
      */
     RemoteEventIteratorData(Uuid uuid, Collection events) {
 	this.uuid = uuid;

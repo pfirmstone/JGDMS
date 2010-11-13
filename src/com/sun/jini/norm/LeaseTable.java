@@ -71,7 +71,7 @@ class LeaseTable {
      * Add a mapping from lease wrapper to client lease.  Gets client
      * lease from wrapper.
      *
-     * @param wrapper client lease wrapper, and client lease to add to
+     * @param clw client lease wrapper, and client lease to add to
      *        table
      */
     void put(ClientLeaseWrapper clw) {
@@ -85,7 +85,7 @@ class LeaseTable {
     /**
      * Remove a lease from the table.
      *
-     * @param wrapper client lease wrapper for the lease we want to
+     * @param clw client lease wrapper for the lease we want to
      *	      remove
      */
     void remove(ClientLeaseWrapper clw) {

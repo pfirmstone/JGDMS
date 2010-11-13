@@ -24,8 +24,8 @@ package com.sun.jini.outrigger;
  * @author Sun Microsystems, Inc.
  *
  * @see EntryHolder#contents
- * @see OutriggerServerImpl#AllReps
  */
+// * @see OutriggerServerImpl#AllReps
 interface RepEnum {
     /**
      * Return the next <code>EntryRep</code> object, or <code>null</code>

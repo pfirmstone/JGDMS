@@ -67,10 +67,10 @@ class TxnMonitor implements Runnable {
      * doesn't have to wait for all the setup before returning -- it
      * just puts the data on this list and the <code>TxnMonitor</code>
      * pulls it off using its own thread.
-     *
-     * @see #ToMonitor
+     * 
      * @see OutriggerServerImpl#getMatch 
      */
+    // @see #ToMonitor
     private LinkedList pending = new LinkedList();
 
     /** wakeup manager for <code>TxnMonitorTask</code>s */
