@@ -17,11 +17,13 @@
  */
 package com.sun.jini.example.browser;
 
-import javax.swing.*;
-import javax.swing.plaf.UIResource;
+import java.awt.Color;
+import java.awt.Component;
+import java.awt.Dimension;
+import java.awt.Graphics;
 import javax.swing.plaf.metal.MetalLookAndFeel;
-import java.awt.*;
 import java.io.Serializable;
+import javax.swing.Icon;
 
 /**
  * Based on "MetalIconFactory.java"

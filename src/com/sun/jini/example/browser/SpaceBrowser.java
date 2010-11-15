@@ -17,7 +17,6 @@
  */
 package com.sun.jini.example.browser;
 
-import com.sun.jini.example.browser.EntryTreePanel;
 import com.sun.jini.outrigger.JavaSpaceAdmin;
 import com.sun.jini.outrigger.AdminIterator;
 import net.jini.core.entry.Entry;
@@ -25,8 +24,6 @@ import net.jini.core.entry.UnusableEntryException;
 import net.jini.core.lease.Lease;
 import net.jini.space.JavaSpace05;
 import net.jini.space.MatchSet;
-import java.awt.Toolkit;
-import java.awt.Frame;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.Rectangle;
