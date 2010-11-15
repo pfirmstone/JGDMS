@@ -15,17 +15,29 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.mahalo.log;
 
 import com.sun.jini.logging.Levels;
 import com.sun.jini.mahalo.log.MultiLogManager.LogRemovalManager;
 import com.sun.jini.mahalo.TxnManager;
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
+import java.io.EOFException;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InvalidClassException;
+import java.io.NotSerializableException;
+import java.io.ObjectInputStream;
+import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 
 import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import java.io.*;
 
 /**
  * An implementation of a re-usable <code>Log</code>.

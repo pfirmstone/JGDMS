@@ -26,7 +26,6 @@ import net.jini.id.Uuid;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 
-import java.lang.reflect.Method;
 import java.io.InvalidObjectException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
@@ -34,7 +33,6 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 
-import javax.security.auth.Subject;
 
 import net.jini.admin.JoinAdmin;
 import net.jini.core.discovery.LookupLocator;

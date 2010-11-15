@@ -15,19 +15,16 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.mahalo;
-
-import net.jini.id.Uuid;
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
-import net.jini.security.ProxyPreparer;
-
-import com.sun.jini.mahalo.log.*;
 
 import com.sun.jini.constants.TimeConstants;
 import com.sun.jini.constants.TxnConstants;
 import com.sun.jini.landlord.LeasedResource;
 import com.sun.jini.logging.Levels;
+import com.sun.jini.mahalo.log.ClientLog;
+import com.sun.jini.mahalo.log.LogException;
+import com.sun.jini.mahalo.log.LogManager;
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 
@@ -39,6 +36,20 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Vector;
+
+import net.jini.core.transaction.CannotAbortException;
+import net.jini.core.transaction.CannotCommitException;
+import net.jini.core.transaction.CannotJoinException;
+import net.jini.core.transaction.TimeoutExpiredException;
+import net.jini.core.transaction.Transaction;
+import net.jini.core.transaction.TransactionException;
+import net.jini.core.transaction.server.CrashCountException;
+import net.jini.core.transaction.server.ServerTransaction;
+import net.jini.core.transaction.server.TransactionConstants;
+import net.jini.core.transaction.server.TransactionManager;
+import net.jini.core.transaction.server.TransactionParticipant;
+import net.jini.id.Uuid;
+import net.jini.security.ProxyPreparer;
 
 /**
  * TxnManagerTransaction is a class which

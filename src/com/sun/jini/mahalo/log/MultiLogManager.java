@@ -15,19 +15,19 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.mahalo.log;
 
 import com.sun.jini.logging.Levels;
 import com.sun.jini.mahalo.TxnManager;
 import com.sun.jini.system.FileSystem;
+import java.io.File;
+import java.io.FilenameFilter;
 
 import net.jini.admin.Administrable;
 
-import java.io.*;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 

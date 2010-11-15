@@ -15,17 +15,14 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.mahalo.log;
 
-import com.sun.jini.logging.Levels;
 import com.sun.jini.mahalo.log.MultiLogManager.LogRemovalManager;
 import com.sun.jini.mahalo.TxnManager;
 
-import java.util.ArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
-import java.io.*;
 
 /**
  * An implementation of a non-persistent <code>Log</code>.

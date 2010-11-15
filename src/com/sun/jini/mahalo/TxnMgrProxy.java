@@ -17,17 +17,14 @@
  */
 package com.sun.jini.mahalo;
 
-import com.sun.jini.proxy.ThrowThis;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
-import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ProxyTrustIterator;
 import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 
-import java.lang.reflect.Method;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
@@ -35,10 +32,7 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 
-import javax.security.auth.Subject;
-
 import net.jini.admin.Administrable;
-import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.transaction.server.CrashCountException;
 import net.jini.core.transaction.server.TransactionManager;
