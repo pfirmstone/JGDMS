@@ -18,7 +18,8 @@
 
 package com.sun.jini.reliableLog;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
 
 /** 
  * This class extends the functionality of the java.io.InputStream class

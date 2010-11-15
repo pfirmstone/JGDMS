@@ -18,7 +18,9 @@
 
 package com.sun.jini.reliableLog;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.io.RandomAccessFile;
 
 /** 
  * This class extends the functionality of the java.io.OutputStream class

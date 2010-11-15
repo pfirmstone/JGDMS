@@ -18,9 +18,10 @@
 
 package com.sun.jini.reliableLog;
 
-import java.io.*;
+import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
+import java.io.OutputStream;
 
 /**
  * A LogHandler represents snapshots and update records as serializable
