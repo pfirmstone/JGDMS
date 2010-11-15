@@ -20,9 +20,7 @@ package com.sun.jini.phoenix;
 
 import java.rmi.activation.ActivationGroupDesc;
 import java.security.AccessControlException;
-import java.security.CodeSource;
 import java.security.Permission;
-import java.security.ProtectionDomain;
 import java.util.Enumeration;
 import java.util.Properties;
 import net.jini.jeri.BasicInvocationDispatcher;

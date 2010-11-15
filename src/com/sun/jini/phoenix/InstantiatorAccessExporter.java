@@ -25,7 +25,6 @@ import java.rmi.activation.ActivationDesc;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationInstantiator;
-import java.rmi.activation.ActivationSystem;
 import java.rmi.server.ExportException;
 import net.jini.export.Exporter;
 import net.jini.jrmp.JrmpExporter;

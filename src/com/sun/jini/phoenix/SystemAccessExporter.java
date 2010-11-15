@@ -32,7 +32,6 @@ import java.rmi.activation.UnknownGroupException;
 import java.rmi.server.ExportException;
 import java.util.Map;
 import net.jini.export.Exporter;
-import net.jini.jrmp.JrmpExporter;
 
 /**
  * Exporter that wraps an <code>ActivationSystem</code> instance so that it

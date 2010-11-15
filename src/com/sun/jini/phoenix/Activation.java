@@ -35,7 +35,6 @@ import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UID;
 import java.security.CodeSource;
-import java.security.Permission;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.text.MessageFormat;
@@ -50,7 +49,6 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationNotFoundException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.config.NoSuchEntryException;
-import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
 import net.jini.io.MarshalInputStream;
@@ -64,7 +62,6 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
-import net.jini.security.proxytrust.TrustEquivalence;
 
 /**
  * Phoenix main class.
