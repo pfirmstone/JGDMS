@@ -18,7 +18,6 @@
 
 package com.sun.jini.discovery.ssl;
 
-import com.sun.jini.discovery.DiscoveryFormatProvider;
 import com.sun.jini.discovery.UnicastDiscoveryClient;
 import com.sun.jini.discovery.UnicastResponse;
 import com.sun.jini.discovery.internal.EndpointBasedClient;

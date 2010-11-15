@@ -19,14 +19,12 @@
 package com.sun.jini.discovery.plaintext;
 
 import com.sun.jini.discovery.DatagramBufferFactory;
-import com.sun.jini.discovery.DiscoveryFormatProvider;
 import com.sun.jini.discovery.MulticastAnnouncement;
 import com.sun.jini.discovery.MulticastAnnouncementDecoder;
 import com.sun.jini.discovery.MulticastRequest;
 import com.sun.jini.discovery.MulticastRequestEncoder;
 import com.sun.jini.discovery.UnicastDiscoveryClient;
 import com.sun.jini.discovery.UnicastResponse;
-import com.sun.jini.discovery.internal.BaseProvider;
 import com.sun.jini.discovery.internal.Plaintext;
 import java.io.BufferedInputStream;
 import java.io.IOException;

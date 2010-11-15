@@ -20,7 +20,6 @@ package com.sun.jini.discovery.x500.sha1withdsa;
 
 import com.sun.jini.discovery.DatagramBufferFactory;
 import com.sun.jini.discovery.DelayedMulticastAnnouncementDecoder;
-import com.sun.jini.discovery.DiscoveryFormatProvider;
 import com.sun.jini.discovery.MulticastAnnouncement;
 import com.sun.jini.discovery.MulticastRequest;
 import com.sun.jini.discovery.MulticastRequestEncoder;

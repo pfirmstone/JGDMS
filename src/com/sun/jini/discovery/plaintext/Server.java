@@ -26,7 +26,6 @@ import com.sun.jini.discovery.MulticastRequest;
 import com.sun.jini.discovery.MulticastRequestDecoder;
 import com.sun.jini.discovery.UnicastDiscoveryServer;
 import com.sun.jini.discovery.UnicastResponse;
-import com.sun.jini.discovery.internal.BaseProvider;
 import com.sun.jini.discovery.internal.Plaintext;
 import java.io.BufferedOutputStream;
 import java.io.IOException;
