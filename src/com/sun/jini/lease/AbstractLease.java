@@ -18,12 +18,14 @@
 
 package com.sun.jini.lease;
 
-import net.jini.core.lease.*;
 import java.io.IOException;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.rmi.RemoteException;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.lease.UnknownLeaseException;
 
 /**
  * A base class for implementing lease objects.  This class takes care of

@@ -17,13 +17,13 @@
  */
 package com.sun.jini.lease;
 
-import net.jini.core.lease.*;
-import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.Set;
 import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Iterator;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.LeaseMap;
 
 /**
  * A base class for implementing LeaseMaps.  This class implements all
