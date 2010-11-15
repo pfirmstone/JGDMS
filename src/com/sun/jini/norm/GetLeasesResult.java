@@ -48,7 +48,7 @@ final class GetLeasesResult implements Serializable {
     final MarshalledInstance[] marshalledLeases;
 
     /**
-     * Creates an object that holds the results of a call to {@link #getLeases
+     * Creates an object that holds the results of a call to {@link NormServerBaseImpl#getLeases
      * getLeases}.
      *
      * @param marshalledLeases the leases being returned by the call

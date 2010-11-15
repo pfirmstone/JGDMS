@@ -17,6 +17,7 @@
  */
 package com.sun.jini.outrigger;
 
+import com.sun.jini.proxy.ConstrainableProxyUtil;
 import java.lang.reflect.Method;
 
 /**
@@ -46,8 +47,8 @@ class ProxyUtil {
      * <p>
      * This method is convenient for the initialization of a static
      * variable for use as the <code>mappings</code> argument to 
-     * {@link com.sun.jini.proxy.SecureProxyUtil#translateConstraints 
-     * SecureProxyUtil.translateConstraints}.
+     * {@link ConstrainableProxyUtil#translateConstraints
+     * ConstrainableProxyUtil.translateConstraints}.
      *
      * @param type           the <code>Class</code> type that defines the
      *                       method of interest
