@@ -19,16 +19,14 @@ package com.sun.jini.mahalo;
 
 import net.jini.admin.Administrable;
 import net.jini.admin.JoinAdmin;
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
-
 import com.sun.jini.admin.DestroyAdmin;
 import com.sun.jini.landlord.Landlord;
 import com.sun.jini.start.ServiceProxyAccessor;
-
-import java.rmi.*;
-import java.util.logging.Logger;
-import java.security.AccessController;
+import java.rmi.Remote;
+import java.rmi.RemoteException;
+import net.jini.core.transaction.Transaction;
+import net.jini.core.transaction.UnknownTransactionException;
+import net.jini.core.transaction.server.TransactionManager;
 
 /**
  * Encapsulates the interface of an implementation of

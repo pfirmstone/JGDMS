@@ -17,19 +17,18 @@
  */
 package com.sun.jini.mahalo;
 
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
-
 import com.sun.jini.logging.Levels;
-import com.sun.jini.mahalo.*;
-import com.sun.jini.mahalo.log.*;
-import com.sun.jini.thread.*;
-
+import com.sun.jini.thread.RetryTask;
+import com.sun.jini.thread.TaskManager;
+import com.sun.jini.thread.WakeupManager;
 import java.rmi.RemoteException;
 import java.rmi.NoSuchObjectException;
-import java.util.*;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.transaction.TransactionException;
+import net.jini.core.transaction.server.TransactionConstants;
+import net.jini.core.transaction.server.TransactionManager;
 
 /**
  * A <code>SettlerTask</code> is scheduled task, which

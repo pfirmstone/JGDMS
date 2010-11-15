@@ -17,13 +17,13 @@
  */
 package com.sun.jini.mahalo;
 
-import net.jini.core.transaction.server.*;
-
-import com.sun.jini.thread.*;
-
-import java.util.*;
+import com.sun.jini.thread.RetryTask;
+import com.sun.jini.thread.TaskManager;
+import com.sun.jini.thread.WakeupManager;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.transaction.server.TransactionParticipant;
 
 /**
  * A <code>ParticipantTask</code> is a general task which

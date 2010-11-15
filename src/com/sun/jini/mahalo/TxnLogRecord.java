@@ -17,12 +17,10 @@
  */
 package com.sun.jini.mahalo;
 
-import com.sun.jini.mahalo.log.*;
-
-import net.jini.core.transaction.server.TransactionManager;
+import com.sun.jini.mahalo.log.CannotRecoverException;
+import com.sun.jini.mahalo.log.LogRecord;
 import net.jini.core.transaction.server.TransactionConstants;
 
-import java.rmi.RemoteException;
 /**
  * A <code>LogRecord</code> which encapsulates a generic
  * transactional logging information.

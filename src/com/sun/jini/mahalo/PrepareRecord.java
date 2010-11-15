@@ -15,14 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.mahalo;
 
-import com.sun.jini.mahalo.log.*;
-
-import com.sun.jini.mahalo.ParticipantHandle;
-import net.jini.core.transaction.server.TransactionManager;
-import net.jini.core.transaction.server.TransactionParticipant;
-import java.io.Serializable;
 /**
  * A <code>LogRecord</code> which encapsulates a participant being
  * instructed to vote.

@@ -15,19 +15,20 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.mahalo;
 
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
-
-import com.sun.jini.logging.Levels;
-import com.sun.jini.mahalo.*;
-import com.sun.jini.mahalo.log.*;
-import com.sun.jini.thread.*;
-
+import com.sun.jini.mahalo.log.ClientLog;
+import com.sun.jini.thread.TaskManager;
+import com.sun.jini.thread.WakeupManager;
 import java.rmi.RemoteException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.transaction.Transaction;
+import net.jini.core.transaction.TransactionException;
+import net.jini.core.transaction.server.ServerTransaction;
+import net.jini.core.transaction.server.TransactionConstants;
+import net.jini.core.transaction.server.TransactionParticipant;
 
 /**
  * An implementation of a <code>com.sun.jini.mahalo.Job</code> which
