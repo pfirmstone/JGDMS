@@ -17,11 +17,6 @@
  */
 package com.sun.jini.fiddler;
 
-import com.sun.jini.fiddler.Fiddler;
-import com.sun.jini.fiddler.FiddlerLease;
-import com.sun.jini.fiddler.FiddlerRenewResults;
-import com.sun.jini.fiddler.ProxyUtil;
-
 import com.sun.jini.lease.AbstractLeaseMap;
 import com.sun.jini.proxy.ConstrainableProxyUtil;
 

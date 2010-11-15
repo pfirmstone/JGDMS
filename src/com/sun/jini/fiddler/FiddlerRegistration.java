@@ -17,8 +17,6 @@
  */
 package com.sun.jini.fiddler;
 
-import com.sun.jini.fiddler.ProxyUtil;
-
 import com.sun.jini.proxy.ConstrainableProxyUtil;
 import com.sun.jini.proxy.ThrowThis;
 
@@ -37,8 +35,6 @@ import net.jini.core.event.EventRegistration;
 import net.jini.core.lease.Lease;
 import net.jini.core.lookup.ServiceRegistrar;
 
-import javax.security.auth.Subject;
-
 import java.lang.reflect.Method;
 import java.io.InvalidObjectException;
 import java.io.IOException;
@@ -46,7 +42,6 @@ import java.io.ObjectInputStream;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import java.rmi.UnmarshalException;
 import java.util.ArrayList;
 import java.util.HashSet;
 

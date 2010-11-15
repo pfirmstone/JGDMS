@@ -17,9 +17,6 @@
  */
 package com.sun.jini.fiddler;
 
-import com.sun.jini.fiddler.FiddlerAdmin;
-import com.sun.jini.fiddler.FiddlerRenewResults;
-
 import net.jini.discovery.LookupDiscoveryRegistration;
 
 import com.sun.jini.proxy.ThrowThis;
@@ -31,8 +28,6 @@ import net.jini.core.discovery.LookupLocator;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lease.UnknownLeaseException;
 import net.jini.core.lookup.ServiceRegistrar;
-
-import java.io.IOException;
 
 import java.rmi.MarshalledObject;
 import java.rmi.Remote;

@@ -17,10 +17,6 @@
  */
 package com.sun.jini.fiddler;
 
-import com.sun.jini.fiddler.Fiddler;
-import com.sun.jini.fiddler.FiddlerLeaseMap;
-import com.sun.jini.fiddler.ProxyUtil;
-
 import com.sun.jini.proxy.ConstrainableProxyUtil;
 import com.sun.jini.lease.AbstractLease;
 
@@ -32,12 +28,9 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
-import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
-
-import javax.security.auth.Subject;
 
 import java.lang.reflect.Method;
 import java.io.InvalidObjectException;
