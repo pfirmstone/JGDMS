@@ -17,8 +17,6 @@
  */
 package com.sun.jini.start;
 
-import com.sun.jini.constants.TimeConstants;
-import com.sun.jini.system.FileSystem;
 import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationProvider;
@@ -34,21 +32,13 @@ import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.rmi.MarshalledObject;
-import java.rmi.NoSuchObjectException; 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.Activatable;
 import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.activation.ActivationException;
-import java.rmi.server.UnicastRemoteObject;
-import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.logging.Level;
@@ -56,7 +46,6 @@ import java.util.logging.Logger;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
-import javax.security.auth.login.LoginException;
 
 /**
  * The provided implementation

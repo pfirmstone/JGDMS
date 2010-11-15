@@ -18,8 +18,6 @@
 
 package com.sun.jini.start;
 
-import net.jini.config.Configuration;
-import net.jini.config.ConfigurationException;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -30,49 +28,31 @@ import net.jini.security.policy.PolicyFileProvider;
 
 import java.io.InvalidObjectException;
 import java.io.ObjectStreamException;
-import java.io.PrintWriter;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.net.MalformedURLException;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.rmi.MarshalException;
 import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.StubNotFoundException;
-import java.rmi.UnmarshalException;
 import java.rmi.activation.Activatable;
 import java.rmi.activation.ActivationDesc;
 import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupID;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
-import java.rmi.server.RMIClassLoader;
-import java.rmi.server.RemoteObject;
-import java.rmi.server.RemoteRef;
 import java.security.AccessController;
 import java.security.AllPermission;
 import java.security.cert.Certificate;
 import java.security.CodeSource;
 import java.security.Permission;
-import java.security.PermissionCollection;
-import java.security.Permissions;
 import java.security.Policy;
-import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Security;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.Map;
-import java.util.StringTokenizer;
-import java.util.WeakHashMap;
 
 /**
  * A wrapper for activatable objects, providing separation of the import

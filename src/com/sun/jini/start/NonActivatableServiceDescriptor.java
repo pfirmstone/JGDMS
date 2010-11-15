@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.start;
 
 import com.sun.jini.config.Config;
@@ -33,7 +34,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
 import java.net.URLClassLoader;
 import java.rmi.MarshalledObject;
 import java.security.Permission;

@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.start;
 
 import com.sun.jini.config.Config;
@@ -22,16 +23,12 @@ import com.sun.jini.config.Config;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
-import net.jini.config.NoSuchEntryException;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.Naming;
-import java.rmi.RemoteException;
 import java.rmi.RMISecurityManager;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;

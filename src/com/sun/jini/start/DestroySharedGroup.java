@@ -15,32 +15,28 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.start;
 
-import com.sun.jini.start.ServiceStarter;
-import com.sun.jini.start.ServiceDescriptor;
-import com.sun.jini.start.SharedActivatableServiceDescriptor;
 import com.sun.jini.start.SharedActivatableServiceDescriptor.Created;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationProvider;
 import net.jini.config.ConfigurationException;
 
 import java.io.File;
-import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationSystem;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.MissingResourceException;
 
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 import javax.security.auth.Subject;
 
 import com.sun.jini.system.FileSystem;
+
 /**
  * This class contains the command-line interface for
  * destroying an instance of a shared activation group.

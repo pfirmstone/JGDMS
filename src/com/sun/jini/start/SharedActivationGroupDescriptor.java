@@ -15,13 +15,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.start;
 
-import com.sun.jini.config.Config;
-
 import net.jini.config.Configuration;
-import net.jini.security.BasicProxyPreparer;
-import net.jini.security.ProxyPreparer;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedOutputStream;
@@ -34,7 +31,6 @@ import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
-import java.rmi.activation.ActivationDesc;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupDesc.CommandEnvironment;
@@ -43,7 +39,6 @@ import java.rmi.activation.ActivationSystem;
 import java.rmi.MarshalledObject;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Properties;
 

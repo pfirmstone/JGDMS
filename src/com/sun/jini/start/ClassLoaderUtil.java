@@ -20,27 +20,16 @@ package com.sun.jini.start;
 import java.io.File;
 import java.io.IOException;
 
-import java.lang.reflect.Method;
-
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 
-import java.rmi.Remote;
-import java.rmi.RemoteException;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationID;
-
 import java.security.SecureClassLoader;
 
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.StringTokenizer;
-
-import net.jini.loader.ClassAnnotation;
 
 /** 
  * This class provides useful utilities for creating and
