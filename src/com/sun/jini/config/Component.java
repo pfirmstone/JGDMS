@@ -15,7 +15,11 @@
  */
 package com.sun.jini.config;
 
-import java.lang.annotation.*;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
 /**
  * The Component annotation is used in a Groovy class to indicate what

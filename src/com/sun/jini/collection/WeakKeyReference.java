@@ -17,8 +17,8 @@
  */
 package com.sun.jini.collection;
 
-import java.util.*;
-import java.lang.ref.*;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
 
 /**
  * A weak reference to a key in a table.  Its hash code is that of its

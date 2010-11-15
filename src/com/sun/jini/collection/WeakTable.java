@@ -17,10 +17,11 @@
  */
 package com.sun.jini.collection;
 
-import java.util.*;
-import java.lang.ref.*;
-
 import java.io.PrintStream;
+import java.lang.ref.Reference;
+import java.lang.ref.ReferenceQueue;
+import java.lang.ref.WeakReference;
+import java.util.HashMap;
 
 /**
  * This class is designed to allow weakly held keys to weakly held
