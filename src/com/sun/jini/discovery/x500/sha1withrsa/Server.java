@@ -21,7 +21,6 @@ package com.sun.jini.discovery.x500.sha1withrsa;
 import com.sun.jini.discovery.ClientSubjectChecker;
 import com.sun.jini.discovery.DatagramBufferFactory;
 import com.sun.jini.discovery.DelayedMulticastRequestDecoder;
-import com.sun.jini.discovery.DiscoveryFormatProvider;
 import com.sun.jini.discovery.MulticastAnnouncement;
 import com.sun.jini.discovery.MulticastAnnouncementEncoder;
 import com.sun.jini.discovery.MulticastRequest;
