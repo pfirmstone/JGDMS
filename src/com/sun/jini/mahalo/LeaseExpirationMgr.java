@@ -15,10 +15,9 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.mahalo;
 
-import java.util.Map;
-import java.rmi.RemoteException;
 import java.lang.ref.WeakReference;
 
 import net.jini.core.lease.UnknownLeaseException;

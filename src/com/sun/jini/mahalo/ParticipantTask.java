@@ -17,11 +17,8 @@
  */
 package com.sun.jini.mahalo;
 
-import net.jini.core.transaction.*;
 import net.jini.core.transaction.server.*;
 
-import com.sun.jini.mahalo.*;
-import com.sun.jini.mahalo.log.*;
 import com.sun.jini.thread.*;
 
 import java.util.*;

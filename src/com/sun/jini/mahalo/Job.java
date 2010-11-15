@@ -17,10 +17,11 @@
  */
 package com.sun.jini.mahalo;
 
-import com.sun.jini.mahalo.*;
-import com.sun.jini.thread.*;
-
-import java.util.*;
+import com.sun.jini.thread.TaskManager;
+import com.sun.jini.thread.WakeupManager;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 

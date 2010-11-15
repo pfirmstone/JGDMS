@@ -17,14 +17,9 @@
  */
 package com.sun.jini.mahalo;
 
-import com.sun.jini.mahalo.log.*;
-
+import com.sun.jini.mahalo.log.CannotRecoverException;
 import net.jini.core.transaction.server.TransactionParticipant;
-import net.jini.core.transaction.server.TransactionManager;
 
-import com.sun.jini.mahalo.ParticipantHandle;
-
-import java.io.Serializable;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 

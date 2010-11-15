@@ -17,17 +17,13 @@
  */
 package com.sun.jini.mahalo;
 
-import com.sun.jini.logging.Levels;
-
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
 import net.jini.security.ProxyPreparer;
-
-
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.core.transaction.server.TransactionConstants;
+import net.jini.core.transaction.server.TransactionParticipant;
 
 
 /**
