@@ -18,13 +18,11 @@
 package com.sun.jini.thread;
 
 import com.sun.jini.config.Config;
-import com.sun.jini.constants.TimeConstants;
 
 import java.text.DateFormat;
 import java.util.SortedSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.io.PrintWriter;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;

@@ -17,7 +17,9 @@
  */
 package com.sun.jini.thread;
 
-import java.io.*;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 /**
  * <code>StreamPlugThread</code> is a utility class that "plugs" two streams,

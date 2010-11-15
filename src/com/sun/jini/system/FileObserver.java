@@ -18,8 +18,6 @@
 
 package com.sun.jini.system;
 
-import java.lang.Long;
-import java.lang.String;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Observable;

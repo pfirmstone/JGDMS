@@ -17,7 +17,18 @@
  */
 package com.sun.jini.system;
 
-import java.io.*;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.RandomAccessFile;
+import java.io.Reader;
+import java.io.Writer;
 
 /**
  * <code>CommandLine</code> is a base class for command line parsing
