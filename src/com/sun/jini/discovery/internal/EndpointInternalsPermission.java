@@ -19,7 +19,6 @@
 package com.sun.jini.discovery.internal;
 
 import java.security.BasicPermission;
-import java.security.Permission;
 
 /**
  * Permission required in order to set the EndpointInternals instances stored

@@ -18,8 +18,6 @@
 
 package com.sun.jini.discovery.internal;
 
-import com.sun.jini.discovery.internal.EndpointInternals;
-import com.sun.jini.discovery.internal.EndpointInternalsPermission;
 import net.jini.jeri.kerberos.KerberosEndpoint;
 
 /**
