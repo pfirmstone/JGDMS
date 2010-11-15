@@ -17,7 +17,6 @@
  */
 package com.sun.jini.landlord;
 
-import java.io.Serializable; 
 import net.jini.id.Uuid;
 import net.jini.id.ReferentUuid;
 

@@ -17,7 +17,6 @@
  */
 package com.sun.jini.landlord;
 
-import java.io.Serializable; 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
