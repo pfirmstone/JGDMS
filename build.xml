@@ -41,12 +41,6 @@
     <property name="src.tar.bundle" location="${dist}/${product.name}-src.tar.gz"/>
     <property name="src.zip.bundle" location="${dist}/${product.name}-src.zip"/>
 
-    <!-- javadoc options -->
-    <property name="javadoc.doc-title" value="${product.title} API Documentation"/>
-    <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
-    <property name="javadoc.spec.doc-title" value="${product.title} Specification-only API Documentation"/>
-    <property name="javadoc.spec.win-title" value="${javadoc.spec.doc-title}"/>
-
     <target name="ci-build" description="hudson build target" depends="diagnostics,all.clean,release,javadoc-internals" />
 
     <target name="qa-build" description="hudson QA build target" depends="diagnostics,all.clean,release,qa.run" />
@@ -217,8 +211,14 @@
         <delete dir="${doc.dir}" quiet="true"/>
     </target>
 
-    <target name="-doc-settings">
+    <target name="-doc-settings" description="set javadoc options">
+        
+        <property name="javadoc.doc-title" value="${product.title} API Documentation"/>
+        <property name="javadoc.win-title" value="${javadoc.doc-title}"/>
+        <property name="javadoc.spec.doc-title" value="${product.title} Specification-only API Documentation"/>
+        <property name="javadoc.spec.win-title" value="${javadoc.spec.doc-title}"/>
         <property name="javadoc.source" value="5" />
+
         <path id="javadoc.sourcepath">
             <pathelement path="${src.dir}"/>
         </path>
