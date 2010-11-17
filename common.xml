@@ -108,10 +108,10 @@
 
     <property name="asm.jars.pattern" value="asm*.jar" />
 
-    <property name="debug" value="${ant.debug}"/>
+    <property name="debug" value="true"/>
     <property name="verbose" value="false"/>
-    <!-- Possible values for 'debuglevel': lines,source,vars -->
-    <property name="debuglevel" value="none"/>
+    <!-- Possible values for 'debuglevel': none or combination of lines,source,vars -->
+    <property name="debuglevel" value="lines,source,vars"/>
     <property name="nowarn" value="true"/>
     <property name="deprecation" value="false"/>
 
