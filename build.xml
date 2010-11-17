@@ -1859,8 +1859,10 @@
     </target>
 
     <target name="start.copy-resources" depends="prep">
+        <!--
         <delete dir="${build.classes.dir}/com/sun/jini/start/resources"/>
         <mkdir  dir="${build.classes.dir}/com/sun/jini/start/resources"/>
+        -->
         <copy todir="${build.classes.dir}/com/sun/jini/start/resources">
             <fileset dir="${src.dir}/com/sun/jini/start/resources">
                 <include name="**"/>
@@ -1974,8 +1976,10 @@
     </target>
 
     <target name="tools.copy-resources" depends="prep">
+        <!--
         <delete dir="${build.classes.dir}/com/sun/jini/tool/resources"/>
         <mkdir  dir="${build.classes.dir}/com/sun/jini/tool/resources"/>
+        -->
         <copy todir="${build.classes.dir}/com/sun/jini/tool/resources">
             <fileset dir="${src.dir}/com/sun/jini/tool/resources">
                 <include name="**"/>
