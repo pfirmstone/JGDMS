@@ -252,8 +252,8 @@
                 <jvmarg value="-Dcom.sun.jini.qa.harness.generateHtml=${harness.generateHtml}" />
                 <jvmarg value="-Dcom.sun.jini.qa.harness.generateHtml.title=${harness.generateHtml.title}" />
 
-                <jvmarg value="-Dcom.sun.jini.qa.harness.generateXml=true" />
-
+                <jvmarg value="-Dorg.apache.river.qa.harness.generateJunitXml=true" />
+                
                 <!-- VM args for each test run: include our JDK extension directories
                 $${com.sun.jini.qa.harness.globalvmargs},-Dcom.sun.jini.test.home=$${com.sun.jini.test.home},-Dcom.sun.jini.test.port=$${com.sun.jini.test.port},-Dcom.sun.jini.qa.harness.policies=&lt;url: com/sun/jini/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
                 <!--<jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>-->
@@ -280,7 +280,7 @@
         </sequential>
     </macrodef>
 
-    <target name="run-tests" depends="james-brown" description="Execute specific QA test(s)">
+    <target name="run-tests" depends="harness,james-brown" description="Execute specific QA test(s)">
 	<fail message="use 'ant -Drun.tests=com/sun/jini/test/impl/yourowntest.td run-tests'" unless="run.tests" />
         <testrun>
             <!-- Run specific test(s) -->
@@ -299,7 +299,7 @@
     
     <target name="run-all" depends="run, jtreg" description="Execute QA and Jtreg tests" />
 
-    <target name="run-categories" depends="james-brown" description="Execute QA test categories">
+    <target name="run-categories" depends="harness,james-brown" description="Execute QA test categories">
         <!-- categories can be found under packages com.sun.jini.test.impl and com.sun.jini.test.spec, some of them: -->
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,
@@ -380,6 +380,7 @@
     </target>
 
     <target name="jars" depends="stubs, trust,
+        harness-jars,
         harness-killer.jar,
         harness-killer-dl.jar,
         nonactivatablegroup.jar,
@@ -398,7 +399,6 @@
         qa1-multihomedmetainf.jar,
         jinitests.jar,
         qa1-mainwrapper.jar,
-        jiniharness.jar,
         qaman.jar,
         qa1-start-cb1.jar,
         qa1-start-cb2.jar,
@@ -440,6 +440,13 @@
         qa1-loader-pref.jar,
         qa1-policy-provider.jar"
         description="Generate all JAR files"/>
+
+    <target name="harness-jars" description="build all harness jars" depends="stubs, trust,
+            jiniharness.jar"
+    />
+
+    <target name="harness" depends="harness-jars" description="builds the complete harness" />
+
 
     <target name="stubs" depends="compile,
         harness-killer.stubs,
