@@ -381,10 +381,6 @@
 
     <target name="jars" depends="stubs, trust,
         harness-jars,
-        harness-killer.jar,
-        harness-killer-dl.jar,
-        nonactivatablegroup.jar,
-        nonactivatablegroup-dl.jar,
         mergedpolicyprovider.jar,
         qa1-end2end.jar,
         qa1-fiddler-dl.jar,
@@ -442,8 +438,11 @@
         description="Generate all JAR files"/>
 
     <target name="harness-jars" description="build all harness jars" depends="stubs, trust,
-            jiniharness.jar"
-    />
+        nonactivatablegroup.jar,
+        nonactivatablegroup-dl.jar,
+        harness-killer.jar,
+        harness-killer-dl.jar,
+        jiniharness.jar" />
 
     <target name="harness" depends="harness-jars" description="builds the complete harness" />
 
@@ -475,7 +474,6 @@
 
     <target name="harness-killer.jar" depends="harness-killer.stubs">
         <property name="harness-killer.deps" location="${build.deps.dir}/harness-killer.deps" />
-        <delete file="${lib.dir}/harness-killer.jar" quiet="true"/>
         <classdep output="${harness-killer.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -494,7 +492,6 @@
 
     <target name="harness-killer-dl.jar" depends="harness-killer.stubs">
         <property name="harness-killer-dl.deps" location="${build.deps.dir}/harness-killer-dl.deps" />
-        <delete file="${lib.dir}/harness-killer-dl.jar" quiet="true"/>
         <classdep output="${harness-killer-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -502,7 +499,6 @@
             <arg line="-in com.sun.jini"/>
             <arg value="com.sun.jini.qa.harness.VMKiller"/>
             <arg value="com.sun.jini.qa.harness.KillerImpl_Stub"/>
-
         </classdep>
         <jar destfile="${lib.dir}/harness-killer-dl.jar" index="false">
             <fileset dir="${river.classes.dir}"  includesfile="${harness-killer-dl.deps}" />
@@ -518,7 +514,6 @@
 
     <target name="nonactivatablegroup.jar" depends="nonactivatablegroup.stubs">
         <property name="nonactivatablegroup.deps" location="${build.deps.dir}/nonactivatablegroup.deps" />
-        <delete file="${lib.dir}/nonactivatablegroup.jar" quiet="true"/>
         <classdep output="${nonactivatablegroup.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -528,7 +523,6 @@
             <arg line="-out com.sun.jini.start"	/>
             <arg value="com.sun.jini.qa.harness.NonActivatableGroupImpl"/>
             <arg value="com.sun.jini.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>
-
         </classdep>
         <jar destfile="${lib.dir}/nonactivatablegroup.jar" index="false">
             <fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup.deps}" />
@@ -538,14 +532,12 @@
 
     <target name="nonactivatablegroup-dl.jar" depends="nonactivatablegroup.stubs">
         <property name="nonactivatablegroup-dl.deps" location="${build.deps.dir}/nonactivatablegroup-dl.deps" />
-        <delete file="${lib.dir}/nonactivatablegroup-dl.jar" quiet="true"/>
         <classdep output="${nonactivatablegroup-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg value="com.sun.jini.qa.harness.NonActivatableGroupImpl$$GroupImpl_Stub"/>
-
         </classdep>
         <jar destfile="${lib.dir}/nonactivatablegroup-dl.jar" index="false">
             <fileset dir="${river.classes.dir}"  includesfile="${nonactivatablegroup-dl.deps}" />
@@ -969,7 +961,6 @@
 
     <target name="jiniharness.jar" depends="compile">
         <property name="jiniharness.deps" location="${build.deps.dir}/jiniharness.deps" />
-        <delete file="${lib.dir}/jiniharness.jar" quiet="true"/>
         <classdep output="${jiniharness.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -980,7 +971,6 @@
             <arg line="-in com.sun.jini.qa"/>
             <arg line="-in com.sun.jini.tool"/>
             <arg line="com.sun.jini.start.DestroySharedGroup"/>
-
         </classdep>
         <jar destfile="${lib.dir}/jiniharness.jar" index="false" >
             <fileset dir="${build.classes.dir}" includesfile="${jiniharness.deps}"/>
@@ -997,7 +987,6 @@
     <!-- TODO: find out where this is used for -->
     <target name="qaman.jar" depends="compile">
         <property name="qaman.deps" location="${build.deps.dir}/qaman.deps" />
-        <delete file="${lib.dir}/qaman.jar" quiet="true"/>
         <classdep output="${qaman.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1007,7 +996,6 @@
             <arg line="-show com.sun.jini.qa"/>
             <arg line="-show com.sun.jini.qaman"/>
             <arg line="com.sun.jini.qa.harness.QARunner"/>
-
         </classdep>
         <jar destfile="${lib.dir}/qaman.jar" index="false" manifest="${src.dir}/manifest/qa1.mf">
             <fileset dir="${build.classes.dir}" includesfile="${qaman.deps}"/>
