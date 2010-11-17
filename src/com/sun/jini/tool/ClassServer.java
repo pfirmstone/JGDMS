@@ -29,6 +29,7 @@ import java.io.FilePermission;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.text.MessageFormat;
@@ -255,7 +256,10 @@ public class ClassServer extends Thread {
 	this.verbose = verbose;
 	this.stoppable = stoppable;
 	this.lifeCycle = lifeCycle;
-	server = new ServerSocket(port);
+        server = new ServerSocket();
+        server.setReuseAddress(true);
+        server.bind(new InetSocketAddress(port));
+//	server = new ServerSocket(port);
 	if (!trees)
 	    return;
 	map = new HashMap();
