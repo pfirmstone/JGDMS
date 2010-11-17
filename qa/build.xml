@@ -394,7 +394,6 @@
         qa1-multihomedmetainf.jar,
         jinitests.jar,
         qa1-mainwrapper.jar,
-        qaman.jar,
         qa1-start-cb1.jar,
         qa1-start-cb2.jar,
         qa1-start-cb3.jar,
@@ -437,6 +436,7 @@
         description="Generate all JAR files"/>
 
     <target name="harness-jars" description="build all harness jars" depends="stubs, trust,
+        qaman.jar,
         mergedpolicyprovider.jar,
         nonactivatablegroup.jar,
         nonactivatablegroup-dl.jar,
