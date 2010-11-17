@@ -469,8 +469,10 @@
             browser.jar,
             browser-dl.jar" />
 
-    <target name="compile" description="Build classes"
-		depends="copy-resources,copy-extlibs">
+    <target name="compile" description="Build classes" depends="copy-resources,copy-extlibs">
+
+        <property name="debuglevel" value="lines,source,vars"/>
+
         <javac-cmd source.dir="${src.dir}" dest.dir="${build.classes.dir}">
             <classpath refid="asm.classpath" />
         </javac-cmd>

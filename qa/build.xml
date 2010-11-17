@@ -251,6 +251,9 @@
                 <jvmarg value="-Dcom.sun.jini.qa.harness.configs=${harness.configs}" />
                 <jvmarg value="-Dcom.sun.jini.qa.harness.generateHtml=${harness.generateHtml}" />
                 <jvmarg value="-Dcom.sun.jini.qa.harness.generateHtml.title=${harness.generateHtml.title}" />
+
+                <jvmarg value="-Dcom.sun.jini.qa.harness.generateXml=true" />
+
                 <!-- VM args for each test run: include our JDK extension directories
                 $${com.sun.jini.qa.harness.globalvmargs},-Dcom.sun.jini.test.home=$${com.sun.jini.test.home},-Dcom.sun.jini.test.port=$${com.sun.jini.test.port},-Dcom.sun.jini.qa.harness.policies=&lt;url: com/sun/jini/test/resources/jinitest.policy&gt;-Djava.security.debug=access-->
                 <!--<jvmarg value="-Dcom.sun.jini.qa.harness.globalvmargs=$${com.sun.jini.qa.harness.globalvmargs},-Djava.ext.dirs=${ext.dirs},-Djava.security.debug=access"/>-->
