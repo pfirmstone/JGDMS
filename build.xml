@@ -632,7 +632,6 @@
         <!-- move to sep compile.extra target or add to compile target? -->
         <javac-cmd source.dir="${src-extra.dir}" dest.dir="${build.classes.dir}">
         </javac-cmd>
-        <delete file="${lib.dir}/extra.jar" quiet="true"/>
         <jar destfile="${lib.dir}/extra.jar" index="false">
             <fileset dir="${build.classes.dir}" includes="org/apache/river/extra/**"/>
         </jar>
@@ -642,9 +641,6 @@
         Deprecated since 2.1 - Scheduled for removal (RIVER-365)
     -->
     <target name="jini-core.jar" depends="stubs">
-        <!--
-        <delete file="${lib.dir}/jini-core.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/jini-core.jar" index="false">
             <fileset dir="${build.classes.dir}"
 			 includes="net/jini/core/**"/>
@@ -668,9 +664,6 @@
             <arg path="${build.classes.dir}/net/jini"/>
             <arg path="${build.classes.dir}/com/sun/jini/discovery"/>
         </classdep>
-        <!--
-        <delete file="${lib.dir}/jini-ext.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/jini-ext.jar"
 		     index="false"
 		     manifest="${src.manifest.dir}/jini-ext.mf">
@@ -691,7 +684,6 @@
             <arg value="com.sun.jini.tool.DebugDynamicPolicyProvider"/>
             <arg value="com.sun.jini.tool.ProfilingSecurityManager"/>
         </classdep>
-        <delete file="${lib.dir}/jsk-debug-policy.jar" quiet="true"/>
         <jar destfile="${lib.dir}/jsk-debug-policy.jar"
 		     index="false"
 		     manifest="${src.manifest.dir}/jsk-debug-policy.mf">
@@ -740,7 +732,6 @@
             <arg value="net.jini.lookup.DiscoveryAdmin"/>
             <arg value="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
         </classdep>
-        <delete file="${lib-dl.dir}/jsk-dl.jar" quiet="true"/>
         <jar destfile="${lib-dl.dir}/jsk-dl.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${jsk-dl.deps}"/>
@@ -773,7 +764,6 @@
             <arg value="com.sun.jini.start.LifeCycle"/>
             <arg value="com.sun.jini.start.ServiceProxyAccessor"/>
         </classdep>
-        <delete file="${lib.dir}/jsk-lib.jar" quiet="true"/>
         <jar destfile="${lib.dir}/jsk-lib.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${jsk-lib.deps}"/>
@@ -819,7 +809,6 @@
             <arg value="com.sun.jini.config.KeyStores"/>
             <arg value="com.sun.jini.logging.LogManager"/>
         </classdep>
-        <delete file="${lib.dir}/jsk-platform.jar" quiet="true"/>
         <jar destfile="${lib.dir}/jsk-platform.jar"
 		     index="false"
 		     manifest="${src.manifest.dir}/jsk-platform.mf">
@@ -872,7 +861,6 @@
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
         </classdep>
-        <delete file="${lib-ext.dir}/jsk-policy.jar" quiet="true"/>
         <jar destfile="${lib-ext.dir}/jsk-policy.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${jsk-policy.deps}"/>
@@ -880,7 +868,6 @@
     </target>
 
     <target name="jsk-resources.jar" depends="stubs">
-        <delete file="${lib.dir}/jsk-resources.jar" quiet="true"/>
         <jar destfile="${lib.dir}/jsk-resources.jar"
 		     index="false">
             <fileset dir="${src.manifest.dir}/jsk-resources"
@@ -911,7 +898,6 @@
             <arg value="com.sun.jini.start.ServiceProxyAccessor"/>
             <arg line="-in com.sun.jini"/>
         </classdep>
-        <delete file="${lib.dir}/sun-util.jar" quiet="true"/>
         <jar destfile="${lib.dir}/sun-util.jar"
 		     duplicate="preserve"
 		     index="false">
@@ -949,7 +935,6 @@
             <arg value="com.sun.jini.proxy.BasicProxyTrustVerifier"/>
             <arg value="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
         </classdep>
-        <delete file="${lib-dl.dir}/sdm-dl.jar" quiet="true"/>
         <jar destfile="${lib-dl.dir}/sdm-dl.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${sdm-dl.deps}"/>
@@ -1244,7 +1229,6 @@
     </target>
 
     <target name="serviceui.jar" depends="stubs">
-        <delete file="${lib.dir}/serviceui.jar" quiet="true"/>
         <jar destfile="${lib.dir}/serviceui.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}">
@@ -1268,7 +1252,6 @@
             <arg value="com.sun.jini.example.browser.Browser$$Listener_Stub"/>
             <arg value="com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>
         </classdep>
-        <delete file="${lib.dir}/browser.jar" quiet="true"/>
         <jar destfile="${lib.dir}/browser.jar"
 		     index="false"
 		     manifest="${src.manifest.dir}/browser.mf">
@@ -1288,7 +1271,6 @@
             <arg value="com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>
             <arg value="com.sun.jini.proxy.BasicProxyTrustVerifier"/>
         </classdep>
-        <delete file="${lib-dl.dir}/browser-dl.jar" quiet="true"/>
         <jar destfile="${lib-dl.dir}/browser-dl.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}" includesfile="${browser-dl.deps}"/>
@@ -1327,7 +1309,6 @@
             <arg value="com.sun.jini.fiddler.NonActivatableFiddlerImpl"	/>
             <arg value="com.sun.jini.fiddler.TransientFiddlerImpl"/>
         </classdep>
-        <delete file="${lib.dir}/fiddler.jar" quiet="true" />
         <jar destfile="${lib.dir}/fiddler.jar"
          index="false"
          manifest="${src.manifest.dir}/fiddler.mf">
@@ -1363,7 +1344,6 @@
             <arg value="net.jini.discovery.RemoteDiscoveryEvent"/>
             <arg value="net.jini.lookup.entry.ServiceInfo"/>
         </classdep>
-        <delete file="${lib-dl.dir}/fiddler-dl.jar" quiet="true"/>
         <jar destfile="${lib-dl.dir}/fiddler-dl.jar" index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${fiddler-dl.deps}" />
         </jar>
@@ -1401,7 +1381,6 @@
             <arg value="com.sun.jini.mahalo.MahaloPermission"/>
             <arg value="com.sun.jini.mahalo.TxnManagerImpl_Stub"/>
         </classdep>
-        <delete file="${lib.dir}/mahalo.jar" quiet="true" />
         <jar destfile="${lib.dir}/mahalo.jar"  index="false"
                 manifest="${src.manifest.dir}/mahalo.mf">
             <fileset dir="${build.classes.dir}"  includesfile="${mahalo.deps}" />
@@ -1435,7 +1414,6 @@
             <arg value="com.sun.jini.mahalo.InternalManagerException"/>
             <arg value="com.sun.jini.mahalo.TxnManagerImpl_Stub"/>
         </classdep>
-        <delete file="${lib-dl.dir}/mahalo-dl.jar" quiet="true" />
         <jar destfile="${lib-dl.dir}/mahalo-dl.jar" index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${mahalo-dl.deps}" />
         </jar>
@@ -1473,7 +1451,6 @@
             <arg value="com.sun.jini.mercury.MercuryPermission"	/>
             <arg value="com.sun.jini.mercury.MailboxImpl_Stub"	/>
         </classdep>
-        <delete file="${lib.dir}/mercury.jar" quiet="true" />
         <jar destfile="${lib.dir}/mercury.jar" index="false"
          manifest="${src.manifest.dir}/mercury.mf">
             <fileset dir="${build.classes.dir}"  includesfile="${mercury.deps}" />
@@ -1510,7 +1487,6 @@
             <arg value="net.jini.lookup.entry.Name"/>
             <arg value="net.jini.lookup.entry.ServiceInfo"/>
         </classdep>
-        <delete file="${lib-dl.dir}/mercury-dl.jar" quiet="true" />
         <jar destfile="${lib-dl.dir}/mercury-dl.jar" index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${mercury-dl.deps}" />
         </jar>
@@ -1550,7 +1526,6 @@
             <arg value="com.sun.jini.norm.TransientNormServerImpl"/>
             <arg value="com.sun.jini.reliableLog.LogException"/>
         </classdep>
-        <delete file="${lib.dir}/norm.jar" quiet="true" />
         <jar destfile="${lib.dir}/norm.jar" index="false"
          manifest="${src.manifest.dir}/norm.mf">
             <fileset dir="${build.classes.dir}"  includesfile="${norm.deps}" />
@@ -1584,7 +1559,6 @@
             <arg value="com.sun.jini.start.ServiceProxyAccessor"/>
             <arg value="net.jini.lookup.entry.ServiceInfo"/>
         </classdep>
-        <delete file="${lib-dl.dir}/norm-dl.jar" quiet="true" />
         <jar destfile="${lib-dl.dir}/norm-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${norm-dl.deps}" />
         </jar>
@@ -1620,7 +1594,6 @@
             <arg line="-in com.sun.jini.outrigger.snaplogstore"	/>
             <arg value="com.sun.jini.outrigger.snaplogstore.LogStore"/>
         </classdep>
-        <delete file="${lib.dir}/outrigger-snaplogstore.jar" quiet="true" />
         <jar destfile="${lib.dir}/outrigger-snaplogstore.jar" index="false">
             <fileset dir="${build.classes.dir}"
                 includesfile="${outrigger-snaplogstore.deps}" />
@@ -1640,7 +1613,6 @@
             <arg value="com.sun.jini.outrigger.PersistentOutriggerImpl"	/>
             <arg value="com.sun.jini.outrigger.TransientOutriggerImpl"/>
         </classdep>
-        <delete file="${lib.dir}/outrigger.jar" quiet="true"/>
         <jar destfile="${lib.dir}/outrigger.jar" index="false"
                 manifest="${src.manifest.dir}/outrigger.mf">
             <metainf dir="${src.manifest.dir}/outrigger/META-INF" />
@@ -1666,7 +1638,6 @@
             <arg value="net.jini.lookup.entry.ServiceInfo"/>
             <arg value="net.jini.space.InternalSpaceException"/>
         </classdep>
-        <delete file="${lib-dl.dir}/outrigger-dl.jar" quiet="true" />
         <jar destfile="${lib-dl.dir}/outrigger-dl.jar" index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${outrigger-dl.deps}" />
         </jar>
@@ -1723,7 +1694,6 @@
             com.sun.jini.phoenix.Activation depends on this:-->
             <arg value="com.sun.jini.phoenix.ConstrainableAID"/>
         </classdep>
-        <delete file="${lib.dir}/phoenix.jar" quiet="true" />
         <jar destfile="${lib.dir}/phoenix.jar" index="false"
                 manifest="${src.manifest.dir}/phoenix.mf">
             <fileset dir="${build.classes.dir}"	includesfile="${phoenix.deps}" />
@@ -1752,7 +1722,6 @@
             <arg value="com.sun.jini.phoenix.AbstractSystem_Stub"/>
             <arg value="com.sun.jini.phoenix.AbstractRegistry_Stub"/>
         </classdep>
-        <delete file="${lib-dl.dir}/phoenix-dl.jar" quiet="true" />
         <jar destfile="${lib-dl.dir}/phoenix-dl.jar" index="false">
             <fileset dir="${build.classes.dir}"	includesfile="${phoenix-dl.deps}" />
         </jar>
@@ -1783,7 +1752,6 @@
             <arg value="com.sun.jini.phoenix.InstantiatorPermission"/>
             <arg value="com.sun.jini.phoenix.AbstractInstantiator_Stub"	/>
         </classdep>
-        <delete file="${lib.dir}/phoenix-group.jar" quiet="true" />
         <jar destfile="${lib.dir}/phoenix-group.jar" index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${phoenix-group.deps}" />
             <metainf dir="${src.manifest.dir}/phoenix-group/META-INF" />
@@ -1801,7 +1769,6 @@
             <arg line="-in net.jini"/>
             <arg value="com.sun.jini.phoenix.ActivationGroupInit" />
         </classdep>
-        <delete file="${lib.dir}/phoenix-init.jar" quiet="true" />
         <jar destfile="${lib.dir}/phoenix-init.jar" index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${phoenix-init.deps}" />
         </jar>
@@ -1834,7 +1801,6 @@
             <arg value="com.sun.jini.reggie.RegistrarImpl_Stub"	/>
             <arg value="com.sun.jini.reggie.TransientRegistrarImpl"	/>
         </classdep>
-        <delete file="${lib.dir}/reggie.jar" quiet="true" />
         <jar destfile="${lib.dir}/reggie.jar" index="false"
          manifest="${src.manifest.dir}/reggie.mf">
             <fileset dir="${build.classes.dir}"  includesfile="${reggie.deps}" />
@@ -1869,7 +1835,6 @@
             <arg value="com.sun.jini.reliableLog.LogException"/>
             <arg value="net.jini.lookup.entry.ServiceInfo"/>
         </classdep>
-        <delete file="${lib-dl.dir}/reggie-dl.jar" quiet="true"/>
         <jar destfile="${lib-dl.dir}/reggie-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${reggie-dl.deps}" />
         </jar>
@@ -1913,7 +1878,6 @@
             <arg line="-in com.sun.jini.start"/>
             <arg value="com.sun.jini.start.DestroySharedGroup"/>
         </classdep>
-        <delete  file="${lib.dir}/destroy.jar" quiet="true"/>
         <jar destfile="${lib.dir}/destroy.jar" index="false"
          manifest="${src.manifest.dir}/destroy.mf">
             <fileset dir="${build.classes.dir}" includesfile="${destroy.deps}">
@@ -1933,7 +1897,6 @@
             <arg value="com.sun.jini.start.SharedGroupImpl"	/>
             <arg value="com.sun.jini.start.SharedGroupImpl_Stub"/>
         </classdep>
-        <delete  file="${lib.dir}/group.jar" quiet="true"/>
         <jar destfile="${lib.dir}/group.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${group.deps}" />
         </jar>
@@ -1950,7 +1913,6 @@
             <arg value="com.sun.jini.start.ProxyVerifier"/>
             <arg value="com.sun.jini.start.SharedGroupImpl_Stub"/>
         </classdep>
-        <delete file="${lib-dl.dir}/group-dl.jar" quiet="true"/>
         <jar destfile="${lib-dl.dir}/group-dl.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${group-dl.deps}" />
         </jar>
@@ -1976,7 +1938,6 @@
             <arg line="-in com.sun.jini" />
             <arg value="com.sun.jini.start.ActivateWrapper"/>
         </classdep>
-        <delete  file="${lib.dir}/sharedvm.jar" quiet="true"/>
         <jar destfile="${lib.dir}/sharedvm.jar" index="false"
          manifest="${src.manifest.dir}/sharedvm.mf">
             <fileset dir="${build.classes.dir}" includesfile="${sharedvm.deps}" />
@@ -1997,7 +1958,6 @@
             <arg value="com.sun.jini.start.SharedActivationGroupDescriptor"	/>
             <arg value="com.sun.jini.start.NonActivatableServiceDescriptor"	/>
         </classdep>
-        <delete  file="${lib.dir}/start.jar" quiet="true"/>
         <jar destfile="${lib.dir}/start.jar" index="false"
          manifest="${src.manifest.dir}/start.mf">
             <fileset dir="${build.classes.dir}" includesfile="${start.deps}">
@@ -2068,7 +2028,6 @@
             <arg value="com.sun.jini.tool.envcheck.plugins.CheckPolicy"	/>
             <arg value="com.sun.jini.tool.envcheck.plugins.FileAccessCheckTask"	/>
         </classdep>
-        <delete file="${lib.dir}/tools.jar" quiet="true" />
         <jar destfile="${lib.dir}/tools.jar" index="false"
                 manifest="${src.manifest.dir}/tools.mf">
             <fileset dir="${src.manifest.dir}/tools"
