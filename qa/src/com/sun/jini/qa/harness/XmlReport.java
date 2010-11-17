@@ -17,10 +17,13 @@
  */
 package com.sun.jini.qa.harness;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.io.PrintStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
 import java.util.StringTokenizer;
 
@@ -57,9 +60,8 @@ public class XmlReport {
         if (category == null)
             category = config.getStringConfigVal("category", null);
         if (category == null) {
-            category = "none" ;
-//	    throw new IllegalStateException(
-//		"A category must have been specified to create an XML report");
+	    throw new IllegalStateException(
+		"A category must have been specified to create an XML report");
         } else {
             StringTokenizer st = new StringTokenizer(category, ",");
 	    if (st.countTokens() != 1) {
