@@ -381,7 +381,6 @@
 
     <target name="jars" depends="stubs, trust,
         harness-jars,
-        mergedpolicyprovider.jar,
         qa1-end2end.jar,
         qa1-fiddler-dl.jar,
         qa1-joinmanager-dl.jar,
@@ -438,6 +437,7 @@
         description="Generate all JAR files"/>
 
     <target name="harness-jars" description="build all harness jars" depends="stubs, trust,
+        mergedpolicyprovider.jar,
         nonactivatablegroup.jar,
         nonactivatablegroup-dl.jar,
         harness-killer.jar,
@@ -547,14 +547,12 @@
 
     <target name="mergedpolicyprovider.jar" depends="compile">
         <property name="mergedpolicyprovider.deps" location="${build.deps.dir}/mergedpolicyprovider.deps" />
-        <delete file="${lib.dir}/mergedpolicyprovider-dl.jar" quiet="true"/>
         <classdep output="${mergedpolicyprovider.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in com.sun.jini.qa"/>
             <arg value="com.sun.jini.qa.harness.MergedPolicyProvider"/>
-
         </classdep>
         <jar destfile="${lib-ext.dir}/mergedpolicyprovider.jar" index="false" >
             <fileset dir="${river.classes.dir}" includesfile="${mergedpolicyprovider.deps}"/>
