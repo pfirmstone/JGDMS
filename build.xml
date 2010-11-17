@@ -642,9 +642,10 @@
         Deprecated since 2.1 - Scheduled for removal (RIVER-365)
     -->
     <target name="jini-core.jar" depends="stubs">
+        <!--
         <delete file="${lib.dir}/jini-core.jar" quiet="true"/>
-        <jar destfile="${lib.dir}/jini-core.jar"
-		     index="false">
+        -->
+        <jar destfile="${lib.dir}/jini-core.jar" index="false">
             <fileset dir="${build.classes.dir}"
 			 includes="net/jini/core/**"/>
         </jar>
@@ -667,7 +668,9 @@
             <arg path="${build.classes.dir}/net/jini"/>
             <arg path="${build.classes.dir}/com/sun/jini/discovery"/>
         </classdep>
+        <!--
         <delete file="${lib.dir}/jini-ext.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/jini-ext.jar"
 		     index="false"
 		     manifest="${src.manifest.dir}/jini-ext.mf">
