@@ -45,7 +45,8 @@
 
     <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,all.clean,pre-qa-run,qa.run" />
 
-    <target name="pre-qa-run" depends="release" >
+    <target name="pre-qa-run" depends="configentry,jars" >
+        <ant dir="qa" target="build" inheritall="false" />
     </target>
 
     <target name="copy-resources"
