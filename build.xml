@@ -45,9 +45,18 @@
 
     <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,all.clean,pre-qa-run,qa.run" />
 
-    <target name="pre-qa-run" depends="configentry,jars" >
+    <target name="pre-qa-run" depends="river-runtime" >
         <ant dir="qa" target="build" inheritall="false" />
     </target>
+
+    <target name="river-runtime" description="results in complete river, without release archives"
+        depends="configentry,jars"
+    />
+
+    <target name="build" description="for compatibility" depends="river-runtime,test,river-doc"/>
+
+
+
 
     <target name="copy-resources"
 		description="Copies various resources directories to the classes dir."
@@ -209,7 +218,7 @@
 
     <!-- =========== documentation related ============ -->
 
-    <target name="doc" depends="doc-init,javadoc-api,javadoc-spec,javadoc-internals" />
+    <target name="river-doc" depends="doc-init,javadoc-api,javadoc-spec,javadoc-internals" />
 
     <target name="doc-clean" depends="-doc-settings" >
         <delete dir="${doc.dir}" quiet="true"/>
@@ -2065,9 +2074,7 @@
         <ant dir="qa" target="run" inheritall="false"/>
     </target>
 
-    <target name="build" depends="configentry,test,jars,doc"/>
-
-    <target name="all.build" depends="build"
+    <target name="all.build" depends="river-runtime"
             description="Build all, including subcomponents">
             <!-- Call qa subcomponent build -->
         <ant dir="qa" target="build" inheritall="false" />
@@ -2091,7 +2098,7 @@
         <ant dir="examples/hello" target="compile" inheritall="false" />
     </target>
 
-    <target name="all.doc" depends="jars,doc"
+    <target name="all.doc" depends="jars,river-doc"
             description="Generate javadoc for all, including subcomponents">
         <!-- Call qa subcomponent build -->
         <ant dir="qa" target="doc" inheritall="false" />

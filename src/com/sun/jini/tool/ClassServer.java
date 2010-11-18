@@ -28,6 +28,7 @@ import java.io.FileNotFoundException;
 import java.io.FilePermission;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.BindException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -258,7 +259,11 @@ public class ClassServer extends Thread {
 	this.lifeCycle = lifeCycle;
         server = new ServerSocket();
         server.setReuseAddress(true);
-        server.bind(new InetSocketAddress(port));
+        try {
+            server.bind(new InetSocketAddress(port));
+        } catch( BindException be ) {
+            throw new IOException( "failure to bind to "+port, be );
+        }
 //	server = new ServerSocket(port);
 	if (!trees)
 	    return;
