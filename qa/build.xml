@@ -148,9 +148,7 @@
     <target name="compile" depends="copy-resources" description="Build classes">
         <javac-cmd source.dir="${src.dir}" dest.dir="${build.classes.dir}">
             <classpath refid="river.jars"/>
-            <!--
-            <compilerarg value="-J-Xms128m" />
-            -->
+            <compilerarg value="-J-Xmx128m" />
         </javac-cmd>
     </target>
 
