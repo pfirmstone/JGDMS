@@ -41,9 +41,12 @@
     <property name="src.tar.bundle" location="${dist}/${product.name}-src.tar.gz"/>
     <property name="src.zip.bundle" location="${dist}/${product.name}-src.zip"/>
 
-    <target name="ci-build" description="hudson build target" depends="diagnostics,all.clean,release,javadoc-internals" />
+    <target name="hudson-ci" description="hudson build target" depends="diagnostics,all.clean,release,javadoc-internals" />
 
-    <target name="qa-build" description="hudson QA build target" depends="diagnostics,all.clean,release,qa.run" />
+    <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,all.clean,pre-qa-run,qa.run" />
+
+    <target name="pre-qa-run" depends="release" >
+    </target>
 
     <target name="copy-resources"
 		description="Copies various resources directories to the classes dir."
