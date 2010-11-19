@@ -980,7 +980,7 @@
         <attribute name="prefix"/>
         <sequential>
             <echo message="Creating ${configentry.dir}/@{prefix}-activatable"/>
-            <concat destfile="${configentry.dir}/@{prefix}-activatable">
+            <concat destfile="${configentry.dir}/@{prefix}-activatable" force="no" >
                 <fileset dir="${src.configentry.dir}">
                     <include name="@{prefix}-activatable"/>
                     <include name="@{prefix}-persistent"/>
@@ -997,7 +997,7 @@
         <attribute name="prefix"/>
         <sequential>
             <echo message="Creating ${configentry.dir}/@{prefix}-persistent"/>
-            <concat destfile="${configentry.dir}/@{prefix}-persistent">
+            <concat destfile="${configentry.dir}/@{prefix}-persistent" force="no" >
                 <fileset dir="${src.configentry.dir}">
                     <include name="@{prefix}-persistent"/>
                     <include name="@{prefix}-transient"/>
@@ -1013,7 +1013,7 @@
         <attribute name="prefix"/>
         <sequential>
             <echo message="Creating ${configentry.dir}/@{prefix}-transient"/>
-            <concat destfile="${configentry.dir}/@{prefix}-transient">
+            <concat destfile="${configentry.dir}/@{prefix}-transient" force="no" >
                 <fileset dir="${src.configentry.dir}">
                     <include name="@{prefix}-transient"/>
                 </fileset>
@@ -1071,9 +1071,11 @@
     </target>
 
     <target name="browser.configentry" depends="dis-common-entries">
+        <!--
         <delete file="${configentry.dir}/browser"/>
+        -->
         <echo message="Creating ${configentry.dir}/browser"/>
-        <concat destfile="${configentry.dir}/browser">
+        <concat destfile="${configentry.dir}/browser" force="no" >
             <fileset dir="${src.configentry.dir}">
                 <include name="browser"/>
             </fileset>
@@ -1094,17 +1096,23 @@
 		depends="fiddler-persistent.configentry,
 			 fiddler-transient.configentry,
 			 svc-common-entries">
+        <!--
         <delete file="${configentry.dir}/fiddler-activatable"/>
+        -->
         <create-activatable prefix="fiddler"/>
     </target>
 
     <target name="fiddler-persistent.configentry">
+        <!--
         <delete file="${configentry.dir}/fiddler-persistent"/>
+        -->
         <create-persistent prefix="fiddler"/>
     </target>
 
     <target name="fiddler-transient.configentry">
+        <!--
         <delete file="${configentry.dir}/fiddler-transient"/>
+        -->
         <create-transient prefix="fiddler"/>
     </target>
 
@@ -1137,62 +1145,86 @@
     </target>
 
     <target name="mahalo-activatable.configentry">
+        <!--
         <delete file="${configentry.dir}/mahalo-activatable"/>
+        -->
         <create-activatable prefix="mahalo"/>
     </target>
 
     <target name="mahalo-persistent.configentry">
+        <!--
         <delete file="${configentry.dir}/mahalo-persistent"/>
+        -->
         <create-persistent prefix="mahalo"/>
     </target>
 
     <target name="mahalo-transient.configentry">
+        <!--
         <delete file="${configentry.dir}/mahalo-transient"/>
+        -->
         <create-transient prefix="mahalo"/>
     </target>
 
     <target name="mercury-activatable.configentry">
+        <!--
         <delete file="${configentry.dir}/mercury-activatable"/>
+        -->
         <create-activatable prefix="mercury"/>
     </target>
 
     <target name="mercury-persistent.configentry">
+        <!--
         <delete file="${configentry.dir}/mercury-persistent"/>
+        -->
         <create-persistent prefix="mercury"/>
     </target>
 
     <target name="mercury-transient.configentry">
+        <!--
         <delete file="${configentry.dir}/mercury-transient"/>
+        -->
         <create-transient prefix="mercury"/>
     </target>
 
     <target name="norm-activatable.configentry">
+        <!--
         <delete file="${configentry.dir}/norm-activatable"/>
+        -->
         <create-activatable prefix="norm"/>
     </target>
 
     <target name="norm-persistent.configentry">
+        <!--
         <delete file="${configentry.dir}/norm-persistent"/>
+        -->
         <create-persistent prefix="norm"/>
     </target>
 
     <target name="norm-transient.configentry">
+        <!--
         <delete file="${configentry.dir}/norm-transient"/>
+        -->
         <create-transient prefix="norm"/>
     </target>
 
     <target name="outrigger-activatable.configentry">
+        <!--
         <delete file="${configentry.dir}/outrigger-activatable"/>
+        -->
         <create-activatable prefix="outrigger"/>
     </target>
 
     <target name="outrigger-persistent.configentry">
+        <!--
         <delete file="${configentry.dir}/outrigger-persistent"/>
+        -->
         <create-persistent prefix="outrigger"/>
     </target>
 
     <target name="outrigger-transient.configentry">
+        <!--
         <delete file="${configentry.dir}/outrigger-transient"/>
+        -->
         <create-transient prefix="outrigger"/>
     </target>
 
@@ -1218,17 +1250,23 @@
     </target>
 
     <target name="reggie-activatable.configentry">
+        <!--
         <delete file="${configentry.dir}/reggie-activatable"/>
+        -->
         <create-activatable prefix="reggie"/>
     </target>
 
     <target name="reggie-persistent.configentry">
+        <!--
         <delete file="${configentry.dir}/reggie-persistent"/>
+        -->
         <create-persistent prefix="reggie"/>
     </target>
 
     <target name="reggie-transient.configentry">
+        <!--
         <delete file="${configentry.dir}/reggie-transient"/>
+        -->
         <create-transient prefix="reggie"/>
     </target>
 
