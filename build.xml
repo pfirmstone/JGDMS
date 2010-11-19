@@ -1070,8 +1070,7 @@
 			 dis-common-entries">
     </target>
 
-    <target name="browser.configentry"
-		depends="dis-common-entries">
+    <target name="browser.configentry" depends="dis-common-entries">
         <delete file="${configentry.dir}/browser"/>
         <echo message="Creating ${configentry.dir}/browser"/>
         <concat destfile="${configentry.dir}/browser">
@@ -1085,7 +1084,9 @@
     </target>
 
     <target name="destroy.configentry">
+        <!--
         <delete file="${configentry.dir}/destroy"/>
+        -->
         <copy   file="${src.configentry.dir}/destroy" todir="${configentry.dir}"/>
     </target>
 
@@ -1108,22 +1109,30 @@
     </target>
 
     <target name="JoinManager.configentry">
+        <!--
         <delete file="${configentry.dir}/JoinManager"/>
+        -->
         <copy   file="${src.configentry.dir}/JoinManager" todir="${configentry.dir}"/>
     </target>
 
     <target name="LeaseRenewalManager.configentry">
+        <!--
         <delete file="${configentry.dir}/LeaseRenewalManager"/>
+        -->
         <copy   file="${src.configentry.dir}/LeaseRenewalManager" todir="${configentry.dir}"/>
     </target>
 
     <target name="LookupDiscovery.configentry">
+        <!--
         <delete file="${configentry.dir}/LookupDiscovery"/>
+        -->
         <copy   file="${src.configentry.dir}/LookupDiscovery" todir="${configentry.dir}"/>
     </target>
 
     <target name="LookupLocatorDiscovery.configentry">
+        <!--
         <delete file="${configentry.dir}/LookupLocatorDiscovery"/>
+        -->
         <copy   file="${src.configentry.dir}/LookupLocatorDiscovery" todir="${configentry.dir}"/>
     </target>
 
