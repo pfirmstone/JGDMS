@@ -1188,17 +1188,23 @@
     </target>
 
     <target name="phoenix.configentry">
+        <!--
         <delete file="${configentry.dir}/phoenix"/>
+        -->
         <copy   file="${src.configentry.dir}/phoenix" todir="${configentry.dir}"/>
     </target>
 
     <target name="phoenix-group.configentry">
+        <!--
         <delete file="${configentry.dir}/phoenix-group"/>
+        -->
         <copy   file="${src.configentry.dir}/phoenix-group" todir="${configentry.dir}"/>
     </target>
 
     <target name="phoenix-stop.configentry">
+        <!--
         <delete file="${configentry.dir}/phoenix-stop"/>
+        -->
         <copy   file="${src.configentry.dir}/phoenix-stop" todir="${configentry.dir}"/>
     </target>
 
@@ -1218,22 +1224,30 @@
     </target>
 
     <target name="ServiceDiscoveryManager.configentry">
+        <!--
         <delete file="${configentry.dir}/ServiceDiscoveryManager"/>
+        -->
         <copy   file="${src.configentry.dir}/ServiceDiscoveryManager" todir="${configentry.dir}"/>
     </target>
 
     <target name="sharedgroup.configentry">
+        <!--
         <delete file="${configentry.dir}/sharedgroup"/>
+        -->
         <copy   file="${src.configentry.dir}/sharedgroup" todir="${configentry.dir}"/>
     </target>
 
     <target name="start.configentry">
+        <!--
         <delete file="${configentry.dir}/start"/>
+        -->
         <copy   file="${src.configentry.dir}/start" todir="${configentry.dir}"/>
     </target>
 
     <target name="WakeupManager.configentry">
+        <!--
         <delete file="${configentry.dir}/WakeupManager"/>
+        -->
         <copy   file="${src.configentry.dir}/WakeupManager" todir="${configentry.dir}"/>
     </target>
 
