@@ -92,6 +92,7 @@
             description="Clean up build">
         <delete dir="${jtreg.dir}/JTwork"/>
         <delete dir="${jtreg.dir}/JTreport"/>
+        <delete file="${river-runtime.markerfile}" />
     </target>
 
     <target name="clean-result">
@@ -121,6 +122,27 @@
             </fileset>
         </delete>
     </target>
+
+    <target name="harness-runtime" depends="river-runtime,harness-jars,jinitests.jar" description="builds the complete harness" />
+
+    <!-- == check if river-runtime needs rebuilding == -->
+
+    <property name="river-runtime.markerfile" location="riverruntimelastbuild" />
+
+    <target name="river-runtime" depends="is-river-runtime-uptodate" unless="river-runtime.uptodate">
+        <ant dir="${root}" target="river-runtime" inheritall="false"/>
+        <touch file="${river-runtime.markerfile}" />
+    </target>
+
+    <target name="is-river-runtime-uptodate">
+        <uptodate property="river-runtime.uptodate" targetfile="${river-runtime.markerfile}" >
+            <srcfiles dir="${root}" >
+                <include name="src/" />
+            </srcfiles>
+        </uptodate>
+    </target>
+
+    <!-- ============================================== -->
 
     <target name="james-brown" >
         <property name="soul.dir" location="soul"/>
@@ -281,7 +303,7 @@
         </sequential>
     </macrodef>
 
-    <target name="run-tests" depends="harness,james-brown" description="Execute specific QA test(s)">
+    <target name="run-tests" depends="harness-runtime,james-brown" description="Execute specific QA test(s)">
 	<fail message="use 'ant -Drun.tests=com/sun/jini/test/impl/yourowntest.td run-tests'" unless="run.tests" />
         <testrun>
             <!-- Run specific test(s) -->
@@ -300,7 +322,7 @@
     
     <target name="run-all" depends="run, jtreg" description="Execute QA and Jtreg tests" />
 
-    <target name="run-categories" depends="harness,james-brown" description="Execute QA test categories">
+    <target name="run-categories" depends="harness-runtime,james-brown" description="Execute QA test categories">
         <!-- categories can be found under packages com.sun.jini.test.impl and com.sun.jini.test.spec, some of them: -->
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,
@@ -335,7 +357,7 @@
         <zip basedir="${result.dir}" file="${result.zip}" />
     </target>
 
-    <target name="run" depends="jiniharness.jar">
+    <target name="run" depends="harness-runtime">
         <property name="run.categories"
                 value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager"/>
         <antcall target="run-categories"/>
@@ -444,9 +466,6 @@
         harness-killer.jar,
         harness-killer-dl.jar,
         jiniharness.jar" />
-
-    <target name="harness" depends="harness-jars" description="builds the complete harness" />
-
 
     <target name="stubs" depends="compile,
         harness-killer.stubs,
