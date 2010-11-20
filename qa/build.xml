@@ -581,9 +581,6 @@
     </target>
 
     <target name="qa1-end2end.jar" depends="compile">
-        <!--
-        <delete file="${lib.dir}/qa1-end2end.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-end2end.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/end2end/e2etest/**/*" />
@@ -592,9 +589,6 @@
     </target>
 
     <target name="qa1-wrapper.jar" depends="compile">
-        <!--
-        <delete file="${lib.dir}/qa1-wrapper.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-wrapper.jar" index="false">
             <metainf dir="${src.dir}/com/sun/jini/test/impl/end2end/META-INF/">
                 <include name="**/*" />
@@ -668,9 +662,6 @@
     </target>
 
     <target name="qa1-mahalo-dl.jar" depends="compile">
-        <!--
-        <delete file="${lib.dir}/qa1-mahalo-dl.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-mahalo-dl.jar" index="false" >
             <fileset dir="${river.classes.dir}">
                 <include name="net/jini/lookup/entry/Name.class"/>
@@ -906,9 +897,6 @@
     </target>
 
     <target name="qa1-multihomedmetainf.jar" depends="compile">
-        <!--
-        <delete file="${lib.dir}/qa1-multihomedmetainf.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-multihomedmetainf.jar" index="false" >
             <metainf dir="${src.dir}/com/sun/jini/test/impl/reggie/META-INF">
                 <include name="**/*" />
@@ -1129,9 +1117,6 @@
 
     <target name="qa1-start-tests.jar" depends="qa1-start.stubs">
         <property name="qa1-start-tests.deps" location="${build.deps.dir}/qa1-start-tests.deps" />
-        <!--
-        <delete file="${lib.dir}/qa1-start-tests.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-start-tests.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/ClassLoaderTest.class" />
@@ -1207,9 +1192,6 @@
     </target>
 
     <target name="qa1-start-testservice1-dl.jar" depends="qa1-start.stubs">
-        <!--
-        <delete file="${lib.dir}/qa1-start-testservice1-dl.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-start-testservice1-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/TestService.class" />
@@ -1262,9 +1244,6 @@
     </target>
 
     <target name="qa1-start-testservice2-dl.jar" depends="qa1-start.stubs">
-        <!--
-        <delete file="${lib.dir}/qa1-start-testservice2-dl.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-start-testservice2-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/TestService.class" />
@@ -1316,9 +1295,6 @@
     </target>
 
     <target name="qa1-start-testservicenocons.jar" depends="qa1-start.stubs">
-        <!--
-        <delete file="${lib.dir}/qa1-start-testservicenocons.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-start-testservicenocons.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/TestServiceNoConsImpl.class" />
@@ -1327,9 +1303,6 @@
     </target>
 
     <target name="qa1-start-testservicenocons-dl.jar" depends="qa1-start.stubs">
-        <!--
-        <delete file="${lib.dir}/qa1-start-testservicenocons-dl.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-start-testservicenocons-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/TestService.class" />
@@ -1338,9 +1311,6 @@
     </target>
 
     <target name="qa1-start-cb1.jar" depends="qa1-start.stubs">
-        <!--
-        <delete file="${lib.dir}/qa1-start-cb1.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-start-cb1.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/loadersplitpolicyprovider/Foo.class" />
@@ -1350,9 +1320,6 @@
     </target>
 
     <target name="qa1-start-cb2.jar" depends="qa1-start.stubs">
-        <!--
-        <delete file="${lib.dir}/qa1-start-cb2.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-start-cb2.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/loadersplitpolicyprovider/Bar.class" />
@@ -1362,9 +1329,6 @@
     </target>
 
     <target name="qa1-start-cb3.jar" depends="qa1-start.stubs">
-        <!--
-        <delete file="${lib.dir}/qa1-start-cb3.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-start-cb3.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/CheckContextAction.class" />
@@ -1646,9 +1610,6 @@
     </target>
 
     <target name="qa1-export-servercontext-tests-non-null.jar" depends="compile">
-        <!--
-        <delete file="${lib.dir}/qa1-export-servercontext-tests-non-null.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-export-servercontext-tests-non-null.jar" index="false">
             <metainf dir="${src.dir}/manifest/qa1-export-servercontext-tests/non-null-context/META-INF">
                 <include name="**/*" />
@@ -1657,9 +1618,6 @@
     </target>
 
     <target name="qa1-export-servercontext-tests-null.jar" depends="compile">
-        <!--
-        <delete file="${lib.dir}/qa1-export-servercontext-tests-null.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-export-servercontext-tests-null.jar" index="false">
             <metainf dir="${src.dir}/manifest/qa1-export-servercontext-tests/null-context/META-INF">
                 <include name="**/*" />
@@ -1668,9 +1626,6 @@
     </target>
 
     <target name="qa1-export-servercontext-tests-providers-parsing.jar" depends="compile">
-        <!--
-        <delete file="${lib.dir}/qa1-export-servercontext-tests-providers-parsing.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-export-servercontext-tests-providers-parsing.jar" index="false">
             <metainf dir="${src.dir}/manifest/qa1-export-servercontext-tests/providers-parsing/META-INF">
                 <include name="**/*" />
@@ -1685,9 +1640,6 @@
     </target>
 
     <target name="qa1-io-util-dl.jar" depends="compile">
-        <!--
-        <delete file="${lib.dir}/qa1-io-util-dl.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-io-util-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/spec/io/util/FakeArgument.class" />
@@ -1698,9 +1650,6 @@
 
     <target name="qa1-io-marshalinputstream-test.jar" depends="compile">
         <property name="qa1-io-marshalinputstream-test.deps" location="${build.deps.dir}/qa1-io-marshalinputstream-test.deps" />
-        <!--
-        <delete file="${lib.dir}/qa1-io-marshalinputstream-test.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-io-marshalinputstream-test.jar" index="false">
             <metainf dir="${src.dir}/manifest/qa1-io-tests/META-INF">
                 <include name="**/*" />
@@ -1730,9 +1679,6 @@
 
     <target name="qa1-io-marshalledinstance-test.jar" depends="compile">
         <property name="qa1-io-marshalledinstance-test.deps" location="${build.deps.dir}/qa1-io-marshalledinstance-test.deps" />
-        <!--
-        <delete file="${lib.dir}/qa1-io-marshalledinstance-test.jar" quiet="true"/>
-        -->
         <jar destfile="${lib.dir}/qa1-io-marshalledinstance-test.jar" index="false">
             <metainf dir="${src.dir}/manifest/qa1-io-tests/META-INF">
                 <include name="**/*" />
@@ -1941,7 +1887,9 @@
 
     <target name="qa1-servicediscovery-dl.jar" depends="compile">
         <property name="qa1-servicediscovery-dl.deps" location="${build.deps.dir}/qa1-servicediscovery-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-servicediscovery-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-servicediscovery-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
