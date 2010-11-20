@@ -581,7 +581,9 @@
     </target>
 
     <target name="qa1-end2end.jar" depends="compile">
+        <!--
         <delete file="${lib.dir}/qa1-end2end.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-end2end.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/end2end/e2etest/**/*" />
@@ -590,7 +592,9 @@
     </target>
 
     <target name="qa1-wrapper.jar" depends="compile">
+        <!--
         <delete file="${lib.dir}/qa1-wrapper.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-wrapper.jar" index="false">
             <metainf dir="${src.dir}/com/sun/jini/test/impl/end2end/META-INF/">
                 <include name="**/*" />
@@ -610,7 +614,9 @@
 
     <target name="qa1-fiddler-dl.jar" depends="qa1-fiddler.stubs">
         <property name="qa1-fiddler-dl.deps" location="${build.deps.dir}/qa1-fiddler-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-fiddler-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-fiddler-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -638,7 +644,9 @@
 
     <target name="qa1-joinmanager-dl.jar" depends="qa1-joinmanager.stubs">
         <property name="qa1-joinmanager-dl.deps" location="${build.deps.dir}/qa1-joinmanager-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-joinmanager-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-joinmanager-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -660,7 +668,9 @@
     </target>
 
     <target name="qa1-mahalo-dl.jar" depends="compile">
+        <!--
         <delete file="${lib.dir}/qa1-mahalo-dl.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-mahalo-dl.jar" index="false" >
             <fileset dir="${river.classes.dir}">
                 <include name="net/jini/lookup/entry/Name.class"/>
@@ -680,7 +690,9 @@
 
     <target name="qa1-mercury.jar" depends="qa1-mercury.stubs">
         <property name="qa1-mercury.deps" location="${build.deps.dir}/qa1-mercury.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-mercury.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-mercury.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -735,7 +747,9 @@
 
     <target name="qa1-mercury-dl.jar" depends="qa1-mercury.stubs">
         <property name="qa1-mercury-dl.deps" location="${build.deps.dir}/qa1-mercury-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-mercury-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-mercury-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -786,7 +800,9 @@
 
     <target name="qa1-mercury-bogusimpl.jar" depends="compile">
         <property name="qa1-mercury-bogusimpl.deps" location="${build.deps.dir}/qa1-mercury-bogusimpl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-mercury-bogusimpl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-mercury-bogusimpl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -810,7 +826,9 @@
 
     <target name="qa1-norm-dl.jar" depends="qa1-norm.stubs">
         <property name="qa1-norm-dl.deps" location="${build.deps.dir}/qa1-norm-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-norm-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-norm-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -856,7 +874,9 @@
 
     <target name="qa1-outrigger-dl.jar" depends="qa1-outrigger.stubs">
         <property name="qa1-outrigger-dl.deps" location="${build.deps.dir}/qa1-outrigger-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-outrigger-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-outrigger-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -886,7 +906,9 @@
     </target>
 
     <target name="qa1-multihomedmetainf.jar" depends="compile">
+        <!--
         <delete file="${lib.dir}/qa1-multihomedmetainf.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-multihomedmetainf.jar" index="false" >
             <metainf dir="${src.dir}/com/sun/jini/test/impl/reggie/META-INF">
                 <include name="**/*" />
@@ -899,7 +921,9 @@
 
     <target name="jinitests.jar" depends="stubs">
         <property name="jinitests.deps" location="${build.deps.dir}/jinitests.deps" />
+        <!--
         <delete file="${lib.dir}/jinitests.jar" quiet="true"/>
+        -->
         <classdep output="${jinitests.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -962,7 +986,9 @@
 
     <target name="qa1-mainwrapper.jar" depends="compile">
         <property name="qa1-mainwrapper.deps" location="${build.deps.dir}/qa1-mainwrapper.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-mainwrapper.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-mainwrapper.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1037,7 +1063,9 @@
 
     <target name="qa1-start-probe-dl.jar" depends="qa1-start.stubs">
         <property name="qa1-start-probe-dl.deps" location="${build.deps.dir}/qa1-start-probe-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-start-probe-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-start-probe-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1057,7 +1085,9 @@
 
     <target name="qa1-start-probe.jar" depends="qa1-start.stubs">
         <property name="qa1-start-probe.deps" location="${build.deps.dir}/qa1-start-probe.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-start-probe.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-start-probe.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1099,7 +1129,9 @@
 
     <target name="qa1-start-tests.jar" depends="qa1-start.stubs">
         <property name="qa1-start-tests.deps" location="${build.deps.dir}/qa1-start-tests.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-start-tests.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-start-tests.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/ClassLoaderTest.class" />
@@ -1137,14 +1169,15 @@
 
     <target name="qa1-start-testservice1.jar" depends="qa1-start.stubs">
         <property name="qa1-start-testservice1.deps" location="${build.deps.dir}/qa1-start-testservice1.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-start-testservice1.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-start-testservice1.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
             <arg line="com.sun.jini.test.impl.start.TestServiceImpl"/>
-
         </classdep>
         <jar destfile="${lib.dir}/qa1-start-testservice1.jar" index="false">
             <fileset dir="${build.classes.dir}" includesfile="${qa1-start-testservice1.deps}"/>
@@ -1174,7 +1207,9 @@
     </target>
 
     <target name="qa1-start-testservice1-dl.jar" depends="qa1-start.stubs">
+        <!--
         <delete file="${lib.dir}/qa1-start-testservice1-dl.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-start-testservice1-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/TestService.class" />
