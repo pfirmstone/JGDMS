@@ -1223,7 +1223,9 @@
 
     <target name="qa1-start-testservice2.jar" depends="qa1-start.stubs">
         <property name="qa1-start-testservice2.deps" location="${build.deps.dir}/qa1-start-testservice2.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-start-testservice2.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-start-testservice2.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1260,7 +1262,9 @@
     </target>
 
     <target name="qa1-start-testservice2-dl.jar" depends="qa1-start.stubs">
+        <!--
         <delete file="${lib.dir}/qa1-start-testservice2-dl.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-start-testservice2-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/TestService.class" />
@@ -1274,7 +1278,9 @@
 
     <target name="qa1-start-testservice-common.jar" depends="qa1-start.stubs">
         <property name="qa1-start-testservice-common.deps" location="${build.deps.dir}/qa1-start-testservice-common.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-start-testservice-common.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-start-testservice-common.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1292,7 +1298,9 @@
 
     <target name="qa1-start-testservice-common-dl.jar" depends="qa1-start.stubs">
         <property name="qa1-start-testservice-common-dl.deps" location="${build.deps.dir}/qa1-start-testservice-common-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-start-testservice-common-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-start-testservice-common-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1308,7 +1316,9 @@
     </target>
 
     <target name="qa1-start-testservicenocons.jar" depends="qa1-start.stubs">
+        <!--
         <delete file="${lib.dir}/qa1-start-testservicenocons.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-start-testservicenocons.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/TestServiceNoConsImpl.class" />
@@ -1317,7 +1327,9 @@
     </target>
 
     <target name="qa1-start-testservicenocons-dl.jar" depends="qa1-start.stubs">
+        <!--
         <delete file="${lib.dir}/qa1-start-testservicenocons-dl.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-start-testservicenocons-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/TestService.class" />
@@ -1326,7 +1338,9 @@
     </target>
 
     <target name="qa1-start-cb1.jar" depends="qa1-start.stubs">
+        <!--
         <delete file="${lib.dir}/qa1-start-cb1.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-start-cb1.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/loadersplitpolicyprovider/Foo.class" />
@@ -1336,7 +1350,9 @@
     </target>
 
     <target name="qa1-start-cb2.jar" depends="qa1-start.stubs">
+        <!--
         <delete file="${lib.dir}/qa1-start-cb2.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-start-cb2.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/loadersplitpolicyprovider/Bar.class" />
@@ -1346,7 +1362,9 @@
     </target>
 
     <target name="qa1-start-cb3.jar" depends="qa1-start.stubs">
+        <!--
         <delete file="${lib.dir}/qa1-start-cb3.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-start-cb3.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/start/aggregatepolicyprovider/CheckContextAction.class" />
@@ -1362,7 +1380,9 @@
 
     <target name="qa1-lookup-simulator.jar" depends="qa1-lookup-simulator.stubs">
         <property name="qa1-lookup-simulator.deps" location="${build.deps.dir}/qa1-lookup-simulator.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-lookup-simulator.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-lookup-simulator.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1395,7 +1415,9 @@
 
     <target name="qa1-lookup-simulator-dl.jar" depends="qa1-lookup-simulator.stubs">
         <property name="qa1-lookup-simulator-dl.deps" location="${build.deps.dir}/qa1-lookup-simulator-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-lookup-simulator-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-lookup-simulator-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1444,7 +1466,9 @@
 
     <target name="qa1-share-dl.jar" depends="qa1-share.stubs">
         <property name="qa1-share-dl.deps" location="${build.deps.dir}/qa1-share-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-share-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-share-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1508,7 +1532,9 @@
 
     <target name="qa1-reggie-race.jar" depends="qa1-share.stubs">
         <property name="qa1-reggie-race.deps" location="${build.deps.dir}/qa1-reggie-race.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-reggie-race.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-reggie-race.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1535,7 +1561,9 @@
 
     <target name="qa1-reggie-race-dl.jar" depends="qa1-share.stubs">
         <property name="qa1-reggie-race-dl.deps" location="${build.deps.dir}/qa1-reggie-race-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-reggie-race-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-reggie-race-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1566,7 +1594,9 @@
 
     <target name="fullloggingfilter.jar" depends="compile">
         <property name="fullloggingfilter.deps" location="${build.deps.dir}/fullloggingfilter.deps" />
+        <!--
         <delete file="${lib.dir}/fullloggingfilter.jar" quiet="true"/>
+        -->
         <classdep output="${fullloggingfilter.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1591,7 +1621,9 @@
 
     <target name="qa1-discoveryservice-dl.jar" depends="qa1-discoveryservice.stubs">
         <property name="qa1-discoveryservice-dl.deps" location="${build.deps.dir}/qa1-discoveryservice-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-discoveryservice-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-discoveryservice-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1614,7 +1646,9 @@
     </target>
 
     <target name="qa1-export-servercontext-tests-non-null.jar" depends="compile">
+        <!--
         <delete file="${lib.dir}/qa1-export-servercontext-tests-non-null.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-export-servercontext-tests-non-null.jar" index="false">
             <metainf dir="${src.dir}/manifest/qa1-export-servercontext-tests/non-null-context/META-INF">
                 <include name="**/*" />
@@ -1623,7 +1657,9 @@
     </target>
 
     <target name="qa1-export-servercontext-tests-null.jar" depends="compile">
+        <!--
         <delete file="${lib.dir}/qa1-export-servercontext-tests-null.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-export-servercontext-tests-null.jar" index="false">
             <metainf dir="${src.dir}/manifest/qa1-export-servercontext-tests/null-context/META-INF">
                 <include name="**/*" />
@@ -1632,7 +1668,9 @@
     </target>
 
     <target name="qa1-export-servercontext-tests-providers-parsing.jar" depends="compile">
+        <!--
         <delete file="${lib.dir}/qa1-export-servercontext-tests-providers-parsing.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-export-servercontext-tests-providers-parsing.jar" index="false">
             <metainf dir="${src.dir}/manifest/qa1-export-servercontext-tests/providers-parsing/META-INF">
                 <include name="**/*" />
@@ -1647,7 +1685,9 @@
     </target>
 
     <target name="qa1-io-util-dl.jar" depends="compile">
+        <!--
         <delete file="${lib.dir}/qa1-io-util-dl.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-io-util-dl.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/spec/io/util/FakeArgument.class" />
@@ -1658,7 +1698,9 @@
 
     <target name="qa1-io-marshalinputstream-test.jar" depends="compile">
         <property name="qa1-io-marshalinputstream-test.deps" location="${build.deps.dir}/qa1-io-marshalinputstream-test.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-io-marshalinputstream-test.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-io-marshalinputstream-test.jar" index="false">
             <metainf dir="${src.dir}/manifest/qa1-io-tests/META-INF">
                 <include name="**/*" />
@@ -1688,7 +1730,9 @@
 
     <target name="qa1-io-marshalledinstance-test.jar" depends="compile">
         <property name="qa1-io-marshalledinstance-test.deps" location="${build.deps.dir}/qa1-io-marshalledinstance-test.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-io-marshalledinstance-test.jar" quiet="true"/>
+        -->
         <jar destfile="${lib.dir}/qa1-io-marshalledinstance-test.jar" index="false">
             <metainf dir="${src.dir}/manifest/qa1-io-tests/META-INF">
                 <include name="**/*" />
@@ -1724,7 +1768,9 @@
 
     <target name="qa1-javaspace-dl.jar" depends="qa1-javaspace.stubs">
         <property name="qa1-javaspace-dl.deps" location="${build.deps.dir}/qa1-javaspace-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-javaspace-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-javaspace-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1783,7 +1829,9 @@
 
     <target name="qa1-lookupservice-dl.jar" depends="qa1-lookupservice.stubs">
         <property name="qa1-lookupservice-dl.deps" location="${build.deps.dir}/qa1-lookupservice-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-lookupservice-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-lookupservice-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1837,7 +1885,9 @@
 
     <target name="qa1-renewalservice-dl.jar" depends="qa1-renewalservice.stubs">
         <property name="qa1-renewalservice-dl.deps" location="${build.deps.dir}/qa1-renewalservice-dl.deps" />
+        <!--
         <delete file="${lib.dir}/qa1-renewalservice-dl.jar" quiet="true"/>
+        -->
         <classdep output="${qa1-renewalservice-dl.deps}">
             <arg value="-cp"/>
             <arg pathref="classdep.cp"/>
@@ -1873,7 +1923,6 @@
     </target>
 
     <target name="qa1-securityDoPrivileged.jar" depends="compile">
-        <delete file="${lib.dir}/qa1-securityDoPrivileged.jar" quiet="true"/>
         <jar destfile="${lib.dir}/qa1-securityDoPrivileged.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/spec/security/security/DoPrivilegedTest.class" />
@@ -1883,7 +1932,6 @@
     </target>
 
     <target name="qa1-securityUtil.jar" depends="compile">
-        <delete file="${lib.dir}/qa1-securityUtil.jar" quiet="true"/>
         <jar destfile="${lib.dir}/qa1-securityUtil.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/spec/security/util/FakeCaller.class" />
@@ -1934,7 +1982,6 @@
     </target>
 
     <target name="qa1-httpmd.jar" depends="compile">
-        <delete file="${lib.dir}/qa1-httpmd.jar" quiet="true"/>
         <jar destfile="${lib.dir}/qa1-httpmd.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/spec/url/httpmd/*/*.class" />
@@ -1948,7 +1995,6 @@
     </target>
 
     <target name="qa1-httpmd-another.jar" depends="compile">
-        <delete file="${lib.dir}/qa1-httpmd-another.jar" quiet="true"/>
         <jar destfile="${lib.dir}/qa1-httpmd-another.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/spec/url/httpmd/handler/*.class" />
@@ -1957,7 +2003,6 @@
     </target>
 
     <target name="ld.jar" depends="compile">
-        <delete file="${lib.dir}/ld.jar" quiet="true"/>
         <jar destfile="${lib.dir}/ld.jar" index="false">
             <metainf dir="${src.dir}/com/sun/jini/test/impl/lookupdiscovery/util/META-INF">
                 <include name="**/*" />
@@ -1969,7 +2014,6 @@
     </target>
 
     <target name="qa1-loader-pref.jar" depends="compile">
-        <delete file="${lib.dir}/qa1-loader-pref.jar" quiet="true"/>
         <jar destfile="${lib.dir}/qa1-loader-pref.jar" index="false">
             <metainf dir="${src.dir}/com/sun/jini/test/spec/loader/util/classes/META-INF">
                 <include name="**/*" />
@@ -1982,7 +2026,6 @@
     </target>
 
     <target name="qa1-policy-provider.jar" depends="compile">
-        <delete file="${lib.dir}/qa1-policy-provider.jar" quiet="true"/>
         <jar destfile="${lib.dir}/qa1-policy-provider.jar" index="false">
             <metainf dir="${src.dir}/com/sun/jini/test/spec/policyprovider/util/classes/META-INF">
                 <include name="**/*" />
