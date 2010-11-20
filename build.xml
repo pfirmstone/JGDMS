@@ -43,11 +43,7 @@
 
     <target name="hudson-ci" description="hudson build target" depends="diagnostics,all.clean,release,test,javadoc-internals" />
 
-    <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,all.clean,pre-qa-run,qa.run" />
-
-    <target name="pre-qa-run" depends="river-runtime" >
-        <ant dir="qa" target="build" inheritall="false" />
-    </target>
+    <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,all.clean,qa.run" />
 
     <target name="river-runtime" description="results in complete river, without release archives"
         depends="configentry,jars"
