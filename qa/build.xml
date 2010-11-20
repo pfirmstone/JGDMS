@@ -123,7 +123,7 @@
         </delete>
     </target>
 
-    <target name="harness-runtime" depends="river-runtime,harness-jars,jinitests.jar" description="builds the complete harness" />
+    <target name="harness-runtime" depends="river-runtime,jars,jinitests.jar" description="builds the complete harness" />
 
     <!-- == check if river-runtime needs rebuilding == -->
 
@@ -303,7 +303,7 @@
         </sequential>
     </macrodef>
 
-    <target name="run-tests" depends="harness-runtime,james-brown" description="Execute specific QA test(s)">
+    <target name="run-tests" depends="james-brown" description="Execute specific QA test(s)">
 	<fail message="use 'ant -Drun.tests=com/sun/jini/test/impl/yourowntest.td run-tests'" unless="run.tests" />
         <testrun>
             <!-- Run specific test(s) -->
