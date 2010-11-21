@@ -1987,59 +1987,51 @@
     <target name="trust" depends="keystores, password, truststore"
         description="Generate keys, passwords and certificates"/>
 
-    <target name="keystores" depends="tester.keystore,
-            reggie.keystore,
-            phoenix.keystore,
-            mercury.keystore,
-            norm.keystore,
-            outrigger.keystore,
-            mahalo.keystore,
-            fiddler.keystore,
-            group.keystore" />
-
-    <target name="tester.keystore">
-        <delete file="${trust.dir}/tester.keystore" quiet="true"/>
+    <target name="keystores" depends="are-keystores-available" unless="keystores-available" >
+        <echo>creating keystores</echo>
+        <delete>
+            <fileset dir="${trust.dir}" >
+                <include name="*.keystore" />
+                <include name="*.cert" /> <!-- keystore macro sideeffect? -->
+            </fileset>
+        </delete>
         <keystore target="tester" dir="${trust.dir}" dname="Tester" />
-    </target>
-
-    <target name="reggie.keystore">
-        <delete file="${trust.dir}/reggie.keystore" quiet="true"/>
         <keystore target="reggie" dir="${trust.dir}" dname="Reggie" />
-    </target>
-
-    <target name="phoenix.keystore">
-        <delete file="${trust.dir}/phoenix.keystore" quiet="true"/>
         <keystore target="phoenix" dir="${trust.dir}" dname="Phoenix" />
-    </target>
-
-    <target name="mercury.keystore">
-        <delete file="${trust.dir}/mercury.keystore" quiet="true"/>
         <keystore target="mercury" dir="${trust.dir}" dname="Mercury" />
-    </target>
-
-    <target name="norm.keystore">
-        <delete file="${trust.dir}/norm.keystore" quiet="true"/>
         <keystore target="norm" dir="${trust.dir}" dname="Norm" />
-    </target>
-
-    <target name="outrigger.keystore">
-        <delete file="${trust.dir}/outrigger.keystore" quiet="true"/>
         <keystore target="outrigger" dir="${trust.dir}" dname="Outrigger" />
-    </target>
-
-    <target name="mahalo.keystore">
-        <delete file="${trust.dir}/mahalo.keystore" quiet="true"/>
         <keystore target="mahalo" dir="${trust.dir}" dname="Mahalo" />
-    </target>
-
-    <target name="fiddler.keystore">
-        <delete file="${trust.dir}/fiddler.keystore" quiet="true"/>
         <keystore target="fiddler" dir="${trust.dir}" dname="Fiddler" />
+        <keystore target="group" dir="${trust.dir}" dname="Group" />
     </target>
 
-    <target name="group.keystore">
-        <delete file="${trust.dir}/group.keystore" quiet="true"/>
-        <keystore target="group" dir="${trust.dir}" dname="Group" />
+    <target name="are-keystores-available" >
+        <condition property="keystores-available" >
+            <and>
+                <available file="${trust.dir}/tester.keystore" />
+                <available file="${trust.dir}/reggie.keystore" />
+                <available file="${trust.dir}/phoenix.keystore" />
+                <available file="${trust.dir}/mercury.keystore" />
+                <available file="${trust.dir}/norm.keystore" />
+                <available file="${trust.dir}/outrigger.keystore" />
+                <available file="${trust.dir}/mahalo.keystore" />
+                <available file="${trust.dir}/fiddler.keystore" />
+                <available file="${trust.dir}/group.keystore" />
+
+                <!-- if *.cert are not used, please modify keystore macro to remove it after use -->
+                <!-- and remove this block -->
+                <available file="${trust.dir}/tester.cert" />
+                <available file="${trust.dir}/reggie.cert" />
+                <available file="${trust.dir}/phoenix.cert" />
+                <available file="${trust.dir}/mercury.cert" />
+                <available file="${trust.dir}/norm.cert" />
+                <available file="${trust.dir}/outrigger.cert" />
+                <available file="${trust.dir}/mahalo.cert" />
+                <available file="${trust.dir}/fiddler.cert" />
+                <available file="${trust.dir}/group.cert" />
+            </and>
+        </condition>
     </target>
 
     <target name="password" depends="are-passwords-available" unless="passwords-available" >
