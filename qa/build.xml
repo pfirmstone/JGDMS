@@ -2042,59 +2042,33 @@
         <keystore target="group" dir="${trust.dir}" dname="Group" />
     </target>
 
-    <target name="password" depends="tester.password,
-            reggie.password,
-            phoenix.password,
-            mercury.password,
-            norm.password,
-            outrigger.password,
-            mahalo.password,
-            fiddler.password,
-            group.password" />
-
-    <target name="tester.password">
-        <delete file="${trust.dir}/tester.password" quiet="true"/>
+    <target name="password" depends="are-passwords-available" unless="passwords-available" >
+        <echo>creating passwords</echo>
         <echo file="${trust.dir}/tester.password" message="testerpw" />
-    </target>
-
-    <target name="reggie.password">
-        <delete file="${trust.dir}/reggie.password" quiet="true"/>
         <echo file="${trust.dir}/reggie.password" message="reggiepw" />
-    </target>
-
-    <target name="phoenix.password">
-        <delete file="${trust.dir}/phoenix.password" quiet="true"/>
         <echo file="${trust.dir}/phoenix.password" message="phoenixpw" />
-    </target>
-
-    <target name="mercury.password">
-        <delete file="${trust.dir}/mercury.password" quiet="true"/>
         <echo file="${trust.dir}/mercury.password" message="mercurypw" />
-    </target>
-
-    <target name="norm.password">
-        <delete file="${trust.dir}/norm.password" quiet="true"/>
         <echo file="${trust.dir}/norm.password" message="normpw" />
-    </target>
-
-    <target name="outrigger.password">
-        <delete file="${trust.dir}/outrigger.password" quiet="true"/>
         <echo file="${trust.dir}/outrigger.password" message="outriggerpw" />
-    </target>
-
-    <target name="mahalo.password">
-        <delete file="${trust.dir}/mahalo.password" quiet="true"/>
         <echo file="${trust.dir}/mahalo.password" message="mahalopw" />
-    </target>
-
-    <target name="fiddler.password">
-        <delete file="${trust.dir}/fiddler.password" quiet="true"/>
         <echo file="${trust.dir}/fiddler.password" message="fiddlerpw" />
+        <echo file="${trust.dir}/group.password" message="grouppw"  />
     </target>
 
-    <target name="group.password">
-        <delete file="${trust.dir}/group.password" quiet="true"/>
-        <echo file="${trust.dir}/group.password" message="grouppw"  />
+    <target name="are-passwords-available" >
+        <condition property="passwords-available" >
+            <and>
+                <available file="${trust.dir}/tester.password" />
+                <available file="${trust.dir}/reggie.password" />
+                <available file="${trust.dir}/phoenix.password" />
+                <available file="${trust.dir}/mercury.password" />
+                <available file="${trust.dir}/norm.password" />
+                <available file="${trust.dir}/outrigger.password" />
+                <available file="${trust.dir}/mahalo.password" />
+                <available file="${trust.dir}/fiddler.password" />
+                <available file="${trust.dir}/group.password" />
+            </and>
+        </condition>
     </target>
 
     <target name="truststore">
