@@ -113,7 +113,7 @@
     </target>
 
     <target name="clean-trust">
-        <delete>
+        <delete verbose="true" >
             <fileset dir="${trust.dir}">
                 <include name="*.cert" />
                 <include name="*.password" />
