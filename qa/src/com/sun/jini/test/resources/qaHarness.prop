@@ -46,10 +46,10 @@
 com.sun.jini.qa.harness.runjiniserver=true
 
 # http port of the JSK download JAR files
-com.sun.jini.jsk.port=8080
+com.sun.jini.jsk.port=9080
 
 # download directory for JSK JAR files
-com.sun.jini.qa.harness.dldir.8080=${com.sun.jini.jsk.home}$/lib-dl
+com.sun.jini.qa.harness.dldir.9080=${com.sun.jini.jsk.home}$/lib-dl
 
 # enable the QA class server 
 com.sun.jini.qa.harness.runkitserver=true
@@ -61,9 +61,9 @@ com.sun.jini.qa.port=9081
 com.sun.jini.qa.harness.dldir.9081=${com.sun.jini.qa.home}$/lib
 
 # class server and properties for the tests
-com.sun.jini.test.port=8082
+com.sun.jini.test.port=9082
 com.sun.jini.qa.harness.testClassServer=testClassServer
-com.sun.jini.qa.harness.dldir.8082=${com.sun.jini.test.home}$/lib
+com.sun.jini.qa.harness.dldir.9082=${com.sun.jini.test.home}$/lib
 
 testClassServer.type=classServer
 testClassServer.impl=com.sun.jini.tool.ClassServer
