@@ -262,9 +262,10 @@ public class ClassServer extends Thread {
         try {
             server.bind(new InetSocketAddress(port));
         } catch( BindException be ) {
-            throw new IOException( "failure to bind to "+port, be );
+            IOException ioe = new IOException( "failure to bind to port: "+port );
+            ioe.initCause(be);
+            throw ioe ;
         }
-//	server = new ServerSocket(port);
 	if (!trees)
 	    return;
 	map = new HashMap();
