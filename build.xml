@@ -43,7 +43,11 @@
 
     <target name="hudson-ci" description="hudson build target" depends="diagnostics,all.clean,release,test,javadoc-internals" />
 
-    <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,all.clean,qa.run" />
+    <target name="hudson-qa" description="hudson QA build target" depends="hudson-qa-settings,diagnostics,all.clean,qa.run" />
+
+    <target name="hudson-qa-settings" description="provide default settings" >
+        <property name="harness.generateHtml" value="true" />
+    </target>
 
     <target name="river-runtime" description="results in complete river, without release archives"
         depends="configentry,jars"
