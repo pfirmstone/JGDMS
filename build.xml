@@ -43,7 +43,7 @@
 
     <target name="hudson-ci" description="hudson build target" depends="diagnostics,all.clean,release,test,javadoc-internals" />
 
-    <target name="hudson-qa" description="hudson QA build target" depends="hudson-qa-settings,diagnostics,all.clean,qa.run" />
+    <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,hudson-qa-settings,all.clean,qa.run" />
 
     <target name="hudson-qa-settings" description="provide default settings" >
         <property name="harness.generateHtml" value="true" />
@@ -2129,7 +2129,9 @@
     -->
     <target name="qa.run" depends="" description="Run QA tests">
         <!-- Call qa subcomponent build -->
-        <ant dir="qa" target="run" inheritall="false"/>
+        <ant dir="qa" target="run" inheritall="false">
+            <property name="harness.generateHtml" value="${harness.generateHtml}" />
+        </ant>
     </target>
 
     <target name="all.build" depends="river-runtime"
