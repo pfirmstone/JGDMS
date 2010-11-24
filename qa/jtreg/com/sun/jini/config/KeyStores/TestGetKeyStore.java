@@ -89,9 +89,9 @@ public class TestGetKeyStore extends BasicTest {
     }
 
     public void check(Object result) {
-	if (result.getClass() != getCompareTo()) {
+	if (result.getClass().isAssignableFrom(getCompareTo().getClass())) {
 	    throw new FailedException(
-		"Should be of type " + getCompareTo());
+		"Should be of type " + getCompareTo() + " but was "+result.getClass());
 	}
     }
 
