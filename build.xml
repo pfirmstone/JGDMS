@@ -41,12 +41,17 @@
     <property name="src.tar.bundle" location="${dist}/${product.name}-src.tar.gz"/>
     <property name="src.zip.bundle" location="${dist}/${product.name}-src.zip"/>
 
-    <target name="hudson-ci" description="hudson build target" depends="diagnostics,all.clean,release,test,javadoc-internals" />
+    <target name="hudson-ci" description="hudson build target" depends="diagnostics,hudson-ci-settings,all.clean,release,test,javadoc-internals" />
+
+    <target name="hudson-ci-settings" description="provide default settings" >
+        <echoproperties />
+    </target>
 
     <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,hudson-qa-settings,all.clean,qa.run" />
 
     <target name="hudson-qa-settings" description="provide default settings" >
         <property name="harness.generateHtml" value="true" />
+        <echoproperties />
     </target>
 
     <target name="river-runtime" description="results in complete river, without release archives"
