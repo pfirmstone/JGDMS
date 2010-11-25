@@ -24,8 +24,19 @@
     <!-- Root of the River source distribution -->
     <property name="root" location=".." />
 
-    <!-- Override this to build/run QA tests against an external River installation -->
-    <property name="river.home" location="${root}"/>    
+    <!--
+    Override this to build/run QA tests against an external River installation
+    
+    This parameter is a problem when running the jtreg tests on windows.  river.home
+    becomes the basis for jsk.home which is used in qa/jtreg/net/testlibrary/HTTPD
+    (and maybe other places as well).  If this value is left as the default value
+    of root ("..") then the property value becomes something like "C:\path\to\river"
+    When this values eventually finds its way into HTTPD it becomes "Cpathtoriver"
+    which obviously fails to resolve.
+    The way around this is therefore to specific river.home in ../build.properties
+    with the value "C:/path/to/river"
+    -->
+    <!-- <property name="river.home" location="${root}"/> -->    
 
     <!-- Import common settings and macros -->
     <import file="${root}/common.xml"/>
