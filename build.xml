@@ -480,7 +480,9 @@
             browser-dl.jar" />
 
     <target name="compile" description="Build classes" depends="copy-resources,copy-extlibs">
-        <javac-cmd source.dir="${src.dir}" dest.dir="${build.classes.dir}">
+        <property name="river.source" value="5" />
+        <property name="river.target" value="jsr14" />
+        <javac-cmd source="${river.source}" target="${river.target}" source.dir="${src.dir}" dest.dir="${build.classes.dir}">
             <classpath refid="asm.classpath" />
         </javac-cmd>
     </target>
