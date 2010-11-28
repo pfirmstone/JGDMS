@@ -337,7 +337,7 @@
     
     <target name="run-all" depends="run, jtreg" description="Execute QA and Jtreg tests" />
 
-    <target name="run-categories" depends="harness-runtime,james-brown" description="Execute QA test categories">
+    <target name="run-categories" depends="james-brown" description="Execute QA test categories">
         <!-- categories can be found under packages com.sun.jini.test.impl and com.sun.jini.test.spec, some of them: -->
         <!--<property name="test.categories" value="id,loader,policyprovider,locatordiscovery,activation,
         config,constraint,discoverymanager,discoveryservice,joinmanager,url,
