@@ -52,6 +52,12 @@
     <target name="hudson-qa-runtime" description="build QA runtime" >
         <ant dir="qa" target="harness-runtime" inheritall="false">
         </ant>
+        <jar destfile="runtime-harness.jar" index="false">
+            <fileset dir=".">
+                <include name="qa/lib/**" />
+                <include name="qa/lib-ext/**"/>
+            </fileset>
+        </jar>
     </target>
 
     <target name="hudson-qa-exec" description="execute QA test" >
