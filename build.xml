@@ -54,7 +54,8 @@
             <target name="clean" />
             <target name="harness-runtime" />
         </ant>
-        <jar destfile="runtime-harness.jar" index="false">
+        <delete file="harness-runtime.jar" />
+        <jar destfile="harness-runtime.jar" index="false">
             <fileset dir=".">
                 <include name="qa/lib/**" />
                 <include name="qa/lib-ext/**"/>
