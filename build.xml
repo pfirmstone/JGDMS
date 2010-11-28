@@ -64,6 +64,7 @@
     </target>
 
     <target name="hudson-qa-exec" description="execute QA test" >
+        <get src="https://hudson.apache.org/hudson/pview/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
         <ant dir="qa" target="run-categories" inheritall="false">
             <property name="run.categories" value="${category}" />
         </ant>
