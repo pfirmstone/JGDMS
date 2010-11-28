@@ -49,7 +49,11 @@
 
     <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,hudson-qa-settings,all.clean,qa.run" />
 
-    <target name="hudson-qa-exec" description="hudson QA matrix target" />
+    <target name="hudson-qa-runtime" description="hudson QA matrix target" >
+    </target>
+
+    <target name="hudson-qa-exec" description="hudson QA matrix target" >
+    </target>
 
     <target name="hudson-qa-settings" description="provide default settings" >
         <property name="harness.generateHtml" value="true" />
