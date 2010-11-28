@@ -50,7 +50,9 @@
     <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,hudson-qa-settings,all.clean,qa.run" />
 
     <target name="hudson-qa-runtime" description="build QA runtime" >
-        <ant dir="qa" target="harness-runtime" inheritall="false">
+        <ant dir="qa" inheritall="false">
+            <target name="clean" />
+            <target name="harness-runtime" />
         </ant>
         <jar destfile="runtime-harness.jar" index="false">
             <fileset dir=".">
