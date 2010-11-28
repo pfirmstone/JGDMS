@@ -49,10 +49,13 @@
 
     <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,hudson-qa-settings,all.clean,qa.run" />
 
-    <target name="hudson-qa-runtime" description="hudson QA matrix target" >
+    <target name="hudson-qa-runtime" description="build QA runtime" >
     </target>
 
-    <target name="hudson-qa-exec" description="hudson QA matrix target" >
+    <target name="hudson-qa-exec" description="execute QA test" >
+        <ant dir="qa" target="run-categories" inheritall="false">
+            <property name="run.categories" value="${category}" />
+        </ant>
     </target>
 
     <target name="hudson-qa-settings" description="provide default settings" >
