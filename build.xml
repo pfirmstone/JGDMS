@@ -57,6 +57,9 @@
         <delete file="harness-runtime.jar" />
         <jar destfile="harness-runtime.jar" index="false">
             <fileset dir=".">
+                <include name="lib/**" />
+                <include name="lib-dl/**"/>
+                <include name="lib-ext/**"/>
                 <include name="qa/lib/**" />
                 <include name="qa/lib-ext/**"/>
             </fileset>
