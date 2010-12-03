@@ -21,6 +21,7 @@
     <target name="build-trunk-matrix" >
         <ant>
             <target name="clean" />
+            <target name="hudson-ci" />
         </ant>
     </target>
 
