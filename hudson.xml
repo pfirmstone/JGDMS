@@ -18,13 +18,45 @@
  !-->
 <project name="hudson" basedir="." >
 
-    <target name="build-trunk-matrix" >
+    <target name="build-trunk-matrix" depends="init" >
         <ant>
-            <property name="river.source" value="1.4" />
-            <property name="river.target" value="1.4" />
             <target name="clean" />
             <target name="hudson-ci" />
         </ant>
     </target>
 
+    <target name="init" depends="determine-version,settings-jdk4,settings-jdk5,settings-jdk6" >
+        <echoproperties/>
+    </target>
+
+    <target name="determine-version" >
+        <condition property="build.on.jdk4">
+            <equals arg1="${ant.java.version}" arg2="1.4"/>
+        </condition>
+        <condition property="build.on.jdk5">
+            <equals arg1="${ant.java.version}" arg2="1.5"/>
+        </condition>
+        <condition property="build.on.jdk6">
+            <equals arg1="${ant.java.version}" arg2="1.6"/>
+        </condition>
+    </target>
+
+    <target name="settings-jdk4" if="build.on.jdk4" >
+        <fail if="build.on.jdk5" />
+        <fail if="build.on.jdk6" />
+        <property name="river.source" value="1.4" />
+        <property name="river.target" value="1.4" />
+    </target>
+    <target name="settings-jdk5" if="build.on.jdk5" >
+        <fail if="build.on.jdk4" />
+        <fail if="build.on.jdk6" />
+        <property name="river.source" value="1.4" />
+        <property name="river.target" value="1.4" />
+    </target>
+    <target name="settings-jdk6" if="build.on.jdk6" >
+        <fail if="build.on.jdk4" />
+        <fail if="build.on.jdk5" />
+        <property name="river.source" value="1.4" />
+        <property name="river.target" value="1.4" />
+    </target>
 </project>
