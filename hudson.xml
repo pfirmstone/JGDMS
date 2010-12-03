@@ -18,7 +18,7 @@
  !-->
 <project name="hudson" basedir="." >
 
-    <target name="build-trunk" >
+    <target name="build-trunk-matrix" >
         <ant>
             <target name="clean" />
         </ant>
