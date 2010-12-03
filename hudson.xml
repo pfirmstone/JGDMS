@@ -20,6 +20,8 @@
 
     <target name="build-trunk-matrix" >
         <ant>
+            <property name="river.source" value="1.4" />
+            <property name="river.target" value="1.4" />
             <target name="clean" />
             <target name="hudson-ci" />
         </ant>
