@@ -49,32 +49,6 @@
 
     <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,hudson-qa-settings,all.clean,qa.run" />
 
-    <target name="hudson-qa-runtime" description="build QA runtime" >
-        <ant dir="qa" inheritall="false">
-            <target name="clean" />
-            <target name="harness-runtime" />
-        </ant>
-        <delete file="harness-runtime.jar" />
-        <jar destfile="harness-runtime.jar" index="false">
-            <fileset dir=".">
-                <include name="lib/**" />
-                <include name="lib-dl/**"/>
-                <include name="lib-ext/**"/>
-                <include name="qa/lib/**" />
-                <include name="qa/lib-ext/**"/>
-            </fileset>
-        </jar>
-    </target>
-
-    <target name="hudson-qa-exec" description="execute QA test" >
-        <property name="harness-runtime-src" value="https://hudson.apache.org/hudson/pview/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
-        <property name="harness-runtime-dst" value="harness-runtime.jar" />
-        <get src="${harness-runtime-src}" dest="${harness-runtime-dst}" />
-        <unzip src="${harness-runtime-dst}" dest="." />
-        <ant dir="qa" target="run-categories" inheritall="false">
-            <property name="run.categories" value="${category}" />
-        </ant>
-    </target>
 
     <target name="hudson-qa-settings" description="provide default settings" >
         <property name="harness.generateHtml" value="true" />
