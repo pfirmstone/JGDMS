@@ -18,6 +18,17 @@
  !-->
 <project name="hudson" basedir="." >
 
+    <target name="run-qa" description="execute QA test" >
+        <property name="harness-runtime-src" value="https://hudson.apache.org/hudson/pview/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
+        <property name="harness-runtime-dst" value="harness-runtime.jar" />
+        
+        <get src="${harness-runtime-src}" dest="${harness-runtime-dst}" />
+        <unzip src="${harness-runtime-dst}" dest="." />
+        <ant dir="qa" target="run-categories" inheritall="false">
+            <property name="run.categories" value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager"/>
+        </ant>
+    </target>
+
     <target name="build-trunk-matrix" depends="init" >
         <ant>
             <target name="clean" />
