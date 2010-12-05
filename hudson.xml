@@ -18,6 +18,23 @@
  !-->
 <project name="hudson" basedir="." >
 
+    <target name="qa-runtime" description="build QA runtime" >
+        <ant dir="qa" inheritall="false">
+            <target name="clean" />
+            <target name="harness-runtime" />
+        </ant>
+        <delete file="harness-runtime.jar" />
+        <jar destfile="harness-runtime.jar" index="false">
+            <fileset dir=".">
+                <include name="lib/**" />
+                <include name="lib-dl/**"/>
+                <include name="lib-ext/**"/>
+                <include name="qa/lib/**" />
+                <include name="qa/lib-ext/**"/>
+            </fileset>
+        </jar>
+    </target>
+
     <target name="run-qa" description="execute QA test" >
         <property name="harness-runtime-src" value="https://hudson.apache.org/hudson/pview/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
         <property name="harness-runtime-dst" value="harness-runtime.jar" />
