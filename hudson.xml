@@ -19,6 +19,7 @@
 <project name="hudson" basedir="."
     xmlns:as="antlib:org.codehaus.mojo.animal_sniffer" >
 
+<!--
     <typedef uri="antlib:org.codehaus.mojo.animal_sniffer">
         <classpath>
             <fileset dir="antlib">
@@ -43,6 +44,7 @@
             <path path="lib-dl" />
         </as:check-signature>
     </target>
+-->
 
     <target name="qa-runtime" description="build QA runtime" >
         <ant dir="qa" inheritall="false">
