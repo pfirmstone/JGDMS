@@ -16,7 +16,33 @@
  ! See the License for the specific language governing permissions and
  ! limitations under the License.
  !-->
-<project name="hudson" basedir="." >
+<project name="hudson" basedir="."
+    xmlns:as="antlib:org.codehaus.mojo.animal_sniffer" >
+
+    <typedef uri="antlib:org.codehaus.mojo.animal_sniffer">
+        <classpath>
+            <fileset dir="antlib">
+                <include name="**/*.jar"/>
+            </fileset>
+            <fileset dir="extlibs">
+                <include name="**/*.jar"/>
+            </fileset>
+        </classpath>
+    </typedef>
+
+    <target name="river-runtime" >
+        <ant>
+            <target name="clean" />
+            <target name="hudson-ci" />
+        </ant>
+    </target>
+
+    <target name="verify" depends="river-runtime" >
+        <as:check-signature signature="java14-1.0.signature" >
+            <path path="lib" />
+            <path path="lib-dl" />
+        </as:check-signature>
+    </target>
 
     <target name="qa-runtime" description="build QA runtime" >
         <ant dir="qa" inheritall="false">
@@ -46,45 +72,6 @@
         </ant>
     </target>
 
-    <target name="build-trunk-matrix" depends="init" >
-        <ant>
-            <target name="clean" />
-            <target name="hudson-ci" />
-        </ant>
-    </target>
 
-    <target name="init" depends="determine-version,settings-jdk4,settings-jdk5,settings-jdk6" >
-        <echoproperties/>
-    </target>
 
-    <target name="determine-version" >
-        <condition property="build.on.jdk4">
-            <equals arg1="${ant.java.version}" arg2="1.4"/>
-        </condition>
-        <condition property="build.on.jdk5">
-            <equals arg1="${ant.java.version}" arg2="1.5"/>
-        </condition>
-        <condition property="build.on.jdk6">
-            <equals arg1="${ant.java.version}" arg2="1.6"/>
-        </condition>
-    </target>
-
-    <target name="settings-jdk4" if="build.on.jdk4" >
-        <fail if="build.on.jdk5" />
-        <fail if="build.on.jdk6" />
-        <property name="river.source" value="1.4" />
-        <property name="river.target" value="1.4" />
-    </target>
-    <target name="settings-jdk5" if="build.on.jdk5" >
-        <fail if="build.on.jdk4" />
-        <fail if="build.on.jdk6" />
-        <property name="river.source" value="5" />
-        <property name="river.target" value="jsr14" />
-    </target>
-    <target name="settings-jdk6" if="build.on.jdk6" >
-        <fail if="build.on.jdk4" />
-        <fail if="build.on.jdk5" />
-        <property name="river.source" value="6" />
-        <property name="river.target" value="jsr14" />
-    </target>
 </project>
