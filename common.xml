@@ -125,7 +125,7 @@
         <pathelement path="${river.classes.dir}"/>
     </path>
 
-    <fileset id="asm.jars" dir="asm">
+    <fileset id="asm.jars" dir="${root}/asm">
         <include name="asm-3.2.jar" />
         <include name="asm-commons-3.2.jar" />
     </fileset>
