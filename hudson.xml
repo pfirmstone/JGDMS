@@ -19,10 +19,9 @@
 <project name="hudson" basedir="."
     xmlns:as="antlib:org.codehaus.mojo.animal_sniffer" >
 
-<!--
     <typedef uri="antlib:org.codehaus.mojo.animal_sniffer">
         <classpath>
-            <fileset dir="antlib">
+            <fileset dir="animal-sniffer">
                 <include name="**/*.jar"/>
             </fileset>
             <fileset dir="extlibs">
@@ -39,12 +38,11 @@
     </target>
 
     <target name="verify" depends="river-runtime" >
-        <as:check-signature signature="java14-1.0.signature" >
+        <as:check-signature signature="animal-sniffer/java14-1.0.signature" >
             <path path="lib" />
             <path path="lib-dl" />
         </as:check-signature>
     </target>
--->
 
     <target name="qa-runtime" description="build QA runtime" >
         <ant dir="qa" inheritall="false">
