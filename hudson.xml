@@ -39,6 +39,7 @@
 
     <target name="verify" depends="river-runtime" >
         <as:check-signature signature="animal-sniffer/java14-1.0.signature" >
+            <path path="asm/asm-tree-3.2.jar" />
             <path path="lib" />
             <path path="lib-dl" />
         </as:check-signature>
