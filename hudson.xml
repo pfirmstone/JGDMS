@@ -24,7 +24,7 @@
             <fileset dir="animal-sniffer">
                 <include name="**/*.jar"/>
             </fileset>
-            <fileset dir="extlibs">
+            <fileset dir="asm">
                 <include name="**/*.jar"/>
             </fileset>
         </classpath>

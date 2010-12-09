@@ -400,9 +400,7 @@
                 >
             <bottom><![CDATA[${api.copyright}]]></bottom>
             <classpath>
-                <fileset dir="${extlibs.dir}">
-                    <include name="*.jar"/>
-                </fileset>
+                <fileset refid="asm.jars"/>
             </classpath>
             <sourcepath>
                 <pathelement path="${src.dir}/../../src/"/>

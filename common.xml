@@ -71,8 +71,6 @@
     <property name="lib-dl.dir" location="${lib-dl}"/>
     <property name="lib-ext.dir" location="${lib-ext}"/>
 
-    <property name="extlibs.dir" location="${root}/extlibs"/>
-
     <property name="test.dir" value="${test}"/>
     <property name="test.src.dir" value="${test.src}"/>
     <property name="test.lib.dir" value="${test.lib}"/>
@@ -106,8 +104,6 @@
     <property name="river.classes.dir" location="${river.home}/${build.classes}"/>
     <property name="river.src.dir" location="${river.home}/${src}"/>
 
-    <property name="asm.jars.pattern" value="asm*.jar" />
-
     <property name="debug" value="true"/>
     <property name="verbose" value="false"/>
     <!-- Possible values for 'debuglevel': none or combination of lines,source,vars -->
@@ -129,8 +125,9 @@
         <pathelement path="${river.classes.dir}"/>
     </path>
 
-    <fileset id="asm.jars" dir="${river.lib.dir}">
-        <include name="${asm.jars.pattern}"/>
+    <fileset id="asm.jars" dir="asm">
+        <include name="asm-3.2.jar" />
+        <include name="asm-commons-3.2.jar" />
     </fileset>
 
     <path id="asm.classpath">

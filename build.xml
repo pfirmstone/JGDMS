@@ -239,9 +239,7 @@
             <pathelement path="${src.dir}"/>
         </path>
         <path id="javadoc.classpath" >
-            <fileset dir="${extlibs.dir}">
-                <include name="*.jar"/>
-            </fileset>
+            <fileset refid="asm.jars"/>
         </path>
     </target>
 
@@ -495,7 +493,7 @@
 
     <target name="copy-extlibs" >
         <copy todir="lib">
-            <fileset dir="${extlibs.dir}" includes="*.jar"/>
+            <fileset refid="asm.jars"/>
         </copy>
     </target>
 
