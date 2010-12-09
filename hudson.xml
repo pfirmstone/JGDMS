@@ -33,7 +33,7 @@
     <target name="river-runtime" >
         <ant>
             <target name="clean" />
-            <target name="hudson-ci" />
+            <target name="river-runtime" />
         </ant>
     </target>
 
