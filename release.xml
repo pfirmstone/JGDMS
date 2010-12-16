@@ -18,7 +18,28 @@
  !-->
 <project name="release" basedir="." >
 
+    <macrodef name="svn-copy" >
+        <attribute name="src" />
+        <attribute name="dst" />
+        <attribute name="log" default="none" />
+        <sequential>
+            <exec executable="svn" failonerror="true" >
+                <arg value="copy" />
+                <arg value="@{src}" />
+                <arg value="@{dst}" />
+                <arg value="-M" />
+                <arg value="@{log}" />
+            </exec>
+        </sequential>
+    </macrodef>
+
+    <property name="svnbase" value="https://svn.apache.org/repos/asf/incubator/river/" />
+
     <target name="copy-doc" >
+        <svn-copy
+            src="${svnbase}/jtsk/trunk/src-doc/static/specs/html/"
+            dst="${svnbase}/site/trunk/content/river/spec" />
+
     </target>
     
 </project>
