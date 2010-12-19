@@ -20,10 +20,10 @@
     xmlns:as="antlib:org.codehaus.mojo.animal_sniffer" >
 
     <target name="verify" depends="river-runtime,verify-15-sun"
-                                description="main entry hudson River-verify">
+                                description="River-verify entry">
     </target>
 
-    <target name="river-trunk" >
+    <target name="river-trunk" description="River-trunk entry">
         <ant>
             <target name="hudson-ci" />
         </ant>
