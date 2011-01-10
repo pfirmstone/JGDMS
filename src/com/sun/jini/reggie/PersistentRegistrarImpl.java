@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.reggie;
 
 import com.sun.jini.start.LifeCycle;
@@ -27,14 +28,14 @@ import java.rmi.activation.ActivationID;
  *
  * @author Sun Microsystems, Inc.
  */
-class PersistentRegistrarImpl extends RegistrarImpl {
+public class PersistentRegistrarImpl extends RegistrarImpl {
 
     /**
      * Constructs a non-activatable PersistentRegistrarImpl based on a
      * configuration obtained using the provided arguments.  If lifeCycle is
      * non-null, then its unregister method is invoked during service shutdown.
      */
-    PersistentRegistrarImpl(String[] configArgs, LifeCycle lifeCycle)
+    protected PersistentRegistrarImpl(String[] configArgs, LifeCycle lifeCycle)
 	throws Exception
     {
 	super(configArgs, null, true, lifeCycle);

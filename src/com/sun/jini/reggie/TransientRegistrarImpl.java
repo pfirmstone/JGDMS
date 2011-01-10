@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.reggie;
 
 import com.sun.jini.start.LifeCycle;
@@ -24,14 +25,14 @@ import com.sun.jini.start.LifeCycle;
  *
  * @author Sun Microsystems, Inc.
  */
-class TransientRegistrarImpl extends RegistrarImpl {
+public class TransientRegistrarImpl extends RegistrarImpl {
 
     /**
      * Constructs a TransientRegistrarImpl based on a configuration obtained
      * using the provided arguments.  If lifeCycle is non-null, then its
      * unregister method is invoked during service shutdown.
      */
-    TransientRegistrarImpl(String[] configArgs, LifeCycle lifeCycle)
+    protected TransientRegistrarImpl(String[] configArgs, LifeCycle lifeCycle)
 	throws Exception
     {
 	super(configArgs, null, false, lifeCycle);
