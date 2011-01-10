@@ -422,7 +422,30 @@ public class ServiceStarter {
         logger.exiting(ServiceStarter.class.getName(),
            "checkResultFailures");
     }
-    
+
+    /**
+     * Workhorse function for both main() entrypoints.
+     */
+    private static void processServiceDescriptors( Configuration config ) throws Exception
+    {
+       ServiceDescriptor[] descs =  (ServiceDescriptor[])
+               config.getEntry(START_PACKAGE, "serviceDescriptors",
+                   ServiceDescriptor[].class, null);
+       if (descs == null || descs.length == 0) {
+           logger.warning("service.config.empty");
+           return;
+       }
+       LoginContext loginContext =  (LoginContext)
+           config.getEntry(START_PACKAGE, "loginContext",
+               LoginContext.class, null);
+       Result[] results = null;
+       if (loginContext != null)
+           results = createWithLogin(descs, config, loginContext);
+       else
+           results = create(descs, config);
+       checkResultFailures(results);
+       maintainNonActivatableReferences(results);
+    }
 
     /**
      * The main method for the <code>ServiceStarter</code> application.
@@ -450,23 +473,7 @@ public class ServiceStarter {
            logger.entering(ServiceStarter.class.getName(),
 	       "main", (Object[])args);
            Configuration config = ConfigurationProvider.getInstance(args);
-           ServiceDescriptor[] descs =  (ServiceDescriptor[])
-	           config.getEntry(START_PACKAGE, "serviceDescriptors",
-	               ServiceDescriptor[].class, null);
-           if (descs == null || descs.length == 0) {
-               logger.warning("service.config.empty");
-	       return;
-	   }
-           LoginContext loginContext =  (LoginContext)
-	       config.getEntry(START_PACKAGE, "loginContext", 
-	           LoginContext.class, null);
-	   Result[] results = null;
-	   if (loginContext != null)
-	       results = createWithLogin(descs, config, loginContext);
-	   else
-	       results = create(descs, config);
-           checkResultFailures(results);	       
-           maintainNonActivatableReferences(results);	       
+           processServiceDescriptors(config);
        } catch (ConfigurationException cex) {
 	   logger.log(Level.SEVERE, "service.config.exception", cex);
        } catch (Exception e) {
@@ -475,5 +482,34 @@ public class ServiceStarter {
        logger.exiting(ServiceStarter.class.getName(), 
 	   "main");
     }   
+    
+    /**
+     * The main method for embidding the <code>ServiceStarter</code> application.
+     * The <code>config</code> argument is queried for the
+     * <code>com.sun.jini.start.serviceDescriptors</code> entry, which
+     * is assumed to be a <code>ServiceDescriptor[]</code>.
+     * The <code>create()</code> method is then called on each of the array
+     * elements.
+     * @param config the <code>Configuration</code> object.
+     * @see ServiceDescriptor
+     * @see SharedActivatableServiceDescriptor
+     * @see SharedActivationGroupDescriptor
+     * @see NonActivatableServiceDescriptor
+     * @see net.jini.config.Configuration
+     */
+    public static void main(Configuration config) {
+       ensureSecurityManager();
+       try {
+           logger.entering(ServiceStarter.class.getName(),
+	       "main", config);
+           processServiceDescriptors(config);
+       } catch (ConfigurationException cex) {
+	   logger.log(Level.SEVERE, "service.config.exception", cex);
+       } catch (Exception e) {
+           logger.log(Level.SEVERE, "service.creation.exception", e);
+       }
+       logger.exiting(ServiceStarter.class.getName(),
+	   "main");
+    }
     
 }//end class ServiceStarter
