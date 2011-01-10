@@ -40,6 +40,8 @@
     <property name="bin.zip.bundle" location="${dist}/${product.name}-bin.zip"/>
     <property name="src.tar.bundle" location="${dist}/${product.name}-src.tar.gz"/>
     <property name="src.zip.bundle" location="${dist}/${product.name}-src.zip"/>
+    <property name="doc.tar.bundle" location="${dist}/${product.name}-doc.tar.gz"/>
+    <property name="doc.zip.bundle" location="${dist}/${product.name}-doc.zip"/>
 
     <target name="hudson-ci" description="hudson build target" depends="diagnostics,hudson-ci-settings,all.clean,release,test,javadoc-internals" />
 
@@ -67,7 +69,7 @@
     </target>
 
     <target name="release" description="Create source and binary release packages"
-		depends="release-src, release-bin">
+		depends="release-src, release-bin, release-doc">
     </target>
 
     <fileset id="river.bin.files" dir="${basedir}">
@@ -75,14 +77,19 @@
         <include name="LICENSE"/>
         <include name="NOTICE"/>
 
-        <include name="${doc}/**"/>
-        <exclude name="${doc}/release-notes/new.html"/>
-        <exclude name="${doc}/internals/**"/>
-
         <include name="${lib}/**"/>
         <include name="${lib-dl}/**"/>
         <include name="${lib-ext}/**"/>
         <include name="${configentry}/**"/>
+    </fileset>
+
+    <fileset id="river.doc.files" dir="${basedir}">
+        <include name="DISCLAIMER"/>
+        <include name="LICENSE"/>
+        <include name="NOTICE"/>
+
+        <include name="${doc}/**"/>
+        <exclude name="${doc}/release-notes/new.html"/>
     </fileset>
 
     <fileset id="examples.bin.files" dir="${basedir}/examples">
@@ -108,24 +115,22 @@
         <include name="README.txt"/>
     </fileset>-->
 
-    <target name="release-bin" description="Create a binary release"
-		depends="all.build">
-                <!-- TODO: add depends: javadoc-internals and remove from ci-build -->
+    <target name="release-bin" description="Create a binary release" depends="all.build">
+        <!-- TODO: add depends: javadoc-internals and remove from ci-build -->
+
         <mkdir dir="${dist.dir}"/>
         <delete file="${bin.zip.bundle}"/>
         <zip destfile="${bin.zip.bundle}" roundup="yes">
             <zipfileset prefix="${product.name}" refid="river.bin.files" />
             <zipfileset prefix="${product.name}/examples" refid="examples.bin.files" />
-            <zipfileset prefix="${product.name}/examples"
-                refid="examples.bin.exec.files" filemode="755"/>
+            <zipfileset prefix="${product.name}/examples" refid="examples.bin.exec.files" filemode="755"/>
             <!--<zipfileset prefix="${product.name}/qa" refid="qa.bin.files" />-->
         </zip>
         <delete file="${bin.tar.bundle}"/>
         <tar destfile="${bin.tar.bundle}" compression="gzip" longfile="gnu">
             <tarfileset prefix="${product.name}" refid="river.bin.files" />
             <tarfileset prefix="${product.name}/examples" refid="examples.bin.files" />
-            <tarfileset prefix="${product.name}/examples"
-                refid="examples.bin.exec.files" filemode="755"/>
+            <tarfileset prefix="${product.name}/examples" refid="examples.bin.exec.files" filemode="755"/>
             <!--<tarfileset prefix="${product.name}/qa" refid="qa.bin.files" />-->
         </tar>
     </target>
@@ -175,6 +180,19 @@
         <include name="build.xml"/>
         <include name="README*.txt"/>
     </fileset>
+
+    <target name="release-doc" description="Create release doc archives" depends="river-doc">
+                
+        <mkdir dir="${dist.dir}"/>
+        <delete file="${doc.zip.bundle}"/>
+        <zip destfile="${doc.zip.bundle}" roundup="yes">
+            <zipfileset prefix="${product.name}" refid="river.doc.files"/>
+        </zip>
+        <delete file="${doc.tar.bundle}"/>
+        <tar destfile="${doc.tar.bundle}" compression="gzip" longfile="gnu">
+            <tarfileset prefix="${product.name}" refid="river.doc.files" />
+        </tar>
+    </target>
 
     <target name="release-src" description="Create a source release">
         <mkdir dir="${dist.dir}"/>
