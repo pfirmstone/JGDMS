@@ -25,7 +25,7 @@
     <property file="${root}/build.properties" />
 
     <!-- Product version info -->
-    <property name="version" value="2.2.0-SNAPSHOT"/>
+    <property name="version" value="SNAPSHOT"/>
     <property name="product.name" value="apache-river-${version}-incubating"/>
     <property name="product.title" value="Apache River v${version}"/>
 

@@ -25,7 +25,6 @@
 
     <target name="river-trunk" description="River-trunk entry">
         <ant>
-            <property name="version" value="SNAPSHOT" />
             <target name="hudson-ci" />
         </ant>
     </target>
