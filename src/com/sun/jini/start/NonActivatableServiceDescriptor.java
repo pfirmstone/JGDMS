@@ -220,6 +220,11 @@ public class NonActivatableServiceDescriptor
      */
     private final String[] serverConfigArgs;
 
+    /**
+     * serverConfigArgs override.
+     */
+    private final Configuration configuration ;
+
     /*
      * <code>LifeCycle</code> reference for hosting environment
      */
@@ -322,6 +327,7 @@ public class NonActivatableServiceDescriptor
 	this.classpath = importCodebase;
 	this.implClassName = implClassName;
 	this.serverConfigArgs = serverConfigArgs;
+        this.configuration = null ;
 	this.lifeCycle =
 	    (lifeCycle == null)?NoOpLifeCycle:lifeCycle;
         this.servicePreparer = preparer;    
@@ -619,15 +625,26 @@ public class NonActivatableServiceDescriptor
 
 	try {
             logger.finest("Attempting to get implementation constructor");
+
+            Object argParms[] = new Object[]{getServerConfigArgs(), lifeCycle} ;
+            Class argTypes[] = actTypes ;
+
+            if( configuration != null ) {
+                if( getServerConfigArgs() != null ) {
+                    logger.severe("both configArgs and configuration specified, using configuration");
+                }
+                argParms = new Object[]{configuration, lifeCycle} ;
+                argTypes = new Class[]{Configuration.class,  LifeCycle.class }; // TODO:make static
+            }
+
 	    Constructor constructor =
-                implClass.getDeclaredConstructor(actTypes);
+                implClass.getDeclaredConstructor(argTypes);
             logger.log(Level.FINEST,
                 "Obtained implementation constructor: {0}",
                 constructor);
             constructor.setAccessible(true);
-            impl =
-                constructor.newInstance(
-		    new Object[]{getServerConfigArgs(), lifeCycle});
+            impl = constructor.newInstance(argParms);
+            
             logger.log(Level.FINEST,
                 "Obtained implementation instance: {0}", impl);
             if (impl instanceof ServiceProxyAccessor) {
