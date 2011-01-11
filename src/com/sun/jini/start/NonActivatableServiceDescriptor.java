@@ -332,6 +332,34 @@ public class NonActivatableServiceDescriptor
 	    (lifeCycle == null)?NoOpLifeCycle:lifeCycle;
         this.servicePreparer = preparer;    
     }
+
+    public NonActivatableServiceDescriptor(
+	// Required Args
+	String exportCodebase,
+	String policy,
+	String importCodebase,
+	String implClassName,
+	// Optional Args
+	Configuration config,
+	LifeCycle lifeCycle,
+        ProxyPreparer preparer)
+    {
+        if (exportCodebase == null || policy == null ||
+	    importCodebase == null || implClassName == null)
+	    throw new NullPointerException(
+		"export codebase, policy, import codebase, and"
+		+ " implementation cannot be null");
+        this.codebase = exportCodebase;
+	this.policy = policy;
+	this.classpath = importCodebase;
+	this.implClassName = implClassName;
+	this.serverConfigArgs = null;
+        this.configuration = config ;
+	this.lifeCycle =
+	    (lifeCycle == null)?NoOpLifeCycle:lifeCycle;
+        this.servicePreparer = preparer;
+    }
+
     /**
      * Convenience constructor. Equivalent to calling this 
      * {@link #NonActivatableServiceDescriptor(java.lang.String, java.lang.String, java.lang.String, java.lang.String, java.lang.String[], com.sun.jini.start.LifeCycle, net.jini.security.ProxyPreparer) contructor}
