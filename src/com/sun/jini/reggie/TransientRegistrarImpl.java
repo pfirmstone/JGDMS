@@ -19,6 +19,7 @@
 package com.sun.jini.reggie;
 
 import com.sun.jini.start.LifeCycle;
+import net.jini.config.Configuration;
 
 /**
  * Class for starting transient lookup services.
@@ -37,4 +38,20 @@ public class TransientRegistrarImpl extends RegistrarImpl {
     {
 	super(configArgs, null, false, lifeCycle);
     }
+
+    /**
+     * Constructs a TransientRegistrarImpl based on the configuration argument
+     * If lifeCycle is non-null, then its
+     * unregister method is invoked during service shutdown.
+     *
+     * It has the new (Embedded)NonActivatableServiceDescriptor service signature.
+     * 
+     * protected to signal it should be started via the ServiceStarter or derived.
+     */
+    protected TransientRegistrarImpl(Configuration config, LifeCycle lifeCycle)
+	throws Exception
+    {
+	super(config, null, false, lifeCycle);
+    }
+    
 }
