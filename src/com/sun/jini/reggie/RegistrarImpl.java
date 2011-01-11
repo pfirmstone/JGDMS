@@ -389,32 +389,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		  final LifeCycle lifeCycle)
 	throws Exception
     {
-	if (activationID != null && !persistent) {
-	    throw new IllegalArgumentException();
-	}
 	try {
 	    final Configuration config = ConfigurationProvider.getInstance(
 		configArgs, getClass().getClassLoader());
-	    loginContext = (LoginContext) config.getEntry(
-	       COMPONENT, "loginContext", LoginContext.class, null);
 
-	    PrivilegedExceptionAction init = new PrivilegedExceptionAction() {
-		public Object run() throws Exception {
-		    init(config, activationID, persistent, lifeCycle);
-		    return null;
-		}
-	    };
-	    if (loginContext != null) {
-		loginContext.login();
-		try {
-		    Subject.doAsPrivileged(
-			loginContext.getSubject(), init, null);
-		} catch (PrivilegedActionException e) {
-		    throw e.getCause();
-		}
-	    } else {
-		init.run();
-	    }
+            loginAndRun(config,activationID,persistent,lifeCycle);
 	} catch (Throwable t) {
 	    logger.log(Level.SEVERE, "Reggie initialization failed", t);
 	    if (t instanceof Exception) {
@@ -423,6 +402,64 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		throw (Error) t;
 	    }
 	}
+    }
+
+    /**
+     * Constructs RegistrarImpl based on the
+     * Configuration argument.  If activationID is non-null, the created
+     * RegistrarImpl runs as activatable; if persistent is true, it
+     * persists/recovers its state to/from disk.  A RegistrarImpl instance
+     * cannot be constructed as both activatable and non-persistent.  If
+     * lifeCycle is non-null, its unregister method is invoked during shutdown.
+     */
+    RegistrarImpl(final Configuration config,
+		  final ActivationID activationID,
+		  final boolean persistent,
+		  final LifeCycle lifeCycle)
+	throws Exception
+    {
+	try {
+            loginAndRun(config,activationID,persistent,lifeCycle);
+	} catch (Throwable t) {
+	    logger.log(Level.SEVERE, "Reggie initialization failed", t);
+	    if (t instanceof Exception) {
+		throw (Exception) t;
+	    } else {
+		throw (Error) t;
+	    }
+	}
+    }
+
+    private void loginAndRun( final Configuration config,
+                        final ActivationID activationID,
+                        final boolean persistent,
+                        final LifeCycle lifeCycle)
+	throws Throwable
+    {
+	if (activationID != null && !persistent) {
+	    throw new IllegalArgumentException();
+	}
+
+        loginContext = (LoginContext) config.getEntry(
+           COMPONENT, "loginContext", LoginContext.class, null);
+
+        PrivilegedExceptionAction init = new PrivilegedExceptionAction() {
+            public Object run() throws Exception {
+                init(config, activationID, persistent, lifeCycle);
+                return null;
+            }
+        };
+        if (loginContext != null) {
+            loginContext.login();
+            try {
+                Subject.doAsPrivileged(
+                    loginContext.getSubject(), init, null);
+            } catch (PrivilegedActionException e) {
+                throw e.getCause();
+            }
+        } else {
+            init.run();
+        }
     }
 
     /** A service item registration record. */
