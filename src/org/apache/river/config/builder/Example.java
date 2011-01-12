@@ -16,7 +16,7 @@
  * limitations under the License.
  */
 
-package org.apache.river.configbuilder;
+package org.apache.river.config.builder;
 
 import com.sun.jini.start.ServiceStarter;
 import java.security.Permission;
@@ -35,10 +35,9 @@ public class Example {
     {
         System.setSecurityManager(new SecurityManager() {
 
-            @Override
             public void checkPermission(Permission perm)
             {
-                //super.checkPermission(perm);
+                // ignore
             }
 
         } );

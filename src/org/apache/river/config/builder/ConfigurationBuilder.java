@@ -16,8 +16,9 @@
  * limitations under the License.
  */
 
-package org.apache.river.configbuilder;
+package org.apache.river.config.builder;
 
+import org.apache.river.config.ConfigurationFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -30,8 +31,8 @@ import net.jini.config.ConfigurationFile;
  *
  * @author sim
  */
-//TODO: abstract?
 public class ConfigurationBuilder
+    implements ConfigurationFactory
 {
 
     public ConfigurationBuilder()
@@ -69,7 +70,6 @@ public class ConfigurationBuilder
             super(reader, options);
         }
 
-        @Override
         protected Object getSpecialEntry(String name) throws ConfigurationException
         {
             if( "$configuration".equals(name) ) {
@@ -78,7 +78,6 @@ public class ConfigurationBuilder
             return super.getSpecialEntry(name);
         }
 
-        @Override
         protected Class getSpecialEntryType(String name) throws ConfigurationException
         {
             if( "$configuration".equals(name) ) {
