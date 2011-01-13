@@ -32,7 +32,7 @@ com.sun.jini.start {
         new NonActivatableServiceDescriptor(
             codebase, policy, classpath,
             "com.sun.jini.reggie.TransientRegistrarImpl",
-            $configuration, null, null )
+            this, null, null )
     };
 }
 

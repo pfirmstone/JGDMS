@@ -156,47 +156,13 @@ public class VelocityConfigurationBuilder
         return sw.toString();
     }
 
-    public class ConfigurationFile2
-        extends ConfigurationFile
-    {
-
-        public ConfigurationFile2(Reader reader, String[] options, ClassLoader cl) throws ConfigurationException
-        {
-            super(reader, options, cl);
-        }
-
-        public ConfigurationFile2(Reader reader, String[] options) throws ConfigurationException
-        {
-            super(reader, options);
-        }
-
-        @Override
-        protected Object getSpecialEntry(String name) throws ConfigurationException
-        {
-            if( "$configuration".equals(name) ) {
-                return this ;
-            }
-            return super.getSpecialEntry(name);
-        }
-
-        @Override
-        protected Class getSpecialEntryType(String name) throws ConfigurationException
-        {
-            if( "$configuration".equals(name) ) {
-                return this.getClass();
-            }
-            return super.getSpecialEntryType(name);
-        }
-
-    }
-
     @Override
     public Configuration createConfiguration() throws ConfigurationException
     {
         try {
             StringReader sr = new StringReader( getConfigurationText() );
 
-            final ConfigurationFile cf = new ConfigurationFile2(sr,null);
+            final ConfigurationFile cf = new ConfigurationFile(sr,null);
 
             return cf ;
         } catch( ConfigurationException c ) {
