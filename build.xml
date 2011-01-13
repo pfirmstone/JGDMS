@@ -257,7 +257,7 @@
             <pathelement path="${src.dir}"/>
         </path>
         <path id="javadoc.classpath" >
-            <fileset refid="asm.jars"/>
+            <path refid="compile.classpath"/>
         </path>
     </target>
 
@@ -505,7 +505,7 @@
         <property name="river.source" value="5" />
         <property name="river.target" value="jsr14" />
         <javac-cmd source="${river.source}" target="${river.target}" source.dir="${src.dir}" dest.dir="${build.classes.dir}">
-            <classpath refid="asm.classpath" />
+            <classpath refid="compile.classpath" />
         </javac-cmd>
     </target>
 

@@ -130,6 +130,16 @@
         <include name="asm-commons-3.2.jar" />
     </fileset>
 
+    <fileset id="velocity.jars" dir="${root}/velocity">
+        <include name="velocity-1.7.jar" />
+    </fileset>
+
+    <path id="compile.classpath" >
+        <fileset refid="asm.jars" />
+        <fileset refid="velocity.jars" />
+    </path>
+
+
     <path id="asm.classpath">
         <fileset refid="asm.jars" />
     </path>
