@@ -18,10 +18,13 @@
 
 package org.apache.river.config.builder;
 
+import java.io.File;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.io.Writer;
 import java.util.HashMap;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -225,4 +228,17 @@ public class TextConfigurationBuilder
             throw new ConfigurationException("",e);
         }
     }
+
+    public void print( File file ) throws IOException
+    {
+        FileWriter fw = new FileWriter(file);
+        print(fw);
+        fw.close();
+    }
+
+    public void print( Writer wr ) throws IOException
+    {
+        wr.append( getConfigurationText() );
+    }
+
 }
