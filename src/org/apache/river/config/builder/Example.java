@@ -35,6 +35,7 @@ public class Example {
     {
         System.setSecurityManager(new SecurityManager() {
 
+            @Override
             public void checkPermission(Permission perm)
             {
                 // ignore
@@ -43,8 +44,10 @@ public class Example {
         } );
 
 
-        ConfigurationBuilder cb = new ConfigurationBuilder();
+        TextConfigurationBuilder cb = new TextConfigurationBuilder();
 
+        cb.setServicePort(1234);
+        
         //TODO: cb.setThisHere(true);
         //TODO: cb.setThatThere(false);
 

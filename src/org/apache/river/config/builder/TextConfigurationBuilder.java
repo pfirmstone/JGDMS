@@ -23,24 +23,87 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.HashMap;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationFile;
+import net.jini.jeri.Endpoint;
+import net.jini.jeri.tcp.TcpEndpoint;
 
 /**
- *
  * @author sim
  */
-public class ConfigurationBuilder
+public class TextConfigurationBuilder
     implements ConfigurationFactory
 {
+    private HashMap<String,Object> specialEntryMap = new HashMap<String,Object>();
 
-    public ConfigurationBuilder()
+    private String serviceHost ;
+
+    private int servicePort = -1 ;
+
+    private String registryHost ;
+
+    private int registryPort = -1 ;
+
+    public TextConfigurationBuilder()
     {
+        setServiceHost("localhost"); 
+        setRegistryHost("localhost");
+    }
+
+    public int getServicePort()
+    {
+        return servicePort;
+    }
+
+    public void setServicePort(int servicePort)
+    {
+        this.servicePort = servicePort;
+    }
+
+    public String getServiceHost()
+    {
+        return serviceHost;
+    }
+
+    public void setServiceHost(String serviceHost)
+    {
+        this.serviceHost = serviceHost;
+    }
+
+    public String getRegistryHost()
+    {
+        return registryHost;
+    }
+
+    public void setRegistryHost(String registryHost)
+    {
+        this.registryHost = registryHost;
+    }
+
+    public int getRegistryPort()
+    {
+        return registryPort;
+    }
+
+    public void setRegistryPort(int registryPort)
+    {
+        this.registryPort = registryPort;
     }
 
     public String getConfigurationText() throws IOException
     {
+        {
+            Endpoint ep = TcpEndpoint.getInstance(serviceHost,servicePort);
+            specialEntryMap.put("$serviceEndpoint", ep);
+        }
+
+        {
+            Endpoint ep = TcpEndpoint.getInstance(registryHost,registryPort);
+            specialEntryMap.put("$registryEndpoint", ep);
+        }
+        
         //TODO: create real implementation.
 
         InputStream is = getClass().getResourceAsStream("example.config");
@@ -70,18 +133,30 @@ public class ConfigurationBuilder
             super(reader, options);
         }
 
+        @Override
         protected Object getSpecialEntry(String name) throws ConfigurationException
         {
             if( "$configuration".equals(name) ) {
                 return this ;
             }
+            if( specialEntryMap.containsKey(name) ) {
+                return specialEntryMap.get(name);
+            }
             return super.getSpecialEntry(name);
         }
 
+        @Override
         protected Class getSpecialEntryType(String name) throws ConfigurationException
         {
             if( "$configuration".equals(name) ) {
                 return this.getClass();
+            }
+            if( specialEntryMap.containsKey(name) ) {
+                Object obj = specialEntryMap.get(name);
+                if( obj == null ) {
+                    return null ;
+                }
+                return obj.getClass();
             }
             return super.getSpecialEntryType(name);
         }
