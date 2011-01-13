@@ -18,7 +18,6 @@
 
 package org.apache.river.config.builder;
 
-import org.apache.river.config.ConfigurationFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -27,8 +26,9 @@ import java.util.HashMap;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationFile;
-import net.jini.jeri.Endpoint;
-import net.jini.jeri.tcp.TcpEndpoint;
+import net.jini.jeri.ServerEndpoint;
+import net.jini.jeri.tcp.TcpServerEndpoint;
+import org.apache.river.config.ConfigurationFactory;
 
 /**
  * @author sim
@@ -38,18 +38,20 @@ public class TextConfigurationBuilder
 {
     private HashMap<String,Object> specialEntryMap = new HashMap<String,Object>();
 
-    private String serviceHost ;
+    private String serviceHost = null ;
 
-    private int servicePort = -1 ;
+    private int servicePort = 0 ;
 
-    private String registryHost ;
+    private String registryHost = null ;
 
-    private int registryPort = -1 ;
+    private int registryPort = 0 ;
+
+    private String group = "org.apache.river.demo" ;
+
+    private String codebase = "" ;
 
     public TextConfigurationBuilder()
     {
-        setServiceHost("localhost"); 
-        setRegistryHost("localhost");
     }
 
     public int getServicePort()
@@ -92,21 +94,42 @@ public class TextConfigurationBuilder
         this.registryPort = registryPort;
     }
 
+    public String getGroup()
+    {
+        return group;
+    }
+
+    public void setGroup(String group)
+    {
+        this.group = group;
+    }
+
+    public String getCodebase()
+    {
+        return codebase;
+    }
+
+    public void setCodebase(String codebase)
+    {
+        this.codebase = codebase;
+    }
+
     public String getConfigurationText() throws IOException
     {
         {
-            Endpoint ep = TcpEndpoint.getInstance(serviceHost,servicePort);
+            ServerEndpoint ep = TcpServerEndpoint.getInstance(serviceHost,servicePort);
             specialEntryMap.put("$serviceEndpoint", ep);
         }
 
         {
-            Endpoint ep = TcpEndpoint.getInstance(registryHost,registryPort);
+            ServerEndpoint ep = TcpServerEndpoint.getInstance(registryHost,registryPort);
             specialEntryMap.put("$registryEndpoint", ep);
         }
-        
-        //TODO: create real implementation.
 
-        InputStream is = getClass().getResourceAsStream("example.config");
+        specialEntryMap.put("$group", group);
+        specialEntryMap.put("$codebase", codebase);
+        
+        InputStream is = getClass().getResourceAsStream("template.config");
         StringBuilder sb = new StringBuilder();
         while(true) {
             int c = is.read();
@@ -115,6 +138,7 @@ public class TextConfigurationBuilder
             }
             sb.append((char)c);
         }
+        is.close();
 
         return sb.toString();
     }
@@ -163,6 +187,7 @@ public class TextConfigurationBuilder
 
     }
 
+    @Override
     public Configuration createConfiguration() throws ConfigurationException
     {
         try {
