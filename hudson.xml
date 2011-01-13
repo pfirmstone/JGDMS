@@ -54,6 +54,9 @@
                 <path path="asm/asm-tree-3.2.jar" />
                 <path path="lib" />
                 <path path="lib-dl" />
+                <ignore className="org.apache.velocity.app.VelocityEngine"/>
+                <ignore className="org.apache.velocity.VelocityContext"/>
+                <ignore className="org.apache.velocity.Template"/>
             </as:check-signature>
         </sequential>
     </macrodef>

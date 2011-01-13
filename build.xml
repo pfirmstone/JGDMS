@@ -43,7 +43,7 @@
     <property name="doc.tar.bundle" location="${dist}/${product.name}-doc.tar.gz"/>
     <property name="doc.zip.bundle" location="${dist}/${product.name}-doc.zip"/>
 
-    <target name="hudson-ci" description="hudson build target" depends="diagnostics,hudson-ci-settings,all.clean,release,test,javadoc-internals" />
+    <target name="hudson-ci" description="hudson build target" depends="diagnostics,hudson-ci-settings,all.clean,release,test" />
 
     <target name="hudson-ci-settings" description="provide default settings" >
         <echoproperties />
