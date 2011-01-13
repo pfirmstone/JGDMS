@@ -670,7 +670,7 @@
         <jar destfile="${lib.dir}/extra.jar" index="false">
             <fileset dir="${build.classes.dir}">
                 <include name="org/apache/river/extra/**"/>
-                <include name="org/apache/river/configbuilder/**"/>
+                <include name="org/apache/river/config/**"/>
             </fileset>
         </jar>
     </target>
