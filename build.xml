@@ -665,7 +665,7 @@
         <!-- move to sep compile.extra target or add to compile target? -->
         <javac-cmd source.dir="${src-extra.dir}" dest.dir="${build.classes.dir}">
         </javac-cmd>
-        <javac-cmd source.dir="${src}/org/apache/river/configbuilder" dest.dir="${build.classes.dir}">
+        <javac-cmd source.dir="${src}/org/apache/river/config" dest.dir="${build.classes.dir}">
         </javac-cmd>
         <jar destfile="${lib.dir}/extra.jar" index="false">
             <fileset dir="${build.classes.dir}">
