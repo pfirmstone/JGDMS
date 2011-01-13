@@ -50,6 +50,8 @@ public class TextConfigurationBuilder
 
     private String codebase = "" ;
 
+    private boolean disableMulticast = false ;
+
     public TextConfigurationBuilder()
     {
     }
@@ -114,6 +116,16 @@ public class TextConfigurationBuilder
         this.codebase = codebase;
     }
 
+    public boolean isDisableMulticast()
+    {
+        return disableMulticast;
+    }
+
+    public void setDisableMulticast(boolean disableMulticast)
+    {
+        this.disableMulticast = disableMulticast;
+    }
+
     public String getConfigurationText() throws IOException
     {
         {
@@ -128,7 +140,7 @@ public class TextConfigurationBuilder
 
         specialEntryMap.put("$group", group);
         specialEntryMap.put("$codebase", codebase);
-        
+
         InputStream is = getClass().getResourceAsStream("template.config");
         StringBuilder sb = new StringBuilder();
         while(true) {
@@ -140,7 +152,18 @@ public class TextConfigurationBuilder
         }
         is.close();
 
-        return sb.toString();
+        String buf = sb.toString();
+
+        {
+            String mcstr = "" ;
+            if( disableMulticast ) {
+                mcstr = "multicastInterfaces = new java.net.NetworkInterface[] { } ;" ;
+            }
+
+            buf = buf.replaceAll("%REGGIE.multicastInterfaces%", mcstr );
+        }
+
+        return buf ;
     }
 
     public class ConfigurationFile2
