@@ -44,7 +44,7 @@ public class Example {
         } );
 
 
-        TextConfigurationBuilder cb = new TextConfigurationBuilder();
+        VelocityConfigurationBuilder cb = new VelocityConfigurationBuilder();
 
         cb.setServicePort(1234);
         

@@ -143,8 +143,8 @@ public class VelocityConfigurationBuilder
             context.put("multicastInterfaces", mcstr );
         }
 
-        context.put("registryEndpoint", String.format("TcpServerEndpoint.getInstance(%s,%d)",registryHost,registryPort) );
-        context.put("serverEndpoint", String.format("TcpServerEndpoint.getInstance(%s,%d)",serviceHost,servicePort) );
+        context.put("registryEndpoint", String.format("TcpServerEndpoint.getInstance(%s,%d)",stringToLiteral(registryHost),registryPort) );
+        context.put("serverEndpoint", String.format("TcpServerEndpoint.getInstance(%s,%d)",stringToLiteral(serviceHost),servicePort) );
         context.put("groups", String.format("\"%s\"",group) );
 
         Template template = ve.getTemplate( getClass().getResource("template.vm").toExternalForm() );
@@ -154,6 +154,14 @@ public class VelocityConfigurationBuilder
         template.merge(context, sw);
 
         return sw.toString();
+    }
+
+    private String stringToLiteral( String s )
+    {
+        if( s == null ) {
+            return "null" ;
+        }
+        return String.format("\"%s\"",s);
     }
 
     @Override
