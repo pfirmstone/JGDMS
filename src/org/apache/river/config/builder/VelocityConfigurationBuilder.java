@@ -164,7 +164,6 @@ public class VelocityConfigurationBuilder
         return String.format("\"%s\"",s);
     }
 
-    @Override
     public Configuration createConfiguration() throws ConfigurationException
     {
         try {
