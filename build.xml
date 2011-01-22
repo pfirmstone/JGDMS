@@ -593,6 +593,16 @@
             <arg value="tools.jar"/>
         </jarwrapper>
     </target>
+    
+    <target name="classdepend.jar" depends="jarwrapper.jar">
+        <delete file="${lib.dir}/classdepend.jar" quiet="true"/>
+        <jarwrapper>
+            <arg value="-manifest=${src.manifest.dir}/classdepend.mf"/>
+            <arg path="${lib.dir}/classdepend.jar"/>
+            <arg path="${lib.dir}"/>
+            <arg value="tools.jar"/>
+        </jarwrapper>
+    </target>
 
     <target name="classserver.jar" depends="jarwrapper.jar">
         <delete file="${lib.dir}/classserver.jar" quiet="true"/>

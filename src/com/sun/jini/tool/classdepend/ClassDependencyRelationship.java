@@ -32,14 +32,14 @@ public class ClassDependencyRelationship {
     private final Set dependants;   // classes that depend upon this class.
     private final Set providers;    // classes that this class depends upon.
     private final String fullyQualifiedClassName;
+    private final int hash;
     private final boolean rootClass;
-    private volatile boolean result = false; // never set back to false, once true, true always.
-    private volatile boolean interesting = false;
     
     ClassDependencyRelationship (String fullyQualifiedClassName, boolean rootClass){
         this.fullyQualifiedClassName = fullyQualifiedClassName;
-        dependants = Collections.synchronizedSet(new HashSet());
-        providers = Collections.synchronizedSet(new HashSet());
+        hash = 59 * 7 + (this.fullyQualifiedClassName != null ? this.fullyQualifiedClassName.hashCode() : 0);
+        dependants = new HashSet();
+        providers = new HashSet();
         this.rootClass = rootClass;
     }
     
@@ -79,16 +79,6 @@ public class ClassDependencyRelationship {
         return deps;
     }
 
-    public void addProviders(Set providers) {
-        Iterator iter = providers.iterator();
-        synchronized (this.providers){
-            this.providers.addAll(providers);
-        }
-        while (iter.hasNext()){
-            ((ClassDependencyRelationship) iter.next()).addDependant(this);
-        }
-    }
-
     /**
      * Get the classes that this class needs to function.
      * @return a Set of classes
@@ -106,8 +96,22 @@ public class ClassDependencyRelationship {
         return fullyQualifiedClassName;
     }
 
+    @Override
+    public int hashCode() {
+        return hash;
+    }
+    
+    public boolean equals(Object o){
+        if ( o == null ) return false;
+        if (!(o instanceof ClassDependencyRelationship)) return false;
+        if (fullyQualifiedClassName.equals(
+                ((ClassDependencyRelationship)o).fullyQualifiedClassName))
+                return true;
+        return false;
+    }
+
     /**
-     * Is this a root dependant, that is no other classes depend on this.
+     * If this a root dependant, the class was used to discover dependencies.
      * @return true or false
      */
     public boolean isRootClass() {

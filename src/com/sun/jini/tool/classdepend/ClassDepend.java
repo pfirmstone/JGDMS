@@ -132,6 +132,7 @@ public class ClassDepend {
             boolean recurse = true;
 	    boolean warn = false; //supress exceptions, print to error, warn instead
 	    boolean files = false; //print class with file path separator
+            boolean graph = false; //print dependency relation ships between classes.
 	    for (int i = 0; i < args.length; i++) {
 		String arg = args[i];
 		if (arg.equals("-cp")) {
@@ -146,6 +147,10 @@ public class ClassDepend {
 		    warn = true;
 		} else if (arg.equals("-files")) {
 		    files = true;
+                } else if (arg.equals("-graph")) {
+                    graph = true;
+                } else if (arg.equals("-excljava")) {
+                    cdpb.excludePlatformClasses(true);
 		} else if (arg.startsWith("-")) {
 		    throw new IllegalArgumentException("Bad option: " + arg);
 		} else {
@@ -154,21 +159,31 @@ public class ClassDepend {
 	    }
             ClassDependParameters cdp = cdpb.build();          
 	    ClassDepend classDepend = ClassDepend.newInstance(classpath, platform, warn);
-            
-            
-	    String[] dependencies = (String[]) classDepend
+            Set result = classDepend
                     .filterClassDependencyRelationShipMap(
                     classDepend.getDependencyRelationshipMap(rootClasses, recurse),
-                    cdp)
-                    .toArray(new String[0]);
-	    Arrays.sort(dependencies);
-            int l = dependencies.length;
-	    for ( int i = 0 ; i < l ; i++) {
-                String cl = dependencies[i];
+                    cdp);
+            Iterator results = result.iterator();
+            while (results.hasNext()){
+                Object rezult = results.next();
+                if ( !(rezult instanceof ClassDependencyRelationship )) continue;
+                ClassDependencyRelationship cl = (ClassDependencyRelationship) rezult;
+                String str = cl.toString();
 		if (files) {
-		    cl = cl.replace('.', File.separatorChar).concat(".class");
+		    str = str.replace('.', File.separatorChar).concat(".class");
+                    System.out.println(str);
 		}
-		System.out.println(cl);
+		if (graph) {
+                    Set deps = cl.getProviders();
+                    Iterator itr = deps.iterator();
+                    while (itr.hasNext()){
+                        Object dep = itr.next();
+                        if ( result.contains(dep)) {
+                            System.out.println("\"" + cl + "\""+ " -> " + 
+                                "\"" + dep + "\"" + ";");
+                        }
+                    }
+                }
 	    }
 	} catch (Throwable e) {
 	    e.printStackTrace();
