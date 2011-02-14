@@ -128,11 +128,12 @@ public class NBEUniqueEntry implements net.jini.core.entry.Entry {
         originatingHostVM = ourVMName;
 
         // Grab nextID
-        int id;
-        synchronized (getClass()) {
-            id = nextID++;
-        }
+        int id = getID();
         entryID = new Integer(id);
+    }
+
+    private static synchronized int getID() {
+        return nextID++;
     }
 
     /**
@@ -144,4 +145,12 @@ public class NBEUniqueEntry implements net.jini.core.entry.Entry {
         originatingHostVM = entry.originatingHostVM;
         entryID = entry.entryID;
     }
+
+    @Override
+    public String toString() {
+        return "NBEUniqueEntry [entryID=" + entryID + ", originatingHostVM="
+                + originatingHostVM + ", toString()=" + super.toString() + "]";
+    }
+    
+ 
 }

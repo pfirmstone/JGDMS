@@ -122,12 +122,11 @@ public class UniqueEntry extends net.jini.entry.AbstractEntry {
         }
         originatingHostVM = ourVMName;
 
-        // Grab nextID
-        int id;
-        synchronized (getClass()) {
-            id = nextID++;
-        }
-        entryID = new Integer(id);
+        entryID = new Integer(getID());
+    }
+
+    private static synchronized int getID() {
+        return nextID++;
     }
 
     /**
