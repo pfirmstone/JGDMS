@@ -191,7 +191,7 @@
         <attribute name="debug" default="${debug}"/>
         <attribute name="debuglevel" default="${debuglevel}"/>
         <attribute name="source" default="5"/>
-        <attribute name="target" default="jsr14"/>
+        <attribute name="target" default="5"/>
         <attribute name="deprecation" default="${deprecation}"/>
         <attribute name="verbose" default="${verbose}"/>
         <attribute name="nowarn" default="${nowarn}"/>
