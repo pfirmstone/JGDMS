@@ -5,8 +5,8 @@ com.sun.jini.qa.harness.timeout=14400
 include0=../outrigger.properties
 
 com.sun.jini.test.share.restart_wait=10000
-com.sun.jini.test.impl.outrigger.matching.StressTest.num_entries=1000
-com.sun.jini.test.impl.outrigger.matching.StressTest.num_readers=13
-com.sun.jini.test.impl.outrigger.matching.StressTest.num_writers=7
+com.sun.jini.test.impl.outrigger.matching.StressTest.num_entries=10000
+com.sun.jini.test.impl.outrigger.matching.StressTest.num_readers=500
+com.sun.jini.test.impl.outrigger.matching.StressTest.num_writers=500
 com.sun.jini.test.impl.outrigger.matching.tryShutdown=1
 
