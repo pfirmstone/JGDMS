@@ -28,7 +28,7 @@ import java.util.Set;
  */
 class WatchersForTemplateClass {
     /** All the templates we know about */
-    private final FastList contents = new FastList();	
+    private final FastList<TemplateHandle> contents = new FastList<TemplateHandle>();	
 
     /** The object we are inside of */
     private final TransitionWatchers owner;
@@ -65,8 +65,7 @@ class WatchersForTemplateClass {
 	 * if we have more than one with the same template. It
 	 * is bad if we add the watcher to a removed handle.
 	 */	
-	TemplateHandle handle = (TemplateHandle)contents.head();
-	for (; handle != null; handle = (TemplateHandle)handle.next()) {
+        for(TemplateHandle handle : contents) {
 	    if (template.equals(handle.rep())) {
 		synchronized (handle) {
 		    if (!handle.removed()) {
@@ -90,7 +89,7 @@ class WatchersForTemplateClass {
 	 * template, create one, add the watcher to it, and it
 	 * to contents.
 	 */
-	handle = new TemplateHandle(template, this);
+	TemplateHandle handle = new TemplateHandle(template, this);
 
 	/* We need the sync both to prevent concurrent modification
 	 * of handle (since we add it to contents first), and to
@@ -134,9 +133,7 @@ class WatchersForTemplateClass {
 	 * the changed entry and if they do ask them to 
 	 * put the appropriate watchers in the set.
 	 */
-	for (TemplateHandle handle = (TemplateHandle)contents.head();
-	     handle != null;
-	     handle = (TemplateHandle)handle.next())
+	for (TemplateHandle handle : contents)
 	{
 	    // See the if handle mask is incompatible
 	    EntryHandleTmplDesc desc = handle.descFor(repNumFields);
@@ -171,9 +168,7 @@ class WatchersForTemplateClass {
      */
     void reap(long now) {
 	// First remove empty handles
-	for (TemplateHandle handle = (TemplateHandle)contents.head();
-	     handle != null;
-	     handle = (TemplateHandle)handle.next())
+	for (TemplateHandle handle : contents)
 	{
 	    // Dump any expired watchers.
 	    handle.reap(now);

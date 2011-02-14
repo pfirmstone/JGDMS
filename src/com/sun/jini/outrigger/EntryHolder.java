@@ -18,6 +18,7 @@
 package com.sun.jini.outrigger;
 
 import java.util.Hashtable;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
@@ -38,7 +39,7 @@ import net.jini.core.transaction.server.TransactionConstants;
  */
 class EntryHolder implements TransactionConstants {
     /** The list that holds the handles */
-    private final FastList contents = new FastList();
+    private final FastList<EntryHandle> contents = new FastList<EntryHandle>();
 
     /** 
      * The map of cookies to handles, shared with the
@@ -114,44 +115,44 @@ class EntryHolder implements TransactionConstants {
      * @see #attemptCapture 
      */
     EntryHandle hasMatch(EntryRep tmpl, TransactableMgr txn, boolean takeIt,
-		      Set conflictSet, Set lockedEntrySet,
-		      WeakHashMap provisionallyRemovedEntrySet)
-	throws CannotJoinException
-    {
-	matchingLogger.entering("EntryHolder", "hasMatch");
+            Set conflictSet, Set lockedEntrySet,
+            WeakHashMap provisionallyRemovedEntrySet)
+            throws CannotJoinException {
+        matchingLogger.entering("EntryHolder", "hasMatch");
+        EntryHandleTmplDesc desc = null;
+        long startTime = 0;
 
-	EntryHandle handle = (EntryHandle) contents.head();
-	if (handle == null)
-	    return null;     // Nothing here
+        for (EntryHandle handle : contents) {
 
-	final EntryHandleTmplDesc desc = 
-	    EntryHandle.descFor(tmpl, handle.rep().numFields());
-	final long startTime = System.currentTimeMillis();
+            if (startTime == 0) {
+                // First time through
+                desc = EntryHandle.descFor(tmpl, handle.rep().numFields());
+                startTime = System.currentTimeMillis();
+            }
 
-	for (;handle != null; handle = (EntryHandle) handle.next()) {
-	    if (handle.removed())
-		continue;
+            if (handle.removed())
+                continue;
 
-	    // Quick reject -- see the if handle mask is incompatible
-	    if ((handle.hash() & desc.mask) != desc.hash)
-		continue;
+            // Quick reject -- see the if handle mask is incompatible
+            if ((handle.hash() & desc.mask) != desc.hash)
+                continue;
 
-	    final EntryRep rep = handle.rep();
+            final EntryRep rep = handle.rep();
 
-	    if (!tmpl.matches(rep))
-		continue;
-		    
-	    final boolean available =
-		confirmAvailabilityWithTxn(rep, handle, txn, 
-		    takeIt, startTime, conflictSet, lockedEntrySet,
-		    provisionallyRemovedEntrySet);
+            if (!tmpl.matches(rep))
+                continue;
 
-	    if (available)
-		return handle;
-	}
+            final boolean available = confirmAvailabilityWithTxn(rep, handle,
+                    txn, takeIt, startTime, conflictSet, lockedEntrySet,
+                    provisionallyRemovedEntrySet);
 
-	return null;
+            if (available)
+                return handle;
+        }
+
+        return null;
     }
+    
 
     /**
      * Debug method:  Dump out the state of this holder, printing out
@@ -160,9 +161,7 @@ class EntryHolder implements TransactionConstants {
     void dump(String name) {
 	try {
 	    System.out.println(name);
-	    for (EntryHandle handle = (EntryHandle) contents.head();
-		 handle != null;
-		 handle = (EntryHandle) handle.next())
+	    for (EntryHandle handle : contents)
 	    {
 		EntryRep rep = handle.rep();
 		System.out.println("    " + rep + ", " + rep.entry());
@@ -495,6 +494,18 @@ class EntryHolder implements TransactionConstants {
     }
     
     /**
+     * Get the head of the contents list
+     * @return The head of the contents list, if it exists.
+     * null if the list is empty.
+     */
+    private EntryHandle getContentsHead(){
+        for(EntryHandle head : contents){
+            return head;
+        }
+        return null;
+    }
+    
+    /**
      * Add new new entry to the holder. Assumes the lock
      * on the handle is held if there is a possibility
      * of concurrent access.
@@ -530,7 +541,7 @@ class EntryHolder implements TransactionConstants {
 	 * exposing it to others (even though shareWith will
 	 * not change handle's state materially).  
 	 */
-	final EntryHandle head = (EntryHandle) contents.head();
+	final EntryHandle head = getContentsHead();
 	if (head != null && head != handle)
 	    rep.shareWith(head.rep());
 
@@ -547,7 +558,7 @@ class EntryHolder implements TransactionConstants {
      * empty.
      */
     String[] supertypes() {
-	final EntryHandle head = (EntryHandle)contents.head();
+	final EntryHandle head = getContentsHead();
 	if (head == null)
 	    return null;
 	return head.rep().superclasses();
@@ -565,56 +576,36 @@ class EntryHolder implements TransactionConstants {
      * The class that implements <code>RepEnum</code> for this class.
      */
     private class SimpleRepEnum implements RepEnum {
-	/** The last node we saw */
-	private EntryHandle handle;
+        private Iterator<EntryHandle> contentsIterator;
 	private TransactableMgr mgr;
 	private long startTime;
-	int count = 0;
 
-	SimpleRepEnum(TransactableMgr mgr) {
-	    this.mgr = mgr;
-	    handle = (EntryHandle) contents.head();
-	    startTime = System.currentTimeMillis();
-	}
+        SimpleRepEnum(TransactableMgr mgr) {
+            this.mgr = mgr;
+            startTime = System.currentTimeMillis();
+            contentsIterator = contents.iterator();
+        }
 
-	// inherit doc comment from superclass
-	public EntryRep nextRep() {
-	    iteratorLogger.entering("SimpleRepEnum", "nextRep");
+        // inherit doc comment from superclass
+        public EntryRep nextRep() {
+            iteratorLogger.entering("SimpleRepEnum", "nextRep");
+            while (contentsIterator.hasNext()) {
+                EntryHandle handle = contentsIterator.next();
+                iteratorLogger.log(Level.FINEST,
+                        "advanced current handle to {0}", handle);
+                /*
+                 * Skip over handles which are either removed or unable to
+                 * perform a READ operation.
+                 */
+                if (handle.canPerform(mgr, TransactableMgr.READ)
+                        && !isExpired(startTime, handle) && !handle.removed()) {
+                    return handle.rep();
+                }
 
-	    /* Since we might be accessing our iteration from a
-	     * different thread than the one that began the traversal,
-	     * we need to inform the FastList that this thread should
-	     * be allowed to assume that traversal without throwing 
-	     * an exception. FastList must therefore update its data
-	     * structures to accommodate the traversal from this new
-	     * thread. [It would be better if did this once per a thread...]
-	     */
+            }
 
-	    if (handle != null)
-		handle.restart();
-
-	    /* Skip over handles which are either removed or unable
-	     * to perform a READ operation.
-	     */
-
-	    while (handle != null &&
-		(!handle.canPerform(mgr, TransactableMgr.READ)	||
-		 isExpired(startTime, handle) 			|| 
-		 handle.removed()
-		))
-	    {
-		handle = (EntryHandle) handle.next();
-		iteratorLogger.log(Level.FINEST, 
-				   "advanced current handle to {0}", handle);
-	    }
-
-	    if (handle == null)
-		return null;
-
-	    EntryHandle h = handle;
-	    handle = (EntryHandle) h.next();
-	    return h.rep();
-	}
+            return null;
+        }
     }
 
     
@@ -661,7 +652,7 @@ class EntryHolder implements TransactionConstants {
 	final private boolean takeThem;
 
 	/** <code>EntryHandleTmplDesc</code> for the templates */
-	final private EntryHandleTmplDesc[] descs;
+	private EntryHandleTmplDesc[] descs;
 	    
 
 	/** Time used to weed out expired entries, ok if old */
@@ -671,7 +662,7 @@ class EntryHolder implements TransactionConstants {
 	 * Current position in parent <code>EntryHolder</code>'s
 	 * <code>contents</code> 
 	 */
-	private EntryHandle handle;
+	private Iterator<EntryHandle> contentsIterator;
 
 	/**
 	 * Create a new <code>ContinuingQuery</code> object.
@@ -695,19 +686,7 @@ class EntryHolder implements TransactionConstants {
 	    this.txn = txn;
 	    this.takeThem = takeThem;
 	    this.now = now;
-	    handle = (EntryHandle)contents.head();
-
-	    if (handle == null) {
-		// nothing to search - first next will return null
-		descs = null; // keep compiler happy
-		return; 
-	    }
-
-	    descs = new EntryHandleTmplDesc[tmpls.length];
-	    for (int i=0; i<tmpls.length; i++) {
-		descs[i] = EntryHandle.descFor(this.tmpls[i], 
-					       handle.rep().numFields());
-	    }
+	    contentsIterator = contents.iterator();
 	}
 
 	/**
@@ -722,11 +701,10 @@ class EntryHolder implements TransactionConstants {
 	 *                 expired entries, ok if old
 	 */
 	void restart(long now) {
-	    if (handle == null)
+	    if (!contentsIterator.hasNext())
 		return;
 
 	    this.now = now;
-	    handle.restart();
 	}
 
 	/**
@@ -772,11 +750,19 @@ class EntryHolder implements TransactionConstants {
 	    throws CannotJoinException
 	{
 	    matchingLogger.entering("ContinuingQuery", "next");
-	    if (handle == null)
-		return null;     // done
 
-	    for (; handle != null; handle = (EntryHandle)handle.next()) {
-		if (handleMatch()) {
+
+	    while (contentsIterator.hasNext()) {
+	        EntryHandle handle = contentsIterator.next();
+	        if(descs == null){
+	            // first time
+	            descs = new EntryHandleTmplDesc[tmpls.length];
+	            for (int i=0; i<tmpls.length; i++) {
+	                descs[i] = EntryHandle.descFor(tmpls[i], 
+	                                               handle.rep().numFields());
+	            }
+	        }
+		if (handleMatch(handle)) {
 		    
 		    final boolean available =
 			confirmAvailabilityWithTxn(handle.rep(), handle, txn, 
@@ -784,10 +770,7 @@ class EntryHolder implements TransactionConstants {
 			    provisionallyRemovedEntrySet);
 
 		    if (available) {
-			// Don't want to return this guy twice.
-			final EntryHandle rslt = handle;
-			handle = (EntryHandle)handle.next();
-			return rslt;
+			return handle;
 		    }
 		}
 	    }
@@ -799,7 +782,7 @@ class EntryHolder implements TransactionConstants {
 	 * Returns <code>true</code> if handle has not been removed
 	 * and matches one or more of the templates 
 	 */
-	private boolean handleMatch() {
+	private boolean handleMatch(EntryHandle handle) {
 	    if (handle.removed())
 		return false;
 
@@ -868,10 +851,7 @@ class EntryHolder implements TransactionConstants {
 	// removed ("reaped") from the collection. 
 
 	long now = System.currentTimeMillis();
-	for (EntryHandle handle = (EntryHandle) contents.head();
-	     handle != null;
-	     handle = (EntryHandle) handle.next())
-	{
+	for(EntryHandle handle : contents){
 	    // Don't try to remove things twice
 	    if (handle.removed()) {
 		continue;
