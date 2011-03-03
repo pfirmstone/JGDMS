@@ -259,5 +259,19 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
     public Iterator<T> iterator() {
         return new FastListIteratorImpl();
     }
+    
+    /**
+     * Iterator that includes all physically present items,
+     * regardless of when they were added or whether they have
+     * been logically removed. This method is intended for
+     * testing. For example, it can be used to verify
+     * that a reap() call does in fact physically remove
+     * the items it should remove.
+     * 
+     * @return
+     */
+    Iterator<T> rawIterator() {
+        return baseQueue.iterator();
+    }
 
 }
