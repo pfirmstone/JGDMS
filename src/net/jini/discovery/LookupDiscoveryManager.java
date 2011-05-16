@@ -25,6 +25,10 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.logging.Logger;
+
+import com.sun.jini.logging.Levels;
+
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.EmptyConfiguration;
@@ -67,8 +71,7 @@ import net.jini.core.lookup.ServiceRegistrar;
  * <p>
  * </a>
  *
- * Currently, there are no loggers directly supported by this implementation
- * of <code>LookupDiscoveryManager</code>.  All logging information produced
+ * With one exception, all logging information produced
  * when using this utility is controlled by the loggers supported by the
  * following utilities:
  * <p>
@@ -77,9 +80,32 @@ import net.jini.core.lookup.ServiceRegistrar;
  *  <li> {@link LookupLocatorDiscovery} 
  * </ul>
  * <p>
- * For information about how to obtain logging information when using this
- * implementation of  <code>LookupDiscoveryManager</code>, please refer to
- * the documentation provided with the discovery utilities listed above.
+ * This implementation of <code>LookupDiscoveryManager</code> uses the {@link Logger}
+ * named <code>net.jini.discovery.LookupDiscoveryManager</code> to log information
+ * at the following logging levels: <p>
+ * 
+ * <table border="1" cellpadding="5"
+ *       summary="Describes the information logged by LookupDiscoveryManager, and
+ *                 the levels at which that information is logged">
+ * 
+ * <caption halign="center" valign="top">
+ *   <b><code>net.jini.discovery.LookupDiscoveryManager</code></b>
+ * </caption>
+ *
+ * <tr> <th scope="col"> Level</th>
+ *      <th scope="col"> Description</th>
+ * </tr>
+ * 
+ * <tr>
+ *   <td>{@link java.util.logging.Level#HANDLED HANDLED}</td>
+ *   <td>
+ *     when this utility asynchronously invokes a {@link net.jini.discovery.DiscoveryListener}
+ *     implementation and that listener throws and unchecked exception. If the listener throws
+ *     in a synchronous path (namely, via {@link #addDiscoveryListener(DiscoveryListener)}) then
+ *     the exception is not trapped and will instead throw back to the caller.
+ *   </td>
+ * </tr>
+ * </table>
  * <p>
  *
  * @author Sun Microsystems, Inc.
@@ -93,6 +119,11 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
                                                DiscoveryGroupManagement,
                                                DiscoveryLocatorManagement
 {
+    /* Name of this component; used in config entry retrieval and the logger.*/
+    private static final String COMPONENT_NAME
+                                        = "net.jini.discovery.LookupDiscoveryManager";
+    /* Logger used by this utility. */
+    private static final Logger logger = Logger.getLogger(COMPONENT_NAME);
     /** Constant that indicates the discovery mechanism is group discovery */
     public static final int FROM_GROUP = 1;
     /** Constant that indicates the discovery mechanism is locator discovery */
@@ -1192,6 +1223,11 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
      * to date, and will then be notified as new lookup services are
      * discovered or existing lookup services are discarded.
      * <p>
+     * The listener methods may throw Error or RuntimeException subclasses.
+     * They will normally be reported only through the log. If the discovered
+     * method throws Throwable T during the initial discovery of existing
+     * services then this method will also throw T.
+     * <p>
      * If <code>null</code> is input, this method takes no action. If the
      * listener input to this method duplicates (using the <code>equals</code>
      * method) another element in the current set of listeners, no action
@@ -1341,6 +1377,15 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
 	return null;
     }
 
+    /**
+     * Notify all listeners for a discovery event. If a listener's method
+     * completes abruptly due to a Throwable, it is logged and processing 
+     * continues.
+     * @param groupsMap mapping from the elements of the registrars of this
+     *               event to the member groups in which each registrar is
+     *               a member.
+     * @param eventType The type of event.
+     */
     private void notifyListener(Map groupsMap, int eventType) {
 	if(groupsMap.isEmpty()) return;
 	ArrayList notifies;
@@ -1350,10 +1395,24 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
 	Iterator iter = notifies.iterator();
 	while(iter.hasNext()) {
 	    DiscoveryListener l = (DiscoveryListener)iter.next();
-            notifyListener(l, groupsMap, eventType);
+	    try {
+                notifyListener(l, groupsMap, eventType);
+	    } catch (Throwable t) {
+                logger.log(Levels.HANDLED, "a discovery listener failed to process a " +
+                	(eventType == DISCARDED ? "discard" : eventType == DISCOVERED ? "discover" : "changed") + " event", t);
+	    }
 	}
     }//end notifyListener
     
+    /**
+     * Notify a specific listener for a discovery event. If the listener's
+     * method throws a Throwable T, this method will also throw T. 
+     * @param l The listener to notify.
+     * @param groupsMap mapping from the elements of the registrars of this
+     *               event to the member groups in which each registrar is
+     *               a member.
+     * @param eventType The type of the event.
+     */
     private void notifyListener(DiscoveryListener l,
                                 Map groupsMap,
                                 int eventType)

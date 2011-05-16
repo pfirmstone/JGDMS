@@ -972,17 +972,22 @@ public class LookupDiscovery implements DiscoveryManagement,
                                     }//endif(groups.length)
                                 }//end loop
                             }//endif(firstListener && isLoggable(Level.FINEST)
-                            switch(task.eventType) {
-                                case DISCOVERED:
-                                    l.discovered(e);
-                                    break;
-                                case DISCARDED:
-                                    l.discarded(e);
-                                    break;
-                                case CHANGED:
-                                    ((DiscoveryChangeListener)l).changed(e);
-                                    break;
-                            }//end switch(eventType)
+                            try {
+                        	switch(task.eventType) {
+                                    case DISCOVERED:
+                                	l.discovered(e);
+                                	break;
+                                    case DISCARDED:
+                                	l.discarded(e);
+                                	break;
+                                    case CHANGED:
+                                	((DiscoveryChangeListener)l).changed(e);
+                                	break;
+                        	}//end switch(eventType)
+                            } catch (Throwable t) {
+                                logger.log(Levels.HANDLED, "a discovery listener failed to process a " +
+                                	(task.eventType == DISCARDED ? "discard" : task.eventType == DISCOVERED ? "discover" : "changed") + " event", t);
+                            }
                             firstListener = false;
 			}//end loop
 			return null;

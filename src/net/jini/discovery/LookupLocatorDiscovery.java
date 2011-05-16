@@ -650,11 +650,16 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
                             }//endif(groups.length)
                         }//end loop
                     }//endif(firstListener && isLoggable(Level.FINEST)
-		    if (task.discard) {
-			l.discarded(e);
-		    } else {
-			l.discovered(e);
-                    }//endif
+                    try {
+			if (task.discard) {
+			    l.discarded(e);
+			} else {
+			    l.discovered(e);
+                	}//endif
+                    } catch (Throwable t) {
+                	logger.log(Levels.HANDLED, "a discovery listener failed to process a " +
+                		(task.discard ? "discard" : "discover") + " event", t);
+                    }
 		}//end loop
 	    }//end loop
 	}//end run
