@@ -17,32 +17,96 @@
  !-->
 <html lang="en-US">
 <head>
-<title>Apache River Release Notes, v2.1.2</title>
+<title>Apache River Release Notes, v2.2.0</title>
 </head>
 <body text="#000000" bgcolor="#ffffff" link="#9b37cc"
       vlink="#cc1877" alink="#ffffff">
 
 
 <center> <h1><a name="TOP">Apache River 
-<br>v2.1.2 Release Notes</a></h1></center>
-<p>
-<hr>
-Apache River is an effort undergoing incubation at The Apache Software
-Foundation (ASF), sponsored by the Apache Incubator. Incubation is
-required of all newly accepted projects until a further review
-indicates that the infrastructure, communications, and decision making
-process have stabilized in a manner consistent with other successful
-ASF projects. While incubation status is not necessarily a reflection
-of the completeness or stability of the code, it does indicate that
-the project has yet to be fully endorsed by the ASF.
+<br>v2.2.0 Release Notes</a></h1></center>
 <p>
 Apache River is aimed at the development and advancement of the
-River technology core infrastructure. River technology is a service
+River technology core infrastructure. It is a top level Apache project.  River technology is a service
 oriented architecture that defines a programming model which both
 exploits and extends Java technology to enable the construction of
 secure, distributed systems which are adaptive to change.
 <hr>
-<h2>Notes of Interest for this Release</h2>
+
+<h2>Submitting Issues</h2>
+<p>
+If you would like to submit a bug against the Apache River release, please use the
+<a href="http://issues.apache.org/jira/browse/RIVER">River JIRA</a>.
+To discuss problems, questions, or suggestions on the release, please subscribe
+to the <code>river-dev</code> list from the <a href="http://incubator.apache.org/river/mailing.html">
+project Mailing Lists</a> page.
+<hr>
+
+<!-- Start 2.2.0 Release Note -->
+
+<hr> 
+<h1>Release Notes - River 2.2.0</h1>
+<h2>Sub-task</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-374'>RIVER-374</a>] -         Review how LookupLocator is used to provide host and port details for LookupLocatorDiscovery
+</li>
+</ul>
+<h2>Bug
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-11'>RIVER-11</a>] -         LookupLocatorDiscovery ignores new LookupLocator instances for which only constraints differ
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-170'>RIVER-170</a>] -         hello example ConfirmingILFactory assumes ClientHost.toString is useful
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-183'>RIVER-183</a>] -         clarify meaning of &quot;calls from the local host&quot;
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-296'>RIVER-296</a>] -         Mahalo implementation throws CannotAbortException from abort() on an expired transaction
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-334'>RIVER-334</a>] -         jre 6 Policy issues
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-353'>RIVER-353</a>] -         VM sometimes crashes during build when executing jarwrapper
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-354'>RIVER-354</a>] -         TransactionManagerImpl.abort throws a NullPointerException when transaction is not found, where interface TransactionManager specifies an UnknownTransactionException to be thrown.
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-391'>RIVER-391</a>] -         Outrigger failure under stress
+</li>
+</ul>
+            
+<h2>        Improvement
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-92'>RIVER-92</a>] -         preferredlistgen warning messages during build are confusing
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-346'>RIVER-346</a>] -         Logging for QA tests is set to FINEST for many loggers by default . This should be changed to INFO.
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-349'>RIVER-349</a>] -         Setup separate Hudson job for QA testing
+</li>
+</ul>
+    
+<h2>        New Feature
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-338'>RIVER-338</a>] -         Integrate The Jini Surrogate Architecture
+</li>
+</ul>
+                        
+<h2>        Task
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-301'>RIVER-301</a>] -         Move the QA framework donated by Sun inside the jtsk trunk and integrate into build process
+</li>
+</ul>
+        
+<h2>        Test
+</h2>
+<ul>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-333'>RIVER-333</a>] -         Tested platforms
+</li>
+</ul>
+
+<!-- End 2.2.0 Release Note -->
+
+<h2>Notes of Interest 2.1.2</h2>
 This second release from the Apache River project is based on the
 contributions of Sun's Jini Technology Starter Kit (Starter Kit) v2.1
 and Service UI from Artima.  The release focuses on merging the
@@ -91,23 +155,15 @@ been removed
  </li>
 </ul>
 
-<hr>
-<h2>Submitting Issues</h2>
-<p>
-If you would like to submit a bug against the Apache River release, please use the
-<a href="http://issues.apache.org/jira/browse/RIVER">River JIRA</a>.
-To discuss problems, questions, or suggestions on the release, please subscribe
-to the <code>river-dev</code> list from the <a href="http://incubator.apache.org/river/mailing.html">
-project Mailing Lists</a> page.
-<hr>
+
 <h2>Upcoming Changes planned for the next version of Apache River</h2>
 <li>All packages ouside of the net.jini namespace will be 
 renamed to org.apache.river.</li>
 <li>Support for Java 5 language features</li>
 <li>Support for Modular Frameworks conforming to the OSGi r4.2 core Specification</li>
 <hr>    
-    <h2>Changes made since Apache River v2.1.1</h2>
-    <h2>        Bug
+<h2>Changes made since Apache River v2.1.1</h2>
+<h2>        Bug
 </h2>
 <ul>
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-5'>RIVER-5</a>] - 
