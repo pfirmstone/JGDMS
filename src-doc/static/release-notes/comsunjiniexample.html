@@ -16,49 +16,36 @@
  ! limitations under the License.
  !-->
 <!DOCTYPE HTML PUBLIC "-//IETF//DTD HTML//EN">
+
 <html>
+<head>
+  <title>Release Notes for the com.sun.jini.thread package
+  </title>
+</head>
 
-<body text="#000000" bgcolor="#ffffff" link="#9b37cc"
-      vlink="#cc1877" alink="#ffffff">
-<a name="top">
-<title>Release Notes for ClassServer</title>
-
+<body text="black" bgcolor="white" link="#9b37cc" vlink="#cc1877" alink="white">
 <center>
-<h1><code>ClassServer</code><br>
+<h1><code>com.sun.jini.example</code> package<br>
 Apache River v2.2.0 Release Notes</h1>
 </center>
-<HR>
-<UL>
+<hr>
+<ul>
 <H3>Description</H3>
-<code>ClassServer</code> is a simple HTTP server for serving up JAR and
-class files.
+
+The <code>com.sun.jini.example</code> package contains example River code.
+
 <H3>Changes since the v2.2.0 release</H3>
-
-<dl>
-
-<dt><b>None</b></dt>
-
-</dl>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-170'>RIVER-170</a>] -         hello example ConfirmingILFactory assumes ClientHost.toString is useful
+</li>
 <H3>Changes since the v2.1.1 release</H3>
+
 <dl>
+
 <dt><b>None</b></dt>
+
 </dl>
-<H3>Changes since the v2.0.1 release</H3>
-<dl>
-<dt><b>Multiple Directory Support</b>
-<dd>The class server can now serve up files from multiple directories.
-The <code>-dir</code> (or <code>-dirs</code>) command line option
-and the <code>dirlist</code> constructor parameter now accept a list
-of directories to serve files from, with entries separated by the
-system path-separator character.
+
 <p>
-<dt><b>Executable JAR file</b>
-<dd>There is a new executable JAR file, <code>classserver.jar</code>,
-that can be used to run the class server.
-</dl>
-
-
-</ul>
 <hr>
 Licensed to the Apache Software Foundation (ASF) under one
 or more contributor license agreements.  See the NOTICE file
