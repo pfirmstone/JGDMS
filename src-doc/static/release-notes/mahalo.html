@@ -25,7 +25,7 @@
 
 <center>
 <h1>Mahalo<br>
-v2.1.2 Release Notes</h1>
+v2.2.0 Release Notes</h1>
 </center>
 <HR>
 <UL>
@@ -35,7 +35,11 @@ implementation from Sun Microsystems. The River Transaction
 Specification is available in <a
 href="../specs/html/txn-spec.html">HTML</a>.
 <p>
-
+<H3>Changes since the v2.2.0 release</H3>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-296'>RIVER-296</a>] -         Mahalo implementation throws CannotAbortException from abort() on an expired transaction
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-354'>RIVER-354</a>] -         TransactionManagerImpl.abort throws a NullPointerException when transaction is not found, where interface TransactionManager specifies an UnknownTransactionException to be thrown.
+</li>
 <H3>Changes since the v2.1.1 release</H3>
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-284'>RIVER-284</a>] -         
 [PATCH] fix bad ParticipantHandle.compareTo 
@@ -43,7 +47,13 @@ href="../specs/html/txn-spec.html">HTML</a>.
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-286'>RIVER-286</a>] -         
 [PATCH] iterators on synchronized collections still need synchronization
 </li>
+<H3>Changes since the v2.2.0 release</H3>
 
+<dl>
+
+<dt><b>None</b></dt>
+
+</dl>
 <H3>Changes since the v2.1 release</H3>
 <dl>
 
