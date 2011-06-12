@@ -29,7 +29,6 @@ public class FastListTest {
     public void initialize() {
         testee = new FastList<TestNode>();
         rawTestee = new Iterable<TestNode>() {
-            @Override
             public Iterator<TestNode> iterator() {
                 return testee.rawIterator();
             }
@@ -181,7 +180,6 @@ public class FastListTest {
     private List<Thread> getAddThreads(final List<List<TestNode>> elements,
             final CyclicBarrier barrier) {
         NodeListRunnableFactory factory = new NodeListRunnableFactory() {
-            @Override
             public Runnable getRunnable(final List<TestNode> nodes) {
                 return new Runnable() {
                     public void run() {
@@ -207,7 +205,6 @@ public class FastListTest {
     private List<Thread> getRemoveThreads(final List<List<TestNode>> elements,
             final CyclicBarrier barrier) {
         NodeListRunnableFactory factory = new NodeListRunnableFactory() {
-            @Override
             public Runnable getRunnable(final List<TestNode> nodes) {
                 return new Runnable() {
                     public void run() {
@@ -233,7 +230,6 @@ public class FastListTest {
     private List<Thread> getRemoveAllThreads(final List<List<TestNode>> elements,
             final CyclicBarrier barrier, final int tries) {
         NodeListRunnableFactory factory = new NodeListRunnableFactory() {
-            @Override
             public Runnable getRunnable(final List<TestNode> nodes) {
                 return new Runnable() {
                     public void run() {
