@@ -71,10 +71,11 @@ function rat_report {
 }
 
 function upload_all {
+	UPLOAD_DEST=$1
+
 	echo
 	echo "Uploading artifacts to $UPLOAD_DEST"
 
-	UPLOAD_DEST=$1
 	cd dist
 	scp * $UPLOAD_DEST
 	cd ..
