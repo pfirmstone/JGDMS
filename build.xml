@@ -73,9 +73,8 @@
     </target>
 
     <fileset id="river.bin.files" dir="${basedir}">
-        <include name="DISCLAIMER"/>
-        <include name="LICENSE"/>
-        <include name="NOTICE"/>
+        <include name="LICENSE*"/>
+        <include name="NOTICE*"/>
 
         <include name="${lib}/**"/>
         <include name="${lib-dl}/**"/>
@@ -84,9 +83,8 @@
     </fileset>
 
     <fileset id="river.doc.files" dir="${basedir}">
-        <include name="DISCLAIMER"/>
-        <include name="LICENSE"/>
-        <include name="NOTICE"/>
+        <include name="LICENSE*"/>
+        <include name="NOTICE*"/>
 
         <include name="${doc}/**"/>
         <exclude name="${doc}/release-notes/new.html"/>
@@ -112,10 +110,10 @@
         <include name="${lib-ext}/**"/>
         <include name="${doc}/**"/>
         <include name="harness/**"/>
-        <include name="README.txt"/>
+        <include name="README*"/>
     </fileset>-->
 
-    <target name="release-bin" description="Create a binary release" depends="all.build">
+    <target name="release-bin" description="Create a binary release" depends="duplicate-text-files, all.build">
         <!-- TODO: add depends: javadoc-internals and remove from ci-build -->
 
         <mkdir dir="${dist.dir}"/>
@@ -178,10 +176,15 @@
         <include name="${doc}/**"/>
         <exclude name="${doc.api}/"/>
         <include name="build.xml"/>
-        <include name="README*.txt"/>
+        <include name="README*"/>
     </fileset>
 
-    <target name="release-doc" description="Create release doc archives" depends="river-doc">
+	<target name="duplicate-text-files" description="Creates friendly txt versions of common files">
+		<copy file="LICENSE" toFile="LICENSE.txt"/>
+		<copy file="NOTICE" toFile="NOTICE.txt"/>
+	</target>
+
+    <target name="release-doc" description="Create release doc archives" depends="duplicate-text-files, river-doc">
                 
         <mkdir dir="${dist.dir}"/>
         <delete file="${doc.zip.bundle}"/>
@@ -194,7 +197,7 @@
         </tar>
     </target>
 
-    <target name="release-src" description="Create a source release">
+    <target name="release-src" description="Create a source release" depends="duplicate-text-files">
         <mkdir dir="${dist.dir}"/>
         <delete file="${src.zip.bundle}"/>
         <zip destfile="${src.zip.bundle}" roundup="yes">
@@ -361,6 +364,7 @@
             <package name="net.jini.url.https"/>
         </javadoc>
         <mkdir dir="${doc.api.dir}/doc-files"/>
+        <copy file="NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE.txt"/>
         <copy file="NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE"/>
     </target>
 
@@ -389,6 +393,7 @@
             <sourcepath refid="javadoc.sourcepath" />
         </javadoc>
         <mkdir dir="${doc.internals.dir}/doc-files"/>
+        <copy file="NOTICE" tofile="${doc.internals.dir}/doc-files/NOTICE.txt"/>
         <copy file="NOTICE" tofile="${doc.internals.dir}/doc-files/NOTICE"/>
     </target>
 
@@ -450,6 +455,7 @@
         </javadoc>
         <mkdir dir="${doc.spec.api.dir}/doc-files"/>
         <copy file="NOTICE" tofile="${doc.spec.api.dir}/doc-files/NOTICE"/>
+        <copy file="NOTICE" tofile="${doc.spec.api.dir}/doc-files/NOTICE.txt"/>
     </target>
 
     <!-- =========== ... ============ -->
