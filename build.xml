@@ -2174,6 +2174,13 @@
             <property name="harness.generateHtml" value="${harness.generateHtml}" />
         </ant>
     </target>
+    
+    <target name="qa.run-tests" depends="" description="Run Specific QA tests">
+        <!-- Call qa subcomponent build -->
+        <ant dir="qa" target="run-tests" inheritall="false">
+            <property name="harness.generateHtml" value="${harness.generateHtml}" />
+        </ant>
+    </target>
 
     <target name="all.build" depends="river-runtime"
             description="Build all, including subcomponents">

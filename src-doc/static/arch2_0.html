@@ -19,23 +19,22 @@
 <body text="#000000" bgcolor="#ffffff" link="#9b37cc"
       vlink="#cc1877" alink="#ffffff">
 
-<title>Jini Architecture Specification Version 2.0 Overview - Apache River Release v2.2.0</title>
+<title>Jini Specification Overview - Apache River Release v2.2.0</title>
 <a name="TOP">
-<center><h1>Jini<font><sup>TM</sup></font> Architecture Specification Version 2.0 Extensions Overview<br>
+<center><h1>Jini Specification Overview<br>
     Apache River Release v2.2.0</h1></center>
 
 <br>
 
-<p>This document provides an overview of the new components of
-the Jini<font size="-1"><sup>TM</sup></font> v2.0 Architecture included in Apache River and
-explains how the components fit together and fit within the
-existing Jini<font size="-1"><sup>TM</sup></font> technology infrastructure.  Much of this
+<p>This document provides an overview of the implementation details of
+Jini Specifications included in Apache River and
+explains how these components fit together.  Much of this
 information is available in the package, interface, and class
 documentation, but this document provides a higher-level overview
 and indicates where to find more information.
 
 
-<h2>1 Overview of Jini<font size="-1"><sup>TM</sup></font> Architecture</h2>
+<h2>1 Overview of Jini Architecture</h2>
 
 <p>The Jini system architecture consists of three categories:
 <i>programming model</i>, <i>infrastructure</i>, and <i>services</i>.
@@ -81,7 +80,7 @@ model.  The component additions can be summarized as follows:
 <li><a href="api/net/jini/security/ProxyPreparer.html">ProxyPreparer</a>
 </ul>
 
-<p><i>New Infrastructure</i>
+<p><i>Additional Infrastructure</i>
 <ul>
 <li><a href="api/net/jini/security/package-summary.html">Security</a>
 <li><a href="api/net/jini/core/constraint/package-summary.html">Invocation Constraints</a>
@@ -92,15 +91,18 @@ remote invocation (Jini ERI)</a>
 <li><a href="api/com/sun/jini/discovery/package-summary.html">Discovery Protocol v2</a>
 </ul>
 
-<p><i>Updates to Services</i>
+<p><i>Configuring Services</i>
 
-<p>Each service has been updated to support being
+<p>Each service included in Apache River supports being
 configured using a <code>Configuration</code>.  Most of the
 services were previously configured via system properties.  These
 services can now be configured via entries in the configuration.
 New types of behavior that can be configured are remote service
-exporting and proxy preparation.
+exporting and proxy preparation.</p>
 
+<ul>
+<li><a href="api/net/jini/config/package-summary.html">Configuration</a>
+</ul>
 
 <h3>1.1 Goals</h3>
 
