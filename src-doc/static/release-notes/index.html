@@ -47,11 +47,17 @@ project Mailing Lists</a> page.
 <hr> 
 <h1>Release Notes - River 2.2.0</h1>
 <h2>Sub-task</h2>
+
+        Release Notes - River - Version River_2.2.0
+    
+<h2>        Sub-task
+</h2>
 <ul>
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-374'>RIVER-374</a>] -         Review how LookupLocator is used to provide host and port details for LookupLocatorDiscovery
 </li>
 </ul>
-<h2>Bug
+            
+<h2>        Bug
 </h2>
 <ul>
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-11'>RIVER-11</a>] -         LookupLocatorDiscovery ignores new LookupLocator instances for which only constraints differ
@@ -59,6 +65,8 @@ project Mailing Lists</a> page.
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-170'>RIVER-170</a>] -         hello example ConfirmingILFactory assumes ClientHost.toString is useful
 </li>
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-183'>RIVER-183</a>] -         clarify meaning of &quot;calls from the local host&quot;
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-287'>RIVER-287</a>] -         [PATCH] avoid race condition problems for taking snapshots
 </li>
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-296'>RIVER-296</a>] -         Mahalo implementation throws CannotAbortException from abort() on an expired transaction
 </li>
@@ -70,6 +78,10 @@ project Mailing Lists</a> page.
 </li>
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-391'>RIVER-391</a>] -         Outrigger failure under stress
 </li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-397'>RIVER-397</a>] -         Mux.start() can block indefinitely
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-142'>RIVER-142</a>] - concurrency problem in DGC lease expiration handling
+</li>
 </ul>
             
 <h2>        Improvement
@@ -80,6 +92,8 @@ project Mailing Lists</a> page.
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-346'>RIVER-346</a>] -         Logging for QA tests is set to FINEST for many loggers by default . This should be changed to INFO.
 </li>
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-349'>RIVER-349</a>] -         Setup separate Hudson job for QA testing
+</li>
+<li>[<a href='https://issues.apache.org/jira/browse/RIVER-396'>RIVER-396</a>] -         PreferredClassProvider classloader cache concurrency improvement
 </li>
 </ul>
     
@@ -103,6 +117,7 @@ project Mailing Lists</a> page.
 <li>[<a href='https://issues.apache.org/jira/browse/RIVER-333'>RIVER-333</a>] -         Tested platforms
 </li>
 </ul>
+        
 <a name="changes">
 <h2>Changes by Component, updated for v2.2.0</h2></a>
 <h3>Services</h3>
@@ -110,6 +125,18 @@ project Mailing Lists</a> page.
 	<li><a href="reggie.html">Reggie</a>
 	<li><a href="mahalo.html">Mahalo</a>
 	<li><a href="outrigger.html">Outrigger</a>
+</ul>
+<h3>Jeri</h3>
+<ul>
+	<li><a href="jeri.html"><code>net.jini.jeri</code></a>
+</ul>
+<h3>Loader</h3>
+<ul>
+	<li><a href="loader.html"><code>net.jini.loader</code></a>
+</ul>
+<h3>Normal</h3>
+<ul>
+	<li><a href="norm.html"><code>com.sun.jini.norm</code></a>
 </ul>
 <h3>Other</h3>
 <ul>
