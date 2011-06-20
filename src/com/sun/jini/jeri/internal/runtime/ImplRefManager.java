@@ -18,7 +18,7 @@
 
 package com.sun.jini.jeri.internal.runtime;
 
-import com.sun.jini.jeri.internal.runtime.ObjectTable.Target;
+import com.sun.jini.jeri.internal.runtime.Target;
 import com.sun.jini.thread.NewThreadAction;
 import java.lang.ref.Reference;
 import java.lang.ref.ReferenceQueue;
@@ -69,7 +69,7 @@ final class ImplRefManager {
     private final Object lock = new Object();
 
     /** maps WeakKey(impl) to ImplRef(WeakKey(impl)) */
-    private final Map weakImplTable = new HashMap();
+    private final Map<Reference,ImplRef> weakImplTable = new HashMap<Reference,ImplRef>();
 
     /** thread to process garbage collected impls */
     private Thread reaper = null;
@@ -99,7 +99,7 @@ final class ImplRefManager {
 	 */
 	Reference lookupKey = new WeakKey(impl, reapQueue);
 	synchronized (lock) {
-	    ImplRef implRef = (ImplRef) weakImplTable.get(lookupKey);
+	    ImplRef implRef = weakImplTable.get(lookupKey);
 	    if (implRef == null) {
 		implRef = new ImplRef(lookupKey);
 		weakImplTable.put(lookupKey, implRef);

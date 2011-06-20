@@ -43,6 +43,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.StringTokenizer;
 import java.util.WeakHashMap;
@@ -274,7 +276,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * references, so this table does not prevent loaders from being
      * garbage collected.
      */
-    private final Map loaderTable = new HashMap();
+    private final Map<LoaderKey,LoaderEntryHolder> loaderTable = new HashMap<LoaderKey,LoaderEntryHolder>();
 
     /** reference queue for cleared class loader entries */
     private final ReferenceQueue refQueue = new ReferenceQueue();
@@ -1556,31 +1558,55 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	 * }
 	 */
 
+	/*
+	 * Take this opportunity to remove from the table entries
+	 * whose weak references have been cleared.
+	 */
+	List<LoaderKey> toRemove = new LinkedList<LoaderKey>();
+	Object ref;
+	while ((ref = refQueue.poll()) != null) {
+	    if (ref instanceof LoaderKey)
+		toRemove.add((LoaderKey) ref);
+	    else if (ref instanceof LoaderEntry) {
+		LoaderEntry entry = (LoaderEntry) ref;
+		if (!entry.removed)	// ignore entries removed below
+		    toRemove.add(entry.key);
+	    }
+	}
+
+	LoaderKey key = new LoaderKey(urls, parent);
+	LoaderEntryHolder holder;
 	synchronized (loaderTable) {
-	    /*
-	     * Take this opportunity to remove from the table entries
-	     * whose weak references have been cleared.
-	     */
-	    Object ref;
-	    while ((ref = refQueue.poll()) != null) {
-		if (ref instanceof LoaderKey) {
-		    LoaderKey key = (LoaderKey) ref;
-		    loaderTable.remove(key);
-		} else if (ref instanceof LoaderEntry) {
-		    LoaderEntry entry = (LoaderEntry) ref;
-		    if (!entry.removed) {	// ignore entries removed below
-			loaderTable.remove(entry.key);
-		    }
-		}
+	    if (!toRemove.isEmpty()) {
+		for (LoaderKey oldKey : toRemove)
+		    loaderTable.remove(oldKey);
+		toRemove.clear();
 	    }
 
 	    /*
 	     * Look up the codebase URL path and parent class loader pair
 	     * in the table of RMI class loaders.
 	     */
-	    LoaderKey key = new LoaderKey(urls, parent);
-	    LoaderEntry entry = (LoaderEntry) loaderTable.get(key);
+	    holder = loaderTable.get(key);
+	    if (null == holder) {
+		holder = new LoaderEntryHolder();
+		loaderTable.put(key, holder);
+	    }
+	}
 
+	/*
+	 * Four possible cases:
+	 *   1) this is our first time creating this classloader
+	 *      - holder.entry is null, need to make a new entry and a new loader
+	 *   2) we made this classloader before, but it was garbage collected a long while ago
+	 *      - identical to case #1 and it was reaped by the toRemove code above
+	 *   3) we made this classloader before, and it was garbage collected recently
+	 *      - holder.entry is non-null, but holder.entry.get() is null, very similar to case #1
+	 *   4) we made this classloader before, and it's still alive (CACHE HIT)
+	 *      - just return it
+	 */
+	synchronized (holder) {
+	    LoaderEntry entry = holder.entry;
 	    ClassLoader loader;
 	    if (entry == null ||
 		(loader = (ClassLoader) entry.get()) == null)
@@ -1593,7 +1619,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		 * from the weak reference queue.
 		 */
 		if (entry != null) {
-		    loaderTable.remove(key);
 		    entry.removed = true;
 		}
 
@@ -1623,7 +1648,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		 * weak reference and store it in the table with the key.
 		 */
 		entry = new LoaderEntry(key, loader);
-		loaderTable.put(key, entry);
+		holder.entry = entry;
 	    }
 	    return loader;
 	}
@@ -1736,6 +1761,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    super(loader, refQueue);
 	    this.key = key;
 	}
+    }
+    private class LoaderEntryHolder {
+	public LoaderEntry entry;
     }
 
     private static ClassLoader getClassLoader(final Class c) {
