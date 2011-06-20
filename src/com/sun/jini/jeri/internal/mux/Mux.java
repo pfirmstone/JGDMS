@@ -137,6 +137,7 @@ abstract class Mux {
     final Map sessions = new HashMap(5);
 
     private int expectedPingCookie = -1;
+    private long startTimeout = 15000; // milliseconds
 
     /**
      * Constructs a new Mux instance for a connection accessible through
@@ -177,6 +178,24 @@ abstract class Mux {
     }
 
     /**
+     * Time in milliseconds for client-side connections to wait for the server
+     * to acknowledge an opening handshake. The default value is 15000
+     * milliseconds (15 seconds).
+     * 
+     * <p>
+     * This method is not thread-safe. It is expected to be called immediately
+     * after a constructor.
+     * 
+     * @param timeout
+     *            positive value in milliseconds
+     */
+    public void setStartTimeout(long timeout) {
+	if (timeout <= 0)
+	    throw new IllegalArgumentException("start timeout must be a positive number of milliseconds");
+	this.startTimeout  = timeout;
+    }
+
+    /**
      * Starts I/O processing.
      *
      * This method should be invoked only after this instance has
@@ -201,12 +220,19 @@ abstract class Mux {
 	if (role == CLIENT) {
 	    asyncSendClientConnectionHeader();
 	    synchronized (muxLock) {
+		long now = System.currentTimeMillis();
+		long endTime = now + this.startTimeout;
 		while (!muxDown && !clientConnectionReady) {
-		    try {
-			muxLock.wait();		// REMIND: timeout?
-		    } catch (InterruptedException e) {
-			setDown("interrupt waiting for connection header", e);
-		    }
+		    if (now >= endTime) {
+			setDown("timeout waiting for server to respond to handshake", null);
+		    } else {
+                        try {
+                                muxLock.wait(endTime - now);
+                                now = System.currentTimeMillis();
+                        } catch (InterruptedException e) {
+                            setDown("interrupt waiting for connection header", e);
+                        }
+                    }
 		}
 		if (muxDown) {
 		    IOException ioe = new IOException(muxDownMessage);

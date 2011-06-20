@@ -106,6 +106,10 @@ import net.jini.jeri.OutboundRequestIterator;
  * milliseconds to leave idle client-side connections around before
  * closing them. The default value is 15000 milliseconds (15 seconds).
  *
+ * <li><code>com.sun.jini.jeri.handshakeTimeout</code> - Time in
+ * milliseconds for client-side connections to wait for the server to
+ * acknowledge an opening handshake. The default value is 15000 milliseconds (15 seconds).
+ *
  * </ul>
  **/
 public final class ConnectionManager {
@@ -113,8 +117,15 @@ public final class ConnectionManager {
      * How long to leave idle muxes around before closing them.
      */
     private static final long TIMEOUT =
-	((Long) AccessController.doPrivileged(new GetLongAction(
+	( (Long) AccessController.doPrivileged(new GetLongAction(
 		"com.sun.jini.jeri.connectionTimeout", 
+		15000))).longValue();
+    /**
+     * How long to wait for a server to respond to an initial client message.
+     */
+    private static final long HANDSHAKE_TIMEOUT =
+	((Long) AccessController.doPrivileged(new GetLongAction(
+		"com.sun.jini.jeri.handshakeTimeout", 
 		15000))).longValue();
     /**
      * ConnectionManager logger.
@@ -278,6 +289,7 @@ public final class ConnectionManager {
 	try {
 	    mux = (c.getChannel() == null) ?
 		new OutboundMux(c) : new OutboundMux(c, true);
+                mux.setStartTimeout(HANDSHAKE_TIMEOUT);
 	} finally {
 	    if (mux == null) {
 		try {

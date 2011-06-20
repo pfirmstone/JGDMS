@@ -19,15 +19,13 @@
 package com.sun.jini.jeri.internal.runtime;
 
 import java.io.IOException;
-import java.io.InterruptedIOException;
 import java.rmi.Remote;
 import java.rmi.server.ExportException;
-import java.rmi.server.Unreferenced;
-import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import net.jini.id.Uuid;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.InvocationDispatcher;
@@ -35,8 +33,6 @@ import net.jini.jeri.RequestDispatcher;
 import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.ServerEndpoint.ListenCookie;
 import net.jini.jeri.ServerEndpoint.ListenEndpoint;
-import net.jini.jeri.ServerEndpoint.ListenHandle;
-import net.jini.security.Security;
 
 /**
  * An ObjectTable front end for exporting remote objects with a
@@ -49,23 +45,16 @@ import net.jini.security.Security;
  **/
 public final class BasicExportTable {
 
-    /**
-     * listen pool marker value to signal that a listen operation on a
-     * ListenEndpoint is currently being started by another thread
-     **/
-    private static final Object PENDING = new Object();
-
     /** underlying object table */
     private final ObjectTable objectTable = new ObjectTable();
 
-    /** guards listenPool and all Binding.exportsInProgress fields */
-    private final Object lock = new Object();
-
     /**
      * pool of endpoints that we're listening on:
-     * maps SameClassKey(ServerEndpoint.ListenEndpoint) to Binding
+     * maps SameClassKey(ServerEndpoint.ListenEndpoint) to Binding.
+     * A binding removes itself from the listen pool.
      **/
-    private final Map listenPool = new HashMap();
+    private final ConcurrentMap<SameClassKey,Binding> listenPool = 
+            new ConcurrentHashMap<SameClassKey,Binding>(128);// 128 to reduce map resizing
 
     /**
      * Creates a new instance.
@@ -84,7 +73,7 @@ public final class BasicExportTable {
         throws ExportException
     {
 	List bindings = null;
-	ObjectTable.Target target = null;
+	Target target = null;
 	Endpoint endpoint;
 	try {
 	    LC listenContext = new LC();
@@ -101,7 +90,7 @@ public final class BasicExportTable {
 		new RequestDispatcher[bindings.size()];
 	    for (int i = 0; i < requestDispatchers.length; i++) {
 		requestDispatchers[i] =
-		    ((Binding) bindings.get(i)).requestDispatcher;
+		    ((Binding) bindings.get(i)).getRequestDispatcher();
 	    }
 	    target = objectTable.export(
 		impl, requestDispatchers, allowDGC, keepAlive, id);
@@ -115,9 +104,7 @@ public final class BasicExportTable {
 		 */
 		for (int i = 0; i < bindings.size(); i++) {
 		    Binding binding = (Binding) bindings.get(i);
-		    synchronized (lock) {
-			binding.exportsInProgress--;
-		    }
+                    binding.decrementExportInProgress();
 		    /*
 		     * If export wasn't successful, check to see if
 		     * binding can be released.
@@ -142,10 +129,10 @@ public final class BasicExportTable {
      **/
     public static final class Entry {
 	private final List bindings;
-	private final ObjectTable.Target target;
+	private final Target target;
 	private final Endpoint endpoint;
 
-	Entry(List bindings, ObjectTable.Target target, Endpoint endpoint) {
+	Entry(List bindings, Target target, Endpoint endpoint) {
 	    this.bindings = bindings;
 	    this.target = target;
 	    this.endpoint = endpoint;
@@ -189,45 +176,50 @@ public final class BasicExportTable {
     private Binding getBinding(ListenEndpoint listenEndpoint)
 	throws IOException
     {
-	Object key = new SameClassKey(listenEndpoint);
+	SameClassKey key = new SameClassKey(listenEndpoint);
 	Binding binding = null;
-	synchronized (lock) {
-	    do {
-		Object value = listenPool.get(key);
-		if (value instanceof Binding) {
-		    binding = (Binding) value;
-		    binding.exportsInProgress++;
-		    return binding;
-		} else if (value == PENDING) {
-		    try {
-			lock.wait();
-		    } catch (InterruptedException e) {
-			throw new InterruptedIOException();
-		    }
-		    continue;
-		} else {
-		    assert value == null;
-		    listenPool.put(key, PENDING);
-		    break;
-		}
-	    } while (true);
-	}
-	try {
-	    // start listen operation without holding global lock
-	    binding = new Binding(listenEndpoint);
-	} finally {
-	    synchronized (lock) {
-		assert listenPool.get(key) == PENDING;
-		if (binding != null) {
-		    listenPool.put(key, binding);
-		    binding.exportsInProgress++;
-		} else {
-		    listenPool.remove(key);
-		}
-		lock.notifyAll();
-	    }
-	}
-	return binding;
+        // This while loop ensures that a binding has it's exportInProgress
+        // field incremented and the binding was not closed prior.
+        // Once the exportInProgress field is incremented, the binding will stay active.
+        // It is still possible for activation to be unsuccessful, resulting
+        // in an IOException.
+        // The reason for this while loop, is Binding's remove themselves from
+        // the listenPool if inactive, a binding may be removed from the
+        // listenPool by another thread without the current threads knowledge.
+        // This will only happen while the binding has no Exports in progress.
+        // Thus the increment calls are checked to be active;
+        while (binding == null){
+            binding = listenPool.get(key);
+            if ( binding == null){
+                binding = new Binding(listenEndpoint,objectTable, listenPool);
+                Binding existed = listenPool.putIfAbsent(key, binding);
+                if (existed != null){
+                    binding = existed;
+                    boolean active = binding.incrementExportInProgress();
+                    if (!active){
+                        binding = null;
+                    }
+                    continue;
+                } else {
+                    boolean active = binding.activate();
+                    if (!active){
+                        binding = null;
+                    }
+                    continue;
+                }
+            } else {
+                // Although unlikely the binding could become inactive 
+                // after retrieval, since the operation of getting and checking is not atomic.
+                // If inactive, the binding has removed itself from the listenPool.
+                boolean active = binding.incrementExportInProgress();
+                if (!active) {
+                    binding = null;
+                    // This binding will have removed itself from listenPool.
+                }
+            }
+        }
+        binding.activate(); //Prevent a thread returning normally with an inactive object
+        return binding;
     }
 
     /**
@@ -235,12 +227,13 @@ public final class BasicExportTable {
      * and gets the corresponding bindings using the listen pool.
      **/
     private class LC implements ServerEndpoint.ListenContext {
-	private boolean done = false;
-	private final List bindings = new ArrayList();
+	private volatile boolean done = false;
+	private final List<Binding> bindings = 
+                Collections.synchronizedList(new ArrayList<Binding>());
 
 	LC() { }
 
-	public synchronized ListenCookie addListenEndpoint(
+	public ListenCookie addListenEndpoint(
 	    ListenEndpoint listenEndpoint)
 	    throws IOException
 	{
@@ -252,75 +245,13 @@ public final class BasicExportTable {
 	    listenEndpoint.checkPermissions();
 
 	    Binding binding = getBinding(listenEndpoint);
-	    bindings.add(binding);
-	    return binding.listenHandle.getCookie();
+            bindings.add(binding);
+	    return binding.getListenHandle().getCookie();
 	}
 
-	synchronized List getFinalBindings() {
+	private List getFinalBindings() {
 	    done = true;
 	    return bindings;
-	}
-    }
-
-    /**
-     * A bound ListenEndpoint and the associated ListenHandle and
-     * RequestDispatcher.
-     **/
-    private class Binding {
-	private final ListenEndpoint listenEndpoint;
-	final RequestDispatcher requestDispatcher;
-	final ListenHandle listenHandle;
-
-	int exportsInProgress = 0;	// guarded by outer "lock"
-
-	/**
-	 * Creates a binding for the specified ListenEndpoint by
-	 * attempting to listen on it.
-	 **/
-	Binding(final ListenEndpoint listenEndpoint) throws IOException {
-	    this.listenEndpoint = listenEndpoint;
-	    requestDispatcher =
-		objectTable.createRequestDispatcher(new Unreferenced() {
-		    public void unreferenced() { checkReferenced(); }
-		});
-	    try {
-		/*
-		 * We don't want this (potentially) shared listen
-		 * operation to inherit the access control context of
-		 * the current callers arbitrarily (their permissions
-		 * were already checked by the ListenContext, and the
-		 * ObjectTable will take care of checking permissions
-		 * per requests against the appropriate callers'
-		 * access control context).
-		 */
-		listenHandle = (ListenHandle)
-		    Security.doPrivileged(new PrivilegedExceptionAction() {
-			public Object run() throws IOException {
-			    return listenEndpoint.listen(requestDispatcher);
-			}
-		    });
-	    } catch (java.security.PrivilegedActionException e) {
-		throw (IOException) e.getException();
-	    }
-	}
-
-	/**
-	 * Checks whether there are any objects currently exported to
-	 * this binding's RequestDispatcher or if there are any
-	 * exports in progress for this binding; if there are neither,
-	 * this binding is removed from the listen pool and its listen
-	 * operation is closed.
-	 **/
-	void checkReferenced() {
-	    synchronized (lock) {
-		if (exportsInProgress > 0 ||
-		    objectTable.isReferenced(requestDispatcher))
-		{
-		    return;
-		}
-		listenPool.remove(new SameClassKey(listenEndpoint));
-	    }
-	    listenHandle.close();
 	}
     }
 }
