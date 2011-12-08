@@ -15,7 +15,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package net.jini.export;
 
 import com.sun.jini.resource.Service;
@@ -47,18 +46,25 @@ import net.jini.security.Security;
 public final class ServerContext {
 
     private static final ThreadLocal state = new ThreadLocal();
-    private static final ServerContext.Spi[] providers = (ServerContext.Spi[]) 
-	Security.doPrivileged(new PrivilegedAction() {
-	    public Object run() {
-		ClassLoader cl = ClassLoader.getSystemClassLoader();
-		ArrayList list = new ArrayList(1);
-		Iterator i = Service.providers(ServerContext.Spi.class, cl);
-		while (i.hasNext()) {
-		    list.add(i.next());
-		}
-		return list.toArray(new ServerContext.Spi[list.size()]);
-	    }
-	});
+    private static ServerContext.Spi[] providers = null;
+
+    private static ServerContext.Spi[] getProviders() {
+        if (providers == null) {
+            providers = (ServerContext.Spi[]) Security.doPrivileged(new PrivilegedAction() {
+
+                public Object run() {
+                    ClassLoader cl = Thread.currentThread().getContextClassLoader();
+                    ArrayList list = new ArrayList(1);
+                    Iterator i = Service.providers(ServerContext.Spi.class, cl);
+                    while (i.hasNext()) {
+                        list.add(i.next());
+                    }
+                    return list.toArray(new ServerContext.Spi[list.size()]);
+                }
+            });
+        }
+        return providers;
+    }
 
     /**
      * Prevents instantiation.
@@ -88,22 +94,21 @@ public final class ServerContext {
      * @see #getServerContextElement
      **/
     public static void doWithServerContext(Runnable runnable,
-					   Collection context)
-    {
-	if (context == null) {
-	    throw new NullPointerException("context cannot be null");
-	}
-	if (state.get() != null) {
-	    throw new IllegalStateException(
-		"context is already set for this thread");
-	}
+            Collection context) {
+        if (context == null) {
+            throw new NullPointerException("context cannot be null");
+        }
+        if (state.get() != null) {
+            throw new IllegalStateException(
+                    "context is already set for this thread");
+        }
 
-	state.set(context);
-	try {
-	    runnable.run();
-	} finally {
-	    state.set(null);
-	}
+        state.set(context);
+        try {
+            runnable.run();
+        } finally {
+            state.set(null);
+        }
     }
 
     /**
@@ -153,20 +158,19 @@ public final class ServerContext {
      *		current thread
      **/
     public static Collection getServerContext()
-	throws ServerNotActiveException
-    {
-	Collection context = (Collection) state.get();
-	if (context == null) {
-	    for (int i = 0; i < providers.length; i++) {
-		if ((context = providers[i].getServerContext()) != null) {
-		    break;
-		}
-	    }
-	}
-	if (context == null) {
-	    throw new ServerNotActiveException("not in remote call");
-	}
-	return context;
+            throws ServerNotActiveException {
+        Collection context = (Collection) state.get();
+        if (context == null) {
+            for (int i = 0; i < getProviders().length; i++) {
+                if ((context = getProviders()[i].getServerContext()) != null) {
+                    break;
+                }
+            }
+        }
+        if (context == null) {
+            throw new ServerNotActiveException("not in remote call");
+        }
+        return context;
     }
 
     /**
@@ -176,22 +180,23 @@ public final class ServerContext {
      * call to {@link ServerContext#doWithServerContext}.
      */
     public interface Spi {
-	/**
-	 * Returns a server context collection for the current thread, or
-	 * <code>null</code> if provider does not contain context for the
-	 * current thread.
-	 * 
-	 * <p>The context information available from a given element of
-	 * the collection is determined by that element's type.  The order
-	 * of the elements is insignificant.  The collection may be empty.
-	 *
-	 * <p>The caller of this method cannot assume that the returned
-	 * collection is modifiable.
-	 *
-	 * @return  the server context for the current thread,
-	 *	    or <code>null</code> if none known
-	 */
-	Collection getServerContext();
+
+        /**
+         * Returns a server context collection for the current thread, or
+         * <code>null</code> if provider does not contain context for the
+         * current thread.
+         * 
+         * <p>The context information available from a given element of
+         * the collection is determined by that element's type.  The order
+         * of the elements is insignificant.  The collection may be empty.
+         *
+         * <p>The caller of this method cannot assume that the returned
+         * collection is modifiable.
+         *
+         * @return  the server context for the current thread,
+         *	    or <code>null</code> if none known
+         */
+        Collection getServerContext();
     }
 
     /**
@@ -209,16 +214,15 @@ public final class ServerContext {
      *		the current thread
      **/
     public static Object getServerContextElement(Class type)
-	throws ServerNotActiveException
-    {
-	Collection context = getServerContext();
-	Iterator iter = context.iterator();
-	while (iter.hasNext()) {
-	    Object elem = iter.next();
-	    if (elem != null && type.isAssignableFrom(elem.getClass())) {
-		return elem;
-	    }
-	}
-	return null;
-    }	
+            throws ServerNotActiveException {
+        Collection context = getServerContext();
+        Iterator iter = context.iterator();
+        while (iter.hasNext()) {
+            Object elem = iter.next();
+            if (elem != null && type.isAssignableFrom(elem.getClass())) {
+                return elem;
+            }
+        }
+        return null;
+    }
 }

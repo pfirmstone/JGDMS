@@ -177,15 +177,30 @@ public class ConfigurationProvider {
     public static Configuration getInstance(String[] options, ClassLoader cl)
 	throws ConfigurationException
     {
-	ClassLoader resourceLoader = (cl != null) ? cl :
-	    (ClassLoader) Security.doPrivileged(
-		new PrivilegedAction() {
-		    public Object run() {
-			return Thread.currentThread().getContextClassLoader();
-		    }
-		});
+		/*
+		  ClassLoader resourceLoader = (cl != null) ? cl :
+		  (ClassLoader) Security.doPrivileged(
+		  new PrivilegedAction() {
+		  public Object run() {
+		  return Thread.currentThread().getContextClassLoader();
+		  }
+		  });
+		*/
+		ClassLoader resourceLoader=cl;
+		if (resourceLoader == null) {
+			logger.fine("Null class loader provided, fetching context class loader...");
+			resourceLoader = (cl != null) ? cl :
+				(ClassLoader) Security.doPrivileged(
+													new PrivilegedAction() {
+														public Object run() {
+															return Thread.currentThread().getContextClassLoader();
+														}
+													});
+			logger.fine("...resource class loader is now: " + resourceLoader);
+		}
 	final ClassLoader finalResourceLoader = (resourceLoader == null)
 	    ? Utilities.bootstrapResourceLoader : resourceLoader;
+	logger.fine("Final resource class loader is: " + finalResourceLoader);
 	String cname = null;
 	ConfigurationException configEx = null;
 	try {
