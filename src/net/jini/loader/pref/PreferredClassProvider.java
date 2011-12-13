@@ -486,14 +486,10 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 			   defaultLoader
 		       });
 	}
-
+        
+        // throws MalformedURLException
     	URI[] codebaseURIs = pathToURIs(codebase);	// may be null
-					// throws MalformedURLException
-        int l = codebaseURIs.length;
-        URL[] codebaseURLs = new URL[l];
-        for (int i = 0; i < l; i++ ){
-            codebaseURLs[i] = asURL(codebaseURIs[i]); // throws MalformedURLException
-        }
+        URL[] codebaseURLs = asURL(codebaseURIs); // throws MalformedURLException
 
 	/*
 	 * Process array class names.
@@ -899,13 +895,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	throws MalformedURLException
     {
 	checkInitialized();
+        // throws MalformedURLException
     	URI[] codebaseURIs = pathToURIs(codebase);	// may be null
-					// throws MalformedURLException
-        int l = codebaseURIs.length;
-        URL[] codebaseURLs = new URL[l];
-        for (int i = 0; i < l; i++ ){
-            codebaseURLs[i] = asURL(codebaseURIs[i]); // throws MalformedURLException
-        }
+        URL[] codebaseURLs = asURL(codebaseURIs); // throws MalformedURLException
 
 	ClassLoader contextLoader = getRMIContextClassLoader();
 	SecurityManager sm = System.getSecurityManager();
@@ -1079,11 +1071,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	}
         // throws MalformedURLException containing URISyntaxException message
     	URI[] codebaseURIs = pathToURIs(codebase);	// may be null
-        int l = codebaseURIs.length;
-        URL[] codebaseURLs = new URL[l];
-        for (int i = 0; i < l; i++ ){
-            codebaseURLs[i] = asURL(codebaseURIs[i]); // throws MalformedURLException
-        }
+        URL[] codebaseURLs = asURL(codebaseURIs);
 
 	/*
 	 * Determine the codebase loader.
@@ -1445,12 +1433,17 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	return urls;
     }
     
-    /* Converts a URI to an URL.
+    /** Converts URI[] to URL[].
      */
-    private URL asURL(URI uri) throws MalformedURLException{
-        if (uri == null) throw new NullPointerException("URI cannot be null");
+    private URL[] asURL(URI[] uris) throws MalformedURLException{
+        if (uris == null) return null;
         try {
-            return uri.toURL();
+            int l = uris.length;
+            URL[] urls = new URL[l];
+            for (int i = 0; i < l; i++ ){
+                urls[i] = uris[i] == null ? null : uris[i].toURL(); // throws MalformedURLException
+            }
+            return urls;
         } catch (IllegalArgumentException ex){
             throw new MalformedURLException(ex.getMessage());
         }
