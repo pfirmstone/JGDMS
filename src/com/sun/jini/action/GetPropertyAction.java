@@ -55,7 +55,7 @@ import net.jini.security.Security;
  * @see		Security
  * @since 2.0
  **/
-public class GetPropertyAction implements PrivilegedAction {
+public class GetPropertyAction implements PrivilegedAction<String> {
 
     private static final Logger logger =
 	Logger.getLogger("com.sun.jini.action.GetPropertyAction");
@@ -98,7 +98,7 @@ public class GetPropertyAction implements PrivilegedAction {
      * @return	the string value of the system property or the default
      * value, or <code>null</code>
      **/
-    public Object run() {
+    public String run() {
 	try {
 	    String value = System.getProperty(theProp);
 	    if (value != null) {

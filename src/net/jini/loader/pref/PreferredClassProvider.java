@@ -29,6 +29,8 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLClassLoader;
@@ -37,6 +39,7 @@ import java.rmi.server.RMIClassLoaderSpi;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
+import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.PrivilegedAction;
 import java.util.Arrays;
@@ -246,8 +249,8 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      */
     private static String codebaseProperty = null;
     static {
-	String prop = (String) AccessController.doPrivileged(
-            new GetPropertyAction("java.rmi.server.codebase"));
+	String prop = AccessController.doPrivileged(
+   new GetPropertyAction("java.rmi.server.codebase"));
 	if (prop != null && prop.trim().length() > 0) {
 	    codebaseProperty = prop;
 	}
@@ -279,7 +282,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     private final Map<LoaderKey,LoaderEntryHolder> loaderTable = new HashMap<LoaderKey,LoaderEntryHolder>();
 
     /** reference queue for cleared class loader entries */
-    private final ReferenceQueue refQueue = new ReferenceQueue();
+    private final ReferenceQueue<ClassLoader> refQueue = new ReferenceQueue<ClassLoader>();
 
     /**
      * Creates a new <code>PreferredClassProvider</code>.
@@ -343,7 +346,8 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * Map to hold permissions needed to check the URLs of
      * URLClassLoader objects.
      */
-    private final Map classLoaderPerms = new WeakHashMap();
+    private final Map<ClassLoader,PermissionCollection> classLoaderPerms 
+            = new WeakHashMap<ClassLoader,PermissionCollection>();
     
     /*
      * Check permissions to load from the specified loader.  The
@@ -355,22 +359,22 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * no permissions are checked, because the caller could have used
      * an empty codebase to achieve the same effect anyway.
      */
-    private void checkLoader(ClassLoader loader, ClassLoader parent,
+    private void checkLoader(ClassLoader loader, ClassLoader parent, URI[] uris,
 			     URL[] urls)
     {
 	SecurityManager sm = System.getSecurityManager();
 
 	if ((sm != null) && (loader != null) && (loader != parent)) {
-	    assert urlsMatchLoaderAnnotation(urls, loader);
+	    assert urlsMatchLoaderAnnotation(uris, loader);
 
 	    if (loader.getClass() == PreferredClassLoader.class) {
 		((PreferredClassLoader) loader).checkPermissions();
 		
 	    } else {
-		Permissions perms;
+		PermissionCollection perms;
 		
 		synchronized (classLoaderPerms) {
-		    perms = (Permissions) classLoaderPerms.get(loader);
+		    perms = classLoaderPerms.get(loader);
 		    if (perms == null) {
 			perms = new Permissions();
 			PreferredClassLoader.addPermissionsForURLs(
@@ -378,11 +382,12 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 			classLoaderPerms.put(loader, perms);
 		    }
 		}
-
-		Enumeration en = perms.elements();
-		while (en.hasMoreElements()) {
-		    sm.checkPermission((Permission) en.nextElement());
-		}
+                synchronized (perms){
+                    Enumeration en = perms.elements();
+                    while (en.hasMoreElements()) {
+                        sm.checkPermission((Permission) en.nextElement());
+                    }
+                }
 	    }
 	}
     }
@@ -482,8 +487,13 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		       });
 	}
 
-    	URL[] codebaseURLs = pathToURLs(codebase);	// may be null
+    	URI[] codebaseURIs = pathToURIs(codebase);	// may be null
 					// throws MalformedURLException
+        int l = codebaseURIs.length;
+        URL[] codebaseURLs = new URL[l];
+        for (int i = 0; i < l; i++ ){
+            codebaseURLs[i] = asURL(codebaseURIs[i]); // throws MalformedURLException
+        }
 
 	/*
 	 * Process array class names.
@@ -510,8 +520,8 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	 */
 	SecurityManager sm = System.getSecurityManager();
 	if (defaultLoader != null &&
-	    (sm == null || codebaseURLs == null ||
-	     urlsMatchLoaderAnnotation(codebaseURLs, defaultLoader)))
+	    (sm == null || codebaseURIs == null ||
+	     urlsMatchLoaderAnnotation(codebaseURIs, defaultLoader)))
 	{
 	    try {
 		Class c = Class.forName(name, false, defaultLoader);
@@ -534,7 +544,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    logger.log(Level.FINEST,
 		       "(thread context class loader: {0})", contextLoader);
 	}
-	ClassLoader codebaseLoader = lookupLoader(codebaseURLs, contextLoader);
+	ClassLoader codebaseLoader;
+        codebaseLoader = lookupLoader(codebaseURIs, codebaseURLs, contextLoader);
+        
 
 	/*
 	 * Try remaining defaultLoader cases that don't require
@@ -562,7 +574,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	SecurityException secEx = null;
 	if (sm != null) {
 	    try {
-		checkLoader(codebaseLoader, contextLoader, codebaseURLs);
+		checkLoader(codebaseLoader, contextLoader, codebaseURIs, codebaseURLs);
 	    } catch (SecurityException e) {
 		secEx = e;
 	    }
@@ -887,8 +899,13 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	throws MalformedURLException
     {
 	checkInitialized();
-    	URL[] codebaseURLs = pathToURLs(codebase);	// may be null
+    	URI[] codebaseURIs = pathToURIs(codebase);	// may be null
 					// throws MalformedURLException
+        int l = codebaseURIs.length;
+        URL[] codebaseURLs = new URL[l];
+        for (int i = 0; i < l; i++ ){
+            codebaseURLs[i] = asURL(codebaseURIs[i]); // throws MalformedURLException
+        }
 
 	ClassLoader contextLoader = getRMIContextClassLoader();
 	SecurityManager sm = System.getSecurityManager();
@@ -898,8 +915,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    return contextLoader;
 	}
 
-	ClassLoader codebaseLoader = lookupLoader(codebaseURLs, contextLoader);
-	checkLoader(codebaseLoader, contextLoader, codebaseURLs);
+	ClassLoader codebaseLoader;
+        codebaseLoader = lookupLoader(codebaseURIs, codebaseURLs, contextLoader);
+	checkLoader(codebaseLoader, contextLoader, codebaseURIs, codebaseURLs);
 	return codebaseLoader;
     }
 
@@ -1059,9 +1077,13 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		    defaultLoader
 		});
 	}
-
-    	URL[] codebaseURLs = pathToURLs(codebase);	// may be null
-					// throws MalformedURLException
+        // throws MalformedURLException containing URISyntaxException message
+    	URI[] codebaseURIs = pathToURIs(codebase);	// may be null
+        int l = codebaseURIs.length;
+        URL[] codebaseURLs = new URL[l];
+        for (int i = 0; i < l; i++ ){
+            codebaseURLs[i] = asURL(codebaseURIs[i]); // throws MalformedURLException
+        }
 
 	/*
 	 * Determine the codebase loader.
@@ -1071,7 +1093,8 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    logger.log(Level.FINEST,
 		       "(thread context class loader: {0})", contextLoader);
 	}
-	ClassLoader codebaseLoader = lookupLoader(codebaseURLs, contextLoader);
+	ClassLoader codebaseLoader;
+        codebaseLoader = lookupLoader(codebaseURIs, codebaseURLs, contextLoader);
 
 	/*
 	 * Check permission to access the codebase loader.
@@ -1080,7 +1103,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	SecurityException secEx = null;
 	if (sm != null) {
 	    try {
-		checkLoader(codebaseLoader, contextLoader, codebaseURLs);
+		checkLoader(codebaseLoader, contextLoader, codebaseURIs, codebaseURLs);
 	    } catch (SecurityException e) {
 		secEx = e;
 	    }
@@ -1093,10 +1116,10 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    boolean codebaseMatchesDL = false;
 	    boolean tryDL =
 		sm == null || secEx != null ||
-		codebaseURLs == null;
+		codebaseURIs == null;
 	    if (!tryDL) {
 		codebaseMatchesDL =
-		    urlsMatchLoaderAnnotation(codebaseURLs, defaultLoader);
+		    urlsMatchLoaderAnnotation(codebaseURIs, defaultLoader);
 		tryDL = codebaseMatchesDL ||
 		    !(codebaseLoader instanceof PreferredClassLoader) ||
 		    !interfacePreferred((PreferredClassLoader) codebaseLoader,
@@ -1316,19 +1339,19 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * for the specified class loader, or null if the annotation
      * string is null.
      **/
-    private URL[] getLoaderAnnotationURLs(ClassLoader loader)
+    private URI[] getLoaderAnnotationURIs(ClassLoader loader)
 	throws MalformedURLException
     {
-	return pathToURLs(getLoaderAnnotation(loader, false));
+	return pathToURIs(getLoaderAnnotation(loader, false));
     }
 
     /**
      * Returns true if the specified path of URLs is equal to the
      * annotation URLs of the specified loader, and false otherwise.
      **/
-    private boolean urlsMatchLoaderAnnotation(URL[] urls, ClassLoader loader) {
+    private boolean urlsMatchLoaderAnnotation(URI[] urls, ClassLoader loader) {
 	try {
-	    return Arrays.equals(urls, getLoaderAnnotationURLs(loader));
+	    return Arrays.equals(urls, getLoaderAnnotationURIs(loader));
 	} catch (MalformedURLException e) {
 	    return false;
 	}
@@ -1395,20 +1418,25 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * @throws MalformedURLException if the string path of urls contains a
      *         mal-formed url which can not be converted into a url object.
      */
-    private static URL[] pathToURLs(String path) throws MalformedURLException {
+    private static URI[] pathToURIs(String path) throws MalformedURLException {
 	if (path == null) {
 	    return null;
 	}
 	synchronized (pathToURLsCache) {
 	    Object[] v = (Object[]) pathToURLsCache.get(path);
 	    if (v != null) {
-		return ((URL[])v[0]);
+		return ((URI[])v[0]);
 	    }
 	}
 	StringTokenizer st = new StringTokenizer(path);	// divide by spaces
-	URL[] urls = new URL[st.countTokens()];
+	URI[] urls = new URI[st.countTokens()];
 	for (int i = 0; st.hasMoreTokens(); i++) {
-	    urls[i] = new URL(st.nextToken());
+            try {
+                urls[i] = new URI(st.nextToken()).normalize();
+            } catch (URISyntaxException ex) {
+                throw new MalformedURLException("URL's must be RFC 2396 Compliant: " 
+                        + ex.getMessage());
+            }
 	}
 	synchronized (pathToURLsCache) {
 	    pathToURLsCache.put(path,
@@ -1416,8 +1444,21 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	}
 	return urls;
     }
+    
+    /* Converts a URI to an URL.
+     */
+    private URL asURL(URI uri) throws MalformedURLException{
+        if (uri == null) throw new NullPointerException("URI cannot be null");
+        try {
+            return uri.toURL();
+        } catch (IllegalArgumentException ex){
+            throw new MalformedURLException(ex.getMessage());
+        }
+    }
 
-    /** map from weak(key=string) to [URL[], soft(key)] */
+    /** map from weak(key=string) to [URL[], soft(key)] 
+     * A Soft equality based hash map is what's required here.
+     */
     private static Map pathToURLsCache = new WeakHashMap(5);
 
     /**
@@ -1429,12 +1470,13 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	 * The current implementation simply uses the current thread's
 	 * context class loader.
 	 */
-	return (ClassLoader) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() {
-		    return Thread.currentThread().getContextClassLoader();
-		}
-	    });
+	return AccessController.doPrivileged(
+            new PrivilegedAction<ClassLoader>() {
+              public ClassLoader run() {
+                  return Thread.currentThread().getContextClassLoader();
+              }
+            }
+        );
     }
 
     /**
@@ -1482,25 +1524,26 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * loader for a loader that has an export path which matches the
      * parameter path.
      */
-    private ClassLoader findOriginLoader(final URL[] pathURLs,
+    private ClassLoader findOriginLoader(final URI[] pathURLs,
 					 final ClassLoader parent)
     {
-	return (ClassLoader) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() {
-		    return findOriginLoader0(pathURLs, parent);
-		}
-	    });
+	return AccessController.doPrivileged(
+            new PrivilegedAction<ClassLoader>() {
+              public ClassLoader run() {
+                  return findOriginLoader0(pathURLs, parent);
+              }
+            }
+        );
     }
 
-    private ClassLoader findOriginLoader0(URL[] pathURLs, ClassLoader parent) {
+    private ClassLoader findOriginLoader0(URI[] pathURLs, ClassLoader parent) {
 	for (ClassLoader ancestor = parent;
 	     ancestor != null;
 	     ancestor = ancestor.getParent())
 	{
-	    URL[] ancestorURLs;
+	    URI[] ancestorURLs;
 	    try {
-		ancestorURLs = getLoaderAnnotationURLs(ancestor);
+		ancestorURLs = getLoaderAnnotationURIs(ancestor);
 	    } catch (MalformedURLException e) {
 		// this ancestor's annotation must not match pathURLs
 		continue;
@@ -1531,15 +1574,15 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * and the given parent class loader.  A new class loader instance
      * will be created and returned if no match is found.
      */
-    private ClassLoader lookupLoader(final URL[] urls,
-				     final ClassLoader parent)
+    private ClassLoader lookupLoader(final URI[] uris, URL[] urls,
+				     final ClassLoader parent) throws MalformedURLException
     {
 	/*
 	 * If the requested codebase is null, then PreferredClassProvider
 	 * assumes that the class is expected to be a "platform" class
 	 * with respect to the parent class loader.
 	 */
-	if (urls == null) {
+	if (uris == null) {
 	    return parent;
 	}
 
@@ -1574,7 +1617,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    }
 	}
 
-	LoaderKey key = new LoaderKey(urls, parent);
+	LoaderKey key = new LoaderKey(uris, parent);
 	LoaderEntryHolder holder;
 	synchronized (loaderTable) {
 	    if (!toRemove.isEmpty()) {
@@ -1609,7 +1652,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    LoaderEntry entry = holder.entry;
 	    ClassLoader loader;
 	    if (entry == null ||
-		(loader = (ClassLoader) entry.get()) == null)
+		(loader = entry.get()) == null)
 	    {
 		/*
 		 * If entry was in table but it's weak reference was cleared,
@@ -1637,18 +1680,22 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		 * context restricted to the permissions necessary to
 		 * load classes from its codebase URL path.
 		 */
-		loader = findOriginLoader(urls, parent);
+		loader = findOriginLoader(uris, parent);
 
 		if (loader == null) {
 		    loader = createClassLoader(urls, parent, requireDlPerm);
+                    /* RIVER-265
+                     * The next section of code has been moved inside this
+                     * block to avoid caching loaders found using
+                     * findOriginLoader
+                     * 
+                     * Finally, create an entry to hold the new loader with a
+                     * weak reference and store it in the table with the key.
+                     */
+                    entry = new LoaderEntry(key, loader);
+                    holder.entry = entry;
 		}
 
-		/*
-		 * Finally, create an entry to hold the new loader with a
-		 * weak reference and store it in the table with the key.
-		 */
-		entry = new LoaderEntry(key, loader);
-		holder.entry = entry;
 	    }
 	    return loader;
 	}
@@ -1691,9 +1738,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 					    final boolean requireDlPerm)
     {
 	checkInitialized();
-	return (ClassLoader)
-	    AccessController.doPrivileged(new PrivilegedAction() {
-		public Object run() {
+	return
+	    AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+		public ClassLoader run() {
 		    return new PreferredClassLoader(urls, parent, null,
 						    requireDlPerm);
 		}
@@ -1701,24 +1748,23 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     }
 
     /**
-     * Loader table key: a codebase URL path and a weak reference to
+     * Loader table key: a codebase URI path and a weak reference to
      * a parent class loader (possibly null).  The weak reference is
      * registered with "refQueue" so that the entry can be removed
      * after the loader has become unreachable.
      **/
-    private class LoaderKey extends WeakReference {
-	private final URL[] urls;
+    private class LoaderKey extends WeakReference<ClassLoader> {
+	private final URI[] uris;
 	private final boolean nullParent;
 	private final int hashValue;
 
-	public LoaderKey(URL[] urls, ClassLoader parent) {
+	public LoaderKey(URI[] urls, ClassLoader parent) {
 	    super(parent, refQueue);
-	    this.urls = urls;
 	    nullParent = (parent == null);
-
+            uris = urls;
 	    int h = nullParent ? 0 : parent.hashCode();
 	    for (int i = 0; i < urls.length; i++) {
-		h ^= urls[i].hashCode();
+		h ^= uris[i].hashCode();
 	    }
 	    hashValue = h;
 	}
@@ -1736,9 +1782,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    LoaderKey other = (LoaderKey) obj;
 	    ClassLoader parent;
 	    return (nullParent ? other.nullParent
-			       : ((parent = (ClassLoader) get()) != null &&
+			       : ((parent = get()) != null &&
 				  parent == other.get()))
-		&& Arrays.equals(urls, other.urls);
+		&& Arrays.equals(uris, other.uris);
 	}
     }
 
@@ -1747,13 +1793,21 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * weak reference is registered with "refQueue" so that the entry
      * can be removed after the loader has become unreachable.
      **/
-    private class LoaderEntry extends WeakReference {
+    private class LoaderEntry extends WeakReference<ClassLoader> {
 	public final LoaderKey key;	// for efficient removal
 
 	/**
 	 * set to true if the entry has been removed from the table
 	 * because it has been replaced, so it should not be attempted
 	 * to be removed again
+         * 
+         * REMINDER: 13th Dec 2011 - Peter Firmstone Commented:
+         * removed is mutated while holding LoaderEntryHolder's
+         * lock, once it becomes unreachable, the queue accesses this variable
+         * without synchronisation or volatility, by the time this object
+         * is ready for collection , it is unlikely that it's state will be
+         * modified.  If however at some point we change PreferredClassProvider's
+         * synchronisation strategy we need to revisit this.
 	 */
 	public boolean removed = false;
 
@@ -1767,9 +1821,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     }
 
     private static ClassLoader getClassLoader(final Class c) {
-	return (ClassLoader) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() { return c.getClassLoader(); }
+	return AccessController.doPrivileged(
+	    new PrivilegedAction<ClassLoader>() {
+		public ClassLoader run() { return c.getClassLoader(); }
 	    });
     }
 }
