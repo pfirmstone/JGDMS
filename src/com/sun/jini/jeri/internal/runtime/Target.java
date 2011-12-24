@@ -466,7 +466,11 @@ final class Target {
                 }
             }), securityContext.getAccessControlContext());
         } catch (PrivilegedActionException e) {
-            throw (IOException) e.getException();
+            Exception ex = e.getException();
+            if ( ex instanceof IOException ) throw (IOException) ex;
+            if ( ex instanceof InterruptedException ) {
+                Thread.currentThread().interrupt();
+            }
         } finally {
             if (ccl != savedCcl || savedCcl != t.getContextClassLoader()) {
                 t.setContextClassLoader(savedCcl);
