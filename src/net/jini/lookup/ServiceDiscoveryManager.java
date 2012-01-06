@@ -804,7 +804,7 @@ public class ServiceDiscoveryManager {
 
     /** A wrapper class for a ServiceRegistrar. */
     private final static class ProxyReg  {
-	public ServiceRegistrar proxy;
+	private final ServiceRegistrar proxy;
 	public ProxyReg(ServiceRegistrar proxy) {
 	    if(proxy == null)  throw new IllegalArgumentException
                                                      ("proxy cannot be null");
@@ -813,13 +813,20 @@ public class ServiceDiscoveryManager {
 
 	public boolean equals(Object obj) {
 	    if (obj instanceof ProxyReg){
-		return proxy.equals(((ProxyReg)obj).proxy);
+		return getProxy().equals(((ProxyReg)obj).getProxy());
 	    } else return false;
 	}//end equals
 
 	public int hashCode() {
-	    return proxy.hashCode();
+	    return getProxy().hashCode();
 	}//end hashCode
+
+        /**
+         * @return the proxy
+         */
+        public ServiceRegistrar getProxy() {
+            return proxy;
+        }
 
     }//end class ServiceDiscoveryManager.ProxyReg
 
@@ -907,7 +914,7 @@ public class ServiceDiscoveryManager {
 		long duration = getLeaseDuration();
 		if(duration < 0)  return;
                 try {
-                    EventReg eventReg = registerListener(reg.proxy,
+                    EventReg eventReg = registerListener(reg.getProxy(),
                                                          tmpl,
                                                          lookupListenerProxy,
                                                          duration);
@@ -929,7 +936,7 @@ public class ServiceDiscoveryManager {
                         cacheTerminated = bCacheTerminated;
                     }//end sync
                      ServiceDiscoveryManager.this.fail
-                         (e,reg.proxy,this.getClass().getName(),"run",
+                         (e, reg.getProxy(),this.getClass().getName(),"run",
                           "Exception occurred while attempting to register "
                           +"with the lookup service event mechanism",
                           cacheTerminated);
@@ -948,7 +955,7 @@ public class ServiceDiscoveryManager {
 	    }
             public void run() {
                 logger.finest("ServiceDiscoveryManager - LookupTask started");
-		ServiceRegistrar proxy = reg.proxy;
+		ServiceRegistrar proxy = reg.getProxy();
 		ServiceMatches matches;
                 /* For the given lookup, get all services matching the tmpl */
 		try {
@@ -1147,7 +1154,7 @@ public class ServiceDiscoveryManager {
                  * item, or a newly discovered item.
                  */
 		if(transition == ServiceRegistrar.TRANSITION_MATCH_NOMATCH) {
-                    handleMatchNoMatch(reg.proxy, sid, item);
+                    handleMatchNoMatch(reg.getProxy(), sid, item);
                 } else {//(transition == NOMATCH_MATCH or MATCH_MATCH)
                     (new NewOldServiceTask(reg, item,
                        (transition == ServiceRegistrar.TRANSITION_MATCH_MATCH),
@@ -1401,18 +1408,18 @@ public class ServiceDiscoveryManager {
                                           +"NewOldServiceTask completed");
                             return;
                         }//endif
-                        itemReg = new ServiceItemReg( reg.proxy, srvcItem );
+                        itemReg = new ServiceItemReg( reg.getProxy(), srvcItem );
                         serviceIdMap.put( thisTaskSid, itemReg );
 		    } else {
 			changed = true;
 		    }
                 }//end sync(serviceIdMap)
                 if(changed) {//a. old, previously discovered item
-                    itemMatchMatchChange(reg.proxy, srvcItem,
+                    itemMatchMatchChange(reg.getProxy(), srvcItem,
                                          itemReg, matchMatchEvent);
                 } else {//b. newly discovered item
                     ServiceItem newFilteredItem =
-                                  filterMaybeDiscard(srvcItem,reg.proxy,false);
+                                  filterMaybeDiscard(srvcItem, reg.getProxy(),false);
                     if(newFilteredItem != null) {
                         addServiceNotify(newFilteredItem);
                     }//endif
@@ -1470,7 +1477,7 @@ public class ServiceDiscoveryManager {
 		ServiceRegistrar proxy = null;
                 ServiceItem item;
                 synchronized(itemReg) {
-                    item = itemReg.removeProxy(reg.proxy);//disassociate the LUS
+                    item = itemReg.removeProxy(reg.getProxy());//disassociate the LUS
 		    if (item != null) {// new LUS chosen to track changes
 			proxy = itemReg.proxy;
 		    } else if( itemReg.hasNoProxys() ) {//no more LUSs, remove from map
@@ -1879,16 +1886,18 @@ public class ServiceDiscoveryManager {
 		    eReg.lookupsPending++;
                     t = new LookupTask(reg, taskSeqN++, eReg);
                     if( logger.isLoggable(Levels.HANDLED) ) {
-                        String msg ="notifyServiceMap - GAP in event sequence "
-                                     +"[serviceRegistrar={0}], "
-                                     +"[serviceItem={1}, "
-                                     +"serviceID={2}], "
-                                     +"[eventSource={3}, "
-                                     +"eventID={4,number,#}, "
-                                     +"oldSeqN={5,number,#}, "
-                                     +"newSeqN={6,number,#}]";
-                        Object[] params = new Object[] { reg.proxy,
-                                                         item.service,
+                        StringBuilder sb = new StringBuilder(300);
+                                    sb.append("notifyServiceMap - GAP in event sequence ")
+                                     .append("[serviceRegistrar={0}], ")
+                                     .append("[serviceItem={1}, ")
+                                     .append("serviceID={2}], ")
+                                     .append("[eventSource={3}, ")
+                                     .append("eventID={4,number,#}, ")
+                                     .append("oldSeqN={5,number,#}, ")
+                                     .append("newSeqN={6,number,#}]");
+                        String msg = sb.toString();
+                        Object[] params = new Object[] { reg !=null ? reg.getProxy() : "",
+                                                         item != null ? item.service : "",
                                                          sid,
                                                          eventSource,
                                                          new Long(eventID),
@@ -2511,7 +2520,7 @@ public class ServiceDiscoveryManager {
 	    while(iter.hasNext()) {
 		ProxyReg reg = (ProxyReg)iter.next();
 		cacheAddProxy(reg);
-		if(notifies != null)  listenerDiscovered(reg.proxy, notifies);
+		if(notifies != null)  listenerDiscovered(reg.getProxy(), notifies);
 	    }//end loop
 	}//end DiscMgrListener.discovered
 
@@ -2846,7 +2855,7 @@ public class ServiceDiscoveryManager {
 	Iterator iter = proxyRegSet.iterator();
 	while(iter.hasNext()) {
 	    ProxyReg reg = (ProxyReg)iter.next();
-	    proxys[k++] = reg.proxy;
+	    proxys[k++] = reg.getProxy();
 	}//end loop
 	return proxys;
     }//end buildServiceRegistrar
@@ -3613,7 +3622,7 @@ public class ServiceDiscoveryManager {
 	Iterator iter = proxyRegSet.iterator();
 	while(iter.hasNext()) {
 	    ProxyReg reg =(ProxyReg)iter.next();
-	    if(reg.proxy.equals(proxy))  return reg;
+	    if(reg.getProxy().equals(proxy))  return reg;
 	}//end loop
     	return null;
     }//end findReg
