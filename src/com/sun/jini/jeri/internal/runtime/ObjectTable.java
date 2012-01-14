@@ -64,8 +64,11 @@ final class ObjectTable {
     /** thread to check for expired leases */
     private Thread leaseChecker;
     
-    /** thread guard */
-    private Boolean running;
+    /** expired lease thread guard */
+    private final Object runLock;
+    
+    /** flag to indicate expired lease thread started */
+    private volatile boolean running;
 
     ObjectTable() { 
         requestDispatchersLock = new Object();
@@ -73,7 +76,8 @@ final class ObjectTable {
         keepAliveCount = new JvmLifeSupport();
         leaseTable = new ConcurrentHashMap<Uuid,Lease>(256);//Plenty of capacity to reduce resizing.
         leaseChecker = null;
-        running = Boolean.FALSE;
+        running = false;
+        runLock = new Object();
     }
 
     RequestDispatcher createRequestDispatcher(Unreferenced unrefCallback) {
@@ -289,13 +293,17 @@ final class ObjectTable {
              * Then because the late clean call sequence number is less than the 
              * second dirty call and exists, it is correctly recognised.
              */
-            synchronized (running){
-                if (!running) {
-                    leaseChecker =
-                        (Thread) AccessController.doPrivileged(
-                            new NewThreadAction(new LeaseChecker(),
-                                "DGC Lease Checker", true));
-                    leaseChecker.start();
+            // This must be performed after changing the leaseTable
+            if (!running){ // double checked
+                synchronized (runLock){
+                    if (!running) {
+                        leaseChecker =
+                            (Thread) AccessController.doPrivileged(
+                                new NewThreadAction(new LeaseChecker(),
+                                    "DGC Lease Checker", true));
+                        leaseChecker.start();
+                        running = true;
+                    }
                 }
             }
             for (int i = 0; i < ids.length; i++) {
@@ -359,9 +367,9 @@ final class ObjectTable {
                 // This is always executed and returns the lease checker
                 // to the non running state, such that if the application
                 // has not exited, another thread will be started eventually.
-                synchronized (running){
+                synchronized (runLock){
                     leaseChecker = null;
-                    running = Boolean.FALSE;               
+                    running = false;               
                 }
             }
 	}
