@@ -78,7 +78,7 @@
     <property name="test.results.dir" value="${test.results}"/>
 
     <!-- Standard javadoc options and settings -->
-    <property name="jdk.doc.url" value="http://docs.oracle.com/javase/1.5.0/docs/api"/>
+    <property name="jdk.doc.url" value="http://docs.oracle.com/javase/6/docs/api"/>
     <property name="jdk.packages" location="${root}/${src-doc}/j2se"/>
     <property name="api.copyright" value="Copyright 2007-2010, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
 
@@ -190,8 +190,8 @@
         <attribute name="dest.dir"/>
         <attribute name="debug" default="${debug}"/>
         <attribute name="debuglevel" default="${debuglevel}"/>
-        <attribute name="source" default="5"/>
-        <attribute name="target" default="5"/>
+        <attribute name="source" default="6"/>
+        <attribute name="target" default="6"/>
         <attribute name="deprecation" default="${deprecation}"/>
         <attribute name="verbose" default="${verbose}"/>
         <attribute name="nowarn" default="${nowarn}"/>
