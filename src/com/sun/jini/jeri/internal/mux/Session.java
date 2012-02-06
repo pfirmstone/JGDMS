@@ -830,7 +830,8 @@ final class Session {
 		    } catch (InterruptedException e) {
 			String message = "request I/O interrupted";
 			setDown(message, e);
-			IOException ioe = new IOException(message);
+                        Throwable t = e.fillInStackTrace();
+			IOException ioe = new IOException(message, t);
 			ioe.initCause(e);
 			throw ioe;
 		    }
