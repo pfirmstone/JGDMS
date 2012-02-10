@@ -1,0 +1,76 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+
+</head>
+<body bgcolor="white">
+
+Provides an interface for security policy providers capable of dynamic
+permission grants, an interface for security manager or policy providers
+that use custom security context state, and a security policy provider
+supporting dynamic permission grants.
+<p>
+The {@link net.jini.security.policy.DynamicPolicy} interface is
+implemented by security policy providers that may support dynamic granting of
+permissions at run-time.  One such provider is {@link
+net.jini.security.policy.DynamicPolicyProvider}, which layers
+dynamic grant functionality on top of a "static" security policy provider (that
+is, one incapable of dynamic permission grants itself).
+<p>
+The default static security policy used by <code>DynamicPolicyProvider</code>
+is {@link net.jini.security.policy.PolicyFileProvider}: a policy implementation
+that wraps the J2SE(TM) default
+<a href="http://java.sun.com/j2se/1.4/docs/guide/security/PolicyFiles.html">
+"PolicyFile" security policy provider</a> distributed as part of the Java(TM) 2
+Platform, Standard Edition.  <code>PolicyFileProvider</code> augments the
+J2SE default policy provider with convenience constructors as well as support
+for a special-cased permission,
+{@link net.jini.security.policy.UmbrellaGrantPermission}, which signifies a
+{@link net.jini.security.GrantPermission} for all permissions authorized to a
+given protection domain.
+<p>
+The {@link net.jini.security.policy.SecurityContextSource} interface is
+intended to be implemented by security managers and policy providers whose
+security contexts include state in addition to that provided by
+{@link java.security.AccessControlContext}.
+
+@since 2.0
+@version 2.0
+
+<!--
+<h2>Package Specification</h2>
+
+##### FILL IN ANY SPECS NEEDED BY JAVA COMPATIBILITY KIT #####
+<ul>
+  <li><a href="">##### REFER TO ANY FRAMEMAKER SPECIFICATION HERE #####</a>
+</ul>
+
+<h2>Related Documentation</h2>
+
+For overviews, tutorials, examples, guides, and tool documentation, please see:
+<ul>
+  <li><a href="">##### REFER TO NON-SPEC DOCUMENTATION HERE #####</a>
+</ul>
+-->
+
+</body>
+</html>
