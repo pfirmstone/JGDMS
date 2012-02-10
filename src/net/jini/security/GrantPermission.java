@@ -18,6 +18,7 @@
 
 package net.jini.security;
 
+import org.apache.river.api.security.PermissionComparator;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -36,11 +37,13 @@ import java.security.Permissions;
 import java.security.UnresolvedPermission;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.TreeSet;
 import net.jini.security.policy.DynamicPolicy;
 
 /**
@@ -555,7 +558,7 @@ public final class GrantPermission extends Permission {
      * of permissions.
      */
     private static String constructName(Permission[] pa) {
-	StringBuffer sb = new StringBuffer();
+	StringBuffer sb = new StringBuffer(60);
 	for (int i = 0; i < pa.length; i++) {
 	    Permission p = pa[i];
 	    if (p instanceof UnresolvedPermission) {
@@ -762,8 +765,9 @@ public final class GrantPermission extends Permission {
 	private static final ObjectStreamField[] serialPersistentFields = {
 	    new ObjectStreamField("perms", List.class, true)
 	};
-
-	private List perms = new ArrayList();
+        
+        // Serial form.
+	private List<Permission> perms = new ArrayList<Permission>();
 	private Implier implier = new Implier();
 
 	public synchronized void add(Permission p) {
@@ -774,11 +778,14 @@ public final class GrantPermission extends Permission {
 		throw new SecurityException(
 		    "can't add to read-only PermissionCollection");
 	    }
-	    perms.add(p);
-	    implier.add((GrantPermission) p);
+            // No longer rely on TreeSet to ensure correctness, just don't
+            // add twice, in other words check must be external.
+            perms.add(p);
+            implier.add((GrantPermission) p);
+	    
 	}
 	
-	public synchronized Enumeration elements() {
+	public synchronized Enumeration<Permission> elements() {
 	    return Collections.enumeration(perms);
 	}
 	

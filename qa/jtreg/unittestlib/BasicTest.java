@@ -39,16 +39,20 @@ public abstract class BasicTest extends UnitTestUtilities implements Test {
 
     /** Set the value to compare to. */
     protected void setCompareTo(Object compareTo) {
-	this.compareTo = compareTo;
-	compareToSet = true;
+        synchronized (this){
+            this.compareTo = compareTo;
+            compareToSet = true;
+        }
     }
 
     /** Get the value to compare to.  Throws an exception if not set. */
     protected Object getCompareTo() {
-	if (!compareToSet) {
-	    throw new FailedException("Test error: compareTo not set");
-	}
-	return compareTo;
+        synchronized (this){
+            if (!compareToSet) {
+                throw new FailedException("Test error: compareTo not set");
+            }
+            return compareTo;
+        }
     }
 
     /**
@@ -64,8 +68,9 @@ public abstract class BasicTest extends UnitTestUtilities implements Test {
     }
 
     public void check(Object result) throws Exception {
-	if (!safeEquals(getCompareTo(), result)) {
-	    throw new FailedException("Should be: " + compareTo);
+        Object compareToObj = getCompareTo();
+	if (!safeEquals(compareToObj, result)) {
+	    throw new FailedException("Should be: " + compareToObj);
 	}
     }
 }

@@ -14,6 +14,14 @@
  * 5. allow call setFactory().
  */
 
+/* Grants required for SecurityManager used a startup: */
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+/* end grants required for SecurityManager during startup. */
+
 grant codebase "http://*:${com.sun.jini.test.port}/qa1-loader-pref.jar" {
     permission net.jini.loader.DownloadPermission;
 };

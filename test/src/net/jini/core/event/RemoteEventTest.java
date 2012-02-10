@@ -18,8 +18,6 @@
 
 package net.jini.core.event;
 
-import static org.junit.Assert.assertEquals;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -28,9 +26,10 @@ import java.io.ObjectOutputStream;
 import java.rmi.MarshalledObject;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-
+import net.jini.io.MarshalledInstance;
 import org.junit.Before;
 import org.junit.Test;
+import static org.junit.Assert.*;
 
 /**
  *
@@ -49,12 +48,12 @@ public class RemoteEventTest {
     @Before
     @SuppressWarnings("deprecation")
     public void setUp() {
-        try {
-            this.m = new MarshalledObject(this.s);
-        } catch (IOException ex) {
-            Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
-        }
-        this.e = new RemoteEvent(this.source, 10L, 25L,this.m);
+	try {
+	    m = new MarshalledObject(s);
+	} catch (IOException ex) {
+	    Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
+	}
+	e = new RemoteEvent(source, 10L, 25L,m);
     }
 
     /**
@@ -62,11 +61,11 @@ public class RemoteEventTest {
      */
     @Test
     public void getID() {
-        System.out.println("getID");
-        RemoteEvent instance = this.e;
-        long expResult = 10L;
-        long result = instance.getID();
-        assertEquals(expResult, result);
+	System.out.println("getID");
+	RemoteEvent instance = e;
+	long expResult = 10L;
+	long result = instance.getID();
+	assertEquals(expResult, result);
     }
 
     /**
@@ -74,11 +73,11 @@ public class RemoteEventTest {
      */
     @Test
     public void getSequenceNumber() {
-        System.out.println("getSequenceNumber");
-        RemoteEvent instance = this.e;
-        long expResult = 25L;
-        long result = instance.getSequenceNumber();
-        assertEquals(expResult, result);
+	System.out.println("getSequenceNumber");
+	RemoteEvent instance = e;
+	long expResult = 25L;
+	long result = instance.getSequenceNumber();
+	assertEquals(expResult, result);
     }
 
     /**
@@ -86,47 +85,47 @@ public class RemoteEventTest {
      */
     @Test
     public void getRegistrationObject() {
-        System.out.println("getRegistrationObject");
-        RemoteEvent instance = this.e;
-        MarshalledObject expResult = this.m;
-        @SuppressWarnings("deprecation")
-        MarshalledObject result = instance.getRegistrationObject();
-        assertEquals(expResult, result);
+	System.out.println("getRegistrationObject");
+	RemoteEvent instance = e;
+	MarshalledObject expResult = m;
+	@SuppressWarnings("deprecation")
+	MarshalledObject result = instance.getRegistrationObject();
+	assertEquals(expResult, result);
     }
-
+    
     @Test
     public void testSerialization() {
-        ObjectOutputStream oos = null;
-        System.out.println("test serialization");
-        MarshalledObject expResult = this.m;
-        try {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            oos = new ObjectOutputStream(baos);
-            oos.writeObject(this.e);
-            oos.flush();
-            byte[] bytes = baos.toByteArray();
-            ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
-            ObjectInputStream ois = new ObjectInputStream(bais);
-            RemoteEvent result = (RemoteEvent) ois.readObject();
-            MarshalledObject moResult = result.getRegistrationObject();
-            Object srcResult = result.getSource();
-            long iDResult = result.getID();
-            long seqResult = result.getSequenceNumber();
-            assertEquals(expResult, moResult);
-            assertEquals(this.source, srcResult);
-            assertEquals(10L, iDResult);
-            assertEquals(25L, seqResult);
-        } catch (IOException ex) {
-            Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
-        } catch (ClassNotFoundException ex) {
-            Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
-        } finally {
-            try {
-                oos.close();
-            } catch (IOException ex) {
-                Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
-            }
-        }
+	ObjectOutputStream oos = null;
+	System.out.println("test serialization");
+	MarshalledObject expResult = m;
+	try {
+	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
+	    oos = new ObjectOutputStream(baos);
+	    oos.writeObject(e);
+	    oos.flush();
+	    byte[] bytes = baos.toByteArray();
+	    ByteArrayInputStream bais = new ByteArrayInputStream(bytes);
+	    ObjectInputStream ois = new ObjectInputStream(bais);
+	    RemoteEvent result = (RemoteEvent) ois.readObject();
+	    MarshalledObject moResult = result.getRegistrationObject();
+	    Object srcResult = result.getSource();
+	    long iDResult = result.getID();
+	    long seqResult = result.getSequenceNumber();
+	    assertEquals(expResult, moResult);
+	    assertEquals(source, srcResult);
+	    assertEquals(10L, iDResult);
+	    assertEquals(25L, seqResult);
+	} catch (IOException ex) {
+	    Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
+	} catch (ClassNotFoundException ex) {
+	    Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
+	} finally {
+	    try {
+		oos.close();
+	    } catch (IOException ex) {
+		Logger.getLogger(RemoteEventTest.class.getName()).log(Level.SEVERE, null, ex);
+	    }
+	}
     }
 
 }

@@ -1,3 +1,11 @@
+/* Grants required for SecurityManager used a startup: */
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+/* end grants required for SecurityManager during startup. */
+
 grant {
     permission java.io.FilePermission
     "${java.io.tmpdir}${/}testservice1", "read";

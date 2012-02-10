@@ -19,6 +19,11 @@
 # 
 # Create the keystore and truststore files
 # Usage: keystore.sh
+#
+# You must first compile CA.java in the qa/jtreg/certs directory by calling
+# make compile, in that directory.  When you've finished, run this script, 
+# to generate new certificates. 
+# This task needs to be performed once every ten years when certificates expire.
 
 if [ "${TESTJAVA}" ]; then
     JAVABIN=${TESTJAVA}/bin/;
@@ -34,6 +39,7 @@ TRUSTSTORE=${TESTSRC}/truststore
 
 KEYTOOL=${JAVABIN}keytool
 
+KEYSTORECMDEXP="${KEYTOOL} -keystore ${KEYSTORE} -storepass keypass -keypass keypass -validity 1"
 KEYSTORECMD="${KEYTOOL} -keystore ${KEYSTORE} -storepass keypass -keypass keypass -validity 3650"
 TRUSTSTORECMD="${KEYTOOL} -keystore ${TRUSTSTORE} -storepass keypass -keypass keypass -validity 3650"
 
@@ -60,21 +66,34 @@ ${KEYSTORECMD} -genkey -alias notTrusted -dname CN=notTrusted -keyalg RSA
 ${KEYSTORECMD} -genkey -alias clientDSA2 -dname CN=clientDSA2 -keyalg DSA
 ${KEYSTORECMD} -certreq -alias clientDSA2 -file clientDSA2.request
 
-${KEYSTORECMD} -keyclone -alias clientDSA2 -dest clientDSA2expired -new keypass
-${KEYSTORECMD} -selfcert -alias clientDSA2expired
+${KEYSTORECMDEXP} -genkey -alias clientDSA2expired -dname CN=clientDSA2 -keyalg DSA
+${KEYSTORECMDEXP} -certreq -alias clientDSA2expired -file clientDSA2expired.request
 
 ${KEYSTORECMD} -genkey -alias serverRSA2 -dname CN=serverRSA2 -keyalg RSA
 ${KEYSTORECMD} -certreq -alias serverRSA2 -file serverRSA2.request
 
-${KEYSTORECMD} -keyclone -alias serverRSA2 -dest serverRSA2expired -new keypass
-${KEYSTORECMD} -selfcert -alias serverRSA2expired
+${KEYSTORECMDEXP} -genkey -alias serverRSA2expired -dname CN=serverRSA2 -keyalg RSA
+${KEYSTORECMDEXP} -certreq -alias serverRSA2expired -file serverRSA2expired.request
 
 set +x
+echo Sign clientDSA2.req, serverRSA2.req, clientDSA2expired.req and serverRSA2expired.req,\
+ then import them:
+echo expired certificates need one day to expire before testing.
 
-echo Sign clientDSA2.req and serverRSA2.req and then import them:
-echo ${TRUSTSTORECMD} -import -noprompt -alias ca -file ca.cert
-echo ${KEYSTORECMD} -import -noprompt -alias ca -file ca.cert
-echo ${KEYSTORECMD} -import -noprompt -alias clientDSA2 -file clientDSA2.cert
-echo ${KEYSTORECMD} -import -noprompt -alias clientDSA2expired -file clientDSA2expired.cert
-echo ${KEYSTORECMD} -import -noprompt -alias serverRSA2 -file serverRSA2.cert
-echo ${KEYSTORECMD} -import -noprompt -alias serverRSA2expired -file serverRSA2expired.cert
+set -x
+
+../../../../../certs/run-ca.sh -CA ./ca.properties
+../../../../../certs/run-ca.sh -CA ./ca1.properties
+../../../../../certs/run-ca.sh -CR ./ca.properties
+../../../../../certs/run-ca.sh -CR ./ca1.properties
+../../../../../certs/run-ca.sh -CR ./serverRSA2expired.properties
+../../../../../certs/run-ca.sh -CR ./clientDSA2expired.properties
+
+${TRUSTSTORECMD} -import -noprompt -alias ca -file ca.cert
+${TRUSTSTORECMD} -import -noprompt -alias ca1 -file ca1.cert
+${KEYSTORECMD} -import -noprompt -alias ca -file ca.cert
+${KEYSTORECMD} -import -noprompt -alias ca1 -file ca1.cert
+${KEYSTORECMD} -import -noprompt -alias clientDSA2 -file clientDSA2.chain
+${KEYSTORECMDEXP} -import -noprompt -alias clientDSA2expired -file clientDSA2expired.chain
+${KEYSTORECMD} -import -noprompt -alias serverRSA2 -file serverRSA2.chain
+${KEYSTORECMDEXP} -import -noprompt -alias serverRSA2expired -file serverRSA2expired.chain

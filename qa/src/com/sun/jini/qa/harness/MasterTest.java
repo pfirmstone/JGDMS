@@ -36,6 +36,7 @@ import javax.security.auth.Subject;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import org.apache.river.api.security.DelegateCombinerSecurityManager;
 
 /**
  * A wrapper which drives the execution of a test on the master host.
@@ -82,9 +83,10 @@ class MasterTest {
 	origErr = System.err;
 	System.setErr(System.out);
 	logger.log(Level.FINE, "Starting MasterTest");
-	if (System.getSecurityManager() == null) {
-	    System.setSecurityManager(new java.rmi.RMISecurityManager());
+        if (System.getSecurityManager() == null) {
+//	    System.setSecurityManager(new java.rmi.RMISecurityManager());
 //            System.setSecurityManager(new ProfilingSecurityManager());
+            System.setSecurityManager(new DelegateCombinerSecurityManager());
 	}
 	if (args.length < 1) {
 	    exit(false, Test.ENV, "Arguments missing");

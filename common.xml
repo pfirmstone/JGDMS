@@ -25,7 +25,7 @@
     <property file="${root}/build.properties" />
 
     <!-- Product version info -->
-    <property name="version" value="trunk"/>
+    <property name="version" value="2.2.0"/>
     <property name="product.name" value="apache-river-${version}"/>
     <property name="product.title" value="Apache River v${version}"/>
 
@@ -78,7 +78,7 @@
     <property name="test.results.dir" value="${test.results}"/>
 
     <!-- Standard javadoc options and settings -->
-    <property name="jdk.doc.url" value="http://docs.oracle.com/javase/6/docs/api"/>
+    <property name="jdk.doc.url" value="http://java.sun.com/j2se/1.4.2/docs/api"/>
     <property name="jdk.packages" location="${root}/${src-doc}/j2se"/>
     <property name="api.copyright" value="Copyright 2007-2010, multiple authors.&lt;br&gt;Licensed under the &lt;a href=&quot;http://www.apache.org/licenses/LICENSE-2.0&quot; target=&quot;child&quot; &gt;Apache License, Version 2.0&lt;/a&gt;, see the &lt;a href=&quot;{@docRoot}/doc-files/NOTICE&quot; target=&quot;child&quot; &gt;NOTICE&lt;/a&gt; file for attributions."/>
 
@@ -96,7 +96,7 @@
         ## can be removed -->
     <property name="jskprivate.include" value="-in com.sun.jini.action -in com.sun.jini.collection -in com.sun.jini.constants -in com.sun.jini.system -in com.sun.jini.logging -skip com.sun.jini.logging.LogManager -skip com.sun.jini.logging.Levels -in com.sun.jini.outrigger"/>
     <!-- Common packages to exclude within ClassDep -->
-    <property name="jskplatform.exclude" value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager"/>
+    <property name="jskplatform.exclude" value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river.api -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager"/>
 
     <property name="river.home" location="${root}"/>
     <property name="river.lib.dir" location="${river.home}/${lib}"/>
@@ -133,10 +133,16 @@
     <fileset id="velocity.jars" dir="${root}/velocity">
         <include name="velocity-1.7.jar" />
     </fileset>
+    
+    <fileset id="high-scale-lib.jars" dir="${root}/high-scale-lib">
+        <include name="high-scale-lib.jar" />
+    </fileset>
+    
 
     <path id="compile.classpath" >
         <fileset refid="asm.jars" />
         <fileset refid="velocity.jars" />
+        <fileset refid="high-scale-lib.jars" />
     </path>
 
 
@@ -148,7 +154,7 @@
         <path refid="river.classes"/>
         <path refid="asm.classpath"/>
     </path>
-
+   
     <path id="classdep.jar.classpath">
         <pathelement location="${river.lib.dir}/classdep.jar"/>
         <!--<path refid="asm.classpath" />-->
@@ -190,8 +196,8 @@
         <attribute name="dest.dir"/>
         <attribute name="debug" default="${debug}"/>
         <attribute name="debuglevel" default="${debuglevel}"/>
-        <attribute name="source" default="6"/>
-        <attribute name="target" default="6"/>
+        <attribute name="source" default="5"/>
+        <attribute name="target" default="5"/>
         <attribute name="deprecation" default="${deprecation}"/>
         <attribute name="verbose" default="${verbose}"/>
         <attribute name="nowarn" default="${nowarn}"/>

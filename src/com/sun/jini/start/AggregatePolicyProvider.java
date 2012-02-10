@@ -18,7 +18,6 @@
 
 package com.sun.jini.start;
 
-import com.sun.jini.collection.WeakIdentityMap;
 import java.lang.reflect.Method;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -36,10 +35,19 @@ import java.security.Security;
 import java.security.SecurityPermission;
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import net.jini.security.SecurityContext;
+import org.apache.river.api.security.ConcurrentPolicy;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.PolicyInitializationException;
 import net.jini.security.policy.SecurityContextSource;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.impl.util.RC;
+import org.apache.river.impl.util.Ref;
+import org.apache.river.impl.util.Referrer;
 
 /**
  * Security policy provider which supports associating security sub-policies
@@ -69,24 +77,38 @@ import net.jini.security.policy.SecurityContextSource;
  * @since 2.0
  */
 public class AggregatePolicyProvider 
-    extends Policy implements DynamicPolicy, SecurityContextSource
+    extends Policy implements DynamicPolicy, SecurityContextSource, ConcurrentPolicy
 {
     private static final String mainPolicyClassProperty =
 	"com.sun.jini.start.AggregatePolicyProvider.mainPolicyClass";
     private static final String defaultMainPolicyClass =
 	"net.jini.security.policy.DynamicPolicyProvider";
 
-    private static final Map trustGetCCL = new WeakHashMap();
-    private static final ProtectionDomain myDomain = (ProtectionDomain)
-	AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() {
-		return AggregatePolicyProvider.class.getProtectionDomain();
-	    }
-	});
+    private static final ConcurrentMap<Class,Boolean> trustGetCCL
+    = RC.concurrentMap(
+            new ConcurrentHashMap<Referrer<Class>,Referrer<Boolean>>(), 
+            Ref.WEAK_IDENTITY, Ref.STRONG);
+    private static final ProtectionDomain myDomain 
+        = AccessController.doPrivileged(
+            new PrivilegedAction<ProtectionDomain>() {
+                 public ProtectionDomain run() {
+                     return AggregatePolicyProvider.class.getProtectionDomain();
+                 }
+             });
 
-    private WeakIdentityMap subPolicies = new WeakIdentityMap();
-    private WeakIdentityMap subPolicyCache = new WeakIdentityMap();
-    private Policy mainPolicy;
+    private final Map<ClassLoader,Policy> subPolicies = new WeakHashMap<ClassLoader,Policy>();// protected by lock
+    // The cache is used to avoid repeat security checks, the subPolicies map
+    // cannot be used to cache child ClassLoaders because their policy could
+    // change if a policy is updated.
+    private final ConcurrentMap<ClassLoader,Policy> subPolicyChildClassLoaderCache = // put protected by policyRead
+            RC.concurrentMap(                                                        // clear protected by policyWrite
+            new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<Policy>>(),
+            Ref.WEAK_IDENTITY, Ref.STRONG);
+//    private final ReadWriteLock policyUpdate = new ReentrantReadWriteLock(); 
+//    private final Lock policyRead = policyUpdate.readLock();
+//    private final Lock policyWrite = policyUpdate.writeLock();
+    private final Lock lock = new ReentrantLock();
+    private volatile Policy mainPolicy; // protected by policyUpdate
 
     /**
      * Creates a new <code>AggregatePolicyProvider</code> instance, containing
@@ -209,6 +231,30 @@ public class AggregatePolicyProvider
     public void refresh() {
 	getCurrentSubPolicy().refresh();
     }
+    
+    public boolean isConcurrent() {
+        Policy p = getCurrentSubPolicy();
+        if (p instanceof ConcurrentPolicy){
+            return ((ConcurrentPolicy)p).isConcurrent();
+        }
+        return false;
+    }
+
+    public PermissionGrant[] getPermissionGrants(ProtectionDomain domain) {
+        Policy p = getCurrentSubPolicy();
+        if (p instanceof ConcurrentPolicy){
+            return ((ConcurrentPolicy)p).getPermissionGrants(domain);
+        }
+        return new PermissionGrant[0];
+    }
+    
+    public PermissionGrant[] getPermissionGrants() {
+        Policy p = getCurrentSubPolicy();
+        if (p instanceof ConcurrentPolicy){
+            return ((ConcurrentPolicy)p).getPermissionGrants();
+        }
+        return new PermissionGrant[0];
+    }
 
     /**
      * Changes sub-policy association with given class loader.  If
@@ -237,12 +283,11 @@ public class AggregatePolicyProvider
 	if (sm != null) {
 	    sm.checkPermission(new SecurityPermission("setPolicy"));
 	}
-	synchronized (subPolicies) {
-	    subPolicyCache.clear();
+        lock.lock();
+        try {
 	    if (loader != null) {
 		if (subPolicy != null) {
 		    subPolicies.put(loader, subPolicy);
-		    subPolicyCache.put(loader, subPolicy);
 		} else {
 		    subPolicies.remove(loader);
 		}
@@ -252,7 +297,11 @@ public class AggregatePolicyProvider
 		}
 		mainPolicy = subPolicy;
 	    }
-	}
+            subPolicyChildClassLoaderCache.clear();
+            subPolicyChildClassLoaderCache.putAll(subPolicies);
+        } finally {
+            lock.unlock();
+        }
     }
 
     /**
@@ -365,9 +414,7 @@ public class AggregatePolicyProvider
 	// force class resolution by pre-invoking methods called by implies()
 	trustGetContextClassLoader0(Thread.class);
 	getContextClassLoader();
-	synchronized (subPolicies) {
-	    lookupSubPolicy(ldr);
-	}
+        lookupSubPolicy(ldr);
     }
 
     /**
@@ -375,36 +422,39 @@ public class AggregatePolicyProvider
      */
     private Policy getCurrentSubPolicy() {
 	final Thread t = Thread.currentThread();
-	if (!trustGetContextClassLoader(t)) {
-	    return mainPolicy;
-	}
-	ClassLoader ccl = getContextClassLoader();
-	synchronized (subPolicies) {
-	    Policy policy = (Policy) subPolicyCache.get(ccl);
-	    if (policy == null) {
-		policy = lookupSubPolicy(ccl);
-		subPolicyCache.put(ccl, policy);
-	    }
-	    return policy;
-	}
+        boolean trust = trustGetContextClassLoader(t);
+        ClassLoader ccl = trust ? getContextClassLoader() : null;
+        if ( ccl == null ) return mainPolicy;
+        Policy policy = subPolicyChildClassLoaderCache.get(ccl);  // just a cache.
+        if ( policy != null ) return policy;
+        lock.lock();
+        try {
+            policy = lookupSubPolicy(ccl);
+            return policy;
+        }finally{
+            lock.unlock();
+        }
     }
 
     /**
      * Returns sub-policy associated with the given class loader.  This method
-     * should only be called when already synchronized on subPolicies.
+     * should only be called when already synchronized on lock.
      */
     private Policy lookupSubPolicy(final ClassLoader ldr) {
-	assert Thread.holdsLock(subPolicies);
-	return (Policy) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() {
-		    for (ClassLoader l = ldr; l != null; l = l.getParent()) {
-			Policy p = (Policy) subPolicies.get(l);
-			if (p != null) {
-			    return p;
-			}
-		    }
-		    return mainPolicy;
+	return AccessController.doPrivileged(
+	    new PrivilegedAction<Policy>() {
+		public Policy run() {
+                    Policy p = null;
+                    for (ClassLoader l = ldr; l != null; l = l.getParent()) {
+                        p = subPolicies.get(l);
+                        if (p != null) break;
+                    }
+                    if (p == null) p = mainPolicy;
+                    Policy exists =
+                    subPolicyChildClassLoaderCache.putIfAbsent(ldr, p);
+                    if ( exists != null && p != exists ) 
+                        throw new IllegalStateException("Policy Mutation occured");
+                    return p;
 		}
 	    });
     }
@@ -413,9 +463,9 @@ public class AggregatePolicyProvider
      * Returns current context class loader.
      */
     static ClassLoader getContextClassLoader() {
-	return (ClassLoader) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() {
+	return AccessController.doPrivileged(
+	    new PrivilegedAction<ClassLoader>() {
+		public ClassLoader run() {
 		    return Thread.currentThread().getContextClassLoader();
 		}
 	    });
@@ -432,22 +482,20 @@ public class AggregatePolicyProvider
 	}
 	
 	Boolean b;
-	synchronized (trustGetCCL) {
-	    b = (Boolean) trustGetCCL.get(cl);
-	}
+        b = trustGetCCL.get(cl);
 	if (b == null) {
 	    b = trustGetContextClassLoader0(cl);
-	    synchronized (trustGetCCL) {
-		trustGetCCL.put(cl, b);
-	    }
+//            Boolean existed = 
+            trustGetCCL.putIfAbsent(cl, b);
 	}
 	return b.booleanValue();
     }
 
     private static Boolean trustGetContextClassLoader0(final Class cl) {
-	return (Boolean) AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() {
+	return AccessController.doPrivileged(new PrivilegedAction<Boolean>() {
+	    public Boolean run() {
 		try {
+                    @SuppressWarnings("unchecked")
 		    Method m = cl.getMethod(
 			"getContextClassLoader", new Class[0]);
 		    return Boolean.valueOf(m.getDeclaringClass() == Thread.class);
@@ -465,17 +513,24 @@ public class AggregatePolicyProvider
      */
     private static class DefaultSecurityContext implements SecurityContext {
 
-	private final AccessControlContext acc =
-	    AccessController.getContext();
+	private final AccessControlContext acc;
+        private final int hashCode;
+        
+        DefaultSecurityContext(){
+            acc = AccessController.getContext();
+            int hash = 5;
+            hash = 47 * hash + (this.acc != null ? this.acc.hashCode() : 0);
+            hashCode = hash;
+        }
 
-	public PrivilegedAction wrap(PrivilegedAction a) {
+	public <T> PrivilegedAction<T> wrap(PrivilegedAction<T> a) {
 	    if (a == null) {
 		throw new NullPointerException();
 	    }
 	    return a;
 	}
 
-	public PrivilegedExceptionAction wrap(PrivilegedExceptionAction a) {
+	public <T> PrivilegedExceptionAction<T> wrap(PrivilegedExceptionAction<T> a) {
 	    if (a == null) {
 		throw new NullPointerException();
 	    }
@@ -485,6 +540,17 @@ public class AggregatePolicyProvider
 	public AccessControlContext getAccessControlContext() {
 	    return acc;
 	}
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
+        
+        public boolean equals(Object o){
+            if (!(o instanceof DefaultSecurityContext)) return false;
+            SecurityContext that = (SecurityContext) o;
+            return getAccessControlContext().equals(that.getAccessControlContext());
+        }
     }
 
     /**
@@ -494,20 +560,26 @@ public class AggregatePolicyProvider
      */
     private static class AggregateSecurityContext implements SecurityContext {
 
-	private final ClassLoader ccl = getContextClassLoader();
+	private final ClassLoader ccl;
 	private final SecurityContext sc;
+        private final int hashCode;
 
 	AggregateSecurityContext(SecurityContext sc) {
 	    if (sc == null) {
 		throw new NullPointerException();
 	    }
 	    this.sc = sc;
+            ccl = getContextClassLoader();
+            int hash = 3;
+            hash = 61 * hash + (this.ccl != null ? this.ccl.hashCode() : 0);
+            hash = 61 * hash + (this.sc != null ? this.sc.hashCode() : 0);
+            hashCode = hash;
 	}
 
-	public PrivilegedAction wrap(PrivilegedAction a) {
-	    final PrivilegedAction wa = sc.wrap(a);
-	    return new PrivilegedAction() {
-		public Object run() {
+	public <T> PrivilegedAction<T> wrap(PrivilegedAction<T> a) {
+	    final PrivilegedAction<T> wa = sc.wrap(a);
+	    return new PrivilegedAction<T>() {
+		public T run() {
 		    ClassLoader sccl = setCCL(ccl, false);
 		    try {
 			return wa.run();
@@ -518,10 +590,10 @@ public class AggregatePolicyProvider
 	    };
 	}
 
-	public PrivilegedExceptionAction wrap(PrivilegedExceptionAction a) {
-	    final PrivilegedExceptionAction wa = sc.wrap(a);
-	    return new PrivilegedExceptionAction() {
-		public Object run() throws Exception {
+	public <T> PrivilegedExceptionAction<T> wrap(PrivilegedExceptionAction<T> a) {
+	    final PrivilegedExceptionAction<T> wa = sc.wrap(a);
+	    return new PrivilegedExceptionAction<T>() {
+		public T run() throws Exception {
 		    ClassLoader sccl = setCCL(ccl, false);
 		    try {
 			return wa.run();
@@ -537,9 +609,9 @@ public class AggregatePolicyProvider
 	}
 
 	private ClassLoader setCCL(final ClassLoader ldr, final boolean force) {
-	    return (ClassLoader) AccessController.doPrivileged(
-		new PrivilegedAction() {
-		    public Object run() {
+	    return AccessController.doPrivileged(
+		new PrivilegedAction<ClassLoader>() {
+		    public ClassLoader run() {
 			Thread t = Thread.currentThread();
 			ClassLoader old = null;
 			if (force || ldr != (old = t.getContextClassLoader())) {
@@ -549,5 +621,20 @@ public class AggregatePolicyProvider
 		    }
 		});
 	}
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
+        
+        public boolean equals(Object o){
+            if (!(o instanceof AggregateSecurityContext)) return false;
+            AggregateSecurityContext that = (AggregateSecurityContext) o;
+            if (sc.equals(that.sc)){
+                if ( ccl == that.ccl) return true; // both may be null.
+                if ( ccl != null && ccl.equals(that.ccl)) return true;
+            }
+            return false;
+        }
     }
 }

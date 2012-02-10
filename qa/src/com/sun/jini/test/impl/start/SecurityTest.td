@@ -2,8 +2,11 @@ testClass=SecurityTest
 testCategories=start,start_impl
 #testClasspath=${com.sun.jini.qa.home}$/lib$/harness.jar$:${com.sun.jini.qa.home}$/lib$/qa1-start-tests.jar$:${com.sun.jini.qa.home}$/lib$/$qajinidep$:${com.sun.jini.jsk.home}$/lib$/jsk-platform.jar
 
-testClasspath=<harnessJar>$:<file:lib/qa1-start-tests.jar>$:${com.sun.jini.jsk.home}$/lib$/jsk-platform.jar$:${com.sun.jini.jsk.home}$/lib$/jsk-lib.jar
-
+testClasspath=${altClasspath}$:<file:lib/qa1-start-tests.jar>
+#testjvmargs=\
+#-Xdebug,\
+#-Xrunjdwp:transport=dt_socket+,address=8000+,server=y+,suspend=y,\
+#${testjvmargs}
 
 /*******************************************************************************
  * Test-specific property files
@@ -15,7 +18,8 @@ com.sun.jini.test.impl.start.SecurityTest1.classpath=<file:lib/qa1-start-testser
 com.sun.jini.test.impl.start.SecurityTest1.codebase=http://${HOST}:${com.sun.jini.test.port}/qa1-start-testservice1-dl.jar
 com.sun.jini.test.impl.start.SecurityTest1.policyfile=<url:securityTest.testservice1.policy>
 com.sun.jini.test.impl.start.SecurityTest1.log=none
-com.sun.jini.test.impl.start.SecurityTest1.serverjvmargs=
+com.sun.jini.test.impl.start.SecurityTest1.serverjvmargs=-Dnet.jini.security.policy.PolicyFileProvider.basePolicyClass=sun.security.provider.PolicyFile,\
+-Dnet.jini.security.policy.DynamicPolicyProvider.basePolicyClass=net.jini.security.policy.PolicyFileProvider
 com.sun.jini.test.impl.start.SecurityTest1.serviceConfiguration=<url:configs/<config>/testservice.config>
 com.sun.jini.test.impl.start.SecurityTest1.starterConfiguration=<url:configs/<config>/testservice.config>
 com.sun.jini.test.impl.start.SecurityTest1.host=master

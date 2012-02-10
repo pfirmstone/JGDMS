@@ -17,6 +17,7 @@ grant {
         "java.security.policy", "read,write";
     permission java.util.PropertyPermission "test.src", "read";
     permission java.security.SecurityPermission "getProperty.*";
+    permission java.security.SecurityPermission "getPolicy";
 };
 
 grant codeBase "file:/foo/*" {

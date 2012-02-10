@@ -1,6 +1,19 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 
 package net.jini.security;
@@ -38,33 +51,29 @@ public class GrantPermissionTest {
     public void tearDown() throws Exception {
     }
 
-    /**
-     * Test of getActions method, of class GrantPermission.
+   /**
+     * Test of string construction, of class GrantPermission.
      */
-//    @org.junit.Test
-//    public void getActions() {
-//        System.out.println("getActions");
-//        GrantPermission instance = null;
-//        String expResult = "";
-//        String result = instance.getActions();
-//        assertEquals(expResult, result);
-//        // TODO review the generated test code and remove the default call to fail.
-//        fail("The test case is a prototype.");
-//    }
-
-    /**
-     * Test of newPermissionCollection method, of class GrantPermission.
-     */
-//    @org.junit.Test
-//    public void newPermissionCollection() {
-//        System.out.println("newPermissionCollection");
-//        GrantPermission instance = null;
-//        PermissionCollection expResult = null;
-//        PermissionCollection result = instance.newPermissionCollection();
-//        assertEquals(expResult, result);
-//        // TODO review the generated test code and remove the default call to fail.
-//        fail("The test case is a prototype.");
-//    }
+    @org.junit.Test
+    public void construct() {
+        System.out.println("String constructor");
+        RuntimePermission rpD = new RuntimePermission("D", "");
+//        RuntimePermission rpD1 = new RuntimePermission("D1");
+//        RuntimePermission rpC = new RuntimePermission("C");
+//        RuntimePermission rpC1 = new RuntimePermission("C1");
+        
+        String rpDS = "delim=' java.lang.RuntimePermission 'D'";
+        
+        GrantPermission gpS = new GrantPermission(rpDS);
+        GrantPermission gpP = new GrantPermission(rpD);
+        System.out.print(gpS.toString());
+        System.out.print(gpP.toString());
+        boolean result = gpS.implies(gpP);
+        boolean expResult = true;
+        assertEquals(expResult, result);
+        result = gpP.implies(gpS);
+        assertEquals(expResult, result);
+    }
 
     /**
      * Test of implies method, of class GrantPermission.
@@ -199,7 +208,7 @@ public class GrantPermissionTest {
         System.out.println(msg);
         return ret == exp;
     }
-    
+
     /**
      * Test of equals method, of class GrantPermission.
      */

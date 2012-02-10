@@ -49,6 +49,10 @@ public class Test {
 	    TestLibrary.installClassInCodebase("Foo", "cb2")});
 	cl1 = Class.forName("Foo", true, ldr1);
 	cl2 = Class.forName("Foo", true, ldr2);
+        ProtectionDomain pd2 = cl2.getProtectionDomain();
+	if (policy.implies(pd2, pA)) throw new Error();
+	if (policy.implies(pd2, pB)) throw new Error();
+	if (policy.implies(pd2, pC)) throw new Error();
 
 	ClassLoader ldr3 = new URLClassLoader(new URL[]{
 	    TestLibrary.installClassInCodebase("Setup", "cb3")});
@@ -62,13 +66,10 @@ public class Test {
 	{
 	    throw new Error();
 	}
-	ProtectionDomain pd2 = cl2.getProtectionDomain();
-	if (policy.implies(pd2, pA) ||
-	    policy.implies(pd2, pB) ||
-	    policy.implies(pd2, pC))
-	{
-	    throw new Error();
-	}
+	//ProtectionDomain pd2 = cl2.getProtectionDomain();
+	if (policy.implies(pd2, pA)) throw new Error();
+	if (policy.implies(pd2, pB)) throw new Error();
+	if (policy.implies(pd2, pC)) throw new Error();
 
 	final Principal prX = new StringPrincipal("X"),
 			prY = new StringPrincipal("Y"),

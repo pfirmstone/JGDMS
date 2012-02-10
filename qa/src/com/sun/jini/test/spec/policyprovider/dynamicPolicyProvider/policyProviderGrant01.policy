@@ -13,6 +13,30 @@
  * 5. allow accessClassInPackage for sun.security.provider
  */
 
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib-ext${/}*" {
+    permission java.security.AllPermission "", "";
+};
+
+/* Grants required for SecurityManager used a startup: */
+
+grant codebase "file:${com.sun.jini.qa.harness.harnessJar}" {
+    //permission java.lang.RuntimePermission "modifyThreadGroup";
+};
+
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}jiniharness.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}jinitests.jar" {
+
+};
+
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
+    permission java.security.AllPermission "", "";
+};
+
+/* End grants required for SecurityManager at startup */
+
 grant {
     permission java.lang.RuntimePermission "A";
     permission java.lang.RuntimePermission "B";
@@ -38,6 +62,7 @@ grant {
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.security.SecurityPermission "createAccessControlContext";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+    permission java.util.PropertyPermission "FILEPOLICY02", "read";
 };
 
 /*
@@ -172,7 +197,7 @@ grant {
     // grant read or write permission for individual properties
     // associated with separate tests.
 
-    permission java.util.PropertyPermission "*", "read,write"; 
+    permission java.util.PropertyPermission "*", "read,write";
 
     // discovery-specific PropertyPermission needed by the harness
     permission net.jini.discovery.DiscoveryPermission "*"; 

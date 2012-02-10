@@ -30,6 +30,14 @@ import java.security.Policy;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import org.apache.river.api.security.ConcurrentPolicy;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.impl.util.RC;
+import org.apache.river.impl.util.Ref;
+import org.apache.river.impl.util.Referrer;
 
 /**
  * Security policy provider which handles permission queries and grants by
@@ -51,17 +59,17 @@ import java.security.ProtectionDomain;
 public class LoaderSplitPolicyProvider 
     extends Policy implements DynamicPolicy
 {
-    private static final ProtectionDomain myDomain = (ProtectionDomain)
-	AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() {
-		return LoaderSplitPolicyProvider.class.getProtectionDomain();
-	    }
-	});
+    private static final ProtectionDomain myDomain = 
+        AccessController.doPrivileged(new PrivilegedAction<ProtectionDomain>() {
+             public ProtectionDomain run() {
+                 return LoaderSplitPolicyProvider.class.getProtectionDomain();
+             }
+        });
 
     private final ClassLoader loader;
     private final Policy loaderPolicy;
     private final Policy defaultPolicy;
-    private final WeakIdentityMap delegateMap = new WeakIdentityMap();
+    private final ConcurrentMap<ClassLoader,Policy> delegateMap;
 
     /**
      * Creates a new <code>LoaderSplitPolicyProvider</code> instance which
@@ -90,6 +98,9 @@ public class LoaderSplitPolicyProvider
 	this.loader = loader;
 	this.loaderPolicy = loaderPolicy;
 	this.defaultPolicy = defaultPolicy;
+        delegateMap = RC.concurrentMap(
+                new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<Policy>>()
+                ,Ref.WEAK_IDENTITY , Ref.STRONG);
 	ensureDependenciesResolved();
     }
 
@@ -155,7 +166,7 @@ public class LoaderSplitPolicyProvider
 	loaderPolicy.refresh();
 	defaultPolicy.refresh();
     }
-
+    
     /**
      * Returns <code>true</code> if both of the underlying policy providers
      * implement {@link DynamicPolicy} and return <code>true</code> from calls
@@ -241,33 +252,28 @@ public class LoaderSplitPolicyProvider
 	     */
 	    return loaderPolicy;
 	}
-	Policy p;
-	synchronized (delegateMap) {
-	    p = (Policy) delegateMap.get(ldr);
-	}
+	Policy p = delegateMap.get(ldr);
 	if (p == null) {
-	    p = (Policy) AccessController.doPrivileged(new PrivilegedAction() {
-		public Object run() {
-		    for (ClassLoader l = ldr; l != null; l = l.getParent())
-		    {
-			if (l == loader) {
-			    return loaderPolicy;
-			}
-		    }
-		    return defaultPolicy;
-		}
-	    });
-	    synchronized (delegateMap) {
-		delegateMap.put(ldr, p);
-	    }
+	    p = AccessController.doPrivileged(new PrivilegedAction<Policy>() {
+               public Policy run() {
+                   for (ClassLoader l = ldr; l != null; l = l.getParent())
+                   {
+                       if (l == loader) {
+                           return loaderPolicy;
+                       }
+                   }
+               return defaultPolicy;
+               }
+            });
+            delegateMap.putIfAbsent(ldr, p);
 	}
 	return p;
     }
 
     private static ClassLoader getClassLoader(final Class cl) {
-	return (ClassLoader) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() { return cl.getClassLoader(); }
-	    });
+	return AccessController.doPrivileged(
+            new PrivilegedAction<ClassLoader>() {
+              public ClassLoader run() { return cl.getClassLoader(); }
+            });
     }
 }

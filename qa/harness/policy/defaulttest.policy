@@ -2,14 +2,9 @@
 // I think this has something to do with the new java 6 Policy implementation,
 // the visibility of our policy implementations on the boot classpath and
 // jdk1.6 compiler optimisations. See River-334
+
 grant codebase "file:${com.sun.jini.jsk.home}${/}lib-ext${/}*" {
     permission java.security.AllPermission "", "";
-    //permission java.security.SecurityPermission "getProperty.net.jini.security.policy.PolicyFileProvider.basePolicyClass";
-    //permission java.util.PropertyPermission "java.security.policy", "read";
-    //permission java.util.PropertyPermission "java.security.policy", "write";
-    //permission java.lang.RuntimePermission "accessClassInPackage.sun.security.provider";
-    //permission java.lang.RuntimePermission "getProtectionDomain";
-    //permission net.jini.security.GrantPermission "java.security.AllPermission \"\", \"\"";
 };
 
 // Grants required for jdk1.6 combined with source=5 and target=jsr14
@@ -19,6 +14,12 @@ grant codebase "file:${com.sun.jini.jsk.home}${/}lib-ext${/}*" {
 grant codebase "file:${com.sun.jini.test.home}${/}lib-ext${/}*" {
     permission java.security.AllPermission "", "";
 };
+
+// required for new PolicyFile provider.
+grant codebase "file:${{java.ext.dirs}}${/}-" {
+    permission java.security.AllPermission "", "";
+};
+
 
 grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
     permission java.security.AllPermission "", "";
@@ -63,23 +64,30 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-io-marshalinputstream
 // needed by various proxies
 
 grant {
-    permission java.lang.RuntimePermission
-        "accessClassInPackage.sun.util.logging.resources";
-
-    permission java.io.FilePermission
-	"${com.sun.jini.jsk.home}${/}lib${/}-", "read";
-
-    permission java.io.FilePermission
-	"${com.sun.jini.qa.home}${/}lib${/}-", "read";
-
-    permission java.util.PropertyPermission
-        "*", "read";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+    permission java.io.FilePermission "${com.sun.jini.jsk.home}${/}lib${/}-", "read";
+    permission java.io.FilePermission "${com.sun.jini.qa.home}${/}lib${/}-", "read";
+    permission java.util.PropertyPermission "*", "read";
 };
 
 // needed by some io tests
 
 grant {
+    permission java.lang.RuntimePermission "setIO";
     permission java.lang.RuntimePermission "setFactory";
     permission java.net.SocketPermission "*:1024-",    "connect,accept";
     permission java.util.PropertyPermission "com.sun.jini.qa.spec.io.util.FakeIntegrityVerifier.throwException", "write";
+};
+
+// needed when using a SecurityManager from command line
+
+grant {
+    permission java.io.FilePermission "-", "read";
+};
+
+grant {
+      permission com.sun.jini.phoenix.ExecOptionPermission "*";
+    // for a start test
+      permission com.sun.jini.phoenix.ExecPermission "/bin/javax";
 };

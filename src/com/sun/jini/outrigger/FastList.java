@@ -75,12 +75,12 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
          * checked without synchronization to skip work of the Node is reported
          * as removed. Transitions only from false to true.
          */
-        private volatile boolean removed;
+        volatile boolean removed;
         /**
          * This node does not need to be shown to scans with index greater than
          * or equal to this index.
          */
-        private volatile long index;
+        volatile long index;
 
         /**
          * null until the node is added to a list, then a reference to the list.
@@ -88,7 +88,7 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
          * removed from the list to which it was added. Protected by
          * synchronization on the node.
          */
-        private FastList<?> list;
+        volatile FastList<?> list;
 
         /**
          * Remove this node from its list.
@@ -105,7 +105,7 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
         }
 
         synchronized void markOnList(FastList<?> list) {
-            setList(list);
+            this.list = list;
         }
 
         /**
@@ -116,34 +116,6 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
          */
         public boolean removed() {
             return removed;
-        }
-
-        /**
-         * @return the index
-         */
-        long getIndex() {
-            return index;
-        }
-
-        /**
-         * @param index the index to set
-         */
-        void setIndex(long index) {
-            this.index = index;
-        }
-
-        /**
-         * @return the list
-         */
-        FastList<?> getList() {
-            return list;
-        }
-
-        /**
-         * @param list the list to set
-         */
-        void setList(FastList<?> list) {
-            this.list = list;
         }
     }
 
@@ -199,7 +171,7 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
             T result = null;
             while (baseIterator.hasNext()) {
                 T node = baseIterator.next();
-                if (node.getIndex() >= index) {
+                if (node.index >= index) {
                     /* Finished, no appropriate nodes.*/
                     break;
                 }
@@ -241,14 +213,14 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
      */
     public void add(T node) {
         synchronized (node) {
-            if (node.getList() == null) {
-                node.setList(this);
+            if (node.list == null) {
+                node.list = this;
             } else {
                 throw new IllegalArgumentException("Attempt to reuse node "
                         + node);
             }
         }
-        node.setIndex(nextIndex.getAndIncrement());
+        node.index = nextIndex.getAndIncrement();
         baseQueue.add(node);
     }
 
@@ -263,7 +235,7 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
      */
     public boolean remove(T node) {
         synchronized (node) {
-            if (node.getList() != this) {
+            if (node.list != this) {
                 throw new IllegalArgumentException(
                         "Cannot remove a node from a list it is not on");
             }
@@ -280,7 +252,7 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
         Iterator<T> it = baseQueue.iterator();
         while (it.hasNext()) {
             T node = it.next();
-            if (node.getIndex() >= stopIndex) {
+            if (node.index >= stopIndex) {
                 // Done enough
                 return;
             }

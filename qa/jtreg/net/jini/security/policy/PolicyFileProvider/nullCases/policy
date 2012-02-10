@@ -13,4 +13,5 @@ grant {
     permission java.lang.RuntimePermission "accessClassInPackage.*";
     permission java.lang.RuntimePermission "setSecurityManager";
     permission java.security.SecurityPermission "getProperty.*";
+    permission java.security.SecurityPermission "getPolicy";
 };

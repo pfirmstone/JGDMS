@@ -284,6 +284,9 @@ class SslEndpointImpl extends Utilities implements ConnectionEndpoint {
 		 * XXX: Work around BugID 4892841, Subject.getPrincipals(Class)
 		 * not thread-safe against changes to principals.
 		 * -tjb[18.Jul.2003]
+                 * 
+                 * This was fixed in Java 1.5 which is now our minimum
+                 * supported version.
 		 */
 		synchronized (clientSubject.getPrincipals()) {
 		    clientPrincipals =

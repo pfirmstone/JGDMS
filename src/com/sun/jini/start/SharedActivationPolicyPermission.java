@@ -71,7 +71,7 @@ public final class SharedActivationPolicyPermission extends Permission
      * target of the <code>implies()</code> checks.
      * @serial
      */
-    private /*final*/ FilePermission policyPermission;
+    private final Permission policyPermission;
 
     /**
      * Constructor that creates a 
@@ -81,7 +81,7 @@ public final class SharedActivationPolicyPermission extends Permission
     public SharedActivationPolicyPermission(String policy) {
 	//TBD - check for null args
 	super(policy);
-	init(policy);
+	policyPermission = init(policy);
     }
 
     /**
@@ -94,13 +94,13 @@ public final class SharedActivationPolicyPermission extends Permission
     public SharedActivationPolicyPermission(String policy, String action) {
 	//TBD - check for null args
 	super(policy);
-	init(policy);
+	policyPermission = init(policy);
     }
 
     /**
      * Contains common code to all constructors.
      */
-    private void init(final String policy) {
+    private Permission init(final String policy) {
 	/*
 	 * In order to leverage the <code>FilePermission</code> logic
 	 * we need to make sure that forward slashes ("/"), in 
@@ -110,6 +110,7 @@ public final class SharedActivationPolicyPermission extends Permission
 	 * http://host:port/* matches http://host:port/bogus.jar under
 	 * UNIX, but not under Windows since "\*" is the wildcard there.
 	 */
+        if (policy == null) throw new NullPointerException("Null policy string not allowed");
         String uncanonicalPath = null;
         try {
             URL url = new URL(policy);
@@ -123,7 +124,7 @@ public final class SharedActivationPolicyPermission extends Permission
 	    uncanonicalPath = policy;
 	}
 
-        policyPermission = new FilePermission(uncanonicalPath, "read");
+        return new FilePermission(uncanonicalPath, "read");
     }
 
     // javadoc inherited from superclass

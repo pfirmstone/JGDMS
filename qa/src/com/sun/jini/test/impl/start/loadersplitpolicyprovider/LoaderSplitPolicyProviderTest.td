@@ -1,6 +1,6 @@
 testClass=LoaderSplitPolicyProviderTest
 testCategories=start,start_impl
-testClasspath=<harnessJar>$:<file:lib/qa1-start-tests.jar>$:${com.sun.jini.jsk.home}$/lib$/jsk-platform.jar$:${com.sun.jini.jsk.home}$/lib$/jsk-lib.jar
+testClasspath=${altClasspath}$:<file:lib/qa1-start-tests.jar>
 testPolicyfile=<url:harness/policy/defaulttest.policy>
 ldrPolicyfile=<url:LoaderSplitPolicyProviderTest.loader.policy>
 defPolicyfile=<url:/LoaderSplitPolicyProviderTest.default.policy>

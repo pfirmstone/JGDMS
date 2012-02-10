@@ -62,7 +62,7 @@ public class UnitTestUtilities {
 	Integer.getInteger("lastTest", Integer.MAX_VALUE).intValue();
 
     /** The number of the current test */
-    public static int testNumber = 0;
+    public static volatile int testNumber = 0;
 
     /** If true, stop after first failure. */
     public static final boolean stopOnFail = Boolean.getBoolean("stopOnFail");
@@ -74,8 +74,8 @@ public class UnitTestUtilities {
 
     /** Holds test results */
     private static class TestResults {
-	int pass;
-	int fail;
+	volatile int pass;
+	volatile int fail;
     }
 
     /** Used to signal that lastTest has been done. */

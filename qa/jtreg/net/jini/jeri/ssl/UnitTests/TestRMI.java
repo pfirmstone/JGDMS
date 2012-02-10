@@ -306,39 +306,55 @@ public class TestRMI extends TestUtilities {
 
     /** Test timing out client and server SSL sessions. */
     public static class TestTimeout extends BasicTest {
+        static final String serverPropName = "com.sun.jini.jeri.ssl.maxServerSessionDuration";
+        static final String clientPropName = "com.sun.jini.jeri.ssl.maxClientSessionDuration";
+        static final String max = Long.toString(Long.MAX_VALUE);
 	/* Time needed to complete an initial call successfully */
 	static final long CALLTIME = 10 * 1000;
+        static final String calltime = Long.toString(CALLTIME);
 
 	static Test[] localtests = {
 	    new TestTimeout("client timeout", 2 * CALLTIME) {
 		public Object run() throws IOException {
-		    long old = setMaxClientSessionDuration(CALLTIME);
+                    String old = System.setProperty(clientPropName, calltime);
 		    try {
 			return super.run();
 		    } finally {
-			setMaxClientSessionDuration(old);
+                        if ( old != null ){
+                            System.setProperty(clientPropName, old );
+                        }else{
+                            System.clearProperty(clientPropName);
+                        }
 		    }
 		}
 	    },
 	    new TestTimeout("client timeout wraparound", CALLTIME) {
 		public Object run() throws IOException {
-		    long old = setMaxClientSessionDuration(Long.MAX_VALUE);
+                    String old = System.setProperty(clientPropName, max);
 		    try {
 			return super.run();
 		    } finally {
-			setMaxClientSessionDuration(old);
+                        if ( old != null ){
+                            System.setProperty(clientPropName, old );
+                        }else{
+                            System.clearProperty(clientPropName);
+                        }
 		    }
 		}
 	    },
 	    new TestTimeout("server timeout", 2 * CALLTIME) {
 		public Object run() throws IOException {
-		    long old = setMaxServerSessionDuration(CALLTIME);
+                    String old = System.setProperty(serverPropName, calltime);
 		    try {
 			return super.run();
 		    } catch (IOException e) {
 			return e;
 		    } finally {
-			setMaxServerSessionDuration(old);
+                        if ( old != null ){
+                            System.setProperty(serverPropName, old );
+                        }else{
+                            System.clearProperty(serverPropName);
+                        }
 		    }
 		}
 		public void check(Object result) {
@@ -350,20 +366,24 @@ public class TestRMI extends TestUtilities {
 	    },
 	    new TestTimeout("server timeout wraparound", CALLTIME) {
 		public Object run() throws IOException {
-		    long old = setMaxServerSessionDuration(Long.MAX_VALUE);
+                    String old = System.setProperty(serverPropName, max);
 		    try {
 			return super.run();
 		    } finally {
-			setMaxServerSessionDuration(old);
+                        if ( old != null ){
+                            System.setProperty(serverPropName, old );
+                        }else{
+                            System.clearProperty(serverPropName);
+                        }
 		    }
 		}
 	    }
 	};
 
-	Subject clientSubject = getClientSubject();
+	final Subject clientSubject = getClientSubject();
 
-	long timeout;
-	int calls;
+	final long timeout;
+	volatile int calls; //Ok cause only one thread increments.
 	IOException ioException;
 	boolean done;
 
@@ -374,6 +394,9 @@ public class TestRMI extends TestUtilities {
 	TestTimeout(String name, long timeout) {
 	    super(name);
 	    this.timeout = timeout;
+            calls = 0;
+            ioException = null;
+            done = false;
 	}
 
 	Subject getClientSubject() {
@@ -415,14 +438,14 @@ public class TestRMI extends TestUtilities {
 		    } catch (InterruptedException e) {
 		    }
 		} while (!done && System.currentTimeMillis() < stop);
-	    }
-	    if (calls == 0) {
- 		throw new FailedException("No calls made");
-	    } else if (ioException != null) {
-		throw ioException;
-	    } else {
-		return null;
-	    }
+                if (calls == 0) {
+                    throw new FailedException("No calls made");
+                } else if (ioException != null) {
+                    throw ioException;
+                } else {
+                    return null;
+                }
+            }
 	}
 
 	void runInThread() {
@@ -457,7 +480,9 @@ public class TestRMI extends TestUtilities {
 		}
 		server.unexport();
 	    } catch (IOException e) {
-		ioException = e;
+                synchronized (this){
+                    ioException = e;
+                }
 	    } finally {
 		synchronized (TestTimeout.this) {
 		    done = true;
@@ -475,7 +500,11 @@ public class TestRMI extends TestUtilities {
 
     /** Test with expired certificates. */
     public static class TestExpired extends BasicTest {
-	static Test[] localtests = { new TestExpired() };
+        static final String serverPropName = "com.sun.jini.jeri.ssl.maxServerSessionDuration";
+        static final String clientPropName = "com.sun.jini.jeri.ssl.maxClientSessionDuration";
+        static final String clientMax = Long.toString(23*60*60*1000);
+        static final String serverMax = Long.toString(24*60*60*1000);
+	static Test[] localtests = { new TestExpired()};
 
 	Subject clientSubject = new WithSubject() { {
 	    addX500Principal("clientDSA2", subject);
@@ -504,9 +533,9 @@ public class TestRMI extends TestUtilities {
 		    });
 	    } catch (PrivilegedActionException e) {
 		throw (IOException) e.getException();
-	    }
-	}
-
+            }
+        }
+                
 	public void check(Object result) { }
 
 	Object runInternal() throws IOException {

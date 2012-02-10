@@ -58,8 +58,20 @@ public class TestNameService implements NameService {
 	    // do nothing
 	}
     }
+    
+    /* Java 6 version */
+    public InetAddress [] lookupAllHostAddr(String host) throws UnknownHostException{
+        byte [][] allHostAdd = lookAllHostAddr(host);
+        int l = allHostAdd.length;
+        InetAddress [] result = new InetAddress[l];
+        for (int i = 0; i<l; i++){
+            result[i] = InetAddress.getByAddress(allHostAdd[i]);
+        }
+        return result;
+    }
 
-    public byte[][] lookupAllHostAddr(String host)
+    /* Java 5 version of provider, renamed and privatised */
+    private byte[][] lookAllHostAddr(String host)
 	throws UnknownHostException
     {
 	// System.err.println("FORWARD: " + host);

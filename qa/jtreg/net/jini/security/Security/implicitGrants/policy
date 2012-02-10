@@ -25,10 +25,11 @@ grant {
     permission java.lang.RuntimePermission "setSecurityManager";
     permission java.security.SecurityPermission "getProperty.*";
     permission java.security.SecurityPermission "setPolicy";
+    permission java.security.SecurityPermission "getPolicy";
     permission java.util.PropertyPermission "*", "read";
     permission javax.security.auth.AuthPermission "doAs";
 };
 
-grant codeBase "file:.${/}cb3${/}" {
+grant codeBase "file:${scratch.dir}${/}cb3${/}*" {
     permission java.security.AllPermission;
 };

@@ -56,7 +56,7 @@ import java.util.logging.Logger;
  *
  * @author	Sun Microsystems, Inc.
  **/
-final class ThreadPool implements Executor {
+final class ThreadPool implements Executor, java.util.concurrent.Executor {
 
     /** how long a thread waits in the idle state before passing away */
     private static final long idleTimeout =		// default 5 minutes
@@ -99,6 +99,10 @@ final class ThreadPool implements Executor {
 	Thread t = (Thread) AccessController.doPrivileged(
 	    new NewThreadAction(threadGroup, new Worker(task), name, true));
 	t.start();
+    }
+
+    public void execute(Runnable command) {
+        execute(command, "com.sun.jini.thread.ThreadPool");
     }
 
     /**

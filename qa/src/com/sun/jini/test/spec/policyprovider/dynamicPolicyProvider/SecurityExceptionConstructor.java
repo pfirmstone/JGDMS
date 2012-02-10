@@ -21,6 +21,7 @@ import java.util.logging.Level;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.TestException;
+import java.security.Security;
 
 
 /**
@@ -77,6 +78,11 @@ import com.sun.jini.qa.harness.TestException;
  */
 public class SecurityExceptionConstructor
         extends DynamicPolicyProviderTestBase {
+    
+    public SecurityExceptionConstructor(){
+        Security.setProperty("net.jini.security.policy.PolicyFileProvider.basePolicyClass",
+                "sun.security.provider.PolicyFile");
+    }
 
     /**
      * Run the test according <b>Test Description</b>

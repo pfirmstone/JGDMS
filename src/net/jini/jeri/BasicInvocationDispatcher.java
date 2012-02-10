@@ -44,6 +44,8 @@ import java.security.AccessControlException;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
+import java.security.PermissionCollection;
+import java.security.Policy;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
@@ -910,7 +912,8 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		    }
 		}
 	    });
-	if (System.getSecurityManager() == null) {
+        SecurityManager sm = System.getSecurityManager();
+	if (sm == null) {
 	    return;
 	}
 	ProtectionDomain pd;
@@ -934,6 +937,11 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	}
 	boolean ok = pd.implies(permission);
 	// XXX what about logging
+        if (logger.isLoggable(Level.FINE)){
+            Policy p = Policy.getPolicy();
+            logger.log(Level.FINE, "SecurityManager: " + sm + "\nPolicy: " + p +
+                    "\nProtectionDomain: " + pd);
+        }
 	if (!ok) {
 	    throw new AccessControlException("access denied " + permission);
 	}

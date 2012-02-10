@@ -76,8 +76,8 @@ public class TestUtilities extends UnitTestUtilities {
     /* Reflection */
 
     /** The name of the package containing the classes */
-    static String PACKAGE = "net.jini.jeri.ssl";
-
+    static final String PACKAGE = "net.jini.jeri.ssl";
+    
     static final LazyMethod impliesConstraintConstraint = new LazyMethod(
 	"Utilities", "implies",
 	new Class[] { InvocationConstraint.class, InvocationConstraint.class });
@@ -179,11 +179,11 @@ public class TestUtilities extends UnitTestUtilities {
 
     /* Credentials */
 
-    private static KeyStore keyStore;
+    private static volatile KeyStore keyStore;
 
-    private static CertificateFactory certFactory;
+    private static volatile CertificateFactory certFactory;
 
-    static char[] keyStorePassword = "keypass".toCharArray();
+    static final char[] keyStorePassword = "keypass".toCharArray();
 
     static final String clientDSA = "CN=clientDSA";
     static final String clientRSA1 = "CN=clientRSA1, C=US";
@@ -402,10 +402,10 @@ public class TestUtilities extends UnitTestUtilities {
 
     /** Like Method, but resolves method when first invoked */
     static class LazyMethod {
-	private String className;
-	private String methodName;
-	private Class[] argumentTypes;
-	private Method method;
+	private final String className;
+	private final String methodName;
+	private final Class[] argumentTypes;
+	private volatile Method method;
 
 	LazyMethod(String className,
 		   String methodName,
@@ -430,7 +430,10 @@ public class TestUtilities extends UnitTestUtilities {
 	 */
 	Object invoke(Object object, Object[] arguments) {
 	    try {
-		return getMethod().invoke(object, arguments);
+                Method m = getMethod();
+                synchronized (m){
+                    return m.invoke(object, arguments);
+                }
 	    } catch (InvocationTargetException e) {
 		throw unexpectedException(e.getTargetException());
 	    } catch (Exception e) {
@@ -446,7 +449,10 @@ public class TestUtilities extends UnitTestUtilities {
 	    throws InvocationTargetException
 	{
 	    try {
-		return getMethod().invoke(object, arguments);
+                Method m = getMethod();
+                synchronized (m){
+                    return m.invoke(object, arguments);
+                }
 	    } catch (InvocationTargetException e) {
 		throw e;
 	    } catch (Exception e) {
@@ -457,13 +463,17 @@ public class TestUtilities extends UnitTestUtilities {
 	/** Returns the requested provider method */
 	private Method getMethod() {
 	    if (method == null) {
-		try {
-		    Class type = TestUtilities.getClass(className);
-		    method = type.getDeclaredMethod(methodName, argumentTypes);
-		    method.setAccessible(true);
-		} catch (NoSuchMethodException e) {
-		    throw unexpectedException(e);
-		}
+                synchronized (this){
+                    if (method == null){
+                        try {
+                            Class type = TestUtilities.getClass(className);
+                            method = type.getDeclaredMethod(methodName, argumentTypes);
+                            method.setAccessible(true);
+                        } catch (NoSuchMethodException e) {
+                            throw unexpectedException(e);
+                        }
+                    }
+                }
 	    }
 	    return method;
 	}
@@ -471,9 +481,9 @@ public class TestUtilities extends UnitTestUtilities {
 
     /** Like Constructor, but resolves constructor when first used */
     static class LazyConstructor {
-	private String className;
-	private Class[] argumentTypes;
-	private Constructor constructor;
+	private final String className;
+	private final Class[] argumentTypes;
+	private volatile Constructor constructor;
 
 	LazyConstructor(String className, Class[] argumentTypes) {
 	    this.className = className;
@@ -513,13 +523,17 @@ public class TestUtilities extends UnitTestUtilities {
 	/** Returns the requested provider constructor */
 	private Constructor getConstructor() {
 	    if (constructor == null) {
-		try {
-		    Class type = TestUtilities.getClass(className);
-		    constructor = type.getDeclaredConstructor(argumentTypes);
-		    constructor.setAccessible(true);
-		} catch (NoSuchMethodException e) {
-		    throw unexpectedException(e);
-		}
+                synchronized (this){
+                    if (constructor == null){
+                        try {
+                            Class type = TestUtilities.getClass(className);
+                            constructor = type.getDeclaredConstructor(argumentTypes);
+                            constructor.setAccessible(true);
+                        } catch (NoSuchMethodException e) {
+                            throw unexpectedException(e);
+                        }
+                    }
+                }
 	    }
 	    return constructor;
 	}
@@ -527,10 +541,10 @@ public class TestUtilities extends UnitTestUtilities {
 
     /** Like Field, but resolves field when first used */
     static class LazyField {
-	private String packageName;
-	private String className;
-	private String fieldName;
-	private Field field;
+	private final String packageName;
+	private final String className;
+	private final String fieldName;
+	private volatile Field field;
 
 	LazyField(String className, String fieldName) {
 	    this(PACKAGE, className, fieldName);
@@ -559,15 +573,19 @@ public class TestUtilities extends UnitTestUtilities {
 	/** Returns the requested provider field */
 	private Field getField() {
 	    if (field == null) {
-		try {
-		    Class type =
-			TestUtilities.getClass(packageName, className);
-		    field = type.getDeclaredField(fieldName);
-		    field.setAccessible(true);
-		} catch (NoSuchFieldException e) {
-		    throw unexpectedException(e);
-		}
-	    }
+                synchronized (this) {
+                    if (field == null){
+                        try {
+                            Class type =
+                                TestUtilities.getClass(packageName, className);
+                            field = type.getDeclaredField(fieldName);
+                            field.setAccessible(true);
+                        } catch (NoSuchFieldException e) {
+                            throw unexpectedException(e);
+                        }
+                    }
+                }
+            }
 	    return field;
 	}
 
@@ -579,7 +597,10 @@ public class TestUtilities extends UnitTestUtilities {
 	/** Sets a field */
 	void set(Object object, Object value) {
 	    try {
-		getField().set(object, value);
+                Field f = getField();
+                synchronized (f){
+                    f.set(object, value);
+                }
 	    } catch (Exception e) {
 		throw unexpectedException(e);
 	    }
@@ -660,8 +681,12 @@ public class TestUtilities extends UnitTestUtilities {
     /* -- Credentials -- */
 
     static class TestPrincipal implements Principal {
-	String name;
-	TestPrincipal(String name) { this.name = name; }
+	private final String name;
+        
+	TestPrincipal(String name) { 
+            this.name = name; 
+        }
+        
 	public String getName() { return name; }
 	public String toString() { return "TestPrincipal{" + name + "}"; }
 	public int hashCode() { return name.hashCode(); }

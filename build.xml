@@ -468,14 +468,17 @@
             browser.jars" />
 
     <target name="river.jars" depends="stubs,
-            jini-core.jar,
-			jini-ext.jar,
 			jsk-dl.jar,
 			jsk-lib.jar,
 			jsk-resources.jar,
 			jsk-platform.jar,
-			jsk-policy.jar,
-			sun-util.jar" />
+			jsk-policy.jar" />
+                        
+    <!-- old river.jars entrys deprecated removed.
+    jini-core.jar,
+    jini-ext.jar,
+    sun-util.jar
+    -->
 
     <target name="services.jars" depends="toolswrappers.jars,
             destroy.jar,
@@ -498,10 +501,13 @@
             phoenix-init.jar,
             reggie.jar,
             reggie-dl.jar,
-            sdm-dl.jar,
             serviceui.jar,
             sharedvm.jar,
             start.jar" />
+            
+            <!-- Old services.jars
+            sdm-dl.jar,
+            -->
 
     <target name="browser.jars" depends="services.jars,
             browser.jar,
@@ -518,9 +524,11 @@
     <target name="copy-extlibs" >
         <copy todir="lib">
             <fileset refid="asm.jars"/>
+            <fileset refid="high-scale-lib.jars"/>
         </copy>
     </target>
 
+    <!-- The following two targets should no longer be necessary.
     <target name="install-policy"
 		description="Installs jsk-policy.jar into the JRE extensions directory.">
         <copy file="${lib-ext.dir}/jsk-policy.jar" todir="${jre.ext.dir}"/>
@@ -529,12 +537,13 @@
     <target name="uninstall-policy"
 		description="Removes jsk-policy.jar from the JRE extensions directory.">
         <delete file="${jre.ext.dir}/jsk-policy.jar"/>
-    </target>
+    </target>-->
 
     <target name="stubs" description="Generate stubs"
-		depends="compile, browser.stubs, fiddler.stubs, mahalo.stubs, 
+		depends="compile, phoenix.stubs, start.stubs">
+               <!-- , browser.stubs, fiddler.stubs, mahalo.stubs, 
             mercury.stubs, norm.stubs, outrigger.stubs, phoenix.stubs,
-            reggie.stubs, sdm.stubs, start.stubs">
+            reggie.stubs, sdm.stubs, start.stubs">-->
     </target>
 
     <target name="clean" depends="clean-dist, clean-jars, doc-clean"
@@ -692,41 +701,6 @@
             </fileset>
         </jar>
     </target>
-    
-    <!--
-        Deprecated since 2.1 - Scheduled for removal (RIVER-365)
-    -->
-    <target name="jini-core.jar" depends="stubs">
-        <jar destfile="${lib.dir}/jini-core.jar" index="false">
-            <fileset dir="${build.classes.dir}"
-			 includes="net/jini/core/**"/>
-        </jar>
-    </target>
-
-    <!--
-        Deprecated since 2.1 - Scheduled for removal (RIVER-365)
-    -->
-    <target name="jini-ext.jar" depends="stubs">
-        <property name="jini-ext.deps" location="${build.deps.dir}/jini-ext.deps"/>
-        <classdep output="${jini-ext.deps}"
-                classpathref="classdep.classes.classpath">
-            <arg value="-cp"/>
-            <arg path="${build.classes.dir}"/>
-            <arg value="-files"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="-in net.jini"/>
-            <arg line="-out net.jini.core"/>
-            <arg line="-prune net.jini.core"/>
-            <arg path="${build.classes.dir}/net/jini"/>
-            <arg path="${build.classes.dir}/com/sun/jini/discovery"/>
-        </classdep>
-        <jar destfile="${lib.dir}/jini-ext.jar"
-		     index="false"
-		     manifest="${src.manifest.dir}/jini-ext.mf">
-            <fileset dir="${build.classes.dir}"  includesfile="${jini-ext.deps}"/>
-        </jar>
-    </target>
-    
 
     <target name="jsk-debug-policy.jar" depends="stubs">
         <property name="jsk-debug-policy.deps" location="${build.deps.dir}/jsk-debug-policy.deps"/>
@@ -740,7 +714,7 @@
             <arg value="com.sun.jini.tool.DebugDynamicPolicyProvider"/>
             <arg value="com.sun.jini.tool.ProfilingSecurityManager"/>
         </classdep>
-        <jar destfile="${lib.dir}/jsk-debug-policy.jar"
+        <jar destfile="${lib-ext.dir}/jsk-debug-policy.jar"
 		     index="false"
 		     manifest="${src.manifest.dir}/jsk-debug-policy.mf">
             <fileset dir="${build.classes.dir}"  includesfile="${jsk-debug-policy.deps}"/>
@@ -786,7 +760,7 @@
             <arg value="net.jini.lease.LeaseUnmarshalException"/>
             <arg value="net.jini.lease.RenewalFailureEvent"/>
             <arg value="net.jini.lookup.DiscoveryAdmin"/>
-            <arg value="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
+            <!--<arg value="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>-->
         </classdep>
         <jar destfile="${lib-dl.dir}/jsk-dl.jar"
 		     index="false">
@@ -794,7 +768,7 @@
             <metainf dir="${src.manifest.dir}/jsk-dl/META-INF"/>
         </jar>
     </target>
-
+    <!-- QA suite deps are from sun-util.jar-->
     <target name="jsk-lib.jar" depends="stubs">
         <property name="jsk-lib.deps" location="${build.deps.dir}/jsk-lib.deps"/>
         <classdep output="${jsk-lib.deps}"
@@ -807,6 +781,7 @@
             <arg line="${jskplatform.exclude}"/>
             <arg path="${build.classes.dir}/com/sun/jini/admin"/>
             <arg path="${build.classes.dir}/com/sun/jini/config"/>
+            <arg path="${build.classes.dir}/com/sun/jini/constants"/> <!--qa suite dep-->
             <arg path="${build.classes.dir}/com/sun/jini/landlord"/>
             <arg path="${build.classes.dir}/com/sun/jini/lease"/>
             <arg path="${build.classes.dir}/com/sun/jini/lookup/entry"/>
@@ -814,6 +789,7 @@
             <arg path="${build.classes.dir}/com/sun/jini/reliableLog"/>
             <arg path="${build.classes.dir}/com/sun/jini/resource"/>
             <arg path="${build.classes.dir}/com/sun/jini/thread"/>
+            <arg path="${build.classes.dir}/com/sun/jini/system"/> <!--qa suite dep-->
             <arg path="${build.classes.dir}/net/jini"/>
             <arg value="com.sun.jini.logging.Levels"/>
             <arg value="com.sun.jini.phoenix.ActivationAdmin"/>
@@ -844,6 +820,7 @@
             <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg path="${build.classes.dir}/net/jini/activation"/>
             <arg path="${build.classes.dir}/net/jini/config"/>
             <arg path="${build.classes.dir}/net/jini/constraint"/>
@@ -914,12 +891,17 @@
             <arg value="-files"/>
             <arg value="net.jini.security.policy.DynamicPolicyProvider"/>
             <arg value="net.jini.security.policy.PolicyFileProvider"/>
+            <arg value="org.apache.river.api.security.ConcurrentPolicyFile"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
+            <arg line="-in org.apache.river"/>
         </classdep>
         <jar destfile="${lib-ext.dir}/jsk-policy.jar"
 		     index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${jsk-policy.deps}"/>
+            <fileset dir="${src.dir}">
+                <include name="org/apache/river/api/security/messages.properties"/>
+            </fileset>
         </jar>
     </target>
 
@@ -933,85 +915,6 @@
 					   META-INF/services/net.jini.security.IntegrityVerifier
 					   META-INF/services/net.jini.export.ServerContext$$Spi"/>
         </jar>
-    </target>
-
-    <!--
-        Deprecated since 2.1 - Scheduled for removal
-        Note: the QA suite depends on some of the classes in sun-util.jar
-    -->
-    <target name="sun-util.jar"	depends="stubs">
-        <property name="sun-util.deps" location="${build.deps.dir}/sun-util.deps"/>
-        <classdep output="${sun-util.deps}"
-                classpathref="classdep.classes.classpath">
-            <arg value="-cp"/>
-            <arg path="${build.classes.dir}"/>
-            <arg value="-files"/>
-            <arg value="com.sun.jini.discovery.ClientSubjectChecker"/>
-            <arg value="com.sun.jini.fiddler.FiddlerAdmin"/>
-            <arg value="com.sun.jini.outrigger.ConstrainableJavaSpaceAdmin"/>
-            <arg value="com.sun.jini.phoenix.ActivationAdmin"/>
-            <arg value="com.sun.jini.start.LifeCycle"/>
-            <arg value="com.sun.jini.start.ServiceProxyAccessor"/>
-            <arg line="-in com.sun.jini"/>
-        </classdep>
-        <jar destfile="${lib.dir}/sun-util.jar"
-		     duplicate="preserve"
-		     index="false">
-            <fileset  dir="${build.classes.dir}"  includesfile="${sun-util.deps}"/>
-            <fileset  dir="${build.classes.dir}"
-			    includes="com/sun/jini/action/**
-				      com/sun/jini/admin/**
-				      com/sun/jini/collection/**
-				      com/sun/jini/config/**
-				      com/sun/jini/constants/**
-				      com/sun/jini/landlord/**
-				      com/sun/jini/lease/**
-				      com/sun/jini/logging/**
-				      com/sun/jini/lookup/entry/**
-				      com/sun/jini/proxy/**
-				      com/sun/jini/reliableLog/**
-				      com/sun/jini/resource/**
-				      com/sun/jini/system/**
-				      com/sun/jini/thread/**"/>
-        </jar>
-    </target>
-
-    <!--
-        Deprecated since 2.1 - Scheduled for removal
-    -->
-    <target name="sdm-dl.jar" depends="stubs">
-        <property name="sdm-dl.deps" location="${build.deps.dir}/sdm-dl.deps"/>
-        <classdep output="${sdm-dl.deps}">
-            <arg value="-cp"/>
-            <arg path="${build.classes.dir}"/>
-            <arg value="-files"/>
-            <arg line="${jskplatform.exclude}"/>
-            <arg line="-in com.sun.jini"/>
-            <arg line="-in net.jini"/>
-            <arg value="com.sun.jini.proxy.BasicProxyTrustVerifier"/>
-            <arg value="net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
-        </classdep>
-        <jar destfile="${lib-dl.dir}/sdm-dl.jar"
-		     index="false">
-            <fileset dir="${build.classes.dir}"  includesfile="${sdm-dl.deps}"/>
-        </jar>
-        <preferredlistgen>
-            <arg line="-cp"/>
-            <arg path="${lib.dir}/jsk-platform.jar"/>
-            <arg line="-jar"/>
-            <arg path="${lib-dl.dir}/sdm-dl.jar"/>
-            <arg line="-jar"/>
-            <arg path="${lib-dl.dir}/jsk-dl.jar"/>
-            <arg line="-proxy net.jini.lookup.ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener_Stub"/>
-            <classpath refid="river.jars"/>
-        </preferredlistgen>
-    </target>
-
-    <target name="sdm.stubs" depends="compile">
-        <rmic base="${build.classes.dir}" stubversion="1.2">
-            <classpath refid="river.jars"/>
-            <include name="net/jini/lookup/ServiceDiscoveryManager$$LookupCacheImpl$$LookupListener.class"/>
-        </rmic>
     </target>
 
     <patternset id="svc-common-entries-set">
@@ -1366,8 +1269,8 @@
             <arg line="${jskprivate.include}"/>
             <arg line="-in com.sun.jini.example.browser"/>
             <arg value="com.sun.jini.example.browser.Browser"/>
-            <arg value="com.sun.jini.example.browser.Browser$$Listener_Stub"/>
-            <arg value="com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>
+            <!--<arg value="com.sun.jini.example.browser.Browser$$Listener_Stub"/>-->
+            <!--<arg value="com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/browser.jar"
 		     index="false"
@@ -1384,8 +1287,8 @@
             <arg value="-files"/>
             <arg line="${jskprivate.include}"/>
             <arg line="-in com.sun.jini.example.browser"/>
-            <arg value="com.sun.jini.example.browser.Browser$$Listener_Stub"/>
-            <arg value="com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>
+            <!--<arg value="com.sun.jini.example.browser.Browser$$Listener_Stub"/>-->
+            <!--<arg value="com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>-->
             <arg value="com.sun.jini.proxy.BasicProxyTrustVerifier"/>
         </classdep>
         <jar destfile="${lib-dl.dir}/browser-dl.jar"
@@ -1399,18 +1302,18 @@
             <arg path="${lib-dl.dir}/browser-dl.jar"/>
             <arg line="-jar"/>
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
-            <arg line="-proxy com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>
+            <!--<arg line="-proxy com.sun.jini.example.browser.ServiceEditor$$NotifyReceiver_Stub"/>-->
             <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
 
-    <target name="browser.stubs" depends="compile">
+    <!--<target name="browser.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
             <classpath refid="river.jars"/>
             <include name="com/sun/jini/example/browser/Browser$$Listener.class"/>
             <include name="com/sun/jini/example/browser/ServiceEditor$$NotifyReceiver.class"/>
         </rmic>
-    </target>
+    </target>-->
 
     <target name="fiddler.jar" depends="stubs">
         <property name="fiddler.deps" location="${build.deps.dir}/fiddler.deps" />
@@ -1422,7 +1325,7 @@
             <arg line="-in com.sun.jini.fiddler"/>
             <arg value="com.sun.jini.fiddler.ActivatableFiddlerImpl"/>
             <arg value="com.sun.jini.fiddler.FiddlerPermission"	/>
-            <arg value="com.sun.jini.fiddler.FiddlerImpl_Stub"	/>
+            <!--<arg value="com.sun.jini.fiddler.FiddlerImpl_Stub"/>-->
             <arg value="com.sun.jini.fiddler.NonActivatableFiddlerImpl"	/>
             <arg value="com.sun.jini.fiddler.TransientFiddlerImpl"/>
         </classdep>
@@ -1451,7 +1354,7 @@
             <arg line="-in com.sun.jini.fiddler"/>
             <arg value="com.sun.jini.fiddler.FiddlerAdminProxy"	/>
             <arg value="com.sun.jini.fiddler.FiddlerImpl$$FiddlerStatus"/>
-            <arg value="com.sun.jini.fiddler.FiddlerImpl_Stub"	/>
+            <!--<arg value="com.sun.jini.fiddler.FiddlerImpl_Stub"/>-->
             <arg value="com.sun.jini.fiddler.FiddlerLease"/>
             <arg value="com.sun.jini.fiddler.FiddlerProxy"/>
             <arg value="com.sun.jini.fiddler.FiddlerRegistration"/>
@@ -1477,12 +1380,12 @@
         </preferredlistgen>
     </target>
 
-    <target name="fiddler.stubs" depends="compile">
+    <!--<target name="fiddler.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
             <classpath refid="river.jars" />
             <include name="com/sun/jini/fiddler/FiddlerImpl.class" />
         </rmic>
-    </target>
+    </target>-->
 
     <target name="mahalo.jar" depends="stubs">
         <property name="mahalo.deps" location="${build.deps.dir}/mahalo.deps" />
@@ -1496,7 +1399,7 @@
             <arg value="com.sun.jini.mahalo.NonActivatableMahaloImpl"/>
             <arg value="com.sun.jini.mahalo.TransientMahaloImpl"/>
             <arg value="com.sun.jini.mahalo.MahaloPermission"/>
-            <arg value="com.sun.jini.mahalo.TxnManagerImpl_Stub"/>
+            <!--<arg value="com.sun.jini.mahalo.TxnManagerImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/mahalo.jar"  index="false"
                 manifest="${src.manifest.dir}/mahalo.mf">
@@ -1529,7 +1432,7 @@
             <arg value="com.sun.jini.lookup.entry.BasicServiceType"	/>
             <arg value="com.sun.jini.mahalo.TxnMgrAdminProxy"/>
             <arg value="com.sun.jini.mahalo.InternalManagerException"/>
-            <arg value="com.sun.jini.mahalo.TxnManagerImpl_Stub"/>
+            <!--<arg value="com.sun.jini.mahalo.TxnManagerImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib-dl.dir}/mahalo-dl.jar" index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${mahalo-dl.deps}" />
@@ -1547,12 +1450,12 @@
         </preferredlistgen>
     </target>
 
-    <target name="mahalo.stubs" depends="compile">
+    <!--<target name="mahalo.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
             <classpath refid="river.jars" />
             <include name="com/sun/jini/mahalo/TxnManagerImpl.class" />
         </rmic>
-    </target>
+    </target>-->
 
     <target name="mercury.jar" depends="stubs">
         <property name="mercury.deps" location="${build.deps.dir}/mercury.deps" />
@@ -1566,7 +1469,7 @@
             <arg value="com.sun.jini.mercury.NonActivatableMercuryImpl"	/>
             <arg value="com.sun.jini.mercury.TransientMercuryImpl"/>
             <arg value="com.sun.jini.mercury.MercuryPermission"	/>
-            <arg value="com.sun.jini.mercury.MailboxImpl_Stub"	/>
+            <!--<arg value="com.sun.jini.mercury.MailboxImpl_Stub"/>-->
         </classdep>
         <jar destfile="${lib.dir}/mercury.jar" index="false"
          manifest="${src.manifest.dir}/mercury.mf">
@@ -1594,7 +1497,7 @@
             <arg value="com.sun.jini.mercury.InternalMailboxException"	/>
             <arg value="com.sun.jini.mercury.ListenerProxy"	/>
             <arg value="com.sun.jini.mercury.MailboxAdminProxy"	/>
-            <arg value="com.sun.jini.mercury.MailboxImpl_Stub"	/>
+            <!--<arg value="com.sun.jini.mercury.MailboxImpl_Stub"/>-->
             <arg value="com.sun.jini.mercury.MailboxProxy"/>
             <arg value="com.sun.jini.mercury.MercuryPermission"	/>
             <arg value="com.sun.jini.mercury.RemoteEventDataCursor"/>
@@ -1621,12 +1524,12 @@
         </preferredlistgen>
     </target>
 
-    <target name="mercury.stubs" depends="compile">
+    <!--<target name="mercury.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
             <classpath refid="river.jars" />
             <include name="com/sun/jini/mercury/MailboxImpl.class" />
         </rmic>
-    </target>
+    </target>-->
 
     <target name="norm.jar" depends="stubs">
         <property name="norm.deps" location="${build.deps.dir}/norm.deps" />
@@ -1638,7 +1541,7 @@
             <arg line="-in com.sun.jini.norm"/>
             <arg value="com.sun.jini.norm.ActivatableNormServerImpl"/>
             <arg value="com.sun.jini.norm.NormPermission"/>
-            <arg value="com.sun.jini.norm.NormServerBaseImpl_Stub"/>
+            <!--<arg value="com.sun.jini.norm.NormServerBaseImpl_Stub"/>-->
             <arg value="com.sun.jini.norm.PersistentNormServerImpl"/>
             <arg value="com.sun.jini.norm.TransientNormServerImpl"/>
             <arg value="com.sun.jini.reliableLog.LogException"/>
@@ -1670,7 +1573,7 @@
             <arg value="com.sun.jini.norm.CorruptedStoreException"/>
             <arg value="com.sun.jini.norm.InternalNormException"/>
             <arg value="com.sun.jini.norm.NormPermission"/>
-            <arg value="com.sun.jini.norm.NormServerBaseImpl_Stub"/>
+            <!--<arg value="com.sun.jini.norm.NormServerBaseImpl_Stub"/>-->
             <arg value="com.sun.jini.norm.ProxyVerifier"/>
             <arg value="com.sun.jini.reliableLog.LogException"/>
             <arg value="com.sun.jini.start.ServiceProxyAccessor"/>
@@ -1694,12 +1597,12 @@
         </preferredlistgen>
     </target>
 
-    <target name="norm.stubs" depends="compile">
+    <!--<target name="norm.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
             <classpath refid="river.jars" />
             <include name="com/sun/jini/norm/NormServerBaseImpl.class" />
         </rmic>
-    </target>
+    </target>-->
 
     <target name="outrigger-snaplogstore.jar" depends="stubs">
         <property name="outrigger-snaplogstore.deps" location="${build.deps.dir}/outrigger-snaplogstore.deps" />
@@ -1726,7 +1629,7 @@
             <arg line="${jskprivate.include}"/>
             <arg line="-in com.sun.jini.outrigger"/>
             <arg value="com.sun.jini.outrigger.OutriggerPermission"/>
-            <arg value="com.sun.jini.outrigger.OutriggerServerWrapper_Stub"	/>
+            <!--<arg value="com.sun.jini.outrigger.OutriggerServerWrapper_Stub"	/>-->
             <arg value="com.sun.jini.outrigger.PersistentOutriggerImpl"	/>
             <arg value="com.sun.jini.outrigger.TransientOutriggerImpl"/>
         </classdep>
@@ -1749,7 +1652,7 @@
             <arg value="com.sun.jini.lookup.entry.BasicServiceType"/>
             <arg value="com.sun.jini.outrigger.OutriggerPermission"/>
             <arg value="com.sun.jini.outrigger.OutriggerQueryCookie"/>
-            <arg value="com.sun.jini.outrigger.OutriggerServerWrapper_Stub"	/>
+            <!--<arg value="com.sun.jini.outrigger.OutriggerServerWrapper_Stub"/>-->
             <arg value="com.sun.jini.outrigger.OutriggerAvailabilityEvent"/>
             <arg value="com.sun.jini.outrigger.ProxyVerifier"/>
             <arg value="net.jini.lookup.entry.ServiceInfo"/>
@@ -1773,12 +1676,12 @@
         </preferredlistgen>
     </target>
 
-    <target name="outrigger.stubs" depends="compile">
+    <!--<target name="outrigger.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
             <classpath refid="river.jars" />
             <include name="com/sun/jini/outrigger/OutriggerServerWrapper.class" />
         </rmic>
-    </target>
+    </target>-->
 
     <target name="phoenix.jar" depends="tools.jar">
         <property name="phoenix.deps" location="${build.deps.dir}/phoenix.deps" />
@@ -1849,7 +1752,7 @@
             <arg path="${lib-dl.dir}/phoenix-dl.jar"/>
             <arg line="-jar"/>
             <arg path="${lib-dl.dir}/jsk-dl.jar"/>
-            <arg line="-proxy com.sun.jini.phoenix.AbstractSystem_Stub"	/>
+            <arg line="-proxy com.sun.jini.phoenix.AbstractSystem_Stub"/>
             <classpath refid="river.jars"/>
         </preferredlistgen>
     </target>
@@ -1867,7 +1770,7 @@
             <arg value="com.sun.jini.phoenix.AccessILFactory"/>
             <arg value="com.sun.jini.phoenix.InstantiatorAccessExporter"/>
             <arg value="com.sun.jini.phoenix.InstantiatorPermission"/>
-            <arg value="com.sun.jini.phoenix.AbstractInstantiator_Stub"	/>
+            <arg value="com.sun.jini.phoenix.AbstractInstantiator_Stub"/>
         </classdep>
         <jar destfile="${lib.dir}/phoenix-group.jar" index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${phoenix-group.deps}" />
@@ -1915,8 +1818,8 @@
             <arg line="-in com.sun.jini.reggie"	/>
             <arg value="com.sun.jini.reggie.PersistentRegistrarImpl"/>
             <arg value="com.sun.jini.reggie.RegistrarPermission"/>
-            <arg value="com.sun.jini.reggie.RegistrarImpl_Stub"	/>
-            <arg value="com.sun.jini.reggie.TransientRegistrarImpl"	/>
+            <!--<arg value="com.sun.jini.reggie.RegistrarImpl_Stub"/>-->
+            <arg value="com.sun.jini.reggie.TransientRegistrarImpl"/>
         </classdep>
         <jar destfile="${lib.dir}/reggie.jar" index="false"
          manifest="${src.manifest.dir}/reggie.mf">
@@ -1945,7 +1848,7 @@
             <arg value="com.sun.jini.reggie.EventLease"/>
             <arg value="com.sun.jini.reggie.ProxyVerifier"/>
             <arg value="com.sun.jini.reggie.RegistrarEvent"/>
-            <arg value="com.sun.jini.reggie.RegistrarImpl_Stub"/>
+            <!--<arg value="com.sun.jini.reggie.RegistrarImpl_Stub"/>-->
             <arg value="com.sun.jini.reggie.RegistrarPermission"/>
             <arg value="com.sun.jini.reggie.RegistrarProxy"/>
             <arg value="com.sun.jini.reggie.Registration"/>
@@ -1968,12 +1871,12 @@
         </preferredlistgen>
     </target>
 
-    <target name="reggie.stubs" depends="compile">
+    <!--<target name="reggie.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2">
             <classpath refid="river.jars" />
             <include name="com/sun/jini/reggie/RegistrarImpl.class" />
         </rmic>
-    </target>
+    </target>-->
 
     <target name="start.copy-resources" depends="prep">
         <!--
@@ -2013,7 +1916,7 @@
             <arg value="-files"	/>
             <arg line="${jskprivate.include}"/>
             <arg line="-in com.sun.jini.start"/>
-            <arg value="com.sun.jini.start.SharedGroupImpl"	/>
+            <arg value="com.sun.jini.start.SharedGroupImpl"/>
             <arg value="com.sun.jini.start.SharedGroupImpl_Stub"/>
         </classdep>
         <jar destfile="${lib.dir}/group.jar" index="false">

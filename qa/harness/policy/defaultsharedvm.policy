@@ -18,6 +18,12 @@ grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
 
+grant {
+      permission com.sun.jini.phoenix.ExecOptionPermission "*";
+    // for a start test
+      permission com.sun.jini.phoenix.ExecPermission "/bin/javax";
+};
+
 grant principal javax.security.auth.x500.X500Principal "CN=Phoenix"
 {
       permission com.sun.jini.phoenix.InstantiatorPermission "*";
@@ -28,7 +34,7 @@ grant principal javax.security.auth.kerberos.KerberosPrincipal "${phoenix}"
       permission com.sun.jini.phoenix.InstantiatorPermission "*";
 };
 
-grant codebase "file:${com.sun.jini.qa.home}${/}lib{/}harness-killer.jar" {
+grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}harness-killer.jar" {
     permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/all.policy";
     permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.harnessJar}!/harness/policy/policy.all";
 };

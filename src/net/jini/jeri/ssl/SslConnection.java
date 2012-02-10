@@ -64,7 +64,7 @@ class SslConnection extends Utilities implements Connection {
      * the client to negotiate a new session before the server timeout, which
      * defaults to 24 hours.
      */
-    private static long maxClientSessionDuration =
+    private final long maxClientSessionDuration =
 	((Long) Security.doPrivileged(
 	    new GetLongAction("com.sun.jini.jeri.ssl.maxClientSessionDuration",
 			      (long) (23.5 * 60 * 60 * 1000)))).longValue();
@@ -100,16 +100,16 @@ class SslConnection extends Utilities implements Connection {
     private final ClientAuthManager authManager;
 
     /** The socket */
-    SSLSocket sslSocket;
+    volatile SSLSocket sslSocket;
 
     /** The currently active cipher suite */
-    private String activeCipherSuite;
+    volatile private String activeCipherSuite;
 
     /** The current session */
-    private SSLSession session;
+    volatile private SSLSession session;
 
     /** True if the connection has been closed. */
-    boolean closed;
+    volatile boolean closed;
 
     /* -- Methods -- */
 

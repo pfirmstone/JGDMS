@@ -854,7 +854,7 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 		    
 		    if (!(t instanceof SecurityException)) {
 			try {
-			    // NYI: shed idle connections
+			    // TODO: NYI: shed idle connections
 			} catch (OutOfMemoryError e) {
 			} catch (Exception e) {
 			}

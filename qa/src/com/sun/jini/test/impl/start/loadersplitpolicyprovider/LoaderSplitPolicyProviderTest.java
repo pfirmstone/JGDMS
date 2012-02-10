@@ -28,10 +28,12 @@ import net.jini.security.policy.*;
 import java.io.File;
 import java.net.*;
 import java.security.*;
-import java.util.Collections;
 import com.sun.jini.qa.harness.QATest;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 
 public class LoaderSplitPolicyProviderTest extends QATest {
     private String ldrPolicyFile;
@@ -146,7 +148,7 @@ public class LoaderSplitPolicyProviderTest extends QATest {
 	    throw new TestException("Does not satisfy implies conditions for "
                     + perm + ".");
 	}
-
+        
 	if (!contains(pol.getPermissions(myPd), perm) ||
 	    contains(pol.getPermissions(fooPd), perm) ||
 	    contains(pol.getPermissions(barPd), perm) ||
@@ -212,7 +214,22 @@ public class LoaderSplitPolicyProviderTest extends QATest {
 	}
     }
 
+    /*
+     * Dynamic policy no longer returns the permission directly, instead
+     * it encapsulates it in a container Permission that implies nothing,
+     * it is useful for debugging only since it delegates toString()
+     * to the encapsulated Permission.
+     * 
+     * Dynamic policy does this to prevent the Permission becoming merged
+     * in the ProtectionDomain.
+     */
     static boolean contains(PermissionCollection pc, Permission p) {
-	return Collections.list(pc.elements()).contains(p);
+//	return Collections.list(pc.elements()).contains(p);
+        Set<String> perms = new HashSet<String>();
+        Enumeration<Permission> e = pc.elements();
+        while (e.hasMoreElements()){
+            perms.add(e.nextElement().toString());
+        }
+        return perms.contains(p.toString());
     }
 }

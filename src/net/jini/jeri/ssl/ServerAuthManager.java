@@ -69,13 +69,13 @@ class ServerAuthManager extends AuthManager {
     private final Map credentialCache = new HashMap(2);
 
     /** The SSL session for the last successful call to checkCredentials. */
-    private Reference sessionCache = new SoftReference(null);
+    private volatile Reference<SSLSession> sessionCache = new SoftReference<SSLSession>(null);
 
     /**
      * The time when the credentials for the session in the session cache
      * become invalid.
      */
-    private long credentialsValidUntil = 0;
+    private volatile long credentialsValidUntil = 0;
 
     /* -- Constructors -- */
 
@@ -166,7 +166,7 @@ class ServerAuthManager extends AuthManager {
 	    } else {
 		credentialsValidUntil = checkCredentials(
 		    cred, clientSubject, "accept");
-		sessionCache = new SoftReference(session);
+		sessionCache = new SoftReference<SSLSession>(session);
 	    }
 	}
     }
@@ -347,7 +347,7 @@ class ServerAuthManager extends AuthManager {
 	    if (val instanceof X500PrivateCredential) {
 		cred = (X500PrivateCredential) val;
 		try {
-		    checkCredentials(cred, null, "listen");
+                        checkCredentials(cred, null, "listen");
 		} catch (SecurityException e) {
 		    if (logger.isLoggable(Levels.HANDLED)) {
 			logThrow(logger, Levels.HANDLED,

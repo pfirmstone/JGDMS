@@ -101,10 +101,10 @@ class SslServerEndpointImpl extends Utilities {
      * to facilitate testing.  Use 24 hours to allow the client, which uses
      * 23.5 hours, to renegotiate a new session before the server timeout.
      */
-    static long maxServerSessionDuration =
+    private final long maxServerSessionDuration =
 	((Long) Security.doPrivileged(
 	    new GetLongAction("com.sun.jini.jeri.ssl.maxServerSessionDuration",
-			      24 * 60 * 60 * 1000))).longValue();
+			      24L * 60L * 60L * 1000L))).longValue();
 
     /**
      * Executes a Runnable in a system thread -- used for listener accept
@@ -118,10 +118,10 @@ class SslServerEndpointImpl extends Utilities {
 	new BasicServerConnManager();
 
     /** The associated server endpoint. */
-    final ServerEndpoint serverEndpoint;
+    private final ServerEndpoint serverEndpoint;
 
     /** The server subject, or null if the server is anonymous. */
-    final Subject serverSubject;
+    private final Subject serverSubject;
 
     /**
      * The principals to use for authentication, or null if the server is
@@ -146,21 +146,21 @@ class SslServerEndpointImpl extends Utilities {
 
     /**
      * The permissions needed to authenticate when listening on this endpoint,
-     * or null if the server is anonymous.
+     * or null if the server is anonymous.  Effectively immutable array.
      */
-    Permission[] listenPermissions;
+    private final Permission[] listenPermissions;
 
     /** The listen endpoint. */
     private final ListenEndpoint listenEndpoint;
 
     /** The factory for creating JSSE sockets -- set by sslInit */
-    private SSLSocketFactory sslSocketFactory;
+    private SSLSocketFactory sslSocketFactory; // Synchronized on this
 
     /**
      * The authentication manager for the SSLContext for this endpoint -- set
      * by sslInit.
      */
-    private ServerAuthManager authManager;
+    private ServerAuthManager authManager; // Synchronized on this
 
     /** The server connection manager. */
     ServerConnManager serverConnectionManager = defaultServerConnectionManager;
@@ -191,9 +191,10 @@ class SslServerEndpointImpl extends Utilities {
 	    ? computePrincipals(serverSubject)
 	    : checkPrincipals(serverPrincipals);
 	/* Set listenPermissions before calling hasListenPermissions */
+        Permission [] listenPermissions;
 	if (this.serverPrincipals == null) {
 	    listenPermissions = null;
-	} else {
+            } else {
 	    listenPermissions =
 		new AuthenticationPermission[this.serverPrincipals.size()];
 	    int i = 0;
@@ -213,10 +214,11 @@ class SslServerEndpointImpl extends Utilities {
 	     !hasListenPermissions()))
 	{
 	    this.serverSubject = null;
-	    this.listenPermissions = null;
+	    listenPermissions = null;
 	} else {
-	    this.serverSubject = serverSubject;
+            this.serverSubject = serverSubject;
 	}
+        this.listenPermissions = listenPermissions;
 	this.serverHost = serverHost;
 	if (port < 0 || port > 0xFFFF) {
 	    throw new IllegalArgumentException("Invalid port: " + port);
@@ -526,12 +528,12 @@ class SslServerEndpointImpl extends Utilities {
 	    if (resolvedHost == null) {
 		InetAddress localAddr;
 		try {
-		    localAddr = (InetAddress) AccessController.doPrivileged(
-			new PrivilegedExceptionAction() {
-			    public Object run() throws UnknownHostException {
-				return InetAddress.getLocalHost();
-			    }
-			});
+		    localAddr = AccessController.doPrivileged(
+                      new PrivilegedExceptionAction<InetAddress>() {
+                          public InetAddress run() throws UnknownHostException {
+                              return InetAddress.getLocalHost();
+                          }
+                      });
 		} catch (PrivilegedActionException e) {
 		    UnknownHostException uhe =
 			(UnknownHostException) e.getCause();
@@ -673,15 +675,18 @@ class SslServerEndpointImpl extends Utilities {
 	    checkListenPermissions(false);
 	    Set principals = serverSubject.getPrincipals();
 	    /* Keep track of progress; remove entry when check is done */
-	    Map progress = new HashMap(serverPrincipals.size());
-	    for (Iterator i = serverPrincipals.iterator(); i.hasNext(); ) {
-		X500Principal p = (X500Principal) i.next();
-		if (!principals.contains(p)) {
-		    throw new UnsupportedConstraintException(
-			"Missing principal: " + p);
-		}
-		progress.put(p, X500Principal.class);
-	    }
+            boolean nullServerPrincipals = serverPrincipals == null;
+	    Map progress = new HashMap(nullServerPrincipals ? 0 : serverPrincipals.size());
+            if (!nullServerPrincipals){
+                for (Iterator i = serverPrincipals.iterator(); i.hasNext(); ) {
+                    X500Principal p = (X500Principal) i.next();
+                    if (!principals.contains(p)) {
+                        throw new UnsupportedConstraintException(
+                            "Missing principal: " + p);
+                    }
+                    progress.put(p, X500Principal.class);
+                }
+            }
 	    X500PrivateCredential[] privateCredentials =
 		(X500PrivateCredential[]) AccessController.doPrivileged(
 		    new SubjectCredentials.GetAllPrivateCredentialsAction(
@@ -803,8 +808,9 @@ class SslServerEndpointImpl extends Utilities {
 	private final Set connections = new HashSet();
 
 	/** Used to throttle accept failures */
+        private final Object failureLock = new Object();
 	private long acceptFailureTime = 0;
-	private int acceptFailureCount;
+	private int acceptFailureCount = 0;
 
 	/** Creates a listen handle */
 	SslListenHandle(RequestDispatcher requestDispatcher,
@@ -936,23 +942,34 @@ class SslServerEndpointImpl extends Utilities {
 	    final int NFAIL = 10;
 	    final int NMSEC = 5000;
 	    long now = System.currentTimeMillis();
-	    if (acceptFailureTime == 0L ||
-		(now - acceptFailureTime) > NMSEC)
-	    {
-		// failure time is very old, or this is first failure
-		acceptFailureTime = now;
-		acceptFailureCount = 0;
-	    } else {
-		// failure window was started recently
-		acceptFailureCount++;
-		if (acceptFailureCount >= NFAIL) {
-		    try {
-			Thread.sleep(10000);
-		    } catch (InterruptedException ignore) {
-		    }
-		    // no need to reset counter/timer
-		}
-	    }
+            boolean fail = false;
+            synchronized (failureLock){
+                if (acceptFailureTime == 0L ||
+                    (now - acceptFailureTime) > NMSEC)
+                {
+                    // failure time is very old, or this is first failure
+                    acceptFailureTime = now;
+                    acceptFailureCount = 0;
+                } else {
+                    // failure window was started recently
+                    acceptFailureCount++;
+                    if (acceptFailureCount >= NFAIL) {
+                        fail = true;
+                    }
+                }
+            }
+            if (fail) {
+                try {
+                    Thread.sleep(10000);
+                } catch (InterruptedException ignore) {
+                    /* Why are we ignoring the interrupt and not 
+                     * restoring the interrupted status?
+                     */
+                    Thread.currentThread().interrupt();
+                }
+                // no need to reset counter/timer
+            }
+	    
 	    return true;
 	}
 
@@ -1063,31 +1080,31 @@ class SslServerEndpointImpl extends Utilities {
 	 * yet.  Check that the current session matches to prevent new
 	 * handshakes.
 	 */
-	private SSLSession session;
+	private final SSLSession session;
 
 	/**
 	 * The client subject -- depends on session being set.  This instance
 	 * is read-only. 
 	 */
-	private Subject clientSubject;
+	private final Subject clientSubject;
 
 	/** The client principal -- depends on session being set. */
-	private X500Principal clientPrincipal;
+	private final X500Principal clientPrincipal;
 
 	/** The server principal -- depends on session being set. */
-	private X500Principal serverPrincipal;
+	private final X500Principal serverPrincipal;
 
 	/**
 	 * The authentication permission required for this connection, or null
 	 * if the server is anonymous -- depends on session being set.
 	 */
-	private AuthenticationPermission authPermission;
+	private final AuthenticationPermission authPermission;
 
 	/** The cipher suite -- depends on session being set. */
-	private String cipherSuite;
-
+	private final String cipherSuite;
+        
 	/** True if the connection has been closed. */
-	boolean closed;
+	volatile boolean closed;
 
 	/** Creates a server connection */
 	SslServerConnection(SslListenHandle listenHandle, Socket socket)
@@ -1103,7 +1120,34 @@ class SslServerEndpointImpl extends Utilities {
 	    /* Need to put in server mode before requesting client auth. */
 	    sslSocket.setUseClientMode(false);
 	    sslSocket.setWantClientAuth(true);
-
+            try {
+                session = sslSocket.getSession();
+                sslSocket.setEnableSessionCreation(false);
+                cipherSuite = session.getCipherSuite();
+                if ("NULL".equals(getKeyExchangeAlgorithm(cipherSuite))) {
+                    throw new SecurityException("Handshake failed");
+                }
+                clientSubject = getClientSubject(sslSocket);
+                clientPrincipal = clientSubject != null
+                    ? ((X500Principal)
+                       clientSubject.getPrincipals().iterator().next())
+                    : null;
+                X509Certificate serverCert =
+                    getAuthManager().getServerCertificate(session);
+                serverPrincipal = serverCert != null
+                    ? serverCert.getSubjectX500Principal() : null;
+                if (serverPrincipal != null) {
+                    authPermission = new AuthenticationPermission(
+                        Collections.singleton(serverPrincipal),
+                        (clientPrincipal != null
+                         ? Collections.singleton(clientPrincipal) : null),
+                        "accept");
+                } else {
+                    authPermission = null;
+                }
+            } catch (SecurityException e){
+                throw new IOException("Unable to create session", e);
+            }
 	    logger.log(Level.FINE, "created {0}", this);
 	}
 
@@ -1193,43 +1237,21 @@ class SslServerEndpointImpl extends Utilities {
 	 * fields if needed.
 	 */
 	private void decacheSession() {
-	    synchronized (this) {
-		SSLSession socketSession = sslSocket.getSession();
-		if (session == socketSession) {
-		    return;
-		} else if (session != null) {
-		    /*
-		     * We disable session creation as soon as we notice the
-		     * first session, but it is possible that a second
-		     * handshake could have started by then, so check that we
-		     * have the same session.  -tjb[31.Jan.2003]
-		     */
-		    throw new SecurityException(
-			"New handshake occurred on socket");
-		}
-		session = socketSession;
-		sslSocket.setEnableSessionCreation(false);
-		cipherSuite = session.getCipherSuite();
-		if ("NULL".equals(getKeyExchangeAlgorithm(cipherSuite))) {
-		    throw new SecurityException("Handshake failed");
-		}
-		clientSubject = getClientSubject(sslSocket);
-		clientPrincipal = clientSubject != null
-		    ? ((X500Principal)
-		       clientSubject.getPrincipals().iterator().next())
-		    : null;
-		X509Certificate serverCert =
-		    getAuthManager().getServerCertificate(session);
-		serverPrincipal = serverCert != null
-		    ? serverCert.getSubjectX500Principal() : null;
-		if (serverPrincipal != null) {
-		    authPermission = new AuthenticationPermission(
-			Collections.singleton(serverPrincipal),
-			(clientPrincipal != null
-			 ? Collections.singleton(clientPrincipal) : null),
-			"accept");
-		}
-	    }
+            SSLSession socketSession = sslSocket.getSession();
+            if (session == socketSession) {
+                return;
+            } else if ( !session.isValid()){
+                throw new SecurityException("Session invalid");
+            } else {
+                /*
+                 * We disable session creation as soon as we notice the
+                 * first session, but it is possible that a second
+                 * handshake could have started by then, so check that we
+                 * have the same session.  -tjb[31.Jan.2003]
+                 */
+                throw new SecurityException(
+                    "New handshake occurred on socket");
+            }
 	}
 
 	/**

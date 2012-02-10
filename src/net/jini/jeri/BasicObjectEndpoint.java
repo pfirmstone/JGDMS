@@ -415,7 +415,16 @@ public final class BasicObjectEndpoint
 
 	case 0x00:
 	    // REMIND: close the response input stream?
+            Exception ex = null;
+            try {
+                call.getResponseInputStream().close();
+            } catch (IOException e){
+                ex = e;
+            }
 	    // REMIND: Do we want to read a server-supplied reason string?
+            if (ex != null){
+                return new NoSuchObjectException("no such object in table, input stream close threw IOException: " + ex);
+            }
 	    return new NoSuchObjectException("no such object in table");
 
 	case 0x01:
@@ -423,7 +432,17 @@ public final class BasicObjectEndpoint
 
 	default:
 	    // REMIND: close the response input stream?
+            Exception exc = null;
+            try {
+                call.getResponseInputStream().close();
+            } catch (IOException e){
+                exc = e;
+            }
 	    // REMIND: Do we really want this failure mode here?
+            if (exc != null){
+                return new UnmarshalException("unexpected invocation status: " +
+					  Integer.toHexString(status), exc);
+            }
 	    return new UnmarshalException("unexpected invocation status: " +
 					  Integer.toHexString(status));
 	}

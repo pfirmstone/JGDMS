@@ -355,12 +355,12 @@ public class GrantNoPrincipalCase02 extends DynamicPolicyProviderTestBase {
                     Permission[] p = new Permission[] {
                         pmDynamicGranted[k] };
                     boolean shouldReturn = (k <= i);
-                    checkImplies(pd, p, shouldReturn, false);
-                    checkImplies(pdNew01, p, shouldReturn, false);
-                    checkImplies(pdNew02, p, shouldReturn, false);
+                        checkImplies(pd, p, shouldReturn, false);
+                        checkImplies(pdNew01, p, shouldReturn, false);
+                        checkImplies(pdNew02, p, shouldReturn, false);
+                    }
                 }
             }
-        }
 
         /*
          * Call grant() on DynamicPolicyProvider passing
@@ -382,78 +382,78 @@ public class GrantNoPrincipalCase02 extends DynamicPolicyProviderTestBase {
         for (int i = 0; i < protectionDomains.length; i++) {
             ProtectionDomain pd = protectionDomains[i];
 
-            /*
-             * Call implies on DynamicPolicyProvider passing
-             * pmAll permissions. Verify that implies()
-             * returns true for null and non-null
-             * ProtectionDomains.
-             */
-            checkImplies(pd, pmAll, true, false);
+                /*
+                 * Call implies on DynamicPolicyProvider passing
+                 * pmAll permissions. Verify that implies()
+                 * returns true for null and non-null
+                 * ProtectionDomains.
+                 */
+                checkImplies(pd, pmAll, true, false);
 
-            /*
-             * Call implies on DynamicPolicyProvider passing
-             * permissions that granted in the policy file. Verify that
-             * implies() returns false if ProtectionDomain is equal to null,
-             * and verify that implies() returns true for non-null
-             * ProtectionDomains.
-             */
-            checkImplies(pd, pmGranted, true, true);
+                /*
+                 * Call implies on DynamicPolicyProvider passing
+                 * permissions that granted in the policy file. Verify that
+                 * implies() returns false if ProtectionDomain is equal to null,
+                 * and verify that implies() returns true for non-null
+                 * ProtectionDomains.
+                 */
+                checkImplies(pd, pmGranted, true, true);
 
-            /*
-             * Call implies on DynamicPolicyProvider passing
-             * not granted permissions. Verify that implies()
-             * returns false for null and non-null
-             * ProtectionDomains.
-             */
-            checkImplies(pd, pmDynamicNotGranted, false, false);
+                /*
+                 * Call implies on DynamicPolicyProvider passing
+                 * not granted permissions. Verify that implies()
+                 * returns false for null and non-null
+                 * ProtectionDomains.
+                 */
+                checkImplies(pd, pmDynamicNotGranted, false, false);
 
-            if (pd == null) {
-                continue;
+                if (pd == null) {
+                    continue;
+                }
+
+                /*
+                 * Get CodeSource for ProtectionDomain.
+                 */
+                CodeSource s = pd.getCodeSource();
+
+                /*
+                 * Iterate over class loaders.
+                 */
+                for (int j = 0; j < classLoaders.length; j++) {
+
+                    /*
+                     * Create new ProtectionDomain passing code source,
+                     * null as PermissionCollection, class loader and
+                     * null as array of Principals.
+                     */
+                    ProtectionDomain pdNew01 = new ProtectionDomain(s, null,
+                            classLoaders[j], null);
+
+                    /*
+                     * Create new ProtectionDomain passing null as code source,
+                     * null as PermissionCollection, class loader
+                     * and null as array of Principals.
+                     */
+                    ProtectionDomain pdNew02 = new ProtectionDomain(null, null,
+                            classLoaders[j], null);
+
+                    /*
+                     * Call implies() on DynamicPolicyProvider passing
+                     * newly created ProtectionDomains and pmAll
+                     * permissions and verify that implies() returns true.
+                     */
+                    checkImplies(pdNew01, pmAll, true, false);
+                    checkImplies(pdNew02, pmAll, true, false);
+                }
+
+                /*
+                 * Verify that granted permissions (aside from those granted
+                 * with a class value of null) are not included in
+                 * PermissionCollections returned from
+                 * Policy.getPermissions(CodeSource).
+                 */
+                callGetPermissionsNoGranted(s, pmAsided);
+                callGetPermissions(s, pmAll, true, null);
             }
-
-            /*
-             * Get CodeSource for ProtectionDomain.
-             */
-            CodeSource s = pd.getCodeSource();
-
-            /*
-             * Iterate over class loaders.
-             */
-            for (int j = 0; j < classLoaders.length; j++) {
-
-                /*
-                 * Create new ProtectionDomain passing code source,
-                 * null as PermissionCollection, class loader and
-                 * null as array of Principals.
-                 */
-                ProtectionDomain pdNew01 = new ProtectionDomain(s, null,
-                        classLoaders[j], null);
-
-                /*
-                 * Create new ProtectionDomain passing null as code source,
-                 * null as PermissionCollection, class loader
-                 * and null as array of Principals.
-                 */
-                ProtectionDomain pdNew02 = new ProtectionDomain(null, null,
-                        classLoaders[j], null);
-
-                /*
-                 * Call implies() on DynamicPolicyProvider passing
-                 * newly created ProtectionDomains and pmAll
-                 * permissions and verify that implies() returns true.
-                 */
-                checkImplies(pdNew01, pmAll, true, false);
-                checkImplies(pdNew02, pmAll, true, false);
-            }
-
-            /*
-             * Verify that granted permissions (aside from those granted
-             * with a class value of null) are not included in
-             * PermissionCollections returned from
-             * Policy.getPermissions(CodeSource).
-             */
-            callGetPermissionsNoGranted(s, pmAsided);
-            callGetPermissions(s, pmAll, null);
         }
     }
-}

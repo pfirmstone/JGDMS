@@ -24,7 +24,10 @@ import java.io.PrintWriter;
 import java.io.File;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -46,17 +49,17 @@ import net.jini.core.lease.UnknownLeaseException;
 public abstract class QATest implements Test {
 
     /** the logger */
-    protected static Logger logger = 
+    protected static final Logger logger = 
 	Logger.getLogger("com.sun.jini.qa.harness");
 
     /** Keeps track of leases for automatic cancellation when test ends. */
-    private ArrayList leaseArray = new ArrayList();
+    private final Collection<Lease> leaseArray = new ArrayList<Lease>();
 
     /** The admin manager for managing services */
-    protected AdminManager manager;
+    protected volatile AdminManager manager;
 
     /** The config object for accessing the test environment */
-    protected QAConfig config;
+    protected volatile QAConfig config;
 
     /** 
      * Mostly mimics the behavior of the assert keyword. 

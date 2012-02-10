@@ -1011,6 +1011,22 @@ public class PreferredClassLoader extends URLClassLoader
 	    return getPackage(name);
 	}
     }
+    
+    protected Class<?> findClass(final String name)
+	 throws ClassNotFoundException
+    {   
+        /* TODO: Override and create our own CodeSource
+         * implementation that contains permissions.perm
+         * After we retrieve the manifest, class bytes and
+         * certificates, create the CodeSource we call
+         * defineClass(String name, byte[]b, int off, int len, CodeSource cs)
+         * 
+         * This will be utilised by a class that overrides 
+         * BasicProxyPreparer.getPermissions()
+         * to retrieve the advisory permissions.
+         */
+        return super.findClass(name);
+    }
 
     /**
      * {@inheritDoc}
@@ -1143,9 +1159,9 @@ public class PreferredClassLoader extends URLClassLoader
 	 * Create an AccessControlContext that consists of a single
 	 * protection domain with only the permissions calculated above.
          * Comment added 7th May 2010 by Peter Firmstone:
-         * This calls the pre java 1.4 constructor which causes the
+         * This did call the pre java 1.4 constructor which causes the
          * ProtectionDomain to not consult the Policy, this
-         * has the effect of not allowing Dynamic Permission changes to be
+         * had the effect of not allowing Dynamic Permission changes to be
          * effected by the Policy.  It doesn't affect the existing
          * DynamicPolicy implementation as it returns the Permissions
          * allowing the ProtectionDomain domain combiner to combine
