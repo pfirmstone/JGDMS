@@ -80,65 +80,15 @@ import org.apache.river.impl.util.CollectionsConcurrent;
  * by granting additional permissions, this implementation adds an experimental 
  * feature for revoking permissions, however there are some caveats:</p>
  * 
- * <p>Background: if ProtectionDomain.toString(), is called a ProtectionDomain will
- * merge Permissions, from the policy with those in the ProtectionDomain,
- * in a new private instance of Permissions, thus a ProtectionDomain cannot have 
- * Permission's removed, only additional merged.  A ProtectionDomain must
+ * <p>Background: A ProtectionDomain must
  * be created with the dynamic constructor otherwise it will never consult
- * the policy.  The AccessController.checkPermission(Permission) method
- * consults the current AccessControlContext, which contains all
- * ProtectionDomain's on the current thread's stack, before consulting the
- * AccessControllContext.checkPermission(Permission), it calls
- * AccessControllContext.optimize() which  removes all duplicate ProtectionDomains
- * in the ProtectionDomain array[]'s from the
- * enclosing AccessContolContext for the execution domain and the nested
- * AccessControlContext for the privileged domain (the privileged domain is
- * an array of ProtectionDomain's on the stack since the last 
- * AccessController.doPriveleged() call).  The optimize() method also calls
- * the DomainCombiner, which, for example, gives the SubjectDomainCombiner the 
- * opportunity to manipulate the ProtectionDomain's in the privileged array, in the
- * SubjectDomainCombiner's case, it creates new copies of the ProtectionDomain's
- * with new Principal[]'s injected.  The optimize() method returns a new
- * optimized AccessControlContext.
- * </p><p>
- * Now the AccessController calls the new AccessControlContext.checkPermission(Permission),
- * at this stage, each ProtectionDomain, if created with the dynamic constructor
+ * the policy. Only a dynamic ProtectionDomain, created with the dynamic constructor
  * consults the Policy, calling Policy.implies(ProtectionDomain, Permission).
  * </p><p>
- * If any calls to the policy return false, the ProtectionDomain then checks its
+ * If any calls to the policy return false, a dynamic ProtectionDomain checks its
  * internal Permissions and if they return false, it returns false.  The first
  * ProtectionDomain in the AccessControlContext to return false causes the 
  * AccessController.checkPermission(Permission) to throw an AccessControlException
- * </p><p>
- * To optimise the time taken to check Permission's the ProtectionDomain's
- * should either be static, which excludes the Policy, or dynamic with
- * a null PermissionCollection in it's constructor, </p>
- * 
- * <p>So in order to prevent dynamic grants from finding
- * their way into a ProtectionDomain's private PermissionCollection,
- * one would have to ensure that no dynamically grantable permissions are 
- * returned via the method:</p>
- * <p>
- * getPermissions(ProtectionDomain domain) and
- * getPermissions(Codesource source) as a precaution.
- * </p>
- * <p>This is different to the behaviour of the existing Jini 2.0
- * DynamicPolicyProvider implementation where dynamically granted Permissions
- * are added and can escape into the ProtectionDomain's private PermissionCollection.
- * 
- * However when a Policy is checked via implies(ProtectionDomain d, Permission p)
- * this implementation checks the dynamic grants
- * 
- * This means that if a DynamicPolicy is utilised as the base Policy class
- * and if it returns dynamically granted permissions, then those permissions
- * cannot be revoked.</p>
- * <p>
- * It is thus recommended that Static policy files only be used for setting
- * up your privileged code and use UmbrellaGrantPermission's and grant 
- * all other Permission's using dynamic grants.  This minimises the double 
- * checking of Permission, that occurs when a ProtectionDomain is constructed
- * so it contains a default PermissionCollection that is not null.
- *
  * </p><p>
  * To make the best utilisation of this Policy provider, set the System property:
  * </p>,<p>
