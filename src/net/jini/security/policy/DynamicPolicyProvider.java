@@ -72,26 +72,27 @@ import org.apache.river.impl.util.CollectionsConcurrent;
  * <p>This is a Dynamic Policy Provider that supports concurrent access,
  * for instances where a Policy provider is used for a distributed network
  * of computers, or where there is a large number of ProtectionDomains and
- * hence the opportunity for concurrency exists, concurrency comes with a 
- * cost however, that of increased memory usage.</p>
+ * hence the opportunity for concurrency exists.</p>
  * 
  * <p>Due to the Java 2 Security system's static design, a Policy Provider
  * can only augment the policy files utilised, a Policy can only relax security
  * by granting additional permissions, this implementation adds an experimental 
- * feature for revoking permissions, however there are some caveats:</p>
+ * feature to support revocation.</p>
  * 
- * <p>Background: A ProtectionDomain must
- * be created with the dynamic constructor otherwise it will never consult
- * the policy. Only a dynamic ProtectionDomain, created with the dynamic constructor
- * consults the Policy, calling Policy.implies(ProtectionDomain, Permission).
+ * <p>
+ * Revocation is simply the removal of a dynamic grant.  It must be recognised
+ * that a Permission can be removed from this Policy, however it is often
+ * the case that a reference to the object being guarded by that Permission
+ * escapes, allowing ongoing use of the guarded resource even after revocation.
+ * Dynamic grants will be naturally removed from the policy after the
+ * targeted ClassLoader becomes weakly reachable.
  * </p><p>
- * If any calls to the policy return false, a dynamic ProtectionDomain checks its
- * internal Permissions and if they return false, it returns false.  The first
- * ProtectionDomain in the AccessControlContext to return false causes the 
- * AccessController.checkPermission(Permission) to throw an AccessControlException
+ * It is not up to the policy implementation to prevent references from escaping.
+ * @see RevocablePolicy
+ * @see DelegatePermission
  * </p><p>
  * To make the best utilisation of this Policy provider, set the System property:
- * </p>,<p>
+ * </p><p>
  * net.jini.security.policy.PolicyFileProvider.basePolicyClass = 
  * org.apache.river.security.concurrent.ConcurrentPolicyFile
  * </p>
