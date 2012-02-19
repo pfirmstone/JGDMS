@@ -48,3 +48,7 @@ grant codebase "file:${com.sun.jini.test.home}${/}lib${/}qa1-securityUtil.jar",
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.lang.RuntimePermission "DoPrivilegedExceptionTEST1";
 };
+
+grant {
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.security.util";
+};

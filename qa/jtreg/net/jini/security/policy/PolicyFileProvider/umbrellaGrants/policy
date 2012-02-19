@@ -1,7 +1,7 @@
 /* @summary Test PolicyFileProvider expansion of UmbrellaGrantPermissions
  */
 
-grant codeBase "file:${java.home}/lib/ext/*" {
+grant codeBase "file:${{java.ext.dirs}}/*" {
     permission java.security.AllPermission;
 };
 
@@ -13,6 +13,7 @@ grant {
     permission java.lang.RuntimePermission "accessClassInPackage.*";
     permission java.lang.RuntimePermission "setSecurityManager";
     permission java.security.SecurityPermission "getProperty.*";
+    permission java.security.SecurityPermission "getPolicy";
 };
 
 grant codeBase "file:/foo.jar" {

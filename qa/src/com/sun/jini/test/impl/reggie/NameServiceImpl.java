@@ -39,17 +39,25 @@ public class NameServiceImpl implements NameService {
 
     }
 
-    public InetAddress[] lookupAllHostAddr(String host)
+//    public byte [][] lookupAllHostAddr(String host)
+    public InetAddress [] lookupAllHostAddr(String host)
 	throws UnknownHostException
     {
         if (host.equalsIgnoreCase(testClient)) {
-            return ( new InetAddress[] 
-                       { InetAddress.getByAddress(addr1),
-                         InetAddress.getByAddress(addr2),
-                         InetAddress.getByAddress(localhostAddr) } );
+//            return ( new byte [][] 
+//                       { InetAddress.getByAddress(addr1).getAddress(),
+//                         InetAddress.getByAddress(addr2).getAddress(),
+//                         InetAddress.getByAddress(localhostAddr).getAddress()
+            return (new InetAddress []{
+                InetAddress.getByAddress(addr1),
+                InetAddress.getByAddress(addr2),
+                InetAddress.getByAddress(localhostAddr)
+            });
         } else if (host.equalsIgnoreCase(localhost)) {
-            return ( new InetAddress[] 
-                       { InetAddress.getByAddress(localhostAddr) } );
+            return 
+//                    ( new byte[][] { InetAddress.getByAddress(localhostAddr).getAddress()
+                  (new InetAddress [] {  InetAddress.getByAddress(localhostAddr)
+            });
         } else {
 	    throw new UnknownHostException(host);
         }

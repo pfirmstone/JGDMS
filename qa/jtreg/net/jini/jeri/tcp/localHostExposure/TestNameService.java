@@ -15,6 +15,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+import java.net.InetAddress;
 import java.net.UnknownHostException;
 import sun.net.spi.nameservice.NameService;
 
@@ -28,8 +29,19 @@ public class TestNameService implements NameService {
 	    return lastNameLookup;
 	}
     }
+    
+    /* Java 6 version */
+    public InetAddress [] lookupAllHostAddr(String host) throws UnknownHostException{
+        byte [][] allHostAdd = lookAllHostAddr(host);
+        int l = allHostAdd.length;
+        InetAddress [] result = new InetAddress[l];
+        for (int i = 0; i<l; i++){
+            result[i] = InetAddress.getByAddress(allHostAdd[i]);
+        }
+        return result;
+    }
 
-    public byte[][] lookupAllHostAddr(String host)
+    private byte[][] lookAllHostAddr(String host)
 	throws UnknownHostException
     {
 	// System.err.println("FORWARD: " + host);

@@ -43,6 +43,11 @@ grant principal "server" {
         "accept,connect";
 };
 
+grant {
+    permission java.lang.RuntimePermission "setIO";
+    permission java.lang.RuntimePermission "getenv.SOUL";
+};
+
 /**
  * The following grant is only used during test development when the
  * tests do not reside inside qa1.jar

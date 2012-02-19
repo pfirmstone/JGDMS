@@ -24,13 +24,21 @@ import java.security.Policy;
 import java.security.ProtectionDomain;
 
 import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.StringTokenizer;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
+import org.apache.river.api.security.ConcurrentPermissions;
+import org.apache.river.api.security.ConcurrentPolicy;
 
 import net.jini.security.policy.PolicyInitializationException;
 import net.jini.security.policy.PolicyFileProvider;
+import org.apache.river.api.security.PermissionGrant;
 
 /**
  * Security policy provider that delegates to a collection of underlying
@@ -40,12 +48,14 @@ import net.jini.security.policy.PolicyFileProvider;
  * access to the same file, a check for read,write access would still
  * fail.
  */
-public class MergedPolicyProvider extends Policy {
+public class MergedPolicyProvider extends Policy implements ConcurrentPolicy{
 
+    /** class state */
+//    private static final Lock lock = new ReentrantLock();; // protects first
+//    private static boolean first = false; // Why is first static?
+    
     /** the collection of underlying policies */
-    private ArrayList policies = new ArrayList();
-
-    private static boolean first = false;
+    private final Collection<Policy> policies ;
 
     /**
      * Creates a new <code>MergedPolicyProvider</code> instance that wraps a
@@ -74,6 +84,7 @@ public class MergedPolicyProvider extends Policy {
 	}
 	// no-arg semantics for 'default policy' necessary for correct behavior 
 	// of PolicyFileProvider.refresh
+        Collection<Policy> policies = new ArrayList<Policy>();
 	try {
 	    if (p1 != null) {
 		policies.add(new PolicyFileProvider());
@@ -93,6 +104,7 @@ public class MergedPolicyProvider extends Policy {
 	    throw new PolicyInitializationException(
 		"unable to construct base policy", e);
 	}
+        this.policies = Collections.unmodifiableCollection(policies);
     }
 
     /**
@@ -103,25 +115,37 @@ public class MergedPolicyProvider extends Policy {
      * @param source the <code>CodeSource</code>
      */
     public PermissionCollection getPermissions(CodeSource source) {
-	Iterator it = policies.iterator();
-	if (it.hasNext()) {
-	    PermissionCollection pc = 
-		((Policy) it.next()).getPermissions(source);
-	    while (it.hasNext()) {
-		PermissionCollection pc2 = 
-		    ((Policy) it.next()).getPermissions(source);
-		Enumeration en = pc2.elements();
-		while (en.hasMoreElements()) {
-		    Permission perm = (Permission) en.nextElement();
-		    if (!pc.implies(perm)) {
-			pc.add(perm);
-		    }
-		}
-	    }
-	    return  pc;
-	} else {
-	    throw new IllegalStateException("No policies in provider");
-	}
+        if (policies.isEmpty()) throw new IllegalStateException("No policies in provider");
+        PermissionCollection pc = new ConcurrentPermissions();
+        Iterator<Policy> it = policies.iterator();
+        while (it.hasNext()){
+            Policy policy = it.next();
+            PermissionCollection col = policy.getPermissions(source);
+            Enumeration<Permission> e = col.elements();
+            while(e.hasMoreElements()){
+                pc.add(e.nextElement());
+            }
+        }
+        return pc;
+//	Iterator it = policies.iterator();
+//	if (it.hasNext()) {
+//	    PermissionCollection pc = 
+//		((Policy) it.next()).getPermissions(source);
+//	    while (it.hasNext()) {
+//		PermissionCollection pc2 = 
+//		    ((Policy) it.next()).getPermissions(source);
+//		Enumeration en = pc2.elements();
+//		while (en.hasMoreElements()) {
+//		    Permission perm = (Permission) en.nextElement();
+//		    if (!pc.implies(perm)) {
+//			pc.add(perm);
+//		    }
+//		}
+//	    }
+//	    return  pc;
+//	} else {
+//	    throw new IllegalStateException("No policies in provider");
+//	}
     }
 
     /**
@@ -131,55 +155,76 @@ public class MergedPolicyProvider extends Policy {
      *
      * @param domain the <code>ProtectionDomain</code>
      */
+//    public PermissionCollection getPermissions(ProtectionDomain domain) {
+//	Iterator it = policies.iterator();
+//	ArrayList list = new ArrayList(64);
+//        boolean first = false;
+////        lock.lock();
+////        try {
+//            if (it.hasNext()) {
+//                PermissionCollection pc = 
+//                    ((Policy) it.next()).getPermissions(domain);
+//                    if (first) {
+//                        first = false;
+//                        Enumeration en = pc.elements();
+//                        list.add("BASE PERMISSIONS for domain " + domain);
+//                        while (en.hasMoreElements()) {
+//                            Permission perm = (Permission) en.nextElement();
+//                            list.add(perm.toString());
+//                        }
+//                        first = true;
+//                    }
+//                while (it.hasNext()) {
+//                    PermissionCollection pc2 = 
+//                        ((Policy) it.next()).getPermissions(domain);
+//                    Enumeration en = pc2.elements();
+//                    while (en.hasMoreElements()) {
+//                        Permission perm = (Permission) en.nextElement();
+//                        if (!pc.implies(perm)) {
+//                            if (first) {
+//                                first = false;
+//                                list.add("checking " + perm + " and adding");
+//                                first = true;
+//                            }
+//                            pc.add(perm);
+//                        } else {
+//                            if (first) {
+//                                first = false;
+//                                list.add("checking " + perm + " and not adding");
+//                                first = true;
+//                            }
+//                        }
+//                    }
+//                }
+//                if (first) {
+//                    first = false;
+//                    for (int i = 0; i < list.size(); i++) {
+//                        System.out.println((String) list.get(i));
+//                    }
+//                    first = true;
+//                }
+//                return pc;
+//            } else {
+//                throw new IllegalStateException("No policies in provider");
+//            }
+////        }finally{
+////            lock.unlock();
+////        }
+//    }
+    
     public PermissionCollection getPermissions(ProtectionDomain domain) {
-	Iterator it = policies.iterator();
-	ArrayList list = new ArrayList();
-	if (it.hasNext()) {
-	    PermissionCollection pc = 
-		((Policy) it.next()).getPermissions(domain);
-	    if (first) {
-		first = false;
-		Enumeration en = pc.elements();
-		list.add("BASE PERMISSIONS for domain " + domain);
-		while (en.hasMoreElements()) {
-		    Permission perm = (Permission) en.nextElement();
-		    list.add(perm.toString());
-		}
-		first = true;
-	    }
-	    while (it.hasNext()) {
-		PermissionCollection pc2 = 
-		    ((Policy) it.next()).getPermissions(domain);
-		Enumeration en = pc2.elements();
-		while (en.hasMoreElements()) {
-		    Permission perm = (Permission) en.nextElement();
-		    if (!pc.implies(perm)) {
-			if (first) {
-			    first = false;
-			    list.add("checking " + perm + " and adding");
-			    first = true;
-			}
-			pc.add(perm);
-		    } else {
-			if (first) {
-			    first = false;
-			    list.add("checking " + perm + " and not adding");
-			    first = true;
-			}
-		    }
-		}
-	    }
-	    if (first) {
-		first = false;
-		for (int i = 0; i < list.size(); i++) {
-		    System.out.println((String) list.get(i));
-		}
-		first = true;
-	    }
-	    return pc;
-	} else {
-	    throw new IllegalStateException("No policies in provider");
-	}
+        if (policies.isEmpty()) throw new IllegalStateException("No policies in provider");
+        PermissionCollection pc = new ConcurrentPermissions();
+        Iterator<Policy> it = policies.iterator();
+        while (it.hasNext()){
+            Policy policy = it.next();
+            PermissionCollection col = policy.getPermissions(domain);
+            Enumeration<Permission> e = col.elements();
+            while(e.hasMoreElements()){
+                pc.add(e.nextElement());
+            }
+        }
+        return pc;
     }
 
     /**
@@ -213,5 +258,71 @@ public class MergedPolicyProvider extends Policy {
 	    System.out.println("CALLING refresh on " + p);
 	    p.refresh();
 	}
+    }
+
+    public boolean isConcurrent() {
+        if (policies.isEmpty()) throw new IllegalStateException("No policies in provider");
+        Iterator<Policy> it = policies.iterator();
+        while (it.hasNext()){
+            Policy p = it.next();
+            if (p instanceof ConcurrentPolicy){
+                if (!((ConcurrentPolicy)p).isConcurrent()) return false;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    public PermissionGrant[] getPermissionGrants(ProtectionDomain domain) {
+        if (policies.isEmpty()) throw new IllegalStateException("No policies in provider");
+        List<PermissionGrant[]> perms = new ArrayList<PermissionGrant[]>(policies.size());
+        Iterator<Policy> it = policies.iterator();
+        int arrayLength = 0;
+        while (it.hasNext()){
+            Policy p = it.next();
+            if (p instanceof ConcurrentPolicy){
+                PermissionGrant [] g = ((ConcurrentPolicy)p).getPermissionGrants(domain);
+                arrayLength = arrayLength + g.length;
+                perms.add(g);
+            }
+        }
+        PermissionGrant [] result = new PermissionGrant[arrayLength];
+        int index = 0;
+        Iterator<PermissionGrant[]> grants = perms.iterator();
+        while (grants.hasNext()){
+            PermissionGrant [] g = grants.next();
+            int l = g.length;
+            for (int i = 0; i < l; i++, index++){
+                result[index] = g[i];
+            }
+        }
+        return result;
+    }
+    
+    public PermissionGrant[] getPermissionGrants() {
+        if (policies.isEmpty()) throw new IllegalStateException("No policies in provider");
+        List<PermissionGrant[]> perms = new ArrayList<PermissionGrant[]>(policies.size());
+        Iterator<Policy> it = policies.iterator();
+        int arrayLength = 0;
+        while (it.hasNext()){
+            Policy p = it.next();
+            if (p instanceof ConcurrentPolicy){
+                PermissionGrant [] g = ((ConcurrentPolicy)p).getPermissionGrants();
+                arrayLength = arrayLength + g.length;
+                perms.add(g);
+            }
+        }
+        PermissionGrant [] result = new PermissionGrant[arrayLength];
+        int index = 0;
+        Iterator<PermissionGrant[]> grants = perms.iterator();
+        while (grants.hasNext()){
+            PermissionGrant [] g = grants.next();
+            int l = g.length;
+            for (int i = 0; i < l; i++, index++){
+                result[index] = g[i];
+            }
+        }
+        return result;
     }
 }

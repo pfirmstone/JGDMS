@@ -25,8 +25,15 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}harness.jar" {
     permission java.security.AllPermission "", "";
 };
 
-grant codeBase "file:${java.home}/lib/ext/*" {
-    permission java.security.AllPermission;
+grant codeBase "file:${{java.ext.dirs}}/*" {
+        permission java.security.AllPermission;
+};
+
+
+// For SecurityManager used from command line
+grant codeBase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-start-tests.jar" {
+    //permission java.io.FilePermission "-", "read";
+    permission java.lang.RuntimePermission "getProtectionDomain";
 };
 
 grant {
@@ -39,10 +46,12 @@ grant {
     permission java.lang.RuntimePermission "createClassLoader";
     permission java.lang.RuntimePermission "setContextClassLoader";
     permission java.lang.RuntimePermission "setSecurityManager";
+    permission java.lang.RuntimePermission "getProtectionDomain";
     permission java.util.PropertyPermission
         "java.security.policy", "read,write";
     permission java.security.SecurityPermission "getProperty.*";
     permission java.security.SecurityPermission "setPolicy";
+    permission java.security.SecurityPermission "getPolicy";
     permission java.util.PropertyPermission "*", "read";
 };
 

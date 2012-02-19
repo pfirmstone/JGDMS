@@ -50,9 +50,9 @@ public class Test {
 	}
 
 	p = new RuntimePermission("C");
+        if (policy1.implies(pd, p)) throw new Error();
 	policy2.grant(cl, null, new Permission[]{ p });
-	if (policy1.implies(pd, p) || !policy2.implies(pd, p)) {
-	    throw new Error();
-	}
+	if (policy1.implies(pd, p)) throw new Error();
+        if (!policy2.implies(pd, p)) throw new Error();
     }
 }

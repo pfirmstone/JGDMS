@@ -96,7 +96,7 @@
         ## can be removed -->
     <property name="jskprivate.include" value="-in com.sun.jini.action -in com.sun.jini.collection -in com.sun.jini.constants -in com.sun.jini.system -in com.sun.jini.logging -skip com.sun.jini.logging.LogManager -skip com.sun.jini.logging.Levels -in com.sun.jini.outrigger"/>
     <!-- Common packages to exclude within ClassDep -->
-    <property name="jskplatform.exclude" value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager"/>
+    <property name="jskplatform.exclude" value="-out com.sun.jini.discovery -out net.jini.activation -out net.jini.config -out net.jini.constraint -out net.jini.core -out net.jini.export -out net.jini.id -out net.jini.iiop -out net.jini.io -out net.jini.jeri -out net.jini.jrmp -out net.jini.loader -out net.jini.security -out net.jini.url -out org.apache.river.api -skip net.jini.discovery.ConstrainableLookupLocator -skip net.jini.discovery.ConstrainableLookupLocatorTrustVerifier -skip com.sun.jini.config.ConfigUtil -skip com.sun.jini.config.KeyStores -skip com.sun.jini.logging.LogManager"/>
 
     <property name="river.home" location="${root}"/>
     <property name="river.lib.dir" location="${river.home}/${lib}"/>
@@ -133,10 +133,16 @@
     <fileset id="velocity.jars" dir="${root}/velocity">
         <include name="velocity-1.7.jar" />
     </fileset>
+    
+    <fileset id="high-scale-lib.jars" dir="${root}/high-scale-lib">
+        <include name="high-scale-lib.jar" />
+    </fileset>
+    
 
     <path id="compile.classpath" >
         <fileset refid="asm.jars" />
         <fileset refid="velocity.jars" />
+        <fileset refid="high-scale-lib.jars" />
     </path>
 
 
@@ -148,7 +154,7 @@
         <path refid="river.classes"/>
         <path refid="asm.classpath"/>
     </path>
-
+   
     <path id="classdep.jar.classpath">
         <pathelement location="${river.lib.dir}/classdep.jar"/>
         <!--<path refid="asm.classpath" />-->

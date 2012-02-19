@@ -48,6 +48,10 @@ grant {
     permission net.jini.security.AuthenticationPermission
 	"TestUtilities$TestPrincipal \"*\"", "connect,accept";
 
+//    permission net.jini.security.AuthenticationPermission 
+//        "javax.security.auth.x500.X500Principal \"CN=clientDSA2expired\" peer javax.security.auth.x500.X500Principal \"CN=serverRSA2\"", 
+//        "connect";
+
     permission java.security.SecurityPermission "insertProvider.*";
     permission java.security.SecurityPermission "putProviderProperty.*";
     permission java.security.SecurityPermission "getPolicy";

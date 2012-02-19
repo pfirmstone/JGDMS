@@ -14,6 +14,7 @@ grant {
     permission java.lang.RuntimePermission "accessClassInPackage.*";
     permission java.util.PropertyPermission "*", "read";
     permission java.security.SecurityPermission "getProperty.*";
+    permission java.security.SecurityPermission "getPolicy";
     permission java.io.FilePermission ".", "read,write,delete";
     permission java.io.FilePermission ".${/}-", "read,write,delete";
     permission java.io.FilePermission "${test.classes}", "read,write,delete";

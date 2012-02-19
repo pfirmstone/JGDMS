@@ -58,7 +58,7 @@
     <property name="jtreg.home" location="${env.JT_HOME}" />
     <!-- probably should rename the environment variable, to enable using the correct -->
     <!-- jdk version for the jtreg tests which depend on jdk1.5 -->
-    <property name="jdk1.5.home" location="/usr/jdk/jdk1.5.0_15"/>
+    <property name="jdk1.5.home" location="/usr/jdk/jdk1.6.0_25"/>
     <property name="jtlib.tmp" location="${jtreg.dir}/JTlib-tmp"/>
 
     <!-- classpath for use by ClassDep in this build -->
@@ -206,6 +206,7 @@
                 <file name="jsk-resources.jar"/>
                 <file name="phoenix-init.jar"/>
                 <file name="tools.jar"/>
+                <file name="classserver.jar"/>
             </filelist>
         </move>
         <move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>
@@ -213,18 +214,34 @@
                 errorproperty="jtreg.fail" failureproperty="jtreg.fail"
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk1.5.home}">
-            <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar${path.separator}${jtlib.tmp}/jsk-lib.jar${path.separator}${jtlib.tmp}/jsk-platform.jar${path.separator}${jtlib.tmp}/jsk-resources.jar${path.separator}${jtlib.tmp}/phoenix-init.jar${path.separator}${jtlib.tmp}/tools.jar"/>
-            <arg value="-timeout:2"/>
+            <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar${path.separator}${jtlib.tmp}/jsk-lib.jar${path.separator}${jtlib.tmp}/jsk-platform.jar${path.separator}${jtlib.tmp}/jsk-resources.jar${path.separator}${jtlib.tmp}/phoenix-init.jar${path.separator}${jtlib.tmp}/tools.jar${path.separator}${jtlib.tmp}/classserver.jar"/>
+            <arg value="-timeout:8"/>
             <!--<arg value="-Djsk.home=${river.home}"/>-->
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
+            <arg value="-Dscratch.dir=${jtreg.dir}/JTwork/scratch"/>
+            <!-- This argument only runs the tests that failed on the last test run -->
             <!--<arg value="-status:fail"/>-->
             <!--<arg value="-Djava.security.debug=access,failure"/>-->
+            <!-- -DtestLevel Controls the amount of information printed.
+             *  0 - Just print final results and failures.
+             *  5 - Include stack trace for unexpected exceptions (default).
+             * 10 - Print test number and class for each new top level test class
+             * 15 - Print test number and class for every test.
+             * 20 - Print full test entry and pass/fail for every test.
+             * 25 - Include passing results.
+             * 30 - Include additional test debugging output, including time. -->
+            <arg value="-DtestLevel=5"/>
             <!--<arg value="-Dsun.security.krb5.debug=true"/>-->
-            <arg value="-Djavatest.maxOutputSize=500000"/>
+            <!-- For an unknown reason the following property is ignored -->
+            <arg value="-Djavatest.maxOutputSize=300000"/>
             <!--<arg value="net/jini/jeri/kerberos/UnitTests/runTestPerformance.sh" />-->
             <!--<arg value="-Bug:6307813"/>-->
             <!--<arg value="net/jini/security/policy/DynamicPolicyProvider/dynamicBasePolicy/Test.java"/>-->
+            <!--<arg value="net/jini/security/Security/implicitGrants/Test.java"/>-->
             <!--<arg value="net/jini/security/GrantPermission/implies/Test.java" />-->
+            <!--<arg value="net/jini/url/httpmd/TestEqual.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestEndpoint.java"/>-->
+            <!--<arg value="net/jini/jeri/ssl/UnitTests/TestRMI.java"/>-->
         </jtreg>
         <move todir="${river.lib.dir}">
             <filelist dir="${jtreg.dir}/JTlib-tmp">
@@ -233,6 +250,7 @@
                 <file name="jsk-resources.jar"/>
                 <file name="phoenix-init.jar"/>
                 <file name="tools.jar"/>
+                <file name="classserver.jar"/>
             </filelist>
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
@@ -249,6 +267,8 @@
                 <file name="jsk-platform.jar"/>
                 <file name="jsk-resources.jar"/>
                 <file name="phoenix-init.jar"/>
+                <file name="tools.jar"/>
+                <file name="classserver.jar"/>
             </filelist>
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
@@ -263,7 +283,7 @@
                 <!--Note these arguments only apply to the qa harness, they aren't
                 propagated to client test jvm's to do that you must set the
                 global or client vm args in the file:
-                src/com/sun/jini/resources/qaDefaults.properties-->
+                src/com/sun/jini/qa/resources/qaDefaults.properties-->
                 <!-- JDK extension directories (include our lib-ext dirs, for the custom policy providers) -->
                 <!--<jvmarg value="-Xbootclasspath/a:${river-ext.lib-dir}"/>-->
                 <jvmarg value="-Djava.ext.dirs=${ext.dirs}"/>
@@ -310,6 +330,7 @@
                     <fileset dir="${river.lib.dir}">
                         <include name="jsk-platform.jar"/>
                         <include name="jsk-lib.jar"/>
+                        <include name="high-scale-lib.jar"/>
                     </fileset>
                 </classpath>
                 <env key="SOUL" value="${soul}"/>

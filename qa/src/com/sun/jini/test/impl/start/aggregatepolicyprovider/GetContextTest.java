@@ -43,20 +43,20 @@ import com.sun.jini.qa.harness.QAConfig;
  */
 public class GetContextTest extends QATest {
 
-    public static SecurityContext securityContext;
-    public static Permission[] passPermissions = {
+    public static volatile SecurityContext securityContext;
+    public static final Permission[] passPermissions = {
 	new RuntimePermission("A")
     };
-    public static Permission[] failPermissions = { 
+    public static final Permission[] failPermissions = { 
 	new RuntimePermission("B"),
 	new RuntimePermission("C"),
 	new RuntimePermission("D")
     };
-    public static PrivilegedAction checkContextAction;
-    public static ClassLoader contextClassLoader;
-    private String getContextJarFile;
-    private String restoreContextJarFile;
-    private String checkContextActionJarFile;
+    public static volatile PrivilegedAction checkContextAction;
+    public static volatile ClassLoader contextClassLoader;
+    private volatile String getContextJarFile;
+    private volatile String restoreContextJarFile;
+    private volatile String checkContextActionJarFile;
 
     public void setup(QAConfig sysConfig) throws Exception {
 	super.setup(sysConfig);

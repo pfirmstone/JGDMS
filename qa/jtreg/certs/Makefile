@@ -15,10 +15,12 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #*/
-DSTCROOT =	/home/tjb/lib/jcsi/jcsi_v1.0b1
-JDK13HOME =	/files/jdk13
+#DSTCROOT =	/home/tjb/lib/jcsi/jcsi_v1.0b1 #replaced with BC_LIB
+#JDK13HOME =	/files/jdk13 #replaced with JAVA_HOME
 
-KEYTOOL=${JDK13HOME}/bin/keytool
+BC_LIB = ../../../bouncy-castle
+
+KEYTOOL=${JAVA_HOME}/bin/keytool
 KEYSTORECMD=${KEYTOOL} -storepass keypass -keypass keypass -validity 3650
 
 JINIGROUP=OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
@@ -26,10 +28,16 @@ JINIGROUP=OU=Jini Group, O=Sun Microsystems Inc, L=Burlington, ST=MA, C=US
 CA_NAMES=1 2
 USER_NAMES=A B C D E
 
+#compile:
+#	${JAVA_HOME}/bin/javac \
+#	  -d . \
+#	  -classpath .:${DSTCROOT}/classes:${DSTCROOT}/jars/jcsi.jar \
+#	  *.java
+
 compile:
-	${JDK13HOME}/bin/javac \
+	${JAVA_HOME}/bin/javac \
 	  -d . \
-	  -classpath .:${DSTCROOT}/classes:${DSTCROOT}/jars/jcsi.jar \
+	  -classpath .:${BC_LIB}/bcprov-jdk16-146.jar:${BC_LIB}/bcmail-jdk16-146.jar \
 	  *.java
 
 create:

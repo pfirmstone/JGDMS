@@ -17,16 +17,24 @@
 # limitations under the License.
 #*/
 # Run a DSTC certificate authority, specifying the properties file as
-# the first argument.
+# the  argument.
 
 # Directory containing classes that patch JCSI
-PATCHROOT=/home/tjb/.jcsi
+#PATCHROOT=/home/tjb/.jcsi
 # JSCI classes
-DSTCROOT=/home/tjb/lib/jcsi/jcsi_v1.0b1
+#DSTCROOT=/home/tjb/lib/jcsi/jcsi_v1.0b1
+
+# JCSI has been replaced with Bouncy Castle
+BC_LIB=${RIVER_HOME}/bouncy-castle
+JTREG_DIR=${RIVER_HOME}/qa/jtreg
 
 # JCSI uses a different format for requesting Cipher algorithms than is
 # supported by the JDK 1.4, so use 1.3
-JDK13HOME=/files/jdk13
+#JDK13HOME=/files/jdk13
 
-$JDK13HOME/bin/java -cp .:$PATCHROOT:$DSTCROOT/classes:$DSTCROOT/jars/jcsi.jar \
-     -Djcsi.ca.conf=$1 CA
+#$JDK13HOME/bin/java -cp .:$PATCHROOT:$DSTCROOT/classes:$DSTCROOT/jars/jcsi.jar \
+#     -Djcsi.ca.conf=$1 CA
+
+# Changed, so the first argument is the option to pass the CA, the second is the configuration file.
+$JAVA_HOME/bin/java -cp .:${BC_LIB}/bcprov-jdk16-146.jar:${BC_LIB}/bcmail-jdk16-146.jar:${JTREG_DIR}/certs \
+      -Djtreg.dir=${JTREG_DIR} -Djcsi.ca.conf=$2 CA $1

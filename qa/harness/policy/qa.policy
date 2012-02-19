@@ -74,21 +74,22 @@ grant codebase "file:${com.sun.jini.qa.harness.harnessJar}" {
     // THE FOLLOWING ARE REQUIRED IF UTILISING A SECURITY MANAGER FROM COMMAND LINE
     // AT START UP.
     // logging permissions
-    // permission java.util.logging.LoggingPermission "control";
+    permission java.util.logging.LoggingPermission "control";
     // runtime permissions
-    //permission java.lang.RuntimePermission "createClassLoader";
-    //permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
-    //permission java.lang.RuntimePermission "getClassLoader";
+    permission java.lang.RuntimePermission "createClassLoader";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
+    permission java.lang.RuntimePermission "getClassLoader";
     // property permissions
-    //permission java.util.PropertyPermission "*", "read,write";
-    //permission java.io.FilePermission "${com.sun.jini.jsk.home}${/}-", "read";
-    //permission java.io.FilePermission "${com.sun.jini.jsk.home}", "read";
+    permission java.util.PropertyPermission "*", "read,write";
+    permission java.io.FilePermission "${com.sun.jini.jsk.home}${/}-", "read";
+    permission java.io.FilePermission "${com.sun.jini.jsk.home}", "read";
+    permission java.lang.RuntimePermission "setIO";
 };
     // THE FOLLOWING ARE REQUIRED IF UTILISING A SECURITY MANAGER FROM COMMAND LINE
     // OR AT START UP.
 grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}jinitests.jar" {
-    //permission java.util.PropertyPermission "net.jini.discovery.announce", "read";
-    //permission java.util.PropertyPermission "com.sun.jini.qa.harness.testhosts", "read";
+    permission java.util.PropertyPermission "net.jini.discovery.announce", "read";
+    permission java.util.PropertyPermission "com.sun.jini.qa.harness.testhosts", "read";
 };
 
 grant codebase "file:${com.sun.jini.qa.home}${/}lib/qa1-jini-latest.jar" { 

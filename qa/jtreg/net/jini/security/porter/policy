@@ -1,5 +1,5 @@
-grant codeBase "file:${java.home}/lib/ext/*" {
-	permission java.security.AllPermission;
+grant codeBase "file:${{java.ext.dirs}}/*" {
+    permission java.security.AllPermission;
 };
 
 grant codeBase "file:${jtlib.tmp}/*" {

@@ -94,6 +94,7 @@ public class Util {
      * @return status string.
      */
     public static String fail(String msg, Exception ret, String exp) {
+        ret.printStackTrace(System.err);
         StringBuffer buf = new StringBuffer("\n");
         buf.append(msg).append("\n");
         buf.append("  throws:   ").append(ret.toString()).append("\n");

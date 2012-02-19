@@ -2,7 +2,7 @@ testClass=SubPoliciesTest
 testCategories=start,start_impl
 #testClasspath=${com.sun.jini.qa.home}$/lib$/harness.jar$:${com.sun.jini.qa.home}$/lib$/qa1-start-tests.jar$:${com.sun.jini.qa.home}$/lib$/$qajinidep$:${com.sun.jini.jsk.home}$/lib$/jsk-platform.jar
 
-testClasspath=<harnessJar>$:<file:lib/qa1-start-tests.jar>$:${com.sun.jini.jsk.home}$/lib$/jsk-platform.jar$:${com.sun.jini.jsk.home}$/lib$/jsk-lib.jar
+testClasspath=${altClasspath}$:<file:lib/qa1-start-tests.jar>
 testPolicyfile=SubPoliciesTest.0.policy
 
 #!!!! the next two lines are wrong
