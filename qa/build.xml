@@ -58,7 +58,7 @@
     <property name="jtreg.home" location="${env.JT_HOME}" />
     <!-- probably should rename the environment variable, to enable using the correct -->
     <!-- jdk version for the jtreg tests which depend on jdk1.5 -->
-    <property name="jdk1.5.home" location="/usr/jdk/jdk1.6.0_30"/>
+    <property name="jdk1.5.home" location="/usr/jdk/jdk1.6.0_25"/>
     <property name="jtlib.tmp" location="${jtreg.dir}/JTlib-tmp"/>
 
     <!-- classpath for use by ClassDep in this build -->
@@ -215,7 +215,7 @@
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk1.5.home}">
             <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar${path.separator}${jtlib.tmp}/jsk-lib.jar${path.separator}${jtlib.tmp}/jsk-platform.jar${path.separator}${jtlib.tmp}/jsk-resources.jar${path.separator}${jtlib.tmp}/phoenix-init.jar${path.separator}${jtlib.tmp}/tools.jar${path.separator}${jtlib.tmp}/classserver.jar"/>
-            <arg value="-timeout:2"/>
+            <arg value="-timeout:8"/>
             <!--<arg value="-Djsk.home=${river.home}"/>-->
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <arg value="-Dscratch.dir=${jtreg.dir}/JTwork/scratch"/>

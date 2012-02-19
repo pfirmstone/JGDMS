@@ -27,10 +27,17 @@ import java.security.Permission;
 import java.security.cert.Certificate;
 
 /**
- *
+ * The intent of this class is to allow a jar file to carry with it the
+ * permissions it requires, the intent is that a smart proxy use this, 
+ * the permissions are dynamically granted to a Principal and ClassLoader
+ * combination.
+ * 
+ * This is package private until the implementation is complete, the public
+ * api should be reviewed before making public.
+ * 
  * @author peter
  */
-public class CodeSourceWithPermissionsRequired extends CodeSource {
+class CodeSourceWithPermissionsRequired extends CodeSource {
     private static final long serialVersionUID = 1L;
     private Permission[] permissions;
     
@@ -51,7 +58,7 @@ public class CodeSourceWithPermissionsRequired extends CodeSource {
         return sb.toString();
     }
     
-    public Permission [] required(){
+    Permission [] required(){
         return permissions.clone();
     }
     

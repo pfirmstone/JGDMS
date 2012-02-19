@@ -55,7 +55,7 @@ public class ReferenceMapTest {
     public void setUp() {
         Map<Referrer<Integer>, Referrer<String>> internal 
                 = new HashMap<Referrer<Integer>, Referrer<String>>(5);
-        instance = RC.map(internal, Ref.WEAK, Ref.STRONG);
+        instance = new ReferenceMap<Integer, String>(internal, Ref.WEAK, Ref.STRONG);
         i1 = 1;
         i2 = 2;
         i3 = 3;

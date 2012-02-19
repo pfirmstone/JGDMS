@@ -69,13 +69,13 @@ class ServerAuthManager extends AuthManager {
     private final Map credentialCache = new HashMap(2);
 
     /** The SSL session for the last successful call to checkCredentials. */
-    private volatile Reference<SSLSession> sessionCache = new SoftReference<SSLSession>(null);
+    private Reference sessionCache = new SoftReference(null);
 
     /**
      * The time when the credentials for the session in the session cache
      * become invalid.
      */
-    private volatile long credentialsValidUntil = 0;
+    private long credentialsValidUntil = 0;
 
     /* -- Constructors -- */
 

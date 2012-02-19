@@ -31,9 +31,9 @@ public class CheckContextAction implements PrivilegedAction {
 	}
 
 	SecurityManager sm = System.getSecurityManager();
-        for (int i = 0; i < GetContextTest.passPermissions.length; i++) {
-            sm.checkPermission(GetContextTest.passPermissions[i]);
-        }
+	for (int i = 0; i < GetContextTest.passPermissions.length; i++) {
+	    sm.checkPermission(GetContextTest.passPermissions[i]);
+	}
 	for (int i = 0; i < GetContextTest.failPermissions.length; i++) {
 	    try {
 		sm.checkPermission(GetContextTest.failPermissions[i]);

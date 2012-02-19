@@ -18,7 +18,6 @@
 
 package net.jini.security;
 
-import org.apache.river.api.security.PermissionComparator;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InvalidObjectException;
@@ -37,13 +36,11 @@ import java.security.Permissions;
 import java.security.UnresolvedPermission;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
-import java.util.TreeSet;
 import net.jini.security.policy.DynamicPolicy;
 
 /**
@@ -778,8 +775,9 @@ public final class GrantPermission extends Permission {
 		throw new SecurityException(
 		    "can't add to read-only PermissionCollection");
 	    }
-            // No longer rely on TreeSet to ensure correctness, just don't
+            // Cannot use TreeSet to ensure correctness, just don't
             // add twice, in other words check must be external.
+            // Stack overflow may occur if permissions added without checking
             perms.add(p);
             implier.add((GrantPermission) p);
 	    

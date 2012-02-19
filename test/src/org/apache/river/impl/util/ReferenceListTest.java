@@ -62,7 +62,7 @@ public class ReferenceListTest {
     
     @Before
     public void setUp() {
-        instance = RC.list(new ArrayList<Referrer<String>>(), Ref.WEAK);
+        instance = new ReferenceList<String>(new ArrayList<Referrer<String>>(), Ref.WEAK);
         instance.add(truck);
         instance.add(shovel);
         instance.add(grader);

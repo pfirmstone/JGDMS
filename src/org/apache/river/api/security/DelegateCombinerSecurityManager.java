@@ -24,17 +24,14 @@ import java.security.DomainCombiner;
 import java.security.Guard;
 import java.security.Permission;
 import java.security.Policy;
-import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.SecurityPermission;
-import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
 import java.util.NavigableSet;
-import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListSet;
@@ -48,7 +45,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import javax.security.auth.Subject;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
 import org.apache.river.api.delegates.DelegatePermission;
@@ -310,7 +306,7 @@ extends SecurityManager implements CachingSecurityManager {
             inTrustedCodeRecursiveCall.set(Boolean.FALSE); // Must always happen, no matter what.
         }
     }
-
+    
     // Action retrieves the optimised AccessControlContext.
     private class Action implements PrivilegedAction<AccessControlContext> {
         private Action(){}

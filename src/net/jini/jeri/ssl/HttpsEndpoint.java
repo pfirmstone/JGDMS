@@ -695,7 +695,7 @@ public final class HttpsEndpoint
 	 */
 	OutboundRequestIterator newRequest(final CallContext callContext) {
 	    return new OutboundRequestIterator() {
-		private volatile boolean done = false;
+		private boolean done;
 		public synchronized boolean hasNext() {
 		    return !done;
 		}
