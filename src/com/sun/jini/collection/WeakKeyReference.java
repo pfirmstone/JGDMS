@@ -79,12 +79,8 @@ public class WeakKeyReference extends WeakReference {
      * </ul>
      */
     public boolean equals(Object other) {
-	if (other == null)
-	    return false;
-	if (this == other)
-	    return true;
-	if (!(other instanceof WeakKeyReference))
-	    return false;
+	if (this == other) return true;
+	if (!(other instanceof WeakKeyReference))  return false;
 	Object thisRef = get();
 	Object otherRef = ((WeakKeyReference) other).get();
 	if (thisRef == null || otherRef == null) // if null it's not *anything*
