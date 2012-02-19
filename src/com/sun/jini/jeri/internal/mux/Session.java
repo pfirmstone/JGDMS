@@ -57,6 +57,8 @@ final class Session {
 	"idle", "open", "finished", "terminated"
     };
 
+    private static final boolean traceSupression = Boolean.getBoolean("com.sun.jini.jeri.server.suppressStackTraces");
+
     /**
      * pool of threads for executing tasks in system thread group: used for
      * I/O (reader and writer) threads and other asynchronous tasks
@@ -830,10 +832,7 @@ final class Session {
 		    } catch (InterruptedException e) {
 			String message = "request I/O interrupted";
 			setDown(message, e);
-                        Throwable t = e.fillInStackTrace();
-			IOException ioe = new IOException(message, t);
-			ioe.initCause(e);
-			throw ioe;
+			throw wrap(message, e);
 		    }
 		}
 
@@ -880,6 +879,16 @@ final class Session {
 		return result;
 	    }
 	}
+        
+        private IOException wrap(String message, Exception e){
+            Throwable t = null;
+            if (traceSupression){
+                t = e;
+            } else {
+                t = e.fillInStackTrace();
+            }
+            return new IOException(message, t);
+        }
 
 	public int read(byte b[], int off, int len) throws IOException {
 	    if (b == null) {
@@ -922,9 +931,7 @@ final class Session {
 		    } catch (InterruptedException e) {
 			String message = "request I/O interrupted";
 			setDown(message, e);
-			IOException ioe = new IOException(message);
-			ioe.initCause(e);
-			throw ioe;
+			throw wrap(message, e);
 		    }
 		}
 

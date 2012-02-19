@@ -2178,16 +2178,18 @@
     <target name="prep-tests" depends="">
         <mkdir dir="${test.classes.dir}"/>
         <mkdir dir="${test.results.dir}"/>
+        <copy file="high-scale-lib/high-scale-lib.jar" todir="test/lib"/>
     </target>
 
     <target name="clean-tests" depends="">
         <delete dir="${test.classes.dir}" quiet="true"/>
         <delete dir="${test.results.dir}" quiet="true"/>
+        <delete file="test/lib/high-scale-lib.jar" quiet="true"/>
     </target> 
     
     <target name="compile-tests" depends="compile,prep-tests">
         <javac-cmd source.dir="${test.src.dir}" dest.dir="${test.classes.dir}"
-                source="5" target="5">
+                source="6" target="6">
             <classpath refid="test.compile.classpath" />
         </javac-cmd>
     </target>

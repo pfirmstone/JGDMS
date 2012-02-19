@@ -199,18 +199,18 @@ public class DefaultPolicyParserTest extends TestCase {
     /**
      * Test of resolveGrant method, of class DefaultPolicyParser.
      */
-    @Test
-    public void testResolveGrant() throws Exception {
-        System.out.println("resolveGrant");
-        KeyStore ks = null;
-        boolean resolve = true;
-        DefaultPolicyParser instance = new DefaultPolicyParser();
-        PermissionGrant expResult = grant;
-        PermissionGrant result = instance.resolveGrant(ge, ks, system, resolve);
-        assertEquals(expResult, result);
-        // TODO review the generated test code and remove the default call to fail.
-//        fail("The test case is a prototype.");
-    }
+//    @Test
+//    public void testResolveGrant() throws Exception {
+//        System.out.println("resolveGrant");
+//        KeyStore ks = null;
+//        boolean resolve = true;
+//        DefaultPolicyParser instance = new DefaultPolicyParser();
+//        PermissionGrant expResult = grant;
+//        PermissionGrant result = instance.resolveGrant(ge, ks, system, resolve);
+//        assertEquals(expResult, result);
+//        // TODO review the generated test code and remove the default call to fail.
+////        fail("The test case is a prototype.");
+//    }
 
     /**
      * Test of resolvePermission method, of class DefaultPolicyParser.
