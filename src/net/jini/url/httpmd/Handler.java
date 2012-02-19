@@ -226,6 +226,29 @@ public class Handler extends URLStreamHandler {
 	    }
 	}
     }
+    
+    /**
+     * The default superclass implementation performs dns lookup to determine
+     * if hosts are equal, this allows two URL's with different hashCode's
+     * to be equal, breaking the hashCode equals contract.
+     * 
+     * It also causes a test failure in the jtreg test suite.
+     * 
+     * 
+     * *** Start test: Mon Jan 23 08:11:26 EST 2012
+     * [jtreg] Test 9: TestEqual: httpmd://foo:88/bar/baz;p1=v1;md5=abcd?q#r, httpmd://alpha:88/bar/baz;p1=v1;md5=abcd?q#r
+     * [jtreg] FAIL: Should be: false
+     * [jtreg]       Result: true
+     * 
+     * URL.implies(URL url) is better suited to perform this function, why
+     * it was originally implemented in equals is unknown.
+     */
+    protected boolean hostsEqual(URL u1, URL u2) {
+	if (u1.getHost() != null && u2.getHost() != null) 
+            return u1.getHost().equalsIgnoreCase(u2.getHost());
+	 else
+            return u1.getHost() == null && u2.getHost() == null;
+    }
 
     /**
      * Compares two HTTPMD URLs to see if they refer to the same file. Performs
@@ -317,15 +340,15 @@ public class Handler extends URLStreamHandler {
 	}
 
         /* Generate the host part */
-	InetAddress addr = getHostAddress(u);
-	if (addr != null) {
-	    h += addr.hashCode();
-	} else {
+//	InetAddress addr = getHostAddress(u);
+//	if (addr != null) {
+//	    h += addr.hashCode();
+//	} else {
             String host = u.getHost();
             if (host != null) {
 	        h += host.toLowerCase().hashCode();
 	    }
-        }
+//        }
 
 	/*
 	 * Generate the path part, ignoring case in the message digest and

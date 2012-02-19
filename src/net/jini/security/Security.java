@@ -43,6 +43,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 import java.util.logging.Logger;
@@ -461,26 +462,7 @@ public final class Security {
 	}
 
 	final AccessControlContext acc = AccessController.getContext();
-	return new SecurityContext() {
-	    public PrivilegedAction wrap(PrivilegedAction a) {
-		if (a == null) {
-		    throw new NullPointerException();
-		}
-		return a;
-	    }
-
-	    public PrivilegedExceptionAction wrap(PrivilegedExceptionAction a) 
-	    {
-		if (a == null) {
-		    throw new NullPointerException();
-		}
-		return a;
-	    }
-
-	    public AccessControlContext getAccessControlContext() {
-		return acc;
-	    }
-	};
+	return new SecurityContextImpl(acc);
     }
 
     /**
@@ -497,15 +479,17 @@ public final class Security {
      * principals of the <code>Subject</code>, as well as the ability to use
      * credentials of the <code>Subject</code> for authentication.
      * 
+     * @param <T> 
      * @param action the action to be executed
      * @return the object returned by the action's <code>run</code> method
      * @throws NullPointerException if the action is <code>null</code>
      */
-    public static Object doPrivileged(final PrivilegedAction action) {
+    public static <T> T doPrivileged(final PrivilegedAction<T> action) {
 	final Class caller = ctxAccess.getCaller();
 	final AccessControlContext acc = AccessController.getContext();
-	return AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() {
+	return AccessController.doPrivileged(new PrivilegedAction<T>() {
+            
+	    public T run() {
 		return AccessController.doPrivileged(
 		    action, createPrivilegedContext(caller, acc));
 	    }
@@ -526,19 +510,21 @@ public final class Security {
      * to principals of the <code>Subject</code>, as well as the ability to use
      * credentials of the <code>Subject</code> for authentication.
      * 
+     * @param <T> 
      * @param action the action to be executed
      * @return the object returned by the action's <code>run</code> method
      * @throws PrivilegedActionException if the action's <code>run</code>
      * method throws a checked exception
      * @throws NullPointerException if the action is <code>null</code>
      */
-    public static Object doPrivileged(final PrivilegedExceptionAction action)
+    public static <T> T doPrivileged(final PrivilegedExceptionAction<T> action)
 	throws PrivilegedActionException
     {
 	final Class caller = ctxAccess.getCaller();
 	final AccessControlContext acc = AccessController.getContext();
-	return AccessController.doPrivileged(new PrivilegedExceptionAction() {
-	    public Object run() throws Exception {
+	return AccessController.doPrivileged(new PrivilegedExceptionAction<T>() {
+            
+	    public T run() throws Exception {
 		try {
 		    return AccessController.doPrivileged(
 			action, createPrivilegedContext(caller, acc));
@@ -765,21 +751,24 @@ public final class Security {
      * Returns current thread's context class loader.
      */
     private static ClassLoader getContextClassLoader() {
-	return (ClassLoader)
-	    AccessController.doPrivileged(new PrivilegedAction() {
-		    public Object run() {
-			return Thread.currentThread().getContextClassLoader();
-		    }
-		});
+	return AccessController.doPrivileged(
+            new PrivilegedAction<ClassLoader>() {
+               
+               public ClassLoader run() {
+                   return Thread.currentThread().getContextClassLoader();
+               }
+            }
+        );
     }
 
     /**
      * Returns currently installed security policy, if any.
      */
     private static Policy getPolicy() {
-	return (Policy) AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() { return Policy.getPolicy(); }
-	});
+	return AccessController.doPrivileged(new PrivilegedAction<Policy>() {
+            
+            public Policy run() { return Policy.getPolicy(); }
+        });
     }
 
     /**
@@ -799,7 +788,7 @@ public final class Security {
 	} catch (SecurityException e) {
 	}
 
-	ArrayList list = new ArrayList(permissions.length);
+	ArrayList<Permission> list = new ArrayList<Permission>(permissions.length);
 	for (int i = 0; i < permissions.length; i++) {
 	    try {
 		Permission p = permissions[i];
@@ -808,7 +797,7 @@ public final class Security {
 	    } catch (SecurityException e) {
 	    }
 	}
-	return (Permission[]) list.toArray(new Permission[list.size()]);
+	return list.toArray(new Permission[list.size()]);
     }
 
     /**
@@ -816,20 +805,23 @@ public final class Security {
      */
     private static Principal[] getCurrentPrincipals() {
 	final AccessControlContext acc = AccessController.getContext();
-	Subject s = (Subject) AccessController.doPrivileged(
-	    new PrivilegedAction() {
-		public Object run() { return Subject.getSubject(acc); }
+	Subject s = AccessController.doPrivileged(
+	    new PrivilegedAction<Subject>() {
+            
+		public Subject run() { return Subject.getSubject(acc); }
 	    });
 	if (s != null) {
-	    Set ps = s.getPrincipals();
-	    return (Principal[]) ps.toArray(new Principal[ps.size()]);
+	    Set<Principal> ps = s.getPrincipals();
+	    return ps.toArray(new Principal[ps.size()]);
 	} else {
 	    return null;
 	}
     }
 
     /**
-     * TrustVerifier.Context implementation.
+     * TrustVerifier.Context implementation.  This implementation is only
+     * used to verify trust it is never handed outside this class,
+     * so we never bother to defensively copy state.
      */
     private static class Context implements TrustVerifier.Context {
 	/**
@@ -872,9 +864,10 @@ public final class Security {
 		final ArrayList list = new ArrayList(1);
 		final ClassLoader scl = cl;
 		AccessController.doPrivileged(new PrivilegedAction() {
+                    
 		    public Object run() {
 			for (Iterator iter =
-				 Service.providers(TrustVerifier.class, scl);
+				Service.providers(TrustVerifier.class, scl);
 			     iter.hasNext(); )
 			{
 			    list.add(iter.next());
@@ -891,7 +884,7 @@ public final class Security {
 					       new TrustVerifier[list.size()]);
 		synchronized (map) {
 		    map.put(cl, new SoftReference(verifiers));
-		}
+                }
 	    }
 	    this.verifiers = verifiers;
 	    this.context = context;
@@ -969,5 +962,49 @@ public final class Security {
 	Class getCaller() {
 	    return getClassContext()[2];
 	}
+    }
+
+    private static class SecurityContextImpl implements SecurityContext {
+
+        private final AccessControlContext acc;
+        private final int hashCode;
+
+        public SecurityContextImpl(AccessControlContext acc) {
+            this.acc = acc;
+            int hash = 7;
+            hash = 23 * hash + (this.acc != null ? this.acc.hashCode() : 0);
+            hashCode = hash;
+        }
+
+        public <T> PrivilegedAction<T> wrap(PrivilegedAction<T> a) {
+            if (a == null) {
+                throw new NullPointerException();
+            }
+            return a;
+        }
+
+        public <T> PrivilegedExceptionAction<T> wrap(PrivilegedExceptionAction<T> a) 
+        {
+            if (a == null) {
+                throw new NullPointerException();
+            }
+            return a;
+        }
+
+        public AccessControlContext getAccessControlContext() {
+            return acc;
+        }
+
+        @Override
+        public int hashCode() {
+            return hashCode;
+        }
+        
+        @Override
+        public boolean equals(Object o){
+            if (!(o instanceof SecurityContextImpl)) return false;
+            SecurityContext that = (SecurityContext) o;
+            return getAccessControlContext().equals(that.getAccessControlContext());
+        }
     }
 }

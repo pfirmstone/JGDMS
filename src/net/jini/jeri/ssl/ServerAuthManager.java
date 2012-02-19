@@ -166,7 +166,7 @@ class ServerAuthManager extends AuthManager {
 	    } else {
 		credentialsValidUntil = checkCredentials(
 		    cred, clientSubject, "accept");
-		sessionCache = new SoftReference(session);
+		sessionCache = new SoftReference<SSLSession>(session);
 	    }
 	}
     }
@@ -347,7 +347,7 @@ class ServerAuthManager extends AuthManager {
 	    if (val instanceof X500PrivateCredential) {
 		cred = (X500PrivateCredential) val;
 		try {
-		    checkCredentials(cred, null, "listen");
+                        checkCredentials(cred, null, "listen");
 		} catch (SecurityException e) {
 		    if (logger.isLoggable(Levels.HANDLED)) {
 			logThrow(logger, Levels.HANDLED,

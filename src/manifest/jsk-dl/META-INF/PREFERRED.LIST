@@ -31,3 +31,6 @@ Preferred: false
 
 Name: net/jini/-
 Preferred: false
+
+Name: org/apache/river/api/-
+Preferred: false

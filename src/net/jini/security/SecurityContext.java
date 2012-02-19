@@ -51,7 +51,11 @@ import java.security.PrivilegedExceptionAction;
  *      AccessController.doPrivileged(
  *          ctx.wrap(action), ctx.getAccessControlContext());
  * </pre>
- *
+ * 
+ * <BOLD>
+ * Implementations must override Object equals and hashCode.
+ * </BOLD>
+ * 
  * @author Sun Microsystems, Inc.
  * 
  * @since 2.0
@@ -71,12 +75,13 @@ public interface SecurityContext {
      * <code>run</code> method is propagated through the <code>run</code>
      * method of the wrapper action.
      *
+     * @param <T> return type of PrivilegedAction
      * @param action the action to be wrapped
      * @return security context-restoring action wrapping <code>action</code>,
      * or <code>action</code> if no wrapping is necessary
      * @throws NullPointerException if <code>action</code> is <code>null</code>
      */
-    PrivilegedAction wrap(PrivilegedAction action);
+    <T> PrivilegedAction<T> wrap(PrivilegedAction<T> action);
 
     /**
      * Returns a security context-restoring
@@ -91,12 +96,13 @@ public interface SecurityContext {
      * thrown by the wrapped action's <code>run</code> method is propagated
      * through the <code>run</code> method of the wrapper action.
      *
+     * @param <T> return type of PrivilegedExceptionAction
      * @param action the action to be wrapped
      * @return security context-restoring action wrapping <code>action</code>,
      * or <code>action</code> if no wrapping is necessary
      * @throws NullPointerException if <code>action</code> is <code>null</code>
      */
-    PrivilegedExceptionAction wrap(PrivilegedExceptionAction action);
+    <T> PrivilegedExceptionAction<T> wrap(PrivilegedExceptionAction<T> action);
 
     /**
      * Returns access control context portion of snapshotted security context.

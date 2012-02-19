@@ -26,8 +26,13 @@ import java.security.Policy;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Security;
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import net.jini.security.GrantPermission;
 
 /**
@@ -47,20 +52,22 @@ import net.jini.security.GrantPermission;
  * @com.sun.jini.impl <!-- Implementation Specifics -->
  *
  * This implementation's no-argument constructor uses a default class name of
- * <code>"sun.security.provider.PolicyFile"</code> to instantiate base policy
- * objects, if the
+ * <code>"org.apache.river.impl.security.policy.se.ConcurrentPolicyFile"</code> 
+ * to instantiate base policy objects, if the
  * <code>net.jini.security.policy.PolicyFileProvider.basePolicyClass</code>
  * security property is not set.
  */
 public class PolicyFileProvider extends Policy {
 
     private static final String basePolicyClassProperty =
-	"net.jini.security.policy." +
-	"PolicyFileProvider.basePolicyClass";
+	"net.jini.security.policy.PolicyFileProvider.basePolicyClass";
     private static final String defaultBasePolicyClass =
-	"sun.security.provider.PolicyFile";
+        // Having our own implementation removes a platform dependency
+       "org.apache.river.api.security.ConcurrentPolicyFile";
+//	"sun.security.provider.PolicyFile";
     private static final String policyProperty = "java.security.policy";
     private static final Object propertyLock = new Object();
+    private static final Permission umbrella = new UmbrellaGrantPermission();
 
     private final String policyFile;
     private final Policy basePolicy;
@@ -101,7 +108,9 @@ public class PolicyFileProvider extends Policy {
      *          <code>net.jini.security.policy.PolicyFileProvider.basePolicyClass</code>
      *          security property, or if the calling context does not have
      *          adequate permissions to access the base policy class
+     * @deprecated DynamicPolicyProvider now supports Umbrella grants directly.
      */
+    @Deprecated
     public PolicyFileProvider() throws PolicyInitializationException {
 	policyFile = null;
 
@@ -266,14 +275,25 @@ public class PolicyFileProvider extends Policy {
      */
     private void ensureDependenciesResolved() {
 	// force resolution of GrantPermission and UmbrellaGrantPermission
-	new GrantPermission(new UmbrellaGrantPermission());
+	new GrantPermission(umbrella);
     }
 
-    private static void expandUmbrella(PermissionCollection pc) {
-	if (pc.implies(new UmbrellaGrantPermission())) {
-	    List l = Collections.list(pc.elements());
-	    pc.add(new GrantPermission(
-		       (Permission[]) l.toArray(new Permission[l.size()])));
+    static void expandUmbrella(PermissionCollection pc) {
+	if (pc.implies(umbrella)) {
+            // Don't use Set, avoid calling equals and hashCode on SocketPermission.
+            Collection<Permission> perms = new ArrayList<Permission>(120);
+            Enumeration<Permission> e = pc.elements();
+            while (e.hasMoreElements()){
+                Permission p = e.nextElement();
+                // Avoid unintended granting of GrantPermission 
+                // and recursive UmbrellaGrantPermission
+                if ( p instanceof GrantPermission || 
+                        p instanceof UmbrellaGrantPermission){
+                    continue;
+                }
+                perms.add(p);
+            }
+            pc.add(new GrantPermission(perms.toArray(new Permission[perms.size()])));
 	}
     }
     
@@ -287,7 +307,8 @@ public class PolicyFileProvider extends Policy {
 	    public Object run() {
 		if (value == null) {
 		    // TODO: Use System.clearProperty when we move to 1.5
-		    System.getProperties().remove(policyProperty);
+                    System.clearProperty(policyProperty);
+		    //System.getProperties().remove(policyProperty);
 		} else {
 		    System.setProperty(policyProperty, value);
 		}

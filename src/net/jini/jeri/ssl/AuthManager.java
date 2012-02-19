@@ -26,10 +26,12 @@ import java.security.NoSuchAlgorithmException;
 import java.security.Principal;
 import java.security.PrivateKey;
 import java.security.cert.CertPath;
+import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
 import java.security.cert.X509Certificate;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -324,7 +326,7 @@ abstract class AuthManager extends FilterX509TrustManager
      */
     static long certificatesValidUntil(CertPath chain) {
 	long result = Long.MAX_VALUE;
-	List certs = chain.getCertificates();
+	List<? extends Certificate> certs = chain.getCertificates();
 	for (int i = certs.size(); --i >= 0; ) {
 	    X509Certificate cert = (X509Certificate) certs.get(i);
 	    long until = cert.getNotAfter().getTime();
