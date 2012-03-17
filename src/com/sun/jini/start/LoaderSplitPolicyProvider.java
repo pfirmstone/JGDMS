@@ -35,9 +35,9 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import org.apache.river.api.security.ConcurrentPolicy;
 import org.apache.river.api.security.PermissionGrant;
-import org.apache.river.impl.util.RC;
-import org.apache.river.impl.util.Ref;
-import org.apache.river.impl.util.Referrer;
+import au.net.zeus.collection.RC;
+import au.net.zeus.collection.Ref;
+import au.net.zeus.collection.Referrer;
 
 /**
  * Security policy provider which handles permission queries and grants by
@@ -100,7 +100,7 @@ public class LoaderSplitPolicyProvider
 	this.defaultPolicy = defaultPolicy;
         delegateMap = RC.concurrentMap(
                 new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<Policy>>()
-                ,Ref.WEAK_IDENTITY , Ref.STRONG);
+                ,Ref.WEAK_IDENTITY , Ref.STRONG, 1000L, 0L);
 	ensureDependenciesResolved();
     }
 

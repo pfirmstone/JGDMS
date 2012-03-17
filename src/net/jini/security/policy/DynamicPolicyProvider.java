@@ -57,7 +57,6 @@ import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.api.security.RemotePolicy;
 import org.apache.river.api.security.PolicyPermission;
 import org.apache.river.api.security.RevocablePolicy;
-import org.apache.river.impl.util.CollectionsConcurrent;
 
 /**
  * Security policy provider that supports dynamic granting of permissions at

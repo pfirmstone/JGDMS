@@ -55,12 +55,8 @@ public class PermissionComparator implements Comparator<Permission>, Serializabl
     private static final char wildcard = "*".charAt(0);
 
     public int compare(Permission o1, Permission o2) {
-        if (o1 == o2) return 0;
-        
-        if ( o1 == null ){
-            if (o2 == null) return 0;
-            return -1; // o1 is less
-        }
+        if ( o1 == o2 ) return 0;
+        if ( o1 == null ) return -1; // o1 is less
         if ( o2 == null ) return 1; // o1 is greater
         
         int hash1, hash2, comparison;

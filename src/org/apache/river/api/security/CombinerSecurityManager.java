@@ -47,14 +47,13 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
-import org.apache.river.api.delegates.DelegatePermission;
-import org.apache.river.impl.util.RC;
-import org.apache.river.impl.util.Ref;
-import org.apache.river.impl.util.Referrer;
+import au.net.zeus.collection.RC;
+import au.net.zeus.collection.Ref;
+import au.net.zeus.collection.Referrer;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 /**
- * DelegateCombinerSecurityManager, is intended to be a highly scalable
+ * CombinerSecurityManager, is intended to be a highly scalable
  * SecurityManager implementation that softly caches the results of security checks
  * for each context, which may be an instance of SecurityContext or
  * AccessControlContext.
@@ -75,9 +74,9 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
  * 
  * @author Peter Firmstone
  */
-public class DelegateCombinerSecurityManager 
+public class CombinerSecurityManager 
 extends SecurityManager implements CachingSecurityManager {
-    private static final Logger logger = Logger.getLogger(DelegateCombinerSecurityManager.class.getName());
+    private static final Logger logger = Logger.getLogger(CombinerSecurityManager.class.getName());
     private final DomainCombiner dc;
     // Cache of optimised Delegate AccessControlContext's
     private final ConcurrentMap<AccessControlContext, AccessControlContext> contextCache;
@@ -92,7 +91,7 @@ extends SecurityManager implements CachingSecurityManager {
     private final ThreadLocal<SecurityContext> threadContext;
     private final ThreadLocal<Boolean> inTrustedCodeRecursiveCall;
     
-    public DelegateCombinerSecurityManager(){
+    public CombinerSecurityManager(){
         super();
         // Get context before this becomes a SecurityManager.
         // super() checked the permission to create a SecurityManager.
@@ -106,11 +105,11 @@ extends SecurityManager implements CachingSecurityManager {
                 Referrer<AccessControlContext>> internal = 
                 new NonBlockingHashMap<Referrer<AccessControlContext>, 
                 Referrer<AccessControlContext>>();
-        contextCache = RC.concurrentMap(internal, Ref.SOFT, Ref.STRONG);
+        contextCache = RC.concurrentMap(internal, Ref.TIME, Ref.STRONG, 60000L, 0L);
         ConcurrentMap<Referrer<Object>, Referrer<NavigableSet<Permission>>> refmap 
                 = new NonBlockingHashMap<Referrer<Object>, 
                 Referrer<NavigableSet<Permission>>>();
-        checked = RC.concurrentMap(refmap, Ref.SOFT, Ref.STRONG);
+        checked = RC.concurrentMap(refmap, Ref.TIME, Ref.STRONG, 20000L, 0L);
         g = new SecurityPermission("getPolicy");
         Permission createAccPerm = new SecurityPermission("createAccessControlContext");
         action = new Action();
@@ -235,7 +234,7 @@ extends SecurityManager implements CachingSecurityManager {
              */
             NavigableSet<Referrer<Permission>> internal = 
                     new ConcurrentSkipListSet<Referrer<Permission>>(permCompare);
-            checkedPerms = RC.navigableSet(internal, Ref.SOFT);
+            checkedPerms = RC.navigableSet(internal, Ref.TIME, 5000L);
             inTrustedCodeRecursiveCall.set(Boolean.TRUE);
             try {
                 NavigableSet<Permission> existed = checked.putIfAbsent(context, checkedPerms);
@@ -345,13 +344,13 @@ extends SecurityManager implements CachingSecurityManager {
              * may perform a PrivilegedAction when it's 
              * getPermissions(ProtectionDomain pd) is later called for
              * ProtectionDomain's not in policy cache.
-             * However, DelegateCombinerSecurityManager and
+             * However, CombinerSecurityManager and
              * net.jini.security.Security cannot cache their shared 
              * ProtectionDomain, relying on the underlying policy instead.
              * 
              * When a standard java permission check
              * is made, the AccessController picks up the domain of 
-             * DelegateCombinerSecurityManager and net.jini.security.Security,
+             * CombinerSecurityManager and net.jini.security.Security,
              * as well as that of the policy provider.  Since the policy
              * provider will cache it's own ProtectionDomain, but not that
              * of the SecurityManager and Security, a infinite circular call 
@@ -359,7 +358,7 @@ extends SecurityManager implements CachingSecurityManager {
              * 
              * This will be caused by PolicyFile, attempting to determine
              * which permissions apply to the ProtectionDomain of
-             * DelegateCombinerSecurityManager and Security, then asking
+             * CombinerSecurityManager and Security, then asking
              * the SecurityManager if it has a FilePermission.
              * 
              * The policy provider org.apache.river.security.ConcurrentPolicyFile
@@ -545,10 +544,11 @@ extends SecurityManager implements CachingSecurityManager {
     
     private static boolean checkPermission(ProtectionDomain pd, Permission p){
         boolean result = pd.implies(p);
-        if (!result && p instanceof DelegatePermission ){
-            Permission candidate = ((DelegatePermission)p).getPermission();
-            result = pd.implies(candidate);
-        }
+        //TODO: Enable support for Delegates
+//        if (!result && p instanceof DelegatePermission ){
+//            Permission candidate = ((DelegatePermission)p).getPermission();
+//            result = pd.implies(candidate);
+//        }
         return result;
     }
     

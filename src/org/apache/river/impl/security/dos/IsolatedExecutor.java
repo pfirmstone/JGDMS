@@ -37,9 +37,10 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import org.apache.river.impl.util.Ref;
-import org.apache.river.impl.util.RC;
-import org.apache.river.impl.util.Referrer;
+import au.net.zeus.collection.Ref;
+import au.net.zeus.collection.RC;
+import au.net.zeus.collection.Referrer;
+import java.util.Collections;
 
 /**
  * Performs Callable tasks in an isolated thread, which is terminated
@@ -80,7 +81,8 @@ public class IsolatedExecutor<T> implements ExecutorService {
         state = State.RUNNING;
         policy = new AbortPolicy();
         factory = new Factory();
-        failedTasks = RC.list(new ArrayList<Referrer<Runnable>>(),Ref.SOFT);
+        // Soft reference ok in list.
+        failedTasks = RC.list(Collections.synchronizedList(new ArrayList<Referrer<Runnable>>()),Ref.SOFT, 1000L);
         nullExec = new NullExecutor(); // Can't create one lazily if memory low.
 	isolateExecutor = new Executor(0, 1,
                                       60L, TimeUnit.SECONDS,

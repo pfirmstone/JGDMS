@@ -125,17 +125,21 @@
         <pathelement path="${river.classes.dir}"/>
     </path>
 
-    <fileset id="asm.jars" dir="${root}/asm">
+    <fileset id="asm.jars" dir="${root}/dep-libs/asm">
         <include name="asm-3.2.jar" />
         <include name="asm-commons-3.2.jar" />
     </fileset>
 
-    <fileset id="velocity.jars" dir="${root}/velocity">
+    <fileset id="velocity.jars" dir="${root}/dep-libs/velocity">
         <include name="velocity-1.7.jar" />
     </fileset>
     
-    <fileset id="high-scale-lib.jars" dir="${root}/high-scale-lib">
+    <fileset id="high-scale-lib.jars" dir="${root}/dep-libs/high-scale-lib">
         <include name="high-scale-lib.jar" />
+    </fileset>
+    
+    <fileset id="reference-collections.jar" dir="${root}/dep-libs/rc-libs">
+        <include name="reference-collections-1.0.0.jar" />
     </fileset>
     
 
@@ -143,6 +147,7 @@
         <fileset refid="asm.jars" />
         <fileset refid="velocity.jars" />
         <fileset refid="high-scale-lib.jars" />
+        <fileset refid="reference-collections.jar" />
     </path>
 
 

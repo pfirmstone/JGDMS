@@ -45,9 +45,9 @@ import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.PolicyInitializationException;
 import net.jini.security.policy.SecurityContextSource;
 import org.apache.river.api.security.PermissionGrant;
-import org.apache.river.impl.util.RC;
-import org.apache.river.impl.util.Ref;
-import org.apache.river.impl.util.Referrer;
+import au.net.zeus.collection.RC;
+import au.net.zeus.collection.Ref;
+import au.net.zeus.collection.Referrer;
 
 /**
  * Security policy provider which supports associating security sub-policies
@@ -87,7 +87,7 @@ public class AggregatePolicyProvider
     private static final ConcurrentMap<Class,Boolean> trustGetCCL
     = RC.concurrentMap(
             new ConcurrentHashMap<Referrer<Class>,Referrer<Boolean>>(), 
-            Ref.WEAK_IDENTITY, Ref.STRONG);
+            Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 0L);
     private static final ProtectionDomain myDomain 
         = AccessController.doPrivileged(
             new PrivilegedAction<ProtectionDomain>() {
@@ -103,7 +103,7 @@ public class AggregatePolicyProvider
     private final ConcurrentMap<ClassLoader,Policy> subPolicyChildClassLoaderCache = // put protected by policyRead
             RC.concurrentMap(                                                        // clear protected by policyWrite
             new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<Policy>>(),
-            Ref.WEAK_IDENTITY, Ref.STRONG);
+            Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 0L);
 //    private final ReadWriteLock policyUpdate = new ReentrantReadWriteLock(); 
 //    private final Lock policyRead = policyUpdate.readLock();
 //    private final Lock policyWrite = policyUpdate.writeLock();

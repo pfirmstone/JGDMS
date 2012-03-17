@@ -31,7 +31,7 @@
 
     <typedef uri="antlib:org.codehaus.mojo.animal_sniffer">
         <classpath>
-            <fileset dir="animal-sniffer">
+            <fileset dir="dep-libs/animal-sniffer">
                 <include name="**/*.jar"/>
             </fileset>
             <fileset dir="asm">
@@ -51,7 +51,7 @@
         <attribute name="signature" />
         <sequential>
             <as:check-signature signature="@{signature}" >
-                <path path="asm/asm-tree-3.2.jar" />
+                <path path="dep-libs/asm/asm-tree-3.2.jar" />
                 <path path="lib" />
                 <path path="lib-dl" />
                 <ignore className="org.apache.velocity.app.VelocityEngine"/>
@@ -62,23 +62,23 @@
     </macrodef>
 
     <target name="verify-14" >
-        <verify-signature signature="animal-sniffer/java14-1.0.signature" />
+        <verify-signature signature="dep-libs/animal-sniffer/java14-1.0.signature" />
     </target>
 
     <target name="verify-14-sun" >
-        <verify-signature signature="animal-sniffer/java14-sun-1.0.signature" />
+        <verify-signature signature="dep-libs/animal-sniffer/java14-sun-1.0.signature" />
     </target>
 
     <target name="verify-15" >
-        <verify-signature signature="animal-sniffer/java15-1.0.signature" />
+        <verify-signature signature="dep-libs/animal-sniffer/java15-1.0.signature" />
     </target>
 
     <target name="verify-15-sun" >
-        <verify-signature signature="animal-sniffer/java15-sun-1.0.signature" />
+        <verify-signature signature="dep-libs/animal-sniffer/java15-sun-1.0.signature" />
     </target>
 
     <target name="verify-15-ibm" >
-        <verify-signature signature="animal-sniffer/java15-ibm-1.0.signature" />
+        <verify-signature signature="dep-libs/animal-sniffer/java15-ibm-1.0.signature" />
     </target>
 
     <target name="qa-runtime" description="build QA runtime" >
