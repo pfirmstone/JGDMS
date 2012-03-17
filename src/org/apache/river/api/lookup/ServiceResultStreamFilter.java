@@ -27,16 +27,17 @@ import net.jini.core.lookup.ServiceItem;
 import net.jini.lookup.ServiceItemFilter;
 
 /**
+ * <p>
  * A Filter utility class designed to filter out unwanted results.  Filters can
  * be daisy chained with pre prepared filters to perform logical AND operations.
- * 
+ * <p></p>
  * Logical OR operations can be simulated by providing multiple filters in
  * constructors.
- * 
+ * <p></p>
  * Any references to ServiceResultStreamFilter should be set to null 
  * immediately after filtering.
  * New instances can be created as required.
- * 
+ * <p>
  * @author Peter Firmstone.
  */
 public class ServiceResultStreamFilter implements ResultStream<ServiceItem> {

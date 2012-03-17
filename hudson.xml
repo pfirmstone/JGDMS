@@ -34,7 +34,7 @@
             <fileset dir="dep-libs/animal-sniffer">
                 <include name="**/*.jar"/>
             </fileset>
-            <fileset dir="asm">
+            <fileset dir="dep-libs/asm">
                 <include name="**/*.jar"/>
             </fileset>
         </classpath>
