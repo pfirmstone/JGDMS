@@ -31,6 +31,7 @@ import net.jini.core.lookup.*;
  * proxy verification, or applying constraints.
  * 
  * @author Peter Firmstone.
+ * @since 2.1.1
  * @see ServiceItemClasspathSub.
  * @see StreamServiceRegistrar
  */

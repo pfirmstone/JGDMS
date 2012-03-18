@@ -19,6 +19,7 @@
 package net.jini.security.policy;
 
 import org.apache.river.api.security.ConcurrentPolicy;
+import org.apache.river.api.security.ConcurrentPolicyFile;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import org.apache.river.api.security.CachingSecurityManager;
@@ -79,10 +80,7 @@ import org.apache.river.api.security.RevocablePolicy;
  * by granting additional permissions, this implementation adds an experimental 
  * feature for revoking permissions, however there are some caveats:</p>
  * 
- * <p>Background: if ProtectionDomain.toString(), is called a ProtectionDomain will
- * merge Permissions, from the policy with those in the ProtectionDomain,
- * in a new private instance of Permissions, thus a ProtectionDomain cannot have 
- * Permission's removed, only additional merged.  A ProtectionDomain must
+ * <p>A ProtectionDomain must
  * be created with the dynamic constructor otherwise it will never consult
  * the policy.  The AccessController.checkPermission(Permission) method
  * consults the current AccessControlContext, which contains all
@@ -115,28 +113,19 @@ import org.apache.river.api.security.RevocablePolicy;
  * 
  * <p>So in order to prevent dynamic grants from finding
  * their way into a ProtectionDomain's private PermissionCollection,
- * one would have to ensure that no dynamically grantable permissions are 
+ * this policy ensures that no dynamically grantable permissions are 
  * returned via the method:</p>
  * <p>
- * getPermissions(ProtectionDomain domain) and
  * getPermissions(Codesource source) as a precaution.
  * </p>
- * <p>This is different to the behaviour of the existing Jini 2.0
+ * <p>This is different to the behaviour of the previous Jini 2.0
  * DynamicPolicyProvider implementation where dynamically granted Permissions
- * are added and can escape into the ProtectionDomain's private PermissionCollection.
- * 
- * However when a Policy is checked via implies(ProtectionDomain d, Permission p)
- * this implementation checks the dynamic grants
- * 
- * This means that if a DynamicPolicy is utilised as the base Policy class
- * and if it returns dynamically granted permissions, then those permissions
- * cannot be revoked.</p>
+ * could escape into the ProtectionDomain's private PermissionCollection.
+ * /p>
  * <p>
  * It is thus recommended that Static policy files only be used for setting
  * up your privileged code and use UmbrellaGrantPermission's and grant 
- * all other Permission's using dynamic grants.  This minimises the double 
- * checking of Permission, that occurs when a ProtectionDomain is constructed
- * so it contains a default PermissionCollection that is not null.
+ * all other Permission's using dynamic grants. 
  *
  * </p><p>
  * To make the best utilisation of this Policy provider, set the System property:
@@ -144,14 +133,11 @@ import org.apache.river.api.security.RevocablePolicy;
  * net.jini.security.policy.PolicyFileProvider.basePolicyClass = 
  * org.apache.river.security.concurrent.ConcurrentPolicyFile
  * </p>
- * @author Peter Firmstone
- * @version 1
- * @since 2.2
+ * @since 2.0
  * @see ProtectionDomain
  * @see Policy
  * @see ConcurrentPolicyFile
  * @see net.jini.security.policy.PolicyFileProvider
- * @see ConcurrentPermissionCollection
  * @see CachingSecurityManager
  * @see RemotePolicy
  */
@@ -330,7 +316,7 @@ public class DynamicPolicyProvider extends Policy implements RemotePolicy,
         policyPermissions.setReadOnly();
     }
 
-    /**
+    /*
      * OLD COMMENT:
      * 
      * Ensures that any classes depended on by this policy provider are

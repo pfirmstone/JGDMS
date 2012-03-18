@@ -32,6 +32,7 @@ import java.util.Set;
  * See "Inside Java 2 Platform Security" 2nd Edition, ISBN:0-201-78791-1, page 176.
  * 
  * @author Peter Firmstone.
+ * @since 2.2.1
  */
 public interface CachingSecurityManager {
 

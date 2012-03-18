@@ -207,6 +207,8 @@
                 <file name="phoenix-init.jar"/>
                 <file name="tools.jar"/>
                 <file name="classserver.jar"/>
+                <file name="reference-collections-1.0.0.jar"/>
+                <file name="high-scale-lib.jar"/>
             </filelist>
         </move>
         <move file="${river.lib-ext.dir}/jsk-policy.jar" todir="${jtreg.dir}/JTlib-tmp"/>
@@ -214,7 +216,7 @@
                 errorproperty="jtreg.fail" failureproperty="jtreg.fail"
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk1.5.home}">
-            <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar${path.separator}${jtlib.tmp}/jsk-lib.jar${path.separator}${jtlib.tmp}/jsk-platform.jar${path.separator}${jtlib.tmp}/jsk-resources.jar${path.separator}${jtlib.tmp}/phoenix-init.jar${path.separator}${jtlib.tmp}/tools.jar${path.separator}${jtlib.tmp}/classserver.jar"/>
+            <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar${path.separator}${jtlib.tmp}/jsk-lib.jar${path.separator}${jtlib.tmp}/jsk-platform.jar${path.separator}${jtlib.tmp}/jsk-resources.jar${path.separator}${jtlib.tmp}/phoenix-init.jar${path.separator}${jtlib.tmp}/tools.jar${path.separator}${jtlib.tmp}/classserver.jar${path.separator}${jtlib.tmp}/reference-collections-1.0.0.jar${path.separator}${jtlib.tmp}/high-scale-lib.jar"/>
             <arg value="-timeout:8"/>
             <!--<arg value="-Djsk.home=${river.home}"/>-->
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
@@ -251,6 +253,8 @@
                 <file name="phoenix-init.jar"/>
                 <file name="tools.jar"/>
                 <file name="classserver.jar"/>
+                <file name="reference-collections-1.0.0.jar"/>
+                <file name="high-scale-lib.jar"/>
             </filelist>
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
@@ -269,6 +273,8 @@
                 <file name="phoenix-init.jar"/>
                 <file name="tools.jar"/>
                 <file name="classserver.jar"/>
+                <file name="reference-collections-1.0.0.jar"/>
+                <file name="high-scale-lib.jar"/>
             </filelist>
         </move>
         <move file="${jtreg.dir}/JTlib-tmp/jsk-policy.jar" todir="${river.lib-ext.dir}"/>
@@ -331,6 +337,7 @@
                         <include name="jsk-platform.jar"/>
                         <include name="jsk-lib.jar"/>
                         <include name="high-scale-lib.jar"/>
+                        <include name="reference-collections-1.0.0.jar"/>
                     </fileset>
                 </classpath>
                 <env key="SOUL" value="${soul}"/>

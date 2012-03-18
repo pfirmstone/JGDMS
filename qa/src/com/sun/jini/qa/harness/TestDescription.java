@@ -605,7 +605,7 @@ public class TestDescription implements Serializable {
         // Uncomment the following line if you want to debug permission requests
 //        cmdList.add("-Djava.security.manager=com.sun.jini.tool.ProfilingSecurityManager");
 //        cmdList.add("-Djava.security.manager=java.lang.SecurityManager");
-        cmdList.add("-Djava.security.manager=org.apache.river.api.security.DelegateCombinerSecurityManager");
+        cmdList.add("-Djava.security.manager=org.apache.river.api.security.CombinerSecurityManager");
 	cmdList.add("-Djava.security.policy=" + getPolicyFile());
 	if (getCodebase() != null) {
 	    cmdList.add("-Djava.rmi.server.codebase=" + getCodebase());

@@ -19,7 +19,6 @@
 package org.apache.river.api.security;
 
 import java.io.Serializable;
-import java.lang.reflect.Constructor;
 import java.security.AllPermission;
 import java.security.Permission;
 import java.security.PermissionCollection;
@@ -41,11 +40,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
- * ConcurrentPermission's is a replacement for java.security.Permissions.
+ * ConcurrentPermissions is a replacement for java.security.Permissions.
  * 
  * This was originally intended to be used as a policy cache, it turns out
- * that a policy cache is not needed, due to the efficiency of 
- * URLGrant.implies(ProtectionDomain pd).  Scalability is better without
+ * that a policy cache is not needed, due to the efficiency of package private
+ * URIGrant.implies(ProtectionDomain pd).  Scalability is better without
  * a policy cache because PermissionGrant's are immutable, have no mutable shared 
  * state and are therefore not likely to causing cache misses.
  * 
@@ -73,9 +72,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  * added during an Enumeration.
  * 
  * TODO: Serialization properly
- * @version 0.4 2009/11/10
+ * @version 0.5 2012/04/18
  * 
  * @author Peter Firmstone
+ * @since 2.2.1
  * @serial permsMap
  */
 public final class ConcurrentPermissions extends PermissionCollection 

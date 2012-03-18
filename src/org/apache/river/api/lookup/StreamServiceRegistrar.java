@@ -37,16 +37,12 @@ import org.apache.river.api.util.ResultStream;
  * (on both StreamServiceRegistrar and ServiceRegistration) is atomic with 
  * respect to other invocations.
  * <p></p>
- * The StreamServiceRegistrar is intended to perform the same function
- * as the ServiceRegistrar, but with the ability to return results as a 
+ * StreamServiceRegistrar is intended to perform the same function
+ * as ServiceRegistrar, but with the ability to return results as a 
  * stream, so memory consumption is minimised at the client and network
  * communication is minimised between the client and lookup service server. 
- * <p></p>
- * All clients utilising ServiceRegistrar, should switch to the 
- * StreamServiceRegistrar.
  * <p>
  * @see ServiceRegistrar
- * @see PortableServiceRegistrar
  * @see ServiceRegistration
  * @author Peter Firmstone
  * @since 2.2.1

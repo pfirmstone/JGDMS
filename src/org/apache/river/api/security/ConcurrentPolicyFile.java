@@ -57,19 +57,22 @@ import org.apache.river.api.security.PermissionGrant;
 
 
 /**
+ * <p>
  * Concurrent Policy implementation based on policy configuration files,
  * it is intended to provide concurrent implies() for greatly improved
- * throughput at the expense of memory usage.
- * 
+ * throughput.  Caching limits scalability and consumes shared memory,
+ * so no cache exists.
+ * </p><p>
  * Set the following system properties to use this Policy instead of the
  * built in Java sun.security.provider.PolicyFile:
- *  
+ * </p>
+ *  <pre>
  * net.jini.security.policy.PolicyFileProvider.basePolicyClass = 
  * org.apache.river.security.concurrent.ConcurrentPolicyFile
- * 
+ * </pre>
  * 
  * This
- * implementation recognizes text files, consisting of clauses with the
+ * implementation recognises text files, consisting of clauses with the
  * following syntax:
  * 
  * <pre>
@@ -154,13 +157,9 @@ import org.apache.river.api.security.PermissionGrant;
  * </dl>
  * <br>
  * <br>
- * This implementation is thread-safe. The policy caches sets of calculated
- * permissions for the requested objects (ProtectionDomains and CodeSources) via
- * WeakHashMap; the cache is cleaned either explicitly during refresh()
- * invocation, or naturally by garbage-collecting the corresponding objects.
- * 
- * @see org.apache.harmony.security.PolicyUtils#getPolicyURLs(Properties, String,
- *      String)
+ * This implementation is thread-safe and scalable.
+ * @author Peter Firmstone.
+ * @since 2.2.1
  */
 
 public class ConcurrentPolicyFile extends Policy implements ConcurrentPolicy {

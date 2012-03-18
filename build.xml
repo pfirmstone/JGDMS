@@ -362,6 +362,9 @@
             <package name="net.jini.url.file"/>
             <package name="net.jini.url.httpmd"/>
             <package name="net.jini.url.https"/>
+            <package name="org.apache.river.api.lookup"/>
+            <package name="org.apache.river.api.security"/>
+            <package name="org.apache.river.api.util"/>
         </javadoc>
         <mkdir dir="${doc.api.dir}/doc-files"/>
         <copy file="NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE.txt"/>
@@ -523,6 +526,7 @@
         <copy todir="lib">
             <fileset refid="asm.jars"/>
             <fileset refid="high-scale-lib.jars"/>
+            <fileset refid="reference-collections.jar"/>
         </copy>
     </target>
 
@@ -2176,7 +2180,7 @@
     <target name="prep-tests" depends="">
         <mkdir dir="${test.classes.dir}"/>
         <mkdir dir="${test.results.dir}"/>
-        <copy file="high-scale-lib/high-scale-lib.jar" todir="test/lib"/>
+        <copy file="dep-libs/high-scale-lib/high-scale-lib.jar" todir="test/lib"/>
     </target>
 
     <target name="clean-tests" depends="">

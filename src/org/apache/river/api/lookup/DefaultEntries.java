@@ -37,7 +37,8 @@ import net.jini.lookup.entry.UIDescriptor;
  * Note: This class is not threadsafe, use external synchronization if required.
  * 
  * Suggested by Dan Creswell.
- * @author peter
+ * @author Peter Firmstone.
+ * @since 2.2.1
  */
 public class DefaultEntries {
     private final Set<Class> entrys;

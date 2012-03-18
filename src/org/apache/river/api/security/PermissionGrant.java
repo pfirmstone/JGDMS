@@ -25,12 +25,12 @@ import java.security.ProtectionDomain;
 import java.util.Collection;
 
 /**
- * PermissionGrant's are expected to be effectively immutable,
+ * PermissionGrant implementations are expected to be immutable,
  * thread safe and have a good hashCode implementation to perform well in
  * Collections.
  * 
- * You shouldn't pass around PermissionGrant's to just anyone as they can
- * provide an attacker with information about which Permissions may be granted.
+ * You shouldn't pass around PermissionGrant's to just anyone; they can
+ * provide an attacker with information about granted Permissions.
  * 
  * Caveat Implementor: PermissionGrant's cannot perform privileged actions, 
  * whilst being used by the policy to make policy decisions, any privileged 
@@ -38,9 +38,10 @@ import java.util.Collection;
  * Only PermissionGrant's belonging to the same ProtectionDomain as the
  * active Policy can perform PrivilegedAction's, since the Policy caches it's 
  * own domain Permissions during initialisation, it doesn't consult
- * PermissionGrant's after.
+ * PermissionGrant's thereafter.
  * 
  * @author Peter Firmstone
+ * @since 2.2.1
  */
 public interface PermissionGrant {
     
@@ -56,11 +57,6 @@ public interface PermissionGrant {
      * for Dynamic Grant's.  A PermissionGrant is first asked by the Policy
      * if it applies to a Particular ProtectionDomain, if it does, the Policy
      * calls getPermissions.
-     *
-     * Dynamic grants can be denied to some ProtectionDomains based on
-     * CodeSource or URL's for codebases, this is to remove the possiblity of
-     * executing Permissions for vulnerable codebases, once a vulnerability
-     * is identified after the fact.
      *
      * @param pd ProtectionDomain
      * @return
@@ -103,15 +99,13 @@ public interface PermissionGrant {
 
     /**
      * Returns true if this PermissionGrant defines no Permissions, or if
-     * a PermissionGrant was made to a ProtectionDomain that no longer exists,
-     * or if the Exclusion excludes the PermissionGrant.
-     * 
+     * a PermissionGrant was made to a ProtectionDomain that no longer exists.
      */
     public boolean isVoid();
     
     /**
-     * Provide a suitable PermissionGrantBuilder, the user can use to
-     * produce a new PermissionGrant.
+     * Provide a PermissionGrantBuilder, suitable for
+     * producing a new PermissionGrant.
      * 
      * @return
      */

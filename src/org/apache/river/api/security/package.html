@@ -22,55 +22,17 @@
 
 
 </head>
-<body bgcolor="white">
-
-Provides an interface for security policy providers capable of dynamic
-permission grants, an interface for security manager or policy providers
-that use custom security context state, and a security policy provider
-supporting dynamic permission grants.
+<body bgcolor="white"
 <p>
-The {@link net.jini.security.policy.DynamicPolicy} interface is
-implemented by security policy providers that may support dynamic granting of
-permissions at run-time.  One such provider is {@link
-net.jini.security.policy.DynamicPolicyProvider}, which layers
-dynamic grant functionality on top of a "static" security policy provider (that
-is, one incapable of dynamic permission grants itself).
-<p>
-The default static security policy used by <code>DynamicPolicyProvider</code>
-is {@link net.jini.security.policy.PolicyFileProvider}: a policy implementation
-that wraps the J2SE(TM) default
-<a href="http://java.sun.com/j2se/1.4/docs/guide/security/PolicyFiles.html">
-"PolicyFile" security policy provider</a> distributed as part of the Java(TM) 2
-Platform, Standard Edition.  <code>PolicyFileProvider</code> augments the
-J2SE default policy provider with convenience constructors as well as support
-for a special-cased permission,
-{@link net.jini.security.policy.UmbrellaGrantPermission}, which signifies a
-{@link net.jini.security.GrantPermission} for all permissions authorized to a
-given protection domain.
-<p>
-The {@link net.jini.security.policy.SecurityContextSource} interface is
-intended to be implemented by security managers and policy providers whose
-security contexts include state in addition to that provided by
-{@link java.security.AccessControlContext}.
-
-@since 2.0
-@version 2.0
-
-<!--
-<h2>Package Specification</h2>
-
-##### FILL IN ANY SPECS NEEDED BY JAVA COMPATIBILITY KIT #####
-<ul>
-  <li><a href="">##### REFER TO ANY FRAMEMAKER SPECIFICATION HERE #####</a>
-</ul>
-
-<h2>Related Documentation</h2>
-
-For overviews, tutorials, examples, guides, and tool documentation, please see:
-<ul>
-  <li><a href="">##### REFER TO NON-SPEC DOCUMENTATION HERE #####</a>
-</ul>
--->
-
+This package contains a scalable cache based security manager that parallelises
+domain security checks.  Also included is a concurrent
+policy file provider to replace Java's standard offering, this policy provider
+is in theory much faster after policy file parsing is complete, it uses an immutable data 
+structure that supports highly scalable concurrent access and does not require
+further disk access and minimises network and DNS requirements.
+</p><p>
+Delegates and DelegatePermission were intended inclusions in this release,
+however they have been removed and will be included in a future release of River.
+</p>
 </body>
 </html>

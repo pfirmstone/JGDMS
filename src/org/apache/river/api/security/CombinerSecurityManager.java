@@ -54,9 +54,12 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 /**
  * CombinerSecurityManager, is intended to be a highly scalable
- * SecurityManager implementation that softly caches the results of security checks
+ * SecurityManager implementation that caches the results of security checks
  * for each context, which may be an instance of SecurityContext or
- * AccessControlContext.
+ * AccessControlContext.  Stale records are pruned from the cache.
+ * 
+ * The cache utilises Cliff Click's NonBlockingHashMap and Doug Lee's 
+ * ConcurrentSkipListSet.
  * 
  * This SecurityManager should be tuned for garbage collection for a large
  * young generation heap, since many young objects are created and discarded.
