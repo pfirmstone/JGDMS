@@ -143,9 +143,9 @@ public class PrepareJob extends Job implements TransactionConstants {
                 if (operationsLogger.isLoggable(Level.FINER)) {
                     operationsLogger.exiting(
 		        PrepareJob.class.getName(), 
-			"doWork", new Integer(vote));
+			"doWork", Integer.valueOf(vote));
 		}
-		return new Integer(vote);
+		return Integer.valueOf(vote);
         }
  
         //...otherwise, explicitly instruct the participant to
@@ -163,9 +163,9 @@ public class PrepareJob extends Job implements TransactionConstants {
                 if (operationsLogger.isLoggable(Level.FINER)) {
                     operationsLogger.exiting(
 		        PrepareJob.class.getName(),"doWork",
-		        new Integer(ABORTED));
+		        Integer.valueOf(ABORTED));
 		}
-	        return new Integer(ABORTED);
+	        return Integer.valueOf(ABORTED);
             }
 	} catch (JobException je) {
             if (operationsLogger.isLoggable(Level.FINER)) {
@@ -195,14 +195,14 @@ public class PrepareJob extends Job implements TransactionConstants {
  
         try {
             vote = par.prepare(tr.mgr, tr.id);
-            response = new Integer(vote);
+            response = Integer.valueOf(vote);
         } catch (TransactionException bte) {
             vote = ABORTED;
-            response = new Integer(vote);
+            response = Integer.valueOf(vote);
         } catch (RemoteException re) {
         } catch (RuntimeException rte) {
 	    vote = ABORTED;
-	    response = new Integer(vote);
+	    response = Integer.valueOf(vote);
 	}
 
         if (response != null) {
@@ -298,7 +298,7 @@ public class PrepareJob extends Job implements TransactionConstants {
 		break;
 	    }
 	}
-	Integer result = new Integer(prepstate);
+	Integer result = Integer.valueOf(prepstate);
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(PrepareJob.class.getName(),
                 "computeResult", result);

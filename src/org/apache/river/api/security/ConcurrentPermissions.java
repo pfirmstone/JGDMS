@@ -292,7 +292,7 @@ implements Serializable {
         }
     }
     
-    private class PC extends PermissionCollection {
+    private static class PC extends PermissionCollection {
         private static final long serialVersionUID = 1L;
         private final Collection<Permission> perms;
         

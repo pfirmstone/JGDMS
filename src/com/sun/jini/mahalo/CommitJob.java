@@ -139,7 +139,7 @@ public class CommitJob extends Job implements TransactionConstants {
 	    case COMMITTED:
             case NOTCHANGED:
             case ABORTED:
-                return new Integer(vote);
+                return Integer.valueOf(vote);
         }
 
         //Instruct the TransactionParticipant to roll forward
@@ -154,7 +154,7 @@ public class CommitJob extends Job implements TransactionConstants {
  
 	try {
             if (attempt(who) >= maxtries) {
-                return new Integer(COMMITTED);
+                return Integer.valueOf(COMMITTED);
             }
 	} catch (JobException je) {
 	    return null;
@@ -175,43 +175,43 @@ public class CommitJob extends Job implements TransactionConstants {
  
         try {
             par.commit(tr.mgr, tr.id);
-            response = new Integer(COMMITTED);
+            response = Integer.valueOf(COMMITTED);
         } catch (TransactionException bte) {
             //The participant doesn't have record of the
             //transaction, so it must have already rolled
             //forward.
-            response = new Integer(COMMITTED);
+            response = Integer.valueOf(COMMITTED);
 	} catch (NoSuchObjectException nsoe) {
 	    //No definition for object in VM, so stop
 	    //and consider committed.
-	    response = new Integer(COMMITTED);
+	    response = Integer.valueOf(COMMITTED);
 	} catch (ConnectException ce) {
 	    //failure setting up connection, so give
 	    //participant more time by retrying
 	} catch (UnknownHostException uhe) {
 	    //could not resolve host for participant, so
 	    //stop and consider committed
-	    response = new Integer(COMMITTED);
+	    response = Integer.valueOf(COMMITTED);
 	} catch (ConnectIOException cioe) {
 	    //multiplexed connection or cached 
 	    //connection problem, give participant more time
 	} catch (MarshalException me) {
 	    //cannot send parameters, so stop and consider done
-	    response = new Integer(COMMITTED);
+	    response = Integer.valueOf(COMMITTED);
 	} catch (AccessException ae) {
 	    //Access error on registry or rmid consider done
-	    response = new Integer(COMMITTED);
+	    response = Integer.valueOf(COMMITTED);
 	} catch (ActivateFailedException afe) {
 	    //Activatable Ref Stub couldn't activate
 	    //participant, so stop and consider done
-	    response = new Integer(COMMITTED);
+	    response = Integer.valueOf(COMMITTED);
         } catch (RemoteException re) {
             //Something happened with the network, so
             //return null to retry at a later time.
         } catch (RuntimeException rte) {
             //Something happened with the participant, so
             //stop and consider done
-	    response = new Integer(COMMITTED);
+	    response = Integer.valueOf(COMMITTED);
         }
  
  
@@ -277,9 +277,9 @@ public class CommitJob extends Job implements TransactionConstants {
         if (logger.isLoggable(Level.FINEST)) {
             logger.log(Level.FINEST,
                 "CommitJob:computeResult {0} participants COMMITTED", 
-		new Integer(count));
+		Integer.valueOf(count));
 	}
 
-	return new Integer(COMMITTED);
+	return Integer.valueOf(COMMITTED);
     }
 }

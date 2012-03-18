@@ -115,7 +115,7 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
 	        if(transactionsLogger.isLoggable(Level.WARNING)) {
 		    transactionsLogger.log(Level.WARNING,
 		    "Attempting to settle transaction in an invalid state: {0}", 
-		    new Integer(state));
+		    Integer.valueOf(state));
 	        }
 	    }
 

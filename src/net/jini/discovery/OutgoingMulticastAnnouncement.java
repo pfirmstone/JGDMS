@@ -55,7 +55,7 @@ public class OutgoingMulticastAnnouncement {
 		    return Integer.getInteger("net.jini.discovery.mtu",
 					      minMaxPacketSize);
 		} catch (SecurityException e) {
-		    return new Integer(minMaxPacketSize);
+		    return Integer.valueOf(minMaxPacketSize);
 		}
 	    }
 	})).intValue();

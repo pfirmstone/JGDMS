@@ -162,7 +162,7 @@ abstract class EntryTreePanel extends JPanel {
 	String clazzName = clazz.toString();
 	Object fobj = null;
 	if("int".equals(clazzName)){
-	  fobj = new Integer(f.getInt(obj));
+	  fobj = Integer.valueOf(f.getInt(obj));
 	} else if("boolean".equals(clazzName)){
 	  fobj = new Boolean(f.getBoolean(obj));
 	} else if("byte".equals(clazzName)){

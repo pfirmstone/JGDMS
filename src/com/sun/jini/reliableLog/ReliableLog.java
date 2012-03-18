@@ -193,8 +193,8 @@ public class ReliableLog {
 		    int offset = (int)logBytes & 3;
 		    if (offset > 0) {
 			offset = 4 - offset;
-			logBytes += offset;
-			din.skipBytes(offset);
+                        // In case fewer than offset bytes are skipped.
+			logBytes += din.skipBytes(offset);
 		    }
 		}
 		updateLen = din.readInt();

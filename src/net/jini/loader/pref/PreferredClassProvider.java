@@ -1610,7 +1610,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    }
 	}
 
-	LoaderKey key = new LoaderKey(uris, parent);
+	LoaderKey key = new LoaderKey(uris, parent, refQueue);
 	LoaderEntryHolder holder;
 	synchronized (loaderTable) {
 	    if (!toRemove.isEmpty()) {
@@ -1685,7 +1685,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
                      * Finally, create an entry to hold the new loader with a
                      * weak reference and store it in the table with the key.
                      */
-                    entry = new LoaderEntry(key, loader);
+                    entry = new LoaderEntry(key, loader, refQueue);
                     holder.entry = entry;
 		}
 
@@ -1746,12 +1746,12 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * registered with "refQueue" so that the entry can be removed
      * after the loader has become unreachable.
      **/
-    private class LoaderKey extends WeakReference<ClassLoader> {
+    private static class LoaderKey extends WeakReference<ClassLoader> {
 	private final URI[] uris;
 	private final boolean nullParent;
 	private final int hashValue;
 
-	public LoaderKey(URI[] urls, ClassLoader parent) {
+	public LoaderKey(URI[] urls, ClassLoader parent, ReferenceQueue<ClassLoader> refQueue) {
 	    super(parent, refQueue);
 	    nullParent = (parent == null);
             uris = urls;
@@ -1786,7 +1786,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * weak reference is registered with "refQueue" so that the entry
      * can be removed after the loader has become unreachable.
      **/
-    private class LoaderEntry extends WeakReference<ClassLoader> {
+    private static class LoaderEntry extends WeakReference<ClassLoader> {
 	public final LoaderKey key;	// for efficient removal
 
 	/**
@@ -1804,12 +1804,12 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	 */
 	public boolean removed = false;
 
-	public LoaderEntry(LoaderKey key, ClassLoader loader) {
+	public LoaderEntry(LoaderKey key, ClassLoader loader, ReferenceQueue<ClassLoader> refQueue) {
 	    super(loader, refQueue);
 	    this.key = key;
 	}
     }
-    private class LoaderEntryHolder {
+    private static class LoaderEntryHolder {
 	public LoaderEntry entry;
     }
 

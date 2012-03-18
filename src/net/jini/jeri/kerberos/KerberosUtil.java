@@ -758,7 +758,7 @@ class KerberosUtil {
 			     this.getClass(), "write",
 			     "failed to wrap buf of size {0} into a GSS " +
 			     "token,\nconnection is {1},\nthrows ",
-			     new Object[] {new Integer(len), this}, ioe);
+			     new Object[] {Integer.valueOf(len), this}, ioe);
 		}
 		throw ioe;
 	    }
@@ -1085,7 +1085,8 @@ class KerberosUtil {
 	}
 
 	/** A linked hash map that implements LRU replacement policy */
-	private class LRUHashMap extends LinkedHashMap {
+	private static class LRUHashMap extends LinkedHashMap {
+            private static final long serialVersionUID = 1L;
 
 	    private int maxCacheSize;
 

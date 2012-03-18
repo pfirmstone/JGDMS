@@ -566,7 +566,7 @@ public class PreferredClassLoader extends URLClassLoader
     }
 
     /* cache existence of jar files referenced by codebase urls */
-    private static final Set existSet = new HashSet(11);
+    private static final Set<String> existSet = new HashSet<String>(11);
 
     /*
      * Determine if a jar file in a given URL location exists.  If the
@@ -578,9 +578,10 @@ public class PreferredClassLoader extends URLClassLoader
      */
     private boolean jarExists(URL firstURL) throws IOException {
 	boolean exists;
-
+        
 	synchronized (existSet) {
-	    exists = existSet.contains(firstURL);
+            // The comment says in a cache of URL strings, URL in Set, bad.
+	    exists = existSet.contains(firstURL.toString());
 	}
 
 	if (!exists) {
@@ -606,7 +607,7 @@ public class PreferredClassLoader extends URLClassLoader
 	    }
 	    if (exists) {
 		synchronized (existSet) {
-		    existSet.add(firstURL);
+		    existSet.add(firstURL.toString());
 		}
 	    }
 	}

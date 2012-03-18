@@ -1830,7 +1830,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 					 logmsg,
 					 new Object[] {
 					    sock.getInetAddress().getHostName(),
-					    new Integer(sock.getPort()),
+					    Integer.valueOf(sock.getPort()),
 					    rawUnicastDiscoveryConstraints
 					 },
 					 e);
@@ -1843,7 +1843,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 					 logmsg,
 					 new Object[] {
 					    loc.getHost(),
-					    new Integer(loc.getPort()),
+					    Integer.valueOf(loc.getPort()),
 					    rawUnicastDiscoveryConstraints
 					 },
 					 e);
@@ -3151,7 +3151,7 @@ public class LookupDiscovery implements DiscoveryManagement,
                              (COMPONENT_NAME,
                               "multicastRequestMax",
                               int.class,
-                              new Integer(multicastRequestMax) ) ).intValue();
+                              Integer.valueOf(multicastRequestMax) ) ).intValue();
         multicastRequestInterval
          = ( (Long)config.getEntry
                             (COMPONENT_NAME,
@@ -3213,7 +3213,7 @@ public class LookupDiscovery implements DiscoveryManagement,
                                 (COMPONENT_NAME,
                                  "multicastInterfaceRetryInterval",
                                  int.class,
-                                 new Integer(nicRetryInterval) ) ).intValue();
+                                 Integer.valueOf(nicRetryInterval) ) ).intValue();
         /* Multicast announcement-related configuration items */
         multicastAnnouncementInterval
          = ( (Long)config.getEntry

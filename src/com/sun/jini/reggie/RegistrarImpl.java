@@ -1945,7 +1945,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 			"exception decoding multicast request from {0}:{1}",
 			new Object[]{
 			    datagram.getAddress(),
-			    new Integer(datagram.getPort()) },
+			    Integer.valueOf(datagram.getPort()) },
 			e);
 		}
 		return;
@@ -1967,7 +1967,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 			    "exception decoding multicast request from {0}:{1}",
 			    new Object[]{
 				datagram.getAddress(),
-				new Integer(datagram.getPort()) },
+				Integer.valueOf(datagram.getPort()) },
 			    e);
 		    }
 		    return;
@@ -2053,7 +2053,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 			if (logger.isLoggable(Levels.HANDLED)) {
 			    logThrow(Levels.HANDLED, getClass().getName(),
 				     "run", "exception responding to {0}:{1}",
-				     new Object[] {addr[i], new Integer(port)}
+				     new Object[] {addr[i], Integer.valueOf(port)}
 				     , e);
 			}
 		    }
@@ -2071,7 +2071,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 			getClass().getName(),
 			"run",
 			"failed to respond to {0} on port {1}",
-			new Object[]{Arrays.asList(addr), new Integer(port)},
+			new Object[]{Arrays.asList(addr), Integer.valueOf(port)},
 			e);
 		}
 	    }
@@ -2124,7 +2124,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 			"exception handling unicast discovery from {0}:{1}",
 			new Object[] {
 			socket.getInetAddress(),
-			new Integer(socket.getPort())}
+			Integer.valueOf(socket.getPort())}
 			,
 			e);
 		}
@@ -3483,7 +3483,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		logger.log(
 		    Level.CONFIG,
 		    "changed unicast discovery port to {0}",
-		    new Object[]{ new Integer(unicaster.port) });
+		    new Object[]{ Integer.valueOf(unicaster.port) });
 	    }
 	} finally {
 	    concurrentObj.writeUnlock();

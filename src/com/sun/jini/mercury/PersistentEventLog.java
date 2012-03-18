@@ -451,7 +451,7 @@ class PersistentEventLog implements EventLog {
         if (persistenceLogger.isLoggable(Level.FINEST)) {
             persistenceLogger.log(Level.FINEST, 
                 "EventLog::readAhead() maxEvents = {0}", 
-                new Object[] {new Integer(maxEvents)});
+                new Object[] {Integer.valueOf(maxEvents)});
         } 
         
         while ((readCount < wcount) && 

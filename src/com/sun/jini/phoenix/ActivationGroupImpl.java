@@ -426,7 +426,7 @@ public class ActivationGroupImpl extends ActivationGroup
 	throws ConfigurationException
     {
 	return ((Integer) config.getEntry(PHOENIX, name, int.class,
-					  new Integer(defValue))).intValue();
+					  Integer.valueOf(defValue))).intValue();
     }
 
     /**

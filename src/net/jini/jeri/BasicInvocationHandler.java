@@ -539,7 +539,7 @@ public class BasicInvocationHandler
 	String name = method.getName();
 
 	if (name.equals("hashCode")) {
-	    return new Integer(hashCode());
+	    return Integer.valueOf(hashCode());
 
 	} else if (name.equals("equals")) {
 	    Object obj = args[0];

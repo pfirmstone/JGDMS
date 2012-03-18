@@ -305,7 +305,7 @@ class EntryHolder implements TransactionConstants {
 		if (matchingLogger.isLoggable(Level.FINER)) {
 		    matchingLogger.log(Level.FINER, "match, but can''t " +
 			"perform {0}; handle.knownMgr(txn) == {1}", 
-			new Object[] {new Integer(op), 
+			new Object[] {Integer.valueOf(op), 
 				      new Boolean(handle.knownMgr(txn))});
 		}
 

@@ -201,7 +201,7 @@ public final class PreferredResources {
 			/* no wildcard; must be a full resource name */
 			int state = (preference.booleanValue() ?
 				     NAME_PREFERRED : NAME_NOT_PREFERRED);
-			mapPut(completeNamePrefs, name, new Integer(state));
+			mapPut(completeNamePrefs, name, Integer.valueOf(state));
 		    }
 		    preference = null;
 		    name = null;
@@ -346,7 +346,7 @@ public final class PreferredResources {
 				  " expression");
 	}
 
- 	completeNamePrefs.put(name, new Integer(prefState));
+ 	completeNamePrefs.put(name, Integer.valueOf(prefState));
     }
 
     /**

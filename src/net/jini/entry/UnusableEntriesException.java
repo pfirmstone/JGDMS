@@ -106,18 +106,16 @@ public class UnusableEntriesException extends Exception {
 
 	    this.entries = entries;
 	}
-
-	for (Iterator i=exceptions.iterator(); i.hasNext();) {
-	    if (i == null)
+        Iterator i = exceptions.iterator();
+        if (i == null)
 		throw new 
 		    NullPointerException("exceptions contains a null value");
-
+	while (i.hasNext()) {
 	    if (!(i.next() instanceof UnusableEntryException)) {
 		throw new IllegalArgumentException("exceptions contains " +
 		    "a value which is not an UnusableEntryException");
 	    }
 	}
-
 	this.exceptions = exceptions;
     }
 

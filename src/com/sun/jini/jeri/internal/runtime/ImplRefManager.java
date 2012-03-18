@@ -214,7 +214,7 @@ final class ImplRefManager {
 		logger.log(Level.FINEST,
 			   "this={0}, target={1}, pin count now {2}",
 			   new Object[] {
-			       this, target, new Integer(pinningTargets.size())
+			       this, target, Integer.valueOf(pinningTargets.size())
 			   });
 	    }
 	}
@@ -240,7 +240,7 @@ final class ImplRefManager {
 			   "this={0}, target={1}, pin count now {2}",
 			   new Object[] {
 			       this, target,
-			       new Integer(pinningTargets.size())
+			       Integer.valueOf(pinningTargets.size())
 			   });
 	    }
 

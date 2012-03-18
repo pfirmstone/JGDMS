@@ -84,6 +84,7 @@ public class DiscoveryConstraints {
     
     @Override
     public boolean equals(Object o){
+        if ( o == null ) return false;
 	if ( o == this ) return true;
 	if ( o.hashCode() != hashcode) return false;
 	if ( o instanceof DiscoveryConstraints) {
@@ -201,7 +202,7 @@ public class DiscoveryConstraints {
 				    (ConnectionAbsoluteTime) getElement(s);
 	int hash = 7;
 	hash = 41 * hash + (this.unfulfilled != null ? this.unfulfilled.hashCode() : 0);
-	hash = 41 * hash + (this.protocolVersions != null ? this.protocolVersions.hashCode() : 0);
+	hash = 41 * hash + this.protocolVersions.hashCode();
 	hash = 41 * hash + this.preferredProtocolVersion;
 	hash = 41 * hash + (this.connectionAbsoluteTime != null ? this.connectionAbsoluteTime.hashCode() : 0);
 	hash = 41 * hash + (this.maxPacketSize != null ? this.maxPacketSize.hashCode() : 0);

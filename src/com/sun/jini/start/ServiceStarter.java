@@ -412,11 +412,11 @@ public class ServiceStarter {
 		    results[i].exception);
                 logger.log(Level.WARNING, 
 		    "service.creation.unknown.detail", 
-		    new Object[] { new Integer(i), 
+		    new Object[] { Integer.valueOf(i), 
 		        results[i].descriptor});
 	    } else if (results[i].descriptor == null) {
 	        logger.log(Level.WARNING, 
-		    "service.creation.null", new Integer(i));
+		    "service.creation.null", Integer.valueOf(i));
 	    }
 	}
         logger.exiting(ServiceStarter.class.getName(),

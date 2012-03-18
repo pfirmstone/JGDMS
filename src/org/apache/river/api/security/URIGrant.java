@@ -53,7 +53,7 @@ class URIGrant extends CertificateGrant {
         }
         location = Collections.unmodifiableCollection(uris);
         int hash = 3;
-        hash = 67 * hash + (this.location != null ? uri.hashCode() : 0);
+        hash = 67 * hash + (this.location != null ? location.hashCode() : 0);
         hash = 67 * hash + (super.hashCode());
         hashCode = hash;
     }
@@ -422,7 +422,7 @@ class URIGrant extends CertificateGrant {
         throw new InvalidObjectException("PermissionGrantBuilder required");
     }
     
-    private class NormaliseURLAction implements PrivilegedExceptionAction<URI> {
+    private static class NormaliseURLAction implements PrivilegedExceptionAction<URI> {
         private final URL codesource;
         
         NormaliseURLAction(URL codebase){

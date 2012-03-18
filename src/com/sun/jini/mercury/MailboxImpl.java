@@ -1365,7 +1365,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
             if (adminLogger.isLoggable(Level.FINEST)) {
                 adminLogger.log(Level.FINEST,
                     "Notifying {0} possible registrations",
-                     new Integer(regByID.size()));
+                     Integer.valueOf(regByID.size()));
             }
             for (int i=0; i < regs.length; i++) {
                 //Remove registrations from internal structures.
@@ -1714,7 +1714,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
         if(deliveryLogger.isLoggable(Level.FINEST)) {
             deliveryLogger.log(Level.FINEST, "UnknownEvents size: {0}", 
-                new Integer(reg.getUnknownEvents().size()));
+                Integer.valueOf(reg.getUnknownEvents().size()));
         }
         if (operationsLogger.isLoggable(Level.FINER)) {
 	    operationsLogger.exiting(mailboxSourceClass, 
@@ -2031,7 +2031,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	if(leaseLogger.isLoggable(Level.FINEST)) {
             leaseLogger.log(Level.FINEST, 
 	        "Attempting to renew a batch of {0} leases", 
-		new Integer(count)); 
+		Integer.valueOf(count)); 
 	}
 
 	// Delegate functionality to Landlord utility
@@ -2067,7 +2067,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	if(leaseLogger.isLoggable(Level.FINEST)) {
             leaseLogger.log(Level.FINEST, 
 	        "Attempting to cancel a batch of {0} leases", 
-		new Integer(count)); 
+		Integer.valueOf(count)); 
 	}
 
         if (operationsLogger.isLoggable(Level.FINER)) {
@@ -2685,7 +2685,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     	            if (deliveryLogger.isLoggable(Level.FINEST)) {
                         deliveryLogger.log(Level.FINEST,
 			    "Notifier checking {0} possible registrations",
-			    new Integer(count));
+			    Integer.valueOf(count));
 		    }
     	            // don't need to check for size() > 0 (below) since
     	            // we hold the lock. 
@@ -3418,7 +3418,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                     if (adminLogger.isLoggable(Level.FINEST)) {
                         adminLogger.log(Level.FINEST,
                             "Destroying {0} registration storage locations",
-                             new Integer(regByID.size()));
+                             Integer.valueOf(regByID.size()));
                     }
                     for (int i=0; i < regs.length; i++) {
                        try {
@@ -4285,7 +4285,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        if (recoveryLogger.isLoggable(Levels.HANDLED)) {
                     recoveryLogger.log(Levels.HANDLED, 
                         "Error while marshalling attribute[{0}]: {1}",
-			new Object[] {new Integer(i), attrs[i]});
+			new Object[] {Integer.valueOf(i), attrs[i]});
                     recoveryLogger.log(Levels.HANDLED, 
                         "Marshalling exception",e);
 	        }
@@ -4325,7 +4325,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                     recoveryLogger.log(Levels.HANDLED, 
                         "Error while unmarshalling attribute[{0}]: {1}",
 			new Object [] {
-			    new Integer(i), marshalledAttrs[i]});
+			    Integer.valueOf(i), marshalledAttrs[i]});
                     recoveryLogger.log(Levels.HANDLED, 
 		        "Exception was", e);
 	        }

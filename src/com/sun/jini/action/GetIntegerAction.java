@@ -140,6 +140,6 @@ public class GetIntegerAction implements PrivilegedAction {
     }
 
     private Integer defaultValue() {
-	return defaultSet ? new Integer(defaultVal) : null;
+	return defaultSet ? Integer.valueOf(defaultVal) : null;
     }
 }

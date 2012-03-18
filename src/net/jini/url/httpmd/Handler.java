@@ -260,9 +260,8 @@ public class Handler extends URLStreamHandler {
      */
     protected boolean sameFile(URL u1, URL u2) {
         /* Compare the protocols */
-        if (!((u1.getProtocol() == u2.getProtocol()) ||
-              (u1.getProtocol() != null &&
-               u1.getProtocol().equalsIgnoreCase(u2.getProtocol()))))
+        if (!( u1.getProtocol() != null &&
+               u1.getProtocol().equalsIgnoreCase(u2.getProtocol())))
 	{
             return false;
 	}
@@ -273,11 +272,11 @@ public class Handler extends URLStreamHandler {
 	/* Compare the paths */
 	String path1 = u1.getPath();
 	String path2 = u2.getPath();
-	if (path1 == path2) {
-	    /* Paths are OK */
-	} else if (path1 == null || path2 == null) {
+	if (path1 == null || path2 == null) {
 	    return false;
-	} else if (!path1.equals(path2)) {
+        } else if ( path1.equals(path2)){
+            /* Paths are OK */
+	} else {
 	    /*
 	     * Perform case insensitive matching on the message digest
 	     * parameters, ignoring comments.

@@ -308,7 +308,7 @@ public final class GrantPermission extends Permission {
     
     public int hashCode() {
 	if (hash == null) {
-	    hash = new Integer(computeHashCode());
+	    hash = Integer.valueOf(computeHashCode());
 	}
 	return hash.intValue();
     }

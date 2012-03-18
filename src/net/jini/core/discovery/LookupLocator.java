@@ -92,7 +92,7 @@ public class LookupLocator implements Serializable {
     static final int defaultTimeout =
 	((Integer)AccessController.doPrivileged(new PrivilegedAction() {
 	    public Object run() {
-		Integer timeout = new Integer(60 * 1000);
+		Integer timeout = Integer.valueOf(60 * 1000);
 		try {
 		    Integer val = Integer.getInteger(
 				    "net.jini.discovery.timeout",

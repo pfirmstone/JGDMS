@@ -175,7 +175,7 @@ public final class ProxyTrustInvocationHandler
 	    } else if (name.equals("toString")) {
 		return proxyToString(proxy);
 	    } else if (name.equals("hashCode")) {
-		return new Integer(hashCode());
+		return Integer.valueOf(hashCode());
 	    }
 	    throw new IllegalArgumentException("unexpected Object method");
 	} else if (decl == RemoteMethodControl.class &&

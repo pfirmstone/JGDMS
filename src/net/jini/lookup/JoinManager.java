@@ -2523,7 +2523,7 @@ public class JoinManager {
                                         (COMPONENT_NAME,
                                          "wakeupRetries",
                                          int.class,
-                                         new Integer(maxNRetries))).intValue();
+                                         Integer.valueOf(maxNRetries))).intValue();
         if(attrSets == null) {
             lookupAttr = new Entry[0];
         } else {

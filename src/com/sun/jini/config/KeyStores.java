@@ -46,7 +46,7 @@ public class KeyStores {
 
     /** This class cannot be instantiated. */
     private KeyStores() {
-	new AssertionError();
+	throw new AssertionError();
     }
 
     /**

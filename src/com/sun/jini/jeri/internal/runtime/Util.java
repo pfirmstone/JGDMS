@@ -198,7 +198,7 @@ public class Util {
     {
 	if (type.isPrimitive()) {
 	    if (type == int.class) {
-		return new Integer(in.readInt());
+		return Integer.valueOf(in.readInt());
 	    } else if (type == boolean.class) {
 		return Boolean.valueOf(in.readBoolean());
 	    } else if (type == byte.class) {

@@ -122,9 +122,9 @@ class BackEnd implements Observer {
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE, "recoverSnapshot: number of entries:{0}, " +
 			"number of pendingTxns:{1}, number of registrations:{2}",
-			new Object[]{new Integer(entries.size()),
-			new Integer(pendingTxns.size()),
-			new Integer(registrations.size())});
+			new Object[]{Integer.valueOf(entries.size()),
+			Integer.valueOf(pendingTxns.size()),
+			Integer.valueOf(registrations.size())});
 	}
 
 	// Recover the session id

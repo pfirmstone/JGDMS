@@ -52,7 +52,7 @@ public class ConnectionTimer {
 	if (conn == null) {
 	    throw new NullPointerException();
 	}
-	timeouts.put(conn, new Boolean(force));
+	timeouts.put(conn, Boolean.valueOf(force));
     }
 
     /**

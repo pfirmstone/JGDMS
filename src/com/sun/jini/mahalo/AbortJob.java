@@ -158,7 +158,7 @@ public class AbortJob extends Job implements TransactionConstants {
         switch (vote) {
             case NOTCHANGED:
             case ABORTED:
-                return new Integer(ABORTED);
+                return Integer.valueOf(ABORTED);
         }
  
         //Instruct the TransactionParticipant to roll back
@@ -173,7 +173,7 @@ public class AbortJob extends Job implements TransactionConstants {
  
 	try {
             if (attempt(who) > maxtries) {
-                return new Integer(ABORTED);
+                return Integer.valueOf(ABORTED);
             }
 	} catch (JobException je) {
 	    return null;
@@ -199,43 +199,43 @@ public class AbortJob extends Job implements TransactionConstants {
  
         try {
             par.abort(tr.mgr, tr.id);
-            response = new Integer(ABORTED);
+            response = Integer.valueOf(ABORTED);
         } catch (TransactionException bte) {
             //The participant doesn't have record of the
             //transaction, so it must have already rolled
             //back.
-            response = new Integer(ABORTED);
+            response = Integer.valueOf(ABORTED);
         } catch (NoSuchObjectException nsoe) {
             //No definition for object in VM, so stop
             //and consider committed.
-            response = new Integer(ABORTED);
+            response = Integer.valueOf(ABORTED);
         } catch (ConnectException ce) {
             //failure setting up connection, so give
             //participant more time by retrying
         } catch (UnknownHostException uhe) {
             //could not resolve host for participant, so
             //stop and consider committed
-            response = new Integer(ABORTED);
+            response = Integer.valueOf(ABORTED);
         } catch (ConnectIOException cioe) {
             //multiplexed connection or cached
             //connection problem, give participant more time
         } catch (MarshalException me) {
             //cannot send parameters, so stop and consider done
-            response = new Integer(ABORTED);
+            response = Integer.valueOf(ABORTED);
         } catch (AccessException ae) {
             //Access error on registry or rmid consider done
-            response = new Integer(ABORTED);
+            response = Integer.valueOf(ABORTED);
         } catch (ActivateFailedException afe) {
             //Activatable Ref Stub couldn't activate
             //participant, so stop and consider done
-            response = new Integer(ABORTED);
+            response = Integer.valueOf(ABORTED);
         } catch (RemoteException re) {
             //Something happened with the network, so
             //retry at a later time.
         } catch (RuntimeException rte) {
             //Something happened with the participant, so
             //stop retrying
-	    response = new Integer(ABORTED);
+	    response = Integer.valueOf(ABORTED);
         }
  
         if (response != null) {
@@ -283,9 +283,9 @@ public class AbortJob extends Job implements TransactionConstants {
         if (logger.isLoggable(Level.FINEST)) {
             logger.log(Level.FINEST,
                 "AbortJob:computeResult {0} participants ABORTED", 
-		new Integer(count));
+		Integer.valueOf(count));
 	}
 
-	return new Integer(ABORTED);
+	return Integer.valueOf(ABORTED);
     }
 }

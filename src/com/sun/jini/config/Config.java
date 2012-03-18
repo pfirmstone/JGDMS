@@ -288,7 +288,7 @@ public class Config {
 	        defaultValue + ") must be between " + min + " and " + max);
 
 	final long rslt = ((Long)config.getEntry(component, name, long.class,
-	    new Long(defaultValue))).longValue();
+	    Long.valueOf(defaultValue))).longValue();
 
 	if (!inRange(rslt, min, max)) {
 	    if (logger.isLoggable(Level.FINE)) {
@@ -357,15 +357,15 @@ public class Config {
 	        defaultValue + ") must be between " + min + " and " + max);
 
 	final int rslt = ((Integer)config.getEntry(component, name, int.class,
-	    new Integer(defaultValue))).intValue();
+	    Integer.valueOf(defaultValue))).intValue();
 
 	if (!inRange(rslt, min, max)) {
 	    if (logger.isLoggable(Level.FINE)) {
 		logger.log(Level.FINE,
 		    "{0}, component {1}, name {2}: entry is out of range, " +
 		    "value: {3}, valid range: {4}:{5}",
-		     new Object[] { config, component, name, new Integer(rslt),
-				    new Integer(min), new Integer(max)});
+		     new Object[] { config, component, name, Integer.valueOf(rslt),
+				    Integer.valueOf(min), Integer.valueOf(max)});
 	    }
 	   
 	    throw new ConfigurationException("entry for component " +

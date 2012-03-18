@@ -186,7 +186,7 @@ public class MultiLogManager
             if (persistenceLogger.isLoggable(Level.FINEST)) {
                 persistenceLogger.log(Level.FINEST,
                 "Currently managing {0} logs.", 
-                new Integer(logByID.size()));
+                Integer.valueOf(logByID.size()));
             }
 
 	} 
@@ -226,7 +226,7 @@ public class MultiLogManager
             if (persistenceLogger.isLoggable(Level.FINEST)) {
                 persistenceLogger.log(Level.FINEST,
                 "Currently managing {0} logs.", 
-                new Integer(logByID.size()));
+                Integer.valueOf(logByID.size()));
             }
 	}
         

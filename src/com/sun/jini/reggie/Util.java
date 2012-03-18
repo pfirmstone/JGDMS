@@ -55,13 +55,13 @@ class Util {
 		(int) (serviceID.getLeastSignificantBits() >> 62) & 0x3;
 	    if (variant != 2) {
 		logger.log(level, "{0} has invalid variant {1}",
-			   new Object[]{ serviceID, new Integer(variant) });
+			   new Object[]{ serviceID, Integer.valueOf(variant) });
 	    }
 	    int version =
 		(int) (serviceID.getMostSignificantBits() >> 12) & 0xF;
 	    if (!(version == 1 || version == 4)) {
 		logger.log(level, "{0} has invalid version {1}",
-			   new Object[]{ serviceID, new Integer(version) });
+			   new Object[]{ serviceID, Integer.valueOf(version) });
 	    }
 	}
     }

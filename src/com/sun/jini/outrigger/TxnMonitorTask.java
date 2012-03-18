@@ -255,7 +255,7 @@ class TxnMonitorTask extends RetryTask
     public boolean tryOnce() {
 	if (logger.isLoggable(Level.FINEST)) {
 	    logger.log(Level.FINEST, "{0} attempt {1} mustQuery:{2}", 
-	        new Object[]{this, new Integer(attempt()), 
+	        new Object[]{this, Integer.valueOf(attempt()), 
 			     new Boolean(mustQuery) });
 	}
 
@@ -268,7 +268,7 @@ class TxnMonitorTask extends RetryTask
 
 	if (logger.isLoggable(Level.FINEST)) {
 	    logger.log(Level.FINEST, "{0} txn.getState() = {1}", 
-	        new Object[]{this, new Integer(txn.getState())});
+	        new Object[]{this, Integer.valueOf(txn.getState())});
 	}
 
 	// not active or prepared == no longer blocking
@@ -486,7 +486,7 @@ class TxnMonitorTask extends RetryTask
     
 	if (logger.isLoggable(Level.FINER)) {
 	    logger.log(Level.FINER, "{0} trState = {1}", 
-		       new Object[]{this, new Integer(trState)});
+		       new Object[]{this, Integer.valueOf(trState)});
 	}
 
 	failCnt = 0;		       // reset failures -- we got a response

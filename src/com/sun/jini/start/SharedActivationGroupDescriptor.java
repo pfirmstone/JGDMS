@@ -452,7 +452,7 @@ public class SharedActivationGroupDescriptor
         fields.add(Arrays.asList(serverOptions));
         fields.add(serverProperties);
         fields.add(host);
-        fields.add(new Integer(port));
+        fields.add(Integer.valueOf(port));
         return fields.toString();
     }
     

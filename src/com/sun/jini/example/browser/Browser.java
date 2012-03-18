@@ -775,7 +775,7 @@ public class Browser extends JFrame {
 		if ("equals".equals(method.getName()))
 		    return Boolean.valueOf(proxy == args[0]);
 		else if ("hashCode".equals(method.getName()))
-		    return new Integer(System.identityHashCode(proxy));
+		    return Integer.valueOf(System.identityHashCode(proxy));
 	    }
 	    try {
 		return AccessController.doPrivileged(

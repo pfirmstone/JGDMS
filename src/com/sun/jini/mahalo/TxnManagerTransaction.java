@@ -356,7 +356,7 @@ class TxnManagerTransaction
     void modifyParticipant(ParticipantHandle handle, int state) {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
-	        "modifyParticipant", new Object[] {handle, new Integer(state)});
+	        "modifyParticipant", new Object[] {handle, Integer.valueOf(state)});
 	}
 	ParticipantHandle ph = null;
 
@@ -396,7 +396,7 @@ class TxnManagerTransaction
     boolean modifyTxnState(int state) {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
-	        "modifyTxnState", new Integer(state));
+	        "modifyTxnState", Integer.valueOf(state));
 	}
 	boolean result = false;
 	synchronized (stateLock) {
@@ -517,7 +517,7 @@ class TxnManagerTransaction
 	synchronized (stateLock) {
             if (operationsLogger.isLoggable(Level.FINER)) {
                 operationsLogger.exiting(TxnManagerTransaction.class.getName(), 
-	            "getState", new Integer(trstate));
+	            "getState", Integer.valueOf(trstate));
 	    }
             return trstate;
 	}
@@ -601,7 +601,7 @@ class TxnManagerTransaction
             if (transactionsLogger.isLoggable(Level.FINEST)) {
                 transactionsLogger.log(Level.FINEST,
                 "{0} TransactionParticipants have joined", 
-		new Integer(numparts));
+		Integer.valueOf(numparts));
             }
 
 	    //If commit is called after recovery, do not
@@ -624,7 +624,7 @@ class TxnManagerTransaction
 	    //to complete.
 
 	    int oldstate = getState();
-	    Integer result = new Integer(ABORTED);
+	    Integer result = Integer.valueOf(ABORTED);
             Exception alternateException = null;
 
 
@@ -695,7 +695,7 @@ class TxnManagerTransaction
                             }
                         } catch (JobNotStartedException jnse) {
                             //no participants voted, so do nothing
-                            result = new Integer(NOTCHANGED);
+                            result = Integer.valueOf(NOTCHANGED);
                         } catch (ResultNotReadyException rnre) {
                             //consider aborted
                         } catch (JobException je) {
@@ -717,7 +717,7 @@ class TxnManagerTransaction
                 //the CommitJob to complete.
 
                 if (getState() == COMMITTED)
-                    result = new Integer(COMMITTED);
+                    result = Integer.valueOf(COMMITTED);
 	    }
 
             if (transactionsLogger.isLoggable(Level.FINEST)) {
@@ -993,7 +993,7 @@ class TxnManagerTransaction
 	    long now = System.currentTimeMillis();
 	    long transpired = now - starttime;
 
-	    Integer result = new Integer(ACTIVE);
+	    Integer result = Integer.valueOf(ACTIVE);
 	    boolean aborted = false;
 
 	    long remainder = waitFor - transpired;
@@ -1167,7 +1167,7 @@ class TxnManagerTransaction
         if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
             "Retrieved {0} participants", 
-	     new Integer(vect.size()));
+	     Integer.valueOf(vect.size()));
         }
 	
         if (operationsLogger.isLoggable(Level.FINER)) {
@@ -1188,7 +1188,7 @@ class TxnManagerTransaction
 
         if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
-            "{0} participants joined", new Integer(parts.size()));
+            "{0} participants joined", Integer.valueOf(parts.size()));
         }
 	StringBuffer sb = new StringBuffer(parts.size() + " Participants: ");
         ParticipantHandle ph;

@@ -24,6 +24,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import java.rmi.MarshalledObject;
 import java.io.IOException;
+import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
 
@@ -245,8 +246,10 @@ public class LookupAttributes {
     public static void check(Entry[] attrs, boolean nullOK) {
 	for (int i = attrs.length; --i >= 0; ) {
 	    Entry e = attrs[i];
-	    if (e == null && nullOK)
-		continue;
+	    if (e == null ){
+		if (nullOK) continue;
+                throw new NullPointerException("null Entry not ok");
+            }
 	    Class c = e.getClass();
 	    if (!Modifier.isPublic(c.getModifiers()))
 		throw new IllegalArgumentException("entry class " +
@@ -397,7 +400,8 @@ public class LookupAttributes {
     }
 
     /** Comparator for sorting fields. */
-    private static class FieldComparator implements Comparator {
+    private static class FieldComparator implements Comparator, Serializable {
+        private static final long serialVersionUID = 1L;
 	public FieldComparator() {}
 
 	/**

@@ -108,9 +108,7 @@ class Segment implements Comparable {
                 stat = Status.COMPLETE;
             }
         } else if ( stat.equals(Status.STRING)&& previous != null){
-            if (previous != null) {
                 previous.next(); // ensures backward propagation.
-            } 
         }
         return sb.toString();
     }

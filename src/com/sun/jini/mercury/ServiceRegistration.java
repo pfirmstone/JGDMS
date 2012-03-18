@@ -273,7 +273,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
             logger.log(Level.FINEST, "Prepared target is: {0}", preparedEventTarget);
             logger.log(Level.FINEST, "Marshalled target is: {0}", marshalledEventTarget);
             logger.log(Level.FINEST, "Unknowns: {0}", 
-	        new Integer(unknownEvents.size()));
+	        Integer.valueOf(unknownEvents.size()));
 	    // eventIterator is null upon recovery phase  which
 	    // is before the transient state gets rebuilt.
 	    if (eventIterator != null) {

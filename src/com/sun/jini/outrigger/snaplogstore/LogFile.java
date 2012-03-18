@@ -172,13 +172,13 @@ class LogFile {
 		continue fileLoop;		       // can't be one of ours
 	    }
 
-	    found.put(new Integer(num), new File(baseDir, name));
+	    found.put(Integer.valueOf(num), new File(baseDir, name));
 	}
 
 	files.addAll(found.values());
 	if (logger.isLoggable(Level.FINE)) {
 	    logger.log(Level.FINE, "returning {0} files",
-		       new Integer(files.size()));
+		       Integer.valueOf(files.size()));
 	    Iterator it = files.iterator();
 	    while (it.hasNext())
 		logger.log(Level.FINE, it.next().toString());

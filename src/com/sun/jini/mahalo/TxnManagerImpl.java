@@ -820,7 +820,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(
 		TxnManagerImpl.class.getName(), "getState", 
-	        new Integer(state));
+	        Integer.valueOf(state));
 	}
 	return state;
     }
@@ -1030,7 +1030,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
                 "Settling {0} transactions.", 
-		new Integer(unsettledtxns.size()));
+		Integer.valueOf(unsettledtxns.size()));
 	}
 
 	int numtxns = 0;

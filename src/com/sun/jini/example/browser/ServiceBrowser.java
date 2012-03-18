@@ -128,7 +128,7 @@ class ServiceBrowser extends JFrame {
 						  10);
 	if(matches.totalMatches != 1)
 	  Browser.logger.log(Level.INFO, "unexpected lookup matches: {0}",
-			     new Integer(matches.totalMatches));
+			     Integer.valueOf(matches.totalMatches));
 	else
 	  return matches.items[0].attributeSets;
       } catch (Throwable t) {

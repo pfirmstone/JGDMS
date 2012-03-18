@@ -1679,7 +1679,7 @@ public class OutriggerServerImpl
 	if (opsLogger.isLoggable(Level.FINER)) {
 	    opsLogger.log(Level.FINER, 
 		"take<multiple>:timeout = {1}, limit{2} = cookie = {3}",
-		new Object[]{new Long(timeout), new Integer(limit), 
+		new Object[]{new Long(timeout), Integer.valueOf(limit), 
 			     queryCookieFromClient});
 	}
 	
@@ -2131,7 +2131,7 @@ public class OutriggerServerImpl
 
 	if (opsLogger.isLoggable(Level.FINEST)) {
 	    opsLogger.log(Level.FINEST, "{0} conflicts, endTime = {1}",
-			  new Object[] {new Integer(conflictSet.size()),
+			  new Object[] {Integer.valueOf(conflictSet.size()),
 					new Long(endTime)});
 	}
 

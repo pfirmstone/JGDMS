@@ -2619,22 +2619,22 @@ public class ConfigurationFile extends AbstractConfiguration {
      */
     static Object convertPrimitive(Object obj, Class primitiveType) {
 	Number n = obj instanceof Character
-	    ? new Integer(((Character) obj).charValue())
+	    ? Integer.valueOf(((Character) obj).charValue())
 	    : (Number) obj;
 	if (primitiveType == Byte.TYPE) {
-	    return new Byte(n.byteValue());
+	    return Byte.valueOf(n.byteValue());
 	} else if (primitiveType == Character.TYPE) {
-	    return new Character((char) n.intValue());
+	    return Character.valueOf((char) n.intValue());
 	} else if (primitiveType == Short.TYPE) {
-	    return new Short(n.shortValue());
+	    return Short.valueOf(n.shortValue());
 	} else if (primitiveType == Integer.TYPE) {
-	    return new Integer(n.intValue());
+	    return Integer.valueOf(n.intValue());
 	} else if (primitiveType == Long.TYPE) {
-	    return new Long(n.longValue());
+	    return Long.valueOf(n.longValue());
 	} else if (primitiveType == Float.TYPE) {
-	    return new Float(n.floatValue());
+	    return Float.valueOf(n.floatValue());
 	} else if (primitiveType == Double.TYPE) {
-	    return new Double(n.doubleValue());
+	    return Double.valueOf(n.doubleValue());
 	} else {
 	    return null;
 	}

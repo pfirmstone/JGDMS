@@ -79,7 +79,7 @@ class StreamPool {
         if (persistenceLogger.isLoggable(Level.FINEST)) {
             persistenceLogger.log(Level.FINEST,
 	        "Created StreamPool of size {0}", 
-		new Integer(maxPoolSize));
+		Integer.valueOf(maxPoolSize));
 	}
     }
 

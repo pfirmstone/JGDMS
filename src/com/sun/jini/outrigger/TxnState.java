@@ -336,7 +336,7 @@ class TxnState {
 	if (matchingLogger.isLoggable(Level.FINER)) {
 	    matchingLogger.log(Level.FINER,
                 "TxnState: canPerform({0}, {1}): state = {2}",
-		new Object[]{mgr, new Integer(op), 
+		new Object[]{mgr, Integer.valueOf(op), 
 			     TransactableMgr.stateNames[state]});
 	}
 

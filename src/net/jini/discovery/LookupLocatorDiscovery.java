@@ -479,7 +479,7 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
                             + "{0}:{1,number,#} with constraints {2}",
                              new Object[] {
                                 l.getHost(),
-                                new Integer(l.getPort()),
+                                Integer.valueOf(l.getPort()),
                                 ic
                              },
                              e);

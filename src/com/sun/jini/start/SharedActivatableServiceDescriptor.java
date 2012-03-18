@@ -680,7 +680,7 @@ public class SharedActivatableServiceDescriptor
         fields.add(sharedGroupLog);
 	fields.add(Boolean.valueOf(restart));
 	fields.add(host);
-	fields.add(new Integer(port));
+	fields.add(Integer.valueOf(port));
         return fields.toString();
     }
     

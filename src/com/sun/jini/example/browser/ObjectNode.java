@@ -286,21 +286,21 @@ class ObjectNode extends DefaultMutableTreeNode implements java.io.Serializable 
     if(val instanceof String || val == null) {
       String sval = (String) val;
       if(clazzName.equals("java.lang.Integer"))
-	newObj = new Integer(sval);
+	newObj = Integer.valueOf(sval);
       else if(clazzName.equals("java.lang.Boolean"))
-	newObj = new Boolean(sval);
+	newObj = Boolean.valueOf(sval);
       else if(clazzName.equals("java.lang.Byte"))
-	newObj = new Byte(sval);
+	newObj = Byte.valueOf(sval);
       else if(clazzName.equals("java.lang.Character"))
-	newObj = new Character(sval.charAt(0));
+	newObj = Character.valueOf(sval.charAt(0));
       else if(clazzName.equals("java.lang.Double"))
-	newObj = new Double(sval);
+	newObj = Double.valueOf(sval);
       else if(clazzName.equals("java.lang.Float"))
-	newObj = new Float(sval);
+	newObj = Float.valueOf(sval);
       else if(clazzName.equals("java.lang.Long"))
-	newObj = new Long(sval);
+	newObj = Long.valueOf(sval);
       else if(clazzName.equals("java.lang.String"))
-	newObj = new String(sval);	// clone 
+	newObj = sval;	// clone WHY?
     } else if(val.getClass().equals(obj.getClass())) {
       // same class type
       newObj = val;

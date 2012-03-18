@@ -97,7 +97,7 @@ public final class DgcClient extends AbstractDgcClient {
 	return oei.getObjectIdentifier();
     }
 
-    private class DgcProxyImpl implements DgcProxy {
+    private static class DgcProxyImpl implements DgcProxy {
 
 	private final DgcServer dgcServer;
 

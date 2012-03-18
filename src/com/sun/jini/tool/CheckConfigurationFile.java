@@ -103,7 +103,7 @@ import net.jini.config.ConfigurationProvider;
  * import net.jini.constraint.*;
  * import net.jini.core.constraint.*;
  * comp {
- *     foo = new Integer[] { new Integer(3) };
+ *     foo = new Integer[] { Integer.valueOf(3) };
  *     bar = new BasicMethodConstraints(
  *               new InvocationConstraints(Integrity.YES, null));
  *     baz = 33L;

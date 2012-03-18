@@ -155,7 +155,7 @@ public abstract class Job {
             if (logger.isLoggable(Level.FINEST)) {
                 logger.log(Level.FINEST,
                     "Job:scheduleTasks with {0} tasks",
-                    new Integer(tmp.length));
+                    Integer.valueOf(tmp.length));
             }
 
 	    results = new Object[tmp.length];
@@ -169,7 +169,7 @@ public abstract class Job {
 		//the partial results
 
 		synchronized(tasks) {
-		    tasks.put(tmp[i],new Integer(i));
+		    tasks.put(tmp[i],Integer.valueOf(i));
 		    pool.add(tmp[i]);
                     if (logger.isLoggable(Level.FINEST)) {
                         logger.log(Level.FINEST,
@@ -194,7 +194,7 @@ public abstract class Job {
             if (logger.isLoggable(Level.FINEST)) {
                 logger.log(Level.FINEST,
                     "Job:awaitPending waiting for {0} items",
-                    new Integer(pending));
+                    Integer.valueOf(pending));
             }
 
 	    if (waitFor == Long.MAX_VALUE) {
@@ -229,7 +229,7 @@ public abstract class Job {
             if (logger.isLoggable(Level.FINEST)) {
                 logger.log(Level.FINEST,
                     "Job:setPending notifying, pending = {0}",
-		    new Integer(pending));
+		    Integer.valueOf(pending));
             }
 	    notifyAll();
 	}
@@ -242,7 +242,7 @@ public abstract class Job {
             if (logger.isLoggable(Level.FINEST)) {
                 logger.log(Level.FINEST,
                     "Job:decrementPending notifying, pending = {0}",
-		    new Integer(pending));
+		    Integer.valueOf(pending));
             }
 	    notifyAll();
 	}

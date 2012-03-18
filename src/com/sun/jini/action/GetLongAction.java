@@ -139,6 +139,6 @@ public class GetLongAction implements PrivilegedAction {
     }
 
     private Long defaultValue() {
-	return defaultSet ? new Long(defaultVal) : null;
+	return defaultSet ? Long.valueOf(defaultVal) : null;
     }
 }

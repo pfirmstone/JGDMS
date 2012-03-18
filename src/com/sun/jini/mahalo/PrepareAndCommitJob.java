@@ -155,9 +155,9 @@ public class PrepareAndCommitJob extends Job implements TransactionConstants {
                 if (operationsLogger.isLoggable(Level.FINER)) {
                     operationsLogger.exiting(
 		        PrepareAndCommitJob.class.getName(), 
- 	                "doWork", new Integer(vote));
+ 	                "doWork", Integer.valueOf(vote));
 		}
-		return new Integer(vote);
+		return Integer.valueOf(vote);
         }
  
         //...otherwise, explicitly instruct the participant to
@@ -175,9 +175,9 @@ public class PrepareAndCommitJob extends Job implements TransactionConstants {
 	        if (operationsLogger.isLoggable(Level.FINER)) {
                     operationsLogger.exiting(
 			PrepareAndCommitJob.class.getName(), 
-	                "doWork", new Integer(ABORTED));
+	                "doWork", Integer.valueOf(ABORTED));
 		}
-	        return new Integer(ABORTED);
+	        return Integer.valueOf(ABORTED);
             }
 	} catch (JobException je) {
 	    if (operationsLogger.isLoggable(Level.FINER)) {
@@ -207,13 +207,13 @@ public class PrepareAndCommitJob extends Job implements TransactionConstants {
  
         try {
             vote = par.prepareAndCommit(tr.mgr, tr.id);
-            response = new Integer(vote);
+            response = Integer.valueOf(vote);
         } catch (UnknownTransactionException ute) {
             if (reCaught != null) {
                 notifyClient = true;
             }
             vote = ABORTED;
-            response = new Integer(vote);
+            response = Integer.valueOf(vote);
         } catch (RemoteException re) {
             reCaught = re;
             if (operationsLogger.isLoggable(Levels.HANDLED)) {
@@ -222,7 +222,7 @@ public class PrepareAndCommitJob extends Job implements TransactionConstants {
 	    }
         } catch (RuntimeException rte) {
 	    vote = ABORTED;
-	    response = new Integer(vote);
+	    response = Integer.valueOf(vote);
 	}
 
         if (response != null) {
@@ -292,7 +292,7 @@ public class PrepareAndCommitJob extends Job implements TransactionConstants {
 
 	prepstate = ((Integer)results[0]).intValue();
 
-        Integer result = new Integer(prepstate);
+        Integer result = Integer.valueOf(prepstate);
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(PrepareAndCommitJob.class.getName(), 
 	        "computeResult", result);

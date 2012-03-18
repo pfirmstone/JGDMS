@@ -273,10 +273,10 @@ abstract class Mux {
 	assert Thread.holdsLock(muxLock);
 	assert !muxDown;
 	assert !busySessions.get(sessionID);
-	assert sessions.get(new Integer(sessionID)) == null;
+	assert sessions.get(Integer.valueOf(sessionID)) == null;
 
 	busySessions.set(sessionID);
-	sessions.put(new Integer(sessionID), session);
+	sessions.put(Integer.valueOf(sessionID), session);
     }
 
     /**
@@ -364,7 +364,7 @@ abstract class Mux {
 	    }
 	    assert busySessions.get(sessionID);
 	    busySessions.clear(sessionID);
-	    sessions.remove(new Integer(sessionID));
+	    sessions.remove(Integer.valueOf(sessionID));
 	}
     }
 
@@ -1225,7 +1225,7 @@ abstract class Mux {
 		throw new ProtocolException(
 		    "inactive sessionID: " + sessionID);
 	    }
-	    return (Session) sessions.get(new Integer(sessionID));
+	    return (Session) sessions.get(Integer.valueOf(sessionID));
 	}
     }
 

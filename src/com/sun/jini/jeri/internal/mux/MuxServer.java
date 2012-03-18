@@ -209,7 +209,7 @@ public class MuxServer extends Mux {
 		dispatchNewRequest(sessionID);
 		return;
 	    } else {
-		session = (Session) sessions.get(new Integer(sessionID));
+		session = (Session) sessions.get(Integer.valueOf(sessionID));
 		assert session != null;
 	    }
 	}

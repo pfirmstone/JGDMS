@@ -310,7 +310,7 @@ extends SecurityManager implements CachingSecurityManager {
     }
     
     // Action retrieves the optimised AccessControlContext.
-    private class Action implements PrivilegedAction<AccessControlContext> {
+    private static class Action implements PrivilegedAction<AccessControlContext> {
         private Action(){}
         
         public AccessControlContext run(){
@@ -545,9 +545,15 @@ extends SecurityManager implements CachingSecurityManager {
         
     }
     
-    private static boolean checkPermission(ProtectionDomain pd, Permission p){
+    /**
+     * Enables customisation of permission check.
+     * @param pd
+     * @param p
+     * @return
+     */
+    protected boolean checkPermission(ProtectionDomain pd, Permission p){
         boolean result = pd.implies(p);
-        //TODO: Enable support for Delegates
+        //TODO: Enable support for Delegates in a subclass.
 //        if (!result && p instanceof DelegatePermission ){
 //            Permission candidate = ((DelegatePermission)p).getPermission();
 //            result = pd.implies(candidate);
