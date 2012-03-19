@@ -197,7 +197,7 @@ public class SimpleLogFile implements Log {
     private void init(String name, long cookie, LogRemovalManager logMgr) {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(SimpleLogFile.class.getName(), 
-	        "init", new Object[] {name, new Long(cookie), logMgr});
+	        "init", new Object[] {name, Long.valueOf(cookie), logMgr});
 	}
         if (name == null)
             throw new IllegalArgumentException("SimpleLogFile: null name");
@@ -309,7 +309,7 @@ public class SimpleLogFile implements Log {
 	
 	if (persistenceLogger.isLoggable(Level.FINEST)) {
             persistenceLogger.log(Level.FINEST,
-                "Invalidating log for cookie: {0}", new Long(cookie));
+                "Invalidating log for cookie: {0}", Long.valueOf(cookie));
 	}
 
 	if (valid) {
@@ -324,7 +324,7 @@ public class SimpleLogFile implements Log {
 	    if (out != null) {
                 if (persistenceLogger.isLoggable(Level.FINEST)) {
                     persistenceLogger.log(Level.FINEST,
-                        "Closing log file for: {0}", new Long(cookie));
+                        "Closing log file for: {0}", Long.valueOf(cookie));
                 }
 	        out.close(); // calls outfile.close()
             }
@@ -339,7 +339,7 @@ public class SimpleLogFile implements Log {
 	    File fl = new File(name);
             if (persistenceLogger.isLoggable(Level.FINEST)) {
                 persistenceLogger.log(Level.FINEST,
-                    "Deleting log file for: {0}", new Long(cookie));
+                    "Deleting log file for: {0}", Long.valueOf(cookie));
             }
 	    if(!fl.delete()) {
 	        if (persistenceLogger.isLoggable(Levels.HANDLED)) {
@@ -407,7 +407,7 @@ public class SimpleLogFile implements Log {
 		        if (persistenceLogger.isLoggable(Levels.HANDLED)) {
                             persistenceLogger.log(Levels.HANDLED,
 		                "Log for cookie {0} contained a null "
-				+ "record object", new Long(cookie));
+				+ "record object", Long.valueOf(cookie));
 		        }
 		    }
 	        }

@@ -169,7 +169,7 @@ final class ObjectTable {
                 logger.log(Level.FINEST,
                     "clientID={0}, sequenceNum={1}, ids={2}",
                     new Object[] {
-                        clientID, new Long(sequenceNum), Arrays.asList(ids)
+                        clientID, Long.valueOf(sequenceNum), Arrays.asList(ids)
                     });
             }
 
@@ -193,7 +193,7 @@ final class ObjectTable {
                                 "lease duration clientID={0}, " +
                                 "sequenceNum={1}, ids={2}",
                                 new Object[] {
-                                    clientID, new Long(sequenceNum), Arrays.asList(ids)
+                                    clientID, Long.valueOf(sequenceNum), Arrays.asList(ids)
                                 });
                         }                          
                     }
@@ -226,7 +226,7 @@ final class ObjectTable {
                                     "lease duration clientID={0}, " +
                                     "sequenceNum={1}, ids={2}",
                                     new Object[] {
-                                        clientID, new Long(sequenceNum), Arrays.asList(ids)
+                                        clientID, Long.valueOf(sequenceNum), Arrays.asList(ids)
                                     });
                             }                          
                         }  
@@ -324,7 +324,7 @@ final class ObjectTable {
                 logger.log(Level.FINEST,
                     "clientID={0}, sequenceNum={1}, ids={2}, strong={3}",
                     new Object[] {
-                        clientID, new Long(sequenceNum),
+                        clientID, Long.valueOf(sequenceNum),
                         Arrays.asList(ids), Boolean.valueOf(strong)
                     });
             }

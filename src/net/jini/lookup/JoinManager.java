@@ -2548,7 +2548,7 @@ public class JoinManager {
                                       (COMPONENT_NAME,
                                        "maxLeaseDuration",
                                        long.class,
-                                       new Long(renewalDuration))).longValue();
+                                       Long.valueOf(renewalDuration))).longValue();
         if( (renewalDuration == 0) || (renewalDuration < Lease.ANY) ) {
             throw new ConfigurationException("invalid configuration entry: "
                                              +"renewalDuration ("
@@ -2681,7 +2681,7 @@ public class JoinManager {
                 removeTasks(proxyReg);
                 try {
                     leaseRenewalMgr.remove( proxyReg.serviceLease );
-                } catch (Exception e) { }
+                } catch (UnknownLeaseException e) { }
                 proxyReg.addTask(new RegisterTask(proxyReg,
                                                  (Entry[])lookupAttr.clone()));
             }//end loop

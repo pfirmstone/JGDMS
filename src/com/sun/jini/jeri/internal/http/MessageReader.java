@@ -260,10 +260,9 @@ class MessageReader {
 		String line = readLine(in);
 		StringTokenizer tok = new StringTokenizer(line, " ;\t");
 		newlim = Integer.parseInt(tok.nextToken(), 16);
-	    } catch (Exception ex) {
+	    } catch (NumberFormatException ex) {
 		throw new HttpParseException("error parsing chunk length");
-	    }
-	    
+            }
 	    if (newlim < 0) {
 		throw new HttpParseException("illegal chunk length");
 	    } else if (newlim == 0) {

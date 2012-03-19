@@ -477,8 +477,8 @@ class EntryHolder implements TransactionConstants {
 	    if (matchingLogger.isLoggable(Level.FINER)) {
 		matchingLogger.log(Level.FINER, "expired {0} at {1} (now {2})",
 		    new Object[] {rep.id(), 
-				  new Long(rep.getExpiration()),
-				  new Long(now)});
+				  Long.valueOf(rep.getExpiration()),
+				  Long.valueOf(now)});
 	    }
 
 	    if (!handle.isProvisionallyRemoved() && remove(handle, false)) {

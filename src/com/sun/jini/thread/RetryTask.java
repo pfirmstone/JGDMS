@@ -138,7 +138,7 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
 		if (logger.isLoggable(Level.FINEST)) {
 		    logger.log(Level.FINEST, "retry of {0} in {1} ms", 
 		        new Object[]{this, 
-			    new Long(at - System.currentTimeMillis())});
+			    Long.valueOf(at - System.currentTimeMillis())});
 		}
 
 		if (retry == null)	// only create it if we need to

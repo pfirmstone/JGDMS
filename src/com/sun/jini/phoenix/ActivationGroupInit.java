@@ -79,7 +79,7 @@ class ActivationGroupInit {
 					     ActivationGroupDesc.class,
 					     long.class});
 		create.invoke(null, new Object[]{id, desc,
-						 new Long(incarnation)});
+						 Long.valueOf(incarnation)});
 	    } catch (NoSuchMethodException e) {
 		ActivationGroup.createGroup(id, desc, incarnation);
 	    }

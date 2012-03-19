@@ -989,7 +989,7 @@ public class OutriggerServerImpl
 	Long hash = (Long)typeHashes.get(className);
 
 	if (hash == null) {
-	    typeHashes.put(className, new Long(value));
+	    typeHashes.put(className, Long.valueOf(value));
 	    return false;	// new class
 	} else {
 	    if (hash.longValue() != value) {
@@ -1074,7 +1074,7 @@ public class OutriggerServerImpl
 	    ServerTransaction str = serverTransaction(tr);
 	    opsLogger.log(Level.FINER, "OutriggerServerImpl: write under " +
                 "transaction [mgr:{0} id:{1}]",
-		new Object[]{str.mgr, new Long(str.id)});
+		new Object[]{str.mgr, Long.valueOf(str.id)});
 	}
 
 	Txn txn = enterTxn(tr);
@@ -1147,7 +1147,7 @@ public class OutriggerServerImpl
 	    ServerTransaction str = serverTransaction(tr);
 	    opsLogger.log(Level.FINER, "OutriggerServerImpl: write<multiple> " +
 			  "under transaction [mgr:{0} id:{1}]",
-		new Object[]{str.mgr, new Long(str.id)});
+		new Object[]{str.mgr, Long.valueOf(str.id)});
 	}
 
 	Txn txn = enterTxn(tr);
@@ -1595,8 +1595,8 @@ public class OutriggerServerImpl
 
 	    if (leaseLogger.isLoggable(Level.FINER)) {
 		leaseLogger.log(Level.FINER, "renew({0},{1}) returns {2}",
-		    new Object[]{cookie, new Long(extension), 
-				 new Long(r.duration)});
+		    new Object[]{cookie, Long.valueOf(extension), 
+				 Long.valueOf(r.duration)});
 	    }
 
 	    return r.duration;
@@ -1611,7 +1611,7 @@ public class OutriggerServerImpl
 
 	if (leaseLogger.isLoggable(Level.FINER)) {
 	    leaseLogger.log(Level.FINER, "renewAll:{0} leases",
-			    new Long(cookies.length));
+			    Long.valueOf(cookies.length));
 	}
 
 	return LandlordUtil.renewAll(this, cookies, extensions);
@@ -1631,7 +1631,7 @@ public class OutriggerServerImpl
 	if (opsLogger.isLoggable(Level.FINER)) {
 	    opsLogger.log(Level.FINER, 
 		"read:tmpl = {0}, timeout = {1}, cookie = {2}",
-		new Object[]{tmpl, new Long(timeout), cookie});
+		new Object[]{tmpl, Long.valueOf(timeout), cookie});
 	}
 	return getMatch(tmpl, txn, timeout, false, false, cookie);
     }
@@ -1643,7 +1643,7 @@ public class OutriggerServerImpl
 	if (opsLogger.isLoggable(Level.FINER)) {
 	    opsLogger.log(Level.FINER, 
 		"take:tmpl = {0}, timeout = {1}, cookie = {2}",
-		new Object[]{tmpl, new Long(timeout), cookie});
+		new Object[]{tmpl, Long.valueOf(timeout), cookie});
 	}
 	return getMatch(tmpl, txn, timeout, true, false, cookie);
     }
@@ -1655,7 +1655,7 @@ public class OutriggerServerImpl
 	if (opsLogger.isLoggable(Level.FINER)) {
 	    opsLogger.log(Level.FINER, 
 		"readIfExists:tmpl = {0}, timeout = {1}, cookie = {2}",
-		new Object[]{tmpl, new Long(timeout), cookie});
+		new Object[]{tmpl, Long.valueOf(timeout), cookie});
 	}
 	return getMatch(tmpl, txn, timeout, false, true, cookie);
     }
@@ -1667,7 +1667,7 @@ public class OutriggerServerImpl
 	if (opsLogger.isLoggable(Level.FINER)) {
 	    opsLogger.log(Level.FINER, 
 		"takeIfExists:tmpl = {0}, timeout = {1}, cookie = {2}",
-		new Object[]{tmpl, new Long(timeout), cookie});
+		new Object[]{tmpl, Long.valueOf(timeout), cookie});
 	}
 	return getMatch(tmpl, txn, timeout, true, true, cookie);
     }
@@ -1679,7 +1679,7 @@ public class OutriggerServerImpl
 	if (opsLogger.isLoggable(Level.FINER)) {
 	    opsLogger.log(Level.FINER, 
 		"take<multiple>:timeout = {1}, limit{2} = cookie = {3}",
-		new Object[]{new Long(timeout), Integer.valueOf(limit), 
+		new Object[]{Long.valueOf(timeout), Integer.valueOf(limit), 
 			     queryCookieFromClient});
 	}
 	
@@ -2132,7 +2132,7 @@ public class OutriggerServerImpl
 	if (opsLogger.isLoggable(Level.FINEST)) {
 	    opsLogger.log(Level.FINEST, "{0} conflicts, endTime = {1}",
 			  new Object[] {Integer.valueOf(conflictSet.size()),
-					new Long(endTime)});
+					Long.valueOf(endTime)});
 	}
 
 	final OutriggerQueryCookie queryCookie;
@@ -2398,7 +2398,7 @@ public class OutriggerServerImpl
 	     opsLogger.log(Level.FINER, 
 		"contents:tmpls = {0}, tr = {1}, leaseTime = {2}, " +
 		"limit = {3}", 
-	        new Object[]{tmpls, tr, new Long(leaseTime), new Long(limit)});
+	        new Object[]{tmpls, tr, Long.valueOf(leaseTime), Long.valueOf(limit)});
 	}
 
 	checkForEmpty(tmpls, "Must provide at least one template");

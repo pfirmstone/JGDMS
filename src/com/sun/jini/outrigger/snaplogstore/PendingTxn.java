@@ -146,7 +146,7 @@ class PendingTxn implements Serializable {
 	if (state != TransactionConstants.PREPARED)
 	    return false;
 
-	space.recoverTransaction(new Long(id), transaction);
+	space.recoverTransaction(Long.valueOf(id), transaction);
 
 	Enumeration e = ops.elements();
 	while (e.hasMoreElements()) {
@@ -154,11 +154,11 @@ class PendingTxn implements Serializable {
 
 	    if (op instanceof PendingTxn.WriteOp) {
 		space.recoverWrite(((PendingTxn.WriteOp)op).entry, 
-				   new Long(id));
+				   Long.valueOf(id));
 	    } else if (op instanceof PendingTxn.TakeOp) {
 		space.recoverTake(
 		    ByteArrayWrapper.toUuid(((PendingTxn.TakeOp)op).cookie), 
-		    new Long(id));
+		    Long.valueOf(id));
 	    } else {
 		throw new InternalSpaceException("unknown operation type: " +
 						 op.getClass().getName());

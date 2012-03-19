@@ -3157,13 +3157,13 @@ public class LookupDiscovery implements DiscoveryManagement,
                             (COMPONENT_NAME,
                             "multicastRequestInterval",
                             long.class,
-                            new Long(multicastRequestInterval) ) ).longValue();
+                            Long.valueOf(multicastRequestInterval) ) ).longValue();
         finalMulticastRequestInterval
          = ( (Long)config.getEntry
                       (COMPONENT_NAME,
                        "finalMulticastRequestInterval",
                        long.class,
-                       new Long(finalMulticastRequestInterval) ) ).longValue();
+                       Long.valueOf(finalMulticastRequestInterval) ) ).longValue();
 	try {
 	    multicastRequestHost
 	     = (String) Config.getNonNullEntry(config,
@@ -3220,7 +3220,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 		      (COMPONENT_NAME,
 		       "multicastAnnouncementInterval",
 		       long.class,
-		       new Long(multicastAnnouncementInterval) ) ).longValue();
+		       Long.valueOf(multicastAnnouncementInterval) ) ).longValue();
 
 	unicastDelayRange = Config.getLongEntry(config,
 				    COMPONENT_NAME,

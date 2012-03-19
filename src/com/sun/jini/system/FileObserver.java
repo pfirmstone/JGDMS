@@ -65,7 +65,7 @@ public class FileObserver implements Observer {
 	if (currentFile.getName().endsWith(suffix)) {
 	    //System.out.println("found file:"+currentFile.getName());
 	    fileList.add(lcv,currentFile.getAbsolutePath());
-	    timeList.add(lcv,new Long(currentFile.lastModified()));
+	    timeList.add(lcv,Long.valueOf(currentFile.lastModified()));
 	    lcv++;
 	}
     }	

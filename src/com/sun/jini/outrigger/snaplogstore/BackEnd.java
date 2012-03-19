@@ -410,7 +410,7 @@ class BackEnd implements Observer {
      * only used during recovery after a restart.
      */
     void bootOp(long time, long session) {
-	sessionId = new Long(session);
+	sessionId = Long.valueOf(session);
 	if (logger.isLoggable(Level.FINE))
 	    logger.log(Level.FINE, "bootOp({0})", new Date(time));
     }
@@ -477,7 +477,7 @@ class BackEnd implements Observer {
 	if (logger.isLoggable(Level.FINE)) { 
 	    logger.log(Level.FINE, "renewOp({0},{1})", 
 		       new Object[]{ByteArrayWrapper.toUuid(cookie),
-				    new Long(expiration)});
+				    Long.valueOf(expiration)});
 	}
 	final ByteArrayWrapper baw = new ByteArrayWrapper(cookie);
 

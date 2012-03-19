@@ -100,7 +100,7 @@ class EventLease extends RegistrarLease {
 
     // This method's javadoc is inherited from a super class of this class
     Object getRegID() {
-	return new Long(eventID);
+	return Long.valueOf(eventID);
     }
     
     // inherit javadoc

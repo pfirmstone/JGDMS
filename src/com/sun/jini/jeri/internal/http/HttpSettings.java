@@ -91,11 +91,13 @@ public class HttpSettings {
 				       "https.proxyPort" : "http.proxyPort");
 	int port = -1;
 	if (str != null) {
-	    try { port = Integer.parseInt(str); } catch (Exception ex) {}
+	    try { port = Integer.parseInt(str); } 
+            catch (NumberFormatException ex) { }
 	} else if (!ssl) {
 	    str = props.getProperty("proxyPort");
 	    if (str != null) {
-		try { port = Integer.parseInt(str); } catch (Exception ex) {}
+		try { port = Integer.parseInt(str); }
+                catch (NumberFormatException ex) {}
 	    }
 	}
 	if (port <= 0 || port > 0xFFFF) {

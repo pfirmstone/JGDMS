@@ -159,10 +159,10 @@ public class MultiLogManager
     public ClientLog logFor(long cookie) throws LogException {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(MultiLogManager.class.getName(), 
-	        "logFor", new Long(cookie));
+	        "logFor", Long.valueOf(cookie));
 	}
 	ClientLog cl = null;
-	Long key = new Long(cookie);
+	Long key = Long.valueOf(cookie);
         Object prev = null;
 	
         synchronized(logByIDLock) {
@@ -197,7 +197,7 @@ public class MultiLogManager
 	if (persistenceLogger.isLoggable(Level.FINEST)) {
             persistenceLogger.log(Level.FINEST,
             "Using ClientLog {0} for cookie {1}",
-	    new Object[] {cl, new Long(cookie)});
+	    new Object[] {cl, Long.valueOf(cookie)});
 	}
 	
         if (operationsLogger.isLoggable(Level.FINER)) {
@@ -211,7 +211,7 @@ public class MultiLogManager
     private void release(long cookie) {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(MultiLogManager.class.getName(), 
-	        "release", new Long(cookie));
+	        "release", Long.valueOf(cookie));
 	}
 	Object prev = null;
         synchronized(logByIDLock) {
@@ -220,9 +220,9 @@ public class MultiLogManager
             if (persistenceLogger.isLoggable(Level.FINEST)) {
                 persistenceLogger.log(Level.FINEST,
                 "Releasing ClientLog for cookie {0}",
-                new Long(cookie));
+                Long.valueOf(cookie));
             }
-	    prev = logByID.remove(new Long(cookie));
+	    prev = logByID.remove(Long.valueOf(cookie));
             if (persistenceLogger.isLoggable(Level.FINEST)) {
                 persistenceLogger.log(Level.FINEST,
                 "Currently managing {0} logs.", 
@@ -284,7 +284,7 @@ public class MultiLogManager
 		    /* Called by initialization thread only, 
 		     * so doesn't need to be synchronized here.
 		     */
-		    logByID.put(new Long(log.cookie()),log);
+		    logByID.put(Long.valueOf(log.cookie()),log);
 	        } catch (LogException le) {
 	            if(persistenceLogger.isLoggable(Level.WARNING)) {
 		        persistenceLogger.log(Level.WARNING,

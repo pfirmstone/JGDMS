@@ -1495,7 +1495,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 		    oops("invalid character: '" + val + "'");
 		}
 		return new Literal(Character.TYPE,
-				   new Character(val.charAt(0)), st.lineno());
+				   Character.valueOf(val.charAt(0)), st.lineno());
 	    } else if (t == '"') {
 		return new StringLiteral(val, st.lineno());
 	    } else if (t == '(') {
@@ -1679,18 +1679,19 @@ public class ConfigurationFile extends AbstractConfiguration {
 		validIdentifier(st.sval) ||
 		findPrimitiveClass(st.sval) != null)
 	    {
-		String result = st.sval;
+		StringBuilder result = new StringBuilder(120);
+                result.append(st.sval);
 		while (true) {
 		    int p = st.nextToken();
 		    if (p != StreamTokenizer.TT_WORD ||
-			(!result.endsWith(".") && !st.sval.startsWith(".")))
+			( (result.lastIndexOf(".") != result.length() - 1 ) && !st.sval.startsWith(".")))
 		    {
 			st.pushBack();
 			break;
 		    }
-		    result += st.sval;
+		    result.append(st.sval);
 		}
-		st.sval = result;
+		st.sval = result.toString();
 	    }
 	    return st.sval;
 	}
@@ -2413,7 +2414,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	String typeName = fullName.substring(0, dot);
 	String methodName = fullName.substring(dot + 1);
 	Class type = findClass(typeName, lineno, override, true);
-	if (type == null) {
+	if (type == null) { // Throws configuration exception.
 	    oops("declaring class: " + typeName + ", for method: "
 		 + fullName + " was not found" , lineno, override);
 	}
@@ -2596,17 +2597,17 @@ public class ConfigurationFile extends AbstractConfiguration {
 		((Character) from).charValue() : ((Number) from).intValue();
 	    if (to == Byte.TYPE) {
 		if (val >= Byte.MIN_VALUE && val <= Byte.MAX_VALUE) {
-		    return new Byte((byte) val);
+		    return Byte.valueOf((byte) val);
 		}
 	    } else if (to == Character.TYPE) {
 		if (val >= Character.MIN_VALUE &&
 		    val <= Character.MAX_VALUE)
 		{
-		    return new Character((char) val);
+		    return Character.valueOf((char) val);
 		}
 	    } else if (to == Short.TYPE) {
 		if (val >= Short.MIN_VALUE && val <= Short.MAX_VALUE) {
-		    return new Short((short) val);
+		    return Short.valueOf((short) val);
 		}
 	    }
 	}

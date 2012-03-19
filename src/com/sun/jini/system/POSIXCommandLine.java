@@ -475,7 +475,7 @@ public class POSIXCommandLine extends CommandLine {
 	    return orig[str].substring(pos + 1);
 	} else {
 	    if (str >= orig.length)
-		throw new BadInvocationException(new Character(opt));
+		throw new BadInvocationException(Character.valueOf(opt));
 	    for (int i = 0; i < args[str + 1].length; i++)
 		args[str + 1][i] = USED;
 	    return orig[str + 1];

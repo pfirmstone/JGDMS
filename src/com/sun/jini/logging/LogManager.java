@@ -155,7 +155,7 @@ public class LogManager extends java.util.logging.LogManager {
 			    logger.log(Level.CONFIG,
 				       "logging config file reread complete," +
 				       " new interval is {0}",
-				       new Long(interval));
+				       Long.valueOf(interval));
 			} catch (Throwable t) {
 			    try {
                                 logger.log(Level.WARNING,

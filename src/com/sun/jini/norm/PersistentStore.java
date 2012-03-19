@@ -66,7 +66,7 @@ class PersistentStore {
     final static private ThreadLocal lockState = new ThreadLocal();
 
     /** Cache a <code>Long</code> object with a zero value */
-    final static private Long zero = new Long(0);
+    final static private Long zero = Long.valueOf(0);
 
     /** Location of the persistent store, or null if not persistent */
     final private File storeLocation;
@@ -194,7 +194,7 @@ class PersistentStore {
 	} 
 
 	// Either way, bump the lock count and update our thread state
-	lockState.set(new Long(longVal + 1));
+	lockState.set(Long.valueOf(longVal + 1));
     }
 
     /**
@@ -218,7 +218,7 @@ class PersistentStore {
 	    mutatorLock.readUnlock();
 	    lockStateVal = zero;
 	} else {
-	    lockStateVal = new Long(longVal - 1);
+	    lockStateVal = Long.valueOf(longVal - 1);
 	}
 
 	lockState.set(lockStateVal);

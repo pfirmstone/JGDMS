@@ -595,7 +595,7 @@ class TxnManagerImpl /*extends RemoteServer*/
                 if(initLogger.isLoggable(Level.FINEST)) {
 		            initLogger.log(Level.FINEST, 
 			        "Restoring transient state for txn id: {0}", 
-		                new Long(((ServerTransaction)txn.getTransaction()).id));		
+		                Long.valueOf(((ServerTransaction)txn.getTransaction()).id));		
 				}
 				try {
 				    txn.restoreTransientState(recoveredParticipantPreparer);
@@ -677,7 +677,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "create", 
-	        new Long(lease));
+	        Long.valueOf(lease));
 	}
         readyState.check();
     
@@ -688,7 +688,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
         if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST, 
-	        "Transaction ID is: {0}", new Long(tid));
+	        "Transaction ID is: {0}", Long.valueOf(tid));
 	}
 
         txntr = new TxnManagerTransaction(
@@ -710,7 +710,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
         if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST, 
-	        "Created new TxnManagerTransaction ID is: {0}", new Long(tid));
+	        "Created new TxnManagerTransaction ID is: {0}", Long.valueOf(tid));
 	}
 
 	Transaction tr = txntr.getTransaction();
@@ -718,7 +718,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
         try {
 	    str = serverTransaction(tr);
-	    txns.put(new Long(str.id), txntr);
+	    txns.put(Long.valueOf(str.id), txntr);
 
             if (transactionsLogger.isLoggable(Level.FINEST)) {
                 transactionsLogger.log(Level.FINEST,
@@ -756,7 +756,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "join", 
-	        new Object[] {new Long(id), part, new Long(crashCount) });
+	        new Object[] {Long.valueOf(id), part, Long.valueOf(crashCount) });
 	}
         readyState.check();
 
@@ -772,7 +772,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	}
 
         TxnManagerTransaction txntr =
-		(TxnManagerTransaction) txns.get(new Long(id));
+		(TxnManagerTransaction) txns.get(Long.valueOf(id));
 
 	if (txntr == null)
 	    throw new UnknownTransactionException("unknown transaction");
@@ -792,12 +792,12 @@ class TxnManagerImpl /*extends RemoteServer*/
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "getState", 
-	        new Object[] {new Long(id)});
+	        new Object[] {Long.valueOf(id)});
 	}
         readyState.check();
 
         TxnManagerTransaction txntr =
-	        (TxnManagerTransaction) txns.get(new Long(id));
+	        (TxnManagerTransaction) txns.get(Long.valueOf(id));
 
 	if (txntr == null)
 	    throw new UnknownTransactionException("unknown transaction");
@@ -833,7 +833,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "commit", 
-	        new Long(id));
+	        Long.valueOf(id));
 	}
         readyState.check();
 
@@ -858,12 +858,12 @@ class TxnManagerImpl /*extends RemoteServer*/
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "commit", 
-	        new Object[] {new Long(id), new Long(waitFor)});
+	        new Object[] {Long.valueOf(id), Long.valueOf(waitFor)});
 	}
         readyState.check();
 
 	TxnManagerTransaction txntr =
-		(TxnManagerTransaction) txns.get(new Long(id));
+		(TxnManagerTransaction) txns.get(Long.valueOf(id));
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
@@ -875,11 +875,11 @@ class TxnManagerImpl /*extends RemoteServer*/
 
 	// txntr.commit does expiration check
 	txntr.commit(waitFor);
-        txns.remove(new Long(id));
+        txns.remove(Long.valueOf(id));
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
-                "Committed transaction id {0}", new Long(id));
+                "Committed transaction id {0}", Long.valueOf(id));
 	}
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(
@@ -898,7 +898,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "abort", 
-	        new Object[] {new Long(id)});
+	        new Object[] {Long.valueOf(id)});
 	}
         readyState.check();
         try {
@@ -926,7 +926,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "abort", 
-	        new Object[] {new Long(id), new Long(waitFor)});
+	        new Object[] {Long.valueOf(id), Long.valueOf(waitFor)});
 	}
         readyState.check();
         
@@ -938,7 +938,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	// with the Transaction to prepare
 
 	TxnManagerTransaction txntr = 
-	        (TxnManagerTransaction) txns.get(new Long(id));
+	        (TxnManagerTransaction) txns.get(Long.valueOf(id));
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
@@ -958,11 +958,11 @@ class TxnManagerImpl /*extends RemoteServer*/
 	}
 
 	txntr.abort(waitFor);
-	txns.remove(new Long(id));
+	txns.remove(Long.valueOf(id));
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
-                "aborted transaction id {0}", new Long(id));
+                "aborted transaction id {0}", Long.valueOf(id));
 	}
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(
@@ -987,7 +987,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "recover", 
-	        new Object[] {new Long(cookie), rec});
+	        new Object[] {Long.valueOf(cookie), rec});
 	}
 	TxnManagerTransaction tmt = enterTMT(cookie);
 	TxnLogRecord trec = (TxnLogRecord) rec;
@@ -1008,9 +1008,9 @@ class TxnManagerImpl /*extends RemoteServer*/
     public synchronized void noteUnsettledTxn(long tid) {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerImpl.class.getName(), 
-	        "noteUnsettledTxn", new Object[] {new Long(tid)});
+	        "noteUnsettledTxn", new Object[] {Long.valueOf(tid)});
 	}
-	unsettledtxns.add(new Long(tid));
+	unsettledtxns.add(Long.valueOf(tid));
 
 	notifyAll();
 
@@ -1070,7 +1070,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 		
 	    if (transactionsLogger.isLoggable(Level.FINEST)) {
                 transactionsLogger.log(Level.FINEST,
-                    "Added SettlerTask for tid {0}", new Long(tid));
+                    "Added SettlerTask for tid {0}", Long.valueOf(tid));
 	    }
 	}
 	// Not reachable
@@ -1110,7 +1110,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         // particular transaction
 
         TxnManagerTransaction txntr =
-	        (TxnManagerTransaction) txns.get(new Long(id));
+	        (TxnManagerTransaction) txns.get(Long.valueOf(id));
 
 	if (txntr == null)
 	    throw new UnknownTransactionException("unknown transaction");
@@ -1148,7 +1148,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerImpl.class.getName(), "renew", 
-	        new Object[] {uuid, new Long(extension)});
+	        new Object[] {uuid, Long.valueOf(extension)});
 	}
         readyState.check();
 
@@ -1175,7 +1175,7 @@ class TxnManagerImpl /*extends RemoteServer*/
             if (operationsLogger.isLoggable(Level.FINER)) {
                 operationsLogger.exiting(
 		    TxnManagerImpl.class.getName(), "renew", 
-	            new Object[] {new Long(r.duration)});
+	            new Object[] {Long.valueOf(r.duration)});
 	    }
 	    return r.duration;
 	}
@@ -1313,7 +1313,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	}
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(TxnManagerImpl.class.getName(), "nextID",
-	        new Long(id));
+	        Long.valueOf(id));
 	}
 	return id;
     }
@@ -1354,7 +1354,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
 
     private TxnManagerTransaction enterTMT(long cookie) {
-	Long key = new Long(cookie);
+	Long key = Long.valueOf(cookie);
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerImpl.class.getName(), 
 	        "enterTMT", key);
@@ -1985,6 +1985,6 @@ class TxnManagerImpl /*extends RemoteServer*/
 
     private Long getLeaseTid(Uuid uuid) {
 	// Extract the txn id from the lower bits of the uuid
-        return new Long(uuid.getLeastSignificantBits());
+        return Long.valueOf(uuid.getLeastSignificantBits());
     }
 }

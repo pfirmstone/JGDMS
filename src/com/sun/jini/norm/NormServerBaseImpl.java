@@ -1005,7 +1005,7 @@ abstract class NormServerBaseImpl
 				   "Attempting to renew lease {0} at {1}",
 				   new Object[] {
 				       clw, 
-				       new Long(System.currentTimeMillis()) });
+				       Long.valueOf(System.currentTimeMillis()) });
 		    }
 
 		    // A lease was renewed, log the new state

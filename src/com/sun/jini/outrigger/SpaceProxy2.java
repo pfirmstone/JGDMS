@@ -247,7 +247,7 @@ class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 	if (logger.isLoggable(Level.CONFIG)) {
 	    logger.log(Level.CONFIG, 
 		"Outrigger proxy using {0} ms for maxServerQueryTimeout",
-		new Long(maxServerQueryTimeout));
+		Long.valueOf(maxServerQueryTimeout));
 	}
     }
 
@@ -751,8 +751,8 @@ class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 	    logger.log(Level.FINER, "Outrigger calling {0} on server with " +
 		"timeout of {1} ms for serverTimeout, using QueryCookie " +
 		"{2}, {3} ms remaining on query",
-		new Object[] {op, new Long(serverTimeout), cookie,
-			      new Long(remaining)});
+		new Object[] {op, Long.valueOf(serverTimeout), cookie,
+			      Long.valueOf(remaining)});
 	    }
     }
 }

@@ -166,15 +166,15 @@ abstract class EntryTreePanel extends JPanel {
 	} else if("boolean".equals(clazzName)){
 	  fobj = new Boolean(f.getBoolean(obj));
 	} else if("byte".equals(clazzName)){
-	  fobj = new Byte(f.getByte(obj));
+	  fobj = Byte.valueOf(f.getByte(obj));
 	} else if("char".equals(clazzName)){
-	  fobj = new Character(f.getChar(obj));
+	  fobj = Character.valueOf(f.getChar(obj));
 	} else if("double".equals(clazzName)){
 	  fobj = new Double(f.getDouble(obj));
 	} else if("float".equals(clazzName)){
 	  fobj = new Float(f.getFloat(obj));
 	} else if("long".equals(clazzName)){
-	  fobj = new Long(f.getLong(obj));
+	  fobj = Long.valueOf(f.getLong(obj));
 	}
 
 	child = new ObjectNode(fobj, clazz, fname, true);

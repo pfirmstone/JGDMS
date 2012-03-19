@@ -97,7 +97,7 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
 	    if (transactionsLogger.isLoggable(Level.FINEST)) {
                 transactionsLogger.log(Level.FINEST,
 		"Attempting to settle transaction id: {0}", 
-		new Long(tid));
+		Long.valueOf(tid));
 	    }
 
 	    int state = txnmgr.getState(tid);
@@ -143,7 +143,7 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
 	    "Transaction id {0} was settled", 
-	    new Long(tid));
+	    Long.valueOf(tid));
 	}
 	
         if (operationsLogger.isLoggable(Level.FINER)) {

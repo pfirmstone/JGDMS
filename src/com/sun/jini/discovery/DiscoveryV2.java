@@ -228,7 +228,7 @@ class DiscoveryV2 extends Discovery {
 
 	// lookup decoder
 	MulticastRequestDecoder mrd = (MulticastRequestDecoder) 
-	    formatIdMaps[MULTICAST_REQUEST_DECODER].get(new Long(fid));
+	    formatIdMaps[MULTICAST_REQUEST_DECODER].get(Long.valueOf(fid));
 	if (mrd == null) {
 	    throw new DiscoveryProtocolException(
 			  "unsupported format ID: " + fid);
@@ -348,7 +348,7 @@ class DiscoveryV2 extends Discovery {
 
 	// lookup decoder
 	MulticastAnnouncementDecoder mad = (MulticastAnnouncementDecoder) 
-	    formatIdMaps[MULTICAST_ANNOUNCEMENT_DECODER].get(new Long(fid));
+	    formatIdMaps[MULTICAST_ANNOUNCEMENT_DECODER].get(Long.valueOf(fid));
 	if (mad == null) {
 	    throw new DiscoveryProtocolException(
 			  "unsupported format ID: " + fid);
@@ -470,7 +470,7 @@ class DiscoveryV2 extends Discovery {
 	}
 
 	// read selected format ID
-	Long fid = new Long(inBuf.getLong());
+	Long fid = Long.valueOf(inBuf.getLong());
 	if (fid.longValue() == NULL_FORMAT_ID) {
 	    throw new DiscoveryProtocolException("format negotiation failed");
 	}
@@ -526,7 +526,7 @@ class DiscoveryV2 extends Discovery {
 	while (inBuf.hasRemaining()) {
 	    fid = inBuf.getLong();
 	    UnicastDiscoveryServer s = 
-		(UnicastDiscoveryServer) udsMap.get(new Long(fid));
+		(UnicastDiscoveryServer) udsMap.get(Long.valueOf(fid));
 	    if (s != null) {
 		try {
 		    s.checkUnicastDiscoveryConstraints(constraints);
@@ -616,7 +616,7 @@ class DiscoveryV2 extends Discovery {
 	Map map = new LinkedHashMap();
 	for (Iterator i = providers.iterator(); i.hasNext(); ) {
 	    DiscoveryFormatProvider p = (DiscoveryFormatProvider) i.next();
-	    Long fid = new Long(computeFormatID(p.getFormatName()));
+	    Long fid = Long.valueOf(computeFormatID(p.getFormatName()));
 	    if (map.keySet().contains(fid)) {
 		logger.log(Level.WARNING,
 			   "ignoring provider {0} ({1}) with " +

@@ -296,7 +296,7 @@ final class Target {
         lock.lock();
         try {
             if (logger.isLoggable(Level.FINEST)) {
-                logger.log(Level.FINEST, "this={0}, clientID={1}, sequenceNum={2}", new Object[]{this, clientID, new Long(sequenceNum)});
+                logger.log(Level.FINEST, "this={0}, clientID={1}, sequenceNum={2}", new Object[]{this, clientID, Long.valueOf(sequenceNum)});
             }
             SequenceEntry entry = (SequenceEntry) sequenceTable.get(clientID);
             if (entry == null) {
@@ -331,7 +331,7 @@ final class Target {
         lock.lock();
         try {
             if (logger.isLoggable(Level.FINEST)) {
-                logger.log(Level.FINEST, "this={0}, clientID={1}, sequenceNum={2}, strong={3}", new Object[]{this, clientID, new Long(sequenceNum), Boolean.valueOf(strong)});
+                logger.log(Level.FINEST, "this={0}, clientID={1}, sequenceNum={2}, strong={3}", new Object[]{this, clientID, Long.valueOf(sequenceNum), Boolean.valueOf(strong)});
             }
             SequenceEntry entry = sequenceTable.get(clientID);
             if (entry == null) {

@@ -116,7 +116,7 @@ public final class DgcClient extends AbstractDgcClient {
 		logger.log(Level.FINEST,
 		    "sequenceNum={0}, ids={1} (clientID={2})",
 		    new Object[] {
-			new Long(sequenceNum), Arrays.asList(idsCopy), clientID
+			Long.valueOf(sequenceNum), Arrays.asList(idsCopy), clientID
 		    });
 	    }
 
@@ -127,7 +127,7 @@ public final class DgcClient extends AbstractDgcClient {
 			public Object run() throws RemoteException {
 			    long l = dgcServer.dirty(clientID, sequenceNum,
 						     idsCopy);
-			    return new Long(l);
+			    return Long.valueOf(l);
 			}
 		    }, null)).longValue();	// ensure no Subject
 	    } catch (PrivilegedActionException e) {
@@ -152,7 +152,7 @@ public final class DgcClient extends AbstractDgcClient {
 		logger.log(Level.FINEST,
 		    "sequenceNum={0}, ids={1}, strong={2} (clientID={3})",
 		    new Object[] {
-			new Long(sequenceNum), Arrays.asList(idsCopy),
+			Long.valueOf(sequenceNum), Arrays.asList(idsCopy),
 			Boolean.valueOf(strong), clientID
 		    });
 	    }

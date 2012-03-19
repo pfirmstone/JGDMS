@@ -1501,7 +1501,7 @@ public class LeaseRenewalManager {
 	}
 	while (iter.hasNext()) {
 	    e = (Entry) iter.next();
-	    batchLeaseMap.put(e.lease, new Long(e.getRenewDuration(now)));
+	    batchLeaseMap.put(e.lease, Long.valueOf(e.getRenewDuration(now)));
 	}
 	return batchLeaseMap;
     }

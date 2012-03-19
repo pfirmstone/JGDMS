@@ -189,13 +189,13 @@ public class ConfigurationProvider {
 		ClassLoader resourceLoader=cl;
 		if (resourceLoader == null) {
 			logger.fine("Null class loader provided, fetching context class loader...");
-			resourceLoader = (cl != null) ? cl :
-				(ClassLoader) Security.doPrivileged(
-													new PrivilegedAction() {
-														public Object run() {
-															return Thread.currentThread().getContextClassLoader();
-														}
-													});
+			resourceLoader =
+                            (ClassLoader) Security.doPrivileged(
+                                new PrivilegedAction() {
+                                    public Object run() {
+                                        return Thread.currentThread().getContextClassLoader();
+                                    }
+                                });
 			logger.fine("...resource class loader is now: " + resourceLoader);
 		}
 	final ClassLoader finalResourceLoader = (resourceLoader == null)

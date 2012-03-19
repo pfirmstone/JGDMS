@@ -493,12 +493,15 @@ public class HttpClientConnection implements TimedConnection {
 	}
 
 	acks = manager.getUnsentAcks(targetInfo.host, targetInfo.port);
-	if (acks.length > 0) {
-	    String ackList = acks[0];
-	    for (int i = 1; i < acks.length; i++) {
-		ackList += ", " + acks[i];
+        int l = acks.length;
+	if (l > 0) {
+            StringBuilder ackList = new StringBuilder(4 * l);
+	    ackList.append(acks[0]);
+	    for (int i = 1; i < l; i++) {
+		ackList.append(", ");
+                ackList.append(acks[i]);
 	    }
-	    header.setField("RMI-Response-Ack", ackList);
+	    header.setField("RMI-Response-Ack", ackList.toString());
 	}
 	return header;
     }

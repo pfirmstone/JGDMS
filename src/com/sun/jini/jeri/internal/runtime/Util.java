@@ -202,13 +202,13 @@ public class Util {
 	    } else if (type == boolean.class) {
 		return Boolean.valueOf(in.readBoolean());
 	    } else if (type == byte.class) {
-		return new Byte(in.readByte());
+		return Byte.valueOf(in.readByte());
 	    } else if (type == char.class) {
-		return new Character(in.readChar());
+		return Character.valueOf(in.readChar());
 	    } else if (type == short.class) {
-		return new Short(in.readShort());
+		return Short.valueOf(in.readShort());
 	    } else if (type == long.class) {
-		return new Long(in.readLong());
+		return Long.valueOf(in.readLong());
 	    } else if (type == float.class) {
 		return new Float(in.readFloat());
 	    } else if (type == double.class) {
@@ -364,7 +364,7 @@ public class Util {
 	    Object hash = super.get(key);
 	    if (hash == null) {
 		Method method = (Method) key;
-		hash = new Long(computeMethodHash(method));
+		hash = Long.valueOf(computeMethodHash(method));
 		put(method, hash);
 	    }
 	    return (Long) hash;

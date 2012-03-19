@@ -184,7 +184,7 @@ class TxnMonitorTask extends RetryTask
 	if (failCnt == 0 && txn.getState() != PREPARED) {      // no failures
 	    if (logger.isLoggable(Level.FINEST)) {
 		logger.log(Level.FINEST, "{0} retryTime adds {1}", 
-			   new Object[]{this, new Long(deltaT)});
+			   new Object[]{this, Long.valueOf(deltaT)});
 	    }
 
 	    nextQuery += deltaT;
@@ -193,7 +193,7 @@ class TxnMonitorTask extends RetryTask
 	} else {
 	    if (logger.isLoggable(Level.FINEST)) {
 		logger.log(Level.FINEST, "{0} retryTime adds {1} (for {2})", 
-			   new Object[]{this, new Long(BETWEEN_EXCEPTIONS), 
+			   new Object[]{this, Long.valueOf(BETWEEN_EXCEPTIONS), 
 			       (failCnt != 0 ? "failure" : "PREPARED")});
 	    }
 	    nextQuery += BETWEEN_EXCEPTIONS;
@@ -295,7 +295,7 @@ class TxnMonitorTask extends RetryTask
 
 		if (logger.isLoggable(Level.FINEST)) {
 		    logger.log(Level.FINEST, "{0} nextQuery {1}", 
-			       new Object[]{this, new Long(nextQuery)});
+			       new Object[]{this, Long.valueOf(nextQuery)});
 		}
 
 		while (it.hasNext()) {
@@ -306,7 +306,7 @@ class TxnMonitorTask extends RetryTask
 			logger.log(Level.FINEST, 
 				   "{0} query.getExpiration() {1}", 
 				   new Object[]{this, 
-				       new Long(query.getExpiration())});
+				       Long.valueOf(query.getExpiration())});
 		    }
 
 		    if (query.getExpiration() < nextQuery || 

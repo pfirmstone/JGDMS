@@ -440,7 +440,7 @@ class TxnManagerTransaction
     {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
-	        "join", new Object[] {preparedPart, new Long(crashCount)});
+	        "join", new Object[] {preparedPart, Long.valueOf(crashCount)});
 	}
 	//if the lease has expired, or the state is not
 	//amenable there is no need to continue
@@ -551,7 +551,7 @@ class TxnManagerTransaction
     {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
-	        "commit", new Long(waitFor));
+	        "commit", Long.valueOf(waitFor));
 	}
 	long starttime = System.currentTimeMillis();
 
@@ -925,7 +925,7 @@ class TxnManagerTransaction
     {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
-	        "abort", new Long(waitFor));
+	        "abort", Long.valueOf(waitFor));
 	}
 	long starttime = System.currentTimeMillis();
 
@@ -1102,7 +1102,7 @@ class TxnManagerTransaction
     private void doAbort(long timeout) {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
-	        "doAbort", new Long(timeout));
+	        "doAbort", Long.valueOf(timeout));
 	}
         try {
             str.abort(timeout);

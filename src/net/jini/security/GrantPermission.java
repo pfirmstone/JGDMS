@@ -420,6 +420,7 @@ public final class GrantPermission extends Permission {
 		    l.add(c.newInstance(new Object[0]));
 		    continue;
 		} catch (Exception ex) {
+                    if (ex instanceof RuntimeException) throw (RuntimeException) ex;
 		}
 	    } 
 	    if (pi.actions == null) {
@@ -428,6 +429,7 @@ public final class GrantPermission extends Permission {
 		    l.add(c.newInstance(new Object[]{ pi.name }));
 		    continue;
 		} catch (Exception ex) {
+                    if (ex instanceof RuntimeException) throw (RuntimeException) ex;
 		}
 	    } 
 	    try {
@@ -435,6 +437,7 @@ public final class GrantPermission extends Permission {
 		l.add(c.newInstance(new Object[]{ pi.name, pi.actions }));
 		continue;
 	    } catch (Exception ex) {
+                if (ex instanceof RuntimeException) throw (RuntimeException) ex;
 	    }
 	    throw new IllegalArgumentException(
 		"uninstantiable permission class: " + cl);

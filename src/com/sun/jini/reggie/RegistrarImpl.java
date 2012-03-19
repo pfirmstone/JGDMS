@@ -1857,7 +1857,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		logger.log(
 		    Level.FINE,
 		    "notifying listener {0} of event {1}",
-		    new Object[]{ reg.listener, new Long(reg.eventID) });
+		    new Object[]{ reg.listener, Long.valueOf(reg.eventID) });
 	    }
 	    try {
 		reg.listener.notify(new RegistrarEvent(proxy, reg.eventID,
@@ -4020,7 +4020,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		eclass.setNumTemplates(eclass.getNumTemplates() + 1);
 	    }
 	}
-	Long id = new Long(reg.eventID);
+	Long id = Long.valueOf(reg.eventID);
 	eventByID.put(id, reg);
 	eventByTime.put(reg, reg);
 	if (reg.tmpl.serviceID != null) {
@@ -4052,7 +4052,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		eclass.setNumTemplates(eclass.getNumTemplates() - 1);
 	    }
 	}
-	Long id = new Long(reg.eventID);
+	Long id = Long.valueOf(reg.eventID);
 	eventByID.remove(id);
 	eventByTime.remove(reg);
 	if (reg.tmpl.serviceID != null) {
@@ -5275,7 +5275,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	throws UnknownLeaseException
     {
 	long now = System.currentTimeMillis();
-	EventReg reg = (EventReg)eventByID.get(new Long(eventID));
+	EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
 	if (reg == null || reg.leaseExpiration <= now)
 	    throw new UnknownLeaseException();
 	deleteEvent(reg);
@@ -5308,7 +5308,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    renewDuration = maxEventLease;
 	else if (renewDuration < 0)
 	    throw new IllegalArgumentException("negative lease duration");
-	EventReg reg = (EventReg)eventByID.get(new Long(eventID));
+	EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
 	if (reg == null ||
 	    !reg.leaseID.equals(leaseID) ||
 	    reg.leaseExpiration <= now)
@@ -5334,7 +5334,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 				    Uuid leaseID,
 				    long renewExpiration)
     {
-	EventReg reg = (EventReg)eventByID.get(new Long(eventID));
+	EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
 	if (reg == null || !reg.leaseID.equals(leaseID))
 	    return;
 	/* force a re-sort: must remove before changing, then reinsert */

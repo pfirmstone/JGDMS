@@ -500,7 +500,7 @@ class PersistentEventLog implements EventLog {
                     if (persistenceLogger.isLoggable(Level.FINEST)) {
                         persistenceLogger.log(Level.FINEST, 
                             "EventLog::readAhead() new readCount is {0}", 
-                            new Long(readCount)); 
+                            Long.valueOf(readCount)); 
                     }                    
                 }
                 if (persistenceLogger.isLoggable(Levels.HANDLED)) {
@@ -649,8 +649,8 @@ class PersistentEventLog implements EventLog {
             persistenceLogger.log(Level.FINEST, 
                 "EventLog::moveAhead() readCount = {0}, readPosition = {1}, " 
                 + "currentLogNum = {2}, nextLogNum = {3}",
-                new Object[] {new Long(readCount), new Long(readPosition),
-                              new Long(currentLogNum), new Long(nextLogNum)}); 
+                new Object[] {Long.valueOf(readCount), Long.valueOf(readPosition),
+                              Long.valueOf(currentLogNum), Long.valueOf(nextLogNum)}); 
         }        
         File logFile = null;
         LogInputStream in = null;
@@ -885,15 +885,15 @@ class PersistentEventLog implements EventLog {
 	    logger.log(Level.FINEST, "{0}", msg);
             logger.log(Level.FINEST, "ID: {0}", uuid);
             logger.log(Level.FINEST, "ReadCount: {0}", 
-	        new Long(rcount));
+	        Long.valueOf(rcount));
             logger.log(Level.FINEST, "ReadPos: {0}",  
-	        new Long(rpos));
+	        Long.valueOf(rpos));
             logger.log(Level.FINEST, "NextReadPos: {0}",  
-	        new Long(nextReadPos));
+	        Long.valueOf(nextReadPos));
             logger.log(Level.FINEST, "WriteCount: {0}",  
-	        new Long(wcount));
+	        Long.valueOf(wcount));
             logger.log(Level.FINEST, "WritePos: {0}",  
-	        new Long(wpos));
+	        Long.valueOf(wpos));
 	}
     }
 

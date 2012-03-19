@@ -62,7 +62,7 @@ public class TransientLogFile implements Log {
     public TransientLogFile(long id, LogRemovalManager lrm) {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TransientLogFile.class.getName(), 
-	        "TransientLogFile", new Object[] {new Long(id), lrm});
+	        "TransientLogFile", new Object[] {Long.valueOf(id), lrm});
 	}
         cookie = id;
         logMgr = lrm;
@@ -97,7 +97,7 @@ public class TransientLogFile implements Log {
 	}
 	if (persistenceLogger.isLoggable(Level.FINEST)) {
             persistenceLogger.log(Level.FINEST,
-                "(ignored) write called for cookie: {0}", new Long(cookie));
+                "(ignored) write called for cookie: {0}", Long.valueOf(cookie));
 	}
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(TransientLogFile.class.getName(), 
@@ -116,7 +116,7 @@ public class TransientLogFile implements Log {
         
 	if (persistenceLogger.isLoggable(Level.FINEST)) {
             persistenceLogger.log(Level.FINEST,
-                "Calling logMgr to release cookie: {0}", new Long(cookie));
+                "Calling logMgr to release cookie: {0}", Long.valueOf(cookie));
 	}
         logMgr.release(cookie);
         
@@ -140,7 +140,7 @@ public class TransientLogFile implements Log {
 	}
 	if (persistenceLogger.isLoggable(Level.FINEST)) {
             persistenceLogger.log(Level.FINEST,
-                "(ignored) Recovering for: {0}", new Long(cookie));
+                "(ignored) Recovering for: {0}", Long.valueOf(cookie));
 	}
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(MultiLogManager.class.getName(), 

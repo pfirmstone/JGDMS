@@ -285,7 +285,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 		throw new IllegalArgumentException(
 		    "methods must contain only Methods");
 	    }
-	    this.methods.put(new Long(Util.getMethodHash((Method) m)), m);
+	    this.methods.put(Long.valueOf(Util.getMethodHash((Method) m)), m);
 	}
 	this.serverConstraints = serverConstraints;
 	if (permissionClass != null) {
@@ -989,7 +989,7 @@ public class BasicInvocationDispatcher implements InvocationDispatcher {
 	    throw new NullPointerException();
 	}
 	long hash = in.readLong();
-	Method method = (Method) methods.get(new Long(hash));
+	Method method = (Method) methods.get(Long.valueOf(hash));
 	if (method == null) {
 	    throw new NoSuchMethodException(
 	     "unrecognized method hash: method not supported by remote object");

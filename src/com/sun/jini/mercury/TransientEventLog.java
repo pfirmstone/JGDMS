@@ -184,7 +184,7 @@ class TransientEventLog implements EventLog {
         RemoteEventData[] set = new RemoteEventData[evts.length];
         for (int i=0; i<set.length; i++) {
             set[i] = new RemoteEventData(
-                evts[i].getRemoteEvent(), new Long(evts[i].getID()));
+                evts[i].getRemoteEvent(), Long.valueOf(evts[i].getID()));
         }
         return set;
     }
@@ -233,7 +233,7 @@ class TransientEventLog implements EventLog {
                 if (persistenceLogger.isLoggable(Level.FINEST)) {
                     persistenceLogger.log(Level.FINEST, 
                         "Removing event with ID {0}", 
-                        new Long(rh.getID()));
+                        Long.valueOf(rh.getID()));
                 }
             } else {
                 break;
@@ -275,7 +275,7 @@ class TransientEventLog implements EventLog {
 	    logger.log(Level.FINEST, "{0}", msg);
             logger.log(Level.FINEST, "ID: {0}", uuid);
             logger.log(Level.FINEST, "NumEvents: {0}", 
-	        new Long(entries.size()));
+	        Long.valueOf(entries.size()));
 	}
     }
 }

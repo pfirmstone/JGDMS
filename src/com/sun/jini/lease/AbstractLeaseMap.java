@@ -58,7 +58,7 @@ public abstract class AbstractLeaseMap implements LeaseMap {
      */
     protected AbstractLeaseMap(Map map, Lease lease, long duration) {
 	this.map = map;
-	map.put(lease, new Long(duration));
+	map.put(lease, Long.valueOf(duration));
     }
 
     /** Check that the key is valid for this map */

@@ -148,7 +148,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 	if (logger.isLoggable(Level.FINER)) {
 	    logger.log(Level.FINER, "creating txn for transaction mgr:" +
 		    "{0}, id:{1}, state:{2}", 
-		new Object[]{tr, new Long(trId), TxnConstants.getName(state)});
+		new Object[]{tr, Long.valueOf(trId), TxnConstants.getName(state)});
 	}
     }
 
@@ -165,7 +165,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
      * may not have the <code>Transaction</code> unmarshalled.
      */
     Long getId() {
-	return new Long(id);
+	return Long.valueOf(id);
     }
 
     /**
@@ -250,7 +250,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 	if (logger.isLoggable(Level.FINER)) {
 	    logger.log(Level.FINER, "prepare: transaction mgr:{0}, id:{1}, " +
 		"state:{2}", 
-		new Object[]{tr, new Long(trId), TxnConstants.getName(state)});
+		new Object[]{tr, Long.valueOf(trId), TxnConstants.getName(state)});
 	}
 
 	switch (state) {
@@ -273,7 +273,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 	    if (logger.isLoggable(Level.FINEST)) {
 		logger.log(Level.FINEST, "prepare:preparing transaction mgr:" +
 		    "{0}, id:{1}, state:{2}", 
-		new Object[]{tr, new Long(trId), TxnConstants.getName(state)});
+		new Object[]{tr, Long.valueOf(trId), TxnConstants.getName(state)});
 	    }
 
 	    // loop through Transactable members of this Txn
@@ -287,7 +287,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 		    logger.log(Level.FINEST, "prepare:prepared " +
 		        "transactable {0} for transaction mgr:{1}, id:{2}," +
 			" transactable now in state {3}", 
-			new Object[]{transactable, tr, new Long(trId), 
+			new Object[]{transactable, tr, Long.valueOf(trId), 
 				     TxnConstants.getName(prepState)});
 		}
 
@@ -342,7 +342,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 	if (logger.isLoggable(Level.FINER)) {
 	    logger.log(Level.FINER, "abort: transaction mgr:{0}, id:{1}, " +
 		"state:{2}", 
-		new Object[]{tr, new Long(trId), TxnConstants.getName(state)});
+		new Object[]{tr, Long.valueOf(trId), TxnConstants.getName(state)});
 	}
 
 	switch (state) {
@@ -358,7 +358,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 	    if (logger.isLoggable(Level.FINEST)) {
 		logger.log(Level.FINEST, "abort:aborting transaction mgr:" +
 		    "{0}, id:{1}, state:{2}", 
-		new Object[]{tr, new Long(trId), TxnConstants.getName(state)});
+		new Object[]{tr, Long.valueOf(trId), TxnConstants.getName(state)});
 	    }
 
 	    final Iterator i = txnables.iterator();
@@ -386,7 +386,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 	if (logger.isLoggable(Level.FINER)) {
 	    logger.log(Level.FINER, "commit: transaction mgr:{0}, id:{1}, " +
 		"state:{2}", 
-		new Object[]{tr, new Long(trId), TxnConstants.getName(state)});
+		new Object[]{tr, Long.valueOf(trId), TxnConstants.getName(state)});
 	}
 
 	switch (state) {
@@ -404,7 +404,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 	    if (logger.isLoggable(Level.FINEST)) {
 		logger.log(Level.FINEST, "commit:committing transaction mgr:" +
 		    "{0}, id:{1}, state:{2}", 
-		new Object[]{tr, new Long(trId), TxnConstants.getName(state)});
+		new Object[]{tr, Long.valueOf(trId), TxnConstants.getName(state)});
 	    }
 
 	    while (i.hasNext())

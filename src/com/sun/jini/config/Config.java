@@ -295,8 +295,8 @@ public class Config {
 		logger.log(Level.FINE,
 		    "{0}, component {1}, name {2}: entry is out of range, " +
 		    "value: {3}, valid range: {4}:{5}",
-		     new Object[] { config, component, name, new Long(rslt),
-				    new Long(min), new Long(max)});
+		     new Object[] { config, component, name, Long.valueOf(rslt),
+				    Long.valueOf(min), Long.valueOf(max)});
 	    }
 	   
 	    throw new ConfigurationException("entry for component " +

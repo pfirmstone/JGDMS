@@ -300,7 +300,7 @@ public class WakeupManager {
 	}
 
 	public String toString() {
-	    return dateFmt.format(new Long(when)) + "(" + when + ")" + ", "
+	    return dateFmt.format(Long.valueOf(when)) + "(" + when + ")" + ", "
 		+ task.getClass().getName() + ", " + desc;
 	}
 

@@ -55,18 +55,20 @@ class Header {
      * Reads in new header from the given input stream.
      */
     Header(InputStream in) throws IOException {
-	String line = MessageReader.readLine(in);
-	while (line != null && line.length() > 0) {
-	    String next = MessageReader.readLine(in);
+        StringBuilder line = new StringBuilder(160);
+        String next = MessageReader.readLine(in);
+	if (next != null) line.append(next);
+	while (line.length() > 0) {
+	    next = MessageReader.readLine(in);
 	    while (next != null && 
 		   next.length() > 0 && 
 		   isSpaceOrTab(next.charAt(0)))
 	    {
-		line += next;
+		line.append(next);
 		next = MessageReader.readLine(in);
 	    }
 	    
-	    int sepidx = line.indexOf(':');
+	    int sepidx = line.indexOf(":");
 	    if (sepidx < 0) {
 		throw new HttpParseException("header line missing separator");
 	    }
@@ -76,10 +78,11 @@ class Header {
 		throw new HttpParseException("invalid header field name");
 	    }
 	    addField(name, value);
-	    
-	    line = next;
+	    int l  = line.length();
+            line.delete(0,l);
+	    if (next != null) line.append(next);
 	}
-	if (line == null) {
+	if (next == null) {
 	    throw new HttpParseException("unexpected EOF in message header");
 	}
     }

@@ -205,7 +205,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
 		for (int i = Math.min(8, digest.length); --i >= 0; ) {
 		    h += ((long)(digest[i] & 0xFF)) << (i * 8);
 		}
-		hash = new Long(h);
+		hash = Long.valueOf(h);
 	    } catch (Exception e) {
 		if (marshaling)
 		    throw throwNewMarshalException(

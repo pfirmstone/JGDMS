@@ -1603,7 +1603,9 @@ public class ServiceDiscoveryManager {
 	    checkCacheTerminated();
 	    ServiceItem[] ret = getServiceItems(myFilter);
 	    if (ret.length == 0 )  return null;
-	    int rand = Math.abs(random.nextInt()) % ret.length;
+            // Maths.abs(Integer.MIN_VALUE) = -ve, so to avoid random 
+            // hard to debug bugs, this has been changed.
+	    int rand = random.nextInt(ret.length);
 	    return ret[rand];
 	}//end LookupCacheImpl.lookup
 
@@ -1616,7 +1618,7 @@ public class ServiceDiscoveryManager {
 	    ServiceItem[] sa = getServiceItems(myFilter);
 	    int len = sa.length;
 	    if (len == 0 )  return new ServiceItem[0];
-	    int rand = Math.abs(random.nextInt()) % len;
+	    int rand = random.nextInt(Integer.MAX_VALUE) % len;
 	    for(int i=0; i<len; i++) {
 		items.add(sa[(i+rand) % len ]);
 		if(items.size() == maxMatches)
@@ -1900,9 +1902,9 @@ public class ServiceDiscoveryManager {
                                                          item != null ? item.service : "",
                                                          sid,
                                                          eventSource,
-                                                         new Long(eventID),
-                                                         new Long(prevSeqNo),
-                                                         new Long(seqNo) };
+                                                         Long.valueOf(eventID),
+                                                         Long.valueOf(prevSeqNo),
+                                                         Long.valueOf(seqNo) };
                         logger.log(Levels.HANDLED, msg, params);
                     }//endif
                 }//endif
@@ -2944,7 +2946,7 @@ public class ServiceDiscoveryManager {
 	}
 	int len = proxys.length;
 	if(len == 0 ) return null;
-	int rand = Math.abs(random.nextInt()) % len;
+	int rand = random.nextInt(Integer.MAX_VALUE) % len;
 	for(int i=0; i<len; i++) {
 	    ServiceRegistrar proxy = proxys[(i + rand) % len];
 	    ServiceItem sItem = null;
@@ -3340,7 +3342,7 @@ public class ServiceDiscoveryManager {
 	ArrayList sItemSet = new ArrayList(len);
 	if(len > 0) {
             /* loop thru the set of lookups, randomly selecting each lookup */
-	    int rand = (Math.abs(random.nextInt())) % len;
+	    int rand = (random.nextInt(Integer.MAX_VALUE)) % len;
 	    for(int i=0; i<len; i++) {
                 int max = maxMatches;
 		ServiceRegistrar proxy = proxys[(i + rand) % len];
@@ -3368,7 +3370,7 @@ public class ServiceDiscoveryManager {
                      * selected (it may have been returned from a previously
                      * queried lookup).
                      */
-		    int r = (Math.abs(random.nextInt())) % nItems;
+		    int r = (random.nextInt(Integer.MAX_VALUE)) % nItems;
 		    for(int j=0; j<nItems; j++) {
 			ServiceItem sItem = sm.items[(j+r) % nItems];
 			if(sItem == null)  continue;
@@ -3588,7 +3590,7 @@ public class ServiceDiscoveryManager {
     {
 	int len = sm.items.length;
 	if(len > 0) {
-	    int rand = Math.abs(random.nextInt()) % len;
+	    int rand = random.nextInt(Integer.MAX_VALUE) % len;
 	    for(int i=0; i<len; i++) {
 		ServiceItem sItem = sm.items[(i+rand) % len];
 		if(sItem == null)  continue;
@@ -3834,7 +3836,7 @@ public class ServiceDiscoveryManager {
                                           (COMPONENT_NAME,
                                            "discardWait",
                                            long.class,
-                                           new Long(discardWait))).longValue();
+                                           Long.valueOf(discardWait))).longValue();
         /* Discovery manager */
         discMgr = discoveryMgr;
 	if(discMgr == null) {

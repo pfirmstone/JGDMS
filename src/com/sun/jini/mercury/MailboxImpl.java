@@ -1843,7 +1843,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private Registration registerDo(long duration) {
         if (operationsLogger.isLoggable(Level.FINER)) {
 	    operationsLogger.entering(mailboxSourceClass, 
-	        "registerDo", new Long(duration));
+	        "registerDo", Long.valueOf(duration));
 	}
         if (duration < 1 && duration != Lease.ANY) 
 	    throw new IllegalArgumentException(
@@ -1914,7 +1914,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     {
         if (operationsLogger.isLoggable(Level.FINER)) {
 	    operationsLogger.entering(mailboxSourceClass, 
-	        "renewDo", new Object[] { cookie, new Long(extension)});
+	        "renewDo", new Object[] { cookie, Long.valueOf(extension)});
 	}
         if (extension < 1 && extension != Lease.ANY)
 	    throw new IllegalArgumentException(
@@ -1926,7 +1926,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	if(leaseLogger.isLoggable(Level.FINEST)) {
             leaseLogger.log(Level.FINEST, 
 		"Attempting to renew {0}''s lease for {1} sec",
-		new Object[] {cookie, new Long(extension/1000)}); 
+		new Object[] {cookie, Long.valueOf(extension/1000)}); 
 	}
 	
 	// Get registration of interest
@@ -1962,7 +1962,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	
         if (operationsLogger.isLoggable(Level.FINER)) {
 	    operationsLogger.exiting(mailboxSourceClass, 
-	        "renewDo", new Long(r.duration));
+	        "renewDo", Long.valueOf(r.duration));
 	}
 	return r.duration;
     }
@@ -2401,7 +2401,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         if (operationsLogger.isLoggable(Level.FINER)) {
 	    operationsLogger.entering(mailboxSourceClass, 
 	        "getNextBatchDo", 
-                new Object[] {regId, iterId, new Long(timeout), lastEventCookie});
+                new Object[] {regId, iterId, Long.valueOf(timeout), lastEventCookie});
 	}
         
         if (timeout < 0) {
@@ -2552,8 +2552,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	if(receiveLogger.isLoggable(Level.FINEST)) {
             receiveLogger.log(Level.FINEST, 
 	        "RemoteEvent {0}, ID {1}, Seq# {2}",
-	        new Object[] {theEvent, new Long(theEvent.getID()), 
-	        new Long(theEvent.getSequenceNumber())});
+	        new Object[] {theEvent, Long.valueOf(theEvent.getID()), 
+	        Long.valueOf(theEvent.getSequenceNumber())});
 	}
 
 
@@ -3052,8 +3052,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        if (deliveryLogger.isLoggable(Level.FINEST)) {
                     deliveryLogger.log(Level.FINEST,
 		        "Delivering evt: {0}, ID {1}, Seq# {2}",
-		            new Object[] {ev, new Long(ev.getID()), 
-		            new Long(ev.getSequenceNumber())});
+		            new Object[] {ev, Long.valueOf(ev.getID()), 
+		            Long.valueOf(ev.getSequenceNumber())});
 	        }
 		try {
 		    // Notify target listener and note a successful delivery

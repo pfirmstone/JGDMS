@@ -190,7 +190,7 @@ class TxnTable {
 				// No broken Txns so txns is definitive
 				return null;
 
-			idAsLong = new Long(id);
+			idAsLong = Long.valueOf(id);
 			final List txnsForId = (List) brokenTxns.get(idAsLong);
 			if (txnsForId == null)
 				/*
@@ -404,7 +404,7 @@ class TxnTable {
 			if (brokenTxns == null)
 				brokenTxns = new java.util.HashMap();
 
-			final Long id = new Long(txn.getTransactionId());
+			final Long id = Long.valueOf(txn.getTransactionId());
 			List txnsForId = (List) brokenTxns.get(id);
 			if (txnsForId == null) {
 				txnsForId = new java.util.LinkedList();
