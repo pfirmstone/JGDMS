@@ -4822,7 +4822,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	int slen = services.size();
 	if (slen == 0)
 	    return null;
-	int srand = Math.abs(random.nextInt()) % slen;
+	int srand = random.nextInt(Integer.MAX_VALUE) % slen;
 	for (int i = 0; i < slen; i++) {
 	    SvcReg reg = (SvcReg)services.get((i + srand) % slen);
 	    if (reg.leaseExpiration > now && matchAttributes(tmpl, reg.item))
