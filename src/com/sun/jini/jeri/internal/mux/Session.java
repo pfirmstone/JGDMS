@@ -25,6 +25,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
@@ -56,8 +57,29 @@ final class Session {
     private static final String[] stateNames = {
 	"idle", "open", "finished", "terminated"
     };
-
-    private static final boolean traceSupression = Boolean.getBoolean("com.sun.jini.jeri.server.suppressStackTraces");
+   
+    /** 
+     * This method prevents a SecurityException from being thrown for
+     * a client proxy that doesn't have permission to read the property.
+     * When this is the case, the secure trace supression option
+     * is chosen.
+     * This is not optimised, because exception conditions
+     * are exceptional.
+     */
+    private static boolean traceSupression(){
+        try {
+            return AccessController.doPrivileged(
+                new PrivilegedAction<Boolean>() 
+                {
+                    public Boolean run() {
+                        return Boolean.getBoolean("com.sun.jini.jeri.server.suppressStackTraces");
+                    }
+                }
+            );
+        } catch (SecurityException e) {
+            return true;
+        }
+    }
 
     /**
      * pool of threads for executing tasks in system thread group: used for
@@ -882,7 +904,7 @@ final class Session {
         
         private IOException wrap(String message, Exception e){
             Throwable t = null;
-            if (traceSupression){
+            if (traceSupression()){
                 t = e;
             } else {
                 t = e.fillInStackTrace();
