@@ -18,18 +18,9 @@
 
 package org.apache.river.api.security;
 
-import java.security.Permission;
-import java.util.Set;
-
 /**
- * The CachingSecurityManager is designed to enable the use of DelegatePermission
- * for Delegate Objects to encapsulate security sensitive objects using
- * Li Gong's method guard pattern.
- * 
- * In this manner we can prevent references to security sensitive object's from 
- * escaping.
- * 
- * See "Inside Java 2 Platform Security" 2nd Edition, ISBN:0-201-78791-1, page 176.
+ * A CachingSecurityManager caches the result of check permission calls for
+ * AccessControlContexts.
  * 
  * @author Peter Firmstone.
  * @since 2.2.1
@@ -37,13 +28,9 @@ import java.util.Set;
 public interface CachingSecurityManager {
 
     /**
-     * This method clears permissions from the checked cache, it should be
-     * called after calling Policy.refresh();
-     * 
-     * If the Set provided contains permissions, only those of the same
-     * class will be removed from the checked cache.
-     * 
-     * If the Set is null, the checked cache is cleared completely.
+     * Clears permissions from the checked cache, it must be
+     * called after calling Policy.refresh();  It is recommended that it
+     * be called by a Policy provider, rather than application code.
      *
      * @throws java.lang.InterruptedException
      * @throws java.util.concurrent.ExecutionException

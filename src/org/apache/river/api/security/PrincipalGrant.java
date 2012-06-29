@@ -31,6 +31,7 @@ import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
+import java.security.UnresolvedPermission;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Collection;
@@ -83,8 +84,9 @@ class PrincipalGrant implements PermissionGrant, Serializable{
         Iterator<Permission> i = perms.iterator();
         while (i.hasNext()){
             Permission p = i.next();
-            if (p != null){
-                // REMIND: hash might not be unique for UnresolvedPermission.
+            if (p instanceof UnresolvedPermission){
+                hash = 97 * hash + p.hashCode();
+            } else if (p != null){
                 Class c = p.getClass();
                 String name = p.getName();
                 String actions = p.getActions();

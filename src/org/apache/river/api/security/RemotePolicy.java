@@ -21,7 +21,6 @@ package org.apache.river.api.security;
 import java.io.IOException;
 import net.jini.security.GrantPermission;
 import net.jini.security.policy.UmbrellaGrantPermission;
-import org.apache.river.api.security.PermissionGrant;
 
 /**
  * <p>
@@ -69,7 +68,7 @@ import org.apache.river.api.security.PermissionGrant;
  * A node may join more than one djinn group, in this case RemotePolicy's may
  * be used as nested basePolicy's.
  * </p><p>
- * The intent of RemotePolicy is to make granting of DowloadPermission to
+ * The intent of RemotePolicy is for granting of DowloadPermission to
  * new signer Certificates and adding new Principals and Permission's to
  * distributed policy providers.
  * </p><p>
@@ -80,8 +79,7 @@ import org.apache.river.api.security.PermissionGrant;
  * will no longer be implied by the policy.
  * </p><p>
  * DefaultPolicyParser has been provided for an administrator client to
- * parse standard java format policy file's, to create PermissionGrant's
- * custom policy file formats may be used by extending DefaultPolicyScanner.
+ * parse standard java format policy file's, to create PermissionGrant's.
  * </p>
  * @author Peter Firmstone
  * @since 2.2.1

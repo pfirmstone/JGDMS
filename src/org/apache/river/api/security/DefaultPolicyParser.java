@@ -84,7 +84,7 @@ class DefaultPolicyParser implements PolicyParser {
      * {@link org.apache.river.imp.security.policy.util.DefaultPolicyScanner DefaultPolicyScanner} 
      * is used. 
      */
-    public DefaultPolicyParser() {
+    DefaultPolicyParser() {
         scanner = new DefaultPolicyScanner();
     }
 
@@ -182,7 +182,7 @@ class DefaultPolicyParser implements PolicyParser {
      * @see DefaultPolicyScanner.PermissionEntry
      * @see org.apache.river.imp.security.policy.util.PolicyUtils
      */
-    protected PermissionGrant resolveGrant(DefaultPolicyScanner.GrantEntry ge,
+    PermissionGrant resolveGrant(DefaultPolicyScanner.GrantEntry ge,
             KeyStore ks, Properties system, boolean resolve) throws Exception {
         if ( ge == null ) return null;
         /*
@@ -308,7 +308,7 @@ class DefaultPolicyParser implements PolicyParser {
      * or to get a Certificate, 
      * or to newBuilder an instance of a successfully found class 
      */
-    protected Permission resolvePermission(
+    Permission resolvePermission(
             DefaultPolicyScanner.PermissionEntry pe,
             DefaultPolicyScanner.GrantEntry ge, KeyStore ks, Properties system,
             boolean resolve) throws Exception {
@@ -355,7 +355,7 @@ class DefaultPolicyParser implements PolicyParser {
         /** 
          * Combined setter of all required fields. 
          */
-        public PermissionExpander(DefaultPolicyScanner.GrantEntry ge,
+        PermissionExpander(DefaultPolicyScanner.GrantEntry ge,
                 KeyStore ks) {
             this.ge = ge;
             this.ks = ks;

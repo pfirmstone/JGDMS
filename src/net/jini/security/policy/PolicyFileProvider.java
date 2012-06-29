@@ -18,6 +18,7 @@
 
 package net.jini.security.policy;
 
+import org.apache.river.api.security.AbstractPolicy;
 import java.security.AccessController;
 import java.security.CodeSource;
 import java.security.Permission;
@@ -57,7 +58,7 @@ import net.jini.security.GrantPermission;
  * <code>net.jini.security.policy.PolicyFileProvider.basePolicyClass</code>
  * security property is not set.
  */
-public class PolicyFileProvider extends Policy {
+public class PolicyFileProvider extends AbstractPolicy {
 
     private static final String basePolicyClassProperty =
 	"net.jini.security.policy.PolicyFileProvider.basePolicyClass";
@@ -67,7 +68,6 @@ public class PolicyFileProvider extends Policy {
 //	"sun.security.provider.PolicyFile";
     private static final String policyProperty = "java.security.policy";
     private static final Object propertyLock = new Object();
-    private static final Permission umbrella = new UmbrellaGrantPermission();
 
     private final String policyFile;
     private final Policy basePolicy;
@@ -276,25 +276,6 @@ public class PolicyFileProvider extends Policy {
     private void ensureDependenciesResolved() {
 	// force resolution of GrantPermission and UmbrellaGrantPermission
 	new GrantPermission(umbrella);
-    }
-
-    static void expandUmbrella(PermissionCollection pc) {
-	if (pc.implies(umbrella)) {
-            // Don't use Set, avoid calling equals and hashCode on SocketPermission.
-            Collection<Permission> perms = new ArrayList<Permission>(120);
-            Enumeration<Permission> e = pc.elements();
-            while (e.hasMoreElements()){
-                Permission p = e.nextElement();
-                // Avoid unintended granting of GrantPermission 
-                // and recursive UmbrellaGrantPermission
-                if ( p instanceof GrantPermission || 
-                        p instanceof UmbrellaGrantPermission){
-                    continue;
-                }
-                perms.add(p);
-            }
-            pc.add(new GrantPermission(perms.toArray(new Permission[perms.size()])));
-	}
     }
     
     /** Resets policyProperty system property, removing it if the value to set

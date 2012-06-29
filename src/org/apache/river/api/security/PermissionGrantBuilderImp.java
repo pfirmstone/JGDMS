@@ -143,7 +143,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         return this;
     }
 
-    PermissionGrantBuilder setDomain(WeakReference<ProtectionDomain> pd) {
+    public PermissionGrantBuilder setDomain(WeakReference<ProtectionDomain> pd) {
         domain = pd;
         if ( domain != null) hasDomain = true;
         return this;

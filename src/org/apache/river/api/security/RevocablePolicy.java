@@ -70,8 +70,7 @@ import net.jini.security.policy.DynamicPolicy;
  */
 public interface RevocablePolicy extends DynamicPolicy {
     /**
-     * Revoke, removes all DynamicPolicy grants specific to the classLoader of
-     * the class passed in.  This is for removing dynamic grant's from proxy's.
+     * Revokes a specific PermissionGrant from the Policy.
      * 
      * Caveat: Not all Permission's once granted can be revoked.  When a Permission
      * is checked, prior to passing a reference to a caller, that reference
@@ -82,13 +81,16 @@ public interface RevocablePolicy extends DynamicPolicy {
      * to determine if the proxy has no or minimal permissions.  If the
      * proxy still retains permission, the caller should throw a SecurityException.
      * 
-     * @param cl
-     * @return Array of Permission's that have been revoked, the caller should
-     * check to see if any of these allow references to escape, in which case
-     * the proxy still has the functionality the Permission is supposed to 
-     * protect against.
+     * @param p
+     * @return true if successfully
      */
-    public Permission[] revoke(Class cl, Principal[] principals);
+    public boolean revoke(PermissionGrant p);
+    
+    /**
+     * A dynamic grant.
+     * @param p
+     */
+    public boolean grant(PermissionGrant p);
     /**
      * 
      * @return true - If Revoke supported by underlying policy.

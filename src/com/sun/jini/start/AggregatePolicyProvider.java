@@ -40,7 +40,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 import net.jini.security.SecurityContext;
-import org.apache.river.api.security.ConcurrentPolicy;
+import org.apache.river.api.security.ScalableNestedPolicy;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.PolicyInitializationException;
 import net.jini.security.policy.SecurityContextSource;
@@ -48,6 +48,9 @@ import org.apache.river.api.security.PermissionGrant;
 import au.net.zeus.collection.RC;
 import au.net.zeus.collection.Ref;
 import au.net.zeus.collection.Referrer;
+import java.util.Collection;
+import java.util.LinkedList;
+import org.apache.river.api.security.AbstractPolicy;
 
 /**
  * Security policy provider which supports associating security sub-policies
@@ -77,7 +80,7 @@ import au.net.zeus.collection.Referrer;
  * @since 2.0
  */
 public class AggregatePolicyProvider 
-    extends Policy implements DynamicPolicy, SecurityContextSource, ConcurrentPolicy
+    extends AbstractPolicy implements DynamicPolicy, SecurityContextSource, ScalableNestedPolicy
 {
     private static final String mainPolicyClassProperty =
 	"com.sun.jini.start.AggregatePolicyProvider.mainPolicyClass";
@@ -231,30 +234,24 @@ public class AggregatePolicyProvider
     public void refresh() {
 	getCurrentSubPolicy().refresh();
     }
-    
-    public boolean isConcurrent() {
-        Policy p = getCurrentSubPolicy();
-        if (p instanceof ConcurrentPolicy){
-            return ((ConcurrentPolicy)p).isConcurrent();
-        }
-        return false;
-    }
 
-    public PermissionGrant[] getPermissionGrants(ProtectionDomain domain) {
+    public Collection<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
         Policy p = getCurrentSubPolicy();
-        if (p instanceof ConcurrentPolicy){
-            return ((ConcurrentPolicy)p).getPermissionGrants(domain);
-        }
-        return new PermissionGrant[0];
+        if (p instanceof ScalableNestedPolicy){
+            return ((ScalableNestedPolicy)p).getPermissionGrants(domain);
+        } 
+        Collection<PermissionGrant> c = new LinkedList<PermissionGrant>();
+        c.add(extractGrantFromPolicy(p,domain));
+        return c;
     }
     
-    public PermissionGrant[] getPermissionGrants() {
-        Policy p = getCurrentSubPolicy();
-        if (p instanceof ConcurrentPolicy){
-            return ((ConcurrentPolicy)p).getPermissionGrants();
-        }
-        return new PermissionGrant[0];
-    }
+//    public Collection<PermissionGrant> getPermissionGrants(boolean recursive) {
+//        Policy p = getCurrentSubPolicy();
+//        if (p instanceof ScalableNestedPolicy){
+//            return ((ScalableNestedPolicy)p).getPermissionGrants(recursive);
+//        }
+//        throw new UnsupportedOperationException("sub policy doesn't implement ScalableNestedPolicy");
+//    }
 
     /**
      * Changes sub-policy association with given class loader.  If

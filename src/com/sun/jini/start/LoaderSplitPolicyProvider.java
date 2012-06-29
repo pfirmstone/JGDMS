@@ -18,7 +18,6 @@
 
 package com.sun.jini.start;
 
-import com.sun.jini.collection.WeakIdentityMap;
 import net.jini.security.policy.DynamicPolicy;
 import java.security.AccessController;
 import java.security.AllPermission;
@@ -30,10 +29,9 @@ import java.security.Policy;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
-import org.apache.river.api.security.ConcurrentPolicy;
+import org.apache.river.api.security.ScalableNestedPolicy;
 import org.apache.river.api.security.PermissionGrant;
 import au.net.zeus.collection.RC;
 import au.net.zeus.collection.Ref;

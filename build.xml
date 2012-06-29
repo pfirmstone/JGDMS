@@ -2181,12 +2181,14 @@
         <mkdir dir="${test.classes.dir}"/>
         <mkdir dir="${test.results.dir}"/>
         <copy file="dep-libs/high-scale-lib/high-scale-lib.jar" todir="test/lib"/>
+        <copy file="dep-libs/rc-libs/reference-collections-1.0.0.jar" todir="test/lib"/>
     </target>
 
     <target name="clean-tests" depends="">
         <delete dir="${test.classes.dir}" quiet="true"/>
         <delete dir="${test.results.dir}" quiet="true"/>
         <delete file="test/lib/high-scale-lib.jar" quiet="true"/>
+        <delete file="test/lib/reference-collections-1.0.0.jar" quiet="true"/>
     </target> 
     
     <target name="compile-tests" depends="compile,prep-tests">

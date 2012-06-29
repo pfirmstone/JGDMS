@@ -25,6 +25,7 @@ package org.apache.river.api.security;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StreamTokenizer;
+import java.io.StringReader;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashSet;
@@ -95,12 +96,12 @@ class DefaultPolicyScanner {
     /**
      * Configures passed tokenizer accordingly to supported syntax.
      */
-    protected StreamTokenizer configure(StreamTokenizer st) {
+    StreamTokenizer configure(StreamTokenizer st) {
         st.slashSlashComments(true);
         st.slashStarComments(true);
-        st.wordChars('_', '_');
-        st.wordChars('$', '$');
-        return st;
+	st.wordChars('_', '_');
+	st.wordChars('$', '$');
+	return st;
     }
 
     /**
@@ -120,7 +121,7 @@ class DefaultPolicyScanner {
      * @throws InvalidFormatException
      *             if unexpected or unknown token encountered
      */
-    public void scanStream(Reader r, Collection<GrantEntry> grantEntries,
+    void scanStream(Reader r, Collection<GrantEntry> grantEntries,
             List<KeystoreEntry> keystoreEntries) throws IOException,
             InvalidFormatException {
         StreamTokenizer st = configure(new StreamTokenizer(r));
@@ -165,7 +166,7 @@ class DefaultPolicyScanner {
      * @throws InvalidFormatException
      *             if unexpected or unknown token encountered
      */
-    protected KeystoreEntry readKeystoreEntry(StreamTokenizer st)
+    KeystoreEntry readKeystoreEntry(StreamTokenizer st)
             throws IOException, InvalidFormatException {
         String url = null, type = null;
         if (st.nextToken() == '"') {
@@ -205,7 +206,7 @@ class DefaultPolicyScanner {
      * @throws InvalidFormatException
      *             if unexpected or unknown token encountered
      */
-    protected GrantEntry readGrantEntry(StreamTokenizer st) throws IOException,
+    GrantEntry readGrantEntry(StreamTokenizer st) throws IOException,
             InvalidFormatException {
         String signer = null, codebase = null;
         Collection<PrincipalEntry> principals = new ArrayList<PrincipalEntry>();
@@ -268,7 +269,7 @@ class DefaultPolicyScanner {
      * @throws InvalidFormatException
      *             if unexpected or unknown token encountered
      */
-    protected PrincipalEntry readPrincipalEntry(StreamTokenizer st)
+    PrincipalEntry readPrincipalEntry(StreamTokenizer st)
             throws IOException, InvalidFormatException {
         String classname = null, name = null;
         if (st.nextToken() == StreamTokenizer.TT_WORD) {
@@ -308,7 +309,7 @@ class DefaultPolicyScanner {
      * @throws InvalidFormatException
      *             if unexpected or unknown token encountered
      */
-    protected Collection<PermissionEntry> readPermissionEntries(
+    Collection<PermissionEntry> readPermissionEntries(
             StreamTokenizer st) throws IOException, InvalidFormatException {
         Collection<PermissionEntry> permissions = new HashSet<PermissionEntry>();
         parsing: while (true) {
@@ -365,12 +366,12 @@ class DefaultPolicyScanner {
 
         return permissions;
     }
-
+    
     /**
      * Formats a detailed description of tokenizer status: current token,
      * current line number, etc.
      */
-    protected String composeStatus(StreamTokenizer st) {
+    String composeStatus(StreamTokenizer st) {
         return st.toString();
     }
 
@@ -384,7 +385,7 @@ class DefaultPolicyScanner {
      *            Should not be <code>null</code>- use the overloaded
      *            single-parameter method instead.
      */
-    protected final void handleUnexpectedToken(StreamTokenizer st,
+    final void handleUnexpectedToken(StreamTokenizer st,
             String message) throws InvalidFormatException {
         throw new InvalidFormatException(Messages.getString("security.8F", //$NON-NLS-1$
                 composeStatus(st), message));
@@ -397,7 +398,7 @@ class DefaultPolicyScanner {
      * @param st
      *            a tokenizer holding the erroneous token
      */
-    protected final void handleUnexpectedToken(StreamTokenizer st)
+    final void handleUnexpectedToken(StreamTokenizer st)
             throws InvalidFormatException {
         throw new InvalidFormatException(Messages.getString("security.90", //$NON-NLS-1$
                 composeStatus(st)));
@@ -417,7 +418,7 @@ class DefaultPolicyScanner {
      * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
      * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
      */
-    public static class KeystoreEntry {
+    static class KeystoreEntry {
 
         /**
          * The URL part of keystore clause.
@@ -448,14 +449,14 @@ class DefaultPolicyScanner {
         /**
          * @return the url
          */
-        public String getUrl() {
+        String getUrl() {
             return url;
         }
 
         /**
          * @return the type
          */
-        public String getType() {
+        String getType() {
             return type;
         }
     }
@@ -467,7 +468,7 @@ class DefaultPolicyScanner {
      * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
      * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
      */
-    public static class GrantEntry {
+    static class GrantEntry {
 
         /**
          * The signers part of grant clause. This is a comma-separated list of
@@ -513,14 +514,14 @@ class DefaultPolicyScanner {
         /**
          * @return the signers
          */
-        public String getSigners() {
+        String getSigners() {
             return signers;
         }
 
         /**
          * @return the codebase
          */
-        public String getCodebase(Properties system) {
+        String getCodebase(Properties system) {
             if (system == null) return codebase;
             try {
                 return PolicyUtils.expand(codebase, system);
@@ -534,14 +535,14 @@ class DefaultPolicyScanner {
         /**
          * @return the principals
          */
-        public Collection<PrincipalEntry> getPrincipals(Properties system) {
+        Collection<PrincipalEntry> getPrincipals(Properties system) {
             return principals;
         }
 
         /**
          * @return the permissions
          */
-        public Collection<PermissionEntry> getPermissions() {
+        Collection<PermissionEntry> getPermissions() {
             return permissions;
         }
 
@@ -555,7 +556,7 @@ class DefaultPolicyScanner {
      * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
      * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
      */
-    public static class PrincipalEntry {
+    static class PrincipalEntry {
 
         /**
          * Wildcard value denotes any class and/or any name.
@@ -593,14 +594,14 @@ class DefaultPolicyScanner {
         /**
          * @return the klass
          */
-        public String getKlass() {
+        String getKlass() {
             return klass;
         }
 
         /**
          * @return the name
          */
-        public String getName() {
+        String getName() {
             return name;
         }
     }
@@ -613,7 +614,7 @@ class DefaultPolicyScanner {
      * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
      * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
      */
-    public static class PermissionEntry {
+    static class PermissionEntry {
 
         /**
          * The classname part of permission clause.
@@ -662,28 +663,28 @@ class DefaultPolicyScanner {
         /**
          * @return the klass
          */
-        public String getKlass() {
+        String getKlass() {
             return klass;
         }
 
         /**
          * @return the name
          */
-        public String getName() {
+        String getName() {
             return name;
         }
 
         /**
          * @return the actions
          */
-        public String getActions() {
+        String getActions() {
             return actions;
         }
 
         /**
          * @return the signers
          */
-        public String getSigners() {
+        String getSigners() {
             return signers;
         }
     }

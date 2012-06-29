@@ -18,11 +18,13 @@
 
 package org.apache.river.api.security;
 
+import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
+import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import javax.security.auth.Subject;
 
@@ -186,4 +188,11 @@ public abstract class PermissionGrantBuilder {
      * @return an appropriate PermissionGrant.
      */
     public abstract PermissionGrant build();
+
+    /**
+     * 
+     * @param domain
+     * @return
+     */
+    public abstract PermissionGrantBuilder setDomain(WeakReference<ProtectionDomain> domain);
 }

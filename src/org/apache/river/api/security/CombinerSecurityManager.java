@@ -489,7 +489,7 @@ extends SecurityManager implements CachingSecurityManager {
             /* Unfortunately we don't know exactly which domain has failed
              * in fact, multiple domains may fail the permission check since
              * they are executed concurrently, for that reason, we'll print
-             * all failed domains on the stack.
+             * all domains on the stack.
              */
             StringBuilder sb = new StringBuilder(800);
             sb.append("DomainCombinerSecurityManager full stack: \n");
@@ -552,13 +552,7 @@ extends SecurityManager implements CachingSecurityManager {
      * @return
      */
     protected boolean checkPermission(ProtectionDomain pd, Permission p){
-        boolean result = pd.implies(p);
-        //TODO: Enable support for Delegates in a subclass.
-//        if (!result && p instanceof DelegatePermission ){
-//            Permission candidate = ((DelegatePermission)p).getPermission();
-//            result = pd.implies(candidate);
-//        }
-        return result;
+        return pd.implies(p);
     }
     
 }

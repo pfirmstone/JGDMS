@@ -30,9 +30,8 @@ policy file provider to replace Java's standard offering, this policy provider
 is in theory much faster after policy file parsing is complete, it uses an immutable data 
 structure that supports highly scalable concurrent access and does not require
 further disk access and minimises network and DNS requirements.
-</p><p>
-Delegates and DelegatePermission were intended inclusions in this release,
-however they have been removed and will be included in a future release of River.
+    </p><p>
+Disk access of policy files is performed serially.
 </p>
 </body>
 </html>

@@ -27,6 +27,7 @@
 package org.apache.river.api.security;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.net.URL;
 import java.security.AccessController;
 import java.security.AllPermission;
@@ -43,17 +44,17 @@ import java.security.ProtectionDomain;
 import java.security.SecurityPermission;
 import java.security.UnresolvedPermission;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.NavigableSet;
 import java.util.Properties;
 import java.util.TreeSet;
-import org.apache.river.api.security.PermissionComparator;
 import net.jini.security.policy.PolicyInitializationException;
-import org.apache.river.api.security.PermissionGrant;
 
 
 /**
@@ -162,7 +163,7 @@ import org.apache.river.api.security.PermissionGrant;
  * @since 2.2.1
  */
 
-public class ConcurrentPolicyFile extends Policy implements ConcurrentPolicy {
+public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy {
 
     /**
      * System property for dynamically added policy location.
@@ -441,25 +442,35 @@ public class ConcurrentPolicyFile extends Policy implements ConcurrentPolicy {
         }
     }
 
-    public boolean isConcurrent() {
-        return true;
-    }
-    
-    public PermissionGrant[] getPermissionGrants(ProtectionDomain pd) {
+    public Collection<PermissionGrant> getPermissionGrants(ProtectionDomain pd) {
         PermissionGrant [] grants = grantArray; // copy volatile reference target.
         int l = grants.length;
-        List<PermissionGrant> applicable = new ArrayList<PermissionGrant>(l); // Always too large, never too small.
+        List<PermissionGrant> applicable = new LinkedList<PermissionGrant>();
         for (int i =0; i < l; i++){
             if (grants[i].implies(pd)){
                 applicable.add(grants[i]);
             }
         }
-        return applicable.toArray(new PermissionGrant[applicable.size()]);
+        // Merge any static permissions.
+        PermissionCollection pc = pd != null ? pd.getPermissions() : null;
+        if (pc != null){
+            PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
+            pgb.setDomain(new WeakReference<ProtectionDomain>(pd));
+            pgb.context(PermissionGrantBuilder.PROTECTIONDOMAIN);
+            Collection<Permission> perms = new LinkedList<Permission>();
+            Enumeration<Permission> en = pc.elements();
+            while (en.hasMoreElements()){
+                perms.add(en.nextElement());
+            }
+            pgb.permissions(perms.toArray(new Permission[perms.size()]));
+            applicable.add(pgb.build());
+        }
+        return applicable;
     }
     
-    public PermissionGrant[] getPermissionGrants() {
-        PermissionGrant [] grants = grantArray; // copy volatile reference target.
-        return grants.clone();
-    }
+//    public Collection<PermissionGrant> getPermissionGrants(boolean recursive) {
+//        PermissionGrant [] grants = grantArray; // copy volatile reference target.
+//        return new LinkedList<PermissionGrant>(Arrays.asList(grants));
+//    }
 
 }

@@ -40,24 +40,24 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
- * ConcurrentPermissions is a replacement for java.security.Permissions.
+ * ConcurrentPermissions is a drop in replacement for java.security.Permissions
  * 
- * This was originally intended to be used as a policy cache, it turns out
- * that a policy cache is not needed, due to the efficiency of package private
+ * ConcurrentPermissions was originally intended to be used as a policy cache, it turns out
+ * that a policy cache was not needed, due to the efficiency of package private
  * URIGrant.implies(ProtectionDomain pd).  Scalability is better without
  * a policy cache because PermissionGrant's are immutable, have no mutable shared 
- * state and are therefore not likely to causing cache misses.
+ * state and are therefore not likely to cause cache misses.
  * 
- * The only reason this class still exists is due to an unknown bug in
+ * The first reason this class exists is due to an unknown bug in
  * java.security.Permissions not resolving 
  * permission com.sun.jini.phoenix.ExecOptionPermission "*";
  * in UnresolvedPermission. This occurs in start tests using Phoenix and
- * defaultphoenix.policy in the qa suite.
+ * defaultphoenix.policy in the qa suite.  The second reason is performance
+ * tuning for concurrency or to avoid unnecessary collection resizing, 
+ * a method in AbstractPolicy is provided so external policy providers can 
+ * take advantage, without this class being public.
  * 
- * This class may be removed in a future version of River, it is only public
- * because it is required by DynamicPolicyProvider and resides in this 
- * package because it is also used by ConcurrentPolicyFile and requires access
- * to package private utility classes as well.
+ * This class may be removed in a future version of River.
  * 
  * If there is heavy contention for one Permission class
  * type, concurrency may suffer due to internal synchronization.
@@ -78,7 +78,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @since 2.2.1
  * @serial permsMap
  */
-public final class ConcurrentPermissions extends PermissionCollection 
+final class ConcurrentPermissions extends PermissionCollection 
 implements Serializable {
 
     private static final long serialVersionUID=1L;
@@ -101,14 +101,14 @@ implements Serializable {
      * a Permissions object instance to handle all UnresolvedPermissions.
      */    
     
-    public ConcurrentPermissions(){
+    ConcurrentPermissions(){
         permsMap = new ConcurrentHashMap<Class<?>, PermissionCollection>();
         // Bite the bullet, get the pain out of the way in the beginning!
         unresolved = new PermissionPendingResolutionCollection();
         allPermission = false;      
     }
     
-    public ConcurrentPermissions(int initialCapacity, float loadFactor, int concurrencyLevel, int unresolvedClassCount){
+    ConcurrentPermissions(int initialCapacity, float loadFactor, int concurrencyLevel, int unresolvedClassCount){
         permsMap = new ConcurrentHashMap<Class<?>, PermissionCollection>
                 (initialCapacity, loadFactor, concurrencyLevel);
         // Bite the bullet, get the pain out of the way in the beginning!
