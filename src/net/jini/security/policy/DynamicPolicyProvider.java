@@ -18,7 +18,6 @@
 
 package net.jini.security.policy;
 
-import java.lang.ref.WeakReference;
 import org.apache.river.api.security.AbstractPolicy;
 import org.apache.river.api.security.ScalableNestedPolicy;
 import org.apache.river.api.security.ConcurrentPolicyFile;
@@ -35,7 +34,6 @@ import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.Security;
 import java.security.UnresolvedPermission;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -45,14 +43,12 @@ import java.util.LinkedList;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.GrantPermission;
 import org.apache.river.api.security.PermissionGrant;
 import org.apache.river.api.security.PermissionGrantBuilder;
 import org.apache.river.api.security.RemotePolicy;
-import org.apache.river.api.security.PolicyPermission;
 import org.apache.river.api.security.RevocablePolicy;
 
 /**
@@ -172,11 +168,6 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
     private final boolean loggable;
     // do something about some domain permissions for this domain so we can 
     // avoid dead locks due to bug 4911907
-
-    private final Guard revokePermission;
-    private final Guard protectionDomainPermission;
-    
-    
     private final PermissionCollection policyPermissions;
     
     /**
@@ -230,8 +221,6 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
 	}
         dynamicPolicyGrants = Collections.newSetFromMap(new ConcurrentHashMap<PermissionGrant,Boolean>(64));
         loggable = logger.isLoggable(Level.FINEST);
-	revokePermission = new PolicyPermission("REVOKE");
-        protectionDomainPermission = new RuntimePermission("getProtectionDomain");
         if (basePolicy instanceof DynamicPolicy) {
             DynamicPolicy dp = (DynamicPolicy) basePolicy;
             basePolicyIsDynamic = dp.grantSupported();
@@ -264,8 +253,6 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
         this.basePolicy = basePolicy;
         dynamicPolicyGrants = Collections.newSetFromMap(new ConcurrentHashMap<PermissionGrant,Boolean>(64));
         loggable = logger.isLoggable(Level.FINEST);
-	revokePermission = new PolicyPermission("REVOKE");
-        protectionDomainPermission = new RuntimePermission("getProtectionDomain");
          if (basePolicy instanceof DynamicPolicy) {
             DynamicPolicy dp = (DynamicPolicy) basePolicy;
             basePolicyIsDynamic = dp.grantSupported();
@@ -351,32 +338,6 @@ Put the policy providers and all referenced classes in the bootstrap class loade
 	 * ProtectionDomain.  Static Permissions are irrevocable.
 	 */ 
         return basePolicy.getPermissions(codesource);
-//        NavigableSet<Permission> permissions = new TreeSet<Permission>(comparator);
-//        if (!(basePolicy instanceof ScalableNestedPolicy) || codesource == null) {
-//            PermissionCollection pc = basePolicy.getPermissions(codesource);
-//            Enumeration<Permission> enu = pc.elements();
-//            while (enu.hasMoreElements()){
-//                permissions.add(enu.nextElement());
-//            }
-//        }else{
-//            ProtectionDomain pd = new ProtectionDomain(codesource, null);
-//            Collection<PermissionGrant> grants = ((ScalableNestedPolicy) basePolicy).getPermissionGrants(pd, true);
-//            processGrants(grants, null, true, permissions);
-//        }
-////        if (revokeable == true) return convert(permissions);
-////        Iterator<PermissionGrant> dynamicGrants = dynamicPolicyGrants.iterator();
-////        while (dynamicGrants.hasNext()){
-////            PermissionGrant p = dynamicGrants.next();
-////            if ( p.implies(codesource, null) ){
-////		// Only use the trusted grantCache.
-////		Collection<Permission> perms = p.getPermissions();
-////                Iterator<Permission> it = perms.iterator();
-////                while (it.hasNext()){
-////                    permissions.add(it.next());
-////                }
-////	    }
-////        }
-//	return convert(permissions, 16, 0.75F, 16, 16);
     }
     
     @Override
@@ -388,42 +349,6 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         Collection<PermissionGrant> pgc = getPermissionGrants(domain);  
         NavigableSet<Permission> permissions = new TreeSet<Permission>(comparator);
         processGrants(pgc, null, true, permissions);
-//        if (!(basePolicy instanceof ScalableNestedPolicy)) {
-//            permissions = new TreeSet<Permission>(comparator);
-//            PermissionCollection pc = basePolicy.getPermissions(domain);
-//            Enumeration<Permission> enu = pc.elements();
-//            while (enu.hasMoreElements()){
-//                permissions.add(enu.nextElement());
-//            }
-//        }else{
-//            Collection<PermissionGrant> grants = 
-//                    ((ScalableNestedPolicy) basePolicy).getPermissionGrants(domain, true);
-//            permissions = new TreeSet<Permission>(comparator);
-//            processGrants(grants, null, false, permissions);
-//        }
-////	PermissionGrant [] grantsRefCopy = remotePolicyGrants; // Interim updates not seen.
-////	int l = grantsRefCopy.length;
-////	for ( int i = 0; i < l; i++ ){
-////	    if ( grantsRefCopy[i].implies(domain) ){
-////		Collection<Permission> perms = grantsRefCopy[i].getPermissions();
-////		Iterator<Permission> it = perms.iterator();
-////                while (it.hasNext()){
-////                    permissions.add(it.next());
-////                }
-////	    }
-////	}
-//        Iterator<PermissionGrant> dynamicGrants = dynamicPolicyGrants.iterator();
-//        while (dynamicGrants.hasNext()){
-//            PermissionGrant p = dynamicGrants.next();
-//            if ( p.implies(domain) ){
-//		// Only use the trusted grantCache.
-//                Collection<Permission> perms = p.getPermissions();
-//                Iterator<Permission> it = perms.iterator();
-//                while (it.hasNext()){
-//                    permissions.add(it.next());
-//                }
-//	    }
-//        }
         PermissionCollection pc = convert(permissions, 32, 0.75F, 1, 8);
 	expandUmbrella(pc);
         return pc;
@@ -486,24 +411,6 @@ Put the policy providers and all referenced classes in the bootstrap class loade
             processGrants(grants, permClass, true, permissions);
             if (permissions.contains(ALL_PERMISSION)) return true;
         }
-//	PermissionGrant[] grantsRefCopy = remotePolicyGrants; // In case the grants volatile reference is updated.       
-////        if (thread.isInterrupted()) return false;
-//	int l = grantsRefCopy.length;
-//	for ( int i = 0; i < l; i++){
-//	    if (grantsRefCopy[i].implies(domain)) {
-//		Collection<Permission> perms = grantsRefCopy[i].getPermissions();
-//		Iterator<Permission> it = perms.iterator();
-//                while (it.hasNext()){
-//                    Permission p = it.next();
-//                    if ( permClass == null){
-//                        permissions.add(p);
-//                    } else if ( permClass.isInstance(permission) || permission instanceof UnresolvedPermission){
-//                        permissions.add(p);
-//                    }
-//                }
-//	    }
-//	}
-//        if (thread.isInterrupted()) return false;
         Iterator<PermissionGrant> grants = dynamicPolicyGrants.iterator();
         while (grants.hasNext()){
             PermissionGrant g = grants.next();
@@ -519,9 +426,7 @@ Put the policy providers and all referenced classes in the bootstrap class loade
                     }
                 }
             }
-        }
-//        if (thread.isInterrupted()) return false;
-        
+        }   
         PermissionCollection pc = null;
         if (permClass != null){
             pc =convert(permissions, 4, 0.75F, 1, 2);
@@ -547,7 +452,7 @@ Put the policy providers and all referenced classes in the bootstrap class loade
     public void refresh() {
         basePolicy.refresh();
         // Clean up any void dynamic grants.
-        Collection<PermissionGrant> remove = new ArrayList<PermissionGrant>(40);
+        Collection<PermissionGrant> remove = new LinkedList<PermissionGrant>();
 	Iterator<PermissionGrant> i = dynamicPolicyGrants.iterator();
         while (i.hasNext()){
             PermissionGrant p = i.next();
@@ -579,23 +484,23 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         if (permissions == null || permissions.length == 0) {return;}
         checkNullElements(permissions);
         // Not delgated to base policy.
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null){
-            sm.checkPermission(new GrantPermission(permissions));
-        }
+        Guard g = new GrantPermission(permissions);
+        g.checkGuard(null);
         final PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
         pgb.principals(principals)
             .permissions(permissions)
             .context(PermissionGrantBuilder.CLASSLOADER);
-        AccessController.doPrivileged(
-            new PrivilegedAction(){
-            
-                public Object run() {
-                    pgb.clazz(cl);
-                    return null;
-                }
-                 
-            });
+        if (cl != null){
+            AccessController.doPrivileged(
+                new PrivilegedAction(){
+
+                    public Object run() {
+                        pgb.clazz(cl);
+                        return null;
+                    }
+
+                });
+        }
         PermissionGrant pe = pgb.build();
 	dynamicPolicyGrants.add(pe);
 	if (loggable){
@@ -627,36 +532,6 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         return perms;
     }
 
-    public Permission[] revoke(Class cl, Principal[] principals) {
-	revokePermission.checkGuard(null);
-        ClassLoader loader = null;
-        if( cl != null ) {
-            loader = cl.getClassLoader();
-        }
-        // defensive copy array
-        if (principals != null && principals.length > 0) {
-	    principals = principals.clone();
-	    checkNullElements(principals);
-	}
-	HashSet<Permission> removed = new HashSet<Permission>();
-	Iterator<PermissionGrant> grants = dynamicPolicyGrants.iterator();
-	while ( grants.hasNext()){
-            PermissionGrant g = grants.next();
-	    if ( g.implies(loader, principals) ){
-		// Only use the trusted grantCache.
-		removed.addAll(g.getPermissions());
-                grants.remove();
-	    }
-	}
-        
-        SecurityManager sm = System.getSecurityManager();
-        if (sm instanceof CachingSecurityManager) {
-            ((CachingSecurityManager) sm).clearCache();
-        }
-       return removed.toArray(new Permission[removed.size()]);
-    }
-
-    @Override
     public Collection<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
         Collection<PermissionGrant> grants = null;
         if (basePolicy instanceof ScalableNestedPolicy){
@@ -672,36 +547,10 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         return grants;
     }
 
-//    @Override
-//    public Collection<PermissionGrant> getPermissionGrants(boolean recursive) {
-//        Collection<PermissionGrant> grants = null;
-//        if ( recursive ){ 
-//            if (!(basePolicy instanceof ScalableNestedPolicy)){
-//                throw new UnsupportedOperationException
-//                        ("base policy doesn't implement ScalableNestedPolicy");
-//            }
-//            grants = ((ScalableNestedPolicy)basePolicy).getPermissionGrants(recursive);
-//        } else {
-//            grants = new LinkedList<PermissionGrant>();
-//        }
-//        grants.addAll(dynamicPolicyGrants);
-//        return grants;
-//    }
-
-    @Override
-    public boolean revoke(PermissionGrant p) {
-        revokePermission.checkGuard(null);
-        return dynamicPolicyGrants.remove(p);
-    }
-
-    @Override
     public boolean grant(PermissionGrant p) {
         Collection<Permission> perms = p.getPermissions();
         GrantPermission guard = new GrantPermission(perms.toArray(new Permission [perms.size()]));
         guard.checkGuard(null);
-        // Since PermissionGrant receives a ProtectionDomain instance, we
-        // must check if the caller has that permission.
-        protectionDomainPermission.checkGuard(null);
         return dynamicPolicyGrants.add(p);
     }
 

@@ -63,7 +63,7 @@ import net.jini.security.policy.UmbrellaGrantPermission;
  * implementer wants a number of different layers of RemotePolicy, where
  * each layer represents a different administrator role or responsibility.  
  * The administrator's subject must hold the necessary permissions in order
- * to grant them, including RuntimePermission("getProtectionDomain").
+ * to grant them, including GrantPermission and PolicyPermission("REMOTE").
  * </p><p>
  * A node may join more than one djinn group, in this case RemotePolicy's may
  * be used as nested basePolicy's.
@@ -88,6 +88,7 @@ import net.jini.security.policy.UmbrellaGrantPermission;
  * @see PolicyParser
  * @see DefaultPolicyParser
  * @see DefaultPolicyScanner
+ * @see PolicyPermission
  */
 public interface RemotePolicy {
     /**

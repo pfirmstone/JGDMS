@@ -228,7 +228,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
 
 
     // This is a singleton so we don't need to implement equals or hashCode.
-    private static class NullPermissionGrant implements PermissionGrant, Serializable {
+    private static class NullPermissionGrant extends PermissionGrant implements Serializable {
         private static final long serialVersionUID = 1L;
 
         public boolean implies(ProtectionDomain pd) {
@@ -241,10 +241,6 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
 
         public boolean implies(CodeSource codeSource, Principal[] pal) {
             return false;
-        }
-
-        public Collection<Permission> getPermissions() {
-            return Collections.emptySet();
         }
 
         public boolean isVoid() {
@@ -261,10 +257,6 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         
         private Object readResolve(){
             return nullGrant;
-        }
-        
-        public boolean isPrivileged() {
-            return false;
         }
         
     }

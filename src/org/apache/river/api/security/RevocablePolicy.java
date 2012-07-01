@@ -42,8 +42,11 @@ import net.jini.security.policy.DynamicPolicy;
  * </CITE>
  * </p><p>
  * In order for a Permission to be fully revoked, the permission must be
- * used to guard methods only, not Objects or their creation.  A Security 
- * Delegate, may be used as a wrapper with an identical interface to the object
+ * used to guard methods only, not Objects or their creation.  
+ * </p><p>
+ * See "Inside Java 2 Platform Security" 2nd Edition, ISBN:0-201-78791-1, page 176.
+ * </p><p>
+ * A Security Delegate, may be used as a wrapper with an identical interface to the object
  * it protects, a new Permission class must be implemented, for the Delegate's
  * use, in a checkPermission call, to protect access to the underlying
  * object's method. If an existing JVM Permission guards the underlying object,
@@ -67,28 +70,20 @@ import net.jini.security.policy.DynamicPolicy;
  * @see java.security.Permission
  * @see PermissionGrant
  * @see DelegatePermission
+ * @see DelegateSecurityManager
  */
 public interface RevocablePolicy extends DynamicPolicy {
+    
     /**
-     * Revokes a specific PermissionGrant from the Policy.
+     * A dynamic grant.
      * 
      * Caveat: Not all Permission's once granted can be revoked.  When a Permission
      * is checked, prior to passing a reference to a caller, that reference
      * has escaped any further Permission checks, meaning that the Permission
      * cannot be revoked for the caller holding a reference.
      * 
-     * Note that after revocation, the caller should call Policy.getPermissions
-     * to determine if the proxy has no or minimal permissions.  If the
-     * proxy still retains permission, the caller should throw a SecurityException.
-     * 
      * @param p
-     * @return true if successfully
-     */
-    public boolean revoke(PermissionGrant p);
-    
-    /**
-     * A dynamic grant.
-     * @param p
+     * @return true if successful 
      */
     public boolean grant(PermissionGrant p);
     /**

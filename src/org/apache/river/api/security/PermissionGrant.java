@@ -18,16 +18,34 @@
 
 package org.apache.river.api.security;
 
+import java.security.AllPermission;
 import java.security.CodeSource;
+import java.security.Guard;
 import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.util.Collection;
+import java.security.Policy;
+import java.util.Collections;
+import java.util.Set;
+import java.util.TreeSet;
+import net.jini.security.GrantPermission;
 
 /**
- * PermissionGrant implementations are expected to be immutable,
+ * PermissionGrant implementations are expected to be immutable, non blocking,
  * thread safe and have a good hashCode implementation to perform well in
  * Collections.
+ * 
+ * Developers may use decorators to alter the behaviour of existing implementations.
+ * Decorators should use a single transient volatile field to store the result of
+ * an event notification, which must be immutable, state
+ * may not be updated in the policy until {@link Policy#refresh()} is called.
+ * 
+ * PermissionGrant does not implement Serializable for security reasons, 
+ * however classes extending PermissionGrant may implement Serializable,
+ * but are forced to use the Serializable Builder Pattern.  Child classes
+ * cannot contain circular references to themselves if they implement
+ * Serializable. {@link http://wiki.apache.org/river/Serialization}
  * 
  * You shouldn't pass around PermissionGrant's to just anyone; they can
  * provide an attacker with information about granted Permissions.
@@ -43,14 +61,76 @@ import java.util.Collection;
  * @author Peter Firmstone
  * @since 2.2.1
  */
-public interface PermissionGrant {
+public abstract class PermissionGrant {
+    /*
+     * I had originally wanted this class to be an interface, however it became
+     * obvious during development that securing an interface would be more
+     * challenging despite the added flexibility it would provide.
+     * 
+     * The interface solution required the policy to have an additional cache
+     * where the set of permissions were stored in a map, in case the 
+     * implementor tried to mutate those permissions.
+     * 
+     * To avoid escallation of privileges, some fields and methods are final.
+     * 
+     * Overriding classes are restricted in how they can implement Serializable, such
+     * that all guards are checked after deserialization is complete so
+     * all ProtectionDomains are on the call stack.
+     * 
+     * Child classes are prevented from modifying the contained immutable Permissions.
+     */
+    private static final Guard PD_GUARD = new RuntimePermission("getProtectionDomain");
+    private static final Guard CL_GUARD = new RuntimePermission("getClassLoader");
+    private final Set<Permission> perms;
+    private final boolean privileged;
+    private final PermissionGrant decorated;
+    
+    public PermissionGrant(){
+        perms = Collections.emptySet();
+        privileged = false;
+        decorated = null;
+    }
+    
+    PermissionGrant( Permission[] perm ){
+        decorated = null;
+        if (perm == null || perm.length == 0) {
+            this.perms = Collections.emptySet();
+            privileged = false;
+        }else{
+            // PermissionComparator is used to avoid broken hashCode and equals
+	    Set<Permission> perms = new TreeSet<Permission>(new PermissionComparator());
+            boolean privileged = false;
+            int l = perm.length;
+            for (int i = 0; i < l; i++){
+                perms.add(perm[i]);
+                if (perm[i] instanceof AllPermission) privileged = true;
+            }
+	    this.perms = Collections.unmodifiableSet(perms);
+            this.privileged = privileged;
+        }
+    }
+    
+    protected PermissionGrant(PermissionGrant decorated){
+        PD_GUARD.checkGuard(null);
+        CL_GUARD.checkGuard(null);
+        this.decorated = decorated;
+        perms = Collections.emptySet();
+        privileged = false;
+    }
+    
+    protected final PermissionGrant decorated(){
+        return decorated;
+    }
     
     /**
      * Optimisation for AllPermission.
      * 
      * @return true - if PermissionGrant contains AllPermission.
      */
-    boolean isPrivileged();
+    public final boolean isPrivileged(){
+        if (decorated() != null) return decorated().isPrivileged();
+        return privileged;
+    }
 
     /**
      * A DynamicPolicy implementation can use a PermissionGrant as a container
@@ -62,7 +142,7 @@ public interface PermissionGrant {
      * @return
      * @see RevokeableDynamicPolicy
      */
-    boolean implies(ProtectionDomain pd);  
+    public abstract boolean implies(ProtectionDomain pd);  
     /**
      * Checks if this PermissionGrant applies to the passed in ClassLoader
      * and Principal's.
@@ -75,33 +155,30 @@ public interface PermissionGrant {
      * If this method returns false, follow up using the ProtectionDomain for a
      * more specific test, which may return true.
      */
-    boolean implies(ClassLoader cl, Principal[] pal);
+    public abstract boolean implies(ClassLoader cl, Principal[] pal);
     /**
      * Checks if this PermissionGrant applies to the passed in CodeSource
      * and Principal's.
      * @param cs
      * @return 
      */
-    boolean implies(CodeSource codeSource, Principal[] pal);
-
-    @Override
-    boolean equals(Object o);
+    public abstract boolean implies(CodeSource codeSource, Principal[] pal);
 
     /**
      * Returns an unmodifiable Collection of permissions defined by this
      * PermissionGrant, which may be empty, but not null.
      * @return
      */
-    Collection<Permission> getPermissions();
-
-    @Override
-    int hashCode();
+    public final Collection<Permission> getPermissions(){
+        if (decorated() != null) return decorated().getPermissions();
+        return perms;
+    }
 
     /**
      * Returns true if this PermissionGrant defines no Permissions, or if
      * a PermissionGrant was made to a ProtectionDomain that no longer exists.
      */
-    public boolean isVoid();
+    public abstract boolean isVoid();
     
     /**
      * Provide a PermissionGrantBuilder, suitable for
@@ -109,6 +186,6 @@ public interface PermissionGrant {
      * 
      * @return
      */
-    public PermissionGrantBuilder getBuilderTemplate();
+    public abstract PermissionGrantBuilder getBuilderTemplate();
 
 }

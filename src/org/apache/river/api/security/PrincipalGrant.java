@@ -46,16 +46,15 @@ import java.util.TreeSet;
  *
  * @author Peter Firmstone.
  */
-class PrincipalGrant implements PermissionGrant, Serializable{
+class PrincipalGrant extends PermissionGrant implements Serializable{
     private static final long serialVersionUID = 1L;
     // Null object pattern for CodeSource.
     protected static final CodeSource nullCS = new CodeSource((URL) null, (Certificate[]) null);
     protected final Set<Principal> pals;
     private final int hashCode;
-    private final Set<Permission> perms;
-    private final boolean privileged;
     @SuppressWarnings("unchecked")
     PrincipalGrant(Principal[] pals, Permission[] perm){
+        super(perm);
         if ( pals != null ){
 	    Set<Principal> palCol = new HashSet<Principal>(pals.length);
             palCol.addAll(Arrays.asList(pals));
@@ -63,25 +62,9 @@ class PrincipalGrant implements PermissionGrant, Serializable{
         }else {
             this.pals = Collections.emptySet();
         }
-        if (perm == null || perm.length == 0) {
-            this.perms = Collections.emptySet();
-            privileged = false;
-        }else{
-            // PermissionComparator is used to avoid broken hashCode and equals
-	    Set<Permission> perms = new TreeSet<Permission>(new PermissionComparator());
-//            Set<Permission> perms = new HashSet<Permission>();
-            boolean privileged = false;
-            int l = perm.length;
-            for (int i = 0; i < l; i++){
-                perms.add(perm[i]);
-                if (perm[i] instanceof AllPermission) privileged = true;
-            }
-	    this.perms = Collections.unmodifiableSet(perms);
-            this.privileged = privileged;
-        }
         int hash = 5;
         hash = 97 * hash + (this.pals != null ? this.pals.hashCode() : 0);
-        Iterator<Permission> i = perms.iterator();
+        Iterator<Permission> i = getPermissions().iterator();
         while (i.hasNext()){
             Permission p = i.next();
             if (p instanceof UnresolvedPermission){
@@ -106,9 +89,7 @@ class PrincipalGrant implements PermissionGrant, Serializable{
        if (o instanceof PrincipalGrant ){
            PrincipalGrant p = (PrincipalGrant) o;
            if (pals.equals(p.pals) 
-                   // To avoid broken equals:
-                   && perms.containsAll(p.perms) 
-                   && p.perms.containsAll(perms)) return true;
+                   && getPermissions().equals(p.getPermissions())) return true;
        }
        return false;
     }
@@ -128,7 +109,7 @@ class PrincipalGrant implements PermissionGrant, Serializable{
               .append("\n");
         }
         sb.append("\nPermissions: \n");
-        Iterator<Permission> permIt = perms.iterator();
+        Iterator<Permission> permIt = getPermissions().iterator();
         while (permIt.hasNext()){
             sb.append(permIt.next().toString())
               .append("\n");
@@ -247,18 +228,15 @@ class PrincipalGrant implements PermissionGrant, Serializable{
 
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
+        Collection<Permission> perms = getPermissions();
         pgb.context(PermissionGrantBuilder.PRINCIPAL)
            .principals(pals.toArray(new Principal[pals.size()]))
            .permissions(perms.toArray(new Permission[perms.size()]));
         return pgb;
     }
-
-    public Collection<Permission> getPermissions() {
-        return perms;
-    }
     
     public boolean isVoid() {        
-        if (perms.size() == 0 ) return true;
+        if (getPermissions().isEmpty() ) return true;
         return false;
     }
     
@@ -271,10 +249,5 @@ class PrincipalGrant implements PermissionGrant, Serializable{
     private void readObject(ObjectInputStream stream) 
             throws InvalidObjectException{
         throw new InvalidObjectException("PermissionGrantBuilder required");
-    }
-
-    @Override
-    public boolean isPrivileged() {
-        return privileged;
     }
 }

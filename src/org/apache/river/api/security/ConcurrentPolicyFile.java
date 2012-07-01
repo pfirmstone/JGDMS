@@ -175,6 +175,8 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
      */
     private static final String POLICY_URL_PREFIX = "policy.url."; //$NON-NLS-1$
     
+    private static final Permission ALL_PERMISSION = new AllPermission();
+    
     // Reference must be defensively copied before access, once published, never mutated.
     private volatile PermissionGrant [] grantArray;
     
@@ -292,18 +294,13 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     }
 
     /**
-     * Returns collection of permissions allowed for the codesource 
-     * according to the policy. 
-     * The evaluation assumes that current principals are undefined.
-     * 
      * This returns a java.security.Permissions collection, which allows
      * ProtectionDomain to optimise for the AllPermission case, which avoids
      * unnecessarily consulting the policy.
      * 
-     * If constructed with the four argument constructor, ProtectionDomain.implies
-     * first consults the Policy, then it's own internal Permissions collection,
-     * unless it has AllPermission, in which case it returns true without
-     * consulting the policy.
+     * This implementation only returns a Permissions that contains
+     * AllPermission for privileged domains, otherwise it 
+     * calls super.getPermissions(cs).
      * 
      * @param cs CodeSource
      * @see CodeSource
@@ -311,28 +308,20 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     @Override
     public PermissionCollection getPermissions(CodeSource cs) {
         if (cs == null) throw new NullPointerException("CodeSource cannot be null");
-        NavigableSet<Permission> perms = new TreeSet<Permission>(comparator);
-//        PermissionCollection perms = new ConcurrentPermissions();
         // for ProtectionDomain AllPermission optimisation.
         PermissionGrant [] grantRefCopy = grantArray;
         int l = grantRefCopy.length;
         for ( int j =0; j < l; j++ ){
             PermissionGrant ge = grantRefCopy[j];
             if (ge.implies(cs, null)){ // No Principal's
-                if (ge.isPrivileged()){// Don't stuff around finish early if you can.
+                if (ge.isPrivileged()){
                     PermissionCollection pc = new Permissions();
-                    pc.add(new AllPermission());
+                    pc.add(ALL_PERMISSION);
                     return pc;
-                }
-                Collection<Permission> c = ge.getPermissions();
-                Iterator<Permission> i = c.iterator();
-                while (i.hasNext()){
-                    Permission p = i.next();
-                    perms.add(p);
                 }
             }
         }
-        return convert(perms);
+        return super.getPermissions(cs);
     }
     
     @Override
@@ -464,7 +453,7 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
             }
             pgb.permissions(perms.toArray(new Permission[perms.size()]));
             applicable.add(pgb.build());
-        }
+                        }
         return applicable;
     }
     

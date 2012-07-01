@@ -116,11 +116,8 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
          * separate policy's were to be combined, there may be some cases
          * where two permissions combined also implied a third permission, that
          * neither administrator intended to grant.
-         */ 
-        // because PermissionGrant's are given references to ProtectionDomain's
-        // we must check the caller has this permission.
+         */
         try {
-        protectionDomainPermission.checkGuard(null); 
         // Delegating to the underlying policy is not supported.
 	processRemotePolicyGrants(grants);
         // If we get to here, the caller has permission.
@@ -147,17 +144,17 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
 	// changes between now and gaining the lock, only the length of the
 	// HashSet is potentially not optimal, keeping the HashSet creation
 	// outside of the lock reduces the lock held duration.
-        Set<ProtectionDomain> domains = new HashSet<ProtectionDomain>();
+        Set<ProtectionDomain> domains = null;
         int l = grants.length;
         for (int i = 0; i < l; i++ ){
             if (grants[i] == null ) throw new NullPointerException("null PermissionGrant prohibited");
             // This causes a ProtectionDomain security check.
             final Class c = grants[i].getClass();
-            List<ProtectionDomain> doms = AccessController.doPrivileged(
-                new PrivilegedAction<List<ProtectionDomain>>() {
-                    public List<ProtectionDomain> run() {
+            domains = AccessController.doPrivileged(
+                new PrivilegedAction<Set<ProtectionDomain>>() {
+                    public Set<ProtectionDomain> run() {
                         Class[] classes = c.getDeclaredClasses();
-                        List<ProtectionDomain> domains = new ArrayList<ProtectionDomain>();
+                        Set<ProtectionDomain> domains = new HashSet<ProtectionDomain>();
                         int l = classes.length;
                         for ( int i = 0; i < l; i++ ){
                             domains.add(classes[i].getProtectionDomain());
@@ -165,7 +162,6 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
                         return domains;
                     }
                 });
-            domains.addAll(doms);
         }
         Iterator<ProtectionDomain> it = domains.iterator();
         while (it.hasNext()){

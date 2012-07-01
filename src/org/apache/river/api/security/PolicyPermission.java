@@ -8,15 +8,8 @@ package org.apache.river.api.security;
 import java.security.BasicPermission;
 
 /**
- * <p>A "revoke" or "REVOKE" PolicyPermission is allows updating a 
- * RemotePolicy or remove Dynamically granted permission from a 
- * RevokeableDynamicPolicy.</p>
- * 
- * <p>A "implementPermissionGrant" PolicyPermission allows a class to implement
- * org.apache.river.api.security.PermissionGrant interface and use it to
- * update a RemotePolicy.  This is not a permission to grant lightly, since
- * a poor implementation could destabilise a policy or worse allow the caller
- * to grant AllPermission anyone using mutation.</p>
+ * <p>A "remote" or "REMOTE" PolicyPermission is allows updating a 
+ * RemotePolicy </p>
  * 
  * @author Peter Firmstone
  */
