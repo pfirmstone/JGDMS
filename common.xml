@@ -139,7 +139,11 @@
     </fileset>
     
     <fileset id="reference-collections.jar" dir="${root}/dep-libs/rc-libs">
-        <include name="reference-collections-1.0.0.jar" />
+        <include name="reference-collections-1.0.1.jar" />
+    </fileset>
+    
+    <fileset id="dnsjava.jar" dir="${root}/dep-libs/dnsjava">
+        <include name="dnsjava-2.1.3.jar" />
     </fileset>
     
 

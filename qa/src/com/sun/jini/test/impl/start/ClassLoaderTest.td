@@ -32,4 +32,4 @@ com.sun.jini.test.impl.start.ClassLoaderTest2.starterConfiguration=${com.sun.jin
 com.sun.jini.test.impl.start.ClassLoaderTest2.host=master
 
 include0=start.properties
-sharedGroup.classpath=${com.sun.jini.jsk.home}$/lib$/sharedvm.jar$:${com.sun.jini.jsk.home}$/lib$/reference-collections-1.0.0.jar$:<file:lib/qa1-start-testservice-common.jar>
+sharedGroup.classpath=${com.sun.jini.jsk.home}$/lib$/sharedvm.jar$:${com.sun.jini.jsk.home}$/lib$/reference-collections-1.0.1.jar$:<file:lib/qa1-start-testservice-common.jar>
