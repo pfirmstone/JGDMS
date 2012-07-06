@@ -80,15 +80,16 @@ public class ConcurrentPolicyFileTest extends TestCase {
         TestParser tp = new TestParser(pe);
         ConcurrentPolicyFile policy = new ConcurrentPolicyFile(tp, new PermissionComparator());
         CodeSource cs = new CodeSource(null, (Certificate[])null);
-        assertTrue(policy.getPermissions(cs).implies(sp));
+        ProtectionDomain pd = new ProtectionDomain(cs, null, null, null);
+        assertTrue(policy.getPermissions(pd).implies(sp));
 
         tp.content = new PermissionGrant[0];
         policy.refresh();
-        assertFalse(policy.getPermissions(cs).implies(sp));
+        assertFalse(policy.getPermissions(pd).implies(sp));
 
         tp.content = null;
         policy.refresh();
-        assertFalse(policy.getPermissions(cs).implies(sp));
+        assertFalse(policy.getPermissions(pd).implies(sp));
     }
 
     /**
@@ -127,14 +128,17 @@ public class ConcurrentPolicyFileTest extends TestCase {
                         .build();
         PermissionGrant[] peArray = new PermissionGrant[] { pe1, pe2, pe3};
         ConcurrentPolicyFile policy = new ConcurrentPolicyFile(new TestParser(peArray), new PermissionComparator());
+        
+        ProtectionDomain pd = new ProtectionDomain(cs, null, null, null);
+        ProtectionDomain pd2 = new ProtectionDomain(cs2, null, null, null);
 
-        assertTrue(policy.getPermissions(cs).implies(sp1));
-        assertFalse(policy.getPermissions(cs).implies(sp2));
-        assertFalse(policy.getPermissions(cs).implies(sp3));
+        assertTrue(policy.getPermissions(pd).implies(sp1));
+        assertFalse(policy.getPermissions(pd).implies(sp2));
+        assertFalse(policy.getPermissions(pd).implies(sp3));
 
-        assertTrue(policy.getPermissions(cs2).implies(sp1));
-        assertTrue(policy.getPermissions(cs2).implies(sp2));
-        assertFalse(policy.getPermissions(cs2).implies(sp3));
+        assertTrue(policy.getPermissions(pd2).implies(sp1));
+        assertTrue(policy.getPermissions(pd2).implies(sp2));
+        assertFalse(policy.getPermissions(pd2).implies(sp3));
     }
 
     /**
