@@ -30,6 +30,7 @@ import net.jini.security.policy.PolicyFileProvider;
 import com.sun.jini.qa.harness.QATest;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import org.apache.river.api.security.ConcurrentPolicyFile;
 
 public class SubPoliciesTest extends QATest {
     private String policy0File;
@@ -220,11 +221,14 @@ public class SubPoliciesTest extends QATest {
 	CodeSource cs = new CodeSource(new URL(codebase), 
             (java.security.cert.Certificate[]) null);
 	PermissionCollection pc = policy.getPermissions(cs);
-	for (int i = 0; i < pass.length; i++) {
-	    if (!pc.implies(pass[i])) {
-		throw new TestException(pass[i] + " not implied by " + cs);
-	    }
-	}
+        // No longer tested due to ConcurrentPolicyFile calling
+        // super.getPermissions(source) when non privileged domain
+        // performance optimisation.
+//	for (int i = 0; i < pass.length; i++) {
+//	    if (!pc.implies(pass[i])) {
+//                    throw new TestException(pass[i] + " not implied by " + cs);
+//                }
+//	    }
 	for (int i = 0; i < fail.length; i++) {
 	    if (pc.implies(fail[i])) {
 		throw new TestException(fail[i] + " implied by " + cs);
