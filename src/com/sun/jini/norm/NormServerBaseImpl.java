@@ -993,6 +993,8 @@ abstract class NormServerBaseImpl
 				continue; // go back to top of loop
 			    } catch (InterruptedException e) {
 				// someone wants us dead
+                                // Reset the interrupt
+                                Thread.currentThread().interrupt();
 				return;
 			    }
 			} else {
@@ -1041,9 +1043,16 @@ abstract class NormServerBaseImpl
 		    } finally {
 			store.releaseMutatorLock();
 		    }
-
-		    // Give other threads a chance to run
-		    Thread.yield();
+                    try {
+                        // Give other threads a chance to run
+                        long expires = set.getExpiration() - System.currentTimeMillis();
+                        // Thread sleep time decreases as it approaches the lease expiration.
+                        Thread.sleep(expires / 2);
+                        // Thread.yield();
+                    } catch (InterruptedException ex) {
+                        // Reset the interrupt status.
+                        Thread.currentThread().interrupt();
+                    }
 		} catch (RuntimeException e) {
 		    logger.log(
 			Level.INFO,
@@ -1606,7 +1615,15 @@ abstract class NormServerBaseImpl
 		    logger.log(Level.FINEST, "...rslt = " + unexported);
 
 		    if (!unexported) {
-			Thread.yield();
+			// Thread.yield();
+                        try {
+                            // Sleep time decreases as we approach the max delay
+                            // and retries increase.
+                            Thread.sleep((end_time - System.currentTimeMillis())/2);
+                        } catch (InterruptedException e){
+                            // Reset interrupt status
+                            Thread.currentThread().interrupt();
+                        }
 		    }
 		}
 	    } catch (NoSuchObjectException e) {

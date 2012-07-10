@@ -496,7 +496,8 @@ class DefaultPolicyScanner {
                     Collection<PrincipalEntry> pe,
                     Collection<PermissionEntry> perms){
             this.signers = signers;
-            this.codebase = codebase;
+            // Spaces are an illegal character in URI, so get rid of them now.
+            this.codebase = codebase.replace(" ", "%20");
             this.principals = pe;
             this.permissions = perms;
         }
