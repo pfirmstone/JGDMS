@@ -204,13 +204,13 @@ class DefaultPolicyParser implements PolicyParser {
                     Collection<String> cbstr = expandURLs(cb, system);
                     Iterator<String> it = cbstr.iterator();
                     while (it.hasNext()){
-                        codebases.add(new URI(it.next()));
+                        codebases.add(new URI(UriString.escapeIllegalCharacters(it.next())));
                     }
                 } catch (ExpansionFailedException e) {
-                    codebases.add(new URI(cb));
+                    codebases.add(new URI(UriString.escapeIllegalCharacters(cb)));
                 }
             } else {
-                codebases.add(new URI(cb));
+                codebases.add(new URI(UriString.escapeIllegalCharacters(cb)));
             }
         }
         if ( signerString != null) {
