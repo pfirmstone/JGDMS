@@ -792,7 +792,7 @@ public final class GrantPermission extends Permission {
 	
 	public synchronized boolean implies(Permission p) {
 	    return implier.implies(p);
-	}
+        }
 
 	public synchronized void setReadOnly() {
 	    super.setReadOnly();

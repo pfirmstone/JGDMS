@@ -267,7 +267,7 @@ class DefaultPolicyParser implements PolicyParser {
     Segment segment(String s, Properties p) throws ExpansionFailedException{
         final String ARRAY_START_MARK = "${{";
         final String ARRAY_END_MARK = "}}";
-        final String ARRAY_SEPARATOR = ":";
+        final String ARRAY_SEPARATOR = p.getProperty("path.separator");
         final String START_MARK = "${"; //$NON-NLS-1$
         final String END_MARK = "}"; //$NON-NLS-1$
         Segment primary = new Segment(s, null);

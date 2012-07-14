@@ -2430,13 +2430,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
                 /* Unexport only if there are no pending or in-progress calls*/
                 while(!unexported && (System.currentTimeMillis() < endTime)) {
                     unexported = serverExporter.unexport(false);
-                    if(!unexported) try {
-                        // Thread.yield();
-                    Thread.sleep(MAX_UNEXPORT_DELAY / 4);
-                } catch (InterruptedException ex) {
-                    // Reset the interrupt
-                    Thread.currentThread().interrupt();
-                }
+                    if(!unexported) Thread.yield();
                 }//end loop
             if(!unexported) {//Not yet unexported. Forcibly unexport
                 serverExporter.unexport(true);

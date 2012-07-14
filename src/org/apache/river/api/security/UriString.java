@@ -17,6 +17,7 @@
 
 package org.apache.river.api.security;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -30,11 +31,12 @@ import java.util.Map;
 class UriString {
     
     private final static Map<Character,String> escaped = new HashMap<Character,String>();
-    
+    private final static Collection<Character> alpha;
     
         // Allowed
-    private static char [] lowalpha = "abcdefghijklmnopqrstuvwxyz".toCharArray();
-    private static char [] upalpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+    private static final char [] lowalpha = "abcdefghijklmnopqrstuvwxyz".toCharArray();
+    private static final char [] upalpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+    private static char [] numeric = "0123456789".toCharArray();
     private static char [] reserved = {';','/','?',':','@','&','=','+','$',','};
     private static char [] mark = "-_.!~*'()".toCharArray();
     private static char escape = '%';
@@ -71,6 +73,9 @@ class UriString {
         escaped.put(space, spaceEsc);
         escapes(delims, delimEsc);
         escapes(unwise, unwiseEsc);
+        alpha = new ArrayList<Character>(lowalpha.length + upalpha.length);
+        addArrayToCollection(alpha, lowalpha);
+        addArrayToCollection(alpha, upalpha);
     }
     
     static void escapes(Character [] unicode, String[] escape){
@@ -81,15 +86,25 @@ class UriString {
         }
     }
     
+    static void addArrayToCollection(Collection<Character> col, char [] chars){
+        int l = chars.length;
+        for ( int i = 0; i < l; i++){
+            col.add(chars[i]);
+        }
+    }
+    
     static String escapeIllegalCharacters(String url){
+        boolean isFile = url.startsWith("file:");
         char [] u = url.toCharArray();
         int l = u.length;
-//        for (int i = 0; i < l; i++){
-//            // Don't escape if already escaped.
-//            if (u[i] == escape) return url;
-//        }
         StringBuilder sb = new StringBuilder();
         for (int i=0; i<l; i++){
+            if (isFile && i == 5 && url.startsWith(":", 6 )) {
+                //Windows drive letter without leading slashes.
+                if ( alpha.contains(u[i])){
+                    sb.append("///");
+                }
+            }
             Character c = Character.valueOf(u[i]);
             if (escaped.keySet().contains(c)){
                 sb.append(escaped.get(c));
