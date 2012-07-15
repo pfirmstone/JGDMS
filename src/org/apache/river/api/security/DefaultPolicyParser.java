@@ -22,6 +22,7 @@
 
 package org.apache.river.api.security;
 
+import org.apache.river.impl.net.UriString;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
@@ -284,7 +285,8 @@ class DefaultPolicyParser implements PolicyParser {
         Segment seg = segment(s,p);
         Collection<String> urls = new ArrayList<String>();
         while ( seg.hasNext() ){
-            urls.add(seg.next().replace(File.separatorChar, '/'));
+//            urls.add(seg.next().replace(File.separatorChar, '/'));
+            urls.add(seg.next());
         }
         return urls;
     }   

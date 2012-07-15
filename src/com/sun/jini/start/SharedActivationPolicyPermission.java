@@ -21,13 +21,18 @@ package com.sun.jini.start;
 import java.io.File;
 import java.io.FilePermission;
 import java.io.Serializable;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.apache.river.impl.net.UriString;
 
 /**
  * {@link Permission} class used by the 
@@ -97,6 +102,36 @@ public final class SharedActivationPolicyPermission extends Permission
 	policyPermission = init(policy);
     }
 
+//    /**
+//     * Contains common code to all constructors.
+//     */
+//    private Permission init(final String policy) {
+//	/*
+//	 * In order to leverage the <code>FilePermission</code> logic
+//	 * we need to make sure that forward slashes ("/"), in 
+//	 * <code>URLs</code>, are converted to
+//	 * the appropriate system dependent <code>File.separatorChar</code>. 
+//	 * For example,
+//	 * http://host:port/* matches http://host:port/bogus.jar under
+//	 * UNIX, but not under Windows since "\*" is the wildcard there.
+//	 */
+//        if (policy == null) throw new NullPointerException("Null policy string not allowed");
+//        String uncanonicalPath = null;
+//        try {
+//            URL url = new URL(policy);
+//	    uncanonicalPath = url.toExternalForm();
+//	    uncanonicalPath = uncanonicalPath.replace('/', File.separatorChar);
+//	    if (DEBUG) {
+//   	        System.out.println("SharedActivationPolicyPermission::init() - "
+//	        + policy + " => " + uncanonicalPath);
+//	    }
+//	} catch (MalformedURLException me) {
+//	    uncanonicalPath = policy;
+//	}
+//
+//        return new FilePermission(uncanonicalPath, "read");
+//    }
+    
     /**
      * Contains common code to all constructors.
      */
@@ -114,15 +149,17 @@ public final class SharedActivationPolicyPermission extends Permission
         String uncanonicalPath = null;
         try {
             URL url = new URL(policy);
-	    uncanonicalPath = url.toExternalForm();
-	    uncanonicalPath = uncanonicalPath.replace('/', File.separatorChar);
+	    uncanonicalPath = UriString.escapeIllegalCharacters(url.toExternalForm());
+            uncanonicalPath = new File(new URI(uncanonicalPath)).getPath();
 	    if (DEBUG) {
    	        System.out.println("SharedActivationPolicyPermission::init() - "
 	        + policy + " => " + uncanonicalPath);
 	    }
 	} catch (MalformedURLException me) {
 	    uncanonicalPath = policy;
-	}
+	} catch (URISyntaxException ex){
+            uncanonicalPath = policy;
+        }
 
         return new FilePermission(uncanonicalPath, "read");
     }

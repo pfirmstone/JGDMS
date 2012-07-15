@@ -15,8 +15,9 @@
  *  limitations under the License.
  */
 
-package org.apache.river.api.security;
+package org.apache.river.impl.net;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,7 +29,7 @@ import java.util.Map;
  *
  * @author Peter Firmstone.
  */
-class UriString {
+public class UriString {
     
     private final static Map<Character,String> escaped = new HashMap<Character,String>();
     private final static Collection<Character> alpha;
@@ -78,7 +79,7 @@ class UriString {
         addArrayToCollection(alpha, upalpha);
     }
     
-    static void escapes(Character [] unicode, String[] escape){
+    private static void escapes(Character [] unicode, String[] escape){
         int l = unicode.length;
         if (l != escape.length) throw new IllegalArgumentException("unequal arrays");
         for (int i = 0; i < l; i++){
@@ -86,23 +87,28 @@ class UriString {
         }
     }
     
-    static void addArrayToCollection(Collection<Character> col, char [] chars){
+    private static void addArrayToCollection(Collection<Character> col, char [] chars){
         int l = chars.length;
         for ( int i = 0; i < l; i++){
             col.add(chars[i]);
         }
     }
     
-    static String escapeIllegalCharacters(String url){
+    public static String escapeIllegalCharacters(String url){
         boolean isFile = url.startsWith("file:");
         char [] u = url.toCharArray();
         int l = u.length;
         StringBuilder sb = new StringBuilder();
         for (int i=0; i<l; i++){
-            if (isFile && i == 5 && url.startsWith(":", 6 )) {
-                //Windows drive letter without leading slashes.
-                if ( alpha.contains(u[i])){
-                    sb.append("///");
+            if (isFile){
+                // Ensure we use forward slashes
+                if (u[i] == File.separatorChar) u[i] = '/';
+                if (i == 5 && url.startsWith(":", 6 )) {
+                    // Windows drive letter without leading slashes doesn't comply
+                    // with URI spec, fix it here.
+                    if ( alpha.contains(u[i])){
+                        sb.append("///");
+                    }
                 }
             }
             Character c = Character.valueOf(u[i]);

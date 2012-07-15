@@ -1045,9 +1045,7 @@ abstract class NormServerBaseImpl
 		    }
                     try {
                         // Give other threads a chance to run
-                        long expires = set.getExpiration() - System.currentTimeMillis();
-                        // Thread sleep time decreases as it approaches the lease expiration.
-                        Thread.sleep(expires / 2);
+                        Thread.sleep(100L);
                         // Thread.yield();
                     } catch (InterruptedException ex) {
                         // Reset the interrupt status.
@@ -1617,9 +1615,7 @@ abstract class NormServerBaseImpl
 		    if (!unexported) {
 			// Thread.yield();
                         try {
-                            // Sleep time decreases as we approach the max delay
-                            // and retries increase.
-                            Thread.sleep((end_time - System.currentTimeMillis())/2);
+                            Thread.sleep(100L);
                         } catch (InterruptedException e){
                             // Reset interrupt status
                             Thread.currentThread().interrupt();
