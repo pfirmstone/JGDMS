@@ -157,6 +157,8 @@ public final class SharedActivationPolicyPermission extends Permission
                     path = new File(new URI(path)).getPath();
                 } catch (URISyntaxException ex) {
                     path = uncanonicalPath.replace('/', File.separatorChar);
+                } catch (IllegalArgumentException ex){
+                    path = uncanonicalPath.replace('/', File.separatorChar);
                 }
                 uncanonicalPath = path;
             } else {
