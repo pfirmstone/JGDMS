@@ -149,17 +149,26 @@ public final class SharedActivationPolicyPermission extends Permission
         String uncanonicalPath = null;
         try {
             URL url = new URL(policy);
-	    uncanonicalPath = UriString.escapeIllegalCharacters(url.toExternalForm());
-            uncanonicalPath = new File(new URI(uncanonicalPath)).getPath();
+            uncanonicalPath = url.toExternalForm();
+            if (policy.startsWith("file:") || policy.startsWith("FILE:")){
+                String path = null;
+                try {
+                    path = UriString.escapeIllegalCharacters(uncanonicalPath);
+                    path = new File(new URI(path)).getPath();
+                } catch (URISyntaxException ex) {
+                    path = uncanonicalPath.replace('/', File.separatorChar);
+                }
+                uncanonicalPath = path;
+            } else {
+                uncanonicalPath = uncanonicalPath.replace('/', File.separatorChar);
+            }
 	    if (DEBUG) {
    	        System.out.println("SharedActivationPolicyPermission::init() - "
 	        + policy + " => " + uncanonicalPath);
 	    }
 	} catch (MalformedURLException me) {
 	    uncanonicalPath = policy;
-	} catch (URISyntaxException ex){
-            uncanonicalPath = policy;
-        }
+	}
 
         return new FilePermission(uncanonicalPath, "read");
     }
