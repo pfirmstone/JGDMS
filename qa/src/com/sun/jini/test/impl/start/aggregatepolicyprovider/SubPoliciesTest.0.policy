@@ -66,3 +66,19 @@ grant codeBase "file:/foo/-" {
 grant codeBase "file:/bar.jar" {
     permission java.lang.RuntimePermission "D0";
 };
+
+/* For Microsoft Platform URI grants, URL prepends /C: while URI doesn't
+ * this is only required for pseudo URI strings.
+ */
+
+grant codeBase "file:/C:/foo/*" {
+    permission java.lang.RuntimePermission "B0";
+};
+
+grant codeBase "file:/C:/foo/-" {
+    permission java.lang.RuntimePermission "C0";
+};
+
+grant codeBase "file:/C:/bar.jar" {
+    permission java.lang.RuntimePermission "D0";
+};

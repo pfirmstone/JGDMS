@@ -2,7 +2,7 @@
  * To change this template, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.apache.river.api.security;
+package org.apache.river.impl.net;
 
 import org.junit.After;
 import org.junit.AfterClass;

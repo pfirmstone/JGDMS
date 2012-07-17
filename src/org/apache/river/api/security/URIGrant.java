@@ -199,7 +199,7 @@ class URIGrant extends CertificateGrant {
      * @return {@code true} if the argument code source is implied by this
      *         {@code CodeSource}, otherwise {@code false}.
      */
-    private final boolean implies(URI grant, URI implied) {
+    final boolean implies(URI grant, URI implied) { // package private for junit
         //
         // Here, javadoc:N refers to the appropriate item in the API spec for 
         // the CodeSource.implies()
