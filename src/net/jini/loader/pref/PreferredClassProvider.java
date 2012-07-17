@@ -250,7 +250,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     private static String codebaseProperty = null;
     static {
 	String prop = AccessController.doPrivileged(
-           new GetPropertyAction("java.rmi.server.codebase"));
+   new GetPropertyAction("java.rmi.server.codebase"));
 	if (prop != null && prop.trim().length() > 0) {
 	    codebaseProperty = prop;
 	}
@@ -259,26 +259,18 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     /** table of "local" class loaders */
     private static final Map localLoaders =
 	Collections.synchronizedMap(new WeakHashMap());
-    /** lazy load table of "local" class loaders to avoid java Policy 
-     * initialisation issues */
-    private static volatile boolean loaded = false;
-    static void load() {
-        if (loaded) return;
-        synchronized (localLoaders){
-            if (loaded) return; // Double checked
-            AccessController.doPrivileged(new PrivilegedAction() {
-                public Object run() {
-                    for (ClassLoader loader = ClassLoader.getSystemClassLoader();
-                         loader != null;
-                         loader = loader.getParent())
-                    {
-                        localLoaders.put(loader, null);
-                    }
-                    return null;
-                }
-            });
-            loaded = true;
-        }
+    static {
+	AccessController.doPrivileged(new PrivilegedAction() {
+	    public Object run() {
+		for (ClassLoader loader = ClassLoader.getSystemClassLoader();
+		     loader != null;
+		     loader = loader.getParent())
+		{
+		    localLoaders.put(loader, null);
+		}
+		return null;
+	    }
+	});
     }
 
     /**
@@ -862,7 +854,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * class loader
      */
     private static boolean isLocalLoader(ClassLoader loader) {
-        load();
 	return (loader == null || localLoaders.containsKey(loader));
     }
     
