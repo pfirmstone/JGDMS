@@ -22,6 +22,8 @@
 
 package org.apache.river.api.security;
 
+import java.net.MalformedURLException;
+import java.net.URISyntaxException;
 import org.apache.river.impl.net.UriString;
 import java.io.BufferedReader;
 import java.io.File;
@@ -205,13 +207,13 @@ class DefaultPolicyParser implements PolicyParser {
                     Collection<String> cbstr = expandURLs(cb, system);
                     Iterator<String> it = cbstr.iterator();
                     while (it.hasNext()){
-                        codebases.add(new URI(UriString.escapeIllegalCharacters(it.next())));
+                        codebases.add(getURI(it.next()));
                     }
                 } catch (ExpansionFailedException e) {
-                    codebases.add(new URI(UriString.escapeIllegalCharacters(cb)));
+                    codebases.add(getURI(cb));
                 }
             } else {
-                codebases.add(new URI(UriString.escapeIllegalCharacters(cb)));
+                codebases.add(getURI(cb));
             }
         }
         if ( signerString != null) {
@@ -263,6 +265,16 @@ class DefaultPolicyParser implements PolicyParser {
             .permissions(permissions.toArray(new Permission[permissions.size()]))
             .context(PermissionGrantBuilder.URI)
             .build();
+    }
+    
+    URI getURI(String uri) throws MalformedURLException, URISyntaxException{
+        // We do this to support windows, this is to ensure that drive letter
+        // capitalisation is correct and illegal strings are escaped correctly.
+        // It give the native parser a chance to correctly parse and format
+        // platform specific information.
+        String url = new URL(uri).toString();
+        if (url == null || url.equals("")) return new URI(UriString.escapeIllegalCharacters(uri));
+        return new URI(UriString.escapeIllegalCharacters(url));
     }
     
     Segment segment(String s, Properties p) throws ExpansionFailedException{
