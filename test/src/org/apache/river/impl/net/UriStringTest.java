@@ -37,14 +37,31 @@ public class UriStringTest {
     }
 
     /**
-     * Test of escapeIllegalCharacters method, of class UriString.
+     * Test of parse method, of class UriString.
      */
     @Test
     public void testEscapeIllegalCharacters() {
         System.out.println("escapeIllegalCharacters");
         String url = " ";
         String expResult = "%20";
-        String result = UriString.escapeIllegalCharacters(url);
+        String result = UriString.parse(url);
+        assertEquals(expResult, result);
+    }
+    
+    @Test
+    public void testWindowsDrives() {
+        System.out.println("windows drive letters");
+        String url = "file:c:/Program Files/java";
+        String expResult = "file:///C:/Program%20Files/java";
+        String result = UriString.parse(url);
+        assertEquals(expResult, result);
+        url = "file:/c:/Program Files/java lib";
+        expResult = "file:///C:/Program%20Files/java%20lib";
+        result = UriString.parse(url);
+        assertEquals(expResult, result);
+        url = "file:///c:/Program Files/java";
+        expResult = "file:///C:/Program%20Files/java";
+        result = UriString.parse(url);
         assertEquals(expResult, result);
     }
 }

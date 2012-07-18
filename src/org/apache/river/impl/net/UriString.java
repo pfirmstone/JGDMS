@@ -18,6 +18,8 @@
 package org.apache.river.impl.net;
 
 import java.io.File;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -30,6 +32,9 @@ import java.util.Map;
  * @author Peter Firmstone.
  */
 public class UriString {
+    
+    // prevents instantiation.
+    private UriString(){};
     
     private final static Map<Character,String> escaped = new HashMap<Character,String>();
     private final static Collection<Character> alpha;
@@ -94,22 +99,80 @@ public class UriString {
         }
     }
     
-    public static String escapeIllegalCharacters(String url){
-        boolean isFile = url.startsWith("file:");
+    /**
+     * Finds a character in an array and returns the index at which it exists,
+     * or returns -1 if it doesn't
+     * 
+     * @param array
+     * @param character
+     * @return 
+     */
+    public static int index(char [] array, char character){
+        int l = array.length;
+        for (int i = 0; i < l; i++){
+            if (array[i] == character) return i;
+        }
+        return -1;
+    }
+    
+    public static String parse(String url) {
+        boolean isFile = url.startsWith("file:") || url.startsWith("FILE:");
+        char slash = reserved[1];
         char [] u = url.toCharArray();
-        int l = u.length;
+        int l = u.length; 
         StringBuilder sb = new StringBuilder();
         for (int i=0; i<l; i++){
             if (isFile){
                 // Ensure we use forward slashes
-                if (u[i] == File.separatorChar) u[i] = '/';
+                if (u[i] == File.separatorChar) {
+                    u[i] = '/';
+                    sb.append(u[i]);
+                    continue;
+                }
                 if (i == 5 && url.startsWith(":", 6 )) {
                     // Windows drive letter without leading slashes doesn't comply
-                    // with URI spec, fix it here.
-                    if ( alpha.contains(u[i])){
+                    // with URI spec, fix it here
+                    // Ensure that drive letter is upper case only.
+                    int upcase = index(upalpha, u[i]);
+                    int lowcase = index(lowalpha, u[i]);
+                    if ( upcase > 0){
                         sb.append("///");
+                        sb.append(u[i]);
+                        continue;
+                    } else if ( lowcase > 0){
+                        sb.append("///");
+                        sb.append(upalpha[lowcase]);
+                        continue;
                     }
                 }
+                if (i == 6 && u[5] == '/' && url.startsWith(":", 7) ){
+                    // Ensure drive letter is upper case only.
+                    int upcase = index(upalpha, u[i]);
+                    int lowcase = index(lowalpha, u[i]);
+                    if ( upcase > 0){
+                        sb.append("//");
+                        sb.append(u[i]);
+                        continue;
+                    } else if ( lowcase > 0){
+                        sb.append("//");
+                        sb.append(upalpha[lowcase]);
+                        continue;
+                    }
+                }
+                if (i == 8 && u[5] == slash && u[6] == slash 
+                        && u[7] == slash && url.startsWith(":", 9)){
+                    // Ensure drive letter is upper case only.
+                    int upcase = index(upalpha, u[i]);
+                    int lowcase = index(lowalpha, u[i]);
+                    if ( upcase > 0){
+                        sb.append(u[i]);
+                        continue;
+                    } else if ( lowcase > 0){
+                        sb.append(upalpha[lowcase]);
+                        continue;
+                    }
+                }
+                    
             }
             Character c = Character.valueOf(u[i]);
             if (escaped.keySet().contains(c)){
