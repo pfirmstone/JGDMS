@@ -271,21 +271,22 @@ class DefaultPolicyParser implements PolicyParser {
         // We do this to support windows, this is to ensure that drive letter
         // capitalisation is correct and illegal strings are escaped correctly.
         String result = UriString.parse(uriString);
-        boolean isFile = result.startsWith("file:") || result.startsWith("FILE:");
+//        boolean isFile = result.startsWith("file:") || result.startsWith("FILE:");
         URI uri = new URI(result);
-        if (isFile){
-            if ( result.endsWith("*") || result.endsWith("-")){
-                // We did our best to create a compatible URI,
-                // upper and lower case may cause issues on windows, if the
-                // CodeSource url differs.
-                return uri; 
-            } else {
-                // Since file is system dependant, it will guarantee that
-                // the path is compatible and exists.
-                File file = new File(uri);
-                return file.toURI().normalize();
-            }
-        }
+        // Oddly enough, this next part didn't quite work out as expected.
+//        if (isFile){
+//            if ( result.endsWith("*") || result.endsWith("-")){
+//                // We did our best to create a compatible URI,
+//                // upper and lower case may cause issues on windows, if the
+//                // CodeSource url differs.
+//                return uri; 
+//            } else {
+//                // Since file is system dependant, it will guarantee that
+//                // the path is compatible and exists.
+//                File file = new File(uri);
+//                return file.toURI().normalize();
+//            }
+//        }
         return uri;
     }
     

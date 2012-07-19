@@ -258,7 +258,7 @@ public class SslServerConstructorAccessorTest extends AbstractEndpointTest {
             exceptionThrown = true;
         }
         if (!exceptionThrown) {
-            throw new TestException("SecurityExceptioin was"
+            throw new TestException("SecurityException was"
                 + " not thrown when creating an instance with an"
                 + " unauthorized host");
         }
