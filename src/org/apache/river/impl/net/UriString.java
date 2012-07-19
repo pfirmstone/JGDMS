@@ -18,17 +18,16 @@
 package org.apache.river.impl.net;
 
 import java.io.File;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 /**
- *
+ * Utility that escapes illegal characters in URI strings according to RFC2396
+ * as well as converting MS Windows file absolute path strings to URI compliant 
+ * syntax.
+ * 
  * @author Peter Firmstone.
  */
 public class UriString {

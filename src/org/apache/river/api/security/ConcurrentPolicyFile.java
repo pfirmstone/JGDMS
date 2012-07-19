@@ -64,14 +64,8 @@ import net.jini.security.policy.PolicyInitializationException;
  * throughput.  Caching limits scalability and consumes shared memory,
  * so no cache exists.
  * </p><p>
- * Set the following system properties to use this Policy instead of the
- * built in Java sun.security.provider.PolicyFile:
+ * By default all River Policy implementations now utilise ConcurrentPolicyFile.
  * </p>
- *  <pre>
- * net.jini.security.policy.PolicyFileProvider.basePolicyClass = 
- * org.apache.river.security.concurrent.ConcurrentPolicyFile
- * </pre>
- * 
  * This
  * implementation recognises text files, consisting of clauses with the
  * following syntax:
@@ -98,13 +92,27 @@ import net.jini.security.policy.PolicyInitializationException;
  * only the first successfully loaded keystore is used, others are ignored. The
  * keystore must be specified if some grant clause refers to a certificate's
  * alias. <br>
- * The <i>grant </i> clause associates a CodeSource (consisting of an URL and a
+ * The <i>grant </i> clause associates a CodeSource (consisting of a URI and a
  * set of certificates) of some executable code with a set of Permissions which
  * should be granted to the code. So, the CodeSource is defined by values of
  * <i>CodeBase </i> and <i>SignedBy </i> fields. The <i>CodeBase </i> value must
- * be in URL format, while <i>SignedBy </i> value is a (comma-separated list of)
+ * be in URI format, while <i>SignedBy </i> value is a (comma-separated list of)
  * alias(es) to keystore certificates. These fields can be omitted to denote any
  * codebase and any signers (including case of unsigned code), respectively.
+ * <br>
+ * URI is case sensitive and does not perform DNS lookup or reverse lookup
+ * to resolve a URI IP address to determine if a <i>grant</i> clause implies 
+ * CodeSource URL, instead CodeSource URL objects are converted to URI instances
+ * during implies determination.  If grants are made to an IP address, 
+ * these will not imply a DNS name address URI and vice versa.
+ * <br>
+ * "FILE:" URI's are case sensitive, although some file systems allow access
+ * to the same file using upper or lower case, one URI will not imply another
+ * with different case, even if both URI refer to the same file, for this 
+ * reason case sensitive and case preserving file systems are recommended.  
+ * The PolicyParser must escape any excluded characters according to RFC2396
+ * and in addition it must convert all MS Windows platform drive letters 
+ * to upper case.
  * <br>
  * Also, the code may be required to be executed on behalf of some Principals
  * (in other words, code's ProtectionDomain must have the array of Principals
