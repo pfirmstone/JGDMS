@@ -95,7 +95,7 @@ class CertificateGrant extends PrincipalGrant {
 	Principal[] pals = null;
 	if (pd != null){
 	    c = pd.getCodeSource();
-	    pals = pd.getPrincipals();
+	    pals = getPrincipals(pd);
 	}
 	return implies(c, pals);
     }

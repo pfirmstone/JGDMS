@@ -70,7 +70,7 @@ class ClassLoaderGrant extends ProtectionDomainGrant {
         Principal[] pals = null;
         if (pd != null){
             cl = pd.getClassLoader();
-            pals = pd.getPrincipals();
+            pals = getPrincipals(pd);
         }
         return implies(cl, pals);
     }

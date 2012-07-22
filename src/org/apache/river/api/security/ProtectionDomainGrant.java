@@ -95,7 +95,7 @@ class ProtectionDomainGrant extends PrincipalGrant {
     public boolean implies(ProtectionDomain pd){
 //        if ((domain == null) && (pals.isEmpty())) return true;
 //        if (pd == null) return false;
-        return impliesProtectionDomain(pd) && implies(pd.getPrincipals());
+        return impliesProtectionDomain(pd) && implies(getPrincipals(pd));
 	
     }
     

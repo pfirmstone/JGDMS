@@ -213,8 +213,16 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
     public boolean implies(ProtectionDomain pd) {
         if (pals.isEmpty()) return true;
 	if (pd == null) return false;
-	Principal[] hasPrincipals = pd.getPrincipals();
+	Principal[] hasPrincipals = getPrincipals(pd);
 	return implies(hasPrincipals);
+    }
+    
+    protected Principal[] getPrincipals(ProtectionDomain pd){
+        if (pd instanceof SubjectDomain){
+            Set<Principal> pals = ((SubjectDomain) pd).getSubject().getPrincipals();
+            return pals.toArray(new Principal[pals.size()]);
+        }
+        return pd.getPrincipals();
     }
     
     public boolean implies(ClassLoader cl, Principal[] pal) {

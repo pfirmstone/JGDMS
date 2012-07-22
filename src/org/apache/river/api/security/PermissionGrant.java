@@ -119,6 +119,7 @@ public abstract class PermissionGrant {
     }
     
     protected final PermissionGrant decorated(){
+        // REMIND: Consider null object pattern.
         return decorated;
     }
     
