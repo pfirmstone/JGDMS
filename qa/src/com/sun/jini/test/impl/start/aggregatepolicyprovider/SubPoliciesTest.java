@@ -35,6 +35,7 @@ import org.apache.river.api.security.ConcurrentPolicyFile;
 public class SubPoliciesTest extends QATest {
     private String policy0File;
     private String policy1File;
+    private static String jsk_home = System.getProperty("com.sun.jini.jsk.home");
 
     public void setup(QAConfig sysConfig) throws Exception {
 	super.setup(sysConfig);
@@ -51,9 +52,9 @@ public class SubPoliciesTest extends QATest {
 	    System.setSecurityManager(new SecurityManager());
 	}
 	ClassLoader ldr1 = new URLClassLoader(
-				   new URL[]{ new URL("file:/foo") });
+				   new URL[]{ new URL("file:" + jsk_home +"/foo") });
 	ClassLoader ldr2 = new URLClassLoader(
-				   new URL[]{ new URL("file:/bar") }, ldr1);
+				   new URL[]{ new URL("file:" + jsk_home + "/bar") }, ldr1);
 	Thread thr = Thread.currentThread();
 
 	AggregatePolicyProvider policy = new AggregatePolicyProvider();
@@ -127,7 +128,7 @@ public class SubPoliciesTest extends QATest {
     }
 
     static void checkPolicy0Permissions(Policy policy) throws Exception {
-	checkPermissions(policy, "file:/foo/bar",
+	checkPermissions(policy, "file:"+ jsk_home + "/foo/bar",
 			 new Permission[]{
 			     new RuntimePermission("A0"),
 			     new RuntimePermission("B0"),
@@ -137,7 +138,7 @@ public class SubPoliciesTest extends QATest {
 			     new RuntimePermission("D0"),
 			     new RuntimePermission("A1")
 			 });
-	checkPermissions(policy, "file:/foo/bar/baz",
+	checkPermissions(policy, "file:" + jsk_home + "/foo/bar/baz",
 			 new Permission[]{
 			     new RuntimePermission("A0"),
 			     new RuntimePermission("C0")
@@ -147,7 +148,7 @@ public class SubPoliciesTest extends QATest {
 			     new RuntimePermission("D0"),
 			     new RuntimePermission("A1")
 			 });
-	checkPermissions(policy, "file:/bar.jar",
+	checkPermissions(policy, "file:" + jsk_home + "/bar.jar",
 			 new Permission[]{
 			     new RuntimePermission("A0"),
 			     new RuntimePermission("D0")
@@ -157,7 +158,7 @@ public class SubPoliciesTest extends QATest {
 			     new RuntimePermission("C0"),
 			     new RuntimePermission("A1")
 			 });
-	checkPermissions(policy, "file:/other",
+	checkPermissions(policy, "file:" + jsk_home + "/other",
 			 new Permission[]{
 			     new RuntimePermission("A0"),
 			 },
@@ -170,7 +171,7 @@ public class SubPoliciesTest extends QATest {
     }
 
     static void checkPolicy1Permissions(Policy policy) throws Exception {
-	checkPermissions(policy, "file:/foo/bar",
+	checkPermissions(policy, "file:" +jsk_home + "/foo/bar",
 			 new Permission[]{
 			     new RuntimePermission("A1"),
 			     new RuntimePermission("B1"),
@@ -180,7 +181,7 @@ public class SubPoliciesTest extends QATest {
 			     new RuntimePermission("D1"),
 			     new RuntimePermission("A0")
 			 });
-	checkPermissions(policy, "file:/foo/bar/baz",
+	checkPermissions(policy, "file:" + jsk_home + "/foo/bar/baz",
 			 new Permission[]{
 			     new RuntimePermission("A1"),
 			     new RuntimePermission("C1")
@@ -190,7 +191,7 @@ public class SubPoliciesTest extends QATest {
 			     new RuntimePermission("D1"),
 			     new RuntimePermission("A0")
 			 });
-	checkPermissions(policy, "file:/bar.jar",
+	checkPermissions(policy, "file:" + jsk_home + "/bar.jar",
 			 new Permission[]{
 			     new RuntimePermission("A1"),
 			     new RuntimePermission("D1")
@@ -200,7 +201,7 @@ public class SubPoliciesTest extends QATest {
 			     new RuntimePermission("C1"),
 			     new RuntimePermission("A0")
 			 });
-	checkPermissions(policy, "file:/other",
+	checkPermissions(policy, "file:" + jsk_home + "/other",
 			 new Permission[]{
 			     new RuntimePermission("A1"),
 			 },
