@@ -558,6 +558,16 @@ public final class Security {
      * Unlike Subject.doAs, existing ProtectionDomains are not replaced unless
      * they implement SubjectDomain.
      * <p>
+     * Policy grants to Principals only are implied when run as the Subject, 
+     * combinations of Principal, CodeSource URL and Certificates never imply 
+     * this Subjects Principals as it is treated independently of CodeSource 
+     * policy grants, nor do any such grants imply any of the ProtectionDomains
+     * that represent code on the call stack, since these ProtectionDomains are
+     * never replaced with ProtectionDomains containing the Subject Principals.
+     * <p>
+     * The SubjectDomainCombiner used treats CodeSource and Principal grants
+     * as separate concerns.
+     * <p>
      * If a policy provider is installed that recognises SubjectDomain, then
      * Subjects who's principals are mutated are effective immediately.
      * <p>
@@ -577,11 +587,41 @@ public final class Security {
     }
     
     /**
-     * 
-     * @param <T>
-     * @param subject
-     * @param action
-     * @return
+     * Performs work as a particular Subject in the presence of untrusted code,
+     * for distributed systems.
+     * <p>
+     * This method retrieves the current Thread AccessControlContext and
+     * using a SubjectDomainCombiner subclass, prepends a new ProtectionDomain
+     * implementing SubjectDomain, containing the Principals of the Subject, a 
+     * CodeSource with a null URL and null Certificate array, with no
+     * Permission and a null ClassLoader.
+     * <p>
+     * Unlike Subject.doAs, existing ProtectionDomains are not replaced unless
+     * they implement SubjectDomain.
+     * <p>
+     * Policy grants to Principals only are implied when run as the Subject, 
+     * combinations of Principal, CodeSource URL and Certificate grants never imply 
+     * this Subjects Principals as it is treated independently of CodeSource 
+     * policy grants, nor do any such grants imply any of the ProtectionDomains
+     * that represent code on the call stack, since these ProtectionDomains are
+     * never replaced with ProtectionDomains containing the Subject Principals.
+     * <p>
+     * The SubjectDomainCombiner subclass used treats CodeSource and Principal grants
+     * as separate concerns.
+     * <p>
+     * The SubjectDomainCombiner subclass implementation
+     * is package private and can only be accessed through SubjectDomainCombiner
+     * public methods.
+     * <p>
+     * If a policy provider is installed that recognises SubjectDomain, then
+     * Subjects who's principals are mutated are effective immediately.
+     * <p>
+     * No AuthPermission is required to call this method.
+     * <p>
+     * @param subject  The Subject the work will be performed as, may be null.
+     * @param action  The code to be run as the Subject.
+     * @return   The value returned by the PrivilegedAction's run() method.
+     * @throws  NullPointerException if action is null;
      * @throws PrivilegedActionException 
      */
     public static <T> T doAs(final Subject subject,
@@ -592,6 +632,29 @@ public final class Security {
         return AccessController.doPrivileged(action, combine(acc, subject));
     }
     
+    /**
+     * Perform work as a particular Subject in the presence of untrusted code
+     * for distributed systems.
+     * 
+     * This method behaves exactly as Security.doAs, except that instead of
+     * retrieving the current Threads <code>AccessControlContext</code>, 
+     * it uses the provided <code>SecurityContext</code>. If the provided 
+     * <code>SecurityContext</code> is null this method instantiates a new
+     * <code>AccessControlContext</code> with an empty array of ProtectionDomains.
+     * 
+     * Unlike Security.doAs which doesn't require any privileges, this method 
+     * requires the same Permission as Subject.doAsPrivileged to execute.
+     * 
+     * @param subject  The Subject the work will be performed as, may be null.
+     * @param action  The code to be run as the Subject.
+     * @param context  The SecurityContext to be tied to the specific action
+     * and subject.
+     * @return   The value returned by the PrivilegedAction's run() method.
+     * @throws NullPointerException  if the specified PrivilegedExceptionAction 
+     * is null.
+     * @throws SecurityException  if the caller doesn't have permission to call
+     * this method.
+     */
     public static <T> T doAsPrivileged(final Subject subject,
 			final java.security.PrivilegedAction<T> action,
 			final SecurityContext context) {
@@ -602,6 +665,31 @@ public final class Security {
         return AccessController.doPrivileged(act, combine(acc, subject));
     }
     
+     /**
+     * Perform work as a particular Subject in the presence of untrusted code
+     * for distributed systems.
+     * 
+     * This method behaves exactly as Security.doAs, except that instead of
+     * retrieving the current Threads <code>AccessControlContext</code>, 
+     * it uses the provided <code>SecurityContext</code>.  If the provided 
+     * <code>SecurityContext</code> is null this method instantiates a new
+     * <code>AccessControlContext</code> with an empty array of ProtectionDomains.
+     * 
+     * Unlike Security.doAs which doesn't require any privileges, this method 
+     * requires the same Permission as Subject.doAsPrivileged to execute.
+     * 
+     * @param subject  The Subject the work will be performed as, may be null.
+     * @param action  The code to be run as the Subject.
+     * @param context  The SecurityContext to be tied to the specific action
+     * and subject.
+     * @return   The value returned by the PrivilegedAction's run() method.
+     * @throws NullPointerException  if the specified PrivilegedExceptionAction 
+     * is null.
+     * @throws SecurityException  if the caller doesn't have permission to call
+     * this method.
+     * @throws PrivilegedActionException  if the PrivilegedActionException.run
+     * method throws a checked exception.
+     */
     public static <T> T doAsPrivileged(final Subject subject,
 			final java.security.PrivilegedExceptionAction<T> action,
 			final SecurityContext context) throws PrivilegedActionException {

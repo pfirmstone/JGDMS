@@ -18,6 +18,7 @@ grant codebase "file:${com.sun.jini.qa.harness.harnessJar}" {
     permission java.util.PropertyPermission "*", "read,write";
     permission javax.security.auth.AuthPermission "*";
     permission java.lang.RuntimePermission "createSecurityManager";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
 };
 
 grant codebase "file:${com.sun.jini.qa.harness.testJar}" {

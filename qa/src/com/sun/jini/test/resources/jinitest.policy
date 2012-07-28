@@ -65,6 +65,12 @@ grant codebase "file:${com.sun.jini.qa.harness.testJar}" {
         "java.security.AllPermission \"\", \"\"";
 };
 
+grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}high-scale-lib.jar" {
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+    permission java.lang.reflect.ReflectPermission "suppressAccessChecks";
+};
+
 // grants for various test services, placed here for simplicity, but
 // should probably be separated into separate, targeted policy files
 

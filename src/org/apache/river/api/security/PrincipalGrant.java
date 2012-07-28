@@ -25,22 +25,27 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.security.AccessController;
 import java.security.AllPermission;
 import java.security.CodeSigner;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
+import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.UnresolvedPermission;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  *
@@ -173,6 +178,7 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
      * Utility Method, really belongs somewhere else, but CodeSource subclasses use it.
      * @param codeSource
      * @return
+     * @deprecated  will be removed when CodeSource based grants are removed.
      */
     @Deprecated
     CodeSource normalizeCodeSource(CodeSource codeSource) {
@@ -217,10 +223,50 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
 	return implies(hasPrincipals);
     }
     
-    protected Principal[] getPrincipals(ProtectionDomain pd){
+    Principal[] getPrincipals(final ProtectionDomain pd){
         if (pd instanceof SubjectDomain){
-            Set<Principal> pals = ((SubjectDomain) pd).getSubject().getPrincipals();
-            return pals.toArray(new Principal[pals.size()]);
+            final Set<Principal> principals = ((SubjectDomain) pd).getSubject().getPrincipals();
+            // Synchronisation would prevent modification during array creation,
+            // but it also prevents multi read,
+            // lets use an iterator, catch ConcurrentModificationException 
+            // (which should seldom happen) sleep momentarily and try again.
+            Principal[] result = null;
+            Iterator<Principal> it = null;
+            // This minimal synchronization ensures that array size will
+            // be correct if ConcurrentModificationException is not thrown.
+            synchronized (principals){
+                result = new Principal[principals.size()];
+                it = principals.iterator();
+            }
+            boolean retry = true;
+            while (retry){
+                try {
+                    int i = 0;
+                    while (it.hasNext()){
+                        result[i] = it.next();
+                        i++;
+                    }
+                    return result;
+                } catch ( ConcurrentModificationException e){
+                    try {
+                        // sleep for modifications to finish = back off.
+                        Thread.currentThread().sleep(20L);
+                        synchronized(principals){  // try again
+                            result = new Principal[principals.size()];
+                            it = principals.iterator();
+                        }
+                    } catch (InterruptedException ex) {
+                        // ProtectionDomain.getPrincipals() instead.
+                        retry = false;
+                        Thread.currentThread().interrupt(); // restore interrupt.
+                    }
+                } catch ( ArrayIndexOutOfBoundsException e) {
+                    retry = false;
+                    // ProtectionDomain.getPrincipals() instead.
+                    System.err.println("ArrayIndexOutOfBoundsException occured during iteration of Subject Principals");
+                    e.printStackTrace(System.err);
+                }
+            }
         }
         return pd.getPrincipals();
     }

@@ -18,13 +18,15 @@
 
 package net.jini.loader.pref;
 
+import au.net.zeus.collection.RC;
+import au.net.zeus.collection.Ref;
+import au.net.zeus.collection.Referrer;
 import com.sun.jini.action.GetPropertyAction;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.logging.LogUtil;
 import java.io.FilePermission;
 import java.io.IOException;
 import java.lang.ref.ReferenceQueue;
-import java.lang.ref.SoftReference;
 import java.lang.ref.WeakReference;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
@@ -45,16 +47,18 @@ import java.security.PrivilegedAction;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
+import org.apache.river.impl.net.UriString;
+import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 /**
  * An <code>RMIClassLoader</code> provider that supports preferred
@@ -80,9 +84,9 @@ import net.jini.loader.DownloadPermission;
  * loader that is not an instance of {@link ClassAnnotation} or {@link
  * URLClassLoader}.
  *
- * <h3>Common Terms and Behaviors</h3>
+ * <h3>Common Terms and Behaviours</h3>
  *
- * The following section defines terms and describes behaviors common
+ * The following section defines terms and describes behaviours common
  * to how <code>PreferredClassProvider</code> implements the abstract
  * methods of <code>RMIClassLoaderSpi</code>.  Where applicable, these
  * definitions and descriptions are relative to the instance of
@@ -274,16 +278,35 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     }
 
     /**
-     * table mapping codebase URL path and context class loader pairs
+     * table mapping codebase URI path and context class loader pairs
      * to class loader instances.  Entries hold class loaders with weak
      * references, so this table does not prevent loaders from being
-     * garbage collected.
+     * garbage collected.  This has been changed to a static table, since
+     * all PreferredClassProvider instances can share the same cache, all
+     * ClassLoaders are unique in the jvm, this prevents accidental duplication.
      */
-    private final Map<LoaderKey,LoaderEntryHolder> loaderTable = new HashMap<LoaderKey,LoaderEntryHolder>();
-
-    /** reference queue for cleared class loader entries */
-    private final ReferenceQueue<ClassLoader> refQueue = new ReferenceQueue<ClassLoader>();
-
+    private final static ConcurrentMap<LoaderKey,ClassLoader> loaderTable;
+    
+    /**
+     * URL cache is time based, we need this to be as fast as possible,
+     * every remote class to be loaded is annotated.  Tuning may be required.
+     */
+    private final static ConcurrentMap<List<URI>,URL[]> urlCache;
+    private final static ConcurrentMap<String,URI[]> uriCache;
+    
+    
+    static {
+        ConcurrentMap<Referrer<List<URI>>,Referrer<URL[]>> intern =
+                new NonBlockingHashMap<Referrer<List<URI>>,Referrer<URL[]>>();
+        urlCache = RC.concurrentMap(intern, Ref.TIME, Ref.STRONG, 10000L, 10000L);
+        ConcurrentMap<Referrer<String>,Referrer<URI[]>> intern1 =
+                new NonBlockingHashMap<Referrer<String>,Referrer<URI[]>>();
+        uriCache = RC.concurrentMap(intern1, Ref.TIME, Ref.STRONG, 1000L, 1000L);
+                ConcurrentMap<Referrer<LoaderKey>,Referrer<ClassLoader>> internal =
+                new NonBlockingHashMap<Referrer<LoaderKey>,Referrer<ClassLoader>>();
+        loaderTable = RC.concurrentMap(internal, Ref.STRONG, Ref.WEAK_IDENTITY, 200L, 200L);
+    }
+    
     /**
      * Creates a new <code>PreferredClassProvider</code>.
      *
@@ -333,6 +356,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    sm.checkCreateClassLoader();
 	}
 	this.requireDlPerm = requireDlPerm;
+        ConcurrentMap<Referrer<ClassLoader>,Referrer<PermissionCollection>> inter =
+                new NonBlockingHashMap<Referrer<ClassLoader>,Referrer<PermissionCollection>>();
+        classLoaderPerms = RC.concurrentMap(inter, Ref.WEAK_IDENTITY, Ref.STRONG, 200L, 200L);
 	initialized = true;
     }
 
@@ -346,8 +372,8 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * Map to hold permissions needed to check the URLs of
      * URLClassLoader objects.
      */
-    private final Map<ClassLoader,PermissionCollection> classLoaderPerms 
-            = new WeakHashMap<ClassLoader,PermissionCollection>();
+    private final ConcurrentMap<ClassLoader,PermissionCollection> classLoaderPerms ;
+    //        = new WeakHashMap<ClassLoader,PermissionCollection>();
     
     /*
      * Check permissions to load from the specified loader.  The
@@ -371,22 +397,18 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		((PreferredClassLoader) loader).checkPermissions();
 		
 	    } else {
-		PermissionCollection perms;
-		
-		synchronized (classLoaderPerms) {
-		    perms = classLoaderPerms.get(loader);
-		    if (perms == null) {
-			perms = new Permissions();
-			PreferredClassLoader.addPermissionsForURLs(
-			    urls, perms, false);
-			classLoaderPerms.put(loader, perms);
-		    }
-		}
-                synchronized (perms){
-                    Enumeration en = perms.elements();
-                    while (en.hasMoreElements()) {
-                        sm.checkPermission((Permission) en.nextElement());
-                    }
+		PermissionCollection perms = classLoaderPerms.get(loader);
+                if (perms == null) {
+                    perms = new Permissions();
+                    // long operation so we don't want to synchronize here.
+                    PreferredClassLoader.addPermissionsForURLs(
+                        urls, perms, false);
+                    perms.setReadOnly();
+                    classLoaderPerms.putIfAbsent(loader, perms);// doesn't matter if they existed.
+                }
+                Enumeration<Permission> en = perms.elements();
+                while (en.hasMoreElements()) {
+                    sm.checkPermission(en.nextElement());
                 }
 	    }
 	}
@@ -1396,8 +1418,8 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     }
 
     /**
-     * Convert a string containing a space-separated list of URLs into a
-     * corresponding array of URL objects, throwing a MalformedURLException
+     * Convert a string containing a space-separated list of URL Strings into a
+     * corresponding array of URI objects, throwing a MalformedURLException
      * if any of the URLs are invalid.  This method returns null if the
      * specified string is null.
      *
@@ -1410,26 +1432,20 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	if (path == null) {
 	    return null;
 	}
-	synchronized (pathToURLsCache) {
-	    Object[] v = (Object[]) pathToURLsCache.get(path);
-	    if (v != null) {
-		return ((URI[])v[0]);
-	    }
-	}
+        URI[] urls = uriCache.get(path);
+        if (urls != null) return urls;
 	StringTokenizer st = new StringTokenizer(path);	// divide by spaces
-	URI[] urls = new URI[st.countTokens()];
+	urls = new URI[st.countTokens()];
 	for (int i = 0; st.hasMoreTokens(); i++) {
             try {
-                urls[i] = new URI(st.nextToken()).normalize();
+                urls[i] = new URI(UriString.parse(st.nextToken())).normalize();
             } catch (URISyntaxException ex) {
                 throw new MalformedURLException("URL's must be RFC 2396 Compliant: " 
                         + ex.getMessage());
             }
 	}
-	synchronized (pathToURLsCache) {
-	    pathToURLsCache.put(path,
-				new Object[] {urls, new SoftReference(path)});
-	}
+        URI [] existed = uriCache.putIfAbsent(path, urls);
+        if (existed != null) urls = existed;
 	return urls;
     }
     
@@ -1437,22 +1453,27 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      */
     private URL[] asURL(URI[] uris) throws MalformedURLException{
         if (uris == null) return null;
+        List<URI> uriList = Arrays.asList(uris);
+        URL [] result = urlCache.get(uriList);
+        if ( result != null) return result;
         try {
             int l = uris.length;
             URL[] urls = new URL[l];
             for (int i = 0; i < l; i++ ){
-                urls[i] = uris[i] == null ? null : uris[i].toURL(); // throws MalformedURLException
+                try {
+                    urls[i] = uris[i] == null ? null : uris[i].toURL(); // throws MalformedURLException
+                } catch (MalformedURLException e){
+                    System.err.println("MalformedURLException: " + e + "was thrown ," + uris[i]);
+                    throw e;
+                }
             }
+            URL [] existed = urlCache.putIfAbsent(uriList,urls);
+            if (existed != null) urls = existed;
             return urls;
         } catch (IllegalArgumentException ex){
             throw new MalformedURLException(ex.getMessage());
         }
     }
-
-    /** map from weak(key=string) to [URL[], soft(key)] 
-     * A Soft equality based hash map is what's required here.
-     */
-    private static Map pathToURLsCache = new WeakHashMap(5);
 
     /**
      * Return the class loader to be used as the parent for an RMI class
@@ -1593,105 +1614,59 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	 *     return parent;
 	 * }
 	 */
-
-	/*
-	 * Take this opportunity to remove from the table entries
-	 * whose weak references have been cleared.
-	 */
-	List<LoaderKey> toRemove = new LinkedList<LoaderKey>();
-	Object ref;
-	while ((ref = refQueue.poll()) != null) {
-	    if (ref instanceof LoaderKey)
-		toRemove.add((LoaderKey) ref);
-	    else if (ref instanceof LoaderEntry) {
-		LoaderEntry entry = (LoaderEntry) ref;
-		if (!entry.removed)	// ignore entries removed below
-		    toRemove.add(entry.key);
-	    }
-	}
-
-	LoaderKey key = new LoaderKey(uris, parent, refQueue);
-	LoaderEntryHolder holder;
-	synchronized (loaderTable) {
-	    if (!toRemove.isEmpty()) {
-		for (LoaderKey oldKey : toRemove)
-		    loaderTable.remove(oldKey);
-		toRemove.clear();
-	    }
-
-	    /*
-	     * Look up the codebase URL path and parent class loader pair
-	     * in the table of RMI class loaders.
-	     */
-	    holder = loaderTable.get(key);
-	    if (null == holder) {
-		holder = new LoaderEntryHolder();
-		loaderTable.put(key, holder);
-	    }
-	}
+        
+        /* Each LoaderKey is unique to a ClassLoader, the LoaderKey contains
+         * a weak reference to the parent ClassLoader, the parent ClassLoader
+         * will not be collected until all child ClassLoaders have been collected.
+         * 
+         * When a child ClassLoader is collected, the LoaderKey will be removed
+         * within the next 10ms.
+         */
+	LoaderKey key = new LoaderKey(uris, parent, null);
+        ClassLoader loader = loaderTable.get(key);
 
 	/*
 	 * Four possible cases:
 	 *   1) this is our first time creating this classloader
-	 *      - holder.entry is null, need to make a new entry and a new loader
+	 *      - loader is null, need to make a new entry and a new loader
 	 *   2) we made this classloader before, but it was garbage collected a long while ago
-	 *      - identical to case #1 and it was reaped by the toRemove code above
+	 *      - identical to case #1
 	 *   3) we made this classloader before, and it was garbage collected recently
-	 *      - holder.entry is non-null, but holder.entry.get() is null, very similar to case #1
+	 *      - ConcurrentMap.putIfAbsent will replace it, very similar to case #1
 	 *   4) we made this classloader before, and it's still alive (CACHE HIT)
 	 *      - just return it
 	 */
-	synchronized (holder) {
-	    LoaderEntry entry = holder.entry;
-	    ClassLoader loader;
-	    if (entry == null ||
-		(loader = entry.get()) == null)
-	    {
-		/*
-		 * If entry was in table but it's weak reference was cleared,
-		 * remove it from the table and mark it as explicitly cleared,
-		 * so that new matching entry that we put in the table will
-		 * not be erroneously removed when this entry is processed
-		 * from the weak reference queue.
-		 */
-		if (entry != null) {
-		    entry.removed = true;
-		}
+        if (loader == null) {
+            /*
+             * An existing loader with the given URL path and
+             * parent was not found.  Perform the following steps
+             * to obtain an appropriate loader:
+             * 
+             * Search for an ancestor of the parent class loader
+             * whose export urls match the parameter URL path
+             * 
+             * If a matching ancestor could not be found, create a
+             * new class loader instance for the requested
+             * codebase URL path and parent class loader.  The
+             * loader instance is created within an access control
+             * context restricted to the permissions necessary to
+             * load classes from its codebase URL path.
+             */
+            loader = findOriginLoader(uris, parent);
 
-		/*
-		 * An existing loader with the given URL path and
-		 * parent was not found.  Perform the following steps
-		 * to obtain an appropriate loader:
-		 * 
-		 * Search for an ancestor of the parent class loader
-		 * whose export urls match the parameter URL path
-		 * 
-		 * If a matching ancestor could not be found, create a
-		 * new class loader instance for the requested
-		 * codebase URL path and parent class loader.  The
-		 * loader instance is created within an access control
-		 * context restricted to the permissions necessary to
-		 * load classes from its codebase URL path.
-		 */
-		loader = findOriginLoader(uris, parent);
+            if (loader == null) {
+                loader = createClassLoader(urls, parent, requireDlPerm);
+                /* RIVER-265
+                 * The next section of code has been moved inside this
+                 * block to avoid caching loaders found using
+                 * findOriginLoader
+                 */
+                ClassLoader existed = loaderTable.putIfAbsent(key, loader);
+                if (existed != null) loader = existed;
+            }
 
-		if (loader == null) {
-		    loader = createClassLoader(urls, parent, requireDlPerm);
-                    /* RIVER-265
-                     * The next section of code has been moved inside this
-                     * block to avoid caching loaders found using
-                     * findOriginLoader
-                     * 
-                     * Finally, create an entry to hold the new loader with a
-                     * weak reference and store it in the table with the key.
-                     */
-                    entry = new LoaderEntry(key, loader, refQueue);
-                    holder.entry = entry;
-		}
-
-	    }
-	    return loader;
-	}
+        }
+        return loader;
     }
 
     /**
@@ -1745,6 +1720,26 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * a parent class loader (possibly null).  The weak reference is
      * registered with "refQueue" so that the entry can be removed
      * after the loader has become unreachable.
+     * 
+     * LoaderKey used to be a combination of URL path and weak reference to a
+     * parent class loader.
+     * 
+     * It was updated to utilise URI for the following reasons:
+     * 
+     * 1. Modern environments have dynamically assigned IP addresses, URI can provide a
+     *    level on indirection for Dynamic DNS and Dynamic IP.
+     * 2. Virtual hosting is broken with URL.
+     * 4. Testing revealed that all Jini specification tests pass with URI.  
+     *    Although this doesn't eliminate the possibility of breakage in user code, 
+     *    it does provide a level of confidence that indicates the benefits
+     *    outweigh any disadvantages.  Illegal characters are escaped prior
+     *    to parsing; to maximise compatibility and minimise deployment issues.
+     * 5. Sun bug ID 4434494 states: 
+     *      However, to address URI parsing in general, we introduced a new
+     *      class called URI in Merlin (jdk1.4). People are encouraged to use 
+     *      URI for parsing and URI comparison, and leave URL class for 
+     *      accessing the URI itself, getting at the protocol handler, 
+     *      interacting with the protocol etc.
      **/
     private static class LoaderKey extends WeakReference<ClassLoader> {
 	private final URI[] uris;
@@ -1767,11 +1762,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	}
 
 	public boolean equals(Object obj) {
-	    if (obj == this) {
-		return true;
-	    } else if (!(obj instanceof LoaderKey)) {
-		return false;
-	    }
+	    if (obj == this) return true;
+	    if (!(obj instanceof LoaderKey)) return false;
+	    if (hashCode() != obj.hashCode()) return false;
 	    LoaderKey other = (LoaderKey) obj;
 	    ClassLoader parent;
 	    return (nullParent ? other.nullParent
@@ -1779,38 +1772,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 				  parent == other.get()))
 		&& Arrays.equals(uris, other.uris);
 	}
-    }
-
-    /**
-     * Loader table value: a weak reference to a class loader.  The
-     * weak reference is registered with "refQueue" so that the entry
-     * can be removed after the loader has become unreachable.
-     **/
-    private static class LoaderEntry extends WeakReference<ClassLoader> {
-	public final LoaderKey key;	// for efficient removal
-
-	/**
-	 * set to true if the entry has been removed from the table
-	 * because it has been replaced, so it should not be attempted
-	 * to be removed again
-         * 
-         * REMINDER: 13th Dec 2011 - Peter Firmstone Commented:
-         * removed is mutated while holding LoaderEntryHolder's
-         * lock, once it becomes unreachable, the queue accesses this variable
-         * without synchronisation or volatility, by the time this object
-         * is ready for collection , it is unlikely that it's state will be
-         * modified.  If however at some point we change PreferredClassProvider's
-         * synchronisation strategy we need to revisit this.
-	 */
-	public boolean removed = false;
-
-	public LoaderEntry(LoaderKey key, ClassLoader loader, ReferenceQueue<ClassLoader> refQueue) {
-	    super(loader, refQueue);
-	    this.key = key;
-	}
-    }
-    private static class LoaderEntryHolder {
-	public LoaderEntry entry;
     }
 
     private static ClassLoader getClassLoader(final Class c) {
