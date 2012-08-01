@@ -51,6 +51,9 @@ import java.util.TreeSet;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 import java.lang.reflect.Field;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 
 //Should there be an 'AbortTestRequest' ?
 
@@ -248,8 +251,10 @@ class MasterHarness {
 	public void run() {
 	    ArrayList socketList = new ArrayList(); // keep references
 	    try {
-		ServerSocket socket = 
-		    new ServerSocket(KEEPALIVE_PORT);
+                SocketAddress add = new InetSocketAddress(KEEPALIVE_PORT);
+		ServerSocket socket = new ServerSocket();
+                if (!socket.getReuseAddress()) socket.setReuseAddress(true);
+                socket.bind(add);
 		while (true) {
 		    socketList.add(socket.accept());
 		}
