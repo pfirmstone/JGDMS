@@ -253,7 +253,7 @@ class MasterHarness {
 	    try {
                 SocketAddress add = new InetSocketAddress(KEEPALIVE_PORT);
 		ServerSocket socket = new ServerSocket();
-                if (!socket.getReuseAddress()) socket.setReuseAddress(true);
+//                if (!socket.getReuseAddress()) socket.setReuseAddress(true);
                 socket.bind(add);
 		while (true) {
 		    socketList.add(socket.accept());
