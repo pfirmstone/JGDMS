@@ -144,9 +144,16 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
  *
  * <li><code>codebase</code> may be <code>null</code>.  If it is not
  * <code>null</code>, it is interpreted as a path of URLs by parsing
- * it as a list of URLs separated by spaces, where each URL is parsed
- * as with the <code>URL(String)</code> constructor; this could result
- * in a {@link MalformedURLException}.  This path of URLs is the
+ * it as a list of URLs separated by spaces.  It is recommended that
+ * URLs be compliant with RFC3986 Syntax.  Prior to parsing, any file path 
+ * separators converted to '/' and any illegal characters are percentage escaped,
+ * <code>URI(String)<code> is used to parse each URL and then normalised
+ * in compliance with RFC3986, in addition file URL paths are
+ * converted to upper case for case insensitive file systems. The array of 
+ * RFC3986 normalised URIs along with the current threads context ClassLoader
+ * is used to locate the correct ClassLoader.  After normalisation is complete,
+ * each URL is parsed with the <code>URL(String)</code> constructor; this could 
+ * result in a {@link MalformedURLException}.  This path of URLs is the
  * <i>codebase URL path</i> for the invocation.
  *
  * <li>A class loader known as the <i>codebase loader</i> is chosen
@@ -156,11 +163,11 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
  * context class loader.  Otherwise, for each non-<code>null</code>
  * loader starting with the current thread's context class loader and
  * continuing with each successive parent class loader, if the
- * codebase URL path is equal to the loader's annotation URL path,
- * then the codebase loader is that loader.  If no such matching
- * loader is found, then the codebase loader is the loader in this
- * <code>PreferredClassProvider</code>'s internal table with the
- * codebase URL path as the key's path of URLs and the current
+ * codebase URI RFC3986 normalised path is equal to the loader's annotation
+ * URI RFC3986 normalised path, then the codebase loader is that loader.  
+ * If no such matching loader is found, then the codebase loader is the loader 
+ * in this <code>PreferredClassProvider</code>'s internal table with the
+ * codebase URI RFC3986 normalised path as the key's path of URLs and the current
  * thread's context class loader as the key's parent class loader.  If
  * no such entry exists in the table, then one is created by invoking
  * {@link #createClassLoader createClassLoader} with the codebase URL
@@ -373,7 +380,6 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * URLClassLoader objects.
      */
     private final ConcurrentMap<ClassLoader,PermissionCollection> classLoaderPerms ;
-    //        = new WeakHashMap<ClassLoader,PermissionCollection>();
     
     /*
      * Check permissions to load from the specified loader.  The
@@ -1432,15 +1438,17 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	if (path == null) {
 	    return null;
 	}
-        URI[] urls = uriCache.get(path);
+        URI[] urls = uriCache.get(path); // Cache of previously converted strings.
         if (urls != null) return urls;
 	StringTokenizer st = new StringTokenizer(path);	// divide by spaces
 	urls = new URI[st.countTokens()];
 	for (int i = 0; st.hasMoreTokens(); i++) {
             try {
-                urls[i] = new URI(UriString.parse(st.nextToken())).normalize();
+                String uri = st.nextToken();
+                uri = UriString.fixWindowsURI(uri);
+                urls[i] = UriString.normalise(new URI(UriString.escapeIllegalCharacters(uri)));
             } catch (URISyntaxException ex) {
-                throw new MalformedURLException("URL's must be RFC 2396 Compliant: " 
+                throw new MalformedURLException("URL's must be RFC 3986 Compliant: " 
                         + ex.getMessage());
             }
 	}
@@ -1727,7 +1735,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * It was updated to utilise URI for the following reasons:
      * 
      * 1. Modern environments have dynamically assigned IP addresses, URI can provide a
-     *    level on indirection for Dynamic DNS and Dynamic IP.
+     *    level of indirection for Dynamic DNS and Dynamic IP.
      * 2. Virtual hosting is broken with URL.
      * 4. Testing revealed that all Jini specification tests pass with URI.  
      *    Although this doesn't eliminate the possibility of breakage in user code, 

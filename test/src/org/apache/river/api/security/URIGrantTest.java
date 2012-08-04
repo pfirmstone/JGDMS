@@ -56,8 +56,8 @@ public class URIGrantTest {
     @Before
     public void setUp() throws URISyntaxException, MalformedURLException {
         URI [] u = new URI[2];
-        u[0] = new URI("file:///foo/*");
-        u[1] = new URI("file:///C:/foo/*");
+        u[0] = new URI("file:/foo/*");
+        u[1] = new URI("file:/C:/FOO/*");
         instance = new URIGrant(u, new Certificate[0], new Principal[0], new Permission[0]);
         pd = new ProtectionDomain( new CodeSource(new URL("file:/foo/bar"), (Certificate []) null), null);
     }
@@ -77,6 +77,13 @@ public class URIGrantTest {
         Assert.assertTrue(instance.implies(grant,alsoImplied));
         Assert.assertTrue(instance.implies(otherGrant, implied));
         Assert.assertTrue(instance.implies(otherGrant, alsoImplied));
+        grant = new URI("file:/C:/USERS/PETER/DOCUMENTS/NETBEANSPROJECTS/PETERCONCURRENTPOLICY/QA/-");
+        implied = new URI("file:/C:/USERS/PETER/DOCUMENTS/NETBEANSPROJECTS/PETERCONCURRENTPOLICY/QA/LIB/JINIHARNESS.JAR");
+        System.out.println(grant);
+        System.out.println(implied);
+        boolean result = instance.implies(grant, implied);
+        System.out.println(result);
+        Assert.assertTrue(result);
     }
     
     @Test

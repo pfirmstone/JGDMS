@@ -21,6 +21,7 @@ package org.apache.river.api.security;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.URL;
 import java.security.AccessController;
 import java.security.CodeSource;
@@ -33,6 +34,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import org.apache.river.impl.net.UriString;
 
 /**
  *
@@ -49,7 +53,14 @@ class URIGrant extends CertificateGrant {
         int l = uri.length;
         Collection<URI> uris = new ArrayList<URI>(l);
         for ( int i = 0; i < l ; i++ ){
-            uris.add(uri[i] != null ? uri[i].normalize() : null);
+            try {
+                // REMIND: Do we need to move all normalisation into the URIGrant and
+                // store the normalised and original forms separately? File uri are platform
+                // dependant and someone may want to make a grant applicable many different platforms.
+                uris.add(uri[i] != null ? UriString.normalise(uri[i]) : null);
+            } catch (URISyntaxException ex) {
+                ex.printStackTrace(System.err);
+            }
         }
         location = Collections.unmodifiableCollection(uris);
         int hash = 3;
@@ -399,7 +410,7 @@ class URIGrant extends CertificateGrant {
         // is applicable here 
         return true;
     }
-
+    
     @Override
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();

@@ -103,15 +103,12 @@ public class AggregatePolicyProvider
     // The cache is used to avoid repeat security checks, the subPolicies map
     // cannot be used to cache child ClassLoaders because their policy could
     // change if a policy is updated.
-    private final ConcurrentMap<ClassLoader,Policy> subPolicyChildClassLoaderCache = // put protected by policyRead
-            RC.concurrentMap(                                                        // clear protected by policyWrite
+    private final ConcurrentMap<ClassLoader,Policy> subPolicyChildClassLoaderCache =
+            RC.concurrentMap(
             new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<Policy>>(),
             Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 0L);
-//    private final ReadWriteLock policyUpdate = new ReentrantReadWriteLock(); 
-//    private final Lock policyRead = policyUpdate.readLock();
-//    private final Lock policyWrite = policyUpdate.writeLock();
     private final Lock lock = new ReentrantLock();
-    private volatile Policy mainPolicy; // protected by policyUpdate
+    private volatile Policy mainPolicy; // write protected by lock
 
     /**
      * Creates a new <code>AggregatePolicyProvider</code> instance, containing
@@ -411,7 +408,7 @@ public class AggregatePolicyProvider
 	// force class resolution by pre-invoking methods called by implies()
 	trustGetContextClassLoader0(Thread.class);
 	getContextClassLoader();
-        lookupSubPolicy(ldr);
+            lookupSubPolicy(ldr);
     }
 
     /**
@@ -424,33 +421,30 @@ public class AggregatePolicyProvider
         if ( ccl == null ) return mainPolicy;
         Policy policy = subPolicyChildClassLoaderCache.get(ccl);  // just a cache.
         if ( policy != null ) return policy;
-        lock.lock();
-        try {
-            policy = lookupSubPolicy(ccl);
-            return policy;
-        }finally{
-            lock.unlock();
-        }
+        return lookupSubPolicy(ccl);
     }
 
     /**
-     * Returns sub-policy associated with the given class loader.  This method
-     * should only be called when already synchronized on lock.
+     * Returns sub-policy associated with the given class loader.
      */
     private Policy lookupSubPolicy(final ClassLoader ldr) {
 	return AccessController.doPrivileged(
 	    new PrivilegedAction<Policy>() {
 		public Policy run() {
                     Policy p = null;
-                    for (ClassLoader l = ldr; l != null; l = l.getParent()) {
-                        p = subPolicies.get(l);
-                        if (p != null) break;
+                    lock.lock();
+                    try {
+                        for (ClassLoader l = ldr; l != null; l = l.getParent()) {
+                            p = subPolicies.get(l);
+                            if (p != null) break;
+                        }
+                        if (p == null) p = mainPolicy;
+                        Policy exists = subPolicyChildClassLoaderCache.putIfAbsent(ldr, p);
+                        if ( exists != null && p != exists ) 
+                            throw new IllegalStateException("Policy Mutation occured");
+                    }finally{
+                        lock.unlock();
                     }
-                    if (p == null) p = mainPolicy;
-                    Policy exists =
-                    subPolicyChildClassLoaderCache.putIfAbsent(ldr, p);
-                    if ( exists != null && p != exists ) 
-                        throw new IllegalStateException("Policy Mutation occured");
                     return p;
 		}
 	    });

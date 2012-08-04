@@ -46,6 +46,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.impl.net.UriString;
 
 /**
  * This class consist of a number of static methods, which provide a common functionality 
@@ -211,18 +212,18 @@ import java.util.logging.Logger;
                         // codebase is "file:"
                         path = "*";
                     }
-                    return filePathToURI(new File(path)
-                            .getAbsolutePath()).normalize();
+                    return UriString.normalisation(filePathToURI(new File(path)
+                            .getAbsolutePath()));
                 } else {
                     // codebase is "file://<smth>"
-                    return codebase.toURI().normalize();
+                    return UriString.normalisation(codebase.toURI());
                 }
             } catch (Exception e) {
                 if ( e instanceof SecurityException ) throw (SecurityException) e;
                 // Ignore
             }
         }
-        return codebase.toURI();
+        return UriString.normalisation(codebase.toURI());
     }
 
     /**
@@ -235,8 +236,10 @@ import java.util.logging.Logger;
      * @throw URISyntaxException
      */
     static URI filePathToURI(String path) throws URISyntaxException {
-        path = path.replace(File.separatorChar, '/');
-
+        if (File.separatorChar == '\\' && path != null){
+            path = path.replace(File.separatorChar, '/');
+            path = path.toUpperCase();
+        }
         if (!path.startsWith("/")) { //$NON-NLS-1$
             return new URI("file", null, //$NON-NLS-1$
                     new StringBuilder(path.length() + 1).append('/')

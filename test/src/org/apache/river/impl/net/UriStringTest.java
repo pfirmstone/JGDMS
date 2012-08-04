@@ -1,9 +1,24 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ *  Licensed to the Apache Software Foundation (ASF) under one or more
+ *  contributor license agreements.  See the NOTICE file distributed with
+ *  this work for additional information regarding copyright ownership.
+ *  The ASF licenses this file to You under the Apache License, Version 2.0
+ *  (the "License"); you may not use this file except in compliance with
+ *  the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
  */
+
 package org.apache.river.impl.net;
 
+import java.net.URI;
+import java.net.URISyntaxException;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -40,28 +55,52 @@ public class UriStringTest {
      * Test of parse method, of class UriString.
      */
     @Test
-    public void testEscapeIllegalCharacters() {
+    public void testEscapeIllegalCharacters() throws URISyntaxException {
         System.out.println("escapeIllegalCharacters");
         String url = " ";
         String expResult = "%20";
-        String result = UriString.parse(url);
+        String result = UriString.escapeIllegalCharacters(url);
         assertEquals(expResult, result);
     }
     
     @Test
-    public void testWindowsDrives() {
-        System.out.println("windows drive letters");
-        String url = "file:c:/Program Files/java";
-        String expResult = "file:///C:/Program%20Files/java";
-        String result = UriString.parse(url);
+    public void testEscape() throws URISyntaxException {
+        System.out.println("test escape");
+        String url = "file:/c:/Program Files/java";
+        String expResult = "file:/c:/Program%20Files/java";
+        String result = UriString.escapeIllegalCharacters(url);
         assertEquals(expResult, result);
-        url = "file:/c:/Program Files/java lib";
-        expResult = "file:///C:/Program%20Files/java%20lib";
-        result = UriString.parse(url);
+        url = "file:/c:/Program Files/java<|>lib";
+        expResult = "file:/c:/Program%20Files/java%3C%7C%3Elib";
+        result = UriString.escapeIllegalCharacters(url);
         assertEquals(expResult, result);
-        url = "file:///c:/Program Files/java";
-        expResult = "file:///C:/Program%20Files/java";
-        result = UriString.parse(url);
+    }
+    
+    @Test
+    public void testNormalise() throws URISyntaxException{
+        System.out.println("normalise test");
+        URI uri = new URI("FILE:/c:/Program%20Files/java");
+        String expResult = "file:/C:/PROGRAM%20FILES/JAVA";
+        String result = UriString.normalise(uri).toString();
+        assertEquals(expResult, result);
+    }
+            
+    
+    @Test
+    public void testNormalisation() throws URISyntaxException {
+        System.out.println("URI Normalisation Test");
+        URI url = new URI("HTTP://river.apache.ORG/foo%7ebar/file%3clib");
+        URI expResult = new URI("http://river.apache.org/foo~bar/file%3Clib");
+        URI result = UriString.normalisation(url);
+        assertEquals(expResult.toString(), result.toString());
+    }
+    
+    @Test
+    public void testFixWindowsURI() {
+        System.out.println("Test fix Windows file URI string");
+        String uri = "file:C:\\home\\user";
+        String expResult = "file:/C:/home/user";
+        String result = UriString.fixWindowsURI(uri);
         assertEquals(expResult, result);
     }
 }

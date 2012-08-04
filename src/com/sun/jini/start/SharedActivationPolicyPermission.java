@@ -153,8 +153,9 @@ public final class SharedActivationPolicyPermission extends Permission
             if (policy.startsWith("file:") || policy.startsWith("FILE:")){
                 String path = null;
                 try {
-                    path = UriString.parse(uncanonicalPath);
-                    path = new File(new URI(path)).getPath();
+                    uncanonicalPath = UriString.fixWindowsURI(uncanonicalPath);
+                    uncanonicalPath = UriString.escapeIllegalCharacters(uncanonicalPath);
+                    path = new File(new URI(uncanonicalPath)).getPath();
                 } catch (URISyntaxException ex) {
                     path = uncanonicalPath.replace('/', File.separatorChar);
                 } catch (IllegalArgumentException ex){
