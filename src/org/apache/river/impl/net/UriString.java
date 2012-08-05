@@ -1179,91 +1179,91 @@ public class UriString {
         //            0x00E2 226 LATIN SMALL LETTER A WITH CIRCUMFLEX 
         latin[226] = '\u00E2';
         latinEsc[226] = "%E2";
-        //            0x00E3 227 LATIN SMALL LETTER A WITH TILDE ã 
+        //            0x00E3 227 LATIN SMALL LETTER A WITH TILDE 
         latin[227] = '\u00E3';
         latinEsc[227] = "%E3";
-        //            0x00E4 228 LATIN SMALL LETTER A WITH DIAERESIS ä 
+        //            0x00E4 228 LATIN SMALL LETTER A WITH DIAERESIS 
         latin[228] = '\u00E4';
         latinEsc[228] = "%E4";
-        //            0x00E5 229 LATIN SMALL LETTER A WITH RING ABOVE å 
+        //            0x00E5 229 LATIN SMALL LETTER A WITH RING ABOVE 
         latin[229] = '\u00E5';
         latinEsc[229] = "%E5";
-        //            0x00E6 230 LATIN SMALL LETTER AE æ 
+        //            0x00E6 230 LATIN SMALL LETTER AE 
         latin[230] = '\u00E6';
         latinEsc[230] = "%E6";
-        //            0x00E7 231 LATIN SMALL LETTER C WITH CEDILLA ç 
+        //            0x00E7 231 LATIN SMALL LETTER C WITH CEDILLA 
         latin[231] = '\u00E7';
         latinEsc[231] = "%E7";
-        //            0x00E8 232 LATIN SMALL LETTER E WITH GRAVE è 
+        //            0x00E8 232 LATIN SMALL LETTER E WITH GRAVE 
         latin[232] = '\u00E8';
         latinEsc[232] = "%E8";
-        //            0x00E9 233 LATIN SMALL LETTER E WITH ACUTE é 
+        //            0x00E9 233 LATIN SMALL LETTER E WITH ACUTE 
         latin[233] = '\u00E9';
         latinEsc[233] = "%E9";
-        //            0x00EA 234 LATIN SMALL LETTER E WITH CIRCUMFLEX ê 
+        //            0x00EA 234 LATIN SMALL LETTER E WITH CIRCUMFLEX 
         latin[234] = '\u00EA';
         latinEsc[234] = "%EA";
-        //            0x00EB 235 LATIN SMALL LETTER E WITH DIAERESIS ë 
+        //            0x00EB 235 LATIN SMALL LETTER E WITH DIAERESIS 
         latin[235] = '\u00EB';
         latinEsc[235] = "%EB";
-        //            0x00EC 236 LATIN SMALL LETTER I WITH GRAVE ì 
+        //            0x00EC 236 LATIN SMALL LETTER I WITH GRAVE 
         latin[236] = '\u00EC';
         latinEsc[236] = "%EC";
-        //            0x00ED 237 LATIN SMALL LETTER I WITH ACUTE í 
+        //            0x00ED 237 LATIN SMALL LETTER I WITH ACUTE 
         latin[237] = '\u00ED';
         latinEsc[237] = "%ED";
-        //            0x00EE 238 LATIN SMALL LETTER I WITH CIRCUMFLEX î 
+        //            0x00EE 238 LATIN SMALL LETTER I WITH CIRCUMFLEX 
         latin[238] = '\u00EE';
         latinEsc[238] = "%EE";
-        //            0x00EF 239 LATIN SMALL LETTER I WITH DIAERESIS ï 
+        //            0x00EF 239 LATIN SMALL LETTER I WITH DIAERESIS 
         latin[239] = '\u00EF';
         latinEsc[239] = "%EF";
-        //            0x00F0 240 LATIN SMALL LETTER ETH ð 
+        //            0x00F0 240 LATIN SMALL LETTER ETH 
         latin[240] = '\u00F0';
         latinEsc[240] = "%F0";
-        //            0x00F1 241 LATIN SMALL LETTER N WITH TILDE ñ 
+        //            0x00F1 241 LATIN SMALL LETTER N WITH TILDE 
         latin[241] = '\u00F1';
         latinEsc[241] = "%F1";
-        //            0x00F2 242 LATIN SMALL LETTER O WITH GRAVE ò 
+        //            0x00F2 242 LATIN SMALL LETTER O WITH GRAVE 
         latin[242] = '\u00F2';
         latinEsc[242] = "%F2";
-        //            0x00F3 243 LATIN SMALL LETTER O WITH ACUTE ó 
+        //            0x00F3 243 LATIN SMALL LETTER O WITH ACUTE 
         latin[243] = '\u00F3';
         latinEsc[243] = "%F3";
-        //            0x00F4 244 LATIN SMALL LETTER O WITH CIRCUMFLEX ô 
+        //            0x00F4 244 LATIN SMALL LETTER O WITH CIRCUMFLEX 
         latin[244] = '\u00F4';
         latinEsc[244] = "%F4";
-        //            0x00F5 245 LATIN SMALL LETTER O WITH TILDE õ 
+        //            0x00F5 245 LATIN SMALL LETTER O WITH TILDE 
         latin[245] = '\u00F5';
         latinEsc[245] = "%F5";
-        //            0x00F6 246 LATIN SMALL LETTER O WITH DIAERESIS ö 
+        //            0x00F6 246 LATIN SMALL LETTER O WITH DIAERESIS 
         latin[246] = '\u00F6';
         latinEsc[246] = "%F6";
-        //            0x00F7 247 DIVISION SIGN ÷ 
+        //            0x00F7 247 DIVISION SIGN 
         latin[247] = '\u00F7';
         latinEsc[247] = "%F7";
-        //            0x00F8 248 LATIN SMALL LETTER O WITH STROKE ø 
+        //            0x00F8 248 LATIN SMALL LETTER O WITH STROKE 
         latin[248] = '\u00F8';
         latinEsc[248] = "%F8";
-        //            0x00F9 249 LATIN SMALL LETTER U WITH GRAVE ù 
+        //            0x00F9 249 LATIN SMALL LETTER U WITH GRAVE 
         latin[249] = '\u00F9';
         latinEsc[249] = "%F9";
-        //            0x00FA 250 LATIN SMALL LETTER U WITH ACUTE ú 
+        //            0x00FA 250 LATIN SMALL LETTER U WITH ACUTE 
         latin[250] = '\u00FA';
         latinEsc[250] = "%FA";
-        //            0x00FB 251 LATIN SMALL LETTER U WITH CIRCUMFLEX û 
+        //            0x00FB 251 LATIN SMALL LETTER U WITH CIRCUMFLEX 
         latin[251] = '\u00FB';
         latinEsc[251] = "%FB";
-        //            0x00FC 252 LATIN SMALL LETTER U WITH DIAERESIS ü 
+        //            0x00FC 252 LATIN SMALL LETTER U WITH DIAERESIS 
         latin[252] = '\u00FC';
         latinEsc[252] = "%FC";
-        //            0x00FD 253 LATIN SMALL LETTER Y WITH ACUTE ý 
+        //            0x00FD 253 LATIN SMALL LETTER Y WITH ACUTE 
         latin[253] = '\u00FD';
         latinEsc[253] = "%FD";
-        //            0x00FE 254 LATIN SMALL LETTER THORN þ 
+        //            0x00FE 254 LATIN SMALL LETTER THORN 
         latin[254] = '\u00FE';
         latinEsc[254] = "%FE";
-        //            0x00FF 255 LATIN SMALL LETTER Y WITH DIAERESIS ÿ 
+        //            0x00FF 255 LATIN SMALL LETTER Y WITH DIAERESIS 
         latin[255] = '\u00FF';
         latinEsc[255] = "%FF";
     }
