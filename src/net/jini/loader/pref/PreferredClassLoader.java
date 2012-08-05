@@ -707,6 +707,9 @@ public class PreferredClassLoader extends URLClassLoader
 			hconn.getResponseMessage());
 		}
 	    }
+        } catch (NullPointerException e){
+            e.fillInStackTrace();
+            throw new IOException(url.toString(), e);
 	} finally {
 	    if (closeAfter && (closeConn != null)) {
 		/* clean up after... */
