@@ -721,6 +721,7 @@ public class PreferredClassLoader extends URLClassLoader
                     if ( e instanceof NullPointerException || e.getCause() instanceof NullPointerException) {
                         // Sun Bug ID: 6536522
                         // swallow
+                        e.printStackTrace(System.err);
                     } else {
                         throw e;
                     }
