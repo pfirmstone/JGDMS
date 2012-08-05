@@ -486,7 +486,7 @@ public class UriString {
             path = sb.toString();
         }
         // TODO: query and fragment normalisation.
-        //URI(String scheme, String userInfo, String host, int port, String path, String query, String fragment)
+        
         return new URI(scheme, uri.getRawUserInfo(), host, uri.getPort(), path, uri.getQuery(), uri.getFragment());
     }
     
@@ -882,301 +882,301 @@ public class UriString {
         
         //            Latin-1 Supplement 
         //            Position Decimal Name Appearance 
-        //            0x0080 128 <control>:  € 
+        //            0x0080 128 <control>:  
         latin[128] = '\u0080';
         latinEsc[128] = "%80";
         //            0x0081 129 <control>:  ? 
         latin[129] = '\u0081';
         latinEsc[129] = "%81";
-        //            0x0082 130 <control>: BREAK PERMITTED HERE ‚ 
+        //            0x0082 130 <control>: BREAK PERMITTED HERE 
         latin[130] = '\u0082';
         latinEsc[130] = "%82";
-        //            0x0083 131 <control>: NO BREAK HERE ƒ 
+        //            0x0083 131 <control>: NO BREAK HERE 
         latin[131] = '\u0083';
         latinEsc[131] = "%83";
-        //            0x0084 132 <control>:  „ 
+        //            0x0084 132 <control>:  
         latin[132] = '\u0084';
         latinEsc[132] = "%84";
-        //            0x0085 133 <control>: NEXT LINE … 
+        //            0x0085 133 <control>: NEXT LINE 
         latin[133] = '\u0085';
         latinEsc[133] = "%85";
-        //            0x0086 134 <control>: START OF SELECTED AREA † 
+        //            0x0086 134 <control>: START OF SELECTED AREA 
         latin[134] = '\u0086';
         latinEsc[134] = "%86";
-        //            0x0087 135 <control>: END OF SELECTED AREA ‡ 
+        //            0x0087 135 <control>: END OF SELECTED AREA 
         latin[135] = '\u0087';
         latinEsc[135] = "%87";
-        //            0x0088 136 <control>: CHARACTER TABULATION SET ˆ 
+        //            0x0088 136 <control>: CHARACTER TABULATION SET 
         latin[136] = '\u0088';
         latinEsc[136] = "%88";
-        //            0x0089 137 <control>: CHARACTER TABULATION WITH JUSTIFICATION ‰ 
+        //            0x0089 137 <control>: CHARACTER TABULATION WITH JUSTIFICATION 
         latin[137] = '\u0089';
         latinEsc[137] = "%89";
-        //            0x008A 138 <control>: LINE TABULATION SET Š 
+        //            0x008A 138 <control>: LINE TABULATION SET 
         latin[138] = '\u008A';
         latinEsc[138] = "%8A";
-        //            0x008B 139 <control>: PARTIAL LINE DOWN ‹ 
+        //            0x008B 139 <control>: PARTIAL LINE DOWN 
         latin[139] = '\u008B';
         latinEsc[139] = "%8B";
-        //            0x008C 140 <control>: PARTIAL LINE UP Œ 
+        //            0x008C 140 <control>: PARTIAL LINE UP 
         latin[140] = '\u008C';
         latinEsc[140] = "%8C";
-        //            0x008D 141 <control>: REVERSE LINE FEED ? 
+        //            0x008D 141 <control>: REVERSE LINE FEED 
         latin[141] = '\u008D';
         latinEsc[141] = "%8D";
-        //            0x008E 142 <control>: SINGLE SHIFT TWO Ž 
+        //            0x008E 142 <control>: SINGLE SHIFT TWO 
         latin[142] = '\u008E';
         latinEsc[142] = "%8E";
-        //            0x008F 143 <control>: SINGLE SHIFT THREE ? 
+        //            0x008F 143 <control>: SINGLE SHIFT THREE 
         latin[143] = '\u008F';
         latinEsc[143] = "%8F";
-        //            0x0090 144 <control>: DEVICE CONTROL STRING ? 
+        //            0x0090 144 <control>: DEVICE CONTROL STRING 
         latin[144] = '\u0090';
         latinEsc[144] = "%90";
-        //            0x0091 145 <control>: PRIVATE USE ONE ‘ 
+        //            0x0091 145 <control>: PRIVATE USE ONE 
         latin[145] = '\u0091';
         latinEsc[145] = "%91";
-        //            0x0092 146 <control>: PRIVATE USE TWO ’ 
+        //            0x0092 146 <control>: PRIVATE USE TWO 
         latin[146] = '\u0092';
         latinEsc[146] = "%92";
-        //            0x0093 147 <control>: SET TRANSMIT STATE “ 
+        //            0x0093 147 <control>: SET TRANSMIT STATE 
         latin[147] = '\u0093';
         latinEsc[147] = "%93";
-        //            0x0094 148 <control>: CANCEL CHARACTER ” 
+        //            0x0094 148 <control>: CANCEL CHARACTER 
         latin[148] = '\u0094';
         latinEsc[148] = "%94";
-        //            0x0095 149 <control>: MESSAGE WAITING • 
+        //            0x0095 149 <control>: MESSAGE WAITING 
         latin[149] = '\u0095';
         latinEsc[149] = "%95";
-        //            0x0096 150 <control>: START OF GUARDED AREA – 
+        //            0x0096 150 <control>: START OF GUARDED AREA 
         latin[150] = '\u0096';
         latinEsc[150] = "%96";
-        //            0x0097 151 <control>: END OF GUARDED AREA — 
+        //            0x0097 151 <control>: END OF GUARDED AREA 
         latin[151] = '\u0097';
         latinEsc[151] = "%97";
-        //            0x0098 152 <control>: START OF STRING ˜ 
+        //            0x0098 152 <control>: START OF STRING 
         latin[152] = '\u0098';
         latinEsc[152] = "%98";
-        //            0x0099 153 <control>:  ™ 
+        //            0x0099 153 <control>:  
         latin[153] = '\u0099';
         latinEsc[153] = "%99";
-        //            0x009A 154 <control>: SINGLE CHARACTER INTRODUCER š 
+        //            0x009A 154 <control>: SINGLE CHARACTER INTRODUCER 
         latin[154] = '\u009A';
         latinEsc[154] = "%9A";
-        //            0x009B 155 <control>: CONTROL SEQUENCE INTRODUCER › 
+        //            0x009B 155 <control>: CONTROL SEQUENCE INTRODUCER 
         latin[155] = '\u009B';
         latinEsc[155] = "%9B";
-        //            0x009C 156 <control>: STRING TERMINATOR œ 
+        //            0x009C 156 <control>: STRING TERMINATOR 
         latin[156] = '\u009C';
         latinEsc[156] = "%9C";
-        //            0x009D 157 <control>: OPERATING SYSTEM COMMAND ? 
+        //            0x009D 157 <control>: OPERATING SYSTEM COMMAND 
         latin[157] = '\u009D';
         latinEsc[157] = "%9D";
-        //            0x009E 158 <control>: PRIVACY MESSAGE ž 
+        //            0x009E 158 <control>: PRIVACY MESSAGE 
         latin[158] = '\u009E';
         latinEsc[158] = "%9E";
-        //            0x009F 159 <control>: APPLICATION PROGRAM COMMAND Ÿ 
+        //            0x009F 159 <control>: APPLICATION PROGRAM COMMAND 
         latin[159] = '\u009F';
         latinEsc[159] = "%9F";
         //            0x00A0 160 NO-BREAK SPACE   
         latin[160] = '\u00A0';
         latinEsc[160] = "%A0";
-        //            0x00A1 161 INVERTED EXCLAMATION MARK ¡ 
+        //            0x00A1 161 INVERTED EXCLAMATION MARK 
         latin[161] = '\u00A1';
         latinEsc[161] = "%A1";
-        //            0x00A2 162 CENT SIGN ¢ 
+        //            0x00A2 162 CENT SIGN 
         latin[162] = '\u00A2';
         latinEsc[162] = "%A2";
-        //            0x00A3 163 POUND SIGN £ 
+        //            0x00A3 163 POUND SIGN 
         latin[163] = '\u00A3';
         latinEsc[163] = "%A3";
-        //            0x00A4 164 CURRENCY SIGN ¤ 
+        //            0x00A4 164 CURRENCY SIGN 
         latin[164] = '\u00A4';
         latinEsc[164] = "%A4";
-        //            0x00A5 165 YEN SIGN ¥ 
+        //            0x00A5 165 YEN SIGN 
         latin[165] = '\u00A5';
         latinEsc[165] = "%A5";
-        //            0x00A6 166 BROKEN BAR ¦ 
+        //            0x00A6 166 BROKEN BAR 
         latin[166] = '\u00A6';
         latinEsc[166] = "%A6";
-        //            0x00A7 167 SECTION SIGN § 
+        //            0x00A7 167 SECTION SIGN 
         latin[167] = '\u00A7';
         latinEsc[167] = "%A7";
-        //            0x00A8 168 DIAERESIS ¨ 
+        //            0x00A8 168 DIAERESIS 
         latin[168] = '\u00A8';
         latinEsc[168] = "%A8";
-        //            0x00A9 169 COPYRIGHT SIGN © 
+        //            0x00A9 169 COPYRIGHT SIGN 
         latin[169] = '\u00A9';
         latinEsc[169] = "%A9";
-        //            0x00AA 170 FEMININE ORDINAL INDICATOR ª 
+        //            0x00AA 170 FEMININE ORDINAL INDICATOR 
         latin[170] = '\u00AA';
         latinEsc[170] = "%AA";
-        //            0x00AB 171 LEFT-POINTING DOUBLE ANGLE QUOTATION MARK « 
+        //            0x00AB 171 LEFT-POINTING DOUBLE ANGLE QUOTATION MARK 
         latin[171] = '\u00AB';
         latinEsc[171] = "%AB";
-        //            0x00AC 172 NOT SIGN ¬ 
+        //            0x00AC 172 NOT SIGN 
         latin[172] = '\u00AC';
         latinEsc[172] = "%AC";
-        //            0x00AD 173 SOFT HYPHEN ­ 
+        //            0x00AD 173 SOFT HYPHEN 
         latin[173] = '\u00AD';
         latinEsc[173] = "%AD";
-        //            0x00AE 174 REGISTERED SIGN ® 
+        //            0x00AE 174 REGISTERED SIGN 
         latin[174] = '\u00AE';
         latinEsc[174] = "%AE";
-        //            0x00AF 175 MACRON ¯ 
+        //            0x00AF 175 MACRON 
         latin[175] = '\u00AF';
         latinEsc[175] = "%AF";
-        //            0x00B0 176 DEGREE SIGN ° 
+        //            0x00B0 176 DEGREE SIGN 
         latin[176] = '\u00B0';
         latinEsc[176] = "%B0";
-        //            0x00B1 177 PLUS-MINUS SIGN ± 
+        //            0x00B1 177 PLUS-MINUS SIGN 
         latin[177] = '\u00B1';
         latinEsc[177] = "%B1";
-        //            0x00B2 178 SUPERSCRIPT TWO ² 
+        //            0x00B2 178 SUPERSCRIPT TWO 
         latin[178] = '\u00B2';
         latinEsc[178] = "%B2";
-        //            0x00B3 179 SUPERSCRIPT THREE ³ 
+        //            0x00B3 179 SUPERSCRIPT THREE 
         latin[179] = '\u00B3';
         latinEsc[179] = "%B3";
-        //            0x00B4 180 ACUTE ACCENT ´ 
+        //            0x00B4 180 ACUTE ACCENT 
         latin[180] = '\u00B4';
         latinEsc[180] = "%B4";
-        //            0x00B5 181 MICRO SIGN µ 
+        //            0x00B5 181 MICRO SIGN 
         latin[181] = '\u00B5';
         latinEsc[181] = "%B5";
-        //            0x00B6 182 PILCROW SIGN ¶ 
+        //            0x00B6 182 PILCROW SIGN 
         latin[182] = '\u00B6';
         latinEsc[182] = "%B6";
-        //            0x00B7 183 MIDDLE DOT · 
+        //            0x00B7 183 MIDDLE DOT 
         latin[183] = '\u00B7';
         latinEsc[183] = "%B7";
-        //            0x00B8 184 CEDILLA ¸ 
+        //            0x00B8 184 CEDILLA 
         latin[184] = '\u00B8';
         latinEsc[184] = "%B8";
-        //            0x00B9 185 SUPERSCRIPT ONE ¹ 
+        //            0x00B9 185 SUPERSCRIPT ONE 
         latin[185] = '\u00B9';
         latinEsc[185] = "%B9";
-        //            0x00BA 186 MASCULINE ORDINAL INDICATOR º 
+        //            0x00BA 186 MASCULINE ORDINAL INDICATOR 
         latin[186] = '\u00BA';
         latinEsc[186] = "%BA";
-        //            0x00BB 187 RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK » 
+        //            0x00BB 187 RIGHT-POINTING DOUBLE ANGLE QUOTATION MARK 
         latin[187] = '\u00BB';
         latinEsc[187] = "%BB";
-        //            0x00BC 188 VULGAR FRACTION ONE QUARTER ¼ 
+        //            0x00BC 188 VULGAR FRACTION ONE QUARTER 
         latin[188] = '\u00BC';
         latinEsc[188] = "%BC";
-        //            0x00BD 189 VULGAR FRACTION ONE HALF ½ 
+        //            0x00BD 189 VULGAR FRACTION ONE HALF 
         latin[189] = '\u00BD';
         latinEsc[189] = "%BD";
-        //            0x00BE 190 VULGAR FRACTION THREE QUARTERS ¾ 
+        //            0x00BE 190 VULGAR FRACTION THREE QUARTERS 
         latin[190] = '\u00BE';
         latinEsc[190] = "%BE";
-        //            0x00BF 191 INVERTED QUESTION MARK ¿ 
+        //            0x00BF 191 INVERTED QUESTION MARK 
         latin[191] = '\u00BF';
         latinEsc[191] = "%BF";
-        //            0x00C0 192 LATIN CAPITAL LETTER A WITH GRAVE À 
+        //            0x00C0 192 LATIN CAPITAL LETTER A WITH GRAVE 
         latin[192] = '\u00C0';
         latinEsc[192] = "%C0";
-        //            0x00C1 193 LATIN CAPITAL LETTER A WITH ACUTE Á 
+        //            0x00C1 193 LATIN CAPITAL LETTER A WITH ACUTE 
         latin[193] = '\u00C1';
         latinEsc[193] = "%C1";
-        //            0x00C2 194 LATIN CAPITAL LETTER A WITH CIRCUMFLEX Â 
+        //            0x00C2 194 LATIN CAPITAL LETTER A WITH CIRCUMFLEX 
         latin[194] = '\u00C2';
         latinEsc[194] = "%C2";
-        //            0x00C3 195 LATIN CAPITAL LETTER A WITH TILDE Ã 
+        //            0x00C3 195 LATIN CAPITAL LETTER A WITH TILDE 
         latin[195] = '\u00C3';
         latinEsc[195] = "%C3";
-        //            0x00C4 196 LATIN CAPITAL LETTER A WITH DIAERESIS Ä 
+        //            0x00C4 196 LATIN CAPITAL LETTER A WITH DIAERESIS 
         latin[196] = '\u00C4';
         latinEsc[196] = "%C4";
-        //            0x00C5 197 LATIN CAPITAL LETTER A WITH RING ABOVE Å 
+        //            0x00C5 197 LATIN CAPITAL LETTER A WITH RING ABOVE 
         latin[197] = '\u00C5';
         latinEsc[197] = "%C5";
-        //            0x00C6 198 LATIN CAPITAL LETTER AE Æ 
+        //            0x00C6 198 LATIN CAPITAL LETTER AE 
         latin[198] = '\u00C6';
         latinEsc[198] = "%C6";
-        //            0x00C7 199 LATIN CAPITAL LETTER C WITH CEDILLA Ç 
+        //            0x00C7 199 LATIN CAPITAL LETTER C WITH CEDILLA 
         latin[199] = '\u00C7';
         latinEsc[199] = "%C7";
-        //            0x00C8 200 LATIN CAPITAL LETTER E WITH GRAVE È 
+        //            0x00C8 200 LATIN CAPITAL LETTER E WITH GRAVE 
         latin[200] = '\u00C8';
         latinEsc[200] = "%C8";
-        //            0x00C9 201 LATIN CAPITAL LETTER E WITH ACUTE É 
+        //            0x00C9 201 LATIN CAPITAL LETTER E WITH ACUTE 
         latin[201] = '\u00C9';
         latinEsc[201] = "%C9";
-        //            0x00CA 202 LATIN CAPITAL LETTER E WITH CIRCUMFLEX Ê 
+        //            0x00CA 202 LATIN CAPITAL LETTER E WITH CIRCUMFLEX 
         latin[202] = '\u00CA';
         latinEsc[202] = "%CA";
-        //            0x00CB 203 LATIN CAPITAL LETTER E WITH DIAERESIS Ë 
+        //            0x00CB 203 LATIN CAPITAL LETTER E WITH DIAERESIS 
         latin[203] = '\u00CB';
         latinEsc[203] = "%CB";
-        //            0x00CC 204 LATIN CAPITAL LETTER I WITH GRAVE Ì 
+        //            0x00CC 204 LATIN CAPITAL LETTER I WITH GRAVE 
         latin[204] = '\u00CC';
         latinEsc[204] = "%CC";
-        //            0x00CD 205 LATIN CAPITAL LETTER I WITH ACUTE Í 
+        //            0x00CD 205 LATIN CAPITAL LETTER I WITH ACUTE 
         latin[205] = '\u00CD';
         latinEsc[205] = "%CD";
-        //            0x00CE 206 LATIN CAPITAL LETTER I WITH CIRCUMFLEX Î 
+        //            0x00CE 206 LATIN CAPITAL LETTER I WITH CIRCUMFLEX 
         latin[206] = '\u00CE';
         latinEsc[206] = "%CE";
-        //            0x00CF 207 LATIN CAPITAL LETTER I WITH DIAERESIS Ï 
+        //            0x00CF 207 LATIN CAPITAL LETTER I WITH DIAERESIS 
         latin[207] = '\u00CF';
         latinEsc[207] = "%CF";
-        //            0x00D0 208 LATIN CAPITAL LETTER ETH Ð 
+        //            0x00D0 208 LATIN CAPITAL LETTER ETH 
         latin[208] = '\u00D0';
         latinEsc[208] = "%D0";
-        //            0x00D1 209 LATIN CAPITAL LETTER N WITH TILDE Ñ 
+        //            0x00D1 209 LATIN CAPITAL LETTER N WITH TILDE 
         latin[209] = '\u00D1';
         latinEsc[209] = "%D1";
-        //            0x00D2 210 LATIN CAPITAL LETTER O WITH GRAVE Ò 
+        //            0x00D2 210 LATIN CAPITAL LETTER O WITH GRAVE 
         latin[210] = '\u00D2';
         latinEsc[210] = "%D2";
-        //            0x00D3 211 LATIN CAPITAL LETTER O WITH ACUTE Ó 
+        //            0x00D3 211 LATIN CAPITAL LETTER O WITH ACUTE 
         latin[211] = '\u00D3';
         latinEsc[211] = "%D3";
-        //            0x00D4 212 LATIN CAPITAL LETTER O WITH CIRCUMFLEX Ô 
+        //            0x00D4 212 LATIN CAPITAL LETTER O WITH CIRCUMFLEX 
         latin[212] = '\u00D4';
         latinEsc[212] = "%D4";
-        //            0x00D5 213 LATIN CAPITAL LETTER O WITH TILDE Õ 
+        //            0x00D5 213 LATIN CAPITAL LETTER O WITH TILDE 
         latin[213] = '\u00D5';
         latinEsc[213] = "%D5";
-        //            0x00D6 214 LATIN CAPITAL LETTER O WITH DIAERESIS Ö 
+        //            0x00D6 214 LATIN CAPITAL LETTER O WITH DIAERESIS 
         latin[214] = '\u00D6';
         latinEsc[214] = "%D6";
-        //            0x00D7 215 MULTIPLICATION SIGN × 
+        //            0x00D7 215 MULTIPLICATION SIGN 
         latin[215] = '\u00D7';
         latinEsc[215] = "%D7";
-        //            0x00D8 216 LATIN CAPITAL LETTER O WITH STROKE Ø 
+        //            0x00D8 216 LATIN CAPITAL LETTER O WITH STROKE 
         latin[216] = '\u00D8';
         latinEsc[216] = "%D8";
-        //            0x00D9 217 LATIN CAPITAL LETTER U WITH GRAVE Ù 
+        //            0x00D9 217 LATIN CAPITAL LETTER U WITH GRAVE 
         latin[217] = '\u00D9';
         latinEsc[217] = "%D9";
-        //            0x00DA 218 LATIN CAPITAL LETTER U WITH ACUTE Ú 
+        //            0x00DA 218 LATIN CAPITAL LETTER U WITH ACUTE 
         latin[218] = '\u00DA';
         latinEsc[218] = "%DA";
-        //            0x00DB 219 LATIN CAPITAL LETTER U WITH CIRCUMFLEX Û 
+        //            0x00DB 219 LATIN CAPITAL LETTER U WITH CIRCUMFLEX 
         latin[219] = '\u00DB';
         latinEsc[219] = "%DB";
-        //            0x00DC 220 LATIN CAPITAL LETTER U WITH DIAERESIS Ü 
+        //            0x00DC 220 LATIN CAPITAL LETTER U WITH DIAERESIS 
         latin[220] = '\u00DC';
         latinEsc[220] = "%DC";
-        //            0x00DD 221 LATIN CAPITAL LETTER Y WITH ACUTE Ý 
+        //            0x00DD 221 LATIN CAPITAL LETTER Y WITH ACUTE 
         latin[221] = '\u00DD';
         latinEsc[221] = "%DD";
-        //            0x00DE 222 LATIN CAPITAL LETTER THORN Þ 
+        //            0x00DE 222 LATIN CAPITAL LETTER THORN 
         latin[222] = '\u00DE';
         latinEsc[222] = "%DE";
-        //            0x00DF 223 LATIN SMALL LETTER SHARP S ß 
+        //            0x00DF 223 LATIN SMALL LETTER SHARP S 
         latin[223] = '\u00DF';
         latinEsc[223] = "%DF";
-        //            0x00E0 224 LATIN SMALL LETTER A WITH GRAVE à 
+        //            0x00E0 224 LATIN SMALL LETTER A WITH GRAVE 
         latin[224] = '\u00E0';
         latinEsc[224] = "%E0";
-        //            0x00E1 225 LATIN SMALL LETTER A WITH ACUTE á 
+        //            0x00E1 225 LATIN SMALL LETTER A WITH ACUTE 
         latin[225] = '\u00E1';
         latinEsc[225] = "%E1";
-        //            0x00E2 226 LATIN SMALL LETTER A WITH CIRCUMFLEX â 
+        //            0x00E2 226 LATIN SMALL LETTER A WITH CIRCUMFLEX 
         latin[226] = '\u00E2';
         latinEsc[226] = "%E2";
         //            0x00E3 227 LATIN SMALL LETTER A WITH TILDE ã 
