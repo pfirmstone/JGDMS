@@ -707,10 +707,13 @@ public class PreferredClassLoader extends URLClassLoader
 			hconn.getResponseMessage());
 		}
 	    }
-        } catch (NullPointerException e){
-            // Sun Bug ID: 6536522
-            e.fillInStackTrace();
-            throw new IOException(url.toString(), e);
+        } catch (RuntimeException e){
+            if ( e instanceof NullPointerException || e.getCause() instanceof NullPointerException) {
+                // Sun Bug ID: 6536522
+                throw new IOException(url.toString(), e);
+            } else {
+                throw e;
+            }
 	} finally {
 	    if (closeAfter && (closeConn != null)) {
 		/* clean up after... */
