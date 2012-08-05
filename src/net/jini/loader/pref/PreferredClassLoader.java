@@ -1283,7 +1283,9 @@ public class PreferredClassLoader extends URLClassLoader
 		 * does, don't bother granting or requiring any permissions
 		 * for this URL.
 		 */
-	    }
+	    } catch (NullPointerException e){
+                // Sun Bug ID: 6536522
+            }
 	}
     }
 }
