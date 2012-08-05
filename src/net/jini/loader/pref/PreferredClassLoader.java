@@ -592,15 +592,22 @@ public class PreferredClassLoader extends URLClassLoader
 	     * available upon the attempt (elsewhere) to obtain the preferred
 	     * list
 	     */
+            URL baseURL = getBaseJarURL(firstURL);
 	    try {
-		URL baseURL = getBaseJarURL(firstURL);
 		((JarURLConnection) baseURL.openConnection()).getManifest();
 		exists = true;
-	    }
-	    catch (IOException e) {
+	    } catch (IOException e) {
 		// we still have no definite answer on whether the JAR file
 		// and therefore the PREFERRED.LIST exists
-	    }
+	    } catch (NullPointerException e){
+                // Sun Bug ID: 6536522
+                // NullPointerException is thrown instead of MalformedURLException
+                // Case is the same as above, we have no definite answer on
+                // whether the JAR file and therefore the PREFERRED.LIST exists.
+                System.err.println("NPE thrown while trying to open connection:" +
+                        baseURL);
+                e.printStackTrace(System.err);
+            }
 
 	    if (!exists) {
 		exists = (getPreferredConnection(firstURL, true) != null);
