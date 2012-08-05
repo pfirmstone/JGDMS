@@ -76,14 +76,14 @@ public class UriStringTest {
         assertEquals(expResult, result);
     }
     
-    @Test
-    public void testNormalise() throws URISyntaxException{
-        System.out.println("normalise test");
-        URI uri = new URI("FILE:/c:/Program%20Files/java");
-        String expResult = "file:/C:/PROGRAM%20FILES/JAVA";
-        String result = UriString.normalise(uri).toString();
-        assertEquals(expResult, result);
-    }
+//    @Test
+//    public void testNormalise() throws URISyntaxException{
+//        System.out.println("normalise test");
+//        URI uri = new URI("FILE:/c:/Program%20Files/java");
+//        String expResult = "file:/C:/PROGRAM%20FILES/JAVA";
+//        String result = UriString.normalise(uri).toString();
+//        assertEquals(expResult, result);
+//    }
             
     
     @Test
@@ -95,12 +95,12 @@ public class UriStringTest {
         assertEquals(expResult.toString(), result.toString());
     }
     
-    @Test
-    public void testFixWindowsURI() {
-        System.out.println("Test fix Windows file URI string");
-        String uri = "file:C:\\home\\user";
-        String expResult = "file:/C:/home/user";
-        String result = UriString.fixWindowsURI(uri);
-        assertEquals(expResult, result);
-    }
+//    @Test
+//    public void testFixWindowsURI() {
+//        System.out.println("Test fix Windows file URI string");
+//        String uri = "file:C:\\home\\user";
+//        String expResult = "file:/C:/home/user";
+//        String result = UriString.fixWindowsURI(uri);
+//        assertEquals(expResult, result);
+//    }
 }
