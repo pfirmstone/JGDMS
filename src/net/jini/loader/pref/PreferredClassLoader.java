@@ -681,7 +681,7 @@ public class PreferredClassLoader extends URLClassLoader
 		if (closeAfter) {
 		    hconn.setRequestMethod("HEAD");
 		}
-		int responseCode = hconn.getResponseCode();
+		int responseCode = hconn.getResponseCode();//NPE
 		
 		switch (responseCode) {
 		case HttpURLConnection.HTTP_OK:
@@ -708,16 +708,22 @@ public class PreferredClassLoader extends URLClassLoader
 		}
 	    }
         } catch (NullPointerException e){
+            // Sun Bug ID: 6536522
             e.fillInStackTrace();
             throw new IOException(url.toString(), e);
 	} finally {
 	    if (closeAfter && (closeConn != null)) {
 		/* clean up after... */
 		try {
-		    closeConn.getInputStream().close();
+		    closeConn.getInputStream().close();//RTE NPE
 		} catch (IOException e) {
-		} catch (NullPointerException e){
-                    // Sun Bug ID: 6536522
+		} catch (RuntimeException e){
+                    if ( e instanceof NullPointerException || e.getCause() instanceof NullPointerException) {
+                        // Sun Bug ID: 6536522
+                        // swallow
+                    } else {
+                        throw e;
+                    }
                 }
 	    }
 	}
