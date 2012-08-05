@@ -604,7 +604,7 @@ public class PreferredClassLoader extends URLClassLoader
                 // NullPointerException is thrown instead of MalformedURLException
                 // Case is the same as above, we have no definite answer on
                 // whether the JAR file and therefore the PREFERRED.LIST exists.
-                System.err.println("NPE thrown while trying to open connection:" +
+                System.err.println("NPE thrown while trying to open connection :" +
                         baseURL);
                 e.printStackTrace(System.err);
             }
@@ -713,7 +713,9 @@ public class PreferredClassLoader extends URLClassLoader
 		try {
 		    closeConn.getInputStream().close();
 		} catch (IOException e) {
-		}
+		} catch (NullPointerException e){
+                    // Sun Bug ID: 6536522
+                }
 	    }
 	}
 
