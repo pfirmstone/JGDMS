@@ -374,39 +374,39 @@ public class UriString {
                 /* First check if escape is an unreserved character, if so
                  * decode it, otherwise, change escape sequence to upper case.
                  */
-//                if (hos[i] == escape){
-//                    // Although java.net.URI prohibits escape characters in
-//                    // host, it may change in future if updated for compliance.
-//                    esc[0] = hos[i];
-//                    esc[1] = hos[i+1];
-//                    esc[2] = hos[i+2];
-//                    String e = new String(esc).toUpperCase();
-//                    Character c = unreserved.get(e);
-//                    if (c != null){
-//                        sb.append(c);
-//                        i = i+2;
-//                        continue;
-//                    }
-//                    sb.append(hos[i]);
-//                    escIndex = i;
-//                    continue;
-//                } 
-//                if (escIndex > 0 && i > escIndex && i < escIndex + 3 ){
-//                    if (index(numeric, hos[i]) > 0) {
-//                        sb.append(hos[i]);
-//                        continue;
-//                    }
-//                    if (index(upalpha, hos[i]) > 0){
-//                        sb.append(hos[i]);
-//                        continue;
-//                    }
-//                    int n = index(lowalpha, hos[i]);
-//                    if (n > 0){
-//                        sb.append(upalpha[n]);
-//                        continue;
-//                    }
-//                    throw new URISyntaxException(host, "host contains escaped sequence that has an illegal character at index " + i);
-//                }
+                if (hos[i] == escape){
+                    // Although java.net.URI prohibits escape characters in
+                    // host, it may change in future if updated for compliance.
+                    esc[0] = hos[i];
+                    esc[1] = hos[i+1];
+                    esc[2] = hos[i+2];
+                    String e = new String(esc).toUpperCase();
+                    Character c = unreserved.get(e);
+                    if (c != null){
+                        sb.append(c);
+                        i = i+2;
+                        continue;
+                    }
+                    sb.append(hos[i]);
+                    escIndex = i;
+                    continue;
+                } 
+                if (escIndex > 0 && i > escIndex && i < escIndex + 3 ){
+                    if (index(numeric, hos[i]) > 0) {
+                        sb.append(hos[i]);
+                        continue;
+                    }
+                    if (index(upalpha, hos[i]) > 0){
+                        sb.append(hos[i]);
+                        continue;
+                    }
+                    int n = index(lowalpha, hos[i]);
+                    if (n > 0){
+                        sb.append(upalpha[n]);
+                        continue;
+                    }
+                    throw new URISyntaxException(host, "host contains escaped sequence that has an illegal character at index " + i);
+                }
                 int n = index(upalpha, hos[i]);
                 if (n > 0) {
                     sb.append(lowalpha[n]);
