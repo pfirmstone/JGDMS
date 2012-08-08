@@ -2,7 +2,7 @@ testClass=GetContextTest
 testCategories=start,start_impl
 #testClasspath=<harnessJar>$:${com.sun.jini.qa.home}$/lib$/qa1-start-tests.jar$:${com.sun.jini.qa.home}$/lib$/$qajinidep$:${com.sun.jini.jsk.home}$/lib$/jsk-platform.jar
 
-testClasspath=${altClasspath}$:<file:${com.sun.jini.qa.home}/lib/qa1-start-tests.jar>
+testClasspath=${altClasspath}$:${com.sun.jini.qa.home}/lib/qa1-start-tests.jar
 testPolicyfile=GetContextTest.policy
 getContextJarFile=<file:${com.sun.jini.qa.home}/lib/qa1-start-cb1.jar>
 restoreContextJarFile=<file:${com.sun.jini.qa.home}/lib/qa1-start-cb2.jar>
