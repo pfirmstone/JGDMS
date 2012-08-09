@@ -4,9 +4,9 @@ testCategories=start,start_impl
 
 testClasspath=${altClasspath}$:${com.sun.jini.qa.home}/lib/qa1-start-tests.jar
 testPolicyfile=GetContextTest.policy
-getContextJarFile=<file:${com.sun.jini.qa.home}/lib/qa1-start-cb1.jar>
-restoreContextJarFile=<file:${com.sun.jini.qa.home}/lib/qa1-start-cb2.jar>
-checkContextActionJarFile=<file:${com.sun.jini.qa.home}/lib/qa1-start-cb3.jar>
+getContextJarFile=${com.sun.jini.qa.home}/lib/qa1-start-cb1.jar
+restoreContextJarFile=${com.sun.jini.qa.home}/lib/qa1-start-cb2.jar
+checkContextActionJarFile=${com.sun.jini.qa.home}/lib/qa1-start-cb3.jar
 include0=../start.properties
 #testjvmargs=\
 #-Xdebug,\
