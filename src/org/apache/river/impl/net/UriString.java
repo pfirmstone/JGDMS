@@ -196,7 +196,7 @@ public class UriString {
             StringBuilder sb = new StringBuilder();
             for (int i=0; i<l; i++){
                 // Ensure we use forward slashes
-                if (u[i] == File.separatorChar) {
+                if (u[i] == '\\') {
                     sb.append('/');
                     continue;
                 }
