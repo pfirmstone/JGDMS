@@ -506,7 +506,7 @@
         description="Generate all JAR files"/>
 
     <target name="jars-arm" depends="trust,
-        harness-jars,
+        harness-jars-arm,
         qa1-end2end.jar,
         qa1-fiddler-dl.jar,
         qa1-joinmanager-dl.jar,
@@ -562,6 +562,15 @@
         description="Generate all JAR files"/>
 
     <target name="harness-jars" description="build all harness jars" depends="stubs, trust,
+        qaman.jar,
+        mergedpolicyprovider.jar,
+        nonactivatablegroup.jar,
+        nonactivatablegroup-dl.jar,
+        harness-killer.jar,
+        harness-killer-dl.jar,
+        jiniharness.jar" />
+        
+        <target name="harness-jars-arm" description="build all harness jars" depends="trust,
         qaman.jar,
         mergedpolicyprovider.jar,
         nonactivatablegroup.jar,
