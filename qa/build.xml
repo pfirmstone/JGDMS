@@ -406,9 +406,9 @@
         <antcall target="run-categories"/>
     </target>
     
-    <target name="run-arm" depends="river-runtime,jars-arm,jinitests.jar">
+    <target name="run-arm" depends="river-runtime,jars-arm">
         <property name="run.categories"
-                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager"/>
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager"/>
         <antcall target="run-categories"/>
     </target>
 
@@ -518,7 +518,7 @@
         qa1-norm-dl.jar,
         qa1-outrigger-dl.jar,
         qa1-multihomedmetainf.jar,
-        jinitests.jar,
+        jinitests,
         qa1-mainwrapper.jar,
         qa1-start-cb1.jar,
         qa1-start-cb2.jar,
@@ -1019,7 +1019,9 @@
         </jar>
     </target>
 
-    <target name="jinitests.jar" depends="stubs">
+    <target name="jinitests.jar" depends="stubs,jinitests"/>
+
+    <target name="jinitests">
         <property name="jinitests.deps" location="${build.deps.dir}/jinitests.deps" />
         <!--
         <delete file="${lib.dir}/jinitests.jar" quiet="true"/>
