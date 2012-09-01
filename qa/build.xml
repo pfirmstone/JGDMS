@@ -405,6 +405,12 @@
                 value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,iiop,jrmp,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager"/>
         <antcall target="run-categories"/>
     </target>
+    
+    <target name="run-arm" depends="river-runtime,jars-arm,jinitests.jar">
+        <property name="run.categories"
+                value="id,loader,policyprovider,locatordiscovery,activation,config,discoverymanager,joinmanager,url,reliability,thread,renewalmanager,constraint,export,lookupdiscovery,servicediscovery,io,security,lookupservice,renewalservice,eventmailbox,jeri,start,discoveryservice,discoveryproviders,javaspace,txnmanager"/>
+        <antcall target="run-categories"/>
+    </target>
 
 <!-- depends="compile" -->
     <target name="doc" 
@@ -442,8 +448,64 @@
         <mkdir dir="${doc.api.dir}/doc-files"/>
         <copy file="${root}/NOTICE" tofile="${doc.api.dir}/doc-files/NOTICE"/>
     </target>
-
+    
     <target name="jars" depends="stubs, trust,
+        harness-jars,
+        qa1-end2end.jar,
+        qa1-fiddler-dl.jar,
+        qa1-joinmanager-dl.jar,
+        qa1-mahalo-dl.jar,
+        qa1-mercury.jar,
+        qa1-mercury-dl.jar,
+        qa1-mercury-bogusimpl.jar,
+        qa1-wrapper.jar,
+        qa1-norm-dl.jar,
+        qa1-outrigger-dl.jar,
+        qa1-multihomedmetainf.jar,
+        jinitests.jar,
+        qa1-mainwrapper.jar,
+        qa1-start-cb1.jar,
+        qa1-start-cb2.jar,
+        qa1-start-cb3.jar,
+        qa1-start-probe.jar,
+        qa1-start-probe-dl.jar,
+        qa1-start-tests.jar,
+        qa1-start-testservice1.jar,
+        qa1-start-testservice1-dl.jar,
+        qa1-start-testservice2.jar,
+        qa1-start-testservice2-dl.jar,
+        qa1-start-testservice-common.jar,
+        qa1-start-testservice-common-dl.jar,
+        qa1-start-testservicenocons.jar,
+        qa1-start-testservicenocons-dl.jar,
+        qa1-lookup-simulator.jar,
+        qa1-lookup-simulator-dl.jar,
+        qa1-share-dl.jar,
+        qa1-reggie-race.jar,
+        qa1-reggie-race-dl.jar,
+        fullloggingfilter.jar,
+        qa1-discoveryservice-dl.jar,
+        qa1-export-servercontext-tests-non-null.jar,
+        qa1-export-servercontext-tests-null.jar,
+        qa1-export-servercontext-tests-providers-parsing.jar,
+        qa1-io-util-dl.jar,
+        qa1-io-marshalinputstream-test.jar,
+        qa1-io-marshalledinstance-test.jar,
+        qa1-javaspace-dl.jar,
+        qa1-lookupservice-dl.jar,
+        qa1-renewalservice-dl.jar,
+        qa1-securityDoPrivileged.jar,
+        qa1-securityUtil.jar,
+        qa1-servicediscovery-dl.jar,
+        qa1-httpmd.jar,
+        qa1-httpmd-same.jar,
+        qa1-httpmd-another.jar,
+        ld.jar,
+        qa1-loader-pref.jar,
+        qa1-policy-provider.jar"
+        description="Generate all JAR files"/>
+
+    <target name="jars-arm" depends="trust,
         harness-jars,
         qa1-end2end.jar,
         qa1-fiddler-dl.jar,
