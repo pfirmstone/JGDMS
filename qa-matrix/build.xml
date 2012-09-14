@@ -19,8 +19,16 @@
 
 <project name="river-qa-matrix" basedir="." default="default" >
 
-    <target name="default">
+    <target name="default" depends="qa-tree">
         <echoproperties/>
+    </target>
+    
+    <target name="qa-tree" >
+        <property name="harness-runtime-src" value="https://builds.apache.org/view/M-R/view/River/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
+        <property name="harness-runtime-dst" value="tmp/harness-runtime.jar" />
+        <mkdir dir="tmp" />
+        <get src="${harness-runtime-src}" dest="${harness-runtime-dst}" />
+        <unzip src="${harness-runtime-dst}" dest="build" />
     </target>
     
 </project>
