@@ -17,7 +17,7 @@
  ! limitations under the License.
  !-->
 
-<project name="river-qa-matrix" basedir="." default="default" >
+<project name="river-qa-matrix" basedir="." default="default-prod" >
 
     <target name="default-prod" depends="init-prod, qa-tree, qa-run, clean">
     </target>
