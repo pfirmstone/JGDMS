@@ -99,7 +99,7 @@
     </target>
 
     <target name="run-qa" description="execute QA test" >
-        <property name="harness-runtime-src" value="https://hudson.apache.org/hudson/pview/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
+        <property name="harness-runtime-src" value="https://builds.apache.org/view/M-R/view/River/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
         <property name="harness-runtime-dst" value="harness-runtime.jar" />
         
         <get src="${harness-runtime-src}" dest="${harness-runtime-dst}" />
