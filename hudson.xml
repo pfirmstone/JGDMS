@@ -96,6 +96,12 @@
         <delete file="${qa-tree-zipfile}" />
         <zip destfile="${qa-tree-zipfile}" >
             <fileset dir=".">
+                <exclude name="examples/**" />
+                <exclude name="netbeans/**" />
+                <exclude name="poms/**" />
+                <exclude name="qa/doc/**" />
+                <exclude name="qa-matrix/**" />
+                <exclude name="src-doc/**" />
                 <!--
                 <include name="lib/**" />
                 <include name="lib-dl/**"/>
