@@ -81,7 +81,7 @@
         <verify-signature signature="dep-libs/animal-sniffer/java15-ibm-1.0.signature" />
     </target>
 
-    <target name="qa-runtime" description="build QA runtime" >
+    <target name="qa-tree" description="build QA tree" >
         <ant dir="qa" inheritall="false">
             <target name="clean" />
             <target name="harness-runtime" />
