@@ -37,7 +37,7 @@
     
     <target name="qa-tree" >
         <property name="harness-runtime-dst" value="tmp/qa-tree.zip" />
-        <property name="harness-runtime-src" value="https://builds.apache.org/view/M-R/view/River/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
+        <property name="harness-runtime-src" value="https://builds.apache.org/job/River-QA-tree/lastSuccessfulBuild/artifact/jtsk/trunk/build/qa-tree.zip" />
 
         <delete dir="tmp" />
         <mkdir dir="tmp" />
