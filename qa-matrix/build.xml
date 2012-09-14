@@ -19,16 +19,43 @@
 
 <project name="river-qa-matrix" basedir="." default="default" >
 
-    <target name="default" depends="qa-tree">
+    <target name="default-prod" depends="init-prod, qa-tree, qa-run, clean">
+    </target>
+    
+    <target name="default-dev" depends="init-dev, qa-tree, qa-run">
+    </target>
+    
+    <target name="init-prod" >
+        <echoproperties/>
+    </target>
+    
+    <target name="init-dev" >
+        <property name="harness-runtime-src" value="file:${basedir}/../build/qa-tree.zip" />
+        <property name="category" value="id" />
         <echoproperties/>
     </target>
     
     <target name="qa-tree" >
+        <property name="harness-runtime-dst" value="tmp/qa-tree.zip" />
         <property name="harness-runtime-src" value="https://builds.apache.org/view/M-R/view/River/job/River-QA-runtime/lastSuccessfulBuild/artifact/jtsk/trunk/harness-runtime.jar" />
-        <property name="harness-runtime-dst" value="tmp/harness-runtime.jar" />
+
+        <delete dir="tmp" />
         <mkdir dir="tmp" />
         <get src="${harness-runtime-src}" dest="${harness-runtime-dst}" />
+        
+        <delete dir="build" />
         <unzip src="${harness-runtime-dst}" dest="build" />
+    </target>
+
+    <target name="qa-run" >
+        <ant dir="build/qa" target="run-categories" inheritall="false">
+            <property name="run.categories" value="${category}"/>
+        </ant>
+    </target>
+    
+    <target name="clean" >
+        <delete dir="tmp" />
+        <delete dir="build" />
     </target>
     
 </project>
