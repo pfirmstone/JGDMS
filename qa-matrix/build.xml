@@ -40,7 +40,7 @@
     
     <target name="init-dev-test" >
         <property name="harness-runtime-src" value="file:${basedir}/../build/qa-tree.zip" />
-        <property name="test" value="com/sun/jini/test/spec/url/httpmd/handler/SameFile.td" />
+        <property name="test" value="com-sun-jini-test-spec-url-httpmd-handler-SameFile.td" />
         <echoproperties/>
     </target>
     
@@ -63,8 +63,13 @@
     </target>
     
     <target name="qa-run-test" >
+        <script language="javascript">
+            var testdash = project.getProperty("test");
+            project.setProperty("testslash", testdash.replaceAll("-", "/"));
+        </script>
+        
         <ant dir="build/qa" target="run-tests" inheritall="false">
-            <property name="run.tests" value="${test}"/>
+            <property name="run.tests" value="${testslash}"/>
         </ant>
     </target>
     
