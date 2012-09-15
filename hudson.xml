@@ -126,6 +126,22 @@
         </ant>
     </target>
 
-
+    <target name="list-tests" >
+        <fileset id="qa-td-files" dir="qa/src/">
+            <include name="**/*.td" />
+        </fileset>
+        <script language="javascript"> 
+        <![CDATA[
+            var testfiles = project.getReference("qa-td-files")
+//            println( testfiles )
+//            println( testfiles.getClass() )
+            var iter = testfiles.iterator();
+            while( iter.hasNext() ) {
+//                println("-----")
+                println(iter.next().getName())
+            }
+        ]]> 
+        </script>
+    </target>
 
 </project>
