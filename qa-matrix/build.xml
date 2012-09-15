@@ -22,6 +22,9 @@
     <target name="default-prod" depends="init-prod, qa-tree, qa-run-test, clean">
     </target>
     
+    <target name="default-prod-12" depends="init-dev-test, qa-run-test">
+    </target>
+    
     <target name="default-dev-cat" depends="init-dev-cat, qa-tree, qa-run-category">
     </target>
     
