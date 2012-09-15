@@ -19,19 +19,28 @@
 
 <project name="river-qa-matrix" basedir="." default="default-prod" >
 
-    <target name="default-prod" depends="init-prod, qa-tree, qa-run, clean">
+    <target name="default-prod" depends="init-prod, qa-tree, qa-run-test, clean">
     </target>
     
-    <target name="default-dev" depends="init-dev, qa-tree, qa-run">
+    <target name="default-dev-cat" depends="init-dev-cat, qa-tree, qa-run-category">
+    </target>
+    
+    <target name="default-dev-test" depends="init-dev-test, qa-tree, qa-run-test">
     </target>
     
     <target name="init-prod" >
         <echoproperties/>
     </target>
     
-    <target name="init-dev" >
+    <target name="init-dev-cat" >
         <property name="harness-runtime-src" value="file:${basedir}/../build/qa-tree.zip" />
         <property name="category" value="id" />
+        <echoproperties/>
+    </target>
+    
+    <target name="init-dev-test" >
+        <property name="harness-runtime-src" value="file:${basedir}/../build/qa-tree.zip" />
+        <property name="test" value="com/sun/jini/test/spec/url/httpmd/handler/SameFile.td" />
         <echoproperties/>
     </target>
     
@@ -47,9 +56,15 @@
         <unzip src="${harness-runtime-dst}" dest="build" />
     </target>
 
-    <target name="qa-run" >
+    <target name="qa-run-category" >
         <ant dir="build/qa" target="run-categories" inheritall="false">
             <property name="run.categories" value="${category}"/>
+        </ant>
+    </target>
+    
+    <target name="qa-run-test" >
+        <ant dir="build/qa" target="run-tests" inheritall="false">
+            <property name="run.tests" value="${test}"/>
         </ant>
     </target>
     
