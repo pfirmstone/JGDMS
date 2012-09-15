@@ -138,7 +138,7 @@
             var iter = testfiles.iterator();
             while( iter.hasNext() ) {
 //                println("-----")
-                println(iter.next().getName())
+                println(iter.next().getName().replace("/","-"))
             }
         ]]> 
         </script>
