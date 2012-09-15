@@ -102,14 +102,8 @@
                 <exclude name="qa/doc/**" />
                 <exclude name="qa-matrix/**" />
                 <exclude name="src-doc/**" />
-                <exclude name="build/**" />
                 <!--
-                <include name="lib/**" />
-                <include name="lib-dl/**"/>
-                <include name="lib-ext/**"/>
-                <include name="qa/lib/**" />
-                <include name="qa/lib-ext/**"/>
-                <include name="*.*"/>
+                <exclude name="build/**" />
                 -->
             </fileset>
         </zip>
