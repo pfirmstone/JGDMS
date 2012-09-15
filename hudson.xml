@@ -102,6 +102,7 @@
                 <exclude name="qa/doc/**" />
                 <exclude name="qa-matrix/**" />
                 <exclude name="src-doc/**" />
+                <exclude name="build/**" />
                 <!--
                 <include name="lib/**" />
                 <include name="lib-dl/**"/>
