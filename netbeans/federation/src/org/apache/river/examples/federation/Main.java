@@ -1,8 +1,6 @@
 /*
  *  Main.java
  * 
- *  Created on 20-Sep-2012 14:44:58 by sim
- * 
  */
 
 package org.apache.river.examples.federation;
@@ -11,7 +9,6 @@ import org.apache.river.federation.Federation;
 
 /**
  *
- * @author sim
  */
 public class Main
 {

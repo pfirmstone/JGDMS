@@ -1,8 +1,6 @@
 /*
  *  Federation.java
  * 
- *  Created on 20-Sep-2012 14:44:38 by sim
- * 
  */
 
 package org.apache.river.federation;
@@ -11,7 +9,6 @@ import java.rmi.Remote;
 
 /**
  *
- * @author sim
  */
 public class Federation
 {

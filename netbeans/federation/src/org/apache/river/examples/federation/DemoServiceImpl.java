@@ -1,18 +1,17 @@
 /*
  *  DemoServiceImpl.java
  * 
- *  Created on 20-Sep-2012 14:49:17 by sim
- * 
  */
 
 package org.apache.river.examples.federation;
 
 import java.rmi.RemoteException;
+import org.apache.river.federation.ServiceClass;
 
 /**
  *
- * @author sim
  */
+@ServiceClass(name="DemoService")
 public class DemoServiceImpl
     implements DemoService
 {
