@@ -29,7 +29,7 @@ public class Main
         launchClient();        
     }
 
-    private void launchServer()
+    private void launchServer() throws Exception
     {
         DemoServiceImpl dsi = new DemoServiceImpl();
         
