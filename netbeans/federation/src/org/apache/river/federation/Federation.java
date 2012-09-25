@@ -60,7 +60,7 @@ public class Federation
      */
     private static Configuration getConfiguration(Remote svc)
     {
-        return EmptyConfiguration.INSTANCE; // TODO 
+        return new IntrospectionConfiguration(svc);
     }
 
 
