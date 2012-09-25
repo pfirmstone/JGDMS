@@ -5,10 +5,10 @@
         <data xmlns="http://www.netbeans.org/ns/j2se-project/3">
             <name>onebigjar</name>
             <source-roots>
-                <root id="src.src.dir" name="Sources"/>
+                <root id="src.src.dir" name="Source packages"/>
             </source-roots>
             <test-roots>
-                <root id="test.src.dir"/>
+                <root id="test.src.dir" name="Test packages" />
             </test-roots>
         </data>
     </configuration>
