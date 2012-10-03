@@ -72,7 +72,7 @@ public class Constructor_Test extends QATest {
      */
     public void run() throws Exception {
         ConfigurationException ce;
-        ce = new ConfigurationException(null);
+        ce = new ConfigurationException((String)null);
         assertion(ce.getMessage() == null);
 
         ce = new ConfigurationException("");
