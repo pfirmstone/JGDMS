@@ -46,6 +46,14 @@ public class ConfigurationException extends Exception {
     }
 
     /**
+     * @InheritDoc
+     */
+    public ConfigurationException(Throwable cause)
+    {
+        super(cause);
+    }
+
+    /**
      * Creates an instance with the specified detail message and causing
      * exception, which should not be an instance of <code>Error</code>.
      *
