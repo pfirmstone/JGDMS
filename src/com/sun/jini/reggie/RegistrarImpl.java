@@ -166,6 +166,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	new ServiceInfo(
 	    "Lookup", "Sun Microsystems, Inc.", "Sun Microsystems, Inc.",
 	    VersionConstants.SERVER_VERSION, "", ""),
+	new ServiceInfo(
+	    "Lookup", "Apache River", "Apache foundation",
+	    VersionConstants.SERVER_VERSION, "", ""),
 	new BasicServiceType("Lookup")
     };
     /** Empty attribute set */
