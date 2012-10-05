@@ -48,8 +48,6 @@ import net.jini.security.Security;
  * does not imply the permissions necessary for the operation, the
  * behavior is as if the system property is not defined.
  *
- * @author	Sun Microsystems, Inc.
- * 
  * @see		PrivilegedAction
  * @see		AccessController
  * @see		Security
