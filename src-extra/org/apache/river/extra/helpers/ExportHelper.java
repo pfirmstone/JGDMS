@@ -41,7 +41,7 @@ import net.jini.jeri.ServerEndpoint;
 public class ExportHelper
     extends ConfigHelper
 {
-    private static Logger logger = Logger.getLogger(ExportHelper.class.getName());
+    private static final Logger logger = Logger.getLogger(ExportHelper.class.getName());
 
     public ExportHelper(URL resource) throws ConfigurationException
     {

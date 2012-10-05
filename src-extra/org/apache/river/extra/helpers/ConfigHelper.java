@@ -63,7 +63,7 @@ public abstract class ConfigHelper
         return new ProxyHelper(configuration);
     }
 
-    private Component findJiniComponent( Class cls )
+    private Component findComponentAnnotation( Class<?> cls )
     {
         if( !Remote.class.isAssignableFrom(cls) ) {
             return null ;
@@ -73,8 +73,8 @@ public abstract class ConfigHelper
 
         if( Proxy.isProxyClass(cls) ) {
             Class[] ifs = cls.getInterfaces();
-            for( Class c : ifs ) {
-                jc = findJiniComponent(c);
+            for( Class<?> c : ifs ) {
+                jc = findComponentAnnotation(c);
                 if( jc != null ) {
                     return jc ;
                 }
@@ -82,14 +82,14 @@ public abstract class ConfigHelper
             return null ;
         }
 
-        jc = (Component) cls.getAnnotation(Component.class);
+        jc = cls.getAnnotation(Component.class);
         if( jc != null ) {
             return jc ;
         }
 
         Class[] ifs = cls.getInterfaces();
-        for( Class c : ifs ) {
-            jc = findJiniComponent(c);
+        for( Class<?> c : ifs ) {
+            jc = findComponentAnnotation(c);
             if( jc != null ) {
                 return jc ;
             }
@@ -97,9 +97,9 @@ public abstract class ConfigHelper
         return null ;
     }
 
-    protected String getComponent( Class cls )
+    protected String getComponent( Class<?> cls )
     {
-        Component jc = findJiniComponent(cls);
+        Component jc = findComponentAnnotation(cls);
 
         if (jc != null) {
             String comp = jc.value();

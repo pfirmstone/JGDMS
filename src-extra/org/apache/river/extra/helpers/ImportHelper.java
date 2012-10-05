@@ -40,7 +40,7 @@ import net.jini.jeri.ObjectEndpoint;
 public class ImportHelper
     extends ConfigHelper
 {
-    private static Logger logger = Logger.getLogger(ImportHelper.class.getName());
+    private static final Logger logger = Logger.getLogger(ImportHelper.class.getName());
 
     public ImportHelper(URL resource) throws ConfigurationException
     {

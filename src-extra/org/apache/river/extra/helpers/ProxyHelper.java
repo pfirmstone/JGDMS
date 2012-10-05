@@ -36,7 +36,7 @@ import net.jini.security.ProxyPreparer;
 public class ProxyHelper
     extends ConfigHelper
 {
-    private static Logger logger = Logger.getLogger( ProxyHelper.class.getName()  );
+    private static final Logger logger = Logger.getLogger( ProxyHelper.class.getName()  );
 
     public ProxyHelper(URL resource) throws ConfigurationException
     {
