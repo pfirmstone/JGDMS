@@ -18,6 +18,7 @@
 
 package org.apache.river.extra.helpers;
 
+import com.sun.jini.config.Component;
 import java.lang.reflect.Proxy;
 import java.net.URL;
 import java.rmi.Remote;
@@ -62,13 +63,13 @@ public abstract class ConfigHelper
         return new ProxyHelper(configuration);
     }
 
-    private JiniComponent findJiniComponent( Class cls )
+    private Component findJiniComponent( Class cls )
     {
         if( !Remote.class.isAssignableFrom(cls) ) {
             return null ;
         }
 
-        JiniComponent jc;
+        Component jc;
 
         if( Proxy.isProxyClass(cls) ) {
             Class[] ifs = cls.getInterfaces();
@@ -81,7 +82,7 @@ public abstract class ConfigHelper
             return null ;
         }
 
-        jc = (JiniComponent) cls.getAnnotation(JiniComponent.class);
+        jc = (Component) cls.getAnnotation(Component.class);
         if( jc != null ) {
             return jc ;
         }
@@ -98,7 +99,7 @@ public abstract class ConfigHelper
 
     protected String getComponent( Class cls )
     {
-        JiniComponent jc = findJiniComponent(cls);
+        Component jc = findJiniComponent(cls);
 
         if (jc != null) {
             String comp = jc.value();
