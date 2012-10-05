@@ -35,8 +35,6 @@ import org.apache.velocity.VelocityContext;
 import org.apache.velocity.app.VelocityEngine;
 
 /**
- *
- * @author sim
  */
 public class VelocityConfigurationBuilder
     implements ConfigurationFactory

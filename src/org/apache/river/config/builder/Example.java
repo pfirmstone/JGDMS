@@ -23,8 +23,6 @@ import java.security.Permission;
 import net.jini.config.ConfigurationException;
 
 /**
- *
- * @author sim
  */
 public class Example {
 

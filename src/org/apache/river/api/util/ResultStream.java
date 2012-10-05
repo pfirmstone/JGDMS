@@ -26,8 +26,6 @@ import java.io.IOException;
  * check first operation as implementors must return a null value after
  * the backing data source has been exhausted. So this terminates like a stream
  * by returning a null value.
- * 
- * @author Peter Firmstone
  */
 public interface ResultStream<T> {
     /**

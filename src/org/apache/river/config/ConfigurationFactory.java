@@ -21,8 +21,6 @@ package org.apache.river.config;
 import net.jini.config.Configuration;
 
 /**
- *
- * @author sim
  */
 public interface ConfigurationFactory
 {
