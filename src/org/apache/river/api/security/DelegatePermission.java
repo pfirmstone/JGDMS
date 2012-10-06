@@ -27,9 +27,8 @@ import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Enumeration;
-import java.util.HashSet;
+import java.util.TreeSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ConcurrentSkipListMap;
@@ -38,26 +37,32 @@ import au.net.zeus.collection.Ref;
 import au.net.zeus.collection.Referrer;
 import java.io.StreamTokenizer;
 import java.io.StringReader;
-import java.util.ArrayList;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.Modifier;
+import java.security.UnresolvedPermission;
+import java.util.concurrent.ConcurrentHashMap;
 import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
+import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 /**
- * A DelegatePermission represents any other Permission, called a candidate
+ * A DelegatePermission represents another Permission, called a candidate
  * Permission.  A user granted a DelegatePermission does not have the privilege
  * of the candidate Permission, although a user with a candidate Permission
  * has the privilege of the DelegatePermission that represents the candidate, 
  * while the @ref DelegateSecurityManager is in force.
  * 
  * A DelegatePermission requires a security delegate to be of any
- * use or value.  A security delegates ProtectionDomain is granted the 
+ * use or value. A security delegate has the responsibility to
+ * prevent security sensitive objects guarded by the candidate permission from
+ * escaping. Typically the candidate Permission is only checked during 
+ * construction of a security sensitive object, who's reference may later escape 
+ * into untrusted scope. Security delegates utilise Li Gong's 
+ * method guard pattern. A security delegates ProtectionDomain is granted the 
  * candidate permission, the security delegate allows any user granted the
  * DelegatePermission to utilise the functions that the candidate Permission
  * guards, when the user no longer has the DelegatePermission, the security
  * delegate no longer allows the user to access the functions guarded by the
- * candidate permission.  A security delegate has the responsibility to
- * prevent security sensitive objects guarded by the candidate permission from
- * escaping.  In order to do so, a security delegate utilises Li Gong's 
- * method guard pattern.
+ * candidate permission.  
  *
  * Security Delegates enable sensitive objects to be used by code that isn't
  * fully trusted you may want to monitor, such as a 
@@ -87,6 +92,85 @@ import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
  * Serialization has been implemented so the implementation is not
  * tied to the serialized form, instead serialization proxy's are used.
  * 
+ * The candidate permission name (also referred to as the "target name") of each
+ * <code>DelegatePermission</code> instance carries a string representation of the
+ * permission represented by the <code>DelegatePermission</code>, while the actions
+ * string of each <code>DelegatePermission</code> is always the empty string.  If
+ * a <code>DelegatePermission</code> is serialized, only its name string is sent
+ * (i.e., the candidate permission is not serialized).  Upon
+ * deserialization, the candidate permission is reconstituted based on
+ * information in the name string.  After deserialization a DelegatePermission
+ * may be safely used in a policy, however it should not be used as a Guard to check
+ * Permission as the candidate Permission may be unresolved.
+ * <p>
+ * The syntax of the target name approximates that used for specifying
+ * permissions in the default security policy file, almost identical to 
+ * <code>GrantPermission</code>, with the exception that only
+ * one candidate permission can be specified; it is listed below using
+ * the same grammar notation employed by <i>The Java(TM) Language
+ * Specification</i>:
+ * <pre>
+ * <i>Target</i>:
+ *   <i>DelimiterDeclaration</i><sub>opt</sub> <i>Permissions</i> ;<sub>opt</sub>
+ *   
+ * <i>DelimiterDeclaration</i>:
+ *   delim = <i>DelimiterCharacter</i>
+ *   
+ * <i>Permission</i>:
+ *   <i>PermissionClassName</i>
+ *   <i>PermissionClassName Name</i>
+ *   <i>PermissionClassName Name</i> , <i>Actions</i>
+ *   
+ * <i>PermissionClassName</i>:
+ *   <i>ClassName</i>
+ *   
+ * <i>Name</i>:
+ *   <i>DelimitedString</i>
+ *   
+ * <i>Actions</i>:
+ *   <i>DelimitedString</i>
+ * </pre>
+ * The production for <i>ClassName</i> is the same as that used in <i>The
+ * Java Language Specification</i>.  <i>DelimiterCharacter</i> can be any
+ * unquoted non-whitespace character other than ';' (single and
+ * double-quote characters themselves are allowed).  If
+ * <i>DelimiterCharacter</i> is not specified, then the double-quote
+ * character is the default delimiter.  <i>DelimitedString</i> is the same
+ * as the <i>StringLiteral</i> production in <i>The Java Language
+ * Specification</i>, except that it is delimited by the
+ * <i>DelimiterDeclaration</i>-specified (or default) delimiter character
+ * instead of the double-quote character exclusively.
+ * <p>
+ * Note that if the double-quote character is used as the delimiter and the
+ * name or actions strings of specified permissions themselves contain nested
+ * double-quote characters, then those characters must be escaped (or in some
+ * cases doubly-escaped) appropriately.  For example, the following policy file
+ * entry would yield a <code>DelegatePermission</code> containing a
+ * <code>FooPermission</code> in which the target name would include the word
+ * "quoted" surrounded by double-quote characters:
+ * <pre>
+ * permission org.apache.river.api.security.DelegatePermission
+ *     "FooPermission \"a \\\"quoted\\\" string\"";
+ * </pre>
+ * For comparison, the following policy file entry which uses a custom
+ * delimiter would yield an equivalent <code>DelegatePermission</code>:
+ * <pre>
+ * permission org.apache.river.api.security.DelegatePermission
+ *     "delim=| FooPermission |a \"quoted\" string|";
+ * </pre>
+ * Some additional example policy file permissions:
+ * <pre>
+ * // allow permission to listen for and accept connections
+ * permission org.apache.river.api.security.DelegatePermission
+ *     "java.net.SocketPermission \"localhost:1024-\", \"accept,listen\"";
+ *
+ * // allow permission to read files under /foo, /bar directories
+ * permission org.apache.river.api.security.DelegatePermission
+ *     "delim=' java.io.FilePermission '/foo/-', 'read'; java.io.FilePermission '/bar/-', 'read'";
+ *
+ * </pre>
+ * 
+ * @see DelegateSecurityManager
  * @author Peter Firmstone
  */
 public final class DelegatePermission extends Permission{
@@ -95,11 +179,12 @@ public final class DelegatePermission extends Permission{
      * optimum AccessControlContext result caching and minimises memory 
      * consumption.
      */
-    @SuppressWarnings("unchecked")
-    private static final ConcurrentMap instances 
-        = RC.concurrentMap( new ConcurrentSkipListMap( 
-            RC.comparator( new PermissionComparator()))
-            , Ref.WEAK, Ref.WEAK, 1000L, 1000L ); // Value weak too, because it references key.
+    private static final ConcurrentMap<String,DelegatePermission> instances 
+        = RC.concurrentMap( new NonBlockingHashMap<Referrer<String>,Referrer<DelegatePermission>>()
+            , Ref.STRONG, Ref.WEAK, 1000L, 1000L );
+    private static final Class[] PARAMS0 = {};
+    private static final Class[] PARAMS1 = { String.class };
+    private static final Class[] PARAMS2 = { String.class, String.class };
         
     /**
      * Factory method to obtain a DelegatePermission, this is essential to 
@@ -109,12 +194,13 @@ public final class DelegatePermission extends Permission{
      * @param p Permission to be represented.
      * @return DelegatePermission
      */
-    public static Permission get(Permission p){
-	Permission del = (Permission) instances.get(p);
+    public static DelegatePermission get(Permission p){
+        String name = constructName(p);
+	DelegatePermission del = instances.get(name);
 	if ( del == null ){
 	    del = new DelegatePermission(p);
             @SuppressWarnings("unchecked")
-	    Permission existed = (Permission) instances.putIfAbsent(p, del);
+	    DelegatePermission existed = instances.putIfAbsent(name, del);
 	    if ( existed != null ){
 		del = existed;
 	    }
@@ -123,23 +209,196 @@ public final class DelegatePermission extends Permission{
     }
     
     private final Permission permission;
-//    private final transient int hashCode;
+    private final int hashCode;
     
     private DelegatePermission(Permission p){
-	super(p.getName());
+	super(constructName(p));
 	permission = p;
-//	int hash = 5;
-//	hash = 41 * hash + (this.permission != null ? this.permission.hashCode() : 0);
-//	hashCode = hash;
+	int hash = 5;
+	hash = 41 * hash + (this.permission != null ? this.permission.hashCode() : 0);
+	hashCode = hash;
     }
     
     /**
-     * Parses permission information from given GrantPermission name string.
+     * 
+     * This constructor is provided for java policy instantiation, 
+     * and is usually called reflectively.  
+     * <p>
+     * Do not use this constructor, use the static factory method
+     * instead.
+     * <p>
+     * Objects created by this constructor will not be cached.
+     * <p>
+     * Candidate Permission may be unresolved, this is acceptable for policy
+     * use, where the permission class can be resolved later, it is not
+     * suitable for Guard or Permission checks.
+     * 
+     * @param name 
+     */
+    public DelegatePermission(String name){
+        this(initFromName(name)); //Ensures getName() is always identical.
+    }
+    
+    /**
+     * Constructs GrantPermission name/target string appropriate for given list
+     * of permissions.
+     */
+    private static String constructName(Permission p) {
+	StringBuilder sb = new StringBuilder(60);
+	    if (p instanceof UnresolvedPermission) {
+                UnresolvedPermission u = (UnresolvedPermission)p;
+                String t = u.getUnresolvedType(), n = u.getUnresolvedName(), a = u.getUnresolvedActions();
+		sb.append(t);
+                if (n != null) {
+                    sb.append(" ").append(quote(n));
+                    if (a != null){
+                        sb.append(", ").append(quote(a));
+                    }
+                } 
+                sb.append("; ");
+	    } else {
+		Class cl = p.getClass();
+		int nargs = maxConsArgs(cl);
+		String t = cl.getName(), n = p.getName(), a = p.getActions();
+		if (nargs == 2 && a != null) {
+		    // REMIND: handle null name?
+		    sb.append(t).append(" ").append(quote(n)).append(", ").append(quote(a)).append("; ");
+		} else if (nargs >= 1 && n != null) {
+		    sb.append(t).append(" ").append(quote(n)).append("; ");
+		} else {
+		    sb.append(t).append("; ");
+		}
+	    }
+	return sb.toString().trim();
+    }
+    
+    /**
+     * Returns the maximum number of String parameters (up to 2) accepted by a
+     * constructor of the given class.  Returns -1 if no matching constructor
+     * (including no-arg constructor) is defined by given class.
+     */
+    @SuppressWarnings("unchecked")
+    private static int maxConsArgs(Class cl) {
+	try {
+	    cl.getConstructor(PARAMS2);
+	    return 2;
+	} catch (Exception ex) {
+	}
+	try {
+	    cl.getConstructor(PARAMS1);
+	    return 1;
+	} catch (Exception ex) {
+	}
+	try {
+	    cl.getConstructor(PARAMS0);
+	    return 0;
+	} catch (Exception ex) {
+	}
+	return -1;
+    }
+    
+    /**
+     * Returns quoted string literal that, if parsed by
+     * java.io.StreamTokenizer, would yield the given string.  This method is
+     * essentially a copy of com.sun.jini.config.ConfigUtil.stringLiteral; the
+     * two methods are kept separate since ConfigUtil.stringLiteral could
+     * conceivably escape unicode characters, while such escaping would be
+     * incorrect for DelegatePermission.
+     */
+    private static String quote(String s) {
+	StringBuilder sb = new StringBuilder(s.length() + 2);
+	sb.append('"');
+	char[] ca = s.toCharArray();
+	for (int i = 0; i < ca.length; i++) {
+	    char c = ca[i];
+	    if (c == '\\' || c == '"') {
+		sb.append("\\").append(c);
+	    } else if (c == '\n') {
+		sb.append("\\n");
+	    } else if (c == '\r') {
+		sb.append("\\r");
+	    } else if (c == '\t') {
+		sb.append("\\t");
+	    } else if (c == '\f') {
+		sb.append("\\f");
+	    } else if (c == '\b') {
+		sb.append("\\b");
+	    } else if (c < 0x20) {
+		sb.append("\\").append(Integer.toOctalString(c));
+	    } else {
+		sb.append(c);
+	    }
+	}
+	return sb.append('"').toString();
+    }
+    
+    /**
+     * Initializes DelegatePermission to contain permission described in the
+     * given name.  Throws an IllegalArgumentException if the name is
+     * misformatted, or specifies an invalid permission class.  Throws a
+     * SecurityException if access to the class is not permitted.
+     */
+    private static Permission initFromName(String name) {
+	PermissionEntry pi = parsePermission(name);
+
+	    SecurityManager sm = System.getSecurityManager();
+	    if (sm != null) {
+		int d = pi.getKlass().lastIndexOf('.');
+		if (d != -1) {
+		    sm.checkPackageAccess(pi.getKlass().substring(0, d));
+		}
+	    }
+	    Class cl;
+	    try {
+		cl = Class.forName(pi.getKlass());
+	    } catch (ClassNotFoundException ex) {
+		return new UnresolvedPermission(
+		    pi.getKlass(), pi.getName(), pi.getActions(), null);
+	    }
+	    if (!Permission.class.isAssignableFrom(cl)) {
+		throw new IllegalArgumentException(
+		    "not a permission class: " + cl);
+	    }
+	    if (!Modifier.isPublic(cl.getModifiers())) {
+		throw new IllegalArgumentException(
+		    "non-public permission class: " + cl);
+	    }
+	    
+	    if (pi.getName() == null) {
+		try {
+                @SuppressWarnings("unchecked")
+		    Constructor c = cl.getConstructor(PARAMS0);
+		    return (Permission) c.newInstance(new Object[0]);
+		} catch (Exception ex) {
+                    if (ex instanceof RuntimeException) throw (RuntimeException) ex;
+		}
+	    } 
+	    if (pi.getActions() == null) {
+		try {
+                @SuppressWarnings("unchecked")
+		    Constructor c = cl.getConstructor(PARAMS1);
+		    return (Permission) c.newInstance(new Object[]{ pi.getName() });
+		} catch (Exception ex) {
+                    if (ex instanceof RuntimeException) throw (RuntimeException) ex;
+		}
+	    } 
+	    try {
+            @SuppressWarnings("unchecked")
+		Constructor c = cl.getConstructor(PARAMS2);
+		return (Permission) c.newInstance(new Object[]{ pi.getName(), pi.getActions() });
+	    } catch (Exception ex) {
+                if (ex instanceof RuntimeException) throw (RuntimeException) ex;
+	    }
+	    throw new IllegalArgumentException(
+		"uninstantiable permission class: " + cl);
+    }
+    
+    /**
+     * Parses permission information from given DelegatePermission name string.
      * Throws an IllegalArgumentException if the name string is misformatted.
      */
-    private static PermissionEntry[] parsePermissions(String s) {
+    private static PermissionEntry parsePermission(String s) {
 	try {
-	    ArrayList l = new ArrayList();
 	    StreamTokenizer st = createTokenizer(s);
 	    char delim = '"';
 
@@ -167,52 +426,45 @@ public final class DelegatePermission extends Permission{
 	    }
 	    st.quoteChar(delim);
 
-	    do {
-		String type, name = null, actions = null;
+            
+            String type, name = null, actions = null;
 
-		if (st.ttype != StreamTokenizer.TT_WORD) {
-		    throw new IllegalArgumentException(
-			"expected permission type");
-		}
-		type = st.sval;
-		
-		// REMIND: allow unquoted name/actions?
-		st.nextToken();
-		if (st.ttype == StreamTokenizer.TT_EOF || st.ttype == ';') {
-		    l.add(new PermissionEntry(type, null, null, null));
-		    continue;
-		} else if (st.ttype == delim) {
-		    name = st.sval;
-		} else {
-		    throw new IllegalArgumentException(
-			"expected permission name or ';'");
-		}
-		
-		st.nextToken();
-		if (st.ttype == StreamTokenizer.TT_EOF || st.ttype == ';') {
-		    l.add(new PermissionEntry(type, name, null, null));
-		    continue;
-		} else if (st.ttype != ',') {
-		    throw new IllegalArgumentException("expected ',' or ';'");
-		}
+            if (st.ttype != StreamTokenizer.TT_WORD) {
+                throw new IllegalArgumentException(
+                    "expected permission type");
+            }
+            type = st.sval;
 
-		if (st.nextToken() != delim) {
-		    throw new IllegalArgumentException(
-			"expected permission actions");
-		}
-		actions = st.sval;
-		
-		st.nextToken();
-		if (st.ttype == StreamTokenizer.TT_EOF || st.ttype == ';') {
-		    l.add(new PermissionEntry(type, name, actions, null));
-		    continue;
-		} else {
-		    throw new IllegalArgumentException("expected ';'");
-		}
+            // REMIND: allow unquoted name/actions?
+            st.nextToken();
+            if (st.ttype == StreamTokenizer.TT_EOF || st.ttype == ';') {
+                return new PermissionEntry(type, null, null, null);
+            } else if (st.ttype == delim) {
+                name = st.sval;
+            } else {
+                throw new IllegalArgumentException(
+                    "expected permission name or ';'");
+            }
 
-	    } while (st.nextToken() != StreamTokenizer.TT_EOF);
+            st.nextToken();
+            if (st.ttype == StreamTokenizer.TT_EOF || st.ttype == ';') {
+                return new PermissionEntry(type, name, null, null);
+            } else if (st.ttype != ',') {
+                throw new IllegalArgumentException("expected ',' or ';'");
+            }
 
-	    return (PermissionEntry[]) l.toArray(new PermissionEntry[l.size()]);
+            if (st.nextToken() != delim) {
+                throw new IllegalArgumentException(
+                    "expected permission actions");
+            }
+            actions = st.sval;
+
+            st.nextToken();
+            if (st.ttype == StreamTokenizer.TT_EOF || st.ttype == ';') {
+                return new PermissionEntry(type, name, actions, null);
+            } else {
+                throw new IllegalArgumentException("expected ';'");
+            }
 	} catch (IOException ex) {
 	    throw (Error) new InternalError().initCause(ex);
 	}
@@ -259,24 +511,18 @@ public final class DelegatePermission extends Permission{
 	return permission;
     }
 
-    // Don't override equals so all Delegates can be used in Collections
-    // including those containing SocketPermission.
     @Override
     public boolean equals(Object obj) {
-        return obj == this;
-//	if (obj == this) return true;
-//	if (obj == null) return false;
-//	if ( obj.hashCode() != hashCode ) return false;
-//	if (!(obj instanceof DelegatePermission)) return false;
-//	if ( obj.getClass() != this.getClass() ) return false;
-//	return permission.equals(((DelegatePermission) permission).getPermission());
+	if (obj == this) return true;
+	if (obj == null) return false;
+	if ( obj.hashCode() != hashCode ) return false;
+	if ( obj.getClass() != this.getClass() ) return false;
+	return getName().equals(((Permission)obj).getName());
     }
 
     @Override
     public int hashCode() {
-//	return hashCode;
-        // Not in constructor so we don't let this escape.
-        return System.identityHashCode(this);
+	return hashCode;
     }
 
     @Override
@@ -292,10 +538,10 @@ public final class DelegatePermission extends Permission{
     /* Serialization Proxy */
     private static class SerializationProxy implements Serializable {
 	private static final long serialVersionUID = 1L;
-	private Permission perm;
+	private String perm;
 	
 	SerializationProxy(Permission p){
-	    perm = p;
+	    perm = constructName(p);
 	}
         
         private void writeObject(ObjectOutputStream out) throws IOException{
@@ -308,7 +554,9 @@ public final class DelegatePermission extends Permission{
         
         private Object readResolve() {
             // perm is the field from the Serialization proxy.
-            return get(perm);
+            Permission p = instances.get(perm);
+            if (p != null) return p;
+            return new DelegatePermission(perm); // May contain Unresolved candidate
         }
     }
     
@@ -331,7 +579,7 @@ public final class DelegatePermission extends Permission{
 	
 	DelegatePermissionCollection(){
 	    candidates = new Permissions();
-	    delegates = new HashSet<Permission>(32);
+	    delegates = new TreeSet<Permission>(new PermissionComparator());
 	}
 
 	@Override
