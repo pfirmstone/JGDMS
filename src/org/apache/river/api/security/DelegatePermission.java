@@ -31,7 +31,6 @@ import java.util.Enumeration;
 import java.util.TreeSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ConcurrentSkipListMap;
 import au.net.zeus.collection.RC;
 import au.net.zeus.collection.Ref;
 import au.net.zeus.collection.Referrer;
@@ -40,7 +39,6 @@ import java.io.StringReader;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Modifier;
 import java.security.UnresolvedPermission;
-import java.util.concurrent.ConcurrentHashMap;
 import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
@@ -66,13 +64,13 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
  *
  * Security Delegates enable sensitive objects to be used by code that isn't
  * fully trusted you may want to monitor, such as a 
- * file write that is limited by the number of bytes written, or a Permission
- * to write a file, that we might decide to retract or revoke if a user
- * does something we don't like, such as exceed a pre set limit or behave
+ * file write that is limited by the number of bytes written, or Permission
+ * to write a file you later decide to retract or revoke if a user
+ * does something he or she shouldn't, such as exceed a pre set limit or behave
  * in a manner we would like to avoid, such as hogging network bandwidth.
  * 
- * If the SecurityManager installed doesn't implement DelegateSecurityManager,
- * the DelegatePermission Guard's will be disabled.  This allows delegate's
+ * The SecurityManager installed must implement DelegateSecurityManager,
+ * otherwise DelegatePermission Guard's will be disabled.  This allows delegates
  * to be included in code, the decision to utilise delegate functionality may
  * delayed until runtime or deployment.
  * 
@@ -89,8 +87,8 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
  * 
  * PermissionCollection's are used mostly read only.
  * 
- * Serialization has been implemented so the implementation is not
- * tied to the serialized form, instead serialization proxy's are used.
+ * Serialization has been designed so the implementation is not
+ * tied to serialized form, by utilising a serialization proxy.
  * 
  * The candidate permission name (also referred to as the "target name") of each
  * <code>DelegatePermission</code> instance carries a string representation of the

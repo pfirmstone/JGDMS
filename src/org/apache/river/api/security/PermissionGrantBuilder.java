@@ -21,7 +21,6 @@ package org.apache.river.api.security;
 import java.lang.ref.WeakReference;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
 import java.security.ProtectionDomain;
@@ -50,20 +49,7 @@ public abstract class PermissionGrantBuilder {
      * the ClassLoader
      */ 
     public static final int CLASSLOADER = 0;
-    /**
-     * The PermissionGrant generated will apply to all classes loaded from
-     * the CodeSource.  This has been provided for strict compatibility
-     * with the standard Java Policy, where a DNS lookup may be performed
-     * to determine if CodeSource.implies(CodeSource).  In addition, to
-     * resolve a File URL, it will require disk access.
-     * 
-     * This is very bad for Policy performance, it's use is discouraged,
-     * so much so, it may removed.
-     * 
-     * @deprecated use URI instead.
-     */
-    @Deprecated
-    public static final int CODESOURCE = 1;
+    
     /**
      * The PermissionGrant generated will apply to all classes belonging to
      * the ProtectionDomain.  This is actually a simplification for the 
@@ -75,20 +61,20 @@ public abstract class PermissionGrantBuilder {
      * @see java.security.DomainCombiner
      * @see javax.security.auth.SubjectDomainCombiner
      */
-    public static final int PROTECTIONDOMAIN = 2;
+    public static final int PROTECTIONDOMAIN = 1;
     /**
      * The PermissionGrant generated will apply to all classes loaded from
      * CodeSource's that have at a minimum the defined array Certificate[]
      * 
      */
-    public static final int CODESOURCE_CERTS = 3;
+    public static final int CODESOURCE_CERTS = 2;
     /**
      * The PermissionGrant generated will apply to the Subject that has 
      * all the principals provided.
      * 
      * @see Subject
      */
-    public static final int PRINCIPAL = 4;
+    public static final int PRINCIPAL = 3;
     
     /**
      * The PermissionGrant generated will apply to the ProtectionDomain or
@@ -101,7 +87,7 @@ public abstract class PermissionGrantBuilder {
      * could allow an attacker to use DNS Cache poisoning to escalate
      * Permission, by imitating a URL with greater privileges.
      */
-    public static final int URI = 5;
+    public static final int URI = 4;
     
     public static PermissionGrantBuilder newBuilder(){
         return new PermissionGrantBuilderImp();
@@ -122,16 +108,6 @@ public abstract class PermissionGrantBuilder {
      * @throws IllegalStateException 
      */
     public abstract PermissionGrantBuilder context(int context) throws IllegalStateException;
-    /**
-     * Sets the CodeSource that will receive the PermissionGrant
-     * @param cs
-     * @return PermissionGrantBuilder
-     * @deprecated use uri instead.
-     */
-    @Deprecated
-    public abstract PermissionGrantBuilder codeSource(CodeSource cs);
-    
-    public abstract PermissionGrantBuilder multipleCodeSources();
     
     public abstract PermissionGrantBuilder uri(URI uri);
     /**

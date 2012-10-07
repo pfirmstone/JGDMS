@@ -24,11 +24,11 @@
 </head>
 <body bgcolor="white"
 <p>
-This package contains a scalable cache based security manager that parallelises
-domain security checks.  Also included is a concurrent
+This package contains a scalable cache based security manager that performs
+concurrent domain security checks.  Also included is a concurrent
 policy file provider to replace Java's standard offering, this policy provider
 is in theory much faster after policy file parsing is complete, it uses an immutable data 
-structure that supports highly scalable concurrent access and does not require
+structure that supports highly scalable concurrent access, does not require
 further disk access and minimises network and DNS requirements.
     </p><p>
 Disk access of policy files is performed serially.
