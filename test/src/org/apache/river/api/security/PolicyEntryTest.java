@@ -54,10 +54,10 @@ public class PolicyEntryTest extends TestCase {
 
 //        pe = new PolicyEntry(new CodeSource(null, (Certificate[])null),
 //            new ArrayList<Principal>(), new ArrayList<Permission>());
-        pe = pgb.codeSource(new CodeSource(null, (Certificate[])null))
+        pe = pgb
                 .principals(new Principal[0])
                 .permissions(new Permission[0])
-                .context(PermissionGrantBuilder.CODESOURCE)
+                .context(PermissionGrantBuilder.URI)
                 .build();
         assertTrue(pe.isVoid());
         assertTrue(pe.getPermissions().isEmpty());
@@ -65,7 +65,7 @@ public class PolicyEntryTest extends TestCase {
         Permission[] perms = new Permission[] {
             new SecurityPermission("dsfg"), new AllPermission() };
         //pe = new PolicyEntry((CodeSource) null, (Collection<Principal>) null, perms);
-        pe = pgb.codeSource(null)
+        pe = pgb
                 .principals(null)
                 .permissions(perms)
                 .build();
