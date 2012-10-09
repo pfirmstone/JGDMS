@@ -17,7 +17,7 @@
 #*/
 # @test
 # @summary Test the KerberosEndpoint for multihome support
-# @author Vinod Johnson
+# 
 # @build AbstractSocketFactory Multihomed TestNameService TestNameServiceDescriptor Resolver
 # @run shell runMultihome.sh
 

@@ -17,7 +17,7 @@
 #*/
 # @test 
 # @summary Test the ServerEndpoint class over HTTPS.
-# @author Tim Blackman
+# 
 # @library ../../../../../unittestlib
 # @build UnitTestUtilities BasicTest Test
 # @build TestUtilities

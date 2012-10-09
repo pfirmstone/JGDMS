@@ -17,7 +17,7 @@
 #*/
 # @test
 # @summary Tests the end to end performance of Kerberos provider.
-# @author Daniel Jiang
+# 
 # @library ../../../../../unittestlib
 # @build UnitTestUtilities BasicTest Test
 # @build TestUtilities TestPerformance

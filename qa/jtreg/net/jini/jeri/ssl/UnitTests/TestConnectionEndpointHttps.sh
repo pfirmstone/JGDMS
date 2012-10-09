@@ -18,7 +18,7 @@
 # test -- Disable for now. -tjb[28.Apr.2003]
 # @summary Tests the SecureConnectionEndpoint methods provided by the Endpoint
 #	   class over HTTPS.
-# @author Tim Blackman
+# 
 # @library ../../../unittestlib
 # @build UnitTestUtilities BasicTest Test
 # @build TestEndpoint TestEndpointUtilities TestUtilities

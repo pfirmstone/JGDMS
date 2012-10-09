@@ -17,7 +17,7 @@
 #*/
 # test -- Disable for now.  -tjb[28.Apr.2003]
 # @summary Test the ServerConnection class over HTTPS.
-# @author Tim Blackman
+# 
 # @library ../../../unittestlib
 # @build UnitTestUtilities BasicTest Test
 # @build TestEndpointUtilities TestUtilities
