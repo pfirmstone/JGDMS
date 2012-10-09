@@ -34,7 +34,7 @@ import java.util.ArrayList;
  * its public, non-primitive, non-static, non-transient, non-final
  * fields.<p>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see Entry 
  */
 public abstract class AbstractEntry implements Entry {

@@ -21,7 +21,7 @@ package net.jini.core.lookup;
  * An instance of this class is used for the return value when looking up
  * multiple items in the lookup service.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

@@ -25,7 +25,7 @@ import net.jini.core.lease.LeaseDeniedException;
  * to specify and use a third party for the purpose of
  * storing and retrieving events.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see MailboxRegistration
  *

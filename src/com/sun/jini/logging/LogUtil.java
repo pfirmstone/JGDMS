@@ -25,7 +25,7 @@ import java.util.logging.Logger;
  * A set of static convenience methods used for logging.
  * This class cannot be instantiated.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.1
  */
 public class LogUtil {

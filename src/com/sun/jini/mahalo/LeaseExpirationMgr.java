@@ -31,7 +31,7 @@ import com.sun.jini.landlord.LeasedResource;
  * Lease Mgr implementation that aggressively expires leases as they
  * expiration times occur.  Synchronizes on resource before canceling it.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see com.sun.jini.mahalo.LeaseManager
  */

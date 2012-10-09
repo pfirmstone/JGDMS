@@ -21,7 +21,7 @@ package com.sun.jini.mahalo.log;
 /**
  * Represents the functions clients can perform on a log file.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 

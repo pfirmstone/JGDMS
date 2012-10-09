@@ -37,7 +37,7 @@ import net.jini.security.AccessPermission;
  * The possible target names for use with a Mercury server are specified in the
  * package documentation for {@link com.sun.jini.mercury}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class MercuryPermission extends AccessPermission {

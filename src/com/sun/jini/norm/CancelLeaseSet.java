@@ -23,7 +23,7 @@ import net.jini.id.Uuid;
 /**
  * Class that logs the removal of a set from the service
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class CancelLeaseSet extends LoggedOperation {
     private static final long serialVersionUID = 1L;

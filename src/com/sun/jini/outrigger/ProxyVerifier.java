@@ -38,7 +38,7 @@ import com.sun.jini.landlord.LandlordProxyVerifier;
  * {@link LandlordProxyVerifier} to verify Leases.
  *
  * @see net.jini.security.TrustVerifier
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 final class ProxyVerifier implements Serializable, TrustVerifier {

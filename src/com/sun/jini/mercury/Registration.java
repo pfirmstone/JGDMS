@@ -53,7 +53,7 @@ import net.jini.core.lease.Lease;
  * interface and delegates functionality to the mailbox service
  * where necessary.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */ 

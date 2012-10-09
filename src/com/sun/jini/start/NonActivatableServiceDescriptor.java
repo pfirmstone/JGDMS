@@ -170,7 +170,7 @@ import java.util.logging.Logger;
  *
  *  </table> <p>
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  */

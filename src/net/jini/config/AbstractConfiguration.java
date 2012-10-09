@@ -37,7 +37,7 @@ import java.util.logging.Logger;
  * <code>getEntryInternal</code> method should return primitive values as
  * instances of {@link Primitive}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  * @com.sun.jini.impl <!-- Implementation Specifics -->

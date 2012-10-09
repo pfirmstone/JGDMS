@@ -26,7 +26,7 @@ import java.rmi.activation.ActivationID;
  * Class for starting activatable and non-activatable persistent lookup
  * services.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class PersistentRegistrarImpl extends RegistrarImpl {
 

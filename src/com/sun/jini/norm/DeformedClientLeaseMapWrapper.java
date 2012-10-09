@@ -38,7 +38,7 @@ import com.sun.jini.lease.AbstractLeaseMap;
  * returned by <code>createLeaseMap</code> calls made on
  * <code>ClientLeaseWrapper</code> objects that are deformed.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see ClientLeaseWrapper 
  */
 class DeformedClientLeaseMapWrapper extends AbstractLeaseMap {

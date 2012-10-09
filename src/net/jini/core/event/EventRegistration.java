@@ -36,7 +36,7 @@ import net.jini.core.lease.Lease;
  * the event registration has not expired and no call has been made to
  * cancel the lease.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

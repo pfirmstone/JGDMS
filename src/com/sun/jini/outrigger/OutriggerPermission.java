@@ -28,7 +28,7 @@ import net.jini.jeri.BasicJeriExporter;
  * BasicInvocationDispatcher}, which will then perform permission checks for
  * incoming remote calls using <code>OutriggerPermission</code> instances.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class OutriggerPermission extends AccessPermission {

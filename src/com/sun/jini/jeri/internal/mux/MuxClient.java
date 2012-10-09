@@ -30,7 +30,7 @@ import net.jini.jeri.OutboundRequest;
 /**
  * A MuxClient controls the client side of multiplexed connection.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 public class MuxClient extends Mux {
 

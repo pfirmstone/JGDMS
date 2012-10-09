@@ -35,7 +35,7 @@ import com.sun.jini.proxy.ConstrainableProxyUtil;
  * Instances of this class can be verified using the
  * <code>LandlordProxyVerifier</code> class.
  * @see LandlordProxyVerifier
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 final public class ConstrainableLandlordLease extends LandlordLease 

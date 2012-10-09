@@ -59,7 +59,7 @@ import java.io.ObjectInputStream;
  * An option <i>option</i> matches a target name of the form
  * <i>string</i> if <i>option</i> is equal to <i>string</i>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

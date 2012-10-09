@@ -47,7 +47,7 @@ import net.jini.security.Security;
  * activation system daemon implementation that uses
  * the {@link #createGroup createGroup} method of this class.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  **/

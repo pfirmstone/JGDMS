@@ -32,7 +32,7 @@ import net.jini.space.JavaSpace05;
  * @deprecated The {@link JavaSpace05#contents JavaSpace05.contents}
  *             method can be used to view the space's contents.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public interface ConstrainableJavaSpaceAdmin extends JavaSpaceAdmin {

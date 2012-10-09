@@ -68,7 +68,7 @@ import net.jini.security.Security;
  * on each line, all characters following the first comment character are
  * ignored. The resource file must be encoded in UTF-8.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  * @com.sun.jini.impl <!-- Implementation Specifics -->

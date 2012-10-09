@@ -42,7 +42,7 @@ import net.jini.loader.ClassLoading;
  * the amount of code downloaded into clients.
  * <p>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see ClassMapper
  */

@@ -25,7 +25,7 @@ package com.sun.jini.outrigger;
  * objects managed by a <code>TransactableMgr</code> object constitute
  * the set of operations made under the transaction.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see TransactableMgr
  */

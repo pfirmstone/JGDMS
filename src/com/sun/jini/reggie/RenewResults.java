@@ -24,7 +24,7 @@ import java.io.Serializable;
  * registrar.  Instances are never visible to clients, they are private
  * to the communication between the LeaseMap proxy and the registrar.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class RenewResults implements Serializable {

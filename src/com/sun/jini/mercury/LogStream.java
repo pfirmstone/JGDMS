@@ -22,7 +22,7 @@ import java.io.IOException;
 /**
  * Superclass for all <tt>LogStream</tt> types. 
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

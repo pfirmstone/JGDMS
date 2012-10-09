@@ -42,7 +42,7 @@ import net.jini.jeri.Endpoint;
  * specified for <code>equals</code> methods of {@link Endpoint}
  * instances.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public interface ConnectionEndpoint {

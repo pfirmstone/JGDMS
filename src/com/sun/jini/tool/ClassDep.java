@@ -447,7 +447,7 @@ import java.util.Set;
  *      -files
  * </pre></blockquote>
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class ClassDep {
     private ClassDepend cd;

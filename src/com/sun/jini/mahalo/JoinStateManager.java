@@ -57,7 +57,7 @@ import com.sun.jini.reliableLog.ReliableLog;
  * a service's join state (optionally persisting that state) and
  * manages the join protocol protocol on behalf of the service.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.lookup.ServiceIDListener
  * @see com.sun.jini.reliableLog.LogHandler

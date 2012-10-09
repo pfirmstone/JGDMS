@@ -25,7 +25,7 @@ import com.sun.jini.landlord.LeasedResource;
  *
  * @see LogOps
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  */

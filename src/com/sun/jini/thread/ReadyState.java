@@ -27,7 +27,7 @@ import java.rmi.RemoteException;
  * and initialization should call <code>ready</code> when the service is ready
  * to use.
  *  
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.1
  */
 public class ReadyState {

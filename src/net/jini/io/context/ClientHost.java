@@ -24,7 +24,7 @@ import java.net.InetAddress;
  * A server context element that can supply the client host address
  * for the remote call.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see net.jini.export.ServerContext#getServerContextElement
  * @since 2.0
  **/

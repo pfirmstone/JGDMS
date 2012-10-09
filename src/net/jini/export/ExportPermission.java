@@ -46,7 +46,7 @@ import java.security.BasicPermission;
  * </tr>
  * </table>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

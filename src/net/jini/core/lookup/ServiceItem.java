@@ -23,7 +23,7 @@ import net.jini.core.entry.Entry;
  * Items are stored in and retrieved from the lookup service using
  * instances of this class.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

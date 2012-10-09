@@ -35,7 +35,7 @@ import net.jini.core.transaction.server.TransactionConstants;
  * simple implementation is used that simply stores the entries in a
  * list.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class EntryHolder implements TransactionConstants {
     /** The list that holds the handles */

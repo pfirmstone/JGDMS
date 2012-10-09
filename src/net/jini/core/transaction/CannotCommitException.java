@@ -22,7 +22,7 @@ package net.jini.core.transaction;
  * Exception thrown when a transaction cannot commit because it has already
  * aborted or must now be aborted.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

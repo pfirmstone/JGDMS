@@ -34,7 +34,7 @@ import net.jini.core.event.RemoteEvent;
  * of <tt>EventID<tt>s that caused an <code>UnknownEventException</code> 
  * to be received during an event notification attempt for a given event.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

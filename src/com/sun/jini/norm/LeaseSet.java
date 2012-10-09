@@ -48,7 +48,7 @@ import com.sun.jini.norm.event.SendMonitor;
  * noted the methods of this class assume synchronization being handled
  * by the caller.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class LeaseSet implements Serializable, LeasedResource {
     private static final long serialVersionUID = 2;

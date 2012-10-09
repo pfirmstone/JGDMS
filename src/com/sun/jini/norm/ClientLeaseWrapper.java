@@ -52,7 +52,7 @@ import com.sun.jini.proxy.ConstrainableProxyUtil;
  * The only place where additional synchronization is going on is in
  * renewals and the logging of renewals.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class ClientLeaseWrapper implements Lease, Serializable {
     private static final long serialVersionUID = 2;

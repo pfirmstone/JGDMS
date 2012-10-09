@@ -30,7 +30,7 @@ import java.text.MessageFormat;
  * Tool to check for serializable classes that do not have explicit
  * <code>serialVersionUID</code> fields.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class CheckSer {
 

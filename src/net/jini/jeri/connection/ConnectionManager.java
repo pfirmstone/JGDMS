@@ -59,7 +59,7 @@ import net.jini.jeri.OutboundRequestIterator;
  * the data sent for the session, and response data is read as the
  * data recdeived for the session.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  * @com.sun.jini.impl

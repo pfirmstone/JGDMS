@@ -33,7 +33,7 @@ import net.jini.security.ProxyPreparer;
  * unavailable). The {@link #get} method can
  * be used to retrieve the proxy on demand.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class StorableReference implements Externalizable {

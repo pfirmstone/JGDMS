@@ -21,7 +21,7 @@ package com.sun.jini.mahalo;
  * A <code>LogRecord</code> which encapsulates a participant
  * being instructed to roll-back.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class ParticipantAbortRecord extends ParticipantModRecord {

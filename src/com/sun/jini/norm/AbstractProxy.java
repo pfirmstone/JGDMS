@@ -30,7 +30,7 @@ import net.jini.id.Uuid;
  * Defines an abstract class that supplies basic referent UUID and
  * serialization behavior for Norm proxies.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 abstract class AbstractProxy implements ReferentUuid, Serializable {

@@ -23,7 +23,7 @@ import java.io.IOException;
 /**
  * Exception indicating failure to parse an HTTP message.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public class HttpParseException extends IOException {

@@ -32,7 +32,7 @@ import net.jini.io.MarshalledInstance;
  * MarshalledInstance} wrapped in a {@link MarshalledWrapper} so that
  * integrity can be verified on the enclosed proxy.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 interface Activator extends Remote {

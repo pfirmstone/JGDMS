@@ -24,7 +24,7 @@ import java.util.Set;
 
 /**
  * A container to store class dependency related information for later analysis.
- * @author Peter Firmstone
+ * 
  * @see ClassDepend
  */
 public class ClassDependencyRelationship {

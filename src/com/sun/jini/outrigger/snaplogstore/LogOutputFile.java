@@ -49,7 +49,7 @@ import net.jini.space.InternalSpaceException;
  * events.  Right now the only observable event is the switching to a
  * new physical file when the current one becomes full.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see LogInputFile
  * @see java.util.Observable
  */

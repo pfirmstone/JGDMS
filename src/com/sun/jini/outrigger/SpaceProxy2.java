@@ -66,7 +66,7 @@ import com.sun.jini.landlord.LandlordLease;
  * <code>OutriggerSpace</code> calls to the
  * <code>OutriggerServerImpl</code> server.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 // @see OutriggerSpace

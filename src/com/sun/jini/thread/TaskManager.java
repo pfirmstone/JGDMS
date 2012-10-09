@@ -51,7 +51,7 @@ import java.util.logging.Logger;
  * to create a worker thread when other worker threads exist
  * </table>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class TaskManager {

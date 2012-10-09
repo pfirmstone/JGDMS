@@ -26,7 +26,7 @@ import java.io.PrintWriter;
  * that can be reported to Norm's developer (and may be documented
  * in that Norm's documentation).
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class InternalNormException extends RuntimeException {
     private static final long serialVersionUID = 1L;

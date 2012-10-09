@@ -19,7 +19,7 @@ package com.sun.jini.mahalo;
 
 /**
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 interface TxnSettler {

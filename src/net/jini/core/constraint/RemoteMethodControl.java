@@ -61,7 +61,7 @@ package net.jini.core.constraint;
  * it is arbitrary as to which (if any) are satisfied, but if there are
  * conflicting requirements the remote call will not be made.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public interface RemoteMethodControl {

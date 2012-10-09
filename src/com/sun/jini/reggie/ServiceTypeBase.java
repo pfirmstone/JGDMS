@@ -23,7 +23,7 @@ import java.io.Serializable;
 /**
  * A ServiceType annotated with a codebase.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class ServiceTypeBase implements Serializable {

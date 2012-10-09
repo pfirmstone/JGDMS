@@ -79,7 +79,7 @@ import net.jini.security.Security;
  * <p>A <code>MarshalInputStream</code> is not guaranteed to be
  * safe for concurrent use by multiple threads.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public class MarshalInputStream

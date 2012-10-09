@@ -22,7 +22,7 @@ import com.sun.jini.admin.DestroyAdmin;
 
 /**
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 

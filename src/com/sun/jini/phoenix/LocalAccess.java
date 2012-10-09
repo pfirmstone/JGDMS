@@ -31,7 +31,7 @@ import net.jini.io.context.ClientHost;
 /**
  * Definition of an access control only allowing calls from the local host.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

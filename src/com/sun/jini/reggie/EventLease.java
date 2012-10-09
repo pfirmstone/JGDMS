@@ -31,7 +31,7 @@ import net.jini.id.Uuid;
  * to interact with the lease; this class is the implementation of that proxy.
  * Clients only see instances of this class via the Lease interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class EventLease extends RegistrarLease {

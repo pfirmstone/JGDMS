@@ -25,7 +25,7 @@ import net.jini.admin.JoinAdmin;
  * An administrative interface for the mercury implementation
  * of the event mailbox service.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

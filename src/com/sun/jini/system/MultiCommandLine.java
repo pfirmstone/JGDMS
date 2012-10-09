@@ -64,7 +64,7 @@ import java.util.BitSet;
  * particular needs, you can get the argument as a <code>String</code>
  * and do your own processing.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see java.util.StringTokenizer
  */

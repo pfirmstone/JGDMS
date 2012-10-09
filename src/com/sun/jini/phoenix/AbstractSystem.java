@@ -23,7 +23,7 @@ import java.rmi.activation.ActivationSystem;
 /**
  * Abstract class for generating JRMP and IIOP stubs.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

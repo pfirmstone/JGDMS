@@ -92,7 +92,7 @@ import com.sun.jini.proxy.MarshalledWrapper;
  * loss of synchronization has actually occurred, and to correct
  * such a situation when it does occur.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.core.event.RemoteEvent
  * @see net.jini.core.lookup.ServiceRegistrar

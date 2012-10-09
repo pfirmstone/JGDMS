@@ -30,7 +30,7 @@ import java.io.InputStream;
  * methods in order to provide buffered input as well as byte 
  * offset tracking, which is useful during recovery situations.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

@@ -137,7 +137,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  * make corresponding calls on the Registrar interface implemented on the
  * server side.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {

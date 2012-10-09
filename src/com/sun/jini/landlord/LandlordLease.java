@@ -35,7 +35,7 @@ import com.sun.jini.lease.AbstractLease;
  * Basic implementation of <code>net.jini.core.lease.Lease</code> that works
  * with the the Landlord protocol.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see Landlord
  * @since 2.0

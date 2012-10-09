@@ -41,7 +41,7 @@ import net.jini.lookup.DiscoveryAdmin;
  * the main registrar proxy.  Clients only see instances via the
  * DiscoveryAdmin, JoinAdmin, DestroyAdmin and ReferentUuid interfaces.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class AdminProxy

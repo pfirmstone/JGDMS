@@ -126,7 +126,7 @@ import net.jini.discovery.LookupDiscovery;
  * Client-side proxies make the appropriate transformation from client
  * requests to the methods of this class.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

@@ -20,7 +20,7 @@ package com.sun.jini.norm;
 /**
  * Utility class for generating locally unique IDs.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class UIDGenerator {
     /**

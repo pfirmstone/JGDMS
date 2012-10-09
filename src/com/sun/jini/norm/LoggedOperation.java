@@ -25,7 +25,7 @@ import net.jini.id.Uuid;
  * Base class for the objects Norm logs as delta for each state
  * changing operation.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 abstract class LoggedOperation implements Serializable {
     private static final long serialVersionUID = 2;

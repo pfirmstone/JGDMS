@@ -37,7 +37,7 @@ import net.jini.space.MatchSet;
  *             {@link JavaSpace05#contents JavaSpace05.contents}
  *             method.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see JavaSpaceAdmin 
  */

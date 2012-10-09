@@ -30,7 +30,7 @@ import java.io.Serializable;
  * <code>EventType.restoreTransientState<code> call) will use the same
  * thread pool to manage their event send threads.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see EventType 
  * @see EventType#restoreTransientState
  */

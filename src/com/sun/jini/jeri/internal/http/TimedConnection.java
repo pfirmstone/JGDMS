@@ -21,7 +21,7 @@ package com.sun.jini.jeri.internal.http;
 /**
  * Interface implemented by connections which can be timed out.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public interface TimedConnection {

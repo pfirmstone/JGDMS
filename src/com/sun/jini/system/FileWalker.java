@@ -26,7 +26,7 @@ import java.util.Observable;
  * a file is found the Observer object added to this one will
  * be called.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class FileWalker extends Observable {

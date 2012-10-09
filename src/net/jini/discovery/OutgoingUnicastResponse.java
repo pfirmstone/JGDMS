@@ -26,7 +26,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 /**
  * Encapsulate the details of marshaling a unicast response.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see IncomingUnicastResponse
  */

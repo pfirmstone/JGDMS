@@ -138,7 +138,7 @@ import net.jini.config.ConfigurationProvider;
  * any problems that it detects in the configuration file, including entries
  * that are not recognized or have the wrong type for the Norm service.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see ConfigurationFile
  * @since 2.0
  */

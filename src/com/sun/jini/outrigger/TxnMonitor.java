@@ -38,7 +38,7 @@ import java.util.logging.Logger;
  * it makes sure that the local space aborts the transaction, too, so
  * that operations will cease to be blocked by the transaction.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see TxnMonitorTask
  * @see OutriggerServerImpl#monitor

@@ -31,7 +31,7 @@ package net.jini.core.event;
  * to which the notification should be sent. This parameter must be an
  * object which supports the RemoteEventListener interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

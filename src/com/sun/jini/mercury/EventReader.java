@@ -27,7 +27,7 @@ import net.jini.core.event.RemoteEvent;
  * This class provides the methods for reading <tt>RemoteEvent</tt>s from 
  * a given <tt>LogInputStream</tt>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

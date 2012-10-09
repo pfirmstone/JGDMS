@@ -116,7 +116,7 @@ import net.jini.config.ConfigurationException;
  *
  * </table>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see java.lang.Runnable */
 public class WakeupManager {

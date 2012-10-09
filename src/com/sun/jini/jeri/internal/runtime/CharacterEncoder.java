@@ -58,7 +58,7 @@ import java.io.PrintStream;
  * Several useful encoders have already been written and are 
  * referenced in the See Also list below.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public abstract class CharacterEncoder {

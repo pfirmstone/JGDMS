@@ -41,7 +41,7 @@ import com.sun.jini.thread.WakeupManager;
  * lost when the server goes down, but registrations of interest
  * survive across server crashes for persistent servers.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see JavaSpace#notify
  * @see OutriggerServerImpl#notify

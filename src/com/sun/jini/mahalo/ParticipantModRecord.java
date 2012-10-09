@@ -25,7 +25,7 @@ import java.util.logging.Logger;
  * A <code>LogRecord</code> which encapsulates a generic
  * interaction with a participant.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class ParticipantModRecord implements TxnLogRecord {

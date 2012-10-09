@@ -108,7 +108,7 @@ import net.jini.core.lookup.ServiceRegistrar;
  * </table>
  * <p>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.discovery.DiscoveryManagement
  * @see net.jini.discovery.DiscoveryGroupManagement

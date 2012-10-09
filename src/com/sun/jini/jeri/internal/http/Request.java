@@ -28,7 +28,7 @@ import net.jini.io.context.AcknowledgmentSource;
 /**
  * Superclass for OutboundRequest, InboundRequest implementation classes.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 abstract class Request {

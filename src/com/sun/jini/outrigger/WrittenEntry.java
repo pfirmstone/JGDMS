@@ -31,7 +31,7 @@ package com.sun.jini.outrigger;
  * and nodes are added using <code>add</code>.  The constructor is private to
  * enforce this usage.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see OutriggerServerImpl#write
  * @see Notifier

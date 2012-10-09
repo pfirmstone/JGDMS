@@ -29,7 +29,7 @@ package net.jini.core.lookup;
  * example, a gap might occur if the lookup service crashes, even if no
  * events are lost due to the crash.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

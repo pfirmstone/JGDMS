@@ -33,7 +33,7 @@ import net.jini.jrmp.JrmpExporter;
  * Exporter that wraps an <code>ActivationInstantiator</code> instance so that
  * it only accepts calls from the local host.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

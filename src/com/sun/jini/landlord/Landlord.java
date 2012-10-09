@@ -30,7 +30,7 @@ import net.jini.id.Uuid;
  * with the <code>LandlordLease</code> implementation of the
  * <code>Lease</code> interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.core.lease.Lease
  * @see LandlordLease 

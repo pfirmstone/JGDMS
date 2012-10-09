@@ -34,7 +34,7 @@ import net.jini.lease.RenewalFailureEvent;
  * accompanying <code>Throwable</code> will not be deserialized until
  * the appropriate accessor is called.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see LeaseRenewalSet 
  */
 public class BasicRenewalFailureEvent extends RenewalFailureEvent {

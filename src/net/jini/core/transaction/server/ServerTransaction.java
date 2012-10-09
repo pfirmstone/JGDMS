@@ -26,7 +26,7 @@ import java.rmi.RemoteException;
  * Class implementing the <code>Transaction</code> interface, for use with
  * transaction participants that implement the default transaction semantics.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.core.transaction.Transaction
  * @see NestableServerTransaction

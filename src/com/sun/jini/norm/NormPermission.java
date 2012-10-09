@@ -44,7 +44,7 @@ import net.jini.security.AccessPermission;
  * The possible target names for use with a Norm server are specified in the
  * package documentation for {@link com.sun.jini.norm}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class NormPermission extends AccessPermission {

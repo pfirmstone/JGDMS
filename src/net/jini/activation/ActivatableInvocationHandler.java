@@ -66,7 +66,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * any) must implement {@link RemoteMethodControl} or a remote invocation
  * will fail with an {@link UnsupportedConstraintException}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  * @com.sun.jini.impl

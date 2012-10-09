@@ -138,7 +138,7 @@ import javax.security.auth.login.LoginException;
  * In this implementation, <code>EntryRep</code> ID's are approximate
  * time stamps.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class OutriggerServerImpl 
     implements OutriggerServer, TimeConstants, LocalLandlord, Recover,

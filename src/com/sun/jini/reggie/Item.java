@@ -43,7 +43,7 @@ import net.jini.security.Security;
  * This class only has a bare minimum of methods, to minimize
  * the amount of code downloaded into clients.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class Item implements Serializable, Cloneable {

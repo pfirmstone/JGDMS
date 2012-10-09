@@ -51,7 +51,7 @@ import net.jini.event.PullEventMailbox;
  * It implements the <code>PullEventMailbox</code> and the 
  * <code>Administrable</code> interfaces.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

@@ -29,7 +29,7 @@ import java.util.Set;
  * (e.g., tracking of unsent response acknowledgments, caching of information
  * about contacted HTTP servers).
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public class HttpClientManager {

@@ -48,7 +48,7 @@ import net.jini.id.Uuid;
  * @see Store
  * @see Recover
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public interface LogOps {

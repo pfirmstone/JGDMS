@@ -351,7 +351,7 @@ import net.jini.security.Security;
  * SecurityManager#checkMemberAccess checkMemberAccess} method should take this
  * behavior into account.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  * @com.sun.jini.impl <!-- Implementation Specifics -->

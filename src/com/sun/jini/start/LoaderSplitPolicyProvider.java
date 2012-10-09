@@ -50,7 +50,7 @@ import au.net.zeus.collection.Referrer;
  * from {@link #refresh}, which applies to both policies).
  * </ul>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

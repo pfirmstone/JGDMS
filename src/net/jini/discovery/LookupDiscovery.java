@@ -683,7 +683,7 @@ import net.jini.security.SecurityContext;
  * </table>
  * <p>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.core.lookup.ServiceRegistrar
  * @see DiscoveryChangeListener

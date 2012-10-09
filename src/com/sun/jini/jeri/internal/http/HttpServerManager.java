@@ -29,7 +29,7 @@ import net.jini.io.context.AcknowledgmentSource;
  * Class for managing server-side functions shared among multiple connections,
  * such as acknowledgment notification.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public class HttpServerManager {

@@ -60,7 +60,7 @@ import java.util.ArrayList;
  * The implementation here does some very simple rule caching.  If a rule has been seen previously, it is not output to System.out.
  * The caching cannot prevent a security check, but it can reduce I/O during profiling.
  *
- * @author Mark S. Petrovic
+ * 
  */
 public class ProfilingSecurityManager extends SecurityManager {
     

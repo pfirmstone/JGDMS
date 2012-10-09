@@ -44,7 +44,7 @@ import java.util.Set;
  * requirement or as a preference. A <i>don't care</i> condition should
  * be expressed by the <i>absence</i> of constraints.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public final class ConstraintAlternatives

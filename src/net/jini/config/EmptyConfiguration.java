@@ -28,7 +28,7 @@ import java.util.logging.Logger;
  * specified rather than, for example, checking for a <code>null</code>
  * configuration.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  * @com.sun.jini.impl <!-- Implementation Specifics -->

@@ -33,7 +33,7 @@ import net.jini.core.discovery.LookupLocator;
  * Every method invocation (on both ServiceRegistrar and ServiceRegistration)
  * is atomic with respect to other invocations.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see ServiceRegistration
  *

@@ -32,7 +32,7 @@ import java.util.TimeZone;
 /**
  * Class representing HTTP message header.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 class Header {

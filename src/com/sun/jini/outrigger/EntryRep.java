@@ -56,7 +56,7 @@ import net.jini.space.JavaSpace;
  * <code>Entry</code> object for communication between the client and a
  * <code>JavaSpace</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see JavaSpace
  * @see Entry

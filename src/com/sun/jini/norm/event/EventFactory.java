@@ -31,7 +31,7 @@ import net.jini.core.event.RemoteEvent;
  * <code>eventType</code> object to send an event originally
  * intended for one listener to another.  
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see EventType 
  * @see EventType#sendEvent

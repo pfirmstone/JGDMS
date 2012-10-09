@@ -44,7 +44,7 @@ import java.security.PrivilegedAction;
  * class loader and other thread-specific state (such as priority)
  * that they were started with.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 public final class GetThreadPoolAction implements PrivilegedAction {
 

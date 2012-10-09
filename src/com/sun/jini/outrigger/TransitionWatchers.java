@@ -31,7 +31,7 @@ import java.util.SortedSet;
  * all interested in the same template.
  * 
  * @see TransitionWatcher
- * @author Sun Microsystems, Inc.
+ * 
  */
 class TransitionWatchers {
     /** 

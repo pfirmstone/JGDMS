@@ -53,7 +53,7 @@ import java.io.IOException;
  * significant bits (respectively) of a 60-bit timestamp measured in
  * 100-nanosecond units since midnight, October 15, 1582 UTC.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 1.0
  */
 public final class ServiceID implements Serializable {

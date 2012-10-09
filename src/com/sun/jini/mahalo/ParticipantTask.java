@@ -29,7 +29,7 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * A <code>ParticipantTask</code> is a general task which
  * interacts with a participant.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see TransactionParticipant
  * @see TaskManager

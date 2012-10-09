@@ -75,7 +75,7 @@ import java.util.logging.Logger;
  *
  * </table>
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 public final class SelectionManager {
 

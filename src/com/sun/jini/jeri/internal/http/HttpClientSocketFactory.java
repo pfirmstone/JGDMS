@@ -25,7 +25,7 @@ import java.net.Socket;
  * Abstraction for objects which provide/configure sockets used by
  * HttpClientConnection instances.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public interface HttpClientSocketFactory {

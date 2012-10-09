@@ -37,7 +37,7 @@ import com.sun.jini.thread.WakeupManager;
  * was seeded from), we make no attempt to make it generic because of
  * the need to schedule expiration warning events.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class LeaseExpirationMgr implements WeakTable.KeyGCHandler {
     /** Logger for logging messages for this class */

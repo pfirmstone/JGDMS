@@ -25,7 +25,7 @@ import net.jini.core.lookup.ServiceID;
 /**
  * Miscellaneous common utility methods.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class Util {

@@ -35,7 +35,7 @@ import java.util.StringTokenizer;
  * This class provides useful utilities for creating and
  * manipulating class loaders.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class ClassLoaderUtil {

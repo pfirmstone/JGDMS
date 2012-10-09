@@ -48,7 +48,7 @@ import net.jini.core.event.UnknownEventException;
  * Instances of this class are provided as the event "forwarding" 
  * target to clients of the mailbox service.  
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

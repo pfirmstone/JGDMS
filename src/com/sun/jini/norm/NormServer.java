@@ -41,7 +41,7 @@ import com.sun.jini.start.ServiceProxyAccessor;
  * itself, sets, leases, admins, etc.) use to communicate back to the
  * server.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 interface NormServer extends Landlord, LeaseRenewalService, 
     Administrable, JoinAdmin, DestroyAdmin, ServiceProxyAccessor, Remote 

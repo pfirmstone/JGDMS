@@ -23,7 +23,7 @@ package com.sun.jini.mercury;
  * different <tt>LogStream</tt> objects that can potentially act upon the
  * same underlying log file.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

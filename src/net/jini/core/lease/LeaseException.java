@@ -21,7 +21,7 @@ package net.jini.core.lease;
 /** 
  * Generic superclass for specific lease exceptions. 
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

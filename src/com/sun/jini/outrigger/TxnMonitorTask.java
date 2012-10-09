@@ -96,7 +96,7 @@ import net.jini.core.transaction.server.TransactionConstants;
  * will be <code>true</code> to force that poll to happen, and
  * <code>deltaT</code> will be set to <code>INITIAL_GRACE</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see TxnMonitor 
  */

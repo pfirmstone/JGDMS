@@ -127,7 +127,7 @@ import com.sun.jini.action.GetIntegerAction;
  *
  *  </table> <p>
  * 
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  */

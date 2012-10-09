@@ -26,7 +26,7 @@ import java.io.OutputStream;
  * Class for writing HTTP messages.  Each instance writes a single HTTP
  * message.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 class MessageWriter {

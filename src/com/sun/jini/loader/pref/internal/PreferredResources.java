@@ -45,7 +45,7 @@ import java.util.TreeSet;
  * and the preferred state for the resources contained in a given
  * preferred class loader.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public final class PreferredResources {

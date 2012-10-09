@@ -35,7 +35,7 @@ import net.jini.security.AuthenticationPermission;
  * <p>An <code>InboundRequest</code> can be used to read in the
  * contents of the request and write out the response.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see OutboundRequest
  * @see RequestDispatcher
  * @since 2.0

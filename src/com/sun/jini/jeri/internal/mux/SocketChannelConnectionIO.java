@@ -35,7 +35,7 @@ import java.util.logging.Logger;
  * connection accessible through a java.nio.channels.SocketChannel, and thus
  * supports non-blocking I/O.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 final class SocketChannelConnectionIO extends ConnectionIO {
 

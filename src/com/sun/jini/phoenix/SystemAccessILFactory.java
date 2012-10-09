@@ -41,7 +41,7 @@ import net.jini.jeri.ServerCapabilities;
  * registerGroup} and {@link ActivationSystem#setActivationGroupDesc
  * setActivationGroupDesc}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  * @see SystemAccessProxyTrustILFactory

@@ -56,7 +56,7 @@ import com.sun.jini.start.LifeCycle;
  * do the actual work. This is a base class for these
  * wrappers.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class OutriggerServerWrapper 

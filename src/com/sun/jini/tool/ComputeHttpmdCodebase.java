@@ -54,7 +54,7 @@ import net.jini.url.httpmd.HttpmdUtil;
  * message digest will be computed using the <code>md5</code> algorithm, and
  * the <code>0</code> will be replaced by the computed digest.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class ComputeHttpmdCodebase {

@@ -33,7 +33,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 /**
  * Defines a client-side proxy for a Norm server.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class NormProxy extends AbstractProxy

@@ -30,7 +30,7 @@ import net.jini.core.constraint.RemoteMethodControl;
  * A collection of utility methods for use in implementing constrainable
  * proxies.  This class cannot be instantiated.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class ConstrainableProxyUtil {

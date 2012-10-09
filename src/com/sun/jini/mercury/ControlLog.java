@@ -30,7 +30,7 @@ import java.io.SyncFailedException;
  * (convenience) method is <tt>sync</tt> which allows the user to 
  * force synchronization with the underlying device.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

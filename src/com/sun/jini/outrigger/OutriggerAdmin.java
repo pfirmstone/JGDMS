@@ -33,7 +33,7 @@ import net.jini.space.JavaSpace;
  * to the server.  In other words, this is the server's analog to the
  * <code>JavaSpaceAdmin</code> interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see JavaSpaceAdmin
  */

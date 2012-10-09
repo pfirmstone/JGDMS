@@ -24,7 +24,7 @@ import net.jini.config.Configuration;
 /**
  * Class for starting transient lookup services.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class TransientRegistrarImpl extends RegistrarImpl {
 

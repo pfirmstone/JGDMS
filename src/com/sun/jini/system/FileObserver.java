@@ -29,7 +29,7 @@ import java.util.Observer;
  * This class is normally passed into a class that extends 
  * <code>Observable</code>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see java.util.Observable
  * @see java.util.Observer

@@ -32,7 +32,7 @@ import net.jini.lease.LeaseRenewalEvent;
  * rest of Norm Server.  Isolates the renewal manager from having to
  * block on the snapshot locks.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class LRMEventListener extends InterruptedStatusThread 
                        implements DesiredExpirationListener 

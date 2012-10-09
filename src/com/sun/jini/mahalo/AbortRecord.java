@@ -26,7 +26,7 @@ import java.util.logging.Logger;
  * a <code>Transaction</code> which has changed to the ABORTED
  * state.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class AbortRecord implements TxnLogRecord  {

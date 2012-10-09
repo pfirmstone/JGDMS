@@ -21,7 +21,7 @@ package com.sun.jini.outrigger;
  * This interface defines the methods that any OutriggerServerImpl store must
  * implement.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see OutriggerServerImpl
  * @see LogOps

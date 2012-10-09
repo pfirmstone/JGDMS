@@ -45,7 +45,7 @@ import net.jini.io.MarshalInputStream;
  * descriptor from its stdin so that it can create the activation
  * group for the VM.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

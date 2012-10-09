@@ -23,7 +23,7 @@ import net.jini.core.lease.LeaseDeniedException;
  * Interface for objects that define what policy to use
  * when calculating lease grants and renewals.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public interface LeasePeriodPolicy {

@@ -54,7 +54,7 @@ import java.util.Locale;
  * Because this constraint is conditional on delegation, it does not conflict
  * with {@link ClientAuthentication#NO} or {@link Delegation#NO}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see ClientAuthentication
  * @see Delegation
  * @see DelegationRelativeTime

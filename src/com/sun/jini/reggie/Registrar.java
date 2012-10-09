@@ -45,7 +45,7 @@ import net.jini.lookup.DiscoveryAdmin;
  * methods for transformed Lease and LeaseMap interfaces, for service and
  * event leases.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 interface Registrar 

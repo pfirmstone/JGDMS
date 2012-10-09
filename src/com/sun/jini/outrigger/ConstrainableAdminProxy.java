@@ -41,7 +41,7 @@ import com.sun.jini.admin.DestroyAdmin;
 /**
  * Constrainable subclass of <code>AdminProxy</code>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 final class ConstrainableAdminProxy extends AdminProxy

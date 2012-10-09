@@ -20,7 +20,7 @@ package com.sun.jini.outrigger;
 /**
  * A description of a template's parameters.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see EntryHandle#descFor
  * @see EntryHandle

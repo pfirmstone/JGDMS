@@ -53,7 +53,7 @@ import net.jini.jeri.ServerCapabilities;
 
 /**
  *
- * @author peter
+ * 
  */
 public class DgcRequestDispatcher implements RequestDispatcher {
     private static final Logger logger =

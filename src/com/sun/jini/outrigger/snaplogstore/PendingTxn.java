@@ -35,7 +35,7 @@ import net.jini.space.InternalSpaceException;
  * this object.  When the transaction is committed, each operation is
  * committed into the DB.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class PendingTxn implements Serializable {

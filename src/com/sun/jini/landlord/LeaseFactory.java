@@ -26,7 +26,7 @@ import net.jini.id.ReferentUuid;
 /**
  * Factory for {@link LandlordLease} instances.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class LeaseFactory {

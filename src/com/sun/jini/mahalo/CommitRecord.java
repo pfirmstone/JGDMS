@@ -28,7 +28,7 @@ import java.util.logging.Logger;
  * a <code>Transaction</code> which has moved to the COMMITTED
  * state.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class CommitRecord implements TxnLogRecord {

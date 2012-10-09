@@ -36,7 +36,7 @@ import java.util.logging.Logger;
  * is the system resource we are trying to manage. This pool limits the
  * (user configurable) number of concurrent, open <tt>FileDescriptor</tt>s.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

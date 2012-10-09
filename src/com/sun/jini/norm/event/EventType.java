@@ -42,7 +42,7 @@ import com.sun.jini.thread.WakeupManager;
  * portions of this object are preserved when serialized.  The send
  * monitor, and currently scheduled event sends are not.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 // $$$ I am not sure if this class does too much locking, or too little.
 // It does too little in that it does not do any locking during serialization

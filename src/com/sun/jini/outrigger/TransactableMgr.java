@@ -30,7 +30,7 @@ import net.jini.security.ProxyPreparer;
  * a list of <code>Transactable</code> objects which represent
  * operations performed on the space under this transaction.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see OutriggerServerImpl
  * @see Transactable 

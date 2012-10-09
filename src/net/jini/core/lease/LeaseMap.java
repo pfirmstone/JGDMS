@@ -26,7 +26,7 @@ import java.rmi.RemoteException;
  * an IllegalArgumentException is thrown if a key is not a Lease or a value
  * is not a Long.  Null keys and values are not supported.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

@@ -40,7 +40,7 @@ import net.jini.jeri.OutboundRequest;
  * obtained by a <code>ConnectionManager</code> from its {@link
  * ConnectionEndpoint}'s <code>connect</code> methods.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public interface Connection {

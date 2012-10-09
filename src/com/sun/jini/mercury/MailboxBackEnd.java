@@ -44,7 +44,7 @@ import net.jini.id.Uuid;
  * Note: The <tt>Landlord</tt> interface extends <tt>Remote</tt>, 
  * which implicitly makes this interface Remote as well. 
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

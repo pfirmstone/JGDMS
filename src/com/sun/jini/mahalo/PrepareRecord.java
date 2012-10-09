@@ -22,7 +22,7 @@ package com.sun.jini.mahalo;
  * A <code>LogRecord</code> which encapsulates a participant being
  * instructed to vote.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class PrepareRecord extends ParticipantModRecord {

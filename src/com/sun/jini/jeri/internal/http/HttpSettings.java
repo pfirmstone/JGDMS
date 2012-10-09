@@ -29,7 +29,7 @@ import java.util.regex.Pattern;
 /**
  * Utility class for querying HTTP/HTTPS-related system properties.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public class HttpSettings {

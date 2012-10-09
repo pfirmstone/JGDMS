@@ -33,7 +33,7 @@ import net.jini.security.Security;
  * RequestDispatcher.
  * 
  * @since 2.2.0
- * @author Peter Firmstone.
+ * 
  */
 class Binding {
 

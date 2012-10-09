@@ -45,7 +45,7 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * to inform them to roll back changes associated with a given
  * <code>net.jini.core.transaction.Transaction</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see com.sun.jini.mahalo.Job
  * @see com.sun.jini.mahalo.ParticipantTask

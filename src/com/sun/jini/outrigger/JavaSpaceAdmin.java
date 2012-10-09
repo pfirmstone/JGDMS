@@ -39,7 +39,7 @@ import net.jini.space.JavaSpace05;
  *             {@link JavaSpace05#contents JavaSpace05.contents}
  *             method.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public interface JavaSpaceAdmin extends JoinAdmin, DestroyAdmin {
     /** 

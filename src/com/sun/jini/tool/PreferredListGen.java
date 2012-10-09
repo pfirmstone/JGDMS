@@ -301,7 +301,7 @@ import java.util.regex.Pattern;
  * </pre></blockquote>
  * <p>
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 
 public class PreferredListGen {

@@ -27,7 +27,7 @@ import net.jini.jeri.connection.OutboundRequestHandle;
  * Creates {@link ConnManager} instances which delegate directly to
  * {@link ConnectionManager}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class BasicConnManagerFactory implements ConnManagerFactory {

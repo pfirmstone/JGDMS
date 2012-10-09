@@ -46,7 +46,7 @@ import net.jini.core.lease.LeaseMapException;
  * associated with the first ClientLeaseWrapper added to the set.  The second
  * is a Map from client leases to the ClientLeaseWrappers that wrap them.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see ClientLeaseWrapper
  */
 class ClientLeaseMapWrapper extends AbstractMap implements LeaseMap {

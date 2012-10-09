@@ -25,7 +25,7 @@ package net.jini.core.transaction;
  * aborted because the transaction manager crashed; the transaction has
  * previously been explicitly committed.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

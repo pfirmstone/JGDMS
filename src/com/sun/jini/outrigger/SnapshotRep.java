@@ -64,7 +64,7 @@ import net.jini.core.entry.Entry;
  *
  * For more information, please review the appropriate specifications.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 // @see SpaceProxy#snapshot

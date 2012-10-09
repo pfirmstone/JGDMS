@@ -41,7 +41,7 @@ import java.rmi.RemoteException;
  * returned by the call to
  * {@link java.rmi.activation.ActivationID#activate(boolean) ActivationID.activate()}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  *

@@ -24,7 +24,7 @@ import com.sun.jini.thread.GetThreadPoolAction;
 /**
  * Utility class for timing out connections.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public class ConnectionTimer {

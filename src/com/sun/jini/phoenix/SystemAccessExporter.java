@@ -39,7 +39,7 @@ import net.jini.export.Exporter;
  * {@link GroupPolicy} on calls to <code>registerGroup</code> and
  * <code>setActivationGroupDesc</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

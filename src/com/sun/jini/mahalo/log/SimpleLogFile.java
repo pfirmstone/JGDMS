@@ -42,7 +42,7 @@ import java.util.logging.Logger;
 /**
  * An implementation of a re-usable <code>Log</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see com.sun.jini.mahalo.log.Log
  */

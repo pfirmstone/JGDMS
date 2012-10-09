@@ -32,7 +32,7 @@ import net.jini.security.AccessPermission;
  * (interface) method being invoked on the context element. Wildcard matches
  * are supported using the syntax specified by {@link AccessPermission}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public final class ContextPermission extends AccessPermission {

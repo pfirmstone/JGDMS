@@ -26,7 +26,7 @@ import net.jini.id.UuidFactory;
 /**
  * Provides constants for this package.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 final class Jeri {
 

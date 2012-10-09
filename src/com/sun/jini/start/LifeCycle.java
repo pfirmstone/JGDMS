@@ -31,7 +31,7 @@ package com.sun.jini.start;
  * @see com.sun.jini.start.NonActivatableServiceDescriptor
  * @see com.sun.jini.start.ServiceStarter
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  */

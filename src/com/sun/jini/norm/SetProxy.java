@@ -46,7 +46,7 @@ import com.sun.jini.proxy.ThrowThis;
  * Client side proxy for Norm's lease renewal sets.  Uses an object of
  * type NormServer to communicate back to server.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class SetProxy extends AbstractProxy implements LeaseRenewalSet {
     private static final long serialVersionUID = 2;

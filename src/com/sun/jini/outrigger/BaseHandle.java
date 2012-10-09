@@ -20,7 +20,7 @@ package com.sun.jini.outrigger;
 /**
  * Base class for handles to Entries and templates.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class BaseHandle extends FastList.Node {

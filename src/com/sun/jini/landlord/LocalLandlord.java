@@ -36,7 +36,7 @@ import net.jini.id.Uuid;
  * This interface gives local landlord utilities access to the cancel
  * and renew methods.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see com.sun.jini.landlord.Landlord 
  * @since 2.0

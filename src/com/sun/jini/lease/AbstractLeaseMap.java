@@ -32,7 +32,7 @@ import net.jini.core.lease.LeaseMap;
  * canContainKey, renewAll, and cancelAll, and serialization of any subclass
  * state.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public abstract class AbstractLeaseMap implements LeaseMap {

@@ -44,7 +44,7 @@ import net.jini.url.httpmd.HttpmdUtil;
  * is installed. This command prints out the message digest for the
  * <code>reggie.jar</code> JAR file, using the <code>SHA-1</code> algorithm.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class ComputeDigest {

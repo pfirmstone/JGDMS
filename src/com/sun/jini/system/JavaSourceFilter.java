@@ -26,7 +26,7 @@ import java.io.FileFilter;
  * look for java files by default, or other file extensions if
  * the user wishes to use a different extension.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class JavaSourceFilter implements FileFilter {

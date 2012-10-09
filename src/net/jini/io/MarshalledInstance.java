@@ -66,7 +66,7 @@ import net.jini.io.context.IntegrityEnforcement;
  * <code>java.rmi.MarshalledObject</code>, it does not perform remote
  * object-to-stub replacement.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class MarshalledInstance implements Serializable {

@@ -23,7 +23,7 @@ import net.jini.jeri.connection.ConnectionEndpoint;
 /**
  * Defines interface for creating {@link ConnManager} instances.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public interface ConnManagerFactory {

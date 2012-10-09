@@ -35,7 +35,7 @@ import net.jini.core.entry.Entry;
  * This class only has a bare minimum of methods, to minimize
  * the amount of code downloaded into clients.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class EntryRep implements Serializable, Cloneable {

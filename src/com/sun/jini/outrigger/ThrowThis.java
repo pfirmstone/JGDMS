@@ -21,7 +21,7 @@ package com.sun.jini.outrigger;
  * This is used as a handback object to indicate that a proxy's blocked
  * call should "return" by throwing an exception.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 // @see SpaceProxy

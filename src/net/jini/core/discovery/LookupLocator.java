@@ -47,7 +47,7 @@ import net.jini.discovery.LookupLocatorDiscovery;
  * ConstrainableLookupLocator is a subclass which uses discovery V1 or V2
  * and enables the use of constraints.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  * @see LookupLocatorDiscovery

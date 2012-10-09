@@ -34,7 +34,7 @@ import net.jini.config.ConfigurationException;
 import net.jini.space.InternalSpaceException;
 
 /**
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see com.sun.jini.outrigger.OutriggerServerImpl
  */

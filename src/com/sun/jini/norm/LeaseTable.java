@@ -33,7 +33,7 @@ import net.jini.core.lease.Lease;
  * <p>
  * Unless otherwise noted the methods of this class are not thread safe.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class LeaseTable {
     /**

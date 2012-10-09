@@ -52,7 +52,7 @@ import com.sun.jini.reliableLog.ReliableLog;
 /**
  * Utility class that combines <code>JoinManager</code> with persistence.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class JoinState extends LogHandler implements SubStore {
 

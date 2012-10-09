@@ -40,7 +40,7 @@ import net.jini.space.InternalSpaceException;
  * implementations of JavaSpaces<sup><font size=-2>TM</font></sup> 
  * technology.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see EntryRep
  */

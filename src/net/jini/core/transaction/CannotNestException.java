@@ -21,7 +21,7 @@ package net.jini.core.transaction;
 /**
  * Exception thrown when an object does not support nested transactions.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

@@ -26,7 +26,7 @@ import net.jini.jeri.connection.OutboundRequestHandle;
  * Defines interface for internal pluggable counterparts of
  * {@link ConnectionManager}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public interface ConnManager {

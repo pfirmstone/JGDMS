@@ -36,7 +36,7 @@ import net.jini.id.Uuid;
 /**
  * Implementation class for the ServiceRegistration interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class Registration implements ServiceRegistration, ReferentUuid, Serializable {

@@ -35,7 +35,7 @@ import net.jini.jeri.ServerCapabilities;
  * {@link BasicILFactory} except the returned invocation dispatcher only
  * accepts calls from the local host.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  **/

@@ -24,7 +24,7 @@ import java.rmi.activation.ActivationGroupDesc;
  * Interface for policy objects to control what {@link ActivationGroupDesc}
  * instances can be used.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

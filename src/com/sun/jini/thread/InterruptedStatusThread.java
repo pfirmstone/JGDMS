@@ -21,7 +21,7 @@ package com.sun.jini.thread;
  * Common Thread subclass to handle potential loss of
  * interrupted status.
  *  
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.1
  */
 public class InterruptedStatusThread extends Thread {

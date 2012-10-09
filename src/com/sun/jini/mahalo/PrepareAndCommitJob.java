@@ -37,7 +37,7 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * to vote and roll forward/back changes associated with a given
  * <code>Transaction</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see com.sun.jini.mahalo.Job
  * @see com.sun.jini.mahalo.ParticipantTask

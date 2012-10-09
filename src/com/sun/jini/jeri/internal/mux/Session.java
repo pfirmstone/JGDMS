@@ -43,7 +43,7 @@ import net.jini.jeri.OutboundRequest;
  * for either client-side and server-side perspective.  The particular
  * role (CLIENT or SERVER) is indicated at construction time.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 final class Session {
 

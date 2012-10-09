@@ -27,7 +27,7 @@ import java.io.ObjectOutputStream;
  *
  * @see LogOps
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  */

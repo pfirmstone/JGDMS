@@ -31,7 +31,7 @@ import java.io.ObjectInputStream;
  * don't. The target name is any name accepted by {@link FilePermission},
  * with the same matching semantics.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

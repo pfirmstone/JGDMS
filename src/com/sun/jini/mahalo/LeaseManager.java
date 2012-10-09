@@ -23,7 +23,7 @@ import com.sun.jini.landlord.LeasedResource;
  * <code>LeaseManager</code> provides an interface for tracking lease
  * status.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public interface LeaseManager {

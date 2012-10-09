@@ -24,7 +24,7 @@ import java.util.List;
 /**
  * Simple thread-safe FIFO sequence.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class Queue {
     /** List we actually store stuff in */

@@ -38,7 +38,7 @@ import net.jini.security.SecurityContext;
 /**
  * A table of exported remote objects.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 final class ObjectTable {
 

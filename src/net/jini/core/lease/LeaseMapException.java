@@ -30,7 +30,7 @@ import java.util.Set;
  * An exception generated when a LeaseMap renewAll or cancelAll call
  * generates exceptions on one or more leases in the map.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

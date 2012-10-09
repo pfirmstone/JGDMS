@@ -20,7 +20,7 @@ package com.sun.jini.mahalo;
 
 /**
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class UnknownTaskException extends JobException {

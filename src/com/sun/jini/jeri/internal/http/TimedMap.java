@@ -27,7 +27,7 @@ import java.util.Map;
  * which modify a TimedMap synchronize on the TimedMap instance itself,
  * including the thread which evicts expired entries.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 class TimedMap {

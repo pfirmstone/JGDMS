@@ -33,7 +33,7 @@ import net.jini.jeri.ServerEndpoint;
  * methods.  The handle encapsulates any request-specific information
  * needed by the transport implementation.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public interface InboundRequestHandle {

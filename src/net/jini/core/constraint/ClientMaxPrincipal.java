@@ -46,7 +46,7 @@ import java.util.Set;
  * Because this constraint is conditional on client authentication, it does
  * not conflict with {@link ClientAuthentication#NO}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see ClientAuthentication
  * @see ClientMaxPrincipalType
  * @see ClientMinPrincipal

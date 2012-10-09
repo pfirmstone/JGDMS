@@ -99,7 +99,7 @@ import com.sun.jini.landlord.LeasedResource;
  * while other are synchronized externally.  Methods which need to be
  * synchronized externally are called out in their comments.
  *
- * @author Sun Microsystems, Inc.  
+ * 
  */
 // We do not store this data on the EntryRep object itself because it
 // is not really part of the client<->JavaSpaces service protocol -- 

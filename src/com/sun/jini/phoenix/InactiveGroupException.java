@@ -24,7 +24,7 @@ import java.rmi.activation.ActivationException;
  * Thrown if a local or remote call is made on a group implementation
  * instance that is inactive.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

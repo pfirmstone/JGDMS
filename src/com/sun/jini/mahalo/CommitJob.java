@@ -43,7 +43,7 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * a set of <code>TransactionParticipant</code>s to inform them
  * to roll forward changes associated with a given <code>Transaction</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see com.sun.jini.mahalo.Job
  * @see com.sun.jini.mahalo.ParticipantTask

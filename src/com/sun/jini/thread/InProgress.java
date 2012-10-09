@@ -46,7 +46,7 @@ package com.sun.jini.thread;
  * A <code>waitUntilQuiet</code> call waits until the object is neither
  * blocked nor stopped.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class InProgress {

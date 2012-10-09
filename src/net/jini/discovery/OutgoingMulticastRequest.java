@@ -33,7 +33,7 @@ import net.jini.core.lookup.ServiceID;
  * Encapsulate the details of marshaling a multicast request into one or
  * more packets.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see IncomingMulticastRequest
  */

@@ -72,7 +72,7 @@ import java.rmi.MarshalledObject;
  * RemoteEvent object being sent occurs outside of the scope of the
  * transaction (but is visible within the transaction).
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

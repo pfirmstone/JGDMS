@@ -75,7 +75,7 @@ import org.apache.river.api.security.AbstractPolicy;
  * <code>getContextClassLoader</code> is not called and the main policy is the
  * currently active sub-policy.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

@@ -37,7 +37,7 @@ import com.sun.jini.thread.ReadersWriter;
  * Class that actually stores a Norm server's state to disk.  Basically
  * a wrapper around ReliableLog with the addition of lock management.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class PersistentStore {
     /** Logger for logging messages for this class */

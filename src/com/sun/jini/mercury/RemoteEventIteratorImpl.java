@@ -41,7 +41,7 @@ import com.sun.jini.proxy.ThrowThis;
 /**
  * 
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */ 

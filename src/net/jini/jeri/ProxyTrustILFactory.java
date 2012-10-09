@@ -34,7 +34,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  * invoking the {@link ServerProxyTrust#getProxyVerifier
  * ServerProxyTrust.getProxyVerifier} local method of the remote object.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  * @see net.jini.security.proxytrust.ProxyTrustExporter
  */

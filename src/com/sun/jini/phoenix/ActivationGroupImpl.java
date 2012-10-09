@@ -200,7 +200,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  * called to initialize the activation group. As such, this class cannot be
  * used in conjunction with the standard <code>rmid</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  **/

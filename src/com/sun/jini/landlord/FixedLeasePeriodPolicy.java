@@ -26,7 +26,7 @@ import net.jini.core.lease.LeaseDeniedException;
  * renewals longer than the maximum if the current lease and the
  * request are both longer than the maximum.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class FixedLeasePeriodPolicy implements LeasePeriodPolicy {

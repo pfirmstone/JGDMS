@@ -48,7 +48,7 @@ import net.jini.core.event.RemoteEvent;
  * past the offending event. This means that events can be lost if I/O 
  * errors are encountered.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  */

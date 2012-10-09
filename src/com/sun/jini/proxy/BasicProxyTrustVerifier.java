@@ -38,7 +38,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * {@link ServerProxyTrust#getProxyVerifier
  * ServerProxyTrust.getProxyVerifier} method.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public final class BasicProxyTrustVerifier

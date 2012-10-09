@@ -33,7 +33,7 @@ import java.util.Iterator;
  * {@link net.jini.security.proxytrust.TrustEquivalence#checkTrustEquivalence
  * TrustEquivalence.checkTrustEquivalence}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public interface MethodConstraints {

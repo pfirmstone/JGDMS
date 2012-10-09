@@ -41,7 +41,7 @@ import net.jini.security.ProxyPreparer;
 /**
  * Provides an activatable implementation of NormServer.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class ActivatableNormServerImpl extends NormServerBaseImpl {

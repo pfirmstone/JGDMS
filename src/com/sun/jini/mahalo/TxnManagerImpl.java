@@ -103,7 +103,7 @@ import net.jini.security.TrustVerifier;
 /**
  * An implementation of the Jini Transaction Specification.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class TxnManagerImpl /*extends RemoteServer*/

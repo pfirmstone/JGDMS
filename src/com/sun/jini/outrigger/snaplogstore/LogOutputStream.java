@@ -28,7 +28,7 @@ import java.io.RandomAccessFile;
  * that perform logging operations; in particular, processes that store 
  * state in order to provide persistence.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see java.io.OutputStream
  */

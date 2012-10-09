@@ -73,7 +73,7 @@ import net.jini.security.AccessPermission;
  * </tr>
  * </table>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0 */
 public final class MonitorPermission extends AccessPermission {

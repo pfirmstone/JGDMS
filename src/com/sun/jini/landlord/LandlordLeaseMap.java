@@ -31,7 +31,7 @@ import net.jini.id.ReferentUuid;
 /**
  * Implementation of <code>LeaseMap</code> for <code>LandlordLease</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see LandlordLease
  * @see net.jini.core.lease.LeaseMap

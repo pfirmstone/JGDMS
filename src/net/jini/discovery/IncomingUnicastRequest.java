@@ -27,7 +27,7 @@ import java.io.IOException;
  * portion of the current version of the unicast discovery protocol
  * does nothing other than indicate its version.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see OutgoingUnicastRequest
  */

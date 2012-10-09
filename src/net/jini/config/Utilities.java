@@ -24,7 +24,7 @@ import java.net.URLClassLoader;
 /**
  * Provides utility methods for use in this package.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class Utilities {

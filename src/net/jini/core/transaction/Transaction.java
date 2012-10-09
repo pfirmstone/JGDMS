@@ -70,7 +70,7 @@ import java.rmi.RemoteException;
  * attempting to resolve the outcome of the transaction that holds the
  * conflicting lock.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see NestableTransaction
  * @see net.jini.core.transaction.server.TransactionManager

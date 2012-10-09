@@ -43,7 +43,7 @@ import java.util.logging.Logger;
  * Mux is the abstract superclass of both client-side and server-side
  * multiplexed connections.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 abstract class Mux {
 

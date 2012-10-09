@@ -20,7 +20,7 @@ package com.sun.jini.outrigger;
 /**
  * Used to hold the description of the parameters of the hash.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see EntryHandle
  * @see EntryHandle#hashFor(EntryRep,int,EntryHandleHashDesc)

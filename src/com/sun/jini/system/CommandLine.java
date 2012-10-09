@@ -46,7 +46,7 @@ import java.io.Writer;
  * <code>parseInt</code> to parse them to provide consistency to the
  * user.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see POSIXCommandLine
  * @see MultiCommandLine

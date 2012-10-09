@@ -28,7 +28,7 @@ import java.rmi.server.UID;
 import java.rmi.UnmarshalException;
 
 /**
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

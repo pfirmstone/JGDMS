@@ -172,7 +172,7 @@ import java.util.regex.Pattern;
  *   </tr>
  * </table>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class JarWrapper {

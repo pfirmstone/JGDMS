@@ -38,7 +38,7 @@ import net.jini.core.lease.Lease;
  *     stored by this particular registration.
  * </UL>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.1
  */

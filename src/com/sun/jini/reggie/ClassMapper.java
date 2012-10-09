@@ -29,7 +29,7 @@ import java.rmi.MarshalException;
  * Maps Class to ServiceType/Base, Class to EntryClass/Base, and Class to
  * Field[], with caching for efficiency.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class ClassMapper {

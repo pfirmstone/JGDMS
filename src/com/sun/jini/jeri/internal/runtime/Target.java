@@ -52,7 +52,7 @@ import net.jini.security.SecurityContext;
  * unexport.
  *
  * @since 2.2.0
- * @author Peter Firmstone
+ * 
  */
 final class Target {
     private static final Logger logger =

@@ -22,7 +22,7 @@ package net.jini.core.lease;
  * An exception used to indicate that a lease is not known to the grantor
  * of the lease.  This can occur when a lease expires or has been cancelled.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

@@ -27,7 +27,7 @@ import java.lang.reflect.Method;
  *
  * Note that this class cannot be instantiated.
  *
- * @author Sun Microsystems, Inc.  
+ * 
  */
 class ProxyUtil {
 

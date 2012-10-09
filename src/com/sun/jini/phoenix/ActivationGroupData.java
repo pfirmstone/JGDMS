@@ -25,7 +25,7 @@ import java.io.Serializable;
  * activation group's configuration. An instance of this is specified
  * in the <code>ActivationGroupDesc</code> for the group.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

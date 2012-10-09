@@ -29,7 +29,7 @@ import java.util.Set;
  * recovery.  Unless otherwise noted all the methods in the class are
  * not thread safe.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class DeformedLeaseList {
     /** 

@@ -27,7 +27,7 @@ import net.jini.security.TrustVerifier;
  * operation of {@link net.jini.security.Security#verifyObjectTrust
  * Security.verifyObjectTrust}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class ConstrainableLookupLocatorTrustVerifier implements TrustVerifier {

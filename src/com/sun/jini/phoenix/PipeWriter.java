@@ -32,7 +32,7 @@ import java.util.Date;
  * appropriate output streams.  Both output streams are annotated on a
  * per-line basis.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

@@ -162,7 +162,7 @@ import net.jini.security.policy.PolicyInitializationException;
  * permissions. 
  *
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 public class DebugDynamicPolicyProvider extends DynamicPolicyProvider {
 

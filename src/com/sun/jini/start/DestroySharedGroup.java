@@ -146,7 +146,7 @@ import com.sun.jini.system.FileSystem;
  *
  *  </table> <p>
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see com.sun.jini.start.ServiceStarter
  *

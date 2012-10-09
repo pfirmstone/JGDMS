@@ -23,7 +23,7 @@ package net.jini.io.context;
  * acknowledgment that the remote call's result data has been
  * delivered to and processed by the client.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see net.jini.export.ServerContext#getServerContextElement
  * @since 2.0
  **/

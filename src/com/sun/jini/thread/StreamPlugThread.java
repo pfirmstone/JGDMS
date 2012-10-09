@@ -27,7 +27,7 @@ import java.io.OutputStream;
  * repeatedly reads any data available from the input stream and writes it to
  * the output stream.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class StreamPlugThread extends Thread {

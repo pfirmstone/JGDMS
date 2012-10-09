@@ -26,7 +26,7 @@ import net.jini.id.Uuid;
 /**
  * RegistrarLeaseMap subclass that supports constraints.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 final class ConstrainableRegistrarLeaseMap extends RegistrarLeaseMap {

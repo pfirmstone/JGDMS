@@ -41,7 +41,7 @@ import net.jini.jeri.RequestDispatcher;
  * Class representing a server-side HTTP connection used to receive and
  * dispatch incoming HTTP requests.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public abstract class HttpServerConnection implements TimedConnection {

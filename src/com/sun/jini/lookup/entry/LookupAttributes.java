@@ -33,7 +33,7 @@ import java.util.Comparator;
  * These are not high-performance operations; it is expected that
  * they are called relatively infrequently.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class LookupAttributes {

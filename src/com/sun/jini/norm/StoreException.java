@@ -23,7 +23,7 @@ import java.io.PrintWriter;
 /**
  * Base class for exceptions thrown by PersistantStore.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class StoreException extends Exception {
     private static final long serialVersionUID = 1L;

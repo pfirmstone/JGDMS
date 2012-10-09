@@ -22,7 +22,7 @@ package net.jini.config;
  * Thrown when an attempt to obtain an object from a {@link Configuration} does
  * not find a matching entry.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see Configuration#getEntry(String, String, Class) Configuration.getEntry
  * @since 2.0
  */

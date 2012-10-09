@@ -171,7 +171,7 @@ import java.util.logging.Logger;
  * @see java.security.CodeSource
  * @see net.jini.export.ProxyAccessor
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
  

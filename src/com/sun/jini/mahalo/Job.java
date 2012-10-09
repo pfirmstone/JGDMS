@@ -30,7 +30,7 @@ import java.util.logging.Logger;
  * whose solution is obtained by assembling partial results to
  * original problem.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public abstract class Job {

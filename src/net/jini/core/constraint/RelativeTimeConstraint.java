@@ -22,7 +22,7 @@ package net.jini.core.constraint;
  * Implemented by constraints that are expressed in terms of relative time,
  * to support conversion to absolute time constraints.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public interface RelativeTimeConstraint extends InvocationConstraint {

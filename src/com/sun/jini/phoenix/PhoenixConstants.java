@@ -24,7 +24,7 @@ import net.jini.id.UuidFactory;
 /**
  * Provides constants for Phoenix.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

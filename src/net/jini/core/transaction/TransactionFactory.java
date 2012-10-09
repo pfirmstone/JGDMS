@@ -24,7 +24,7 @@ import java.rmi.RemoteException;
 /**
  * Factory methods for creating top-level transactions.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

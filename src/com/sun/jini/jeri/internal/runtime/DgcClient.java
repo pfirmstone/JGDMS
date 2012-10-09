@@ -50,7 +50,7 @@ import net.jini.jeri.ObjectEndpoint;
  * DgcProxy's Endpoint and the well-known Uuid for the Jini ERI
  * server-side DGC implementation remote object.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 public final class DgcClient extends AbstractDgcClient {
 

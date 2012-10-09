@@ -31,7 +31,7 @@ import java.util.StringTokenizer;
  * Class which can be used to print a descriptive warning message 
  * if a codebase accessibility problem is found.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class HTTPDStatus {

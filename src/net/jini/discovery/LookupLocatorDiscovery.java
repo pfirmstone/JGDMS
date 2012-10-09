@@ -303,7 +303,7 @@ import net.jini.security.ProxyPreparer;
  * documentation for the {@link net.jini.discovery.ConstrainableLookupLocator
  * ConstrainableLookupLocator} class.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.core.discovery.LookupLocator
  */

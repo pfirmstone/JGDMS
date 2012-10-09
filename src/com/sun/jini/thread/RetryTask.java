@@ -56,7 +56,7 @@ import com.sun.jini.constants.TimeConstants;
  *
  * </table>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see TaskManager
  * @see WakeupManager

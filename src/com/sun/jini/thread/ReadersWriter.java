@@ -23,7 +23,7 @@ package com.sun.jini.thread;
  * Waiting priority writers have priority over waiting regular writers.
  * A single thread cannot hold a lock more than once.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class ReadersWriter {

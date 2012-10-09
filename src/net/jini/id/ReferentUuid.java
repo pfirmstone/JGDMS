@@ -49,7 +49,7 @@ package net.jini.id;
  *      <code>Uuid</code>s, <code>o1.equals(o2)</code> may, but is 
  *      not required to be <code>true</code>.
  * </ul>
- * @author Sun Microsystems, Inc.
+ * 
  * @see Uuid 
  * @since 2.0
  */

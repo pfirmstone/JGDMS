@@ -25,7 +25,7 @@ import net.jini.core.transaction.server.TransactionConstants;
  * A <code>LogRecord</code> which encapsulates a generic
  * transactional logging information.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 interface TxnLogRecord extends TransactionConstants, LogRecord {

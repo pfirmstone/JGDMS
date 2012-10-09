@@ -27,7 +27,7 @@ import java.util.StringTokenizer;
 /**
  * Class for reading HTTP messages.  Each instance reads a single HTTP message.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 class MessageReader {

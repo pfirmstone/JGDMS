@@ -52,7 +52,7 @@ import java.util.Set;
  * <code>ServerMinPrincipal</code> requirement for each of the methods that
  * the client cares about.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see ServerAuthentication
  * @see net.jini.security.AuthenticationPermission
  * @since 2.0

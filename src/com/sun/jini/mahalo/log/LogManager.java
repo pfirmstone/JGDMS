@@ -22,7 +22,7 @@ import net.jini.admin.Administrable;
 /**
  * Represents the functions performed by a log manager.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public interface LogManager extends Administrable {

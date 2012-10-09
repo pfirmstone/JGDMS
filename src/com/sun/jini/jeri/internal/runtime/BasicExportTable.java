@@ -41,7 +41,7 @@ import net.jini.jeri.ServerEndpoint.ListenEndpoint;
  * A BasicExportTable manages a pool of ServerEndpoint.ListenEndpoints
  * being listened on.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 public final class BasicExportTable {
 

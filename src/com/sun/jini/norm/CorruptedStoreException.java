@@ -21,7 +21,7 @@ package com.sun.jini.norm;
  * Exception thrown by <code>PersistentStore</code> when it discovers
  * the store has become corrupted.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class CorruptedStoreException extends StoreException {

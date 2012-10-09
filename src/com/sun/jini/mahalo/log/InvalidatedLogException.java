@@ -19,7 +19,7 @@ package com.sun.jini.mahalo.log;
 
 /**
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class InvalidatedLogException extends LogException {

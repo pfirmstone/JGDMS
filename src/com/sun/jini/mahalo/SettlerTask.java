@@ -34,7 +34,7 @@ import net.jini.core.transaction.server.TransactionManager;
  * A <code>SettlerTask</code> is scheduled task, which
  * causes an unsettled transaction to settle.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 

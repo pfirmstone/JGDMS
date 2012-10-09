@@ -40,7 +40,7 @@ import java.util.Set;
  * requirements that conflict with each other, and preferences that conflict
  * with each other and with requirements.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public final class InvocationConstraints implements Serializable {

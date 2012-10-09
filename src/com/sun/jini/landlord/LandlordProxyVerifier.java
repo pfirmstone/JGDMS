@@ -35,7 +35,7 @@ import java.rmi.RemoteException;
  * in the landlord package.
  *
  * @see net.jini.security.TrustVerifier
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 final public class LandlordProxyVerifier 

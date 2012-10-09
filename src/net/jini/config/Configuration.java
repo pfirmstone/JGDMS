@@ -39,7 +39,7 @@ import net.jini.security.ProxyPreparer;
  * interpretation of configuration options can be customized without requiring
  * code modifications.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public interface Configuration {

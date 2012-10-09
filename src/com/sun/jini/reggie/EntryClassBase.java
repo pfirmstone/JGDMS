@@ -23,7 +23,7 @@ import java.io.Serializable;
 /**
  * An EntryClass annotated with a codebase.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class EntryClassBase implements Serializable {

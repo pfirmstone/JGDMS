@@ -21,7 +21,7 @@ package com.sun.jini.mahalo;
  * This exception denotes a problem with the transaction manager
  * implementation.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class InternalManagerException extends RuntimeException {

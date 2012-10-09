@@ -27,7 +27,7 @@ import net.jini.core.lease.LeaseDeniedException;
  * by adding the ability to synchronously retrieve events from the event
  * mailbox service.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see MailboxRegistration
  *

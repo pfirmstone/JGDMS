@@ -37,7 +37,7 @@ import net.jini.security.Security;
  * via the {@link #doWithServerContext ServerContext.doWithServerContext}
  * method.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  * @see net.jini.io.context.ClientHost

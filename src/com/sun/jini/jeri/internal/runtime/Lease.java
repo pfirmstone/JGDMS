@@ -26,7 +26,7 @@ import net.jini.id.Uuid;
 /**
  * 
  * @since 2.2.0
- * @author Peter Firmstone.
+ * 
  */
 class Lease {
 

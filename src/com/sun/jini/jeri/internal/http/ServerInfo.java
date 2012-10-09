@@ -37,7 +37,7 @@ import java.util.Map;
  * 
  * REMIND: need manage/null out password more strictly?
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 class ServerInfo implements Cloneable {

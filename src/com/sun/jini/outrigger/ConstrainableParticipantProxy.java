@@ -32,7 +32,7 @@ import net.jini.id.Uuid;
  * Subclass of <code>ParticipantProxy</code> that implements
  * <code>RemoteMethodControl</code>
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 final class ConstrainableParticipantProxy extends ParticipantProxy
     implements RemoteMethodControl

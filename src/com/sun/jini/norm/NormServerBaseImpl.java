@@ -104,7 +104,7 @@ import com.sun.jini.thread.InterruptedStatusThread;
  * Base class for implementations of NormServer.  Provides a complete
  * non-activatable (but still logging) implementation.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 abstract class NormServerBaseImpl
     implements NormServer, LocalLandlord, ServerProxyTrust, ProxyAccessor

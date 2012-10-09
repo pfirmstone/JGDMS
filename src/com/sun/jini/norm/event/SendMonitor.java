@@ -25,7 +25,7 @@ import net.jini.core.event.RemoteEvent;
  * the client when a exception occurs in the course of attempting to
  * send an event.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see EventType
  * @see EventTypeGenerator
  */

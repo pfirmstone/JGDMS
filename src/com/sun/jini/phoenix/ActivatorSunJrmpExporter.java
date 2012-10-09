@@ -27,7 +27,7 @@ import java.rmi.server.ObjID;
  * to work with Java(TM) 2 Standard Edition implementations from Sun
  * Microsystems, Inc.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

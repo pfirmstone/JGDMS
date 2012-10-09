@@ -34,7 +34,7 @@ import net.jini.core.event.RemoteEvent;
  * in that <tt>next</tt> and <tt>remove</tt> are intended to be called
  * in pairs.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

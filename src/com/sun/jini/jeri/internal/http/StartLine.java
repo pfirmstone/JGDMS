@@ -26,7 +26,7 @@ import java.util.StringTokenizer;
 /**
  * Class representing first line of an HTTP message.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 class StartLine {

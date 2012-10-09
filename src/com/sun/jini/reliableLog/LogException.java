@@ -26,7 +26,7 @@ import java.io.IOException;
  * while information is being logged, the exception can be wrapped
  * in this class so as to indicate an unsuccessful log operation.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class LogException extends IOException {

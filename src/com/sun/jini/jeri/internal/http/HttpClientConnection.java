@@ -36,7 +36,7 @@ import net.jini.io.context.AcknowledgmentSource;
 /**
  * Class representing a client-side HTTP connection used to send HTTP requests.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public class HttpClientConnection implements TimedConnection {

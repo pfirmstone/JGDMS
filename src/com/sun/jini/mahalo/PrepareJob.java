@@ -36,7 +36,7 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * <code>net.jini.core.transaction.server.TransactionParticipant</code>s
  * to inform them to vote.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see com.sun.jini.mahalo.Job
  * @see com.sun.jini.mahalo.ParticipantTask

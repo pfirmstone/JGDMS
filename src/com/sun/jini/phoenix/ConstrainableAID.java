@@ -41,7 +41,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * to avoid requiring all such implementations to make code available for
  * dynamic download to clients.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  **/

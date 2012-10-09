@@ -28,7 +28,7 @@ import com.sun.jini.landlord.LeasedResource;
 /**
  * A set of <code>EntryHolder</code> objects for a given space.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see EntryHolder
  * @see OutriggerServerImpl

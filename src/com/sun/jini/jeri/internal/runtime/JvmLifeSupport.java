@@ -44,7 +44,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
  * objects exported.
  * 
  * @since 2.2.0
- * @author Peter Firmstone
+ * 
  */
 public class JvmLifeSupport {
     /** lock guarding keepAliveCount and keeper */

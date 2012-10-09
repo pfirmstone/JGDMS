@@ -37,7 +37,7 @@ import net.jini.space.InternalSpaceException;
 /**
  * A class to help you read log files created by <code>LogOutputFile</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see LogOutputFile
  */

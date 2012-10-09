@@ -47,7 +47,7 @@ import com.sun.jini.logging.Levels;
  * a service's join state (optionally persisting that state) and
  * manages the join protocol protocol on behalf of the service.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see JoinManager
  */

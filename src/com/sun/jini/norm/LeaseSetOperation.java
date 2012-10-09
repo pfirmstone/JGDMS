@@ -23,7 +23,7 @@ import net.jini.id.Uuid;
 /**
  * Base class for logged operations that do not create or destroy a set.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 abstract class LeaseSetOperation extends LoggedOperation {
     private static final long serialVersionUID = 1L;

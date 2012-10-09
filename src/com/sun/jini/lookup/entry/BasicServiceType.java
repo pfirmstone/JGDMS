@@ -29,7 +29,7 @@ import java.util.MissingResourceException;
  * "net.jini.lookup.entry.servicetype." to the value of the public field.
  * The default locale is used.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class BasicServiceType extends net.jini.lookup.entry.ServiceType {

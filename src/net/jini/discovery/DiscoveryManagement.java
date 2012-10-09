@@ -27,7 +27,7 @@ import net.jini.core.lookup.ServiceRegistrar;
  * register or un-register for discovery events, discard a lookup service,
  * or terminate the discovery process.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public interface DiscoveryManagement {
 

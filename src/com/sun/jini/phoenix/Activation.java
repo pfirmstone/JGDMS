@@ -66,7 +66,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 /**
  * Phoenix main class.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

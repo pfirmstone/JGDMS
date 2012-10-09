@@ -37,7 +37,7 @@ import java.util.logging.Logger;
  * access, but fields marked <code>protected</code> are expected to be
  * used only by subclasses.  Use good taste.)
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see LogOutputFile
  * @see LogInputFile

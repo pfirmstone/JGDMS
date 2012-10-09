@@ -35,7 +35,7 @@ import net.jini.core.entry.Entry;
  * for serviceTypes and attributeSetTemplates, a null field is equivalent to
  * an empty array; both represent a wildcard.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

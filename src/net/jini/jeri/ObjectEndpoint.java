@@ -34,7 +34,7 @@ import net.jini.core.constraint.InvocationConstraints;
  * <p>The {@link #newCall newCall} method can be used to send a
  * request to the remote object that this object references.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public interface ObjectEndpoint {

@@ -157,7 +157,7 @@ import java.util.logging.Logger;
  * where <var><b>httpd_policy</b></var> is the name of a security
  * policy file (not provided).
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class ClassServer extends Thread {

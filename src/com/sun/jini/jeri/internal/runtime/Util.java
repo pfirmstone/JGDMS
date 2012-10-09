@@ -58,7 +58,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
 /**
  * Utility methods for implementing custom remote reference types.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public class Util {

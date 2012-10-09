@@ -30,7 +30,7 @@ package com.sun.jini.resource;
  *   <li> An IOException occurs while reading a provider-configuration file.
  *   </ul>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

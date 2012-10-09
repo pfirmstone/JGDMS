@@ -184,7 +184,7 @@ import javax.security.auth.login.LoginContext;
  *
  *  </table> <p>
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class SharedGroupImpl 

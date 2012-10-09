@@ -82,7 +82,7 @@ import java.util.Set;
  * type-safe equivalent of "registerRefs" that delegates to this
  * class's "registerRefs" method.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 abstract class AbstractDgcClient {
 

@@ -34,7 +34,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 /**
  * Defines a proxy for a Norm server's admin object.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class AdminProxy extends AbstractProxy implements JoinAdmin, DestroyAdmin {

@@ -42,7 +42,7 @@ import net.jini.loader.ClassLoading;
  * This class only has a bare minimum of methods, to minimize
  * the amount of code downloaded into clients.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see ClassMapper
  * see ClassResolver (com.sun.jini.reggie.test.share.ClassResolver?)

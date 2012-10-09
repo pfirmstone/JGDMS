@@ -36,7 +36,7 @@ import com.sun.jini.logging.Levels;
  * unmarshalled and prepared, and thus can't currently be used (but may be
  * usable in the future).
  * 
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class TxnTable {

@@ -39,7 +39,7 @@ import java.rmi.RemoteException;
  * exceptions and in the catch block and calls
  * <code>throwRemoteException</code> to throw the intended exception.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see java.rmi.NoSuchObjectException
  * @see java.rmi.ServerException 

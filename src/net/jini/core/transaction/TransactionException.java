@@ -21,7 +21,7 @@ package net.jini.core.transaction;
 /**
  * Base class for exceptions thrown during a transaction. 
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

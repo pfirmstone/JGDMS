@@ -35,7 +35,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 /**
  * AdminProxy subclass that supports constraints.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 final class ConstrainableAdminProxy

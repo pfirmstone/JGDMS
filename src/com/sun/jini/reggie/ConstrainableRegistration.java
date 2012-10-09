@@ -33,7 +33,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 /**
  * Registration subclass that supports constraints.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 final class ConstrainableRegistration

@@ -32,7 +32,7 @@ import net.jini.core.transaction.server.TransactionManager;
  * Encapsulates the interface of an implementation of
  * a <code>TransactionManager</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public interface TxnManager extends Remote, Landlord, DestroyAdmin,

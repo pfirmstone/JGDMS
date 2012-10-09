@@ -24,7 +24,7 @@ import net.jini.config.ConfigurationException;
 /**
  * Interface components must meet if they implement their own persistent store.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public interface SubStore {
     /**

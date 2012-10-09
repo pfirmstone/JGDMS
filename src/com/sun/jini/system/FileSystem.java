@@ -27,7 +27,7 @@ import java.util.ArrayList;
 /**
  * Miscellaneous file system manipulation methods.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class FileSystem {

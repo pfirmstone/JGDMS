@@ -21,7 +21,7 @@ package net.jini.core.lease;
 /** 
  * An exception generated when a lease request or renewal is denied. 
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

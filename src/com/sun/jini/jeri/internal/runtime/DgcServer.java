@@ -25,7 +25,7 @@ import net.jini.id.Uuid;
 /**
  * Remote interface for Jini ERI server-side DGC implementation.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 interface DgcServer extends Remote {
 

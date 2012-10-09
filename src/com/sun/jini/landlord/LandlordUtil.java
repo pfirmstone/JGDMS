@@ -29,7 +29,7 @@ import com.sun.jini.landlord.Landlord.RenewResults;
 /**
  * Static methods useful for implementing landlords.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class LandlordUtil {

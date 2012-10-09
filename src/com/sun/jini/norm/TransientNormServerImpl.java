@@ -23,7 +23,7 @@ import com.sun.jini.start.ServiceStarter;
 /**
  * Provides a transient implementation of NormServer.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class TransientNormServerImpl extends NormServerBaseImpl {

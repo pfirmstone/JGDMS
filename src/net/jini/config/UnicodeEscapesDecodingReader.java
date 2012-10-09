@@ -25,7 +25,7 @@ import java.io.Reader;
  * A Reader that converts Unicode escape sequences, throwing IOException for
  * malformed escapes.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 final class UnicodeEscapesDecodingReader extends Reader {

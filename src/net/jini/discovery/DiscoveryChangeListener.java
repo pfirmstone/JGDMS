@@ -27,7 +27,7 @@ package net.jini.discovery;
  *   <li> changes in the member groups of previously discovered lookup services
  * <p>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.discovery.DiscoveryListener
  * @see net.jini.discovery.DiscoveryEvent

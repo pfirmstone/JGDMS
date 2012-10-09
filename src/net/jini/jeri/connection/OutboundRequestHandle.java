@@ -39,7 +39,7 @@ import net.jini.jeri.OutboundRequestIterator;
  * request and any other request-specific information needed by the
  * transport implementation.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public interface OutboundRequestHandle {

@@ -46,7 +46,7 @@ import java.util.NoSuchElementException;
  * There is also an implicit assumption of external synchronization by the
  * caller. That is, only one calling thread will be accessing the log at a time.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  */

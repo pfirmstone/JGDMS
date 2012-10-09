@@ -53,7 +53,7 @@ import java.util.Properties;
  * multiple service objects, with each object 
  * maintaining a distinct codebase and policy. 
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  */

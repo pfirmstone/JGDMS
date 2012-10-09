@@ -22,7 +22,7 @@ import net.jini.id.Uuid;
 /**
  * Methods that recover the state of the space after a restart.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see LogOps
  * @see OutriggerServerImpl

@@ -23,7 +23,7 @@ import com.sun.jini.landlord.LeasedResource;
  * Interface that describes objects in the Outrigger implementation
  * that are leased
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 interface LeaseDesc {

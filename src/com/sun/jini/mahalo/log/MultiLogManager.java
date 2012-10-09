@@ -33,7 +33,7 @@ import java.util.logging.Logger;
 
 /**
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class MultiLogManager

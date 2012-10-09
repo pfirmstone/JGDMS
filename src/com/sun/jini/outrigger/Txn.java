@@ -83,7 +83,7 @@ import net.jini.security.ProxyPreparer;
  * same transaction and let aborts prevent other operations from
  * being started.
  *
- * @author Sun Microsystems, Inc.  
+ * 
  */
 class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 

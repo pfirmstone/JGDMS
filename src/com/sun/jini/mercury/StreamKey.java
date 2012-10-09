@@ -23,7 +23,7 @@ import java.io.File;
  * Class used as the key value for an associated <tt>LogStream</tt> object in 
  * a collection of type <tt>java.util.Map</tt>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

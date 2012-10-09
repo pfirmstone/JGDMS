@@ -58,7 +58,7 @@ import org.apache.river.impl.net.UriString;
  * directory of the Apache River release and <VAR><B>policy_dir</B></VAR> is the
  * pathname to the directory containing the policy file.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public final class SharedActivationPolicyPermission extends Permission

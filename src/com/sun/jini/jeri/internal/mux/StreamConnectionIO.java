@@ -38,7 +38,7 @@ import java.util.logging.Logger;
  * connection accessible through standard (blocking) I/O streams, i.e.
  * java.io.OutputStream and java.io.InputStream.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 final class StreamConnectionIO extends ConnectionIO {
 

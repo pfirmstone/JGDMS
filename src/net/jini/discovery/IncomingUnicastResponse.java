@@ -27,7 +27,7 @@ import net.jini.core.lookup.ServiceRegistrar;
  * This class encapsulates the details of unmarshaling an incoming
  * unicast response.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see IncomingUnicastRequest
  */

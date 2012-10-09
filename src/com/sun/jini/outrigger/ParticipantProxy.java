@@ -38,7 +38,7 @@ import net.jini.id.ReferentUuids;
  * to the inner proxy and provides implementations of <code>equals</code>
  * and <code>hashCode</code> that do reference equality.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class ParticipantProxy implements TransactionParticipant, ReferentUuid,
 				  Serializable

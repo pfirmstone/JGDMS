@@ -31,7 +31,7 @@ import net.jini.jeri.BasicInvocationDispatcher;
  * subject or the empty protection domain (a domain with all
  * <code>null</code> elements) if there is no client subject.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  **/

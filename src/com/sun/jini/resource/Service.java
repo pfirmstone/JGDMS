@@ -115,7 +115,7 @@ import java.util.logging.Logger;
  * caller.  Trusted system code should typically invoke the methods in this
  * class from within a privileged security context.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

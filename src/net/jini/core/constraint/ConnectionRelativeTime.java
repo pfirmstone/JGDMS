@@ -34,7 +34,7 @@ import java.io.Serializable;
  * The duration is translated into an absolute end time at the point of a
  * remote call by adding the caller's current time.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public final class ConnectionRelativeTime

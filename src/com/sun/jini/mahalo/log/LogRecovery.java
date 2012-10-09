@@ -21,7 +21,7 @@ package com.sun.jini.mahalo.log;
  * Describes the interface needed to be able to receive information
  * from a <code>LogManager</code>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public interface LogRecovery {

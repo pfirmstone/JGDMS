@@ -23,7 +23,7 @@ import net.jini.id.ReferentUuid;
 /**
  * Server side representation of a lease
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see LeasePeriodPolicy
  * @since 2.0

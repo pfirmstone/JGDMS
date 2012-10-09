@@ -28,7 +28,7 @@ import net.jini.core.lookup.ServiceItem;
 /**
  * Concrete implementation class for abstract ServiceEvent.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class RegistrarEvent extends ServiceEvent {

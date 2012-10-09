@@ -28,7 +28,7 @@ import net.jini.core.transaction.server.TransactionParticipant;
 
 /**
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 

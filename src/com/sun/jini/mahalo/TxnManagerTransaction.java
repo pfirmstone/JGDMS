@@ -64,7 +64,7 @@ import net.jini.security.ProxyPreparer;
  * between an instance of a ParticipantHolder and some sort
  * of key or index.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class TxnManagerTransaction

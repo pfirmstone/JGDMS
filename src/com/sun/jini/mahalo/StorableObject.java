@@ -32,7 +32,7 @@ import java.rmi.RemoteException;
  * actually deserializable, since it may not be at any given time due
  * to various factors, such as the codebase being unavailable.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public class StorableObject implements java.io.Serializable {

@@ -26,7 +26,7 @@ import java.io.PrintWriter;
  * will give a description that can be reported to the mailbox developer
  * (and may be documented in that mailbox's external documentation).
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

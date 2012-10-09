@@ -31,7 +31,7 @@ import java.rmi.RemoteException;
  * lease of no more than the requested period of time. A lease may be granted
  * for a period of time shorter than that requested.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.0
  */

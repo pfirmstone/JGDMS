@@ -25,7 +25,7 @@ import com.sun.jini.start.LifeCycle;
  * a <i>transient</i> (non-activatable, non-persistent) implementation
  * of Mahalo.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class TransientMahaloImpl extends TxnManagerImpl {

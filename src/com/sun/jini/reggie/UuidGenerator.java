@@ -26,7 +26,7 @@ import net.jini.id.UuidFactory;
  * customized by providing as configuration entry values instances of
  * subclasses which override the {@link #generate} method of this class.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  */

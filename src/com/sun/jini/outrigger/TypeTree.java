@@ -33,7 +33,7 @@ import java.util.Vector;
  * was once written, it's subtype entry will never be removed from this
  * tree.  All operations are done via class name.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see OutriggerServerImpl
  */

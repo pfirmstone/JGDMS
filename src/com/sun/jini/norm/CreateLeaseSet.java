@@ -23,7 +23,7 @@ import net.jini.id.Uuid;
 /**
  * Class that logs the creation of a set by the service
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class CreateLeaseSet extends LoggedOperation {
     private static final long serialVersionUID = 1L;

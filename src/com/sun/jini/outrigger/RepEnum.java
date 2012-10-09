@@ -21,7 +21,7 @@ package com.sun.jini.outrigger;
  * An internal interface for enumerating through <code>EntryRep</code>
  * objects inside a JavaSpace server.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see EntryHolder#contents
  */

@@ -51,7 +51,7 @@ import net.jini.core.transaction.UnknownTransactionException;
  * It implements the <code>TransactionManager</code> and the 
  * <code>Administrable</code> interfaces.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

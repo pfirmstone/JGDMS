@@ -33,7 +33,7 @@ import java.io.SyncFailedException;
  * flushing of any buffered data and synchronizing data buffers with the
  * underlying device, respectively.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

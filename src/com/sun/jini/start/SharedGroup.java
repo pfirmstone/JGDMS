@@ -27,7 +27,7 @@ import java.rmi.RemoteException;
  * Shared group objects are used to destroy the VM in which they are 
  * placed.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 

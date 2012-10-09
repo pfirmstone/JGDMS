@@ -63,7 +63,7 @@ import java.io.SyncFailedException;
  * applies the updates to the snapshot to obtain the state that
  * existed before the crash. <p>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see LogHandler
  *

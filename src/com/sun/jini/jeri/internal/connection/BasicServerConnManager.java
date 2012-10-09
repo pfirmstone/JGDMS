@@ -26,7 +26,7 @@ import net.jini.jeri.connection.ServerConnectionManager;
  * Manages server-side connections by delegating directly to
  * {@link ServerConnectionManager}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class BasicServerConnManager implements ServerConnManager {

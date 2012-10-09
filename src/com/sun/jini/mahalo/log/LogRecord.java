@@ -22,7 +22,7 @@ import java.io.Serializable;
  * Encapsulates a generic record which capable of being
  * logged.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public interface LogRecord extends Serializable {

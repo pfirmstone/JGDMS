@@ -25,7 +25,7 @@ import java.rmi.activation.ActivationGroupDesc;
  * Defines the interface for handlers of the output of activation group
  * processes.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

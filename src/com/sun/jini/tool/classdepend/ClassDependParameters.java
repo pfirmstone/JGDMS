@@ -29,7 +29,7 @@ import java.util.List;
  * This class cannot be instantiated directly, you must use a CDPBuilder to
  * return a ClassDependParamters object instance.
  * 
- * @author Peter Firmstone
+ * 
  * @see ClassDepend
  * @see CDPBuilder
  */

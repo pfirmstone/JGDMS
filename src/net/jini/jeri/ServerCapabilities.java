@@ -31,7 +31,7 @@ import net.jini.io.UnsupportedConstraintException;
  * intended to be used by an {@link InvocationDispatcher} to verify
  * support for constraints.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public interface ServerCapabilities {

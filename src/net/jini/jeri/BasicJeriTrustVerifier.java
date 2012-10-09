@@ -37,7 +37,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * specified in a resource to configure the operation of {@link
  * Security#verifyObjectTrust Security.verifyObjectTrust}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public class BasicJeriTrustVerifier implements TrustVerifier {

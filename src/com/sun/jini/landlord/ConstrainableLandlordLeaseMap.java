@@ -26,7 +26,7 @@ import com.sun.jini.proxy.ConstrainableProxyUtil;
 
 /**
  * Constrainable sub-class of <code>LandlordLeaseMap</code>.
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 final public class ConstrainableLandlordLeaseMap extends LandlordLeaseMap {

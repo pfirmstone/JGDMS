@@ -31,7 +31,7 @@ import java.io.OutputStream;
  * apply an update to a snapshot.  The client must specify these methods
  * via a subclass.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see ReliableLog
  */

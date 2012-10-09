@@ -27,7 +27,7 @@ import net.jini.core.lookup.ServiceRegistrar;
  * interested parties that one or more <code>ServiceRegistrar</code>
  * objects have been discovered or discarded during the discovery process.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see LookupDiscovery
  * @see LookupLocatorDiscovery

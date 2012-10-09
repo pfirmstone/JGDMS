@@ -22,7 +22,7 @@ package com.sun.jini.mahalo;
  * A <code>LogRecord</code> which encapsulates a participant
  * being instructed to perform the prepareAndCommit optimization.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class PrepareAndCommitRecord extends ParticipantModRecord {

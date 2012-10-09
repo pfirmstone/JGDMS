@@ -28,7 +28,7 @@ import net.jini.core.event.RemoteEvent;
  * This class provides the interface for writing <tt>RemoteEvent</tt>s to 
  * a given <tt>LogOutputStream</tt>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

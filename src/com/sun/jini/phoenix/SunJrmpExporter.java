@@ -36,7 +36,7 @@ import sun.rmi.transport.LiveRef;
  * This exporter implementation is only designed to work with
  * Java(TM) 2 Standard Edition implementations from Sun Microsystems(TM), Inc.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

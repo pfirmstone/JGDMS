@@ -42,7 +42,7 @@ package com.sun.jini.jeri.internal.runtime;
  * guidelines should be recursively obeyed by the comparison methods
  * of each such component for its subcomponents.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 final class SameClassKey {
 

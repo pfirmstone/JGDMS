@@ -43,7 +43,7 @@ import net.jini.core.event.RemoteEventListener;
  * <tt>Landlord</tt> framework. It implements the <tt>Comparable</tt> 
  * interface so that it can be used in <tt>SortedMap</tt> collections.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

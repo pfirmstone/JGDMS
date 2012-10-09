@@ -43,7 +43,7 @@ import net.jini.core.entry.Entry;
  * This interface provides access to the administrative functions 
  * of the mailbox service as defined by the <tt>TxnMgrAdmin</tt> interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

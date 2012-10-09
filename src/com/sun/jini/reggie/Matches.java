@@ -31,7 +31,7 @@ import net.jini.core.lookup.ServiceMatches;
  * This class only has a bare minimum of methods, to minimize
  * the amount of code downloaded into clients.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class Matches implements Serializable {

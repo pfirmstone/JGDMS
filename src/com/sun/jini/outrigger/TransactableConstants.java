@@ -20,7 +20,7 @@ package com.sun.jini.outrigger;
 /**
  * Useful constants for <code>Transactable</code> objects.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see Transactable
  */

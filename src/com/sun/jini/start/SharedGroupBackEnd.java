@@ -24,7 +24,7 @@ import java.rmi.Remote;
 /**
  * The <code>SharedGroupBackEnd</code> interface
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.admin.Administrable
  * 

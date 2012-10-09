@@ -21,7 +21,7 @@ package com.sun.jini.mahalo.log;
 /**
  * The possible file modes for log files.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 

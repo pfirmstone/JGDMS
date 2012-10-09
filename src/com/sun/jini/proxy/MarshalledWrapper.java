@@ -35,7 +35,7 @@ import net.jini.io.context.IntegrityEnforcement;
  * {@link MarshalledInstance#get(boolean) get} method of the contained
  * <code>MarshalledInstance</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  */

@@ -31,7 +31,7 @@ import net.jini.space.InternalSpaceException;
  * more than one transaction.  The synchronization of this object is
  * managed by the <code>EntryHandle</code> that owns it.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see EntryHandle
  */

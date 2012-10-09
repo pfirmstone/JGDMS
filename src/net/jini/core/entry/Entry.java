@@ -29,7 +29,7 @@ package net.jini.core.entry;
  * to be shared references, but instead to separate copies of the
  * original object.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.core.lookup.ServiceRegistrar
  *

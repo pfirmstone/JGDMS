@@ -37,7 +37,7 @@ import net.jini.security.AccessPermission;
  * package documentation for 
  * <a href="package-summary.html"><code>com.sun.jini.mahalo</code></a>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class MahaloPermission extends AccessPermission {

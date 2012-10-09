@@ -34,7 +34,7 @@ import net.jini.core.lease.UnknownLeaseException;
  * createLeaseMap, canBatch, hashCode, equals, and serialization of
  * any subclass state.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public abstract class AbstractLease implements Lease, java.io.Serializable {

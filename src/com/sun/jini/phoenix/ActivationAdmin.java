@@ -28,7 +28,7 @@ import java.util.Map;
  * interface is implemented directly by the same proxy that implements
  * {@link java.rmi.activation.ActivationSystem}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

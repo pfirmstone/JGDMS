@@ -174,7 +174,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * for the <code>Endpoint</code> remains valid (or while dirty calls
  * for the same <code>Endpoint</code> succeed).
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  * @com.sun.jini.impl

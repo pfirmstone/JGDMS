@@ -40,7 +40,7 @@ import net.jini.security.SecurityContext;
 /**
  * A MuxServer controls the server side of a multiplexed connection.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 public class MuxServer extends Mux {
 

@@ -44,7 +44,7 @@ import net.jini.core.constraint.MethodConstraints;
  * {@link net.jini.config.Configuration} rather than being
  * explicitly constructed.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

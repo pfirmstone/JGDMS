@@ -48,7 +48,7 @@ import net.jini.core.constraint.InvocationConstraints;
  * <code>getResponseInputStream</code> methods, or invoke the
  * <code>abort</code> method.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see InboundRequest
  * @since 2.0
  **/

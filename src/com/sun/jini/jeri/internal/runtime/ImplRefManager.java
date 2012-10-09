@@ -49,7 +49,7 @@ import net.jini.security.SecurityContext;
  * asynchronous notifications of all registered targets when a (weakly
  * referenced) impl has been garbage collected.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 final class ImplRefManager {
 

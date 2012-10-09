@@ -35,7 +35,7 @@ package net.jini.event;
  * RemoteEventIterator.close} occurs.
  * </UL>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.1
  */

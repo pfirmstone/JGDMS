@@ -30,7 +30,7 @@ import java.io.OutputStream;
  * This means that the encoded text will simply start with the first line
  * of encoded text and end with the last line of encoded text.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @see CharacterEncoder
  */

@@ -46,7 +46,7 @@ import java.security.BasicPermission;
  * - permission to execute a Runnable without the caller's
  *   protection domain in force
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 public final class ThreadPoolPermission extends BasicPermission {
 

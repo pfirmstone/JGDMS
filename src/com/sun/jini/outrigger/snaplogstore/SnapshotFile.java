@@ -32,7 +32,7 @@ import net.jini.space.InternalSpaceException;
 
 /**
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class SnapshotFile extends LogFile {
     private RandomAccessFile	snapshotFile = null;// current snapshot file

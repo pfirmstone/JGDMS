@@ -30,7 +30,7 @@ import com.sun.jini.start.LifeCycle;
  * <code>OutriggerServerWrapper</code> subclass for
  * persistent servers.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class PersistentOutriggerImpl extends OutriggerServerWrapper {

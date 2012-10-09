@@ -38,7 +38,7 @@ import net.jini.core.event.RemoteEvent;
  * objects. The iterator objects are cached so that subsequent calls 
  * for the same iterator return the same object.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 1.1
  */

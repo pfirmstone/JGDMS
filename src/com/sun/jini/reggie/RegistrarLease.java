@@ -33,7 +33,7 @@ import net.jini.id.Uuid;
 /**
  * The base class for lease proxies.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 abstract class RegistrarLease extends AbstractLease implements ReferentUuid {

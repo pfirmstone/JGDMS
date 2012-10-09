@@ -35,7 +35,7 @@ import java.util.logging.Level;
  * and <code>HANDLED</code> logging levels in standard logging configuration
  * files.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class Levels {

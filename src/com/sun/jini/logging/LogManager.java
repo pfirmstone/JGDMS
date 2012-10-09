@@ -66,7 +66,7 @@ import java.util.logging.Logger;
  * interval is less than or equal to zero
  * </table>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class LogManager extends java.util.logging.LogManager {
