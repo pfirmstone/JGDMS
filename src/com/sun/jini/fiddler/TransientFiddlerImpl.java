@@ -32,7 +32,7 @@ import java.io.IOException;
  * a <i>transient</i> (non-activatable, non-persistent) implementation
  * of Fiddler.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 class TransientFiddlerImpl extends FiddlerImpl {

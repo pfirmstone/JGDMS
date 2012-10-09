@@ -32,7 +32,7 @@ import java.rmi.RemoteException;
  *
  * @see net.jini.security.TrustVerifier
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @since 2.0
  */
