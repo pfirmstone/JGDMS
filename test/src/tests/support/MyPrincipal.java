@@ -16,7 +16,7 @@
  */
 
 /**
-* @author Stepan M. Mishura
+* 
 * @version $Revision$
 */
 

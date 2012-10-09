@@ -37,7 +37,7 @@ import static org.junit.Assert.*;
 
 /**
  *
- * @author peter
+ * 
  */
 public class DiscoveryConstraintsTest {
 

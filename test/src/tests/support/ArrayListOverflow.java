@@ -24,7 +24,7 @@ import java.util.concurrent.Callable;
 
 /**
  *
- * @author peter
+ * 
  */
 public class ArrayListOverflow implements Callable {
     

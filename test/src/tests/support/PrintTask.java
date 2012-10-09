@@ -22,7 +22,7 @@ import java.util.concurrent.Callable;
 
 /**
  *
- * @author peter
+ * 
  */
 public class PrintTask implements Callable<Boolean>{
 

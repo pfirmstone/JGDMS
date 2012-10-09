@@ -34,7 +34,7 @@ import static org.junit.Assert.assertFalse;
 /**
  * Experiment with the behavior of MuxClient's handshake when a "server" never responds.
  * @version 1.0, May 4, 2011 12:30:55 PM
- * @author cdolan
+ * 
  */
 public class MuxStartTimeoutTest {
     @Test
