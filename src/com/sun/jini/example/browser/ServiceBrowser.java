@@ -43,8 +43,6 @@ import javax.swing.event.PopupMenuEvent;
 /**
  * A browser utility to browse entries in a specified space.
  *
- * @author Sun Microsystems, Inc.
- *
  * @version 0.2 06/04/98
  *
  */

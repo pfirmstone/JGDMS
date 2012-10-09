@@ -114,8 +114,6 @@ import java.rmi.RemoteException;
  * relationships when using the methods specified by this interface
  * to tune that service's persistence mechanism.
  *
- * @author Sun Microsystems, Inc.
- *
  */
 public interface FiddlerAdmin extends JoinAdmin, DestroyAdmin {
     /**

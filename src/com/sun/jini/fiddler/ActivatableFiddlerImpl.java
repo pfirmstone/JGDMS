@@ -32,7 +32,6 @@ import java.io.IOException;
  * an implementation of Fiddler that is activatable, and which will
  * log its state information to persistent storage.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 class ActivatableFiddlerImpl extends FiddlerImpl {

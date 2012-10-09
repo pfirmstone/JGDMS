@@ -40,8 +40,6 @@ import javax.swing.JMenuItem;
 /**
  * A browser utility to browse entries in a specified space.
  *
- * @author Sun Microsystems, Inc.
- *
  * @version 0.2 06/04/98
  */
 class SpaceBrowser extends JFrame {

@@ -45,8 +45,6 @@ import java.rmi.RemoteException;
  * service. Clients only see instances of this class via the FiddlerAdmin
  * interface.
  *
- * @author Sun Microsystems, Inc.
- *
  */
 class FiddlerAdminProxy implements FiddlerAdmin, ReferentUuid, Serializable {
 

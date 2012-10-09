@@ -39,8 +39,6 @@ import net.jini.security.AccessPermission;
  * The target names that can be used with a Fiddler server are specified in
  * the package documentation for {@linkplain com.sun.jini.fiddler Fiddler}.
  *
- * @author Sun Microsystems, Inc.
- *
  * @since 2.0
  */
 public class FiddlerPermission extends AccessPermission {

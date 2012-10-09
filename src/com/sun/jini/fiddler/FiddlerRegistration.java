@@ -58,8 +58,6 @@ import java.util.HashSet;
  * this class to manage the parameters of its registration with the lookup
  * discovery service.
  *
- * @author Sun Microsystems, Inc.
- *
  * @see net.jini.discovery.LookupDiscoveryRegistration
  */
 class FiddlerRegistration implements LookupDiscoveryRegistration, 

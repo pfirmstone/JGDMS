@@ -24,8 +24,6 @@ import java.lang.reflect.Modifier;
 /**
  * Introspection related methods
  *
- * @author Sun Microsystems, Inc.
- *
  * @version 0.2 06/04/98
  *
  */

@@ -46,8 +46,6 @@ import java.rmi.MarshalledObject;
  * instances of this class via the LookupDiscoveryService interface (and
  * the FiddlerAdmin interface if needed).
  *
- * @author Sun Microsystems, Inc.
- *
  */
 class FiddlerProxy implements Administrable, LookupDiscoveryService,
                               ReferentUuid, Serializable

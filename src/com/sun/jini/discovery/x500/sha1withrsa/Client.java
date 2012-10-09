@@ -32,7 +32,6 @@ import net.jini.core.constraint.InvocationConstraints;
  * Implements the client side of the
  * <code>net.jini.discovery.x500.SHA1withRSA</code> format.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class Client

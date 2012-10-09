@@ -26,8 +26,6 @@ package com.sun.jini.fiddler;
  * to the communication between the LeaseMap proxy and the Fiddler 
  * implementation of the lookup discovery service.
  *
- * @author Sun Microsystems, Inc.
- *
  */
 class FiddlerRenewResults implements java.io.Serializable {
 

@@ -28,8 +28,6 @@ import javax.swing.Icon;
 /**
  * Based on "MetalIconFactory.java"
  *
- * @author Sun Microsystems, Inc.
- *
  */
 class MetalIcons implements Serializable {
 

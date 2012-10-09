@@ -47,8 +47,6 @@ import java.rmi.RemoteException;
  * Clients only see instances of this class via the <code>Lease</code>
  * interface.
  *
- * @author Sun Microsystems, Inc.
- *
  */
 class FiddlerLease extends AbstractLease 
                    implements ReferentUuid

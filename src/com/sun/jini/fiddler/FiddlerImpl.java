@@ -160,7 +160,6 @@ import java.util.logging.Logger;
  * The configuration entries supported by this implementation are described
  * <a href="./package-summary.html#fiddlerConfigEntries">here</a>.
  *
- * @author Sun Microsystems, Inc.
  */
 class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
 

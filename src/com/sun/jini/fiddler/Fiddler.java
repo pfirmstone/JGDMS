@@ -47,8 +47,6 @@ import java.rmi.RemoteException;
  * on behalf of a client, using the private protocol defined by a class
  * that implements this interface.
  *
- * @author Sun Microsystems, Inc.
- *
  */
 interface Fiddler extends Remote, Administrable, FiddlerAdmin,
                           ServiceProxyAccessor

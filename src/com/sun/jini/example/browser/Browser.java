@@ -134,7 +134,6 @@ import net.jini.space.JavaSpace;
 /**
  * Example service browser. See the package documentation for details.
  *
- * @author Sun Microsystems, Inc.
  */
 public class Browser extends JFrame {
     static final String BROWSER = "com.sun.jini.example.browser";

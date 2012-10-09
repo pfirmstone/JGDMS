@@ -90,7 +90,6 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *   <li> field modification is not based on EditableTree
  * </ul>
  *
- * @author Sun Microsystems, Inc.
  */
 class ServiceEditor extends JFrame {
   private static final Logger logger = Browser.logger;

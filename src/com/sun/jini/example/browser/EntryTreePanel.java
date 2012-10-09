@@ -32,11 +32,7 @@ import javax.swing.tree.TreeCellRenderer;
 import javax.swing.plaf.metal.MetalLookAndFeel;
 
 /**
- *
- * @author Sun Microsystems, Inc.
- *
  * @version 0.2 06/04/98
- *
  */
 abstract class EntryTreePanel extends JPanel {
   /**

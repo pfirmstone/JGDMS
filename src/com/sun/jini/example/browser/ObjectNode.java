@@ -26,8 +26,6 @@ import javax.swing.Icon;
 
 /**
  *
- * @author Sun Microsystems, Inc.
- *
  * @version 0.2 06/04/98
  *
  */

@@ -49,8 +49,6 @@ import java.util.Iterator;
  * Clients only see instances of this class via the  <code>LeaseMap</code>
  * interface.
  *
- * @author Sun Microsystems, Inc.
- *
  */
 class FiddlerLeaseMap extends AbstractLeaseMap {
 
