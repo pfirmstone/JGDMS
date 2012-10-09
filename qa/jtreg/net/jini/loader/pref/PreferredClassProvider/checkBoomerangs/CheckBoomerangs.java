@@ -29,7 +29,7 @@
  * not be compatible with local types defined from the same class file
  * in the relevant VM.
  *
- * @author Laird Dornin
+ * 
  *
  * @library ../../../../../../testlibrary
  * @build Boomerang CheckBoomerangs CheckBoomerangs_Stub

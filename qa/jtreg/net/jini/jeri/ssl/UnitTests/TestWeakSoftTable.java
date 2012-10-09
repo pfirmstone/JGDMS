@@ -17,7 +17,7 @@
  */
 /* @test %W% %E%
  * @summary Tests the WeakSoftTable class.
- * @author Tim Blackman
+ * 
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @build TestUtilities

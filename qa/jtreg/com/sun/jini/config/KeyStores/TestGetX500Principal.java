@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests KeyStores.getX500Principal
- * @author Tim Blackman
+ * 
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @run main/othervm/policy=policy TestGetX500Principal

@@ -20,7 +20,7 @@
  * 
  * @summary synopsis: rmid should not destroy group when it reports
  * inactiveGroup
- * @author Ann Wollrath
+ * 
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID ActivationLibrary

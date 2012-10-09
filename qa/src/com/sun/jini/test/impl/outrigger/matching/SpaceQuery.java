@@ -35,7 +35,7 @@ import net.jini.core.entry.UnusableEntryException;
  * Because this is indented for use in a test framework entries pulled
  * out of the JavaSpace will be check against the template
  *
- * @author John McClain
+ * 
  */
 public abstract class SpaceQuery {
 

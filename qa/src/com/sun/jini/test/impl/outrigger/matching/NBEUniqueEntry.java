@@ -53,7 +53,7 @@ import java.net.InetAddress;
  * @see UniqueEntry
  * @see net.jini.entry.AbstractEntry
  *
- * @author John W. F. McClain
+ * 
  */
 public class NBEUniqueEntry implements net.jini.core.entry.Entry {
 

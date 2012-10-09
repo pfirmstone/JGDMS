@@ -19,7 +19,7 @@
  * @bug 4402154 4302502
  * 
  * @summary test SecureDispatcher.checkClientPermisson
- * @author Bob Scheifler
+ * 
  * @run main/othervm/policy=security.policy CheckClientPermission
  */
 import net.jini.export.ServerContext;

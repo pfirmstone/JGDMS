@@ -33,7 +33,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * TransactionExpirationTest asserts, that when the lease expires,
  * the entry is removed from the space within the transaction.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionExpirationTest extends AbstractTestBase {
 

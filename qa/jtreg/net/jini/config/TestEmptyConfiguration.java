@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests the EmptyConfiguration class
- * @author Tim Blackman
+ * 
  * @library ../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @run main TestEmptyConfiguration

@@ -43,7 +43,7 @@ import com.sun.jini.qa.harness.QAConfig;
 /**
  * This class is needed to prevent normal committing operation.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class ParticipantImpl implements TransactionParticipant, 
 					TransactionConstants,

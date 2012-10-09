@@ -22,7 +22,7 @@ package com.sun.jini.test.impl.outrigger.transaction;
  * This tests to see if conflicting transactions that are abandoned are
  * monitored.
  *
- * @author Ken Arnold
+ * 
  */
 public class BlockingOnDeadTransactionTestPoll
         extends BlockingOnDeadTransactionTest {

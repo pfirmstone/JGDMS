@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests ConfigurationFile constructors
- * @author Tim Blackman
+ * 
  * @library ../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @run main/othervm/policy=policy TestConstructor

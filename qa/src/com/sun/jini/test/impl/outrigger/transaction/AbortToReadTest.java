@@ -34,7 +34,7 @@ import net.jini.core.transaction.Transaction;
  * first transaction.  This should cause the conflict to be cleared up, and
  * the read to return the entry.
  *
- * @author Ken Arnold
+ * 
  */
 public class AbortToReadTest extends TransactionTestBase
         implements com.sun.jini.constants.TimeConstants {

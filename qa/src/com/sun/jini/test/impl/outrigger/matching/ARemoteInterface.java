@@ -22,7 +22,7 @@ package com.sun.jini.test.impl.outrigger.matching;
  *
  * A Remote Interface
  *
- * @author John W. F. McClain
+ * 
  */
 public interface ARemoteInterface extends java.rmi.Remote {
 

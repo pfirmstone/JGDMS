@@ -26,7 +26,7 @@ import com.sun.jini.test.share.LeaseOwner;
  * This class is provides only essential and basic behavior to the
  * lease that it owns.
  *
- * @author Steven Harris - SMI Software Development 
+ * 
  */
 public class BasicLeaseOwner extends LeaseOwner {
 

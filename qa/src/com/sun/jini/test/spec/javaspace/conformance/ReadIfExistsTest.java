@@ -37,7 +37,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * 4) A readIfExists request will return a matching entry, or null if there
  *    is currently no matching entry in the space.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class ReadIfExistsTest extends AbstractReadTestBase {
 

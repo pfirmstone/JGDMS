@@ -32,7 +32,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
 /**
  * Abstract Test Base tests take/takeIfExists methods for snapshots.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public abstract class SnapshotAbstractTakeTestBase
         extends SnapshotAbstractTestBase {

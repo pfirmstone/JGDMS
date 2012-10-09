@@ -58,7 +58,7 @@
  *           recurse on each call.
  *           The default is 7 levels.
  *
- * @author Peter Jones, Nigel Daley
+ * 
  */
 package com.sun.jini.test.impl.reliability;
 

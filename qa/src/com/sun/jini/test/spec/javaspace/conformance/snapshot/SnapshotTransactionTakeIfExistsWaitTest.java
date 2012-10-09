@@ -43,7 +43,7 @@ import com.sun.jini.test.spec.javaspace.conformance.EntryWriter;
  *
  * It tests this statement for snapshots.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class SnapshotTransactionTakeIfExistsWaitTest
         extends SnapshotAbstractTestBase {

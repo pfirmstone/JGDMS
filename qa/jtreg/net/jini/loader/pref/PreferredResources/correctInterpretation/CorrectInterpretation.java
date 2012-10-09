@@ -18,7 +18,7 @@
 /* @test 
  * @summary functional test to verify that preferred resource provider
  * correctly implements preferred classes and resource functionality
- * @author Laird Dornin
+ * 
  *
  * @library ../../../../../../testlibrary
  * @build TestLibrary

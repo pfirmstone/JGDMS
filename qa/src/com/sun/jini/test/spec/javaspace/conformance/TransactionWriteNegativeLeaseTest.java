@@ -31,7 +31,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * IllegalArgumentException if the lease time requested is negative
  * and is not equal to Lease.ANY within the non null transaction.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionWriteNegativeLeaseTest extends AbstractTestBase {
 

@@ -29,7 +29,7 @@ import java.rmi.RemoteException;
  * This class only has a bare minimum of methods, to minimize
  * the amount of code downloaded into clients.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class Template implements java.io.Serializable {

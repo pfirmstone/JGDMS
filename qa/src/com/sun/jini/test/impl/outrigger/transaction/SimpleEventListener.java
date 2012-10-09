@@ -39,7 +39,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * Simple event listener class.
  * This class will be used to test <code>notify</code> facilities.
  *
- * @author H. Fukuda
+ * 
  */
 public class SimpleEventListener
     implements RemoteEventListener, ServerProxyTrust, Serializable

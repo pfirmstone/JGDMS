@@ -32,7 +32,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * TransactionCommitTakeTest asserts that a take is considered to be successful
  * only if all enclosing transactions commit successfully.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionCommitTakeTest extends AbstractTestBase {
 

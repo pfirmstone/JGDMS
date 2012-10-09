@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests the AbstractConfiguration class
- * @author Tim Blackman
+ * 
  * @library ../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @run main TestAbstractConfiguration

@@ -137,7 +137,7 @@ import com.sun.jini.admin.DestroyAdmin;
  * these relationships when using the methods below to tune the
  * persistence mechanism.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 public interface RegistrarAdmin

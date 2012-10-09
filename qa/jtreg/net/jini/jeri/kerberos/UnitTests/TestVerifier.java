@@ -17,7 +17,7 @@
  */
 /* @test
  * @summary Tests the jgss trust verifier.
- * @author Daniel Jiang
+ * 
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @run main/othervm

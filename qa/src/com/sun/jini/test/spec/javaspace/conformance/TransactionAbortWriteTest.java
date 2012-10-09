@@ -31,7 +31,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * TransactionAbortWriteTest asserts that entries written under a transaction
  * that aborts are discarded.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionAbortWriteTest extends AbstractTestBase {
 

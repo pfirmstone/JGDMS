@@ -44,7 +44,7 @@ import java.rmi.RemoteException;
  *        transaction. This causes <tt>TransactionException</tt>.
  * </ol>
  *
- * @author H.Fukuda
+ * 
  */
 public class ExceptionTest1 extends TransactionTestBase {
 

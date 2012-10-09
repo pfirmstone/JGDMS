@@ -28,6 +28,6 @@ import net.jini.space.JavaSpace;
  * query should have been return by a take, possibly under a
  * transaction.
  *
- * @author John McClain
+ * 
  */
 public abstract class TakeQuery extends SpaceQuery {}

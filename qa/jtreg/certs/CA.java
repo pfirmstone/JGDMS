@@ -80,7 +80,7 @@ import org.bouncycastle.pkcs.jcajce.JcaPKCS10CertificationRequestHolder;
  * -CA Generate Certificate Authority.
  * -CR Process Certification Requests.
  * 
- * @author peter
+ * 
  */
 public class CA {
     

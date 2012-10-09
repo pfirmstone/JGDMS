@@ -32,7 +32,7 @@ import java.io.ObjectStreamException;
  *
  * A Remote Interface
  *
- * @author John W. F. McClain
+ * 
  */
 public class ARemoteInterfaceImpl
     implements ARemoteInterface, ServerProxyTrust, Serializable

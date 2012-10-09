@@ -22,7 +22,7 @@
  * that loaded the class of the activatable object itself, to maximize the
  * likelihood of type compatibility between downloaded parameter types and
  * supertypes shared with the activatable object.
- * @author Peter Jones (much code taken from Ann Wollrath's activation tests)
+ * 
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID ActivationLibrary

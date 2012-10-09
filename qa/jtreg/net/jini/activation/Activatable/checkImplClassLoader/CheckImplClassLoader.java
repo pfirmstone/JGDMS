@@ -19,7 +19,7 @@
  * @bug 4289544
  * @summary ActivationGroupImpl.newInstance does not set context classloader for impl
  *
- * @author Laird Dornin; code borrowed from Ann Wollrath
+ * 
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID JavaVM StreamPipe

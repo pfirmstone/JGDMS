@@ -46,7 +46,7 @@ import java.util.logging.Level;
  * </ul>
  *
  * @see com.sun.jini.test.impl.outrigger.matching.JavaSpaceAuditor
- * @author John W. F. McClain
+ * 
  */
 public class AuditorSummary {
 

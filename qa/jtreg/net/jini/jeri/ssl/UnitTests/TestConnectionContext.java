@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests the ConnectionContext class
- * @author Tim Blackman
+ * 
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test TestUtilities
  * @run main/othervm/policy=policy TestConnectionContext

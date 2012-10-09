@@ -38,7 +38,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *    transaction (and not taken) will cause appropriate notifications for
  *    registrations that were made under a null transaction.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class NotifyNullTxnParamTest extends AbstractTestBase {
 

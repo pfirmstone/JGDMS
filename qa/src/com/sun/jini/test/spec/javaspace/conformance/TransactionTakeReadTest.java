@@ -30,7 +30,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * TransactionTakeReadTest asserts that when taken,
  * an entry may not be read or taken by any other transaction.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionTakeReadTest extends AbstractTestBase {
 

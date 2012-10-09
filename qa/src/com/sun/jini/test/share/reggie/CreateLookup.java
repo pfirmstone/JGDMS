@@ -37,7 +37,7 @@ import java.util.Properties;
  * that are specific to the desired service, and which can be invoked by the
  * the utility class.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see com.sun.jini.start.ServiceStarter
  */

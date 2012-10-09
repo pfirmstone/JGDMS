@@ -20,7 +20,7 @@
  * @summary Test that ensures that classes in the system class loader can be found when
  * the defaultLoader is the system class loader and 
  *
- * @author Laird Dornin
+ * 
  *
  * @library ../../../../../../testlibrary
  * @build DefaultIsExtensionLoader TestClass

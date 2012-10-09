@@ -27,7 +27,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * WriteNegativeLeaseTest asserts, that we will get an IllegalArgumentException
  * if the lease time requested is negative and is not equal to Lease.ANY.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class WriteNegativeLeaseTest extends AbstractTestBase {
 

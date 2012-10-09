@@ -19,7 +19,7 @@
  * @bug 4302502
  * 
  * @summary test basic permission-based access control for a secure rmid
- * @author Bob Scheifler
+ * 
  * 
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID

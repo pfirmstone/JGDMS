@@ -77,7 +77,7 @@ import com.sun.jini.qa.harness.TestException;
  * </ul>
  *
  * @see net.jini.space.JavaSpace
- * @author John W. F. McClain
+ * 
  */
 public class JavaSpaceAuditor implements JavaSpace {
     private JavaSpace space; // JavaSpace we are auditing

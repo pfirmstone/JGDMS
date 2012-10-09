@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests performance of RMI and JSSE.
- * @author Tim Blackman
+ * 
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @build TestUtilities

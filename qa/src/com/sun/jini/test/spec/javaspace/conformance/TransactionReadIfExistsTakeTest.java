@@ -31,7 +31,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * method, an entry may be read in any other transaction to which the entry
  * is visible, but cannot be taken in another transaction.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionReadIfExistsTakeTest extends AbstractTestBase {
 

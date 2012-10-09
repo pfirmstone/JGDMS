@@ -38,7 +38,7 @@ import net.jini.core.lease.UnknownLeaseException;
  * methods for transformed Lease and LeaseMap interfaces, for service and
  * event leases.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 interface Registrar extends java.rmi.Remote, Administrable, RegistrarAdmin {

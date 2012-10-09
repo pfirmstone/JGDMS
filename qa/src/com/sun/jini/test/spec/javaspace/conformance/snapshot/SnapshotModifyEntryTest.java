@@ -34,7 +34,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  * 1) Modifications to the original entry will not affect the snapshot.
  * 2) You can snapshot a null template.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class SnapshotModifyEntryTest extends SnapshotAbstractTestBase {
 

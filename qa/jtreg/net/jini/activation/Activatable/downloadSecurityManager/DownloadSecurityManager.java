@@ -21,7 +21,7 @@
  * @summary Activation groups should be able to download and 
  * install a security manager.
  *
- * @author Laird Dornin; code borrowed from Ann Wollrath
+ * 
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID ActivationLibrary

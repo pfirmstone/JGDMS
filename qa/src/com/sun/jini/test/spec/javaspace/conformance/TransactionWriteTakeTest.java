@@ -32,7 +32,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * outside the transaction and will not be added to the space when the
  * transaction commits.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionWriteTakeTest extends AbstractTestBase {
 

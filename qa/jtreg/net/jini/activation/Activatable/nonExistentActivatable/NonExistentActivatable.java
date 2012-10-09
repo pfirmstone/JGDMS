@@ -20,7 +20,7 @@
  *
  * @summary synopsis: NoSuchObjectException not thrown for non-existent
  * activatable objects
- * @author Ann Wollrath
+ * 
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID ActivationLibrary

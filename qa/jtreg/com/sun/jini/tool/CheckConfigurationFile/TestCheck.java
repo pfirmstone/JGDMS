@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests CheckConfigurationFile
- * @author Tim Blackman
+ * 
  * @library ../../../../../unittestlib ../../../../../testlibrary
  * @build UnitTestUtilities BasicTest TestLibrary Test
  * @run main/othervm/policy=policy/secure=NoExit TestCheck

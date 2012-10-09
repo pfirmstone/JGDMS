@@ -19,7 +19,7 @@
  * @bug 4302502
  * 
  * @summary test basic operations of the constraint classes
- * @author Bob Scheifler
+ * 
  * @run main/othervm/timeout=240 BasicOperations
  */
 import java.io.Serializable;

@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Performs user-level tests defined at the RMI level.
- * @author Tim Blackman
+ * 
  * @library ../../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @build TestUtilities

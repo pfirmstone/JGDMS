@@ -30,7 +30,7 @@ import net.jini.core.transaction.Transaction;
  * TakeTest05 tests JavaSpace05.take method with null transaction.
  * See comments to run() method for details.
  *
- * @author Pavel Bogdanov
+ * 
  */
 public class TakeTest05 extends AbstractTestBase {
 

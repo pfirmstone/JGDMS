@@ -30,7 +30,7 @@
  * created) can be garbage collected after the remote object has been
  * unexported.  [Note that this test is somewhat at the mercy of other J2SE
  * subsystems also not holding on to the loader in their daemon threads.]
- * @author Peter Jones
+ * 
  *
  * @build RuntimeThreadInheritanceLeak
  * @run main/othervm RuntimeThreadInheritanceLeak

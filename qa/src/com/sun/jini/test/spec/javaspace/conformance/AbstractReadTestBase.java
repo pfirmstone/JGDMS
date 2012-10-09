@@ -29,7 +29,7 @@ import com.sun.jini.qa.harness.TestException;
 /**
  * Abstract Test Base tests read/readIfExists methods.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public abstract class AbstractReadTestBase extends AbstractTestBase {
 

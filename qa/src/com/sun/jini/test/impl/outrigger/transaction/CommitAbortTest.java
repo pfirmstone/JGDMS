@@ -42,7 +42,7 @@ import net.jini.core.transaction.Transaction;
  *   <li> Check results.
  * </ol>
  *
- * @author H.Fukuda
+ * 
  */
 public class CommitAbortTest extends TransactionTestBase {
 

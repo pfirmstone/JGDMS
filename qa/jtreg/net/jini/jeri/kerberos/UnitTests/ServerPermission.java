@@ -24,7 +24,7 @@ import net.jini.security.AccessPermission;
  * which you have permission to call using the matching rules provided
  * by AccessPermission.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @version %E%
  */
 public class ServerPermission extends AccessPermission {

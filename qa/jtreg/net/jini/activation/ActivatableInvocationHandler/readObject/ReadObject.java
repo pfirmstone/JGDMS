@@ -19,7 +19,7 @@
  * @bug 4842263
  * @summary AIH.readObject should throw InvalidObjectException if
  * 	    constraints inconsistent.
- * @author Ann Wollrath
+ * 
  *
  * @build ReadObject
  * @run main/othervm/policy=security.policy/timeout=240 ReadObject

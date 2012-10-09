@@ -40,7 +40,7 @@ import com.sun.jini.test.share.TestBase;
 /**
  * This class provides a common facilities of tests in this package.
  *
- * @author H.Fukuda
+ * 
  */
 public abstract class TransactionTestBase extends TestBase {
     protected boolean verbose = true;

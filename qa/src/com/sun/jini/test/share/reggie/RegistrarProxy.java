@@ -34,7 +34,7 @@ import java.security.PrivilegedAction;
  * via the ServiceRegistrar interface (and the RegistrarAdmin interface
  * if they need it).
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class RegistrarProxy implements ServiceRegistrar, Administrable,

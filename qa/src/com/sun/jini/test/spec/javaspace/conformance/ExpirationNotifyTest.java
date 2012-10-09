@@ -35,7 +35,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * remembered as long as an un-taken entry would be, until the lease expires,
  * or until any governing transaction completes, whichever is shorter.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class ExpirationNotifyTest extends AbstractTestBase {
 

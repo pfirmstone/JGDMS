@@ -39,7 +39,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * It tests these statements for snapshots.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class SnapshotTransactionExpirationTest
         extends SnapshotAbstractTestBase {

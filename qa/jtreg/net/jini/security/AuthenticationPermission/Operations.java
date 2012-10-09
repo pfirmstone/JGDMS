@@ -19,7 +19,7 @@
  * @bug 4302502
  * 
  * @summary test basic operations of AuthenticationPermission
- * @author Bob Scheifler
+ * 
  * @run main/othervm Operations
  */
 import java.io.*;

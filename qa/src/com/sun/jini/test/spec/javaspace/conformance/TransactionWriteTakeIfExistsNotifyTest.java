@@ -34,7 +34,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * transaction before the transaction is committed, listeners registered
  * under a null transaction will not be notified of that entry.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionWriteTakeIfExistsNotifyTest extends AbstractTestBase {
 

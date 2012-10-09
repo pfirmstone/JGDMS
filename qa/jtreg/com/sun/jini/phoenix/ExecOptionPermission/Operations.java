@@ -18,7 +18,7 @@
 /* @test 
  * 
  * @summary test basic operations of ExecOptionPermission
- * @author Bob Scheifler
+ * 
  * @library ../../../../../testlibrary
  * @build RMID Operations
  * @run main/othervm/policy=security.policy Operations

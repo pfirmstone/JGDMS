@@ -32,7 +32,7 @@ import net.jini.space.MatchSet;
  * ContentsTest05 tests JavaSpace05.contents method with null transaction.
  * See comments to run() method for details.
  *
- * @author Pavel Bogdanov
+ * 
  */
 public class ContentsTest05 extends AbstractTestBase {
 

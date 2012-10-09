@@ -36,7 +36,7 @@ import com.sun.jini.qa.harness.TestException;
  * JavaSpace05.registerForAvailabilityEvent method with null transaction.
  * See comments to run() method for details.
  *
- * @author Pavel Bogdanov
+ * 
  */
 public class RegisterForAvailabilityEventTest05 extends AbstractTestBase {
 

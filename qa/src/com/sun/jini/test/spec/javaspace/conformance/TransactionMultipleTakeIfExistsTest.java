@@ -37,7 +37,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * It tests multiple takeIfExists operations for different templates.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionMultipleTakeIfExistsTest extends AbstractTakeTestBase {
 

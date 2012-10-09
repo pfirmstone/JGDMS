@@ -22,7 +22,7 @@ import net.jini.core.lookup.*;
 /**
  * Concrete implementation class for abstract ServiceEvent.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class RegistrarEvent extends ServiceEvent {

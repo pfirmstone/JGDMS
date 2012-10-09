@@ -34,7 +34,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * that transaction in addition to the notifications it would receive under
  * a null transaction.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class NotifyNonNullTxnParamTest extends AbstractTestBase {
 

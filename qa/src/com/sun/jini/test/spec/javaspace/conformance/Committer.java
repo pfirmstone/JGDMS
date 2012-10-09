@@ -27,7 +27,7 @@ import net.jini.core.transaction.server.TransactionManager;
  * Class which is needed to prevent transaction's
  * normal committing completion.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class Committer extends Thread {
 

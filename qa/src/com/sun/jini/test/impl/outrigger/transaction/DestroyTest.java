@@ -50,7 +50,7 @@ import java.rmi.RemoteException;
  *   <li> Check results.
  * </ol>
  *
- * @author H.Fukuda
+ * 
  */
 public class DestroyTest extends TransactionTestBase {
 

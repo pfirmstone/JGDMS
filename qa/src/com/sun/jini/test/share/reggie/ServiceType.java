@@ -39,7 +39,7 @@ import java.util.StringTokenizer;
  * ClassResolver is always used and that equality is only interesting
  * in the registrar.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see ClassMapper
  * @see ClassResolver

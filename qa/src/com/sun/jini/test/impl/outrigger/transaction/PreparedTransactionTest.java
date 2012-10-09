@@ -56,7 +56,7 @@ import com.sun.jini.test.share.TesterTransactionManager;
  *
  * </dl>
  *
- * @author Ken Arnold
+ * 
  */
 public abstract class PreparedTransactionTest extends TransactionTestBase
         implements TransactionConstants, com.sun.jini.constants.TimeConstants {

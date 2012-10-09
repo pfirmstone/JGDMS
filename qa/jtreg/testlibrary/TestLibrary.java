@@ -18,10 +18,10 @@
 /**
  * 
  *
- * @author Adrian Colley
- * @author Laird Dornin
- * @author Peter Jones
- * @author Ann Wollrath
+ * 
+ * 
+ * 
+ * 
  *
  * The rmi library directory contains a set of simple utiltity classes
  * for use in rmi regression tests.

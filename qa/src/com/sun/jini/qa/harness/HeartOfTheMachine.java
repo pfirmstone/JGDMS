@@ -24,7 +24,7 @@ import java.util.logging.Logger;
 
 /**
  *
- * @author sim
+ * 
  */
 public class HeartOfTheMachine
 {

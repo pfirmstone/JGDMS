@@ -33,7 +33,7 @@ import com.sun.jini.qa.harness.TestException;
  * 2) If no match is found, null is returned.
  * 3) Passing a null reference for the template will match any entry.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TakeTest extends AbstractTakeTestBase {
 

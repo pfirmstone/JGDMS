@@ -30,7 +30,7 @@ import java.lang.ref.ReferenceQueue;
  * that equals and isAssignableFrom methods work correctly.  Two instances
  * are considered equivalent if they have the same class name.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class ClassResolver {

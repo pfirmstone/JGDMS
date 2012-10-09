@@ -23,7 +23,7 @@ package com.sun.jini.test.share;
  * AbstractTestLeaseFactory declares a single method which the LeaseBackEndImpl
  * can use to create any type of lease.
  *
- * @author Steven Harris - SMI Software Development
+ * 
  */
 abstract public class AbstractTestLeaseFactory extends Object {
     

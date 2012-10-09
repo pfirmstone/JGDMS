@@ -32,7 +32,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
 /**
  * Abstract Test Base tests read/readIfExists methods for snapshots.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public abstract class SnapshotAbstractReadTestBase
         extends SnapshotAbstractTestBase {

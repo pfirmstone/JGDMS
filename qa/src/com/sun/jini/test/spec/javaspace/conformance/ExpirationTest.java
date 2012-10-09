@@ -31,7 +31,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * ExpirationTest asserts, that when the lease expires,
  * the entry is removed from the space.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class ExpirationTest extends AbstractTestBase {
 

@@ -35,7 +35,7 @@ import com.sun.jini.qa.harness.TestException;
  * 3) If no match is found, null is returned.
  * 4) Passing a null reference for the template will match any entry.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class ReadNO_WAITTest extends AbstractReadTestBase {
 

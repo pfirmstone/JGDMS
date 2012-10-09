@@ -24,7 +24,7 @@ import com.sun.jini.test.spec.javaspace.conformance.AbstractTestBase;
 /**
  * Abstract Test base for all javaspace conformance tests for snapshots.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public abstract class SnapshotAbstractTestBase extends AbstractTestBase {
 }

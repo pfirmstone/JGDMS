@@ -45,7 +45,7 @@ import net.jini.core.transaction.TransactionException;
  *        because it is operating under a completed transaction.
  * </ol>
  *
- * @author H.Fukuda
+ * 
  */
 public class CommitTerminationTest extends TransactionTestBase {
 

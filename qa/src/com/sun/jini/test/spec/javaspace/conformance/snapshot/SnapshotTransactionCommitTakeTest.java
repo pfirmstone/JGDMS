@@ -41,7 +41,7 @@ import com.sun.jini.test.spec.javaspace.conformance.Committer;
  *
  * It tests this statement for snapshots.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class SnapshotTransactionCommitTakeTest
         extends SnapshotAbstractTestBase {

@@ -30,7 +30,7 @@ import java.util.ArrayList;
  * This class only has a bare minimum of methods, to minimize
  * the amount of code downloaded into clients.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class Matches implements java.io.Serializable {

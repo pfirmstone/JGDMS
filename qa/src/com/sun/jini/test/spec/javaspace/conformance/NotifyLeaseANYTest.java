@@ -36,7 +36,7 @@ import com.sun.jini.qa.harness.TestException;
  * 3) When matching entries arrive, the specified RemoteEventListener will
  *    eventually be notified by invoking listener's notify method.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class NotifyLeaseANYTest extends AbstractTestBase {
 

@@ -35,7 +35,7 @@ import net.jini.space.MatchSet;
  * with usage of transactions.
  * See comments to run() method for details.
  *
- * @author Pavel Bogdanov
+ * 
  */
 public class TransactionContentsTest05 extends AbstractTestBase {
 

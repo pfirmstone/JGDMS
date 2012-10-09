@@ -37,7 +37,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * 4) If a write returns without throwing an exception, that entry is
  *    committed to the space, possibly within a transaction.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionWriteLeaseANYTest extends AbstractTestBase {
 

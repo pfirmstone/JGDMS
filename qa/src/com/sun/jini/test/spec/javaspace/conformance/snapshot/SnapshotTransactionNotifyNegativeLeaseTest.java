@@ -40,7 +40,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * It tests this statement for snapshots.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class SnapshotTransactionNotifyNegativeLeaseTest
         extends SnapshotAbstractTestBase {

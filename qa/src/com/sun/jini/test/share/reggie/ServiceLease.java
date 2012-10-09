@@ -25,7 +25,7 @@ import java.rmi.RemoteException;
  * A ServiceLease is a proxy for a service registration lease at a registrar.
  * Clients only see instances via the Lease interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class ServiceLease extends RegistrarLease {

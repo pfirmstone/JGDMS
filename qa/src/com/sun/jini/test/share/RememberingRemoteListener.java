@@ -41,7 +41,7 @@ import net.jini.export.Exporter;
  * receives and the time each event was received. The time is stored
  * in milliseconds from Jan. 1, 1970.
  *
- * @author Steven Harris - SMI Software Development 
+ * 
  */
 public class RememberingRemoteListener extends RemoteListener {
     

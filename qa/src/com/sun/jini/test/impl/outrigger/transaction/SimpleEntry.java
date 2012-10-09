@@ -25,7 +25,7 @@ import net.jini.entry.AbstractEntry;
  * Simple entry class.
  * This class will be used in all tests in this package.
  *
- * @author H. Fukuda
+ * 
  */
 public class SimpleEntry extends AbstractEntry {
 

@@ -44,7 +44,7 @@ import com.sun.jini.qa.harness.QAConfig;
 /**
  * This auxilary class listens for notify events and counts them.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class NotifyCounter
     implements RemoteEventListener, ServerProxyTrust, Serializable

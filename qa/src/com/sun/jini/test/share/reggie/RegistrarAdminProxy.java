@@ -33,7 +33,7 @@ import java.lang.reflect.Field;
  * A RegistrarAdminProxy is a proxy for a registrar.  Clients only see
  * instances via the RegistrarAdmin interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class RegistrarAdminProxy implements RegistrarAdmin, Serializable {

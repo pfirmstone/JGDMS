@@ -36,7 +36,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * can be returned that would not interfere with transactional state,
  * null is returned.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionReadIfExistsWaitTest extends AbstractTestBase {
 

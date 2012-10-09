@@ -20,7 +20,7 @@
  * @summary Functional test to verify configurability of the preferred
  * class provider using the NoProvider
  *
- * @author Laird Dornin
+ * 
  *
  * @library ../../../../../../testlibrary
  * @build ExerciseNoProvider Foo Bar ConnectBack TestLoaderProvider

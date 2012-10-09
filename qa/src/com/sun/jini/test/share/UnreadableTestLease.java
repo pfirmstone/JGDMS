@@ -27,7 +27,7 @@ import java.io.ObjectInputStream;
  * UnreadableTestLease isA TestLease that will throw an IOException
  * when an attempt is made to deserialize the Lease.
  *
- * @author Steven Harris - SMI Software Development 
+ * 
  */
 public class UnreadableTestLease extends TestLease {
     

@@ -22,7 +22,7 @@ import net.jini.core.lease.*;
 /**
  * The base class for lease proxies.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 abstract class RegistrarLease extends com.sun.jini.lease.AbstractLease {

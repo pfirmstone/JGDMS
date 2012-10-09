@@ -30,7 +30,7 @@ import com.sun.jini.qa.harness.TestException;
 /**
  * Abstract Test Base tests take/takeIfExists methods.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public abstract class AbstractTakeTestBase extends AbstractTestBase {
 

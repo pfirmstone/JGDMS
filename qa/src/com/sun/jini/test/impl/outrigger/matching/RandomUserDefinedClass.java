@@ -22,7 +22,7 @@ package com.sun.jini.test.impl.outrigger.matching;
  *
  * A Random User Defined Class
  *
- * @author John W. F. McClain
+ * 
  */
 class RandomUserDefinedClass implements java.io.Serializable {
     public int aInt;

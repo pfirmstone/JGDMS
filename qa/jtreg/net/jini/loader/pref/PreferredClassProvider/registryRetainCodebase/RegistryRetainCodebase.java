@@ -23,7 +23,7 @@
  * passed through the rmiregistry in a series of remote method
  * invocations.  The stub class is preferred.
  *
- * @author Laird Dornin
+ * 
  *
  * @library ../../../../../../testlibrary
  * @build RegistryRetainCodebase BasicRemote Client RegistryRetainCodebase_Stub

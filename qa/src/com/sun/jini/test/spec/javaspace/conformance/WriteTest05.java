@@ -26,7 +26,7 @@ import net.jini.core.lease.Lease;
  * WriteTest05 tests JavaSpace05.write method with null transaction.
  * See comments to run() method for details.
  *
- * @author Pavel Bogdanov
+ * 
  */
 public class WriteTest05 extends AbstractTestBase {
 

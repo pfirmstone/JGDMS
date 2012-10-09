@@ -23,7 +23,7 @@ import java.io.IOException;
 /**
  * A ServiceType annotated with a codebase.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class ServiceTypeBase implements java.io.Serializable {

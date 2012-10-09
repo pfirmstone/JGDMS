@@ -26,7 +26,7 @@ import net.jini.space.JavaSpace;
 /**
  * Class which writes sample entry to the space in specified time.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class EntryWriter extends Thread {
 

@@ -36,7 +36,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * It tests multiple take operations for different templates.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class MultipleTakeTest extends AbstractTakeTestBase {
 

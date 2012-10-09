@@ -31,7 +31,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * until a matching entry is found or until transactions settle,
  * whichever is longer, up to the timeout period.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionTakeWaitTest extends AbstractTestBase {
 

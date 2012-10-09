@@ -48,7 +48,7 @@ import java.net.InetAddress;
  * <code>UniqueEntry(UniqueEntry)</code> constructor is provide to
  * produce template for exactly this purpose.
  *
- * @author John W. F. McClain
+ * 
  */
 public class UniqueEntry extends net.jini.entry.AbstractEntry {
 

@@ -20,7 +20,7 @@
 
  * @summary synopsis: activatable object fails to go inactive after
  * unregister/inactive sequence.
- * @author Ann Wollrath
+ * 
  *
  * @library ../../../../../testlibrary
  * @build TestLibrary RMID ActivationLibrary

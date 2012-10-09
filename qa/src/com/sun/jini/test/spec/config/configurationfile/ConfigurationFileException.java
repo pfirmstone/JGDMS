@@ -31,7 +31,7 @@ import net.jini.config.ConfigurationFile;
  * thrown while processing the configuration information is propagated to the 
  * caller; it is not wrapped in a <code>ConfigurationFileException</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see ConfigurationException
  * @see ConfigurationFile
  * @since 2.1

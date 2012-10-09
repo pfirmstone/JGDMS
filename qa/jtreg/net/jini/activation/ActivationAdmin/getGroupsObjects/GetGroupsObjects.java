@@ -18,7 +18,7 @@
 /* @test 
  * 
  * @summary test getActivationGroups and getActivableObjects methods
- * @author Bob Scheifler
+ * 
  * @library ../../../../../testlibrary
  * @build ActivationLibrary RMID
  * @build GetGroupsObjects

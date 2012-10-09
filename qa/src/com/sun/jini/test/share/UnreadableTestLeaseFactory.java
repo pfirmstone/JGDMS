@@ -25,7 +25,7 @@ import net.jini.core.constraint.RemoteMethodControl;
 /**
  * UnreadableTestLeaseFactory creates a new instance of an UnreadableTestLease.
  *
- * @author Steven Harris - SMI Software Development
+ * 
  */
 public class UnreadableTestLeaseFactory extends TestLeaseFactory {
     

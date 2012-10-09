@@ -38,7 +38,7 @@ import net.jini.core.transaction.Transaction;
  *   <li> check the results.
  * </ol>
  *
- * @author H.Fukuda
+ * 
  */
 public class TwoSpaceTest extends TransactionTestBase {
 

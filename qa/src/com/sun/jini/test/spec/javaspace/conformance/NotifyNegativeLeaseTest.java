@@ -32,7 +32,7 @@ import com.sun.jini.qa.harness.TestException;
  * an IllegalArgumentException if the lease time requested
  * is not Lease.ANY and is negative.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class NotifyNegativeLeaseTest extends AbstractTestBase {
 

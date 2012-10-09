@@ -30,7 +30,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * LeaseTest asserts, that each write invocation returns a Lease object
  * that is lease milliseconds long.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class LeaseTest extends AbstractTestBase {
 

@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary Tests ConfigurationProvider.getInstance
- * @author Tim Blackman
+ * 
  * @library ../../../../unittestlib
  * @build UnitTestUtilities BasicTest Test
  * @run main/othervm/policy=policy TestGetInstance

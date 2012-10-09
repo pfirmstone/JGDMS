@@ -31,7 +31,7 @@ import java.rmi.RemoteException;
  * <code>read</code>, <code>readIfExists</code>,
  * <code>take</code> and <code>takeIfExists</code>.
  *
- * @author H.Fukuda
+ * 
  */
 public class SpaceOperation {
     private boolean useRead;

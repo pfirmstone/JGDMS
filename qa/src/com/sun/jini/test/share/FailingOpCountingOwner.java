@@ -27,7 +27,7 @@ import net.jini.core.lease.UnknownLeaseException;
  * A lease owner whose behavior is to throw expecptions and keep a
  * count of the operations performed on its TestLease.
  *
- * @author Steven Harris - SMI Software Development */
+ * 
 public class FailingOpCountingOwner extends FailingOwner {
     
     /**

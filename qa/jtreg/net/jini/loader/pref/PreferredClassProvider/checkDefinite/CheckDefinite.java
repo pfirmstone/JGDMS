@@ -22,7 +22,7 @@
  * the preferred list definitely does not exist in the resources of a
  * class loader
  *
- * @author Laird Dornin
+ * 
  *
  * @library ../../../../../../testlibrary
  * @build CheckDefinite

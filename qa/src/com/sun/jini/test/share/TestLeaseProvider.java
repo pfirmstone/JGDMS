@@ -39,7 +39,7 @@ import com.sun.jini.test.share.TestLease;
  * found in the com.sun.jini.test.share package.
  * 
  *
- * @author Steven F. Harris - SMI Software Development 
+ * 
  */
 public class TestLeaseProvider {
 

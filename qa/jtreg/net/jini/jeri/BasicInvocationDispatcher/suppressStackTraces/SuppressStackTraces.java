@@ -29,7 +29,7 @@
  * property provides an opportunity to suppress the server-side stack trace
  * data of exceptions thrown by remote methods from being marshalled, perhaps
  * for reasons of performance or confidentiality requirements.
- * @author Peter Jones
+ * 
  *
  * @build SuppressStackTraces
  * @run main/othervm SuppressStackTraces

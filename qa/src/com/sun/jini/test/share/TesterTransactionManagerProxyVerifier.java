@@ -30,7 +30,7 @@ import net.jini.core.transaction.server.*;
 /**
  * Trust verifier for smart proxies used by Reggie.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 final class TesterTransactionManagerProxyVerifier implements TrustVerifier, Serializable {

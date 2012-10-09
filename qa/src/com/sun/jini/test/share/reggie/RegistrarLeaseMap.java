@@ -28,7 +28,7 @@ import java.util.Iterator;
  * The LeaseMap implementation class for registrar leases.  Clients only see
  * instances via the LeaseMap interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class RegistrarLeaseMap extends com.sun.jini.lease.AbstractLeaseMap {

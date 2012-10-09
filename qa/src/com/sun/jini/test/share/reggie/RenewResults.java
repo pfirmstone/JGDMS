@@ -22,7 +22,7 @@ package com.sun.jini.test.share.reggie;
  * registrar.  Instances are never visible to clients, they are private
  * to the communication between the LeaseMap proxy and the registrar.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 class RenewResults implements java.io.Serializable {

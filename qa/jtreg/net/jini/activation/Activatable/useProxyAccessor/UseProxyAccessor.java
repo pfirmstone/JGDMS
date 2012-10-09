@@ -17,7 +17,7 @@
  */
 /* @test 
  * @summary test for ProxyAccessor use in conjunction with activation
- * @author Ann Wollrath
+ * 
  *
  * @library ../../../../../testlibrary
  * @build  UseProxyAccessor UseProxyAccessor_Stub

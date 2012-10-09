@@ -32,7 +32,7 @@ import com.sun.jini.test.spec.javaspace.conformance.NotifyCounter;
 /**
  * This auxilary class listens for notify events and counts them.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class SnapshotNotifyCounter extends NotifyCounter {
 

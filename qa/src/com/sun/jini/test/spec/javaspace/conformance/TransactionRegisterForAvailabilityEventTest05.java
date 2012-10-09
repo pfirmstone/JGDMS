@@ -38,7 +38,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * JavaSpace05.registerForAvailabilityEvent method with usage of transactions.
  * See comments to run() method for details.
  *
- * @author Pavel Bogdanov
+ * 
  */
 public class TransactionRegisterForAvailabilityEventTest05
         extends AbstractTestBase

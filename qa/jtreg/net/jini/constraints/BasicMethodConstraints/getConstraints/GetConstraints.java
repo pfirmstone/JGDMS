@@ -18,7 +18,7 @@
 /* @test 
  * 
  * @summary test BasicMethodConstraints.getConstraints
- * @author Bob Scheifler
+ * 
  * @run main/othervm GetConstraints
  */
 import java.lang.reflect.Method;

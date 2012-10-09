@@ -49,7 +49,7 @@ import java.rmi.RemoteException;
  *        The number should be the same with events related (2).
  * </ol>
  *
- * @author H.Fukuda
+ * 
  */
 public class NotifyTransactionTest extends TransactionTestBase {
 

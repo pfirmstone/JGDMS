@@ -33,7 +33,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * non null transaction is not visible outside its transaction until the
  * transaction successfully commits.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionCommitWriteTest extends AbstractTestBase {
 

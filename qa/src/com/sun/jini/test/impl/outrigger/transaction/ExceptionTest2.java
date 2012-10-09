@@ -41,7 +41,7 @@ import net.jini.core.transaction.TransactionException;
  *   <li> Thread #1 will be thrown <tt>TransactionException</tt>.
  * </ol>
  *
- * @author H.Fukuda
+ * 
  */
 public class ExceptionTest2 extends TransactionTestBase {
 

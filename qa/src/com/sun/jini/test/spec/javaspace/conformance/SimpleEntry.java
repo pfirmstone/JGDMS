@@ -24,7 +24,7 @@ import net.jini.core.entry.Entry;
 /**
  * Simple implementation of Entry interface.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class SimpleEntry implements Entry, Cloneable {
 

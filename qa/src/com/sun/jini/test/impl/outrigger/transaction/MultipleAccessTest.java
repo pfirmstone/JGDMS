@@ -40,7 +40,7 @@ import java.rmi.RemoteException;
  *   <li> Make sure all entries are passed correctly.
  * </ul>
  *
- * @author H.Fukuda
+ * 
  */
 public class MultipleAccessTest extends TransactionTestBase {
     private final static int NUM_WORKERS = 4;

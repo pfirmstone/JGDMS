@@ -30,7 +30,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * TransactionTakeIfExistsReadTest asserts that when taken by takeIfExists
  * method, an entry may not be read or taken by any other transaction.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionTakeIfExistsReadTest extends AbstractTestBase {
 

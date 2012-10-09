@@ -42,7 +42,7 @@ import net.jini.security.proxytrust.SingletonProxyTrustIterator;
 /**
  * RegistrarProxy subclass that supports constraints.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 final class TesterTransactionManagerConstrainableProxy

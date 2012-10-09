@@ -29,7 +29,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
 /**
  * Trust verifier for smart proxies used by Reggie.
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  */
 final class LookupSimulatorProxyVerifier implements TrustVerifier, Serializable {

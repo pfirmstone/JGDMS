@@ -36,7 +36,7 @@ import java.rmi.UnmarshalException;
  * This tests to see if conflicting transactions that are abandoned are
  * monitored.
  *
- * @author Ken Arnold
+ * 
  */
 public class BlockingOnDeadTransactionTest extends TransactionTestBase
         implements com.sun.jini.constants.TimeConstants {

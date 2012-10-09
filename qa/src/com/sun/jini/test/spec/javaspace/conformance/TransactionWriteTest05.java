@@ -32,7 +32,7 @@ import net.jini.core.lease.Lease;
  * with usage of transactions.
  * See comments to run() method for details.
  *
- * @author Pavel Bogdanov
+ * 
  */
 public class TransactionWriteTest05 extends AbstractTestBase {
 

@@ -64,7 +64,7 @@ import net.jini.core.transaction.Transaction;
  *   <li> Check results.
  * </ol>
  *
- * @author H.Fukuda
+ * 
  */
 public class IfExistsTest extends TransactionTestBase {
 

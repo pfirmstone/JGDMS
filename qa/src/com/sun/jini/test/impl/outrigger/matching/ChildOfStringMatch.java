@@ -22,7 +22,7 @@ package com.sun.jini.test.impl.outrigger.matching;
  *
  * Simple JavaSpace entry class for testing JavaSpace matching
  *
- * @author John W. F. McClain
+ * 
  */
 public class ChildOfStringMatch extends StringMatch {
     public Float aFloat = null;

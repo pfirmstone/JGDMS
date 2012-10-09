@@ -41,7 +41,7 @@ import com.sun.jini.test.spec.javaspace.conformance.NotifyCounter;
  *
  * It tests this statement for snapshots.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class SnapshotExpirationNotifyTest extends SnapshotAbstractTestBase {
 

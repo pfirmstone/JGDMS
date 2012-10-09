@@ -47,7 +47,7 @@ import net.jini.config.ConfigurationException;
 /**
  * Abstract Test base for all javaspace conformance tests.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public abstract class AbstractTestBase extends QATest {
 

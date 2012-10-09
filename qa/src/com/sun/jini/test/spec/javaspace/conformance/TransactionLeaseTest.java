@@ -31,7 +31,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * TransactionLeaseTest asserts, that each write invocation within the non null
  * transaction returns a Lease object that is lease milliseconds long.
  *
- * @author Mikhail A. Markov
+ * 
  */
 public class TransactionLeaseTest extends AbstractTestBase {
 

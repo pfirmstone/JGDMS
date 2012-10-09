@@ -41,7 +41,7 @@ import com.sun.jini.qa.harness.TestException;
  * receives and if the event is an ExpirationWarningEvent it will attempt
  * to renew the lease.
  *
- * @author Steven Harris - SMI Software Development 
+ * 
  */
 public class RenewingRemoteListener extends RememberingRemoteListener {
     
