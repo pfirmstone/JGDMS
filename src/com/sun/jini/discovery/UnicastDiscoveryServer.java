@@ -29,7 +29,6 @@ import net.jini.io.UnsupportedConstraintException;
  * Interface implemented by classes which handle the server (lookup service)
  * side of unicast discovery.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface UnicastDiscoveryServer extends DiscoveryFormatProvider {

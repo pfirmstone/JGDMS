@@ -38,7 +38,6 @@ import net.jini.io.UnsupportedConstraintException;
  * {@link net.jini.core.constraint.ConnectionRelativeTime},
  * {@link net.jini.core.constraint.ConnectionAbsoluteTime}.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class DiscoveryConstraints {

@@ -29,7 +29,6 @@ import net.jini.io.UnsupportedConstraintException;
  * Interface implemented by classes which perform the client (discovering) side
  * of unicast discovery.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface UnicastDiscoveryClient extends DiscoveryFormatProvider {

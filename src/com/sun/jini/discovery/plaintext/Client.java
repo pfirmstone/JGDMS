@@ -38,7 +38,6 @@ import net.jini.io.UnsupportedConstraintException;
  * Implements the client side of the <code>net.jini.discovery.plaintext</code>
  * discovery format.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class Client

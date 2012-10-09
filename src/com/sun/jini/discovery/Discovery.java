@@ -79,7 +79,6 @@ import net.jini.io.UnsupportedConstraintException;
  *
  * </table>
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public abstract class Discovery {

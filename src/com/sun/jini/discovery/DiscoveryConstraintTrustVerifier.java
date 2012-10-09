@@ -27,7 +27,6 @@ import net.jini.security.TrustVerifier;
  * a resource to configure the operation of {@link
  * net.jini.security.Security#verifyObjectTrust Security.verifyObjectTrust}.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class DiscoveryConstraintTrustVerifier implements TrustVerifier {

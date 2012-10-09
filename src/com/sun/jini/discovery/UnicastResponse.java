@@ -24,7 +24,6 @@ import net.jini.core.lookup.ServiceRegistrar;
 /**
  * Class representing the values obtained as the result of unicast discovery.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class UnicastResponse {

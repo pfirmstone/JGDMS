@@ -25,7 +25,6 @@ import net.jini.core.lookup.ServiceID;
 /**
  * Class representing the values in a multicast announcement.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class MulticastAnnouncement {

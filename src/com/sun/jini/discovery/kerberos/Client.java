@@ -45,7 +45,6 @@ import net.jini.jeri.kerberos.KerberosEndpoint;
  * Implements the client side of the <code>net.jini.discovery.kerberos</code>
  * unicast discovery format.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class Client implements UnicastDiscoveryClient {

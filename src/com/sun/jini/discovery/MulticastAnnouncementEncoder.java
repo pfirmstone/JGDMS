@@ -25,7 +25,6 @@ import net.jini.core.constraint.InvocationConstraints;
  * Interface implemented by classes which encode multicast announcement data
  * according to discovery protocol formats.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface MulticastAnnouncementEncoder extends DiscoveryFormatProvider {

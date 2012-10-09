@@ -30,7 +30,6 @@ import net.jini.core.constraint.InvocationConstraint;
  * discovery clients can use this constraint to specify the range of multicast
  * transmissions used in discovery.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public final class MulticastTimeToLive

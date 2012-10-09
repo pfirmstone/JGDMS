@@ -30,7 +30,6 @@ import net.jini.core.constraint.InvocationConstraint;
  * specify the maximum length of time that reads of unicast discovery data will
  * block.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public final class UnicastSocketTimeout 

@@ -33,7 +33,6 @@ import net.jini.core.constraint.InvocationConstraint;
  * can also be used to control the size of the buffers used to receive incoming
  * multicast request and announcement packets.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public final class MulticastMaxPacketSize

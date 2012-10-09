@@ -31,7 +31,6 @@ package com.sun.jini.discovery;
  * declare methods for the various provider operations, such as encoding or
  * decoding discovery data.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface DiscoveryFormatProvider {

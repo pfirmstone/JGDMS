@@ -25,7 +25,6 @@ import java.io.IOException;
  * interpret packet data, or multicast request/announcement data that cannot
  * fit within a given packet length.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class DiscoveryProtocolException extends IOException {

@@ -40,7 +40,6 @@ import net.jini.jeri.ssl.SslServerEndpoint;
  * Implements the server side of the <code>net.jini.discovery.ssl</code>
  * unicast discovery format.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class Server implements UnicastDiscoveryServer {

@@ -31,7 +31,6 @@ import net.jini.core.constraint.InvocationConstraint;
  * announcement and unicast discovery protocols are used to exchange data with
  * each other.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public final class DiscoveryProtocolVersion

@@ -25,7 +25,6 @@ import java.net.DatagramPacket;
  * Iterator for performing multicast encode operations on (potentially)
  * multiple discovery format providers.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface EncodeIterator {
