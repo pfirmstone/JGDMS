@@ -29,7 +29,6 @@ import javax.security.auth.Subject;
  * controlling whether or not data can be accepted from or exchanged with a
  * client authenticated as the given subject.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface ClientSubjectChecker {

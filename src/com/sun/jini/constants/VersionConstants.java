@@ -20,8 +20,6 @@ package com.sun.jini.constants;
 /**
  * Interface that holds the version string for the current release
  *
- * @author Sun Microsystems, Inc.
- *
  */
 public interface VersionConstants {
     /** Current version of the Apache River release */ 

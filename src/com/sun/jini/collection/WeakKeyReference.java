@@ -30,8 +30,6 @@ import java.lang.ref.WeakReference;
  * This class is public so that it can be used in other tables for
  * which <code>WeakTable</code> won't work.
  *
- * @author Sun Microsystems, Inc.
- *
  */
 public class WeakKeyReference extends WeakReference {
     /** The key's hashcode, set at creation. */

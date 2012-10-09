@@ -39,7 +39,6 @@ import net.jini.jeri.ssl.SslServerEndpoint;
  * conveniently from within the source of a {@link Configuration}. This class
  * cannot be instantiated.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class KeyStores {

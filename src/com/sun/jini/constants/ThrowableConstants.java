@@ -35,8 +35,6 @@ import net.jini.io.UnsupportedConstraintException;
 /**
  * Various constants useful in processing exceptions
  *
- * @author Sun Microsystems, Inc.
- *
  */
 public class ThrowableConstants {
     /**

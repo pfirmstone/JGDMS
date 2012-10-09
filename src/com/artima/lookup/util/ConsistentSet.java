@@ -42,8 +42,6 @@ import java.io.Serializable;
  * <code>ConsistentSet</code> that contains mutable objects will maintain a
  * consistent serialized form only so long as the mutable objects are not
  * mutated.
- *
- * @author Bill Venners
  */
 public class ConsistentSet extends AbstractSet implements Serializable {
 

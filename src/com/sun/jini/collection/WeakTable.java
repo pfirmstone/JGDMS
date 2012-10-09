@@ -47,8 +47,6 @@ import java.util.HashMap;
  *  }
  * </pre>
  *
- * @author Sun Microsystems, Inc.
- *
  */
 public class WeakTable {
     /** The map of known objects.  */

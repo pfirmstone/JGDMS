@@ -27,8 +27,6 @@ import java.util.Map;
 /**
  * Identity-based weak hash map.
  *
- * @author Sun Microsystems, Inc.
- *
  * @since 2.0
  */
 public class WeakIdentityMap {

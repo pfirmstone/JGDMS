@@ -33,7 +33,6 @@ import javax.security.auth.Subject;
  * client subjects based on whether or not they have been granted a particular
  * permission.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class ClientPermissionChecker implements ClientSubjectChecker {

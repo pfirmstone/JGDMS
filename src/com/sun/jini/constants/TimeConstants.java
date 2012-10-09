@@ -20,8 +20,6 @@ package com.sun.jini.constants;
 /**
  * Various constants useful in calculating times.
  *
- * @author Sun Microsystems, Inc.
- *
  */
 public interface TimeConstants {
     /** Tics per second. */

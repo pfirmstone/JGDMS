@@ -28,7 +28,6 @@ import java.nio.ByteBuffer;
  * datagram packets (if needed) by writing to multiple buffers obtained from
  * the factory.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public interface DatagramBufferFactory {

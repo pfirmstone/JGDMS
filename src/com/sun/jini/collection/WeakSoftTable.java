@@ -35,7 +35,6 @@ import java.util.Map;
  * insure that instances of this class are not accessed concurrently while they
  * are being modified.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public final class WeakSoftTable {

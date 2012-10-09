@@ -39,8 +39,6 @@ import java.io.Serializable;
  * <code>ConsistentMapEntry</code> that contains mutable objects will maintain a
  * consistent serialized form only so long as the mutable objects are not
  * mutated.
- *
- * @author Bill Venners
  */
 final class ConsistentMapEntry implements Map.Entry, Serializable {
 

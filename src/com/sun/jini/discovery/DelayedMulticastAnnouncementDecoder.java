@@ -26,7 +26,6 @@ import net.jini.core.constraint.InvocationConstraints;
  * Interface implemented by classes which decode multicast announcement data
  * and additionally support delayed constraint checking.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.1
  */
 public interface DelayedMulticastAnnouncementDecoder

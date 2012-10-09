@@ -22,8 +22,6 @@ package com.sun.jini.admin;
  * Admin interface for destroying a service.  Administrable services are
  * encouraged to have their admin object implement this interface.
  *
- * @author Sun Microsystems, Inc.
- *
  * @see net.jini.admin.Administrable#getAdmin
  */
 public interface DestroyAdmin {

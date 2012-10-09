@@ -39,7 +39,6 @@ import net.jini.config.ConfigurationException;
  *
  * </table>
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  */
 public class Config {

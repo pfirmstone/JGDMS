@@ -30,8 +30,6 @@ import java.lang.annotation.Target;
  * <i>QualifiedIdentifier</i>, as defined in the
  * <i>Java(TM) Language Specification (JLS)</i>, and is typically the class or
  * package name of the object being configured.
- *
- * @author Dennis Reedy
  */
 @Documented
 @Retention (RetentionPolicy.RUNTIME)

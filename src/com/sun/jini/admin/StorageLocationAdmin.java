@@ -26,8 +26,6 @@ import java.io.IOException;
  * storage.  Administrable services are encouraged to have their admin
  * object implement this interface.
  *
- * @author Sun Microsystems, Inc.
- *
  * @see net.jini.admin.Administrable#getAdmin
  */
 public interface StorageLocationAdmin {

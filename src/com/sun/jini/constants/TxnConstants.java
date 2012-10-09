@@ -22,8 +22,6 @@ import net.jini.core.transaction.server.TransactionConstants;
 /**
  * Names for constants common to transaction managers and participants.
  *
- * @author Sun Microsystems, Inc.
- *
  */
 
 public class TxnConstants implements TransactionConstants {

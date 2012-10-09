@@ -26,7 +26,6 @@ import java.net.UnknownHostException;
  * A set of static convenience methods for use in configuration files.
  * This class cannot be instantiated.
  *
- * @author Sun Microsystems, Inc.
  * @since 2.0
  * @see net.jini.config.ConfigurationFile
  */

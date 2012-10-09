@@ -29,8 +29,6 @@ import java.util.Map;
  * for garbage-collected values.  This is a simplified version of
  * sun.misc.SoftCache.
  *
- * @author Sun Microsystems, Inc.
- *
  * @since 2.0
  */
 public class SoftCache {
