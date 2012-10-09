@@ -99,7 +99,7 @@ import net.jini.security.ProxyPreparer;
  *   System properties for the activation group executable, specified as pairs
  *   of keys and values
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class ActivatableServer extends Server {
 

@@ -24,7 +24,7 @@ import java.rmi.RemoteException;
 /**
  * Defines a simple remote interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public interface Hello extends Remote {

@@ -68,7 +68,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *   login and supplying the Subject to use when running the server. If null,
  *   no JAAS login is performed.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class Server implements Hello, ServerProxyTrust, ProxyAccessor {
 

@@ -25,7 +25,7 @@ import net.jini.security.AccessPermission;
  * Server class. The name specifies the names of the method which you have
  * permission to call using the matching rules provided by AccessPermission.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public class ServerPermission extends AccessPermission {

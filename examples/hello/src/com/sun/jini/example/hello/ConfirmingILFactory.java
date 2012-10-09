@@ -40,7 +40,7 @@ import net.jini.jeri.ServerCapabilities;
  * Defines an <code>InvocationLayerFactory</code> that uses pop-up dialog
  * windows to confirm calls.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class ConfirmingILFactory extends BasicILFactory {
 

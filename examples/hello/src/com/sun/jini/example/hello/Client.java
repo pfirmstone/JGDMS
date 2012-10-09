@@ -62,7 +62,7 @@ import net.jini.security.ProxyPreparer;
  *                null, config)
  *   Object used for discovering a server that implement Hello.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class Client {
 

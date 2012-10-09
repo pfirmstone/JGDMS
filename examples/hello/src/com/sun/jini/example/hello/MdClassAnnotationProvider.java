@@ -37,7 +37,7 @@ import net.jini.url.httpmd.HttpmdUtil;
  * o export.codebase.source -- the name of the directory containing the source
  *   files corresponding to the URLs in the codebase
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 public class MdClassAnnotationProvider
