@@ -36,7 +36,7 @@ import net.jini.core.event.RemoteEvent;
  * to defer the unmarshalling of the lease and <code>Throwable</code>
  * until the client explicitly asks for them.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  * @see LeaseRenewalSet 
  */
 public abstract class RenewalFailureEvent extends RemoteEvent {

@@ -25,7 +25,7 @@ import java.io.*;
  * will give a description that can be reported to the space developer
  * (and may be documented in that space's external documentation).
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see JavaSpace
  */

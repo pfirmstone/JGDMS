@@ -22,7 +22,7 @@ package net.jini.lease;
  * implement if they want to receive desired expiration reached events
  * in addition to renewal failure events.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see LeaseRenewalManager
  */
 public interface DesiredExpirationListener extends LeaseListener {

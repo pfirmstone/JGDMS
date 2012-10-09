@@ -65,7 +65,7 @@ import net.jini.core.lease.Lease;
  * exceptional conditions occurring when unmarshalling a set of
  * marshalled <code>Lease</code> objects.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  * @see Lease 
  */
 public class LeaseUnmarshalException extends Exception {

@@ -16,8 +16,8 @@
  */
 
 /**
-* @author Alexey V. Varlamov
- * @author Peter Firmstone
+* 
+ * 
 * @version $Revision$
 */
 

@@ -56,7 +56,7 @@ package net.jini.lookup.ui;
  * providers of services and main UIs should program defensively, to ensure that multiple Main UIs
  * for the same service at the same time will all work together concurrently.
  *
- * @author Bill Venners
+ * 
 */
 
 public interface MainUI {

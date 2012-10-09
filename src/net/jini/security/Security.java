@@ -147,7 +147,7 @@ import org.apache.river.api.security.SubjectDomain;
  * </tr>
  * </table>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public final class Security {

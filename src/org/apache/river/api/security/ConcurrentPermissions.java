@@ -74,7 +74,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * TODO: Serialization properly
  * @version 0.5 2012/04/18
  * 
- * @author Peter Firmstone
+ * 
  * @since 2.2.1
  * @serial permsMap
  */
@@ -225,7 +225,7 @@ implements Serializable {
      * Any number of these Enumerations may be utilised , each accessed by 
      * a separate thread.
      * 
-     * @author Peter Firmstone
+     * 
      */   
     private final static class PermissionEnumerator implements Enumeration<Permission> {
         private final static Enumeration<Permission> empty = 

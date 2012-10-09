@@ -59,7 +59,7 @@ import net.jini.core.constraint.RemoteMethodControl;
  * <li> Do nothing, to use as a default when retrieving an optional
  * configuration entry, or to prepare a non-secure proxy. </ul>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class BasicProxyPreparer implements ProxyPreparer, Serializable {

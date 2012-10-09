@@ -47,7 +47,7 @@ import net.jini.security.GrantPermission;
  * {@link GrantPermission}s covering all permissions authorized to given
  * protection domains.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  * @com.sun.jini.impl <!-- Implementation Specifics -->

@@ -41,7 +41,7 @@ import net.jini.security.SecurityContext;
  * context, with <code>wrap</code> methods implemented to return privileged
  * action wrappers that properly restore the thread local state.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

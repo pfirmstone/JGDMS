@@ -49,7 +49,7 @@ import net.jini.jeri.RequestDispatcher;
  * for the session, and response data is written as the data sent for
  * the session.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  * @com.sun.jini.impl

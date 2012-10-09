@@ -75,7 +75,7 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
  * @see SecurityContext
  * @see AccessControlContext
  * 
- * @author Peter Firmstone
+ * 
  */
 public class CombinerSecurityManager 
 extends SecurityManager implements CachingSecurityManager {

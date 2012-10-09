@@ -27,7 +27,7 @@ import com.artima.lookup.util.ConsistentSet;
  * UI attribute that lists UI factory interfaces of which a UI factory
  * is an instance.
  *
- * @author Bill Venners
+ * 
  */
 public class UIFactoryTypes implements java.io.Serializable {
 

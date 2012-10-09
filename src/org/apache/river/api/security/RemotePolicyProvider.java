@@ -48,7 +48,7 @@ import net.jini.security.GrantPermission;
 
 /**
  *
- * @author Peter Firmstone
+ * 
  */
 public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy,
         ScalableNestedPolicy{

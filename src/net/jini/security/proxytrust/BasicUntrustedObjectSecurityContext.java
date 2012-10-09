@@ -36,7 +36,7 @@ import net.jini.security.SecurityContext;
  * context to use to restrict privileges when invoking methods on untrusted
  * objects, based on a specified set of permissions.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.1
  */
 public final class BasicUntrustedObjectSecurityContext

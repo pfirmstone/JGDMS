@@ -26,7 +26,7 @@ import org.apache.river.api.security.PermissionGrant;
 /**
  * Based on the Apache Harmony interface of the same name, although not compatible.
  * 
- * @author Peter Firmstone
+ * 
  */
 public interface PolicyParser {
 

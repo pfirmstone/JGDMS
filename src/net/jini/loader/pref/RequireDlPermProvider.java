@@ -29,7 +29,7 @@ import net.jini.loader.DownloadPermission;
  * about how to install and configure the <code>RMIClassLoader</code>
  * service provider.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public class RequireDlPermProvider extends PreferredClassProvider {

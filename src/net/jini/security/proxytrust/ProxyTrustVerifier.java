@@ -96,7 +96,7 @@ import net.jini.security.TrustVerifier;
  * </tr>
  * </table>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class ProxyTrustVerifier implements TrustVerifier {

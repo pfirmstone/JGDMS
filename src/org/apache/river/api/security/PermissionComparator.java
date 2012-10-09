@@ -48,7 +48,7 @@ import java.util.Comparator;
  * PermissionCollection's like SocketPermissionCollection and 
  * FilePermissionCollection.
  * 
- * @author Peter Firmstone.
+ * 
  * @since 2.2.1
  */
 public class PermissionComparator implements Comparator<Permission>, Serializable {

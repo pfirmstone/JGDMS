@@ -221,7 +221,7 @@ import net.jini.loader.DownloadPermission;
  * Classes that are in a package named <code>com.bar</code> are not
  * preferred because of the default preferred entry.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public class PreferredClassLoader extends URLClassLoader

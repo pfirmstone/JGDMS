@@ -28,7 +28,7 @@ import java.util.Collection;
  * the implementer to add Permission objects to a PermissionCollection in
  * an order that avoids unnecessary reverse DNS calls for example.
  * 
- * @author Peter Firmstone
+ * 
  */
 public interface ScalableNestedPolicy {
     

@@ -208,7 +208,7 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
  * In particular, the case of <code><i>N</i></code> being the binary
  * name of an array class is supported.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  *
  * @com.sun.jini.impl

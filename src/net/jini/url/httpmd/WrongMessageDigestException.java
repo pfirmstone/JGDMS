@@ -24,7 +24,7 @@ import java.io.IOException;
  * Thrown when the message digest for data retrieved from an HTTPMD URL does
  * not match the value specified in the URL.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see Handler
  * @since 2.0
  */

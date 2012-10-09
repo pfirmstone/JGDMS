@@ -24,7 +24,7 @@ import net.jini.core.entry.Entry;
  * A JavaBeans(TM) component that encapsulates a Status object.  Since the 
  * Status class is abstract, so too is this JavaBeans component.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see Status
  */

@@ -43,7 +43,7 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
  * Segments are comparable, but shouldn't be compared until after segmentation
  * is completed, so initially should be stored in an unsorted Collection.
  * 
- * @author Peter Firmstone.
+ * 
  */
 class Segment implements Comparable {
     private Segment previous;

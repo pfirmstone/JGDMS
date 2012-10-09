@@ -30,7 +30,7 @@ import java.rmi.RemoteException;
  * <code>LeaseRenewalService</code> and any <code>LeaseRenewalSet</code>
  * it has created) is atomic with respect to other invocations.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  * @see LeaseRenewalSet 
  */
 

@@ -74,7 +74,7 @@ import com.artima.lookup.util.ConsistentMap;
  * The version number must begin with a number.
  * </BLOCKQUOTE>
  *
- * @author Bill Venners
+ * 
  */
 public class RequiredPackages implements java.io.Serializable {
 

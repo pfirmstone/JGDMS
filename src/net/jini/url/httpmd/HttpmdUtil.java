@@ -37,7 +37,7 @@ import net.jini.security.Security;
 /**
  * Provides utility methods for creating and using HTTPMD URLs.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public class HttpmdUtil {

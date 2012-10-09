@@ -58,7 +58,7 @@ import net.jini.security.GrantPermission;
  * own domain Permissions during initialisation, it doesn't consult
  * PermissionGrant's thereafter.
  * 
- * @author Peter Firmstone
+ * 
  * @since 2.2.1
  */
 public abstract class PermissionGrant {

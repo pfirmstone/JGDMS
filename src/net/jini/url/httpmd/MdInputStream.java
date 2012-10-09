@@ -32,7 +32,7 @@ import java.util.logging.Logger;
  * message digest. The message digest is not checked unless the end of the
  * input stream is reached.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  */
 class MdInputStream extends InputStream {

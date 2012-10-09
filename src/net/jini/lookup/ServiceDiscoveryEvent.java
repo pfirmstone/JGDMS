@@ -30,7 +30,7 @@ import net.jini.core.lookup.ServiceItem;
  * This class is used by 
  * {@link net.jini.lookup.ServiceDiscoveryManager ServiceDiscoveryManager}.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see ServiceDiscoveryManager
  */

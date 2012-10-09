@@ -42,7 +42,7 @@ import net.jini.loader.pref.PreferredClassProvider;
  * PreferredClassProvider} and its subclasses do support this
  * interface.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public interface ClassAnnotation {

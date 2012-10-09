@@ -23,7 +23,7 @@ package net.jini.lookup.entry;
  * than the service that registered itself should not attempt to add
  * or modify any object that implements this interface.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.core.entry.Entry
  */

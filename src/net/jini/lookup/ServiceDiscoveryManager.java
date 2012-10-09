@@ -594,7 +594,7 @@ import java.util.Set;
  * standard logging configuration files.
  * <p>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.discovery.DiscoveryManagement
  * @see net.jini.lookup.LookupCache

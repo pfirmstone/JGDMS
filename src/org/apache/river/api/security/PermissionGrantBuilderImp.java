@@ -46,7 +46,7 @@ import java.util.logging.Logger;
  * PermissinGrantBuilderImp ensures the correct PermissionGrant implementation
  * is returned, this reduces the 
  * 
- * @author Peter Firmstone
+ * 
  */
 class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         Serializable{

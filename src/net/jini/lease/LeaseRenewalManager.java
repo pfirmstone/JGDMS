@@ -118,7 +118,7 @@ import net.jini.core.lease.UnknownLeaseException;
  * calls from that method to any other method of this class are
  * guaranteed not to result in a deadlock condition.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see Lease
  * @see LeaseException
  * @see LeaseRenewalEvent 

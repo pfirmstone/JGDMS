@@ -36,7 +36,7 @@ import net.jini.security.Security;
  * Implements an X509TrustManager that only trusts certificate chains whose
  * first certificate identifies one of a set of principals.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class FilterX509TrustManager extends Utilities implements X509TrustManager {
 

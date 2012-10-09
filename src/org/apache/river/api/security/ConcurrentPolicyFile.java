@@ -19,8 +19,8 @@
   * Default Policy implementation taken from Apache Harmony, refactored for
   * concurrency.
   * 
-  * @author Alexey V. Varlamov
-  * @author Peter Firmstone
+  * 
+  * 
   * @version $Revision$
   */
 
@@ -167,7 +167,7 @@ import net.jini.security.policy.PolicyInitializationException;
  * <br>
  * <br>
  * This implementation is thread-safe and scalable.
- * @author Peter Firmstone.
+ * 
  * @since 2.2.1
  */
 

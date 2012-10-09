@@ -27,7 +27,7 @@ import java.security.ProtectionDomain;
 
 /**
  *
- * @author Peter Firmstone
+ * 
  */
 class ClassLoaderGrant extends ProtectionDomainGrant {
     private static final long serialVersionUID = 1L;

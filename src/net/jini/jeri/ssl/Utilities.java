@@ -59,7 +59,7 @@ import net.jini.security.Security;
 /**
  * Provides miscellaneous utilities for the classes in this package.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 abstract class Utilities {
 

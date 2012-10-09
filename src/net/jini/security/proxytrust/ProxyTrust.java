@@ -40,7 +40,7 @@ import net.jini.security.TrustVerifier;
  * verifier to determine if the original service proxy can be trusted. Other
  * trust verifiers may also make use of <code>ProxyTrust</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

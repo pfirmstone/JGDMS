@@ -45,7 +45,7 @@ import net.jini.core.constraint.RemoteMethodControl;
  * the {@link #getProxyTrustIterator getProxyTrustIterator} method, as
  * required by <code>ProxyTrustVerifier</code>.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  */
 public final class ProxyTrustInvocationHandler

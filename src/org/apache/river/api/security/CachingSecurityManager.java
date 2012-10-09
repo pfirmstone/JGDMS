@@ -22,7 +22,7 @@ package org.apache.river.api.security;
  * A CachingSecurityManager caches the result of check permission calls for
  * AccessControlContexts.
  * 
- * @author Peter Firmstone.
+ * 
  * @since 2.2.1
  */
 public interface CachingSecurityManager {

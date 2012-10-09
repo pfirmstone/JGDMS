@@ -81,7 +81,7 @@ import net.jini.security.policy.UmbrellaGrantPermission;
  * DefaultPolicyParser has been provided for an administrator client to
  * parse standard java format policy file's, to create PermissionGrant's.
  * </p>
- * @author Peter Firmstone
+ * 
  * @since 2.2.1
  * @see GrantPermission
  * @see UmbrellaGrantPermission

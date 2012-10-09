@@ -38,7 +38,7 @@ import java.security.ProtectionDomain;
  * but only for code that utilises delegates.
  * 
  * @see DelegatePermission.
- * @author Peter Firmstone
+ * 
  */
 public class DelegateSecurityManager extends CombinerSecurityManager {
 

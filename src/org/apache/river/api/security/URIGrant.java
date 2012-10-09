@@ -40,7 +40,7 @@ import org.apache.river.impl.net.UriString;
 
 /**
  *
- * @author Peter Firmstone
+ * 
  */
 class URIGrant extends CertificateGrant {
     private static final long serialVersionUID = 1L;

@@ -56,7 +56,7 @@ import java.security.PrivilegedExceptionAction;
  * Implementations must override Object equals and hashCode.
  * </BOLD>
  * 
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

@@ -190,7 +190,7 @@ import net.jini.core.lookup.ServiceItem;
  * ServiceDiscoveryEvent}, and perform any time consuming event handling
  * asynchronously. 
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see LookupCache
  * @see ServiceDiscoveryEvent

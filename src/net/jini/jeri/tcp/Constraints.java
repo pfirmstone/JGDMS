@@ -55,7 +55,7 @@ import net.jini.io.UnsupportedConstraintException;
  * - No combination of individual constraints supported by this
  *   provider can contain conflicting constraints.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 class Constraints {
 

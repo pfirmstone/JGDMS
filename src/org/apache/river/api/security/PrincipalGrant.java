@@ -49,7 +49,7 @@ import java.util.logging.Logger;
 
 /**
  *
- * @author Peter Firmstone.
+ * 
  */
 class PrincipalGrant extends PermissionGrant implements Serializable{
     private static final long serialVersionUID = 1L;

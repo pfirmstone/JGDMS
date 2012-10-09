@@ -28,7 +28,7 @@ import java.util.Map;
  * January 2005 as well as converting MS Windows file absolute path strings to URI compliant 
  * syntax.
  * 
- * @author Peter Firmstone.
+ * 
  */
 public class UriString {
     

@@ -38,7 +38,7 @@ import java.io.Serializable;
  * The {@link SslTrustVerifier} trust verifier may be used for establishing
  * trust in remote proxies that use instances of this class.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see SslEndpoint
  * @see SslServerEndpoint
  * @see HttpsEndpoint

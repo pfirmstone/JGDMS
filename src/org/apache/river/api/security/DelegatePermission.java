@@ -169,7 +169,7 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
  * </pre>
  * 
  * @see DelegateSecurityManager
- * @author Peter Firmstone
+ * 
  */
 public final class DelegatePermission extends Permission{
     private static final long serialVersionUID = 1L;

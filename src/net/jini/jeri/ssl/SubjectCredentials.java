@@ -39,7 +39,7 @@ import net.jini.security.Security;
 /**
  * Provides methods for retrieving credentials from a Subject.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class SubjectCredentials extends Utilities {
 

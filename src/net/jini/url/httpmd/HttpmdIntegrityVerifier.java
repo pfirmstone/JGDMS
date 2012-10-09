@@ -27,7 +27,7 @@ import net.jini.security.Security;
  * in a resource to configure the operation of {@link
  * Security#verifyCodebaseIntegrity Security.verifyCodebaseIntegrity}.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see net.jini.url.httpmd
  * @since 2.0
  */

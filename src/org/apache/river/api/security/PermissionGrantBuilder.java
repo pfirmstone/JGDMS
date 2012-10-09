@@ -39,7 +39,7 @@ import javax.security.auth.Subject;
  * This prevents the serialized form becoming part of the public api.
  * 
  * Single Thread use only.
- * @author Peter Firmstone.
+ * 
  * @see PermissionGrant
  */
 public abstract class PermissionGrantBuilder {

@@ -429,7 +429,7 @@ import java.util.logging.Logger;
  * </table>
  * <p>
  *
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see net.jini.discovery.DiscoveryManagement
  * @see net.jini.lease.LeaseRenewalManager

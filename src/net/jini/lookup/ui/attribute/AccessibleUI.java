@@ -30,7 +30,7 @@ package net.jini.lookup.ui.attribute;
  * UI will work well with assistive technologies that are aware of the Java
  * Accessibility API.
  *
- * @author Bill Venners
+ * 
  */
 public class AccessibleUI implements java.io.Serializable {
 

@@ -57,7 +57,7 @@ import net.jini.core.lease.Lease;
  * <code>LeaseRenewalManager</code> will remove the affected lease from
  * its managed set of leases.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see Lease
  * @see LeaseRenewalManager
  * @see LeaseRenewalEvent

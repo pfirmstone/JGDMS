@@ -49,7 +49,7 @@ import net.jini.core.constraint.ServerMinPrincipal;
  * Integrity.YES is independent of the suites, insuring that those items can be
  * picked before negotiating the cipher suite.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 final class ConnectionContext extends Utilities {
 

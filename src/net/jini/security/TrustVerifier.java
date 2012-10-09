@@ -26,7 +26,7 @@ import java.util.Collection;
  * {@link Security#verifyObjectTrust Security.verifyObjectTrust}, allowing
  * the objects that are trusted to be extended.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

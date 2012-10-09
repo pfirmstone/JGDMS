@@ -31,7 +31,7 @@ import java.security.Permission;
  * <code>UmbrellaGrantPermission</code> instances are equivalent, and have
  * target names and action strings that are the empty string.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

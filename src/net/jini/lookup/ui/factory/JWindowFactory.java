@@ -29,7 +29,7 @@ import javax.swing.JWindow;
  * API, an <CODE>AccessibleUI</CODE> attribute
  * should be placed in the <CODE>UIDescriptor</CODE>'s <CODE>attributes</CODE> set.
  *
- * @author Bill Venners
+ * 
  */
 public interface JWindowFactory extends java.io.Serializable {
 

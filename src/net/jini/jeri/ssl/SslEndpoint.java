@@ -164,7 +164,7 @@ import net.jini.security.proxytrust.TrustEquivalence;
  * extensible remote invocation (Jini ERI) multiplexing protocol</a> to map
  * outgoing requests to socket connections.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see SslServerEndpoint
  * @see ConfidentialityStrength
  * @see SslTrustVerifier

@@ -166,7 +166,7 @@ import net.jini.core.lease.Lease;
  *          successfully renewed the lease
  * </ul>
  * 
- * @author Sun Microsystems, Inc.
+ * 
  * @see LeaseRenewalService
  */
 public interface LeaseRenewalSet {

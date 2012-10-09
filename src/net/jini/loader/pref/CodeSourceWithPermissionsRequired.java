@@ -35,7 +35,7 @@ import java.security.cert.Certificate;
  * This is package private until the implementation is complete, the public
  * api should be reviewed before making public.
  * 
- * @author peter
+ * 
  */
 class CodeSourceWithPermissionsRequired extends CodeSource {
     private static final long serialVersionUID = 1L;

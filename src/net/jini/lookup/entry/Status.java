@@ -23,7 +23,7 @@ import net.jini.entry.AbstractEntry;
  * The base class from which other status-related entry classes may be
  * derived.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see StatusBean
  * @see StatusType

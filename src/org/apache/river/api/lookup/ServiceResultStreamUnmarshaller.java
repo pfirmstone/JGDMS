@@ -30,7 +30,7 @@ import net.jini.core.lookup.*;
  * to getServiceItem any ServiceItemClasspathSub's in the stream, prior to 
  * proxy verification, or applying constraints.
  * 
- * @author Peter Firmstone.
+ * 
  * @since 2.1.1
  * @see ServiceItemClasspathSub.
  * @see StreamServiceRegistrar

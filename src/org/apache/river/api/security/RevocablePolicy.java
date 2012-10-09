@@ -61,7 +61,7 @@ import net.jini.security.policy.DynamicPolicy;
  * A list of standard Java Permission's that are confirmed safely 
  * revocable will be provided here.
  * </p>
- * @author Peter Firmstone
+ * 
  * @see java.security.Policy
  * @see java.security.ProtectionDomain
  * @see java.security.AccessController

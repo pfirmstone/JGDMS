@@ -34,7 +34,7 @@ import net.jini.security.Security;
  * Security#verifyCodebaseIntegrity
  * Security.verifyCodebaseIntegrity}).
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public final class ClassLoading {

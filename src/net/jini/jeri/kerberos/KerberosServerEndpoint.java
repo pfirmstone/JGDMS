@@ -252,7 +252,7 @@ import org.ietf.jgss.GSSName;
  * <code>Subject</code> instance, which encapsulates the principal and
  * delegated credential, if any, of the corresponding remote caller.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see KerberosEndpoint
  * @see KerberosTrustVerifier
  * @since 2.0

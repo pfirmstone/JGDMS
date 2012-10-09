@@ -54,7 +54,7 @@ import net.jini.loader.pref.RequireDlPermProvider;
  * does not enforce this permission, but subclasses may configure it
  * to do so (see {@link RequireDlPermProvider}).
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.0
  **/
 public final class DownloadPermission extends BasicPermission {

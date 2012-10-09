@@ -87,7 +87,7 @@ import net.jini.security.SecurityContext;
  * can be inherited by HttpsServerEndpoint without revealing the inheritance in
  * the public API.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class SslServerEndpointImpl extends Utilities {
 

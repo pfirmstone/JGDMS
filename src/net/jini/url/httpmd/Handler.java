@@ -96,7 +96,7 @@ import java.util.logging.Logger;
  *	    <code>,.jar</code>
  * </ul>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see HttpmdUtil
  * @since 2.0
  *

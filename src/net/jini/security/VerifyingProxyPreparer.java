@@ -31,7 +31,7 @@ import net.jini.core.constraint.RemoteMethodControl;
  * dynamically granting permissions to trusted proxies, and optionally
  * setting the client constraints on trusted proxies.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @since 2.1
  */
 public final class VerifyingProxyPreparer implements ProxyPreparer {

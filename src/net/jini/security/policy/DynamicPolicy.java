@@ -31,7 +31,7 @@ import java.security.Principal;
  * context) {@link net.jini.security.GrantPermission} for that
  * permission.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

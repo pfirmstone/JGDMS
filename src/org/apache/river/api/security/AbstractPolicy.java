@@ -42,7 +42,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * A common superclass with utility methods for policy providers.
  * 
- * @author Peter Firmstone.
+ * 
  */
 public abstract class AbstractPolicy extends Policy {
     protected final Permission umbrella = new UmbrellaGrantPermission();

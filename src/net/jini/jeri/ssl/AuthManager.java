@@ -47,7 +47,7 @@ import javax.security.auth.x500.X500PrivateCredential;
  * Combines both the key and trust managers to enable subclasses to use
  * information for both when checking permissions.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 abstract class AuthManager extends FilterX509TrustManager
     implements X509KeyManager

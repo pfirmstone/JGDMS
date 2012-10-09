@@ -27,7 +27,7 @@ import java.awt.Image;
  * does and that it is similar to another, without needing to know
  * anything about data or class types for the Java(TM) platform.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  */
 public abstract class ServiceType extends AbstractEntry
 				  implements ServiceControlled

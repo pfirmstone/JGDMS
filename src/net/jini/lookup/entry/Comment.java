@@ -22,7 +22,7 @@ import net.jini.entry.AbstractEntry;
 /**
  * A free-form comment about a service.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class Comment extends AbstractEntry {
     private static final long serialVersionUID = 7138608904371928208L;

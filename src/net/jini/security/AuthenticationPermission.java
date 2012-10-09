@@ -134,7 +134,7 @@ import java.util.StringTokenizer;
  *     "* \"*\" peer javax.security.auth.x500.X500Principal \"CN=jack\"", "accept,connect";
  * </pre>
  *
- * @author Sun Microsystems, Inc.
+ * 
  * 
  * @since 2.0
  */

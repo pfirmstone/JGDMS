@@ -23,7 +23,7 @@ import javax.security.auth.Subject;
 
 /**
  *
- * @author Peter Firmstone
+ * 
  */
 public interface SubjectDomain {
     

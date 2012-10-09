@@ -11,7 +11,7 @@ import java.security.BasicPermission;
  * <p>A "remote" or "REMOTE" PolicyPermission is allows updating a 
  * RemotePolicy </p>
  * 
- * @author Peter Firmstone
+ * 
  */
 public class PolicyPermission extends BasicPermission {
     private static final long serialVersionUID = 1L;

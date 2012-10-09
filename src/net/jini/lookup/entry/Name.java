@@ -23,7 +23,7 @@ import net.jini.entry.AbstractEntry;
  * The name of a service as used by users.  A service may have
  * multiple names.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  */
 public class Name extends AbstractEntry {
     private static final long serialVersionUID = 2743215148071307201L;

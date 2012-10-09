@@ -44,7 +44,7 @@ import org.apache.river.api.util.ResultStream;
  * <p>
  * @see ServiceRegistrar
  * @see ServiceRegistration
- * @author Peter Firmstone
+ * 
  * @since 2.2.1
  */
 public interface StreamServiceRegistrar extends ServiceRegistrar{

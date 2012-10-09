@@ -23,7 +23,7 @@ import net.jini.entry.AbstractEntry;
  * Generic information about a service.  This includes the name of the
  * manufacturer, the product, and the vendor.
  * 
- * @author Sun Microsystems, Inc.
+ * 
  *
  * @see ServiceInfoBean
  */

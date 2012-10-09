@@ -50,7 +50,7 @@ import net.jini.security.TrustVerifier;
  * corresponding {@link ServerProxyTrust#getProxyVerifier getProxyVerifier}
  * method of the main remote object.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see net.jini.jeri.ProxyTrustILFactory
  * @since 2.0
  */

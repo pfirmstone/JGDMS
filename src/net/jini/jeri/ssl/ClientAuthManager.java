@@ -43,7 +43,7 @@ import net.jini.security.AuthenticationPermission;
  * share SSLContexts after a single client and server principal have been
  * chosen.
  *
- * @author Sun Microsystems, Inc.
+ * 
  */
 class ClientAuthManager extends AuthManager {
 

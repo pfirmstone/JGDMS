@@ -53,7 +53,7 @@ import net.jini.core.lookup.ServiceItem;
  * using remote codebases and dynamically downloaded code can be obtained 
  * by calling #getServiceItem().
  * </p>
- * @author Peter Firmstone.
+ * 
  * @since 2.2.1
  */
 public abstract class ServiceItemClasspathSub extends ServiceItem{

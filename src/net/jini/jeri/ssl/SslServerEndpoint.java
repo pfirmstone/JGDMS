@@ -191,7 +191,7 @@ import net.jini.security.SecurityContext;
  * extensible remote invocation (Jini ERI) multiplexing protocol</a> to map
  * outgoing requests to socket connections.
  *
- * @author Sun Microsystems, Inc.
+ * 
  * @see SslEndpoint
  * @see ConfidentialityStrength
  * @since 2.0

@@ -25,7 +25,7 @@ import java.net.URL;
  * checks package access. Similar to the class loaders returned by
  * URLClassLoader.newInstance.
  *
- * @author Sun Microsystems, Inc.
+ * 
  **/
 final class PreferredFactoryClassLoader extends PreferredClassLoader {
 
