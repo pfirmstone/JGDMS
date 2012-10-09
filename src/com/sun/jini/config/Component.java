@@ -22,7 +22,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * The Component annotation is used in a Groovy class to indicate what
+ * The Component annotation is used to indicate what
  * configuration component the class is to be used for.
  *
  * <p>The component identifies the object whose behavior will be configured
