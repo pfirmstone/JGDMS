@@ -792,6 +792,7 @@
             <arg line="${jskplatform.exclude}"/>
             <arg path="${build.classes.dir}/com/sun/jini/admin"/>
             <arg path="${build.classes.dir}/com/sun/jini/config"/>
+            <arg path="${build.classes.dir}/org/apache/river/config"/>
             <arg path="${build.classes.dir}/com/sun/jini/constants"/> <!--qa suite dep-->
             <arg path="${build.classes.dir}/com/sun/jini/landlord"/>
             <arg path="${build.classes.dir}/com/sun/jini/lease"/>
