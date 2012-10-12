@@ -35,7 +35,7 @@ public class LocalHostLookup
         if( localHost == null ) {
             setLocalHost( InetAddress.getLocalHost() );
         }
-        return InetAddress.getLocalHost();
+        return localHost ;
     }
 
     private static void setLocalHost(InetAddress localHost)
