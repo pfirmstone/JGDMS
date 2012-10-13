@@ -21,6 +21,7 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import java.net.UnknownHostException;
+import org.apache.river.config.LocalHostLookup;
 
 /**
  * A set of static convenience methods for use in configuration files.
@@ -66,7 +67,7 @@ public class ConfigUtil {
      *         host could be found.
      */
     public static String getHostName() throws UnknownHostException {
-	 return java.net.InetAddress.getLocalHost().getCanonicalHostName();
+	 return LocalHostLookup.getLocalHost().getCanonicalHostName();
     }
     
     /**
@@ -76,7 +77,7 @@ public class ConfigUtil {
      *         host could be found.
      */
     public static String getHostAddress() throws UnknownHostException {
-         return java.net.InetAddress.getLocalHost().getHostAddress();
+         return LocalHostLookup.getLocalHost().getHostAddress();
     }
 
 

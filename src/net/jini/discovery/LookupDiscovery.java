@@ -79,6 +79,7 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import org.apache.river.config.LocalHostLookup;
 
 /**
  * This class is a helper utility class that encapsulates the functionality 
@@ -1240,7 +1241,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 	public void interrupt() {
 	    interrupted = true;
 	    try {
-		(new Socket(InetAddress.getLocalHost(), getPort())).close();
+		(new Socket(LocalHostLookup.getLocalHost(), getPort())).close();
 	    } catch (IOException e) { /* ignore */ }
 	}//end interrupt
 
@@ -2386,14 +2387,14 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    return ((InetAddress) Security.doPrivileged(
 		new PrivilegedExceptionAction() {
 		    public Object run() throws UnknownHostException {
-			return InetAddress.getLocalHost();
+			return LocalHostLookup.getLocalHost();
 		    }
 		})).getHostAddress();
 	} catch (PrivilegedActionException e) {
 	    // Remove host information if caller does not have privileges
 	    // to see it.
 	    try {
-		InetAddress.getLocalHost();
+		LocalHostLookup.getLocalHost();
 	    } catch (UnknownHostException uhe) {
 		throw uhe;
 	    }

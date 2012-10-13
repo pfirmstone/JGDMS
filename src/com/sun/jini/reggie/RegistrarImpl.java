@@ -128,6 +128,7 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.config.LocalHostLookup;
 
 /**
  * Base server-side implementation of a lookup service, subclassed by
@@ -2545,7 +2546,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 */
 	public synchronized void interrupt() {
 	    try {
-                Socket s = socketFactory.createSocket(InetAddress.getLocalHost(), port);
+                Socket s = socketFactory.createSocket(LocalHostLookup.getLocalHost(), port);
                 s.close();
 	    } catch (IOException e) {
 	    }
@@ -4637,7 +4638,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	} catch (NoSuchEntryException e) {
 	    // fix for 4906732: only invoke getCanonicalHostName if needed
 	    unicastDiscoveryHost =
-		InetAddress.getLocalHost().getCanonicalHostName();
+		LocalHostLookup.getLocalHost().getCanonicalHostName();
 	}
 	try {
 	    unicastDiscoverySubjectChecker =

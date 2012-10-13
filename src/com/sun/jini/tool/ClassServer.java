@@ -48,6 +48,7 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.config.LocalHostLookup;
 
 /**
  * A simple HTTP server, for serving up JAR and class files.
@@ -837,7 +838,7 @@ public class ClassServer extends Thread {
 	}
 	try {
 	    if (stop) {
-		Socket sock = new Socket(InetAddress.getLocalHost(), port);
+		Socket sock = new Socket(LocalHostLookup.getLocalHost(), port);
 		try {
 		    DataOutputStream out =
 			new DataOutputStream(sock.getOutputStream());

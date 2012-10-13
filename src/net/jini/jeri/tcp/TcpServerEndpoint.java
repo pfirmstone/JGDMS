@@ -60,6 +60,7 @@ import net.jini.jeri.connection.ServerConnection;
 import net.jini.jeri.connection.ServerConnectionManager;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import org.apache.river.config.LocalHostLookup;
 
 /**
  * An implementation of the {@link ServerEndpoint} abstraction that
@@ -524,7 +525,7 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 		localAddr = (InetAddress) AccessController.doPrivileged(
 		    new PrivilegedExceptionAction() {
 			public Object run() throws UnknownHostException {
-			    return InetAddress.getLocalHost();
+			    return LocalHostLookup.getLocalHost();
 			}
 		    });
 	    } catch (PrivilegedActionException e) {
@@ -534,7 +535,7 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 		 * in the caller's security context; otherwise, throw
 		 * a new UnknownHostException without the host name.
 		 */
-		InetAddress.getLocalHost();
+		LocalHostLookup.getLocalHost();
 		throw new UnknownHostException(
 		    "access to resolve local host denied");
 	    }

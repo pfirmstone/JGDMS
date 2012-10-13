@@ -28,23 +28,29 @@ public class LocalHostLookup
 {
     private final static Logger logger = Logger.getLogger(LocalHostLookup.class.getName());
 
-    private static InetAddress localHost ;
-
     public static InetAddress getLocalHost() throws UnknownHostException
     {
-        if( localHost == null ) {
-            setLocalHost( InetAddress.getLocalHost() );
-        }
-        return localHost ;
+        return InetAddress.getLocalHost();
     }
 
-    private static void setLocalHost(InetAddress localHost)
-    {
-        if( localHost.isLoopbackAddress() ) {
-            logger.warning( "local host is loopback" );
-        }
-        LocalHostLookup.localHost = localHost ;
-    }
+
+//    private static InetAddress localHost ;
+//
+//    public static InetAddress getLocalHost() throws UnknownHostException
+//    {
+//        if( localHost == null ) {
+//            setLocalHost( InetAddress.getLocalHost() );
+//        }
+//        return localHost ;
+//    }
+//
+//    private static void setLocalHost(InetAddress localHost)
+//    {
+//        if( localHost.isLoopbackAddress() ) {
+//            logger.warning( "local host is loopback" );
+//        }
+//        LocalHostLookup.localHost = localHost ;
+//    }
 
     private LocalHostLookup()
     {

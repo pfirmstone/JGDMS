@@ -81,6 +81,7 @@ import net.jini.jeri.connection.ServerConnection;
 import net.jini.security.AuthenticationPermission;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
+import org.apache.river.config.LocalHostLookup;
 
 /**
  * Provides the implementation of SslServerEndpoint so that the implementation
@@ -546,7 +547,7 @@ class SslServerEndpointImpl extends Utilities {
 		    // Remove host information if caller does not have
 		    // privileges to see it.
 		    try {
-			InetAddress.getLocalHost();
+			LocalHostLookup.getLocalHost();
 		    } catch (UnknownHostException te) {
 			throw te;
 		    }

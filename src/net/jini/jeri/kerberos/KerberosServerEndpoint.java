@@ -74,6 +74,7 @@ import javax.net.ServerSocketFactory;
 import javax.security.auth.Subject;
 import javax.security.auth.kerberos.KerberosKey;
 import javax.security.auth.kerberos.KerberosPrincipal;
+import org.apache.river.config.LocalHostLookup;
 import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
@@ -1121,7 +1122,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 		localAddr = (InetAddress) AccessController.doPrivileged(
 		    new PrivilegedExceptionAction() {
 			    public Object run() throws UnknownHostException {
-				return InetAddress.getLocalHost();
+				return LocalHostLookup.getLocalHost();
 			    }
 			});
 	    } catch (PrivilegedActionException e) {
@@ -1135,7 +1136,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 		// Remove host information if caller does not have privileges
 		// to see it.
 		try {
-		    InetAddress.getLocalHost();
+		    LocalHostLookup.getLocalHost();
 		} catch (UnknownHostException te) {
 		    throw te;
 		}
