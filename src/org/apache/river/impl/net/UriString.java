@@ -184,7 +184,8 @@ public class UriString {
         return sb.toString();
     }
     
-    /* Fixes windows file URI path by converting back slashes to forward
+    /**
+     * Fixes windows file URI path by converting back slashes to forward
      * slashes and inserting a forward slash before the drive letter if it is
      * missing.  No modification of case is performed.
      */
