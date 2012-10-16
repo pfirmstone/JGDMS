@@ -29,10 +29,12 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.common.Beta;
 
 /**
  *
  */
+@Beta
 public class ProxyHelper
     extends ConfigHelper
 {

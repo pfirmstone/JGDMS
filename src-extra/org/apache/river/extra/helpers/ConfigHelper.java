@@ -27,10 +27,12 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.id.Uuid;
+import org.apache.river.common.Beta;
 
 /**
  *
  */
+@Beta
 public abstract class ConfigHelper
 {
     public static final String DGC = "dgc";

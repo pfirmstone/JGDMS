@@ -33,10 +33,12 @@ import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.BasicObjectEndpoint;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.ObjectEndpoint;
+import org.apache.river.common.Beta;
 
 /**
  *
  */
+@Beta
 public class ImportHelper
     extends ConfigHelper
 {
