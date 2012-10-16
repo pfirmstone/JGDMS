@@ -532,7 +532,7 @@ class SslServerEndpointImpl extends Utilities {
 		    localAddr = AccessController.doPrivileged(
                       new PrivilegedExceptionAction<InetAddress>() {
                           public InetAddress run() throws UnknownHostException {
-                              return InetAddress.getLocalHost();
+                              return LocalHostLookup.getLocalHost();
                           }
                       });
 		} catch (PrivilegedActionException e) {
