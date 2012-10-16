@@ -21,9 +21,11 @@ package org.apache.river.config;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.logging.Logger;
+import org.apache.river.common.Beta;
 
 /**
  */
+@Beta
 public class LocalHostLookup
 {
     private final static Logger logger = Logger.getLogger(LocalHostLookup.class.getName());
