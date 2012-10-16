@@ -1131,7 +1131,7 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 		    KerberosUtil.logThrow(
 			logger, Levels.FAILED, this.getClass(), 
 			"enumerateListenEndpoints",
-			"InetAddress.getLocalHost() throws", null, uhe);
+			"LocalHostLookup.getLocalHost() throws", null, uhe);
 		}
 		// Remove host information if caller does not have privileges
 		// to see it.

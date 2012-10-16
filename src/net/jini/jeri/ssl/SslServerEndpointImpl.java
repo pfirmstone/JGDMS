@@ -541,7 +541,7 @@ class SslServerEndpointImpl extends Utilities {
 		    if (logger.isLoggable(Levels.FAILED)) {
 			logThrow(logger, Levels.FAILED, this.getClass(), 
 				 "enumerateListenEndpoints",
-				 "InetAddress.getLocalHost() throws",
+				 "LocalHostLookup.getLocalHost() throws",
 				 null, uhe);
 		    }
 		    // Remove host information if caller does not have
