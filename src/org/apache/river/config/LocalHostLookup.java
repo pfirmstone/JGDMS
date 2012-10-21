@@ -20,6 +20,7 @@ package org.apache.river.config;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.common.Beta;
 
@@ -29,31 +30,51 @@ import org.apache.river.common.Beta;
 public class LocalHostLookup
 {
     private final static Logger logger = Logger.getLogger(LocalHostLookup.class.getName());
+    
+    private static LocalHostLookupProvider provider;
 
     public static InetAddress getLocalHost() throws UnknownHostException
     {
-        return InetAddress.getLocalHost();
+        return getProvider().getLocalHost();
     }
 
+    private static synchronized LocalHostLookupProvider getProvider()
+    {
+        if( provider == null ) {
+            setProvider( new DefaultLocalHostLookupProvider() );
+        }
+        return provider ;
+    }
 
-//    private static InetAddress localHost ;
-//
-//    public static InetAddress getLocalHost() throws UnknownHostException
-//    {
-//        if( localHost == null ) {
-//            setLocalHost( InetAddress.getLocalHost() );
-//        }
-//        return localHost ;
-//    }
-//
-//    private static void setLocalHost(InetAddress localHost)
-//    {
-//        if( localHost.isLoopbackAddress() ) {
-//            logger.warning( "local host is loopback" );
-//        }
-//        LocalHostLookup.localHost = localHost ;
-//    }
+    public static synchronized void setProvider(LocalHostLookupProvider prvdr )
+    {
+        if( LocalHostLookup.provider != null ) {
+            throw new RuntimeException( "provider already set" );
+        }
+        
+        LocalHostLookup.provider = prvdr ;
 
+        try {
+            if (getLocalHost().isLoopbackAddress()) {
+                logger.warning("local host is loopback");
+            }
+        } catch (UnknownHostException ex) {
+            logger.log(Level.WARNING,"",ex);
+        }
+    }
+
+    static class DefaultLocalHostLookupProvider 
+        implements LocalHostLookupProvider
+    {
+
+        @Override
+        public InetAddress getLocalHost() throws UnknownHostException
+        {
+            return InetAddress.getLocalHost();
+        }
+        
+    }
+    
     private LocalHostLookup()
     {
     }
