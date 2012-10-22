@@ -20,6 +20,8 @@ package org.apache.river.config;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.common.Beta;
@@ -52,17 +54,29 @@ public class LocalHostLookup
     private static synchronized LocalHostLookupProvider getProvider()
     {
         if( provider == null ) {
-            setProvider( new DefaultLocalHostLookupProvider() );
+            AccessController.doPrivileged( new PrivilegedAction<Object>() {
+                @Override
+                public Object run() 
+                {
+                    setProvider( new DefaultLocalHostLookupProvider() );
+                    return null; // nothing to return
+                }
+            });            
         }
         return provider ;
     }
 
     public static synchronized void setProvider(LocalHostLookupProvider prvdr )
     {
+        SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission( new RuntimePermission("setLocalHostLookupProvider") );
+        }
+        
         if( LocalHostLookup.provider != null ) {
             throw new RuntimeException( "provider already set" );
         }
-        
+      
         LocalHostLookup.provider = prvdr ;
 
         try {
