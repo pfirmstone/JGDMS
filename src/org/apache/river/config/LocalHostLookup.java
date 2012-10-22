@@ -25,6 +25,7 @@ import java.util.logging.Logger;
 import org.apache.river.common.Beta;
 
 /**
+ * Provides river with the external host network identity.
  */
 @Beta
 public class LocalHostLookup
@@ -36,6 +37,16 @@ public class LocalHostLookup
     public static InetAddress getLocalHost() throws UnknownHostException
     {
         return getProvider().getLocalHost();
+    }
+
+    public static String getHostName() throws UnknownHostException
+    {
+        return getProvider().getHostName();
+    }
+
+    public static String getHostAddress() throws UnknownHostException
+    {
+        return getProvider().getHostAddress();
     }
 
     private static synchronized LocalHostLookupProvider getProvider()
@@ -71,6 +82,18 @@ public class LocalHostLookup
         public InetAddress getLocalHost() throws UnknownHostException
         {
             return InetAddress.getLocalHost();
+        }
+
+        @Override
+        public String getHostName() throws UnknownHostException
+        {
+            return InetAddress.getLocalHost().getCanonicalHostName();
+        }
+
+        @Override
+        public String getHostAddress() throws UnknownHostException
+        {
+            return InetAddress.getLocalHost().getHostAddress();
         }
         
     }

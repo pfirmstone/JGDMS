@@ -23,9 +23,15 @@ import java.net.UnknownHostException;
 import org.apache.river.common.Beta;
 
 /**
+ * Provides a pluggable provider for LocalHostLookup.
  */
 @Beta
 public interface LocalHostLookupProvider
 {
-    public InetAddress getLocalHost() throws UnknownHostException ;    
+    public InetAddress getLocalHost() throws UnknownHostException ;
+    
+    public String getHostName() throws UnknownHostException ;
+
+    public String getHostAddress() throws UnknownHostException ;
+    
 }

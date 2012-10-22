@@ -67,7 +67,7 @@ public class ConfigUtil {
      *         host could be found.
      */
     public static String getHostName() throws UnknownHostException {
-	 return LocalHostLookup.getLocalHost().getCanonicalHostName();
+	 return LocalHostLookup.getHostName();
     }
     
     /**
@@ -77,7 +77,7 @@ public class ConfigUtil {
      *         host could be found.
      */
     public static String getHostAddress() throws UnknownHostException {
-         return LocalHostLookup.getLocalHost().getHostAddress();
+         return LocalHostLookup.getHostAddress();
     }
 
 

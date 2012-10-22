@@ -4638,7 +4638,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	} catch (NoSuchEntryException e) {
 	    // fix for 4906732: only invoke getCanonicalHostName if needed
 	    unicastDiscoveryHost =
-		LocalHostLookup.getLocalHost().getCanonicalHostName();
+		LocalHostLookup.getHostName();
 	}
 	try {
 	    unicastDiscoverySubjectChecker =
