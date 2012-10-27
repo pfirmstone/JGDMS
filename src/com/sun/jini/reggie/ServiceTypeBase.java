@@ -17,8 +17,8 @@
  */
 package com.sun.jini.reggie;
 
-import java.rmi.server.RMIClassLoader;
 import java.io.Serializable;
+import net.jini.loader.RiverClassLoader;
 
 /**
  * A ServiceType annotated with a codebase.
@@ -51,7 +51,7 @@ class ServiceTypeBase implements Serializable {
 
     /** Sets the codebase to the codebase of the given class. */
     public void setCodebase(Class cls) {
-	codebase = RMIClassLoader.getClassAnnotation(cls);
+	codebase = RiverClassLoader.getClassAnnotation(cls);
     }
 
     /**
