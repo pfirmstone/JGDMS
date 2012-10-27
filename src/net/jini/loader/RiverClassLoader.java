@@ -24,6 +24,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Iterator;
 import java.util.ServiceLoader;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.common.Beta;
 
@@ -58,9 +59,10 @@ public class RiverClassLoader
         if( iter.hasNext() ) {
             try {
                 RiverClassLoaderSpi firstSpi = iter.next();
+                logger.log(Level.CONFIG, "loaded: {0}", firstSpi);
                 return firstSpi ;
             } catch (Exception e) {
-                logger.severe( "error loading RiverClassLoaderSpi " + e );
+                logger.log( Level.SEVERE, "error loading RiverClassLoaderSpi: {0}", new Object[]{e});
                 throw new Error(e);
             }
         }
