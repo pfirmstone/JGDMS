@@ -18,7 +18,6 @@
 
 package net.jini.loader;
 
-import java.rmi.server.RMIClassLoader;
 import net.jini.loader.pref.PreferredClassProvider;
 
 /**
@@ -26,19 +25,19 @@ import net.jini.loader.pref.PreferredClassProvider;
  * loader that is an instance of this interface.
  *
  * <p>This interface allows a {@link ClassLoader} subclass to
- * customize the behavior of {@link RMIClassLoader#getClassAnnotation
- * RMIClassLoader.getClassAnnotation} (and thus RMI marshalling
+ * customize the behavior of {@link RiverClassLoader#getClassAnnotation
+ * RiverClassLoader.getClassAnnotation} (and thus RMI marshalling
  * semantics) for classes defined by its instances.
  *
  * <p>Note that this interface is only effective if the current {@link
- * RMIClassLoader} provider supports it; not all
- * <code>RMIClassLoader</code> providers support this interface.  In
+ * RiverClassLoader} provider supports it; not all
+ * <code>RiverClassLoader</code> providers support this interface.  In
  * particular, the default provider (see {@link
- * RMIClassLoader#getDefaultProviderInstance
- * RMIClassLoader.getDefaultProviderInstance}) does <i>not</i> support
+ * RiverClassLoader#getDefaultProviderInstance
+ * RiverClassLoader.getDefaultProviderInstance}) does <i>not</i> support
  * this interface, and so when the default provider is used, this
  * interface will be ignored by
- * <code>RMIClassLoader.getClassAnnotation</code>.  {@link
+ * <code>RiverClassLoader.getClassAnnotation</code>.  {@link
  * PreferredClassProvider} and its subclasses do support this
  * interface.
  *

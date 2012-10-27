@@ -20,7 +20,6 @@ package net.jini.loader;
 
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
-import java.rmi.server.RMIClassLoader;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Map;
@@ -29,7 +28,7 @@ import net.jini.security.Security;
 
 /**
  * Provides static methods for loading classes using {@link
- * RMIClassLoader} with optional verification that the codebase URLs
+ * RiverClassLoader} with optional verification that the codebase URLs
  * used to load classes provide content integrity (see {@link
  * Security#verifyCodebaseIntegrity
  * Security.verifyCodebaseIntegrity}).
@@ -50,8 +49,8 @@ public final class ClassLoading {
 
     /**
      * Loads a class using {@link
-     * RMIClassLoader#loadClass(String,String,ClassLoader)
-     * RMIClassLoader.loadClass}, optionally verifying that the
+     * RiverClassLoader#loadClass(String,String,ClassLoader)
+     * RiverClassLoader.loadClass}, optionally verifying that the
      * codebase URLs provide content integrity.
      *
      * <p>If <code>verifyCodebaseIntegrity</code> is <code>true</code>
@@ -72,19 +71,19 @@ public final class ClassLoading {
      * other exception, then this method throws that exception.
      *
      * <p>This method then invokes {@link
-     * RMIClassLoader#loadClass(String,String,ClassLoader)
-     * RMIClassLoader.loadClass} with <code>codebase</code> as the
+     * RiverClassLoader#loadClass(String,String,ClassLoader)
+     * RiverClassLoader.loadClass} with <code>codebase</code> as the
      * first argument (or <code>null</code> if in the previous step
      * <code>Security.verifyCodebaseIntegrity</code> was invoked and
      * it threw a <code>SecurityException</code>), <code>name</code>
      * as the second argument, and <code>defaultLoader</code> as the
-     * third argument.  If <code>RMIClassLoader.loadClass</code>
+     * third argument.  If <code>RiverClassLoader.loadClass</code>
      * throws a <code>ClassNotFoundException</code>, then this method
      * throws a <code>ClassNotFoundException</code>; if
-     * <code>RMIClassLoader.loadClass</code> throws any other
+     * <code>RiverClassLoader.loadClass</code> throws any other
      * exception, then this method throws that exception; otherwise,
      * this method returns the <code>Class</code> returned by
-     * <code>RMIClassLoader.loadClass</code>.
+     * <code>RiverClassLoader.loadClass</code>.
      *
      * @param codebase the list of URLs (separated by spaces) to load
      * the class from, or <code>null</code>
@@ -93,7 +92,7 @@ public final class ClassLoading {
      *
      * @param defaultLoader the class loader value (possibly
      * <code>null</code>) to pass as the <code>defaultLoader</code>
-     * argument to <code>RMIClassLoader.loadClass</code>
+     * argument to <code>RiverClassLoader.loadClass</code>
      *
      * @param verifyCodebaseIntegrity if <code>true</code>, verify
      * that the codebase URLs provide content integrity
@@ -108,11 +107,11 @@ public final class ClassLoading {
      *
      * @throws MalformedURLException if
      * <code>Security.verifyCodebaseIntegrity</code> or
-     * <code>RMIClassLoader.loadClass</code> throws a
+     * <code>RiverClassLoader.loadClass</code> throws a
      * <code>MalformedURLException</code>
      *
      * @throws ClassNotFoundException if
-     * <code>RMIClassLoader.loadClass</code> throws a
+     * <code>RiverClassLoader.loadClass</code> throws a
      * <code>ClassNotFoundException</code>
      *
      * @throws NullPointerException if <code>name</code> is
@@ -135,7 +134,7 @@ public final class ClassLoading {
 	    }
 	}
 	try {
-	    return RMIClassLoader.loadClass(codebase, name, defaultLoader);
+	    return RiverClassLoader.loadClass(codebase, name, defaultLoader);
 	} catch (ClassNotFoundException e) {
 	    if (verifyException != null) {
 		// assume that the verify exception is more important
@@ -149,8 +148,8 @@ public final class ClassLoading {
 
     /**
      * Loads a dynamic proxy class using {@link
-     * RMIClassLoader#loadProxyClass(String,String[],ClassLoader)
-     * RMIClassLoader.loadProxyClass}, optionally verifying that the
+     * RiverClassLoader#loadProxyClass(String,String[],ClassLoader)
+     * RiverClassLoader.loadProxyClass}, optionally verifying that the
      * codebase URLs provide content integrity.
      *
      * <p>If <code>verifyCodebaseIntegrity</code> is <code>true</code>
@@ -171,20 +170,20 @@ public final class ClassLoading {
      * exception, then this method throws that exception.
      *
      * <p>This method invokes {@link
-     * RMIClassLoader#loadProxyClass(String,String[],ClassLoader)
-     * RMIClassLoader.loadProxyClass} with <code>codebase</code> as
+     * RiverClassLoader#loadProxyClass(String,String[],ClassLoader)
+     * RiverClassLoader.loadProxyClass} with <code>codebase</code> as
      * the first argument (or <code>null</code> if in the previous
      * step <code>Security.verifyCodebaseIntegrity</code> was invoked
      * and it threw a <code>SecurityException</code>),
      * <code>interfaceNames</code> as the second argument, and
      * <code>defaultLoader</code> as the third argument.  If
-     * <code>RMIClassLoader.loadProxyClass</code> throws a
+     * <code>RiverClassLoader.loadProxyClass</code> throws a
      * <code>ClassNotFoundException</code>, then this method throws a
      * <code>ClassNotFoundException</code>; if
-     * <code>RMIClassLoader.loadProxyClass</code> throws any other
+     * <code>RiverClassLoader.loadProxyClass</code> throws any other
      * exception, then this method throws that exception; otherwise,
      * this method returns the <code>Class</code> returned by
-     * <code>RMIClassLoader.loadProxyClass</code>.
+     * <code>RiverClassLoader.loadProxyClass</code>.
      *
      * @param codebase the list of URLs (separated by spaces) to load
      * classes from, or <code>null</code>
@@ -194,7 +193,7 @@ public final class ClassLoading {
      *
      * @param defaultLoader the class loader value (possibly
      * <code>null</code>) to pass as the <code>defaultLoader</code>
-     * argument to <code>RMIClassLoader.loadProxyClass</code>
+     * argument to <code>RiverClassLoader.loadProxyClass</code>
      *
      * @param verifyCodebaseIntegrity if <code>true</code>, verify
      * that the codebase URLs provide content integrity
@@ -209,11 +208,11 @@ public final class ClassLoading {
      *
      * @throws MalformedURLException if
      * <code>Security.verifyCodebaseIntegrity</code> or
-     * <code>RMIClassLoader.loadProxyClass</code> throws a
+     * <code>RiverClassLoader.loadProxyClass</code> throws a
      * <code>MalformedURLException</code>
      *
      * @throws ClassNotFoundException if
-     * <code>RMIClassLoader.loadProxyClass</code> throws a
+     * <code>RiverClassLoader.loadProxyClass</code> throws a
      * <code>ClassNotFoundException</code>
      *
      * @throws NullPointerException if <code>interfaceNames</code> is
@@ -237,7 +236,7 @@ public final class ClassLoading {
 	    }
 	}
 	try {
-	    return RMIClassLoader.loadProxyClass(codebase, interfaceNames,
+	    return RiverClassLoader.loadProxyClass(codebase, interfaceNames,
 						 defaultLoader);
 	} catch (ClassNotFoundException e) {
 	    if (verifyException != null) {
