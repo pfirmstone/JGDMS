@@ -306,7 +306,7 @@ public class MarshalledInstance implements Serializable {
      *
      * @param defaultLoader the class loader value (possibly
      *	      <code>null</code>) to pass as the <code>defaultLoader</code>
-     *        argument to <code>RMIClassLoader</code> methods
+     *        argument to <code>RiverClassLoader</code> methods
      * @param verifyCodebaseIntegrity if <code>true</code> then
      *        codebase integrity is verified, otherwise code base
      *        integrity is not verified
