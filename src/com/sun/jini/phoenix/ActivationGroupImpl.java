@@ -41,7 +41,6 @@ import java.rmi.activation.ActivationMonitor;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.activation.UnknownObjectException;
 import java.rmi.server.ExportException;
-import java.rmi.server.RMIClassLoader;
 import java.rmi.server.RemoteObject;
 import java.rmi.server.UnicastRemoteObject;
 import java.security.AccessController;
@@ -64,6 +63,7 @@ import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
+import net.jini.loader.RiverClassLoader;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
@@ -626,7 +626,7 @@ public class ActivationGroupImpl extends ActivationGroup
      * <p>Otherwise:
      *
      * <p>The class for the object is loaded by invoking {@link
-     * RMIClassLoader#loadClass(String,String) RMIClassLoader.loadClass}
+     * RiverClassLoader#loadClass(String,String) RiverClassLoader.loadClass}
      * passing the class location (obtained by invoking {@link
      * ActivationDesc#getLocation getLocation} on the activation
      * descriptor) and the class name (obtained by invoking {@link
@@ -702,7 +702,7 @@ public class ActivationGroupImpl extends ActivationGroup
 	    }
 
 	    String className = desc.getClassName();
-	    final Class cl = RMIClassLoader.loadClass(desc.getLocation(),
+	    final Class cl = RiverClassLoader.loadClass(desc.getLocation(),
 						      className);
 	    final Thread t = Thread.currentThread();
 	    final ClassLoader savedCcl = t.getContextClassLoader();

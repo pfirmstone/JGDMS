@@ -22,9 +22,9 @@ import java.lang.reflect.Method;
 import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
-import java.rmi.server.RMIClassLoader;
 import java.util.Collections;
 import net.jini.io.MarshalInputStream;
+import net.jini.loader.RiverClassLoader;
 
 /**
  * This is the bootstrap code to start a virtual machine (VM) executing an
@@ -70,7 +70,7 @@ class ActivationGroupInit {
 	    ActivationGroupID id  = (ActivationGroupID)in.readObject();
 	    ActivationGroupDesc desc = (ActivationGroupDesc)in.readObject();
 	    long incarnation = in.readLong();
-	    Class cl = RMIClassLoader.loadClass(desc.getLocation(),
+	    Class cl = RiverClassLoader.loadClass(desc.getLocation(),
 						desc.getClassName());
 	    try {
 		Method create =

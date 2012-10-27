@@ -364,7 +364,7 @@ public abstract class Discovery {
      * <code>null</code>
      * @param defaultLoader the class loader value (possibly <code>null</code>)
      * to be passed as the <code>defaultLoader</code> argument to
-     * <code>RMIClassLoader</code> methods when unmarshalling the registrar
+     * <code>RiverClassLoader</code> methods when unmarshalling the registrar
      * proxy
      * @param verifierLoader the class loader value (possibly
      * <code>null</code>) to pass to {@link

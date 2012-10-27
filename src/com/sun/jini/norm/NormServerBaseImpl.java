@@ -26,7 +26,6 @@ import java.io.OutputStream;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
-import java.rmi.server.RMIClassLoader;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
@@ -88,7 +87,6 @@ import com.sun.jini.landlord.LandlordUtil;
 import com.sun.jini.landlord.LeaseFactory;
 import com.sun.jini.landlord.LeasePeriodPolicy;
 import com.sun.jini.landlord.LocalLandlord;
-import com.sun.jini.logging.Levels;
 import com.sun.jini.lookup.entry.BasicServiceType;
 import com.sun.jini.norm.event.EventType;
 import com.sun.jini.norm.event.EventTypeGenerator;
@@ -99,6 +97,7 @@ import com.sun.jini.start.LifeCycle;
 import com.sun.jini.reliableLog.LogException;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.thread.InterruptedStatusThread;
+import net.jini.loader.RiverClassLoader;
 
 /**
  * Base class for implementations of NormServer.  Provides a complete
@@ -297,7 +296,7 @@ abstract class NormServerBaseImpl
 		       "Adding lease of class {0} with annotation {1}",
 		       new Object[] {
 			   leaseToRenew.getClass(),
-			   RMIClassLoader.getClassAnnotation(lc) });
+			   RiverClassLoader.getClassAnnotation(lc) });
 	}
 
 	// Add the lease to the set

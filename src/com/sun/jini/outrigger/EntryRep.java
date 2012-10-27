@@ -34,7 +34,6 @@ import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
-import java.rmi.server.RMIClassLoader;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
@@ -49,6 +48,7 @@ import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
 import net.jini.loader.ClassLoading;
+import net.jini.loader.RiverClassLoader;
 import net.jini.space.JavaSpace;
 
 /**
@@ -234,7 +234,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
 	if (validate)
 	    ensureValidClass(realClass);
 	className = realClass.getName();
-	codebase = RMIClassLoader.getClassAnnotation(realClass);
+	codebase = RiverClassLoader.getClassAnnotation(realClass);
 
 	/*
 	 * Build up the per-field and superclass information through
