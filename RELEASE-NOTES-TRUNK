@@ -1,0 +1,9 @@
+
+Added RiverClassLoader. A substitute for RMIClassLoader, 
+replaceable via a Spi implementation of net.jini.loader.RiverClassLoaderSpi.
+Default behaviour is using the RMIClassLoader.
+
+Added LocalHostLookup. Determines the hosts network identity.
+Is a pluggable provider.
+
+
