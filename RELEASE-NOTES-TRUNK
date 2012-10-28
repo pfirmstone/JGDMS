@@ -4,9 +4,5 @@ replaceable via a Spi implementation of net.jini.loader.RiverClassLoaderSpi.
 Default behaviour is using the RMIClassLoader.
 
 Added LocalHostLookup. Determines the hosts network identity.
-Is a pluggable provider. (Not a Spi yet?)
+Pluggable via SPI.
 Default behaviour is using InetAdress.getLocalHost().
-
-
-
-
