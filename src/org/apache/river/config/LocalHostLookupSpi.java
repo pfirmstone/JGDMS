@@ -26,12 +26,12 @@ import org.apache.river.common.Beta;
  * Provides a pluggable provider for LocalHostLookup.
  */
 @Beta
-public interface LocalHostLookupProvider
+public abstract class LocalHostLookupSpi
 {
-    public InetAddress getLocalHost() throws UnknownHostException ;
+    public abstract InetAddress getLocalHost() throws UnknownHostException ;
     
-    public String getHostName() throws UnknownHostException ;
+    public abstract String getHostName() throws UnknownHostException ;
 
-    public String getHostAddress() throws UnknownHostException ;
+    public abstract String getHostAddress() throws UnknownHostException ;
     
 }

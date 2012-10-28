@@ -22,6 +22,8 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Iterator;
+import java.util.ServiceLoader;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.common.Beta;
@@ -34,62 +36,74 @@ public class LocalHostLookup
 {
     private final static Logger logger = Logger.getLogger(LocalHostLookup.class.getName());
     
-    private static LocalHostLookupProvider provider;
+    private static LocalHostLookupSpi spi  = AccessController.doPrivileged(
+
+            new PrivilegedAction<LocalHostLookupSpi>()
+            {
+                @Override
+                public LocalHostLookupSpi run()
+                {
+                    return initSpi();
+                }
+
+            }
+
+        );
+    
+    private static LocalHostLookupSpi initSpi()
+    {
+        ServiceLoader<LocalHostLookupSpi> loader = ServiceLoader.load(LocalHostLookupSpi.class);
+
+        Iterator<LocalHostLookupSpi> iter = loader.iterator();
+
+        if( iter.hasNext() ) {
+            try {
+                LocalHostLookupSpi firstSpi = iter.next();
+                logger.log(Level.CONFIG, "loaded: {0}", firstSpi);
+                checkForLoopback(firstSpi);
+                return firstSpi ;
+            } catch (Exception e) {
+                logger.log( Level.SEVERE, "error loading LocalHostLookupSpi: {0}", new Object[]{e});
+                throw new Error(e);
+            }
+        }
+
+        final DefaultLocalHostLookupProvider defaultLocalHostLookupProvider = new DefaultLocalHostLookupProvider();
+        checkForLoopback(defaultLocalHostLookupProvider);
+
+        return defaultLocalHostLookupProvider;
+    }
+
+
 
     public static InetAddress getLocalHost() throws UnknownHostException
     {
-        return getProvider().getLocalHost();
+        return spi.getLocalHost();
     }
 
     public static String getHostName() throws UnknownHostException
     {
-        return getProvider().getHostName();
+        return spi.getHostName();
     }
 
     public static String getHostAddress() throws UnknownHostException
     {
-        return getProvider().getHostAddress();
+        return spi.getHostAddress();
     }
 
-    private static synchronized LocalHostLookupProvider getProvider()
+    private static void checkForLoopback(LocalHostLookupSpi spi)
     {
-        if( provider == null ) {
-            AccessController.doPrivileged( new PrivilegedAction<Object>() {
-                @Override
-                public Object run() 
-                {
-                    setProvider( new DefaultLocalHostLookupProvider() );
-                    return null; // nothing to return
-                }
-            });            
-        }
-        return provider ;
-    }
-
-    public static synchronized void setProvider(LocalHostLookupProvider prvdr )
-    {
-        SecurityManager sm = System.getSecurityManager();
-        if (sm != null) {
-            sm.checkPermission( new RuntimePermission("setLocalHostLookupProvider") );
-        }
-        
-        if( LocalHostLookup.provider != null ) {
-            throw new RuntimeException( "provider already set" );
-        }
-      
-        LocalHostLookup.provider = prvdr ;
-
         try {
-            if (getLocalHost().isLoopbackAddress()) {
+            if (spi.getLocalHost().isLoopbackAddress()) {
                 logger.warning("local host is loopback");
             }
         } catch (UnknownHostException ex) {
-            logger.log(Level.WARNING,"",ex);
+            logger.log( Level.SEVERE, "{0} during checkForLoopback", new Object[]{ex} );
         }
     }
 
-    static class DefaultLocalHostLookupProvider 
-        implements LocalHostLookupProvider
+    static class DefaultLocalHostLookupProvider
+        extends LocalHostLookupSpi
     {
 
         @Override
@@ -109,9 +123,9 @@ public class LocalHostLookup
         {
             return InetAddress.getLocalHost().getHostAddress();
         }
-        
+
     }
-    
+
     private LocalHostLookup()
     {
     }
