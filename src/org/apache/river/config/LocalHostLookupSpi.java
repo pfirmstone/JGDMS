@@ -20,7 +20,7 @@ package org.apache.river.config;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import org.apache.river.common.Beta;
+import org.apache.river.api.common.Beta;
 
 /**
  * Provides a pluggable provider for LocalHostLookup.

@@ -19,7 +19,7 @@
 package net.jini.loader;
 
 import java.net.MalformedURLException;
-import org.apache.river.common.Beta;
+import org.apache.river.api.common.Beta;
 
 /**
  *

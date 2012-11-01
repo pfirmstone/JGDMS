@@ -26,7 +26,7 @@ import java.util.Iterator;
 import java.util.ServiceLoader;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.river.common.Beta;
+import org.apache.river.api.common.Beta;
 
 /**
  * Provides river with the external host network identity.
