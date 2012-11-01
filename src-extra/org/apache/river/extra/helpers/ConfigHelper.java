@@ -27,7 +27,7 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.id.Uuid;
-import org.apache.river.common.Beta;
+import org.apache.river.api.common.Beta;
 
 /**
  *

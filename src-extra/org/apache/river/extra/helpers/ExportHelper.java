@@ -34,7 +34,7 @@ import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.InvocationLayerFactory;
 import net.jini.jeri.ServerEndpoint;
-import org.apache.river.common.Beta;
+import org.apache.river.api.common.Beta;
 
 /**
  *

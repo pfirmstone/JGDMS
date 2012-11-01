@@ -29,7 +29,7 @@ import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
-import org.apache.river.common.Beta;
+import org.apache.river.api.common.Beta;
 
 /**
  *
