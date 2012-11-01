@@ -6,3 +6,5 @@ Default behaviour is using the RMIClassLoader.
 Added LocalHostLookup. Determines the hosts network identity.
 Pluggable via SPI.
 Default behaviour is using InetAdress.getLocalHost().
+
+Introduced @Beta annotation.
