@@ -29,6 +29,7 @@ import java.security.PermissionCollection;
 import java.security.Policy;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
+import java.security.Security;
 import java.security.UnresolvedPermission;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -45,15 +46,22 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.GrantPermission;
+import net.jini.security.policy.PolicyInitializationException;
+import org.apache.river.api.common.Beta;
 
 /**
- *
+ * RemotePolicy provider implementation.
  * 
  */
+@Beta
 public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy,
         ScalableNestedPolicy{
+    private static final String basePolicyClassProperty =
+	"org.apache.river.api.security.RemotePolicyProvider.basePolicyClass";
+    private static final String defaultBasePolicyClass =
+            "org.apache.river.api.security.ConcurrentPolicyFile";
     
-    private static final Logger logger = Logger.getLogger("net.jini.security.policy");
+    private static final Logger logger = Logger.getLogger("org.apache.river.api.security");
     private static final ProtectionDomain policyDomain = 
             AccessController.doPrivileged(new PrivilegedAction<ProtectionDomain>(){
             
@@ -81,10 +89,40 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
     private final boolean basePolicyIsRemote;
     private final boolean basePolicyIsConcurrent;
     private final PermissionCollection policyPermissions;
-    private final boolean loggable;
     
     /**
-     * Creates a new <code>DynamicPolicyProvider</code> instance that wraps
+     * Creates a RemotePolicyProvider instance using the System property
+     * "org.apache.river.api.security.RemotePolicyProvider.basePolicyClass"
+     * to instantiate a base Policy, otherwise if the property is not set
+     * creates an instance of ConcurrentPolicyFile to use as the base Policy.
+     * 
+     * @throws PolicyInitializationException
+     */
+    public RemotePolicyProvider() throws PolicyInitializationException {
+        String cname = Security.getProperty(basePolicyClassProperty);
+	if (cname == null) {
+	    cname = defaultBasePolicyClass;
+	}
+	try {
+	    this.basePolicy = (Policy) Class.forName(cname).newInstance();
+	} catch (SecurityException e) {
+	    throw e;
+	} catch (Exception e) {
+	    throw new PolicyInitializationException(
+		"unable to construct base policy", e);
+	}
+        remotePolicyGrants = new PermissionGrant[0];
+	grantLock = new Object();
+        remotePolicyPermission = new PolicyPermission("Remote");
+        protectionDomainPermission = new RuntimePermission("getProtectionDomain");
+        basePolicyIsRemote = basePolicy instanceof RemotePolicy ?true: false;
+        basePolicyIsConcurrent = basePolicy instanceof ScalableNestedPolicy ;
+        policyPermissions = basePolicy.getPermissions(policyDomain);
+        policyPermissions.setReadOnly();
+    }
+    
+    /**
+     * Creates a new <code>RemotePolicyProvider</code> instance that wraps
      * around the given non-<code>null</code> base policy object.
      *
      * @param   basePolicy base policy object containing information about
@@ -95,7 +133,6 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
     public RemotePolicyProvider(Policy basePolicy){
         this.basePolicy = basePolicy;
 	remotePolicyGrants = new PermissionGrant[0];
-        loggable = logger.isLoggable(Level.FINEST);
 	grantLock = new Object();
         remotePolicyPermission = new PolicyPermission("Remote");
         protectionDomainPermission = new RuntimePermission("getProtectionDomain");
@@ -117,14 +154,17 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
          * where two permissions combined also implied a third permission, that
          * neither administrator intended to grant.
          */
+        
         try {
         // Delegating to the underlying policy is not supported.
 	processRemotePolicyGrants(grants);
-        // If we get to here, the caller has permission.
-        } catch (SecurityException e){
-            throw new RemoteException("Policy update failed", (Throwable) e);
-        } catch (NullPointerException e) {
-            throw new RemoteException("Policy update failed", (Throwable) e);
+        // If we get here, the caller has permission.
+        } catch (SecurityException ex){
+            ex.fillInStackTrace();
+            logger.log(Level.WARNING, "Remote Policy update failed with SecurityException: ", ex);
+        } catch (NullPointerException ex) {
+            ex.fillInStackTrace();
+            logger.log(Level.SEVERE, "Remote Policy update failed with NullPointerException: ", ex);
         }
     }
     
@@ -144,58 +184,28 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
 	// changes between now and gaining the lock, only the length of the
 	// HashSet is potentially not optimal, keeping the HashSet creation
 	// outside of the lock reduces the lock held duration.
-        Set<ProtectionDomain> domains = null;
+        List<PermissionGrant> holder 
+		    = new LinkedList<PermissionGrant>();
+        remotePolicyPermission.checkGuard(null);
+        protectionDomainPermission.checkGuard(null);
+        Iterator<PermissionGrant> gi = holder.iterator();
         int l = grants.length;
-        for (int i = 0; i < l; i++ ){
-            if (grants[i] == null ) throw new NullPointerException("null PermissionGrant prohibited");
-            // This causes a ProtectionDomain security check.
-            final Class c = grants[i].getClass();
-            domains = AccessController.doPrivileged(
-                new PrivilegedAction<Set<ProtectionDomain>>() {
-                    public Set<ProtectionDomain> run() {
-                        Class[] classes = c.getDeclaredClasses();
-                        Set<ProtectionDomain> domains = new HashSet<ProtectionDomain>();
-                        int l = classes.length;
-                        for ( int i = 0; i < l; i++ ){
-                            domains.add(classes[i].getProtectionDomain());
-                        }
-                        return domains;
-                    }
-                });
-        }
-        Iterator<ProtectionDomain> it = domains.iterator();
-        while (it.hasNext()){
-            if ( ! it.next().implies(remotePolicyPermission)) {
-                throw new SecurityException("Missing permission: " 
-                        + remotePolicyPermission.toString());
+        for (int i =0; i<l; i++){
+            try {
+                checkCallerHasGrants(grants[i]);
+                holder.add(grants[i]);
+            }catch (SecurityException e){
+                logger.log(Level.WARNING, "Caller doesn't have necessary GrantPermission:\n ", grants[i]);
             }
         }
-	HashSet<PermissionGrant> holder 
-		    = new HashSet<PermissionGrant>(grants.length);
-	    holder.addAll(Arrays.asList(grants));
-            checkCallerHasGrants(holder);
-        PermissionGrant[] old = null;
 	synchronized (grantLock) {
-            old = remotePolicyGrants;
 	    PermissionGrant[] updated = new PermissionGrant[holder.size()];
 	    remotePolicyGrants = holder.toArray(updated);
 	}
-        Collection<PermissionGrant> oldGrants = new HashSet<PermissionGrant>(old.length);
-        oldGrants.addAll(Arrays.asList(old));
-        oldGrants.removeAll(holder);
-        // Collect removed Permission's to notify CachingSecurityManager.
-        Set<Permission> removed = new HashSet<Permission>(120);
-        Iterator<PermissionGrant> rgi = oldGrants.iterator();
-        while (rgi.hasNext()){
-            PermissionGrant g = rgi.next();
-                    removed.addAll(g.getPermissions());
-        }
-        
         SecurityManager sm = System.getSecurityManager();
         if (sm instanceof CachingSecurityManager) {
             ((CachingSecurityManager) sm).clearCache();
         }
-        // oldGrants now only has the grants which have been removed.
     }
     
     @Override
