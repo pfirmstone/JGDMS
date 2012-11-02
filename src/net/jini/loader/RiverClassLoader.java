@@ -96,7 +96,7 @@ public class RiverClassLoader
     public static Class<?> loadClass(String location, String className) 
         throws MalformedURLException, ClassNotFoundException
     {
-        return spi.loadClass(className, className, null);
+        return spi.loadClass(location, className, null);
     }
 
     private static class DefaultRiverClassLoaderSpi 
