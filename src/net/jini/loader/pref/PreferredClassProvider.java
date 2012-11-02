@@ -1447,6 +1447,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
                 String uri = st.nextToken();
                 uri = UriString.fixWindowsURI(uri);
                 urls[i] = UriString.normalise(new URI(UriString.escapeIllegalCharacters(uri)));
+                if (! urls[i].isAbsolute()){
+                    throw new MalformedURLException( "URI is not absolute: " + urls[i].toString() +" in path: "+ path);
+                }
             } catch (URISyntaxException ex) {
                 throw new MalformedURLException("URL's must be RFC 3986 Compliant: " 
                         + ex.getMessage());
