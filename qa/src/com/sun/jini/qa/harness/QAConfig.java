@@ -36,6 +36,8 @@ import java.io.Serializable;
 
 import java.net.InetAddress;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.net.UnknownHostException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -72,6 +74,7 @@ import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.ProxyPreparer;
 import net.jini.url.httpmd.HttpmdUtil;
+import org.apache.river.impl.net.UriString;
 
 /**
  * This class represents the environment for tests running in
@@ -703,13 +706,20 @@ public class QAConfig implements Serializable {
      */
     public URL getComponentURL(String entryName, TestDescription td) throws TestException {
 	try {
-	    return new URL(entryName);
+            URI uri = new URI(UriString.escapeIllegalCharacters(UriString.fixWindowsURI(entryName)));
+            uri = UriString.normalise(uri);
+            return uri.toURL();
+//	    return new URL(entryName);
 	} catch (MalformedURLException ignore) {
-	}
+	} catch (URISyntaxException ignore){
+        } catch (IllegalArgumentException ignore){
+        }
 	File entryFile = getComponentFile(entryName, td);
 	if (entryFile != null) { 
 	    try {
-		return entryFile.getCanonicalFile().toURI().toURL();
+		URI result = entryFile.getCanonicalFile().toURI();
+                result = UriString.normalise(result);
+                return result.toURL();
 	    } catch (Exception e) {
 		throw new TestException("problem converting file to url", e);
 	    }
@@ -725,18 +735,49 @@ public class QAConfig implements Serializable {
 		String fqEntry = canonicalize(tdDir + "/" + entryName);
 		logger.log(Level.FINEST, "checking test jar file for " + fqEntry);
 		if (getJarEntry(testJar, fqEntry) != null) {
-		    return new URL("jar:file:" + testJar.replace('\\', '/') + "!/" + fqEntry);
+                    StringBuilder sb = new StringBuilder(64);
+                    sb.append("jar:file:")
+                            .append(testJar.replace('\\', '/'))
+                            .append("!/")
+                            .append(fqEntry);
+                    String str = UriString.escapeIllegalCharacters(sb.toString());
+                    URI uri = new URI(str);
+                    uri = UriString.normalise(uri);
+                    return uri.toURL();
+//		    return new URL("jar:file:" + testJar.replace('\\', '/') + "!/" + fqEntry);
 		}
 	    }
 	    if (getJarEntry(testJar, entryName) != null) {
-		return new URL("jar:file:" + testJar.replace('\\', '/') + "!/" + entryName);
+                StringBuilder sb = new StringBuilder(64);
+                sb.append("jar:file:")
+                        .append(testJar.replace('\\', '/'))
+                        .append("!/")
+                        .append(entryName);
+                String str = UriString.escapeIllegalCharacters(sb.toString());
+                URI uri = new URI(str);
+                uri = UriString.normalise(uri);
+                return uri.toURL();
+//		return new URL("jar:file:" + testJar.replace('\\', '/') + "!/" + entryName);
 	    }
 	    if (getJarEntry(harnessJar, entryName) != null) {
-		return new URL("jar:file:" + harnessJar.replace('\\', '/') + "!/" + entryName);
+                StringBuilder sb = new StringBuilder(64);
+                sb.append("jar:file:")
+                        .append(harnessJar.replace('\\', '/'))
+                        .append("!/")
+                        .append(entryName);
+                String str = UriString.escapeIllegalCharacters(sb.toString());
+                URI uri = new URI(str);
+                uri = UriString.normalise(uri);
+                return uri.toURL();
+//		return new URL("jar:file:" + harnessJar.replace('\\', '/') + "!/" + entryName);
 	    }
 	} catch (MalformedURLException e) {
 	    throw new TestException("failed to construct entry URL", e);
-	}
+	} catch (URISyntaxException e){
+            throw new TestException("failed to construct entry URI", e);
+        } catch (IllegalArgumentException e){
+            throw new TestException("failed to construct entry URI", e);
+        }
 	throw new TestException("no jar entry found for " + entryName);
     }
 
