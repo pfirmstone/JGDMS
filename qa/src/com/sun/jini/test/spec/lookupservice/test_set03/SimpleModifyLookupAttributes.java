@@ -55,8 +55,8 @@ public class SimpleModifyLookupAttributes extends QATestRegistrar {
     /* Arguments to the constructors of the initial attribute classes */
     private static final Object[][] INITIAL_ATTRS_ARGS =
     { 
-      {"Lookup", "Sun Microsystems, Inc.", "Sun Microsystems, Inc.",
-       VersionConstants.SERVER_VERSION, "", ""},
+      {"Lookup", "Apache River", "Apache foundation",
+	    VersionConstants.SERVER_VERSION, "", ""},
       {"Lookup"},
     };
     /* Argument classes to the constructors of the initial attribute classes */
