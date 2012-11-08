@@ -165,9 +165,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     /** Base set of initial attributes for self */
     private static final Entry[] baseAttrs = {
 	new ServiceInfo(
-	    "Lookup", "Sun Microsystems, Inc.", "Sun Microsystems, Inc.",
-	    VersionConstants.SERVER_VERSION, "", ""),
-	new ServiceInfo(
 	    "Lookup", "Apache River", "Apache foundation",
 	    VersionConstants.SERVER_VERSION, "", ""),
 	new BasicServiceType("Lookup")
