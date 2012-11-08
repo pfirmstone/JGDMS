@@ -22,7 +22,16 @@ import java.net.MalformedURLException;
 import org.apache.river.api.common.Beta;
 
 /**
- *
+ * River wide Service Provider Interface (SPI) to modify classloading behaviour.
+ * 
+ * Loosely based on the RMIClassLoaderSpi. To circumvent RMIClassLoaderSpi 
+ * problems in some runtime environments, like Java Webstart and Netbeans platform api.
+ * <p>
+ * The default {@link RiverClassLoader.DefaultRiverClassLoaderSpi } delegates to the RMIClassLoader. 
+ * <p>
+ * To create a RiverClassLoaderSpi for netbeans, 
+ * please look at: <a href='https://issues.apache.org/jira/browse/RIVER-336'>RIVER-336</a> 
+ * for inspiration.
  */
 @Beta
 public abstract class RiverClassLoaderSpi
@@ -32,7 +41,7 @@ public abstract class RiverClassLoaderSpi
         throws MalformedURLException, ClassNotFoundException ;
 
     public abstract Class<?> loadProxyClass(String codebase, String[] interfaceNames, ClassLoader defaultLoader)
-        throws ClassNotFoundException, MalformedURLException ;
+        throws MalformedURLException, ClassNotFoundException ;
 
     public abstract String getClassAnnotation(Class<?> cl);
 
