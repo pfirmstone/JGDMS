@@ -131,5 +131,9 @@ public class RiverClassLoader
             return RMIClassLoader.getClassLoader(codebase);
         }
     }
+
+    private RiverClassLoader()
+    {
+    }
     
 }
