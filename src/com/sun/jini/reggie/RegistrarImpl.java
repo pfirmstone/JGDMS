@@ -48,6 +48,7 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Array;
+import java.net.BindException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -55,6 +56,7 @@ import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -2501,10 +2503,30 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		}
 	    }
 	    if (listen == null) {
-                listen = serverSocketFactory.createServerSocket(port);
+                try {
+                    listen = createServerSocket(serverSocketFactory, port);
+                }catch ( BindException ex){
+                    try {
+                        Thread.sleep(240000); // Wait 4 minutes for TCP 2MSL TIME_WAIT
+                        listen = createServerSocket(serverSocketFactory, port);
+                    }catch (BindException e){
+                        e.fillInStackTrace();
+                        throw new IOException("Reggie ServerSocket port already in use: " + port, e);
+                    }catch (InterruptedException e){
+                        e.fillInStackTrace();
+                        throw new IOException("Reggie ServerSocket creation interrupted after sleeping for TIME_WAIT", e);
+                    }
+                }
 	    }
 	    this.port = listen.getLocalPort();
 	}
+        
+        private ServerSocket createServerSocket(ServerSocketFactory ssf, int port) throws IOException{
+            ServerSocket socket = ssf.createServerSocket();
+            SocketAddress sa = new InetSocketAddress(port);
+            socket.bind(sa);
+            return socket;
+        }
 
 	public void run() {
 	    while (!hasBeenInterrupted()) {
