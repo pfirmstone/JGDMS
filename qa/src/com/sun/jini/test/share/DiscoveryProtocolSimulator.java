@@ -81,6 +81,7 @@ import java.net.UnknownHostException;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InterruptedIOException;
+import java.net.BindException;
 
 import java.nio.ByteBuffer;
 import java.nio.BufferUnderflowException;
@@ -573,7 +574,17 @@ public class DiscoveryProtocolSimulator {
 		}
 	    }
 	    if (listen == null) {
-		listen = new ServerSocket(port);
+                try {
+                    listen = new ServerSocket(port);
+                } catch (BindException e){
+                    try {
+                        Thread.sleep(240000); // TIME_WAIT
+                        listen = new ServerSocket(port); // Try again.
+                    } catch (InterruptedException ex){
+                        ex.fillInStackTrace();
+                        throw new IOException("Interrupted while trying to open a ServerSocket", ex);
+                    }
+                }
 	    }
 	    this.port = listen.getLocalPort();
 	}
