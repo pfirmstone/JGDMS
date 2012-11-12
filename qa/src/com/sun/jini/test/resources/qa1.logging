@@ -105,9 +105,9 @@ java.util.logging.FileHandler.level = INFO
 
 # For Everything
 sun.rmi.level = INFO
-net.jini.level = INFO
+net.jini.level = FINEST
 
-com.sun.jini.level = INFO
+com.sun.jini.level = FINEST
 
 # For the LogManager
 com.sun.jini.logging.LogManager.level = INFO
