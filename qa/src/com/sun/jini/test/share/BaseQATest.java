@@ -29,6 +29,8 @@ import com.sun.jini.test.share.LocatorsUtil;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 
+import java.rmi.activation.ActivationException;
+import java.util.logging.Logger;
 import net.jini.admin.Administrable;
 import net.jini.admin.JoinAdmin;
 
@@ -88,15 +90,15 @@ abstract public class BaseQATest extends QATest {
     protected static final int MANUAL_TEST_REMOTE_COMPONENT = 1;
     protected static final int MANUAL_TEST_LOCAL_COMPONENT  = 2;
 
-    protected boolean useFastTimeout = false;//for faster completion
-    protected int fastTimeout = 10;//default value
-    protected boolean displayOn = true;//verbose in waitForDiscovery/Discard
-    protected boolean debugsync = false;//turns on synchronization debugging
+    protected volatile boolean useFastTimeout = false;//for faster completion
+    protected volatile int fastTimeout = 10;//default value
+    protected volatile boolean displayOn = true;//verbose in waitForDiscovery/Discard
+    protected volatile boolean debugsync = false;//turns on synchronization debugging
 
     /** Ordered pair containing a LookupLocator and the corresponding groups */
     public class LocatorGroupsPair {
-        public LookupLocator locator;
-        public String[]      groups;
+        public final LookupLocator locator;
+        public final String[]      groups;
         public LocatorGroupsPair(LookupLocator locator, String[] groups) {
             this.locator = locator;
             this.groups  = groups;
@@ -112,8 +114,8 @@ abstract public class BaseQATest extends QATest {
 
     /** Data structure representing a set of LookupLocators & groups to join */
     public class ToJoinPair {
-        public LookupLocator[] locators;
-        public String[]        groups;
+        public final LookupLocator[] locators;
+        public final String[]        groups;
         public ToJoinPair(LookupLocator[] locators, String[] groups) {
             this.locators = locators;
             this.groups   = groups;
@@ -138,11 +140,11 @@ abstract public class BaseQATest extends QATest {
      */
     protected class LookupListener implements DiscoveryListener {
         public LookupListener(){ }
-        public HashMap discoveredMap = new HashMap(11);
-        public HashMap discardedMap  = new HashMap(11);
+        public final HashMap discoveredMap = new HashMap(11);
+        public final HashMap discardedMap  = new HashMap(11);
 
-        public HashMap expectedDiscoveredMap = new HashMap(11);
-        public HashMap expectedDiscardedMap  = new HashMap(11);
+        public final HashMap expectedDiscoveredMap = new HashMap(11);
+        public final HashMap expectedDiscardedMap  = new HashMap(11);
 
         /** Returns the locators of the lookups from discoveredMap, which
          *  contains both the lookups that are expected to be discovered,
@@ -682,8 +684,8 @@ abstract public class BaseQATest extends QATest {
     {
         public GroupChangeListener(){ }
 
-        public HashMap changedMap = new HashMap(11);
-        public HashMap expectedChangedMap = new HashMap(11);
+        public final HashMap changedMap = new HashMap(11);
+        public final HashMap expectedChangedMap = new HashMap(11);
 
         public void clearAllEventInfo() {
             synchronized(this) {
@@ -872,7 +874,7 @@ abstract public class BaseQATest extends QATest {
                                2*60*1000,
                                  60*1000, 30*1000, 20*1000, 10*1000, 5*1000 };
         private int startIndx = 0;
-        private ArrayList locGroupsList;
+        private final ArrayList locGroupsList;
         /** Use this constructor if it is desired that all lookup services
          *  be started in this thread. The locGroupsList parameter is an
          *  ArrayList that should contain LocatorGroupsPair instances that
@@ -945,76 +947,76 @@ abstract public class BaseQATest extends QATest {
     }//end class StaggeredStartThread
 
     /* Protected instance variables */
-    protected int testType = AUTOMATIC_LOCAL_TEST;
+    protected volatile int testType = AUTOMATIC_LOCAL_TEST;
 
-    protected String implClassname;
+    protected volatile String implClassname;
 
-    protected int maxSecsEventWait  = 10 * 60;
-    protected int announceInterval  = 2 * 60 * 1000;
-    protected int originalAnnounceInterval = 0;
-    protected int minNAnnouncements = 2;
-    protected int nIntervalsToWait  = 3;
+    protected volatile int maxSecsEventWait  = 10 * 60;
+    protected volatile int announceInterval  = 2 * 60 * 1000;
+    protected volatile int originalAnnounceInterval = 0;
+    protected volatile int minNAnnouncements = 2;
+    protected volatile int nIntervalsToWait  = 3;
 
-    protected boolean delayLookupStart = false;
+    protected volatile boolean delayLookupStart = false;
 
-    protected int nLookupServices          = 0;
-    protected int nAddLookupServices       = 0;
-    protected int nRemoteLookupServices    = 0;
-    protected int nAddRemoteLookupServices = 0;
+    protected volatile int nLookupServices          = 0;
+    protected volatile int nAddLookupServices       = 0;
+    protected volatile int nRemoteLookupServices    = 0;
+    protected volatile int nAddRemoteLookupServices = 0;
 
-    protected int nServices    = 0;//local/serializable test services
-    protected int nAddServices = 0;//additional local/serializable services
+    protected volatile int nServices    = 0;//local/serializable test services
+    protected volatile int nAddServices = 0;//additional local/serializable services
 
     /* Specified jini services */
-    protected String ldsImplClassname               = "no ImplClassname";
-    protected int nLookupDiscoveryServices          = 0;
-    protected int nAddLookupDiscoveryServices       = 0;
-    protected int nRemoteLookupDiscoveryServices    = 0;
-    protected int nAddRemoteLookupDiscoveryServices = 0;
+    protected volatile String ldsImplClassname               = "no ImplClassname";
+    protected volatile int nLookupDiscoveryServices          = 0;
+    protected volatile int nAddLookupDiscoveryServices       = 0;
+    protected volatile int nRemoteLookupDiscoveryServices    = 0;
+    protected volatile int nAddRemoteLookupDiscoveryServices = 0;
 
-    protected String lrsImplClassname               = "no ImplClassname";
-    protected int nLeaseRenewalServices             = 0;
-    protected int nAddLeaseRenewalServices          = 0;
-    protected int nRemoteLeaseRenewalServices       = 0;
-    protected int nAddRemoteLeaseRenewalServices    = 0;
+    protected volatile String lrsImplClassname               = "no ImplClassname";
+    protected volatile int nLeaseRenewalServices             = 0;
+    protected volatile int nAddLeaseRenewalServices          = 0;
+    protected volatile int nRemoteLeaseRenewalServices       = 0;
+    protected volatile int nAddRemoteLeaseRenewalServices    = 0;
 
-    protected String emsImplClassname               = "no ImplClassname";
-    protected int nEventMailboxServices             = 0;
-    protected int nAddEventMailboxServices          = 0;
-    protected int nRemoteEventMailboxServices       = 0;
-    protected int nAddRemoteEventMailboxServices    = 0;
+    protected volatile String emsImplClassname               = "no ImplClassname";
+    protected volatile int nEventMailboxServices             = 0;
+    protected volatile int nAddEventMailboxServices          = 0;
+    protected volatile int nRemoteEventMailboxServices       = 0;
+    protected volatile int nAddRemoteEventMailboxServices    = 0;
 
     /* Attributes per service */
-    protected int nAttributes    = 0;
-    protected int nAddAttributes = 0;
+    protected volatile int nAttributes    = 0;
+    protected volatile int nAddAttributes = 0;
 
-    protected int nSecsLookupDiscovery  = 30;
-    protected int nSecsServiceDiscovery = 30;
-    protected int nSecsJoin             = 30;
+    protected volatile int nSecsLookupDiscovery  = 30;
+    protected volatile int nSecsServiceDiscovery = 30;
+    protected volatile int nSecsJoin             = 30;
 
-    protected String remoteHost = "UNKNOWN_HOST";
+    protected volatile String remoteHost = "UNKNOWN_HOST";
 
     /* Data structures - lookup services */
-    protected ArrayList initLookupsToStart = new ArrayList(11);
-    protected ArrayList addLookupsToStart  = new ArrayList(11);
-    protected ArrayList allLookupsToStart  = new ArrayList(11);
-    protected ArrayList lookupsStarted     = new ArrayList(11);
+    protected final ArrayList initLookupsToStart = new ArrayList(11);
+    protected final ArrayList addLookupsToStart  = new ArrayList(11);
+    protected final ArrayList allLookupsToStart  = new ArrayList(11);
+    protected final ArrayList lookupsStarted     = new ArrayList(11);
 
-    protected ArrayList lookupList = new ArrayList(1);
-    protected HashMap genMap = new HashMap(11);
-    protected int nStarted = 0;
+    protected final ArrayList lookupList = new ArrayList(1);
+    protected final HashMap genMap = new HashMap(11);
+    protected volatile int nStarted = 0;
     /* Data structures - lookup discovery services */
-    protected ArrayList initLDSToStart = new ArrayList(11);
-    protected ArrayList addLDSToStart  = new ArrayList(11);
-    protected ArrayList allLDSToStart  = new ArrayList(11);
-    protected ArrayList ldsList = new ArrayList(1);
+    protected final ArrayList initLDSToStart = new ArrayList(11);
+    protected final ArrayList addLDSToStart  = new ArrayList(11);
+    protected final ArrayList allLDSToStart  = new ArrayList(11);
+    protected final ArrayList ldsList = new ArrayList(1);
 
-    protected Class[] serviceClasses = null;
-    protected ArrayList expectedServiceList = new ArrayList(1);
+    protected volatile Class[] serviceClasses = null;
+    protected final ArrayList expectedServiceList = new ArrayList(1);
 
-    protected QAConfig config = null;
+    protected volatile QAConfig config = null;
 
-    private boolean announcementsStopped = false;
+    private volatile boolean announcementsStopped = false;
 
     /* Need to keep a local mapping of registrars to their corresponding 
      * locators and groups so that when a registrar is discarded (indicating
@@ -1024,7 +1026,7 @@ abstract public class BaseQATest extends QATest {
      * is started, the registrar and its locator/groups pair are added to this
      * map.
      */
-    protected HashMap regsToLocGroupsMap = new HashMap(11);
+    protected final HashMap regsToLocGroupsMap = new HashMap(11);
 
     /* Private instance variables */
 
@@ -1032,7 +1034,7 @@ abstract public class BaseQATest extends QATest {
      * lookup service so those groups can be mapped to the correct member
      * groups configuration item. 
      */
-    private ArrayList memberGroupsList = new ArrayList(11);
+    private final ArrayList memberGroupsList = new ArrayList(11);
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test as follows:
@@ -1626,9 +1628,23 @@ abstract public class BaseQATest extends QATest {
                 if(debugsync) logger.log(Level.FINE,
                                   "     BaseQATest.startLookup - "
                                   +"sync on lookupList --> granted");
-                /* Use either a random or an explicit locator port */
-                generator = new DiscoveryProtocolSimulator
-                                               (config,memberGroups,manager, port);
+                try {
+                    /* Use either a random or an explicit locator port */
+                    generator = new DiscoveryProtocolSimulator
+                                                   (config,memberGroups,manager, port);
+                } catch (ActivationException ex) {
+                    ex.fillInStackTrace();
+                    logger.log(Level.FINE, null, ex);
+                    throw ex;
+                } catch (IOException ex) {
+                    ex.fillInStackTrace();
+                    logger.log(Level.FINE, null, ex);
+                    throw ex;
+                } catch (TestException ex) {
+                    ex.fillInStackTrace();
+                    logger.log(Level.FINE, null, ex);
+                    throw ex;
+                }
                 genMap.put( generator, memberGroups );
                 lookupProxy = generator.getLookupProxy();
                 lookupList.add( lookupProxy );

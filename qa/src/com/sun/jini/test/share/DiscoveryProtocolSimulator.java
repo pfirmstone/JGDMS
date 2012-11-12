@@ -150,7 +150,7 @@ public class DiscoveryProtocolSimulator {
     /** Default maximum size of multicast packets to send and receive */
     private static final int DEFAULT_MAX_PACKET_SIZE = 512;
     /** Default time to live value to use for sending multicast packets */
-    private static int DEFAULT_MULTICAST_TTL;
+    private static volatile int DEFAULT_MULTICAST_TTL;
     /** Default timeout to set on sockets used for unicast discovery */
     private static final int DEFAULT_SOCKET_TIMEOUT = 1*60*1000;
 
@@ -168,57 +168,62 @@ public class DiscoveryProtocolSimulator {
      */
     private InetAddress[] nicAddresses;
 
-    /** Port for unicast discovery */
+    /** Port for unicast discovery 
+     * lockLookupLocator for synch
+     */
     private int unicastPort = 0;
     /** The locator to send */
-    private LookupLocator lookupLocator = null;
+    private volatile LookupLocator lookupLocator = null;
     /** The member groups to send */
     private String[] memberGroups = {};
 
     /** Thread to receive/process multicast requests from client or service */
-    MulticastThread multicastRequestThread;
-    /** Thread to receive/process unicast requests from client or service */
-    UnicastThread unicastRequestThread;
+    final MulticastThread multicastRequestThread;
+    /** Thread to receive/process unicast requests from client or service 
+     * write by lockLookupLocator synch
+     * read by volatile
+     */
+    volatile UnicastThread unicastRequestThread;
     /** Thread to send multicast announcements to from client or service */
-    AnnounceThread multicastAnnouncementThread;
+    final AnnounceThread multicastAnnouncementThread;
 
     /** Task manager for sending events and discovery responses */
     private final TaskManager taskMgr = new TaskManager(10, 1000 * 15, 1.0f);
 
     /** Proxy for the "fake" lookup service that is sent */
-    private LookupSimulatorProxyInterface lookupProxy;
+    private volatile LookupSimulatorProxyInterface lookupProxy;
     /** The service ID to assign to the lookup service that is sent */
-    private ServiceID lookupServiceID = null;
+    private volatile ServiceID lookupServiceID = null;
 
     /** Socket timeout for unicast discovery request processing */
-    private int unicastTimeout =
+    private volatile int unicastTimeout =
 	Integer.getInteger("com.sun.jini.reggie.unicastTimeout",
 			   1000 * 60).intValue();
     /* For synchronization, instead of ReadersWriter locks used by reggie */
-    private Object lockNAnnouncements = new Object();
-    private Object lockLookupProxy    = new Object();
-    private Object lockLookupLocator  = new Object();
-    private Object lockMemberGroups   = new Object();
+    private final Object lockNAnnouncements = new Object();
+    private final Object lockLookupProxy    = new Object();
+    private final Object lockLookupLocator  = new Object();
+    private final Object lockMemberGroups   = new Object();
 
     /* new fields taken from the davis reggie */
 
     /** Network interfaces to use for multicast discovery */
-    private NetworkInterface[] multicastInterfaces;
+    private volatile NetworkInterface[] multicastInterfaces;
     /** Flag indicating whether network interfaces were explicitly specified */
-    private boolean multicastInterfacesSpecified;
-    private Discovery protocol2;
+    private volatile boolean multicastInterfacesSpecified;
+    private volatile Discovery protocol2;
     /** Constraints specified for incoming multicast requests */
-    private DiscoveryConstraints multicastRequestConstraints;
+    private volatile DiscoveryConstraints multicastRequestConstraints;
     /** Constraints specified for outgoing multicast announcements */
-    private DiscoveryConstraints multicastAnnouncementConstraints;
+    private volatile DiscoveryConstraints multicastAnnouncementConstraints;
     /** Constraints specified for handling unicast discovery */
-    private DiscoveryConstraints unicastDiscoveryConstraints;
+    private volatile DiscoveryConstraints unicastDiscoveryConstraints;
     /** Client subject checker to apply to incoming multicast requests */
-    private ClientSubjectChecker multicastRequestSubjectChecker;
+    private volatile ClientSubjectChecker multicastRequestSubjectChecker;
     /** Client subject checker to apply to unicast discovery attempts */
-    private ClientSubjectChecker unicastDiscoverySubjectChecker;
+    private volatile ClientSubjectChecker unicastDiscoverySubjectChecker;
     /** Interval to wait in between sending multicast announcements */
-    private long multicastAnnouncementInterval = 1000 * 60 * 2;
+    private volatile long multicastAnnouncementInterval = 1000 * 60 * 2;
 
 
     public DiscoveryProtocolSimulator(QAConfig config,
@@ -290,6 +295,9 @@ public class DiscoveryProtocolSimulator {
 		}
 	    }
 	}
+        multicastRequestThread = new MulticastThread();
+        multicastAnnouncementThread = new AnnounceThread();
+        unicastRequestThread = new UnicastThread(unicastPort);
     }//end constructor
 
     public void stopAnnouncements() {
@@ -420,7 +428,9 @@ public class DiscoveryProtocolSimulator {
             unicastRequestThread.interrupt();
             try {
                 unicastRequestThread.join();
-            } catch (InterruptedException e) { }
+            } catch (InterruptedException e) { 
+                
+            }
             /* start the UnicastThread listening on the new port */
             unicastRequestThread = newUnicastRequestThread;
             unicastRequestThread.start();
@@ -1088,7 +1098,6 @@ public class DiscoveryProtocolSimulator {
             host = InetAddress.getLocalHost().getHostName();
         }
         thisInetAddress = InetAddress.getByName(host);
-        unicastRequestThread = new UnicastThread(unicastPort);
         lookupLocator = QAConfig.getConstrainedLocator(host, unicastRequestThread.port);
         /* start an activatable lookup service simulation */
         if (lookupServiceID == null) {
@@ -1174,8 +1183,7 @@ public class DiscoveryProtocolSimulator {
 	}
 
         /* start the discovery-related threads */
-        multicastRequestThread = new MulticastThread();
-        multicastAnnouncementThread = new AnnounceThread();
+        
         /* start the threads */
         unicastRequestThread.start();
         multicastRequestThread.start();

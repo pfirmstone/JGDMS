@@ -2,3 +2,4 @@ testClass=BadLocatorDiscoveryListener
 testCategories=locatordiscovery,locatordiscovery_impl,impllocatordiscovery
 include0=locatordiscovery.properties
 include1=com/sun/jini/test/share/reggie3_2.properties
+qautil.debug.sync=true
