@@ -176,7 +176,7 @@ net.jini.security.policy.level = INFO
 net.jini.url.httpmd.level = INFO
 
 # For Discovery
-com.sun.jini.discovery.level = INFO
+com.sun.jini.discovery.level = FINEST
 #com.sun.jini.discovery.DiscoveryV1.level = INFO
 #com.sun.jini.discovery.DiscoveryV2.level = INFO
 #com.sun.jini.discovery.x500.level = INFO
@@ -203,7 +203,7 @@ com.sun.jini.start.level = INFO
 #com.sun.jini.start.wrapper.level = INFO
 
 # For Reggie
-com.sun.jini.reggie.level = INFO
+com.sun.jini.reggie.level = FINEST
 
 # For Mahalo
 com.sun.jini.mahalo.destroy.level = INFO
