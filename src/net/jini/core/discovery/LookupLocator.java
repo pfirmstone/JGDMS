@@ -454,9 +454,9 @@ public class LookupLocator implements Serializable {
      * <code>"jini"</code>.
      */
     public String toString() {
-	if (port != discoveryPort)
+//	if (port != discoveryPort)
 	    return "jini://" + getHost0(host) + ":" + port + "/";
-	return "jini://" + getHost0(host) + "/";
+//	return "jini://" + getHost0(host) + "/";
     }
 
     /**
