@@ -24,6 +24,7 @@ import com.sun.jini.test.share.GroupsUtil;
 import net.jini.discovery.DiscoveryGroupManagement;
 import java.util.ArrayList;
 import com.sun.jini.qa.harness.QAConfig;
+import java.util.List;
 
 /**
  * With respect to the <code>removeGroups</code> method, this class verifies
@@ -106,9 +107,9 @@ public class RemoveGroupsSome extends Discovered {
      *  invoked by the run() method. This method constructs the set of
      *  groups to remove from the lookup discovery manager.
      */
-    void setGroupsToRemove(ArrayList list, boolean alternate) {
-        ArrayList removeList = new ArrayList(11);
-        ArrayList newDiscoverList = new ArrayList(11);
+    void setGroupsToRemove(List list, boolean alternate) {
+        List removeList = new ArrayList(11);
+        List newDiscoverList = new ArrayList(11);
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
             String[] curGroups = pair.groups;

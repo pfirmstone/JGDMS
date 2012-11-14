@@ -24,6 +24,7 @@ import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscovery</code> utility
@@ -96,7 +97,7 @@ public class MulticastMonitorReplace extends Discovered {
          * maps to change until setLookupsToDiscover returns.
          */
         synchronized(listenerToUse) {
-            ArrayList locGroupsPairList = null;
+            List locGroupsPairList = null;
             /* Replace current groups with new groups to cause discards */
             if(replacementGroups == null) {//use unique generated groups
                 locGroupsPairList = replaceMemberGroups();

@@ -57,6 +57,7 @@ import java.rmi.RemoteException;
 
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -170,7 +171,7 @@ abstract public class BaseQATest extends QATest {
             synchronized(this) {
                 Set dSet = discoveredMap.keySet();
                 Set eSet = expectedDiscoveredMap.keySet();
-                ArrayList uLocsList = new ArrayList(eSet.size());
+                List uLocsList = new ArrayList(eSet.size());
                 Iterator iter = eSet.iterator();
                 while(iter.hasNext()) {
                     LookupLocator loc = (LookupLocator)iter.next();
@@ -207,7 +208,7 @@ abstract public class BaseQATest extends QATest {
         /** Use this method to set the contents of the discoveredMap to a
          *  specific set of values.
          */
-        public void setDiscoveredMap(ArrayList locGroupsList) {
+        public void setDiscoveredMap(List locGroupsList) {
             synchronized(this) {
                 discoveredMap.clear();
                 discardedMap.clear();
@@ -222,7 +223,7 @@ abstract public class BaseQATest extends QATest {
         /** Use this method to set the contents of both the discoveredMap
          *  and the expectedDiscardedMap to a specific set of values.
          */
-        public void setDiscardEventInfo(ArrayList locGroupsList) {
+        public void setDiscardEventInfo(List locGroupsList) {
             synchronized(this) {
                 discoveredMap.clear();
                 discardedMap.clear();
@@ -245,13 +246,13 @@ abstract public class BaseQATest extends QATest {
          *  current and/or expected state of the fields of this class related
          *  to the discovered/discarded event state of this listener.
          */
-        public void setLookupsToDiscover(ArrayList locGroupsList) {
+        public void setLookupsToDiscover(List locGroupsList) {
             setLookupsToDiscover(locGroupsList, 
                                  toLocatorArray(allLookupsToStart),
                                  toGroupsArray(allLookupsToStart));
         }//end setLookupsToDiscover
 
-        public void setLookupsToDiscover(ArrayList locGroupsList,
+        public void setLookupsToDiscover(List locGroupsList,
                                          LookupLocator[] locatorsToDiscover)
         {
             setLookupsToDiscover(locGroupsList, 
@@ -259,7 +260,7 @@ abstract public class BaseQATest extends QATest {
                                  DiscoveryGroupManagement.NO_GROUPS);
         }//end setLookupsToDiscover
 
-        public void setLookupsToDiscover(ArrayList locGroupsList,
+        public void setLookupsToDiscover(List locGroupsList,
                                          String[] groupsToDiscover)
         {
             setLookupsToDiscover(locGroupsList, 
@@ -267,7 +268,7 @@ abstract public class BaseQATest extends QATest {
                                  groupsToDiscover);
         }//end setLookupsToDiscover
 
-        public void setLookupsToDiscover(ArrayList locGroupsList,
+        public void setLookupsToDiscover(List locGroupsList,
                                          LookupLocator[] locatorsToDiscover,
                                          String[] groupsToDiscover)
         {
@@ -534,7 +535,7 @@ abstract public class BaseQATest extends QATest {
                 Map groupsMap = evnt.getGroups();
                 synchronized(this) {
                     boolean oneDiscovered = false;
-                    ArrayList lusList = getLookupListSnapshot
+                    List lusList = getLookupListSnapshot
                                      ("BaseQATest$LookupListenter.discovered");
                     for(int i=0;i<regs.length;i++) {
                         LookupLocator loc = null;
@@ -708,12 +709,12 @@ abstract public class BaseQATest extends QATest {
          *  current and/or expected state of the fields of this class related
          *  to the changed event state of this listener.
          */
-        public void setLookupsToDiscover(ArrayList locGroupsList) {
+        public void setLookupsToDiscover(List locGroupsList) {
             this.setLookupsToDiscover(locGroupsList, 
                                       toGroupsArray(allLookupsToStart));
         }//end setLookupsToDiscover
 
-        public void setLookupsToDiscover(ArrayList locGroupsList,
+        public void setLookupsToDiscover(List locGroupsList,
                                          String[] groupsToDiscover)
         {
             this.setLookupsToDiscover(locGroupsList, 
@@ -721,7 +722,7 @@ abstract public class BaseQATest extends QATest {
                                       groupsToDiscover);
         }//end setLookupsToDiscover
 
-        public void setLookupsToDiscover(ArrayList locGroupsList,
+        public void setLookupsToDiscover(List locGroupsList,
                                          LookupLocator[] locatorsToDiscover,
                                          String[] groupsToDiscover)
         {
@@ -821,7 +822,7 @@ abstract public class BaseQATest extends QATest {
                 Map groupsMap = evnt.getGroups();
                 synchronized(this) {
                     boolean oneChanged = false;
-                    ArrayList regList = getLookupListSnapshot
+                    List regList = getLookupListSnapshot
                                         ("BaseQATest$LookupListenter.changed");
                     for(int i=0;i<regs.length;i++) {
                         if( regList.contains(regs[i]) ) {
@@ -874,14 +875,14 @@ abstract public class BaseQATest extends QATest {
                                2*60*1000,
                                  60*1000, 30*1000, 20*1000, 10*1000, 5*1000 };
         private int startIndx = 0;
-        private final ArrayList locGroupsList;
+        private final List locGroupsList;
         /** Use this constructor if it is desired that all lookup services
          *  be started in this thread. The locGroupsList parameter is an
          *  ArrayList that should contain LocatorGroupsPair instances that
          *  reference the locator and corresponding member groups of each
          *  lookup service to start.
          */
-        public StaggeredStartThread(ArrayList locGroupsList) {
+        public StaggeredStartThread(List locGroupsList) {
             this(0,locGroupsList);
         }//end constructor
 
@@ -892,7 +893,7 @@ abstract public class BaseQATest extends QATest {
          *  instances that reference the locator and corresponding member
          *  groups of each lookup service to start.
          */
-         public StaggeredStartThread(int startIndx,ArrayList locGroupsList) {
+         public StaggeredStartThread(int startIndx,List locGroupsList) {
             super("StaggeredStartThread");
             setDaemon(true);
             this.startIndx     = startIndx;
@@ -997,22 +998,21 @@ abstract public class BaseQATest extends QATest {
     protected volatile String remoteHost = "UNKNOWN_HOST";
 
     /* Data structures - lookup services */
-    protected final ArrayList initLookupsToStart = new ArrayList(11);
-    protected final ArrayList addLookupsToStart  = new ArrayList(11);
-    protected final ArrayList allLookupsToStart  = new ArrayList(11);
-    protected final ArrayList lookupsStarted     = new ArrayList(11);
+    protected final List initLookupsToStart = Collections.synchronizedList(new ArrayList(11));
+    protected final List addLookupsToStart  = Collections.synchronizedList(new ArrayList(11));
+    protected final List allLookupsToStart  = Collections.synchronizedList(new ArrayList(11));
+    protected final List lookupsStarted     = Collections.synchronizedList(new ArrayList(11));
 
-    protected final ArrayList lookupList = new ArrayList(1);
-    protected final HashMap genMap = new HashMap(11);
+    protected final List lookupList = new ArrayList(1); //Synchronized externally.
+    protected final Map genMap = Collections.synchronizedMap(new HashMap(11));
     protected volatile int nStarted = 0;
     /* Data structures - lookup discovery services */
-    protected final ArrayList initLDSToStart = new ArrayList(11);
-    protected final ArrayList addLDSToStart  = new ArrayList(11);
-    protected final ArrayList allLDSToStart  = new ArrayList(11);
-    protected final ArrayList ldsList = new ArrayList(1);
+    protected final List initLDSToStart = Collections.synchronizedList(new ArrayList(11));
+    protected final List addLDSToStart  = Collections.synchronizedList(new ArrayList(11));
+    protected final List allLDSToStart  = Collections.synchronizedList(new ArrayList(11));
+    protected final List ldsList = Collections.synchronizedList(new ArrayList(1));
 
-    protected volatile Class[] serviceClasses = null;
-    protected final ArrayList expectedServiceList = new ArrayList(1);
+    protected final List expectedServiceList = Collections.synchronizedList(new ArrayList(1));
 
     protected volatile QAConfig config = null;
 
@@ -1026,7 +1026,7 @@ abstract public class BaseQATest extends QATest {
      * is started, the registrar and its locator/groups pair are added to this
      * map.
      */
-    protected final HashMap regsToLocGroupsMap = new HashMap(11);
+    protected final Map regsToLocGroupsMap = Collections.synchronizedMap(new HashMap(11));
 
     /* Private instance variables */
 
@@ -1034,7 +1034,7 @@ abstract public class BaseQATest extends QATest {
      * lookup service so those groups can be mapped to the correct member
      * groups configuration item. 
      */
-    private final ArrayList memberGroupsList = new ArrayList(11);
+    private final List memberGroupsList = Collections.synchronizedList(new ArrayList(11));
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test as follows:
@@ -1149,7 +1149,7 @@ abstract public class BaseQATest extends QATest {
      *  the locator component of an element of the given <code>ArrayList</code>
      *  containing instances of <code>LocatorGroupsPair</code>.
      */
-    public static LookupLocator[] toLocatorArray(ArrayList list) {
+    public static LookupLocator[] toLocatorArray(List list) {
         LookupLocator[] locArray = new LookupLocator[list.size()];
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
@@ -1171,8 +1171,8 @@ abstract public class BaseQATest extends QATest {
      *  (although it can belong to NO_GROUPS), this method does not deal
      *  with the possibility of ALL_GROUPS in the given <code>ArrayList</code>.
      */
-    public static String[] toGroupsArray(ArrayList list) {
-        ArrayList groupsList = new ArrayList(11);
+    public static String[] toGroupsArray(List list) {
+        List groupsList = new ArrayList(11);
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
             String[] curGroups = pair.groups;
@@ -1237,7 +1237,7 @@ abstract public class BaseQATest extends QATest {
      *  mean simply that the given locator with corresponding groups
      *  was not found.
      */
-    public static String[] getGroups(LookupLocator loc, ArrayList list) {
+    public static String[] getGroups(LookupLocator loc, List list) {
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
             if(loc.equals(pair.locator)) return pair.groups;
@@ -1254,7 +1254,7 @@ abstract public class BaseQATest extends QATest {
      *  service belongs to groups which are not desired to be discovered,
      *  this method returns false.
      */
-    public static boolean discoverAllLookups(ArrayList list,
+    public static boolean discoverAllLookups(List list,
                                              String[] groupsToDiscover)
     {
         /* If ALL_GROUPS, then we must want to discover all the lookups */
@@ -1281,10 +1281,10 @@ abstract public class BaseQATest extends QATest {
      *  if one or more of the groups associated with a particular element of
      *  the given list are contained in the given set of groupsToDiscover.
      */
-    public static ArrayList filterListByGroups(ArrayList list,
+    public static List filterListByGroups(List list,
                                                String[] groupsToDiscover)
     {
-        ArrayList filteredList = new ArrayList(list.size());
+        List filteredList = new ArrayList(list.size());
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
             String[] groups = pair.groups;
@@ -1371,18 +1371,18 @@ abstract public class BaseQATest extends QATest {
      *  The size of that list is retrieved while the list is locked, 
      *  so that the list is not modified while the copy is being made.
      */
-    protected ArrayList getLookupListSnapshot() {
+    protected List getLookupListSnapshot() {
         return getLookupListSnapshot(null);
     }//end getLookupListSnapshot
 
-    protected ArrayList getLookupListSnapshot(String infoStr) {
+    protected List getLookupListSnapshot(String infoStr) {
         String str = ( (infoStr == null) ? 
                        "     sync on lookupList --> " :
                        "     "+infoStr+" - sync on lookupList --> ");
         if(debugsync) logger.log(Level.FINE, str+"requested");
         synchronized(lookupList) {
             if(debugsync) logger.log(Level.FINE, str+"granted");
-            ArrayList listSnapshot = new ArrayList(lookupList.size());
+            List listSnapshot = new ArrayList(lookupList.size());
             for(int i=0;i<lookupList.size();i++) {
                 listSnapshot.add(i,lookupList.get(i));
             }//end loop
@@ -2379,12 +2379,12 @@ abstract public class BaseQATest extends QATest {
      *  correctly (a discarded event should not be expected for a lookup
      *  service that couldn't be discarded).
      */
-    protected ArrayList pingAndDiscard(ServiceRegistrar[] proxies,
+    protected List pingAndDiscard(ServiceRegistrar[] proxies,
                                        DiscoveryManagement dm,
                                        LookupListener listener)
     {
-        ArrayList proxiesToDiscard      = new ArrayList(1);
-        ArrayList locGroupsNotDiscarded = new ArrayList(1);
+        List proxiesToDiscard      = new ArrayList(1);
+        List locGroupsNotDiscarded = new ArrayList(1);
         /* Determine proxies to discard and proxies that cannot be discarded */
         for(int i=0;i<proxies.length;i++) {
             LocatorGroupsPair curPair
@@ -2578,8 +2578,8 @@ abstract public class BaseQATest extends QATest {
      *  This method can be used to cause various discovered/discarded/changed
      *  events to be sent by the discovery helper utility.
      */
-   protected ArrayList replaceMemberGroups(boolean alternate) {
-        ArrayList locGroupsList = new ArrayList(genMap.size());
+   protected List replaceMemberGroups(boolean alternate) {
+        List locGroupsList = new ArrayList(genMap.size());
         Iterator iter = genMap.keySet().iterator();
         for(int i=0;iter.hasNext();i++) {
             /* Replace the member groups of the current lookup service */
@@ -2616,7 +2616,7 @@ abstract public class BaseQATest extends QATest {
      *  This method can be used to cause various discovered/discarded/changed
      *  events to be sent by the discovery helper utility.
      */
-   protected ArrayList replaceMemberGroups() {
+   protected List replaceMemberGroups() {
        return replaceMemberGroups(false);
    }//end replaceMemberGroups
 
@@ -2629,7 +2629,7 @@ abstract public class BaseQATest extends QATest {
      *  of the lookup services that was started; and in which the locator of
      *  the associated lookup service is paired with given set of groups.
      */
-   protected ArrayList replaceMemberGroups(String[] newGroups) {
+   protected List replaceMemberGroups(String[] newGroups) {
         return replaceMemberGroups(genMap.size(),newGroups);
     }//end replaceMemberGroups
 
@@ -2643,10 +2643,10 @@ abstract public class BaseQATest extends QATest {
      *  of the lookup services that was started; and in which the locator of
      *  the associated lookup service is paired with the given set of groups.
      */
-   protected ArrayList replaceMemberGroups(int nReplacements,
+   protected List replaceMemberGroups(int nReplacements,
                                            String[] newGroups)
    {
-        ArrayList locGroupsList = new ArrayList(genMap.size());
+        List locGroupsList = new ArrayList(genMap.size());
         Iterator iter = genMap.keySet().iterator();
         for(int i=0;iter.hasNext();i++) {
             Object generator = iter.next();
@@ -3313,8 +3313,8 @@ abstract public class BaseQATest extends QATest {
      *  class type.
      */
     protected Class[] getServiceClassArray() {
-        ArrayList classnamesList = new ArrayList(5);
-        ArrayList loadedClassList = new ArrayList(expectedServiceList.size());
+        List classnamesList = new ArrayList(5);
+        List loadedClassList = new ArrayList(expectedServiceList.size());
         if( (nLookupDiscoveryServices+nRemoteLookupDiscoveryServices) > 0) {
             classnamesList.add
                    (new String("net.jini.discovery.LookupDiscoveryService") );
@@ -3367,7 +3367,7 @@ abstract public class BaseQATest extends QATest {
         String[] tojoin = config.parseString(tojoinArg,",");
         if(tojoin == null) return DiscoveryGroupManagement.ALL_GROUPS;
         if(tojoin.length == 0) return DiscoveryGroupManagement.NO_GROUPS;
-        ArrayList tojoinList = new ArrayList(tojoin.length);
+        List tojoinList = new ArrayList(tojoin.length);
         for(int i=0;i<tojoin.length;i++) {
             if( !config.isLocator(tojoin[i]) ) tojoinList.add(tojoin[i]);
         }//end loop
@@ -3387,7 +3387,7 @@ abstract public class BaseQATest extends QATest {
         String[] tojoin = config.parseString(tojoinArg,",");
         if(tojoin == null) return new LookupLocator[0];
         if(tojoin.length == 0) return new LookupLocator[0];
-        ArrayList tojoinList = new ArrayList(tojoin.length);
+        List tojoinList = new ArrayList(tojoin.length);
         for(int i=0;i<tojoin.length;i++) {
             try {
                 tojoinList.add(QAConfig.getConstrainedLocator(tojoin[i]));

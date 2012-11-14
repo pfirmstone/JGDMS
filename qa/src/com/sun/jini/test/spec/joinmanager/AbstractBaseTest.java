@@ -58,6 +58,7 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashMap;
 
+import java.util.List;
 import net.jini.config.ConfigurationException;
 
 /**
@@ -473,7 +474,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
             DiscoveryServiceUtil.delayMS(1000);
         }//end loop
         /* Wait no more than another nSecsJoin */
-        ArrayList lusList = getLookupListSnapshot
+        List lusList = getLookupListSnapshot
                                               ("AbstractBaseTest.verifyJoin");
         ArrayList regList = new ArrayList(lusList.size());
         long T0 = System.currentTimeMillis();
@@ -545,7 +546,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
                                         +nEventsRcvd
                                         +" ServiceID event(s) received");
         /* Retrieve and store the service's ID as stored in each lookup */
-        ArrayList lusList = getLookupListSnapshot
+        List lusList = getLookupListSnapshot
                                               ("AbstractBaseTest.verifyJoin");
         ArrayList srvcIDs = new ArrayList(lusList.size());
         for(int i=0;i<lusList.size();i++) {
@@ -593,7 +594,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
     protected void verifyAttrsInJoinMgr(JoinManager joinMgr, Entry[] attrs) 
 	throws Exception
     {
-        ArrayList lusList = getLookupListSnapshot
+        List lusList = getLookupListSnapshot
                                      ("AbstractBaseTest.verifyAttrsInJoinMgr");
         if(lusList.size() > 0) {
             verifyJoin(1);
@@ -645,7 +646,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
     protected void verifyPropagation(Entry[] attrs, int nSecsWait) 
 	throws Exception
     {
-        ArrayList lusList = getLookupListSnapshot
+        List lusList = getLookupListSnapshot
                                        ("AbstractBaseTest.verifyPropagation");
         if(lusList.size() > 0) {
             if(nSecsWait > 0) {

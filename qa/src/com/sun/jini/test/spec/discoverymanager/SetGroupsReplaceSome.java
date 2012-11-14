@@ -24,6 +24,7 @@ import com.sun.jini.test.share.GroupsUtil;
 import net.jini.discovery.DiscoveryGroupManagement;
 import java.util.ArrayList;
 import com.sun.jini.qa.harness.QAConfig;
+import java.util.List;
 
 /**
  * With respect to the <code>setGroups</code> method, this class verifies
@@ -105,8 +106,8 @@ public class SetGroupsReplaceSome extends Discovered {
      *  invoked by the run() method. This method constructs the new
      *  set of groups with which to re-configure the lookup discovery manager.
      */
-    void setNewGroups(ArrayList list, boolean alternate) {
-        ArrayList newDiscoverList = new ArrayList(11);
+    void setNewGroups(List list, boolean alternate) {
+        List newDiscoverList = new ArrayList(11);
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
             String[] curGroups = pair.groups;

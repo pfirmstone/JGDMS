@@ -27,6 +27,7 @@ import net.jini.lookup.JoinManager;
 import net.jini.core.lookup.ServiceRegistrar;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -98,7 +99,7 @@ public class GetJoinSetCallback extends AbstractBaseTest {
 	waitForDiscovery(mainListener);
 	verifyJoin();
 	joinRegs = jm.getJoinSet();
-	ArrayList lusList = getLookupListSnapshot("GetJoinSetCallback.run");
+	List lusList = getLookupListSnapshot("GetJoinSetCallback.run");
 	startedRegs = (ServiceRegistrar[])(lusList).toArray
 	    (new ServiceRegistrar[lusList.size()]);
 	logger.log(Level.FINE, "comparing the join set to the "

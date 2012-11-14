@@ -26,6 +26,7 @@ import com.sun.jini.test.share.GroupsUtil;
 import net.jini.discovery.DiscoveryGroupManagement;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * With respect to the <code>removeGroups</code> method, this class
@@ -59,9 +60,9 @@ import java.util.ArrayList;
  */
 public class RemoveGroupsRemoveSome extends Discovered {
 
-    protected ArrayList curLookupsToDiscover = initLookupsToStart;
-    protected ArrayList newLookupsToDiscover = new ArrayList(11);
-    protected ArrayList lookupsToRemoveList = new ArrayList(11);
+    protected List curLookupsToDiscover = initLookupsToStart;
+    protected List newLookupsToDiscover = new ArrayList(11);
+    protected List lookupsToRemoveList = new ArrayList(11);
     protected String[]  groupsToRemove = DiscoveryGroupManagement.NO_GROUPS;
 
     protected boolean changeAll = false;

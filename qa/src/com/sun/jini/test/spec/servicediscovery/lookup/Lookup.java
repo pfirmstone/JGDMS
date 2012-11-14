@@ -28,6 +28,7 @@ import net.jini.core.lookup.ServiceItem;
 import java.util.ArrayList;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import java.util.List;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -105,7 +106,7 @@ public class Lookup extends AbstractBaseTest {
      *  containing the registered services.
      */
     protected void displaySrvcInfoOnFailure(ServiceItem srvcItem,
-                                            ArrayList srvcList)
+                                            List srvcList)
     {
         logger.log(Level.FINE, "returned service item "
                               +" is not equivalent to any of the "

@@ -25,6 +25,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
+import java.util.List;
 
 /**
  * With respect to the <code>discard</code> method, this class verifies
@@ -89,7 +90,7 @@ public class DiscardUnreachable extends Discovered {
             logger.log(Level.FINE, "discarding un-reachable lookup services ...");
 
             /* This will cause discarded events to be sent */
-            ArrayList locGroupsNotDiscarded = pingAndDiscard(proxies,
+            List locGroupsNotDiscarded = pingAndDiscard(proxies,
                                                              discoveryMgr,
                                                              mainListener);
             /* Set the expected discard event info */

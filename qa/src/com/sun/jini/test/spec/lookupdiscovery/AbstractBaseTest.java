@@ -35,6 +35,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -131,7 +132,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  </ul>
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListStartedLookups,
+    protected void doDiscovery(List locGroupsListStartedLookups,
                                LookupDiscovery ld,
                                LookupListener listener,
                                String[] groupsToDiscover)
@@ -171,7 +172,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  parameter.
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListStartedLookups,
+    protected void doDiscovery(List locGroupsListStartedLookups,
                                LookupListener listener,
                                String[] groupsToDiscover)
                                                        throws TestException,
@@ -189,7 +190,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  parameter.
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListStartedLookups,
+    protected void doDiscovery(List locGroupsListStartedLookups,
                                LookupDiscovery ld,
                                LookupListener listener) throws TestException,
                                                                IOException
@@ -207,7 +208,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  parameter.
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListStartedLookups,
+    protected void doDiscovery(List locGroupsListStartedLookups,
                                LookupListener listener) throws TestException,
                                                                IOException
     {

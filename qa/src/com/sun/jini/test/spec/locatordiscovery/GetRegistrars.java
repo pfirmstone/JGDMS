@@ -27,6 +27,7 @@ import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupLocatorDiscovery</code> utility
@@ -79,7 +80,7 @@ public class GetRegistrars extends Discovered {
 
         logger.log(Level.FINE, "calling getRegistrars ... ");
         ServiceRegistrar[] regs = locatorDiscovery.getRegistrars();
-        ArrayList lusList = getLookupListSnapshot("GetRegistrars.run");
+        List lusList = getLookupListSnapshot("GetRegistrars.run");
         logger.log(Level.FINE, "# of lookups started = "+lusList.size()
                           +", # of registrars from LookupLocatorDiscover = "
                           +regs.length);

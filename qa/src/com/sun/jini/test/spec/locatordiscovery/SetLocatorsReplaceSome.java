@@ -26,6 +26,7 @@ import com.sun.jini.qa.harness.QAConfig;
 import net.jini.core.discovery.LookupLocator;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * With respect to the <code>setLocators</code> method, this class verifies
@@ -59,9 +60,9 @@ import java.util.ArrayList;
 public class SetLocatorsReplaceSome extends Discovered {
 
     protected LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
-    protected ArrayList oldLookupsToDiscover = initLookupsToStart;
-    protected ArrayList newLookupsToDiscover = new ArrayList(11);
-    protected ArrayList newLocatorsList = new ArrayList(11);
+    protected List oldLookupsToDiscover = initLookupsToStart;
+    protected List newLookupsToDiscover = new ArrayList(11);
+    protected List newLocatorsList = new ArrayList(11);
 
     protected boolean changeAll = false;
 

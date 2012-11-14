@@ -25,6 +25,7 @@ import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscovery;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscovery</code> utility
@@ -55,7 +56,7 @@ import java.util.ArrayList;
  */
 public class Discovered extends AbstractBaseTest {
 
-    protected ArrayList       locGroupsList  = new ArrayList(1);
+    protected List       locGroupsList  = new ArrayList(1);
     protected LookupDiscovery ldToUse        = null;
     protected LookupListener  listenerToUse  = null;
     protected String[] groupsToDiscover  = DiscoveryGroupManagement.NO_GROUPS;

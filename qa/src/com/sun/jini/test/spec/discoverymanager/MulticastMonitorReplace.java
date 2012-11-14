@@ -22,6 +22,7 @@ import java.util.logging.Level;
 
 import java.util.ArrayList;
 import com.sun.jini.qa.harness.QAConfig;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscoveryManager</code> utility
@@ -79,7 +80,7 @@ public class MulticastMonitorReplace extends Discovered {
          */
         synchronized(mainListener) {
             /* Replace all groups to cause discarded/changed events */
-            ArrayList locGroupsPairList = replaceMemberGroups(false);
+            List locGroupsPairList = replaceMemberGroups(false);
             /* Set the expected changed event info */
             mainListener.setLookupsToDiscover(locGroupsPairList,
                                               locatorsToDiscover,
