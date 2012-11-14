@@ -485,9 +485,8 @@ public class UriString {
             }
             path = sb.toString();
         }
-        // TODO: query and fragment normalisation.
-        
-        return new URI(scheme, uri.getRawUserInfo(), host, uri.getPort(), path, uri.getQuery(), uri.getFragment());
+        // Query and Fragment not subject to normalisation
+        return new URI(scheme, uri.getRawUserInfo(), host, uri.getPort(), path, uri.getRawQuery(), uri.getRawFragment());
     }
     
     
