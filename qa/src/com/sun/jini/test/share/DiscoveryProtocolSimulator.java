@@ -564,9 +564,9 @@ public class DiscoveryProtocolSimulator {
     /** Unicast discovery request thread code. */
     private class UnicastThread extends Thread {
 	/** Server socket to accepts connections on. */
-	private ServerSocket listen;
+	private final ServerSocket listen;
 	/** Listen port */
-	public int port;
+	public final int port;
 
 	/**
 	 * Create a daemon thread.  Set up the socket now rather than in run,
@@ -574,6 +574,7 @@ public class DiscoveryProtocolSimulator {
 	 */
 	public UnicastThread(int port) throws IOException {
 	    super("unicast request");
+            ServerSocket listen = null;
 	    setDaemon(true);
 	    if (port == 0) {
 		try {
@@ -596,6 +597,7 @@ public class DiscoveryProtocolSimulator {
                     }
                 }
 	    }
+            this.listen = listen;
 	    this.port = listen.getLocalPort();
 	}
 
