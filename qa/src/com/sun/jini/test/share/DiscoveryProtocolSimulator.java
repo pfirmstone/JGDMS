@@ -1095,6 +1095,7 @@ public class DiscoveryProtocolSimulator {
     private void init(QAConfig qaConfig)
                                        throws ActivationException, IOException
     {
+        if (qaConfig == null) throw new NullPointerException("QAConfig cannot be null");
         String host = System.getProperty("java.rmi.server.hostname");
         if (host == null) {
             host = InetAddress.getLocalHost().getHostName();
