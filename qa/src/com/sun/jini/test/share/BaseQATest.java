@@ -1485,8 +1485,10 @@ abstract public class BaseQATest extends QATest {
         int port = getConfig().getServiceIntProperty
                                     ("net.jini.core.lookup.ServiceRegistrar",
                                      "port", indx);
+        logger.log(Level.FINEST, "Config property: " + remoteHost + ":" + port);
         if (port == Integer.MIN_VALUE) {
 	    port = 4160;
+            logger.log(Level.FINEST, "Changing port to: " + port);
 	}
 	// used for book keeping only, so don't need a constrainable locator
         return QAConfig.getConstrainedLocator(remoteHost,port);
