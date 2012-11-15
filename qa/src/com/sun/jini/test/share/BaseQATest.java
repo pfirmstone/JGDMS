@@ -515,14 +515,16 @@ abstract public class BaseQATest extends QATest {
         String[] getCurExpectedDiscoveredGroups() {
             HashSet groupSet = new HashSet(expectedDiscoveredMap.size());
             Set eSet = expectedDiscoveredMap.entrySet();
-	    Iterator iter = eSet.iterator();
-            while(iter.hasNext()) {
-                Map.Entry pair = (Map.Entry)iter.next();
-                String[] curGroups = (String[])pair.getValue();
-                for(int i=0;i<curGroups.length;i++) {
-                    groupSet.add(curGroups[i]);
+            synchronized (expectedDiscoveredMap){
+                Iterator iter = eSet.iterator();
+                while(iter.hasNext()) {
+                    Map.Entry pair = (Map.Entry)iter.next();
+                    String[] curGroups = (String[])pair.getValue();
+                    for(int i=0;i<curGroups.length;i++) {
+                        groupSet.add(curGroups[i]);
+                    }//end loop
                 }//end loop
-            }//end loop
+            }
             return ((String[])(groupSet).toArray(new String[groupSet.size()]));
         }//end getCurExpectedDiscoveredGroups
 
@@ -1003,7 +1005,7 @@ abstract public class BaseQATest extends QATest {
     protected final List allLookupsToStart  = Collections.synchronizedList(new ArrayList(11));
     protected final List lookupsStarted     = Collections.synchronizedList(new ArrayList(11));
 
-    protected final List lookupList = new ArrayList(1); //Synchronized externally.
+    private final List lookupList = new ArrayList(1); //Synchronized externally.
     protected final Map genMap = Collections.synchronizedMap(new HashMap(11));
     protected volatile int nStarted = 0;
     /* Data structures - lookup discovery services */
@@ -1079,13 +1081,15 @@ abstract public class BaseQATest extends QATest {
                  * lookup services (simulated or non-simulated).
                  */
                 if( !announcementsStopped ) {
-                    Iterator iter = genMap.keySet().iterator();
-                    for(int i=0;iter.hasNext();i++) {
-                        Object generator = iter.next();
-                        if(generator instanceof DiscoveryProtocolSimulator) {
-                      ((DiscoveryProtocolSimulator)generator).stopAnnouncements();
-                        }//endif
-                    }//end loop
+                    synchronized (genMap){
+                        Iterator iter = genMap.keySet().iterator();
+                        for(int i=0;iter.hasNext();i++) {
+                            Object generator = iter.next();
+                            if(generator instanceof DiscoveryProtocolSimulator) {
+                          ((DiscoveryProtocolSimulator)generator).stopAnnouncements();
+                            }//endif
+                        }//end 
+                    }
                     announcementsStopped = true;
                 }//endif(!announcementsStopped)
             }//endif
@@ -1138,10 +1142,12 @@ abstract public class BaseQATest extends QATest {
         if(l0 == l1) return true;//if both are null it returns true
         if( (l0 == null) || (l1 == null) ) return false;
         if(l0.size() != l1.size()) return false;
-	Iterator iter = l0.iterator();
-        while(iter.hasNext()) {
+        synchronized (l0){
+            Iterator iter = l0.iterator();
+            while(iter.hasNext()) {
             if( !(l1.contains(iter.next())) ) return false;
-        }//endif
+            }//endif
+        }
         return true;
     }//end listsEqual
 
@@ -2223,18 +2229,22 @@ abstract public class BaseQATest extends QATest {
             logger.log(Level.FINE, " locators set 0 -- ");
         }//endif
         LookupLocator[] locs0 = new LookupLocator[locKeys0.size()];
-        Iterator iter = locKeys0.iterator();
-        for(int i=0;iter.hasNext();i++) {
-            locs0[i] = (LookupLocator)iter.next();
-            if(displayOn)  logger.log(Level.FINE, "    "+locs0[i]);
-        }//end loop
+        synchronized (map0){
+            Iterator iter = locKeys0.iterator();
+            for(int i=0;iter.hasNext();i++) {
+                locs0[i] = (LookupLocator)iter.next();
+                if(displayOn)  logger.log(Level.FINE, "    "+locs0[i]);
+            }//end loop
+        }
         if(displayOn) logger.log(Level.FINE, " locators set 1 -- ");
         LookupLocator[] locs1 = new LookupLocator[locKeys1.size()];
-        iter = locKeys1.iterator();
-        for(int i=0;iter.hasNext();i++) {
-            locs1[i] = (LookupLocator)iter.next();
-            if(displayOn)  logger.log(Level.FINE, "    "+locs1[i]);
-        }//end loop
+        synchronized (map1){
+            Iterator iter = locKeys1.iterator();
+            for(int i=0;iter.hasNext();i++) {
+                locs1[i] = (LookupLocator)iter.next();
+                if(displayOn)  logger.log(Level.FINE, "    "+locs1[i]);
+            }//end loop
+        }
         return LocatorsUtil.compareLocatorSets(locs0,locs1, Level.OFF);
     }//end locGroupsMapsEqualByLoc
 
@@ -2266,54 +2276,58 @@ abstract public class BaseQATest extends QATest {
             logger.log(Level.FINE,
                               " comparing group sets of each lookup ... ");
         }//endif
-        Iterator iter = locKeys0.iterator();
-        for(int i=0;iter.hasNext();i++) {
-            LookupLocator loc = (LookupLocator)iter.next();
-            String[] groups0   = (String[])map0.get(loc);
-            String[] groups1   = (String[])map1.get(loc);
-            if(displayOn) {
-                logger.log(Level.FINE,
-                                  "    set 0 -- locator = "+loc);
-                if(groups0.length == 0) {
+        synchronized (map0){
+            Iterator iter = locKeys0.iterator();
+            for(int i=0;iter.hasNext();i++) {
+                LookupLocator loc = (LookupLocator)iter.next();
+                String[] groups0   = (String[])map0.get(loc);
+                String[] groups1   = (String[])map1.get(loc);
+                if(displayOn) {
                     logger.log(Level.FINE,
-                                      "      groups = NO_GROUPS");
-                } else {
-                    for(int j=0;j<groups0.length;j++) {
+                                      "    set 0 -- locator = "+loc);
+                    if(groups0.length == 0) {
                         logger.log(Level.FINE,
-                                        "      group["+j+"] = "+groups0[j]);
-                    }//end loop
-                }//endif
-                logger.log(Level.FINE,
-                                  "    set 1 -- locator = "+loc);
-                if(groups1.length == 0) {
+                                          "      groups = NO_GROUPS");
+                    } else {
+                        for(int j=0;j<groups0.length;j++) {
+                            logger.log(Level.FINE,
+                                            "      group["+j+"] = "+groups0[j]);
+                        }//end loop
+                    }//endif
                     logger.log(Level.FINE,
-                                      "      groups = NO_GROUPS");
-                } else {
-                    for(int j=0;j<groups1.length;j++) {
+                                      "    set 1 -- locator = "+loc);
+                    if(groups1.length == 0) {
                         logger.log(Level.FINE,
-                                         "      group["+j+"] = "+groups1[j]);
-                    }//end loop
-                }//endif
-            }//endif(displayOn)
-            if(!GroupsUtil.compareGroupSets(groups0,groups1, Level.OFF)) return false;
-        }//end loop
+                                          "      groups = NO_GROUPS");
+                    } else {
+                        for(int j=0;j<groups1.length;j++) {
+                            logger.log(Level.FINE,
+                                             "      group["+j+"] = "+groups1[j]);
+                        }//end loop
+                    }//endif
+                }//endif(displayOn)
+                if(!GroupsUtil.compareGroupSets(groups0,groups1, Level.OFF)) return false;
+            }//end loop
+        }
         return true;
     }//end locGroupsMapsEqualByGroups
 
     /** Returns the proxy to each lookup service started (already prepared)*/
     protected ServiceRegistrar[] getLookupProxies() {
         ServiceRegistrar[] proxies = new ServiceRegistrar[genMap.size()];
-	Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            Object curObj = iter.next();
-            if(curObj instanceof DiscoveryProtocolSimulator) {
-                proxies[i]
-                      = ((DiscoveryProtocolSimulator)curObj).getLookupProxy();
-            } else {
-                proxies[i] = (ServiceRegistrar)curObj;
-            }//endif
-        }//end loop
-        return proxies;
+        synchronized (genMap){
+            Iterator iter = genMap.keySet().iterator();
+            for(int i=0;iter.hasNext();i++) {
+                Object curObj = iter.next();
+                if(curObj instanceof DiscoveryProtocolSimulator) {
+                    proxies[i]
+                          = ((DiscoveryProtocolSimulator)curObj).getLookupProxy();
+                } else {
+                    proxies[i] = (ServiceRegistrar)curObj;
+                }//endif
+            }//end loop
+            return proxies;
+        }
     }//end getLookupProxies
 
     /** For each lookup service corresponding to an element of the global
@@ -2325,21 +2339,23 @@ abstract public class BaseQATest extends QATest {
      *  @throws com.sun.jini.qa.harness.TestException
      */
     protected void terminateAllLookups() throws TestException {
-        Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            Object curObj = iter.next();
-            ServiceRegistrar regProxy = null;
-            if(curObj instanceof DiscoveryProtocolSimulator) {
-                DiscoveryProtocolSimulator curGen
-                                         = (DiscoveryProtocolSimulator)curObj;
-                regProxy = curGen.getLookupProxy();
-                curGen.stopAnnouncements();
-            } else {
-                regProxy = (ServiceRegistrar)curObj;
-            }//endif
-            /* destroy lookup service i */
-            manager.destroyService(regProxy);
-        }//end loop
+        synchronized (genMap){
+            Iterator iter = genMap.keySet().iterator();
+            for(int i=0;iter.hasNext();i++) {
+                Object curObj = iter.next();
+                ServiceRegistrar regProxy = null;
+                if(curObj instanceof DiscoveryProtocolSimulator) {
+                    DiscoveryProtocolSimulator curGen
+                                             = (DiscoveryProtocolSimulator)curObj;
+                    regProxy = curGen.getLookupProxy();
+                    curGen.stopAnnouncements();
+                } else {
+                    regProxy = (ServiceRegistrar)curObj;
+                }//endif
+                /* destroy lookup service i */
+                manager.destroyService(regProxy);
+            }//end loop
+        }
         announcementsStopped = true;
     }//end terminateAllLookups
 
@@ -2352,22 +2368,24 @@ abstract public class BaseQATest extends QATest {
      *  reachable.)
      */
     protected void stopAnnouncements() {
-        Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            logger.log(Level.FINE, " stop multicast announcements "
-                              +"from lookup service "+i+" ...");
-            Object curObj = iter.next();
-            if(curObj instanceof DiscoveryProtocolSimulator) {
-                DiscoveryProtocolSimulator curGen
-                                         = (DiscoveryProtocolSimulator)curObj;
-                curGen.stopAnnouncements();
-            } else {//cannot stop the announcements, must destroy the lookup
-                /* It's not a simulated LUS, thus the only way to stop the
-                 * announcements is to destroy each LUS individually.
-                 */
-                manager.destroyService((ServiceRegistrar)curObj);
-            }//endif
-        }//end loop
+        synchronized (genMap){
+            Iterator iter = genMap.keySet().iterator();
+            for(int i=0;iter.hasNext();i++) {
+                logger.log(Level.FINE, " stop multicast announcements "
+                                  +"from lookup service "+i+" ...");
+                Object curObj = iter.next();
+                if(curObj instanceof DiscoveryProtocolSimulator) {
+                    DiscoveryProtocolSimulator curGen
+                                             = (DiscoveryProtocolSimulator)curObj;
+                    curGen.stopAnnouncements();
+                } else {//cannot stop the announcements, must destroy the lookup
+                    /* It's not a simulated LUS, thus the only way to stop the
+                     * announcements is to destroy each LUS individually.
+                     */
+                    manager.destroyService((ServiceRegistrar)curObj);
+                }//endif
+            }//end loop
+        }
         announcementsStopped = true;
     }//end stopAnnouncements
 
@@ -2451,28 +2469,30 @@ abstract public class BaseQATest extends QATest {
         logger.log(Level.FINE, 
                           " number of intervals to wait through    -- "
                           +nIntervalsToWait);
-        Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            DiscoveryProtocolSimulator curGen = 
-                                  (DiscoveryProtocolSimulator)iter.next();
-            logger.log(Level.FINE, 
-                              " gen "+i
-                              +" - waiting ... announcements so far -- "
-                              +curGen.getNAnnouncementsSent());
-            for(int j=0; ((j<nIntervalsToWait)
-                &&(curGen.getNAnnouncementsSent()< minNAnnouncements));j++)
-            {
-                DiscoveryServiceUtil.delayMS(announceInterval);
+        synchronized (genMap){
+            Iterator iter = genMap.keySet().iterator();
+            for(int i=0;iter.hasNext();i++) {
+                DiscoveryProtocolSimulator curGen = 
+                                      (DiscoveryProtocolSimulator)iter.next();
                 logger.log(Level.FINE, 
                                   " gen "+i
                                   +" - waiting ... announcements so far -- "
                                   +curGen.getNAnnouncementsSent());
+                for(int j=0; ((j<nIntervalsToWait)
+                    &&(curGen.getNAnnouncementsSent()< minNAnnouncements));j++)
+                {
+                    DiscoveryServiceUtil.delayMS(announceInterval);
+                    logger.log(Level.FINE, 
+                                      " gen "+i
+                                      +" - waiting ... announcements so far -- "
+                                      +curGen.getNAnnouncementsSent());
+                }//end loop
+                logger.log(Level.FINE, 
+                                  " gen "+i
+                                  +" - wait complete ... announcements  -- "
+                                  +curGen.getNAnnouncementsSent());
             }//end loop
-            logger.log(Level.FINE, 
-                              " gen "+i
-                              +" - wait complete ... announcements  -- "
-                              +curGen.getNAnnouncementsSent());
-        }//end loop
+        }
     }//end verifyAnnouncementsSent
 
     /** This method replaces, with the given set of groups, the current
@@ -2587,20 +2607,22 @@ abstract public class BaseQATest extends QATest {
      */
    protected List replaceMemberGroups(boolean alternate) {
         List locGroupsList = new ArrayList(genMap.size());
-        Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            /* Replace the member groups of the current lookup service */
-            logger.log(Level.FINE, " lookup service "+i+" - "
-                              +"replacing member groups with -- ");
-            try {
-                locGroupsList.add(replaceMemberGroups(iter.next(),alternate));
-            } catch(RemoteException e) {
-                logger.log(Level.FINE, 
-                                  " failed to change member groups "
-                                  +"for lookup service "+i);
-                e.printStackTrace();
-            }
-        }//end loop
+        synchronized (genMap){
+            Iterator iter = genMap.keySet().iterator();
+            for(int i=0;iter.hasNext();i++) {
+                /* Replace the member groups of the current lookup service */
+                logger.log(Level.FINE, " lookup service "+i+" - "
+                                  +"replacing member groups with -- ");
+                try {
+                    locGroupsList.add(replaceMemberGroups(iter.next(),alternate));
+                } catch(RemoteException e) {
+                    logger.log(Level.FINE, 
+                                      " failed to change member groups "
+                                      +"for lookup service "+i);
+                    e.printStackTrace();
+                }
+            }//end loop
+        }
         return locGroupsList;
     }//end replaceMemberGroups
 
@@ -2654,62 +2676,64 @@ abstract public class BaseQATest extends QATest {
                                            String[] newGroups)
    {
         List locGroupsList = new ArrayList(genMap.size());
-        Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            Object generator = iter.next();
-            if(i<nReplacements) {
-                /* Replace the member groups of the current lookup service */
-                logger.log(Level.FINE, " lookup service "+i+" - "
-                                  +"replacing member groups with --");
-                if(newGroups.length == 0) {
-                    logger.log(Level.FINE, "   NO_GROUPS");
-                } else {
-                    for(int j=0;j<newGroups.length;j++) {
-                        logger.log(Level.FINE, "   newGroups["+j+"] = "
-                                                   +newGroups[j]);
-                    }//end loop
-                }//endif
-                try {
-                    locGroupsList.add
-                                  ( replaceMemberGroups(generator,newGroups) );
-                } catch(RemoteException e) {
-                    logger.log(Level.FINE, 
-                                      " failed to change member groups "
-                                      +"for lookup service "+i);
-                    e.printStackTrace();
-                }
-            } else {//(i >= nReplacements)
-                /* Leave member groups of the current lookup service as is*/
-                logger.log(Level.FINE, " lookup service "+i+" - "
-                                  +"leaving member groups unchanged --");
-                ServiceRegistrar regProxy = null;
-                if(generator instanceof DiscoveryProtocolSimulator) {
-                    regProxy
-                    = ((DiscoveryProtocolSimulator)generator).getLookupProxy();
-                } else {
-                    regProxy = (ServiceRegistrar)generator;
-                }//endif
-                try {
-                    LookupLocator loc = QAConfig.getConstrainedLocator(regProxy.getLocator());
-                    String[] groups   = regProxy.getGroups();
-                    if(groups.length == 0) {
+        synchronized (genMap){
+            Iterator iter = genMap.keySet().iterator();
+            for(int i=0;iter.hasNext();i++) {
+                Object generator = iter.next();
+                if(i<nReplacements) {
+                    /* Replace the member groups of the current lookup service */
+                    logger.log(Level.FINE, " lookup service "+i+" - "
+                                      +"replacing member groups with --");
+                    if(newGroups.length == 0) {
                         logger.log(Level.FINE, "   NO_GROUPS");
                     } else {
-                        for(int j=0;j<groups.length;j++) {
-                            logger.log(Level.FINE, "   groups["+j+"] = "
-                                                       +groups[j]);
+                        for(int j=0;j<newGroups.length;j++) {
+                            logger.log(Level.FINE, "   newGroups["+j+"] = "
+                                                       +newGroups[j]);
                         }//end loop
                     }//endif
-                    locGroupsList.add
-                                  ( new LocatorGroupsPair(loc,groups) );
-                } catch(RemoteException e) {
-                    logger.log(Level.FINE, 
-                                      " failed on locator/groups retrieval "
-                                      +"for lookup service "+i);
-                    e.printStackTrace();
-                }
-            }//endif
-        }//end loop
+                    try {
+                        locGroupsList.add
+                                      ( replaceMemberGroups(generator,newGroups) );
+                    } catch(RemoteException e) {
+                        logger.log(Level.FINE, 
+                                          " failed to change member groups "
+                                          +"for lookup service "+i);
+                        e.printStackTrace();
+                    }
+                } else {//(i >= nReplacements)
+                    /* Leave member groups of the current lookup service as is*/
+                    logger.log(Level.FINE, " lookup service "+i+" - "
+                                      +"leaving member groups unchanged --");
+                    ServiceRegistrar regProxy = null;
+                    if(generator instanceof DiscoveryProtocolSimulator) {
+                        regProxy
+                        = ((DiscoveryProtocolSimulator)generator).getLookupProxy();
+                    } else {
+                        regProxy = (ServiceRegistrar)generator;
+                    }//endif
+                    try {
+                        LookupLocator loc = QAConfig.getConstrainedLocator(regProxy.getLocator());
+                        String[] groups   = regProxy.getGroups();
+                        if(groups.length == 0) {
+                            logger.log(Level.FINE, "   NO_GROUPS");
+                        } else {
+                            for(int j=0;j<groups.length;j++) {
+                                logger.log(Level.FINE, "   groups["+j+"] = "
+                                                           +groups[j]);
+                            }//end loop
+                        }//endif
+                        locGroupsList.add
+                                      ( new LocatorGroupsPair(loc,groups) );
+                    } catch(RemoteException e) {
+                        logger.log(Level.FINE, 
+                                          " failed on locator/groups retrieval "
+                                          +"for lookup service "+i);
+                        e.printStackTrace();
+                    }
+                }//endif
+            }//end loop
+        }
         return locGroupsList;
     }//end replaceMemberGroups
 
