@@ -26,6 +26,9 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -118,19 +121,19 @@ public class AdminManager {
 	Logger.getLogger("com.sun.jini.qa.harness");
 
     /** A mapping of service name prefixes to their index counters. */    
-    private HashMap serviceCounters  = new HashMap();
+    private final Map serviceCounters  = new HashMap();
     
     /** The set of admins to be managed by this manager. */
-    private HashSet createdAdminSet   = new HashSet();
+    private final Set createdAdminSet   = new HashSet();
     
     /** The <code>QAConfig</code> object */
-    private QAConfig config;
+    private final QAConfig config;
 
     /** the admin for the shared group managed by this class. */
-    private SharedGroupAdmin sharedGroupAdmin;
+    private volatile SharedGroupAdmin sharedGroupAdmin = null;
 
     /** The admin for the shared non-activatable group */
-    private NonActivatableGroupAdmin nonActivatableGroupAdmin;
+    private volatile NonActivatableGroupAdmin nonActivatableGroupAdmin = null;
     
     /**
      * Construct an <code>AdminManager</code>. 
@@ -323,7 +326,9 @@ public class AdminManager {
 				  + "serviceName '" 
 				  +  serviceName + "'");
 	}
-	createdAdminSet.add(admin);
+        synchronized (createdAdminSet){
+            createdAdminSet.add(admin);
+        }
 	return admin;
     }
 
@@ -398,15 +403,17 @@ public class AdminManager {
      *         admin cannot be found.
      */
     public Admin getAdmin(Object proxy) {
-	Iterator it = createdAdminSet.iterator();
-	while (it.hasNext()) {
-	    Admin ad = (Admin) it.next();
-	    Object p = ad.getProxy();
-	    if (p != null && p.equals(proxy)) {
-		return ad;
-	    }
-	}
-	return null;
+        synchronized (createdAdminSet){
+            Iterator it = createdAdminSet.iterator();
+            while (it.hasNext()) {
+                Admin ad = (Admin) it.next();
+                Object p = ad.getProxy();
+                if (p != null && p.equals(proxy)) {
+                    return ad;
+                }
+            }
+            return null;
+        }
     }
 
     /**
@@ -834,27 +841,29 @@ public class AdminManager {
 	ArrayList nonActList = new ArrayList();
 	ArrayList actSystemList = new ArrayList();
 	ArrayList classServerList = new ArrayList();
-	Iterator it = createdAdminSet.iterator();
-	while (it.hasNext()) {
-	    Admin admin = (Admin) it.next();
-	    if (admin.getProxy() == null) {  // never started
-		it.remove(); // must use iterator's remove method
-		continue;
-	    }
-	    if (admin.getProxy() instanceof ServiceRegistrar) {
-		lusList.add(admin);
-	    } else if (admin instanceof SharedGroupAdmin) {
-		sharedList.add(admin);
-	    } else if (admin instanceof NonActivatableGroupAdmin) {
-		nonActList.add(admin);
-	    } else if (admin instanceof ActivationSystemAdmin) {
-		actSystemList.add(admin);
-	    } else if (admin instanceof ClassServerAdmin) {
-		classServerList.add(admin);
-	    } else {
-		svcList.add(admin);
-	    }
-	}
+        synchronized (createdAdminSet){
+            Iterator it = createdAdminSet.iterator();
+            while (it.hasNext()) {
+                Admin admin = (Admin) it.next();
+                if (admin.getProxy() == null) {  // never started
+                    it.remove(); // must use iterator's remove method
+                    continue;
+                }
+                if (admin.getProxy() instanceof ServiceRegistrar) {
+                    lusList.add(admin);
+                } else if (admin instanceof SharedGroupAdmin) {
+                    sharedList.add(admin);
+                } else if (admin instanceof NonActivatableGroupAdmin) {
+                    nonActList.add(admin);
+                } else if (admin instanceof ActivationSystemAdmin) {
+                    actSystemList.add(admin);
+                } else if (admin instanceof ClassServerAdmin) {
+                    classServerList.add(admin);
+                } else {
+                    svcList.add(admin);
+                }
+            }
+        }
 	ArrayList[] lists = new ArrayList[] {svcList, 
 					     lusList, 
 					     sharedList,
@@ -862,8 +871,8 @@ public class AdminManager {
 					     actSystemList,
 					     classServerList};
 	for (int i = 0; i < lists.length; i++) {
-	    ArrayList list = lists[i];
-	    it = list.iterator();
+	    List list = lists[i];
+	    Iterator it = list.iterator();
 	    /* Step through the iterator destroying each service */
 	    while(it.hasNext()) {
 		Admin admin = (Admin) it.next();
@@ -905,47 +914,49 @@ public class AdminManager {
 	if (service == null) {
 	    return true;
 	}
-	Iterator it = createdAdminSet.iterator();
-        while(it.hasNext()) {
-	    Admin admin = (Admin) it.next();
-	    if (admin == null) {
-		continue;
-	    }
-	    Object proxy = admin.getProxy();
-	    // proxy will be null if the service  wasn't started
-	    if (proxy == null || (! proxy.equals(service))) {
-		continue;
-	    }
-	    try {
-		logger.log(Level.FINE, 
-			   "destroying service: " + proxy.getClass());
-		if (admin instanceof ActivatableServiceStarterAdmin) {
-		    ActivatableServiceStarterAdmin 
-			    ssa = (ActivatableServiceStarterAdmin) admin;
-		    int destroyCode = ssa.stopAndWait(nSecsWait);
-		    if(nSecsWait <= 0) {//doesn't care if act group still there
-			destroyCode = ServiceDestroyer.DESTROY_SUCCESS;
-		    }
-		    handleDestroyCode(destroyCode);
-		    return destroyCode == ServiceDestroyer.DESTROY_SUCCESS ;
-		} else {
-		    admin.stop();
-		}
-		if (admin == sharedGroupAdmin) {
-		    sharedGroupAdmin = null;
-		}
-		if (admin == nonActivatableGroupAdmin) {
-		    nonActivatableGroupAdmin = null;
-		}
-		return true;
-	    } catch(RemoteException e) { 
-                logger.log(Level.FINE, "RemoteException stopping service", e);
-	    } catch(ActivationException e) {
-                logger.log(Level.FINE, "ActivationException stopping service:", e);
+        synchronized (createdAdminSet){
+            Iterator it = createdAdminSet.iterator();
+            while(it.hasNext()) {
+                Admin admin = (Admin) it.next();
+                if (admin == null) {
+                    continue;
+                }
+                Object proxy = admin.getProxy();
+                // proxy will be null if the service  wasn't started
+                if (proxy == null || (! proxy.equals(service))) {
+                    continue;
+                }
+                try {
+                    logger.log(Level.FINE, 
+                               "destroying service: " + proxy.getClass());
+                    if (admin instanceof ActivatableServiceStarterAdmin) {
+                        ActivatableServiceStarterAdmin 
+                                ssa = (ActivatableServiceStarterAdmin) admin;
+                        int destroyCode = ssa.stopAndWait(nSecsWait);
+                        if(nSecsWait <= 0) {//doesn't care if act group still there
+                            destroyCode = ServiceDestroyer.DESTROY_SUCCESS;
+                        }
+                        handleDestroyCode(destroyCode);
+                        return destroyCode == ServiceDestroyer.DESTROY_SUCCESS ;
+                    } else {
+                        admin.stop();
+                    }
+                    if (admin == sharedGroupAdmin) {
+                        sharedGroupAdmin = null;
+                    }
+                    if (admin == nonActivatableGroupAdmin) {
+                        nonActivatableGroupAdmin = null;
+                    }
+                    return true;
+                } catch(RemoteException e) { 
+                    logger.log(Level.FINE, "RemoteException stopping service", e);
+                } catch(ActivationException e) {
+                    logger.log(Level.FINE, "ActivationException stopping service:", e);
+                }
+                finally {
+                    it.remove(); // must use iterator's remove
+                }
             }
-	    finally {
-		it.remove(); // must use iterator's remove
-	    }
         }
         return false;
     }
@@ -1024,7 +1035,11 @@ public class AdminManager {
      * @return the <code>Iterator</code>
      */
     Iterator iterator() {
-	return createdAdminSet.iterator();
+        Set set = new HashSet();
+        synchronized (createdAdminSet){
+            set.addAll(createdAdminSet);
+        }
+	return set.iterator();
     }
 
     /**
@@ -1066,8 +1081,10 @@ public class AdminManager {
     }
 
     public AbstractServiceAdmin[] getAllAdmins() {
-	AbstractServiceAdmin[] admins = 
-	    new AbstractServiceAdmin[createdAdminSet.size()];
-	return (AbstractServiceAdmin[]) createdAdminSet.toArray(admins);
+        synchronized (createdAdminSet){
+            AbstractServiceAdmin[] admins = 
+                new AbstractServiceAdmin[createdAdminSet.size()];
+            return (AbstractServiceAdmin[]) createdAdminSet.toArray(admins);
+        }
     }
 }

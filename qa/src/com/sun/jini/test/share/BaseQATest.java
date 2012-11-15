@@ -1438,7 +1438,10 @@ abstract public class BaseQATest extends QATest {
         for(int i=0;i<lookupsStarted.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)lookupsStarted.get(i);
             int curPort = (pair.locator).getPort();
-            if(port == curPort) return true;
+            if(port == curPort) {
+                logger.log(Level.FINE, "port in use: " + port);
+                return true;
+            }
         }//end loop
         return false;
     }//end portInUse
@@ -1569,8 +1572,9 @@ abstract public class BaseQATest extends QATest {
                                = (LocatorGroupsPair)addLookupsToStart.get(j);
                 int port = (pair.locator).getPort();
                 if(portInUse(port)) port = 0;
-                String hostname = startLookup(i,port, pair.locator.getHost());
+                startLookup(i,port, pair.locator.getHost());
                 if(port == 0) {
+                    logger.log(Level.FINEST, "port was equal to zero");
                     Object locGroupsPair = lookupsStarted.get(i);
                     addLookupsToStart.set(j,locGroupsPair);
                     allLookupsToStart.set(i,locGroupsPair);
@@ -1614,6 +1618,7 @@ abstract public class BaseQATest extends QATest {
 
     protected String startLookup(int indx, int port, String serviceHost) throws Exception {
         logger.log(Level.FINE, " starting lookup service "+indx);
+        logger.log(Level.FINEST, serviceHost + ":"+ port);
         /* retrieve the member groups with which to configure the lookup */
         String[] memberGroups = (String[])memberGroupsList.get(indx);
         ServiceRegistrar lookupProxy = null;
