@@ -1441,14 +1441,16 @@ abstract public class BaseQATest extends QATest {
      *  numbers when starting lookup services.
      */
     protected boolean portInUse(int port) {
-        for(int i=0;i<lookupsStarted.size();i++) {
-            LocatorGroupsPair pair = (LocatorGroupsPair)lookupsStarted.get(i);
-            int curPort = (pair.locator).getPort();
-            if(port == curPort) {
-                logger.log(Level.FINE, "port in use: " + port);
-                return true;
+        synchronized (lookupsStarted){
+            Iterator ls = lookupsStarted.iterator();
+            while (ls.hasNext()){
+                LocatorGroupsPair pair = (LocatorGroupsPair) ls.next();
+                if (port == pair.locator.getPort()){
+                    logger.log(Level.FINE, "port in use: " + port);
+                    return true;
+                }
             }
-        }//end loop
+        }
         return false;
     }//end portInUse
 
@@ -1526,8 +1528,14 @@ abstract public class BaseQATest extends QATest {
                 LocatorGroupsPair pair
                                = (LocatorGroupsPair)initLookupsToStart.get(i);
                 int port = (pair.locator).getPort();
-                if(portInUse(port)) port = 0;
-                String hostname = startLookup(i,port, pair.locator.getHost());
+                String hostname = null;
+                synchronized (lookupsStarted){
+                    // This synchronized block ensures that initialisation is
+                    // atomic, so two lookups cannot be started with the same
+                    // port.
+                    if(portInUse(port)) port = 0;
+                    hostname = startLookup(i,port, pair.locator.getHost());
+                }
 		logger.log(Level.FINEST, 
 			   "service host is '" + hostname 
 			   + "', this host is '" + config.getLocalHostName() + "'");
