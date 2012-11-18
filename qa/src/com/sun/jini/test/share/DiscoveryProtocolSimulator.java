@@ -156,26 +156,18 @@ public class DiscoveryProtocolSimulator {
 
     private static Logger logger = Logger.getLogger("com.sun.jini.qa.harness");
 
-    /** Socket timeout for multicast request receive() */
-    private static final int SOCKET_TIMEOUT = 5*60*1000;
-
-    /** Only allow connections from this address */
-    private InetAddress thisInetAddress = null;
+    private volatile InetAddress thisInetAddress = null;
     /** Current number of multicast announcements sent by this class */
-    private int nAnnouncements = 0;
-    /** Internet Protocol (IP) addresses of the network interfaces (NICs)
-     *  through which multicast packets will be sent.
-     */
-    private InetAddress[] nicAddresses;
+    private volatile int nAnnouncements = 0;
 
     /** Port for unicast discovery 
      * lockLookupLocator for synch
      */
-    private int unicastPort = 0;
+    private volatile int unicastPort = 0;
     /** The locator to send */
     private volatile LookupLocator lookupLocator = null;
     /** The member groups to send */
-    private String[] memberGroups = {};
+    private volatile String[] memberGroups = {};
 
     /** Thread to receive/process multicast requests from client or service */
     final MulticastThread multicastRequestThread;
@@ -295,9 +287,11 @@ public class DiscoveryProtocolSimulator {
 		}
 	    }
 	}
-        multicastRequestThread = new MulticastThread();
+        // Create and Start remaining threads.
         multicastAnnouncementThread = new AnnounceThread();
-        unicastRequestThread = new UnicastThread(unicastPort);
+        multicastRequestThread = new MulticastThread();
+        multicastRequestThread.start();
+        multicastAnnouncementThread.start();
     }//end constructor
 
     public void stopAnnouncements() {
@@ -324,6 +318,7 @@ public class DiscoveryProtocolSimulator {
         logger.log(Level.FINE, "     close all request sockets");
         closeRequestSockets(taskMgr.getPending());
         logger.log(Level.FINE, "   stopAnnouncements exited");
+        Thread.currentThread().interrupt(); //Restore interrupt.
     }//end stopAnnouncements
 
 //    public void destroyLookup() throws RemoteException {
@@ -579,10 +574,17 @@ public class DiscoveryProtocolSimulator {
 	    if (port == 0) {
 		try {
 		    listen = new ServerSocket(Constants.discoveryPort);
-		} catch (IOException e) {
-		    logger.log(Level.FINE,
-			       "failed to bind to default port", e);
-		}
+		} catch (BindException e){
+                    try {
+                        Thread.sleep(240000); // TIME_WAIT
+                        listen = new ServerSocket(Constants.discoveryPort); // Try again.
+                    } catch (IOException ex){
+                        logger.log(Level.FINE, "Failed to bind to default port", ex);
+                    } catch (InterruptedException ex){
+                        ex.fillInStackTrace();
+                        throw new IOException("Interrupted while trying to open a ServerSocket", ex);
+                    }
+                }
 	    }
 	    if (listen == null) {
                 try {
@@ -1097,11 +1099,25 @@ public class DiscoveryProtocolSimulator {
     {
         if (qaConfig == null) throw new NullPointerException("QAConfig cannot be null");
         String host = System.getProperty("java.rmi.server.hostname");
-        if (host == null) {
-            host = InetAddress.getLocalHost().getHostName();
+        try {
+            if (host == null) {
+                host = InetAddress.getLocalHost().getHostName();
+            }
+            thisInetAddress = InetAddress.getByName(host);
+        } catch (NullPointerException e){
+            try {
+                thisInetAddress = InetAddress.getByName(null);
+                if (host == null){
+                    host = thisInetAddress.getCanonicalHostName();
+                }
+            } catch (NullPointerException ex){
+                ex.fillInStackTrace();
+                throw new IOException("InetAddress host name resolution failed", ex);
+            }
         }
-        thisInetAddress = InetAddress.getByName(host);
-        lookupLocator = QAConfig.getConstrainedLocator(host, unicastRequestThread.port);
+        
+        unicastRequestThread = new UnicastThread(unicastPort);
+        lookupLocator = QAConfig.getConstrainedLocator(host, unicastPort);
         /* start an activatable lookup service simulation */
         if (lookupServiceID == null) {
             lookupServiceID = lookupProxy.getServiceID();
@@ -1189,8 +1205,7 @@ public class DiscoveryProtocolSimulator {
         
         /* start the threads */
         unicastRequestThread.start();
-        multicastRequestThread.start();
-        multicastAnnouncementThread.start();
+        
     }//end init
 
 }//end class DiscoveryProtocolSimulator
