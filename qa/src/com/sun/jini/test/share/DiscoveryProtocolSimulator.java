@@ -1117,7 +1117,7 @@ public class DiscoveryProtocolSimulator {
         }
         
         unicastRequestThread = new UnicastThread(unicastPort);
-        lookupLocator = QAConfig.getConstrainedLocator(host, unicastPort);
+        lookupLocator = QAConfig.getConstrainedLocator(host, unicastRequestThread.port);
         /* start an activatable lookup service simulation */
         if (lookupServiceID == null) {
             lookupServiceID = lookupProxy.getServiceID();
