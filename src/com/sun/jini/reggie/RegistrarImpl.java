@@ -2589,6 +2589,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    }
 	    this.port = listen.getLocalPort();
             logger.log(Level.FINEST, "Reggie ServerSocket local port: {0}", port);
+            if ( port >= 0 && this.port != port){
+                try {
+                    listen.close();
+                } catch (IOException e){} // Ignore
+                throw new IOException("Regggie ServerSocketFactory port: " +this.port + " doesn't match requested port: " +port);
+            }
 	}
         
         private ServerSocket createServerSocket(ServerSocketFactory ssf, int port) throws IOException{
