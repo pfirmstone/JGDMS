@@ -2567,8 +2567,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		try {
 		    listen = serverSocketFactory.createServerSocket(Constants.discoveryPort);
 		} catch (IOException e) {
-		    logger.log(
-			Levels.HANDLED, "failed to bind to default port", e);
+                    e.fillInStackTrace();
+                    throw e;
+                    // Swallowing interrupt causes difficult to diagnose test failures.
+//		    logger.log(
+//			Levels.HANDLED, "failed to bind to default port", e);
 		}
 	    }
 	    if (listen == null) {
@@ -2589,7 +2592,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    }
 	    this.port = listen.getLocalPort();
             logger.log(Level.FINEST, "Reggie ServerSocket local port: {0}", port);
-            if ( port >= 0 && this.port != port){
+            if ( port > 0 && this.port != port){
                 try {
                     listen.close();
                 } catch (IOException e){} // Ignore
