@@ -2152,7 +2152,7 @@ public class QAConfig implements Serializable {
     public String getLocalHostName() {
 	String host = "localhost";
 	try {
-	    host = InetAddress.getLocalHost().getCanonicalHostName();
+	    host = InetAddress.getLocalHost().getHostName();
 	} catch (UnknownHostException ignore) {
 	}
 	return host;

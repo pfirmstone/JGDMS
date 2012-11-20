@@ -361,6 +361,7 @@ public class AdminManager {
      */
     private Admin getServiceSuppliedAdmin(String serviceName, int counter) throws TestException {
 	String adminName = config.getStringConfigVal(serviceName + ".adminName", null);
+        logger.log(Level.FINEST, "adminName: {0}", adminName);
 	String mode = 
 	    config.getStringConfigVal("com.sun.jini.qa.harness.serviceMode", 
 				      null);
@@ -641,7 +642,7 @@ public class AdminManager {
     public Object startService(String serviceName, String host) 
 	throws RemoteException, TestException
     {
-	logger.log(Level.FINE, "starting " + serviceName);
+	logger.log(Level.FINE, "starting {0}", serviceName);
 	Admin admin = getAdmin(serviceName, host); // never returns null
 	admin.start();
         return admin.getProxy();
