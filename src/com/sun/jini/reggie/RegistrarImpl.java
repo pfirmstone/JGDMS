@@ -2562,6 +2562,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	public UnicastThread(int port) throws IOException {
 	    super("unicast request");
 	    setDaemon(true);
+            logger.log(Level.FINEST, "Reggie ServerSocket configured port: {0}", port);
 	    if (port == 0) {
 		try {
 		    listen = serverSocketFactory.createServerSocket(Constants.discoveryPort);
@@ -2587,6 +2588,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
                 }
 	    }
 	    this.port = listen.getLocalPort();
+            logger.log(Level.FINEST, "Reggie ServerSocket local port: {0}", port);
 	}
         
         private ServerSocket createServerSocket(ServerSocketFactory ssf, int port) throws IOException{
