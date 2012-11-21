@@ -574,19 +574,11 @@ public class DiscoveryProtocolSimulator {
 	    if (port == 0) {
 		try {
 		    listen = new ServerSocket(Constants.discoveryPort);
-		} catch (BindException e){
-                    try {
-                        Thread.sleep(240000); // TIME_WAIT
-                        listen = new ServerSocket(Constants.discoveryPort); // Try again.
-                    } catch (IOException ex){
-                        logger.log(Level.FINE, "Failed to bind to default port", ex);
-                    } catch (InterruptedException ex){
-                        ex.fillInStackTrace();
-                        throw new IOException("Interrupted while trying to open a ServerSocket", ex);
-                    }
+                } catch (IOException ex){
+                    logger.log(Level.FINE, "Failed to bind to default port", ex);
                 }
-	    }
-	    if (listen == null) {
+	    } 
+            if (listen == null) {
                 try {
                     listen = new ServerSocket(port);
                 } catch (BindException e){

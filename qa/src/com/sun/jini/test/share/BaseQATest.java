@@ -66,6 +66,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.logging.Level;
+import net.jini.discovery.Constants;
 
 /**
  * This class is an abstract class that contains common functionality 
@@ -1493,10 +1494,10 @@ abstract public class BaseQATest extends QATest {
         int port = getConfig().getServiceIntProperty
                                     ("net.jini.core.lookup.ServiceRegistrar",
                                      "port", indx);
-        logger.log(Level.FINEST, "Config property: " + remoteHost + ":" + port);
+        logger.log(Level.FINEST, "Config property: {0}:{1}", new Object[]{remoteHost, port});
         if (port == Integer.MIN_VALUE) {
 	    port = 4160;
-            logger.log(Level.FINEST, "Changing port to: " + port);
+            logger.log(Level.FINEST, "Changing port to: {0}", port);
 	}
 	// used for book keeping only, so don't need a constrainable locator
         return QAConfig.getConstrainedLocator(remoteHost,port);
@@ -1543,7 +1544,7 @@ abstract public class BaseQATest extends QATest {
                     Object locGroupsPair = lookupsStarted.get(i);
                     initLookupsToStart.set(i,locGroupsPair);
                     allLookupsToStart.set(i,locGroupsPair);
-                }
+                } 
 		LocatorGroupsPair p = (LocatorGroupsPair) initLookupsToStart.get(i);
 		LookupLocator l = p.locator;
 		logger.log(Level.FINEST, "init locator " + i + " = " + l);
@@ -1587,8 +1588,10 @@ abstract public class BaseQATest extends QATest {
                 LocatorGroupsPair pair
                                = (LocatorGroupsPair)addLookupsToStart.get(j);
                 int port = (pair.locator).getPort();
-                if(portInUse(port)) port = 0;
-                startLookup(i,port, pair.locator.getHost());
+                synchronized (lookupsStarted){
+                    if(portInUse(port)) port = 0;
+                    startLookup(i,port, pair.locator.getHost());
+                }
                 if(port == 0) {
                     logger.log(Level.FINEST, "port was equal to zero");
                     Object locGroupsPair = lookupsStarted.get(i);
