@@ -170,7 +170,10 @@ public class LookupLocator implements Serializable {
     public LookupLocator(String host, int port) {
         if (host == null) throw new NullPointerException("null host");
 	StringBuilder sb = new StringBuilder();
-        sb.append("jini://").append(host).append(":").append(port);
+        sb.append("jini://").append(host);
+        if ( port != -1 ) { //URI compliance -1 is converted to discoveryPort.
+            sb.append(":").append(port);
+        }
         try {
             URI uri = parseURI(sb.toString());
             this.host = uri.getHost();

@@ -2568,10 +2568,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		    listen = serverSocketFactory.createServerSocket(Constants.discoveryPort);
 		} catch (IOException e) {
                     e.fillInStackTrace();
-                    throw e;
+//                    throw e;
                     // Swallowing interrupt causes difficult to diagnose test failures.
-//		    logger.log(
-//			Levels.HANDLED, "failed to bind to default port", e);
+		    logger.log(
+			Levels.HANDLED, "failed to bind to default port", e);
 		}
 	    }
 	    if (listen == null) {
