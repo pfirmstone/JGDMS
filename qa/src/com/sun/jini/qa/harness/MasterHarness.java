@@ -51,8 +51,10 @@ import java.util.TreeSet;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 import java.lang.reflect.Field;
+import java.net.BindException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.net.SocketAddress;
 
 //Should there be an 'AbortTestRequest' ?
@@ -249,16 +251,39 @@ class MasterHarness {
     private class KeepAlivePort implements Runnable {
 
 	public void run() {
-	    ArrayList socketList = new ArrayList(); // keep references
+	    ArrayList<Socket> socketList = new ArrayList<Socket>(); // keep references
+            SocketAddress add = new InetSocketAddress(KEEPALIVE_PORT);
 	    try {
-                SocketAddress add = new InetSocketAddress(KEEPALIVE_PORT);
+                
 		ServerSocket socket = new ServerSocket();
-//                if (!socket.getReuseAddress()) socket.setReuseAddress(true);
                 socket.bind(add);
 		while (true) {
 		    socketList.add(socket.accept());
 		}
-	    } catch (Exception e) {
+	    } catch (BindException e){
+                try {
+                        Thread.sleep(240000); // Wait 4 minutes for TCP 2MSL TIME_WAIT
+                        ServerSocket socket = new ServerSocket();
+                        socket.bind(add);
+                        while (true) {
+                            socketList.add(socket.accept());
+                        }
+                } catch (InterruptedException ex){
+                    outStream.println("Interruped while opening ServerSocket with KEEPALIVE_PORT:" + KEEPALIVE_PORT );
+                    outStream.println("Unexpected exception after waiting 4 minutes for port to become available:\n");
+                    ex.printStackTrace(outStream);
+                    outStream.println("Initial attempt failed:\n");
+                    e.printStackTrace(outStream);
+                    System.exit(1);
+                }catch (Exception ex){
+                    outStream.println("Error occurred while attempting to open ServerSocket with KEEPALIVE_PORT:" + KEEPALIVE_PORT );
+                    outStream.println("Unexpected exception after waiting 4 minutes for port to become available:\n");
+                    ex.printStackTrace(outStream);
+                    outStream.println("Initial attempt failed:\n");
+                    e.printStackTrace(outStream);
+                    System.exit(1);
+                }
+            }catch (Exception e) {
 		outStream.println("Problem with KEEPALIVE_PORT:" + KEEPALIVE_PORT );
 		outStream.println("Unexpected exception:");
 		e.printStackTrace(outStream);
