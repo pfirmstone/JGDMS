@@ -2578,16 +2578,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
                 try {
                     listen = createServerSocket(serverSocketFactory, port);
                 }catch ( BindException ex){
-                    try {
-                        Thread.sleep(240000); // Wait 4 minutes for TCP 2MSL TIME_WAIT
-                        listen = createServerSocket(serverSocketFactory, port);
-                    }catch (BindException e){
-                        e.fillInStackTrace();
-                        throw new IOException("Reggie ServerSocket port already in use: " + port, e);
-                    }catch (InterruptedException e){
-                        e.fillInStackTrace();
-                        throw new IOException("Reggie ServerSocket creation interrupted after sleeping for TIME_WAIT", e);
-                    }
+                    ex.fillInStackTrace();
+                    throw new IOException("Reggie ServerSocket port already in use: " + port, ex);
                 }
 	    }
 	    this.port = listen.getLocalPort();
