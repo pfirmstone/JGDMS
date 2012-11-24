@@ -23,5 +23,5 @@ package com.sun.jini.constants;
  */
 public interface VersionConstants {
     /** Current version of the Apache River release */ 
-    String SERVER_VERSION = "2.2.0";
+    String SERVER_VERSION = "2.2.1";
 }
