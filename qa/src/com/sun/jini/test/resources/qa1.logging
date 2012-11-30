@@ -105,9 +105,9 @@ java.util.logging.FileHandler.level = INFO
 
 # For Everything
 sun.rmi.level = INFO
-net.jini.level = FINEST
+net.jini.level = INFO
 
-com.sun.jini.level = FINEST
+com.sun.jini.level = INFO
 
 # For the LogManager
 com.sun.jini.logging.LogManager.level = INFO
@@ -176,7 +176,7 @@ net.jini.security.policy.level = INFO
 net.jini.url.httpmd.level = INFO
 
 # For Discovery
-com.sun.jini.discovery.level = FINEST
+com.sun.jini.discovery.level = INFO
 #com.sun.jini.discovery.DiscoveryV1.level = INFO
 #com.sun.jini.discovery.DiscoveryV2.level = INFO
 #com.sun.jini.discovery.x500.level = INFO
@@ -203,7 +203,7 @@ com.sun.jini.start.level = INFO
 #com.sun.jini.start.wrapper.level = INFO
 
 # For Reggie
-com.sun.jini.reggie.level = FINEST
+com.sun.jini.reggie.level = INFO
 
 # For Mahalo
 com.sun.jini.mahalo.destroy.level = INFO
@@ -256,7 +256,7 @@ com.sun.jini.outrigger.transactions.level = INFO
 com.sun.jini.example.browser.level = INFO
 
 # For the test harness, tests, and infrastructure.
-com.sun.jini.qa.harness.test.level = FINEST
-com.sun.jini.qa.harness.service.level = FINEST
-com.sun.jini.qa.harness.config.level = FINEST
+com.sun.jini.qa.harness.test.level = INFO
+com.sun.jini.qa.harness.service.level = INFO
+com.sun.jini.qa.harness.config.level = INFO
 com.sun.jini.test.spec.jeri.mux.level = INFO

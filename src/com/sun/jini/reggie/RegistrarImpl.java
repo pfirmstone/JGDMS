@@ -48,7 +48,6 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.lang.reflect.Array;
-import java.net.BindException;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
@@ -56,7 +55,6 @@ import java.net.MulticastSocket;
 import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
@@ -83,7 +81,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-import java.util.SortedMap;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
 import javax.security.auth.Subject;
@@ -176,49 +173,46 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     private static final EntryRep[] emptyAttrs = {};
 
     /** Proxy for myself */
-    private volatile RegistrarProxy proxy;
+    private RegistrarProxy proxy;
     /** Exporter for myself */
-    private volatile Exporter serverExporter;
+    private Exporter serverExporter;
     /** Remote reference for myself */
-    private volatile Registrar myRef;
+    private Registrar myRef;
     /** Our service ID */
-    private volatile ServiceID myServiceID;
+    private ServiceID myServiceID;
     /** Our activation id, or null if not activatable */
-    private volatile ActivationID activationID;
+    private ActivationID activationID;
     /** Associated activation system, or null if not activatable */
-    private volatile ActivationSystem activationSystem;
+    private ActivationSystem activationSystem;
     /** Our LookupLocator */
     private volatile LookupLocator myLocator;
     /** Our login context, for logging out */
-    private volatile LoginContext loginContext;
+    private LoginContext loginContext;
     /** Shutdown callback object, or null if no callback needed */
-    private volatile LifeCycle lifeCycle;
+    private LifeCycle lifeCycle;
 
     /** Unicast socket factories */
-    private volatile ServerSocketFactory serverSocketFactory ;
-    private volatile SocketFactory socketFactory;
+    private ServerSocketFactory serverSocketFactory ;
+    private SocketFactory socketFactory;
 
     /**
      * Map from ServiceID to SvcReg.  Every service is in this map under
      * its serviceID.
      */
-    private final Map<ServiceID,SvcReg> serviceByID 
-            = Collections.synchronizedMap(new HashMap<ServiceID,SvcReg>());
+    private final HashMap serviceByID = new HashMap();
     /**
      * Identity map from SvcReg to SvcReg, ordered by lease expiration.
      * Every service is in this map.
      */
-    private final SortedMap<SvcReg,SvcReg> serviceByTime 
-            = Collections.synchronizedSortedMap(new TreeMap<SvcReg,SvcReg>());
+    private final TreeMap serviceByTime = new TreeMap();
     /**
      * Map from String to HashMap mapping ServiceID to SvcReg.  Every service 
      * is in this map under its types.
      */
-    private final Map<String,Map<ServiceID,SvcReg>> serviceByTypeName 
-            = Collections.synchronizedMap(new HashMap<String,Map<ServiceID,SvcReg>>());
+    private final HashMap serviceByTypeName = new HashMap();
     /**
-     * Map from EntryClass to Map[] where each Map is a map from
-     * Object (field value) to List(SvcReg).  The Map array has as
+     * Map from EntryClass to HashMap[] where each HashMap is a map from
+     * Object (field value) to ArrayList(SvcReg).  The HashMap array has as
      * many elements as the EntryClass has fields (including fields defined
      * by superclasses).  Services are in this map multiple times, once
      * for each field of each entry it has.  The outer map is indexed by the
@@ -227,99 +221,89 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
      * this is a small memory hit and is simpler than subtracting off base
      * index values when accessing the arrays.
      */
-    private final Map<EntryClass,Map<Object,List<SvcReg>>[]> serviceByAttr 
-            = Collections.synchronizedMap(new HashMap<EntryClass,Map<Object,List<SvcReg>>[]>(23));
+    private final HashMap serviceByAttr = new HashMap(23);
     /**
      * Map from EntryClass to ArrayList(SvcReg).  Services are in this map
      * multiple times, once for each no-fields entry it has (no fields meaning
      * none of the superclasses have fields either).  The map is indexed by
      * the exact type of the entry.
      */
-    private final Map<EntryClass,List<SvcReg>> serviceByEmptyAttr 
-            = Collections.synchronizedMap(new HashMap<EntryClass,List<SvcReg>>(11));
+    private final HashMap serviceByEmptyAttr = new HashMap(11);
     /** All EntryClasses with non-zero numInstances */
-    private final List<EntryClass> entryClasses 
-            = Collections.synchronizedList(new ArrayList<EntryClass>());
+    private final ArrayList entryClasses = new ArrayList();
     /**
      * Map from Long(eventID) to EventReg.  Every event registration is in
      * this map under its eventID.
      */
-    private final Map<Long,EventReg> eventByID 
-            = Collections.synchronizedMap(new HashMap<Long,EventReg>(11));
+    private final HashMap eventByID = new HashMap(11);
     /**
      * Identity map from EventReg to EventReg, ordered by lease expiration.
      * Every event registration is in this map.
      */
-    private final SortedMap<EventReg,EventReg> eventByTime 
-            = Collections.synchronizedSortedMap(new TreeMap<EventReg,EventReg>());
+    private final TreeMap eventByTime = new TreeMap();
     /**
      * Map from ServiceID to EventReg or EventReg[].  An event
      * registration is in this map if its template matches on (at least)
      * a specific serviceID.
      */
-    @SuppressWarnings("unchecked")
-    private final Map subEventByService = Collections.synchronizedMap(new HashMap(11));
+    private final HashMap subEventByService = new HashMap(11);
     /**
      * Map from Long(eventID) to EventReg.  An event registration is in
      * this map if its template matches on ANY_SERVICE_ID.
      */
-    private final Map<Long,EventReg> subEventByID = Collections.synchronizedMap(new HashMap<Long,EventReg>(11));
+    private final HashMap subEventByID = new HashMap(11);
 
     /** Generator for resource (e.g., registration, lease) Uuids */
-    private volatile UuidGenerator resourceIdGenerator = new UuidGenerator();
+    private UuidGenerator resourceIdGenerator = new UuidGenerator();
     /** Generator for service IDs */
-    private volatile UuidGenerator serviceIdGenerator = resourceIdGenerator;
+    private UuidGenerator serviceIdGenerator = resourceIdGenerator;
     /** Event ID */
-    private volatile long eventID = 0;
+    private long eventID = 0;
     /** Random number generator for use in lookup */
     private final Random random = new Random();
 
     /** Preparer for received remote event listeners */
-    private volatile ProxyPreparer listenerPreparer = new BasicProxyPreparer();
+    private ProxyPreparer listenerPreparer = new BasicProxyPreparer();
     /** Preparer for remote event listeners recovered from state log */
-    private volatile ProxyPreparer recoveredListenerPreparer = listenerPreparer;
+    private ProxyPreparer recoveredListenerPreparer = listenerPreparer;
     /** Preparer for received lookup locators */
-    private volatile ProxyPreparer locatorPreparer = listenerPreparer;
+    private ProxyPreparer locatorPreparer = listenerPreparer;
     /** Preparer for lookup locators recovered from state log */
-    private volatile ProxyPreparer recoveredLocatorPreparer = listenerPreparer;
+    private ProxyPreparer recoveredLocatorPreparer = listenerPreparer;
 
     /** ArrayList of pending EventTasks */
-    private final List<EventTask> newNotifies = Collections.synchronizedList(new ArrayList<EventTask>());
+    private final ArrayList newNotifies = new ArrayList();
 
     /** Current maximum service lease duration granted, in milliseconds. */
-    private volatile long maxServiceLease;
+    private long maxServiceLease;
     /** Current maximum event lease duration granted, in milliseconds. */
-    private volatile long maxEventLease;
+    private long maxEventLease;
     /** Earliest expiration time of a SvcReg */
-    private volatile long minSvcExpiration = Long.MAX_VALUE;
+    private long minSvcExpiration = Long.MAX_VALUE;
     /** Earliest expiration time of an EventReg */
-    private volatile long minEventExpiration = Long.MAX_VALUE;
+    private long minEventExpiration = Long.MAX_VALUE;
 
     /** Manager for discovering other lookup services */
-    private volatile DiscoveryManagement discoer;
+    private DiscoveryManagement discoer;
     /** Manager for joining other lookup services */
-    private volatile JoinManager joiner;
+    private JoinManager joiner;
     /** Task manager for sending events and discovery responses */
-    private volatile TaskManager tasker;
+    private TaskManager tasker;
     /** Service lease expiration thread */
-    private final Thread serviceExpirer;
+    private Thread serviceExpirer;
     /** Event lease expiration thread */
-    private final Thread eventExpirer;
+    private Thread eventExpirer;
     /** Unicast discovery request packet receiving thread */
-    private volatile UnicastThread unicaster;
+    private UnicastThread unicaster;
     /** Multicast discovery request packet receiving thread */
-    private final Thread multicaster;
+    private Thread multicaster;
     /** Multicast discovery announcement sending thread */
-    private final Thread announcer;
+    private Thread announcer;
     /** Snapshot-taking thread */
-    private final Thread snapshotter;
+    private Thread snapshotter;
 
     /** Concurrent object to control read and write access */
     private final ReadersWriter concurrentObj = new ReadersWriter();
-    /** TODO replace ReadersWriter.
-//    private final ReadWriteLock rwlock = new ReentrantReadWriteLock();
-//    private final Lock wlock = rwlock.writeLock();
-//    private final Lock rlock = rwlock.readLock();
     /** Object for synchronizing with the service expire thread */
     private final Object serviceNotifier = new Object();
     /** Object for synchronizing with the event expire thread */
@@ -328,67 +312,66 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     private final Object snapshotNotifier = new Object();
 
     /** Canonical ServiceType for java.lang.Object */
-    private volatile ServiceType objectServiceType;
+    private ServiceType objectServiceType;
 
     /** Log for recovering/storing state, or null if running as transient */
-    private volatile ReliableLog log;
+    private ReliableLog log;
     /** Flag indicating whether system is in a state of recovery */
-    private volatile boolean inRecovery;
+    private boolean inRecovery;
     /** Flag indicating whether system state was recovered from a snapshot */
-    private volatile boolean recoveredSnapshot = false;
+    private boolean recoveredSnapshot = false;
     /** Current number of records in the Log File since the last snapshot */
-    private volatile int logFileSize = 0;
+    private int logFileSize = 0;
 
     /** Log file must contain this many records before snapshot allowed */
-    private volatile int persistenceSnapshotThreshold = 200;
+    private int persistenceSnapshotThreshold = 200;
     /** Weight factor applied to snapshotSize when deciding to take snapshot */
-    private volatile float persistenceSnapshotWeight = 10;
+    private float persistenceSnapshotWeight = 10;
     /** Minimum value for maxServiceLease. */
-    private volatile long minMaxServiceLease = 1000 * 60 * 5;
+    private long minMaxServiceLease = 1000 * 60 * 5;
     /** Minimum value for maxEventLease. */
-    private volatile long minMaxEventLease = 1000 * 60 * 30;
+    private long minMaxEventLease = 1000 * 60 * 30;
     /** Minimum average time between lease renewals, in milliseconds. */
-    private volatile long minRenewalInterval = 100;
+    private long minRenewalInterval = 100;
     /** Port for unicast discovery */
-    private volatile int unicastPort = 0;
+    private int unicastPort = 0;
     /** The groups we are a member of */
     private volatile String[] memberGroups = { "" };
     /** The groups we should join */
-    private volatile String[] lookupGroups = DiscoveryGroupManagement.NO_GROUPS;
+    private String[] lookupGroups = DiscoveryGroupManagement.NO_GROUPS;
     /** The locators of other lookups we should join */
-    private volatile LookupLocator[] lookupLocators = {};
+    private LookupLocator[] lookupLocators = {};
     /** The attributes to use when joining (including with myself) */
-    private volatile Entry[] lookupAttrs;
+    private Entry[] lookupAttrs;
     /** Interval to wait in between sending multicast announcements */
-    private volatile long multicastAnnouncementInterval = 1000 * 60 * 2;
+    private long multicastAnnouncementInterval = 1000 * 60 * 2;
     /** Multicast announcement sequence number */
     private volatile long announcementSeqNo = 0L;
 
     /** Network interfaces to use for multicast discovery */
-    /** shared among threads, but not mutated after construction */
-    private volatile NetworkInterface[] multicastInterfaces;
+    private NetworkInterface[] multicastInterfaces;
     /** Flag indicating whether network interfaces were explicitly specified */
-    private volatile boolean multicastInterfacesSpecified;
+    private boolean multicastInterfacesSpecified;
     /** Interval to wait in between retrying failed interfaces */
-    private volatile int multicastInterfaceRetryInterval = 1000 * 60 * 5;
+    private int multicastInterfaceRetryInterval = 1000 * 60 * 5;
     /** Utility for participating in version 2 of discovery protocols */
-    private volatile Discovery protocol2;
+    private Discovery protocol2;
     /** Cached raw constraints associated with unicastDiscovery method*/
-    private volatile InvocationConstraints rawUnicastDiscoveryConstraints;
+    private InvocationConstraints rawUnicastDiscoveryConstraints;
     /** Constraints specified for incoming multicast requests */
-    private volatile DiscoveryConstraints multicastRequestConstraints;
+    private DiscoveryConstraints multicastRequestConstraints;
     /** Constraints specified for outgoing multicast announcements */
-    private volatile DiscoveryConstraints multicastAnnouncementConstraints;
+    private DiscoveryConstraints multicastAnnouncementConstraints;
     /** Constraints specified for handling unicast discovery */
-    private volatile DiscoveryConstraints unicastDiscoveryConstraints;
+    private DiscoveryConstraints unicastDiscoveryConstraints;
     /** Client subject checker to apply to incoming multicast requests */
-    private volatile ClientSubjectChecker multicastRequestSubjectChecker;
+    private ClientSubjectChecker multicastRequestSubjectChecker;
     /** Maximum time to wait for calls to finish before forcing unexport */
     private volatile long unexportTimeout = 1000 * 60 * 2;
     /** Time to wait between unexport attempts */
     private volatile long unexportWait = 1000;
     /** Client subject checker to apply to unicast discovery attempts */
-    private volatile ClientSubjectChecker unicastDiscoverySubjectChecker;
+    private ClientSubjectChecker unicastDiscoverySubjectChecker;
 
     /** Lock protecting startup and shutdown */
     private final ReadyState ready = new ReadyState();
@@ -412,16 +395,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		configArgs, getClass().getClassLoader());
 
             loginAndRun(config,activationID,persistent,lifeCycle);
-            serviceExpirer = new ServiceExpireThread();
-            eventExpirer = new EventExpireThread();
-            multicaster = new MulticastThread();
-            announcer = new AnnounceThread();
-            snapshotter = new SnapshotThread();
-            serviceExpirer.start();
-            eventExpirer.start();
-            multicaster.start();
-            announcer.start();
-            snapshotter.start();
 	} catch (Throwable t) {
 	    logger.log(Level.SEVERE, "Reggie initialization failed", t);
 	    if (t instanceof Exception) {
@@ -448,16 +421,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     {
 	try {
             loginAndRun(config,activationID,persistent,lifeCycle);
-            serviceExpirer = new ServiceExpireThread();
-            eventExpirer = new EventExpireThread();
-            multicaster = new MulticastThread();
-            announcer = new AnnounceThread();
-            snapshotter = new SnapshotThread();
-            serviceExpirer.start();
-            eventExpirer.start();
-            multicaster.start();
-            announcer.start();
-            snapshotter.start();
 	} catch (Throwable t) {
 	    logger.log(Level.SEVERE, "Reggie initialization failed", t);
 	    if (t instanceof Exception) {
@@ -742,7 +705,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 */
 	public void apply(RegistrarImpl regImpl) {
 	    SvcReg oldReg =
-                (SvcReg)regImpl.serviceByID.get(reg.item.serviceID);
+		(SvcReg)regImpl.serviceByID.get(reg.item.serviceID);
 	    if (oldReg != null)
 		regImpl.deleteService(oldReg, 0);
 	    regImpl.addService(reg);
@@ -1274,7 +1237,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private final int newPort;
+	private int newPort;
 
 	/** Simple constructor */
 	public UnicastPortSetLogObj(int newPort) {
@@ -1307,7 +1270,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private final String[] groups;
+	private String[] groups;
 
 	/** Simple constructor */
 	public LookupGroupsChangedLogObj(String[] groups) {
@@ -1397,7 +1360,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private final String[] groups;
+	private String[] groups;
 
 	/** Simple constructor */
 	public MemberGroupsChangedLogObj(String[] groups) {
@@ -1593,10 +1556,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	}
     }
 
-    /** Base class for iterating over all Items that match a Template. 
-     * ItemIter are for single threaded use, however they access collections
-     * that may be accessed by other threads */
-    
+    /** Base class for iterating over all Items that match a Template. */
     private abstract class ItemIter {
 	/** Current time */
 	public final long now = System.currentTimeMillis();
@@ -1642,7 +1602,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     /** Iterate over all Items. */
     private class AllItemIter extends ItemIter {
 	/** Iterator over serviceByID */
-	private final Iterator<SvcReg> iter;
+	private final Iterator iter;
 
 	/** Assumes the empty template */
 	public AllItemIter() {
@@ -1652,14 +1612,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	}
 
 	/** Set reg to the next matching element, or null if none */
-	protected final void step() {
-            synchronized (serviceByID){
-                while (iter.hasNext()) {
-                    reg = iter.next();
-                    if (reg.leaseExpiration > now)
-                        return;
-                }
-            }
+	protected void step() {
+	    while (iter.hasNext()) {
+		reg = (SvcReg)iter.next();
+		if (reg.leaseExpiration > now)
+		    return;
+	    }
 	    reg = null;
 	}
     }
@@ -1667,65 +1625,49 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     /** Iterates over all services that match template's service types */
     private class SvcIterator extends ItemIter {
 	/** Iterator for list of matching services. */
-        private final Iterator<SvcReg> services;
-        private final Map<ServiceID,SvcReg> mutex;
+        private final Iterator services;
 	
 	/**
 	 * tmpl.serviceID == null and
 	 * tmpl.serviceTypes is not empty
 	 */
-        @SuppressWarnings("unchecked")
         public SvcIterator(Template tmpl) {
 	    super(tmpl);
-	    Map<ServiceID,SvcReg> map = serviceByTypeName.get(
+	    Map map = (Map) serviceByTypeName.get(
 	       tmpl.serviceTypes[0].getName());
-            mutex = (Map<ServiceID, SvcReg>) (map != null ? map : Collections.emptyMap());
-	    services = mutex.values().iterator();
+	    services = map != null ? map.values().iterator() :
+		Collections.EMPTY_LIST.iterator();
 	    step();
 	}
 	
         /** Set reg to the next matching element, or null if none. */
-        protected final void step() {
+        protected void step() {
 	    if (tmpl.serviceTypes.length > 1) {
-                synchronized (mutex){
-                    while (services.hasNext()) {
-                        reg = services.next();
-                        if (reg.leaseExpiration > now &&
-                            matchType(tmpl.serviceTypes, reg.item.serviceType) &&
-                            matchAttributes(tmpl, reg.item))
-                            return;
-                    }
-                }
+		while (services.hasNext()) {
+		    reg = (SvcReg) services.next();
+		    if (reg.leaseExpiration > now &&
+			matchType(tmpl.serviceTypes, reg.item.serviceType) &&
+			matchAttributes(tmpl, reg.item))
+			return;
+		}		
 	    } else {
-                synchronized (mutex){
-                    while (services.hasNext()) {
-                        reg = (SvcReg) services.next();
-                        if (reg.leaseExpiration > now &&
-                            matchAttributes(tmpl, reg.item))
-                            return;
-                    }
-                }
+		while (services.hasNext()) {
+		    reg = (SvcReg) services.next();
+		    if (reg.leaseExpiration > now &&
+			matchAttributes(tmpl, reg.item))
+			return;
+		}
 	    }
 	    reg = null;
 	}
     }
+
     /** Iterate over all matching Items by attribute value. */
     private class AttrItemIter extends ItemIter {
 	/** SvcRegs obtained from serviceByAttr for chosen attr */
-	protected final List<SvcReg> svcs;
+	protected ArrayList svcs;
 	/** Current index into svcs */
-	protected int svcidx = 0;
-        
-        protected AttrItemIter(Template tmpl, List<SvcReg> svcs){
-            super(tmpl);
-            if (svcs != null) {
-		svcidx = svcs.size();
-                this.svcs = svcs;
-		step();
-	    } else {
-                this.svcs = Collections.emptyList();
-            }
-        }
+	protected int svcidx;
 
 	/**
 	 * tmpl.serviceID == null and
@@ -1735,33 +1677,27 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	public AttrItemIter(Template tmpl, int setidx, int fldidx) {
 	    super(tmpl);
 	    EntryRep set = tmpl.attributeSetTemplates[setidx];
-	    Map<Object,List<SvcReg>>[] attrMaps =
-		serviceByAttr.get(getDefiningClass(set.eclass,
+	    HashMap[] attrMaps =
+		(HashMap[])serviceByAttr.get(getDefiningClass(set.eclass,
 							      fldidx));
-            List<SvcReg> svcs = null;
 	    if (attrMaps != null && attrMaps[fldidx] != null) {
-		svcs = attrMaps[fldidx].get(set.fields[fldidx]);
+		svcs = (ArrayList)attrMaps[fldidx].get(set.fields[fldidx]);
 		if (svcs != null) {
 		    svcidx = svcs.size();
-                    this.svcs = svcs;
 		    step();
-                } else {
-                    this.svcs = Collections.emptyList();
-                }
-	    } else {
-                this.svcs = Collections.emptyList();
-            }
+		}
+	    }
 	}
 
 	/** Simple constructor */
 	protected AttrItemIter(Template tmpl) {
-	    this(tmpl, null);
+	    super(tmpl);
 	}
 
 	/** Set reg to the next matching element, or null if none. */
-	protected final void step() {
+	protected void step() {
 	    while (--svcidx >= 0) {
-		reg = svcs.get(svcidx);
+		reg = (SvcReg)svcs.get(svcidx);
 		if (reg.leaseExpiration > now &&
 		    matchAttributes(tmpl, reg.item))
 		    return;
@@ -1779,7 +1715,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 * eclass has no fields
 	 */
 	public EmptyAttrItemIter(Template tmpl, EntryClass eclass) {
-	    super(tmpl,serviceByEmptyAttr.get(eclass) );
+	    super(tmpl);
+	    svcs = (ArrayList)serviceByEmptyAttr.get(eclass);
 	    if (svcs != null) {
 		svcidx = svcs.size();
 		step();
@@ -1794,10 +1731,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	/** Current index into entryClasses */
 	private int classidx;
 	/** Values iterator for current HashMap */
-	private Iterator<List<SvcReg>> iter;
-        private Object mutex;
+	private Iterator iter;
 	/** SvcRegs obtained from iter or serviceByEmptyAttr */
-	private List<SvcReg> svcs;
+	private ArrayList svcs;
 	/** Current index into svcs */
 	private int svcidx = 0;
 
@@ -1811,15 +1747,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    dupsPossible = true;
 	    eclass = tmpl.attributeSetTemplates[0].eclass;
 	    classidx = entryClasses.size();
-            mutex = new Object();
 	    step();
 	}
 
 	/** Set reg to the next matching element, or null if none */
-	protected final void step() {
+	protected void step() {
 	    do {
 		while (--svcidx >= 0) {
-		    reg = svcs.get(svcidx);
+		    reg = (SvcReg)svcs.get(svcidx);
 		    if (reg.leaseExpiration > now &&
 			matchAttributes(tmpl, reg.item))
 			return;
@@ -1834,13 +1769,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 */
 	private boolean stepValue() {
 	    while (true) {
-                synchronized (mutex){ //REMIND: Locking not satisfactory during iteration.
-                    if (iter != null && iter.hasNext()) {
-                        svcs = iter.next();
-                        svcidx = svcs.size();
-                        return true;
-                    }
-                }
+		if (iter != null && iter.hasNext()) {
+		    svcs = (ArrayList)iter.next();
+		    svcidx = svcs.size();
+		    return true;
+		}
 		if (!stepClass())
 		    return false;
 		if (iter == null)
@@ -1856,19 +1789,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 */
 	private boolean stepClass() {
 	    while (--classidx >= 0) {
-		EntryClass cand = entryClasses.get(classidx);
+		EntryClass cand = (EntryClass)entryClasses.get(classidx);
 		if (!eclass.isAssignableFrom(cand))
 		    continue;
 		if (cand.getNumFields() > 0) {
 		    cand = getDefiningClass(cand, cand.getNumFields() - 1);
-		    Map<Object,List<SvcReg>>[] attrMaps = serviceByAttr.get(cand);
-                    Map<Object,List<SvcReg>> mutex = attrMaps[attrMaps.length - 1];
-                    this.mutex = mutex;
-		    iter = mutex.values().iterator();
+		    HashMap[] attrMaps = (HashMap[])serviceByAttr.get(cand);
+		    iter = attrMaps[attrMaps.length - 1].values().iterator();
 		} else {
 		    iter = null;
-                    mutex = new Object();
-		    svcs = serviceByEmptyAttr.get(cand);
+		    svcs = (ArrayList)serviceByEmptyAttr.get(cand);
 		    svcidx = svcs.size();
 		}
 		return true;
@@ -1883,7 +1813,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	/** tmpl.serviceID != null */
 	public IDItemIter(Template tmpl) {
 	    super(tmpl);
-	    reg = serviceByID.get(tmpl.serviceID);
+	    reg = (SvcReg)serviceByID.get(tmpl.serviceID);
 	    if (reg != null &&
 		(reg.leaseExpiration <= now || !matchItem(tmpl, reg.item)))
 		reg = null;
@@ -2275,7 +2205,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		    long now = System.currentTimeMillis();
 		    minEventExpiration = Long.MAX_VALUE;
 		    while (!eventByTime.isEmpty()) {
-			EventReg reg = (EventReg) eventByTime.firstKey();
+			EventReg reg = (EventReg)eventByTime.firstKey();
 			if (reg.leaseExpiration > now) {
 			    minEventExpiration = reg.leaseExpiration;
 			    break;
@@ -2562,42 +2492,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	public UnicastThread(int port) throws IOException {
 	    super("unicast request");
 	    setDaemon(true);
-            logger.log(Level.FINEST, "Reggie ServerSocket configured port: {0}", port);
 	    if (port == 0) {
 		try {
 		    listen = serverSocketFactory.createServerSocket(Constants.discoveryPort);
 		} catch (IOException e) {
-                    e.fillInStackTrace();
-//                    throw e;
-                    // Swallowing interrupt causes difficult to diagnose test failures.
 		    logger.log(
 			Levels.HANDLED, "failed to bind to default port", e);
 		}
 	    }
 	    if (listen == null) {
-                try {
-                    listen = createServerSocket(serverSocketFactory, port);
-                }catch ( BindException ex){
-                    ex.fillInStackTrace();
-                    throw new IOException("Reggie ServerSocket port already in use: " + port, ex);
-                }
+                listen = serverSocketFactory.createServerSocket(port);
 	    }
 	    this.port = listen.getLocalPort();
-            logger.log(Level.FINEST, "Reggie ServerSocket local port: {0}", port);
-            if ( port > 0 && this.port != port){
-                try {
-                    listen.close();
-                } catch (IOException e){} // Ignore
-                throw new IOException("Regggie ServerSocketFactory port: " +this.port + " doesn't match requested port: " +port);
-            }
 	}
-        
-        private ServerSocket createServerSocket(ServerSocketFactory ssf, int port) throws IOException{
-            ServerSocket socket = ssf.createServerSocket();
-            SocketAddress sa = new InetSocketAddress(port);
-            socket.bind(sa);
-            return socket;
-        }
 
 	public void run() {
 	    while (!hasBeenInterrupted()) {
@@ -3722,9 +3629,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 
     /** Adds a service registration to types in its hierarchy */
     private void addServiceByTypes(ServiceType type, SvcReg reg) {
-	Map<ServiceID,SvcReg> map = serviceByTypeName.get(type.getName());
+	Map map = (Map) serviceByTypeName.get(type.getName());
 	if (map == null) {
-	    map = Collections.synchronizedMap(new HashMap<ServiceID,SvcReg>());
+	    map = new HashMap();
 	    serviceByTypeName.put(type.getName(), map);
 	}
 	map.put(reg.item.serviceID, reg);	
@@ -3740,7 +3647,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     /** Deletes a service registration from types in its hierarchy */
     private void deleteServiceFromTypes(ServiceType type, SvcReg reg)
     {
-	Map<ServiceID,SvcReg> map = serviceByTypeName.get(type.getName());
+	Map map = (Map) serviceByTypeName.get(type.getName());
 	if (map != null) {
 	    map.remove(reg.item.serviceID);
 	    if ((map.isEmpty()) && !type.equals(objectServiceType))
@@ -4186,16 +4093,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    }
 	    return;
 	}
-        synchronized (serviceByEmptyAttr){
-            List<SvcReg> regs = serviceByEmptyAttr.get(eclass);
-            if (regs == null) {
-                regs = Collections.synchronizedList(new ArrayList<SvcReg>(2));
-                regs.add(reg);
-                serviceByEmptyAttr.put(eclass, regs);
-            } else if (!regs.contains(reg)) {
-                regs.add(reg);
-            }
-        }
+	ArrayList regs = (ArrayList)serviceByEmptyAttr.get(eclass);
+	if (regs == null) {
+	    regs = new ArrayList(2);
+	    regs.add(reg);
+	    serviceByEmptyAttr.put(eclass, regs);
+	} else if (!regs.contains(reg)) {
+	    regs.add(reg);
+	}
     }
 
     /**
@@ -4212,46 +4117,42 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	deleteInstance(eclass);
 	Object[] fields = entry.fields;
 	if (fields.length == 0) {
-            List<SvcReg> regs = serviceByEmptyAttr.get(eclass);
-            if (regs == null || (checkDups && hasEmptyAttr(reg, eclass)))
-                return;
-            int idx = regs.indexOf(reg);
-            if (idx >= 0) {
-                synchronized (serviceByEmptyAttr){
-                    regs.remove(idx);
-                    if (regs.isEmpty())
-                        serviceByEmptyAttr.remove(eclass);
-                }
-            }
-            return;
+	    ArrayList regs = (ArrayList)serviceByEmptyAttr.get(eclass);
+	    if (regs == null || (checkDups && hasEmptyAttr(reg, eclass)))
+		return;
+	    int idx = regs.indexOf(reg);
+	    if (idx >= 0) {
+		regs.remove(idx);
+		if (regs.isEmpty())
+		    serviceByEmptyAttr.remove(eclass);
+	    }
+	    return;
 	}
 	/* walk backwards to make getDefiningClass more efficient */
 	for (int fldidx = fields.length; --fldidx >= 0; ) {
 	    eclass = getDefiningClass(eclass, fldidx);
-            synchronized (serviceByAttr){
-                Map<Object,List<SvcReg>>[] attrMaps = serviceByAttr.get(eclass);
-                if (attrMaps == null ||
-                    attrMaps[fldidx] == null ||
-                    (checkDups && hasAttr(reg, eclass, fldidx, fields[fldidx])))
-                    continue;
-                Map<Object,List<SvcReg>> map = attrMaps[fldidx];
-                Object value = fields[fldidx];
-                List<SvcReg> regs = map.get(value);
-                if (regs == null)
-                    continue;
-                int idx = regs.indexOf(reg);
-                if (idx < 0)
-                    continue;
-                regs.remove(idx);
-                if (!regs.isEmpty())
-                    continue;
-                map.remove(value);
-                if (!map.isEmpty())
-                    continue;
-                attrMaps[fldidx] = null;
-                if (allNull(attrMaps))
-                    serviceByAttr.remove(eclass);
-            }
+	    HashMap[] attrMaps = (HashMap[])serviceByAttr.get(eclass);
+	    if (attrMaps == null ||
+		attrMaps[fldidx] == null ||
+		(checkDups && hasAttr(reg, eclass, fldidx, fields[fldidx])))
+		continue;
+	    HashMap map = attrMaps[fldidx];
+	    Object value = fields[fldidx];
+	    ArrayList regs = (ArrayList)map.get(value);
+	    if (regs == null)
+		continue;
+	    int idx = regs.indexOf(reg);
+	    if (idx < 0)
+		continue;
+	    regs.remove(idx);
+	    if (!regs.isEmpty())
+		continue;
+	    map.remove(value);
+	    if (!map.isEmpty())
+		continue;
+	    attrMaps[fldidx] = null;
+	    if (allNull(attrMaps))
+		serviceByAttr.remove(eclass);
 	}
     }
 
@@ -4268,16 +4169,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    Object nval = values[fldidx];
 	    if (nval != null && !nval.equals(oval)) {
 		eclass = getDefiningClass(eclass, fldidx);
-		Map<Object,List<SvcReg>> map = addAttr(reg, eclass, fldidx, nval);
+		HashMap map = addAttr(reg, eclass, fldidx, nval);
 		entry.fields[fldidx] = nval;
 		if (hasAttr(reg, eclass, fldidx, oval))
 		    continue;
-                synchronized (serviceByAttr){
-                    List<SvcReg> regs = map.get(oval);
-                    regs.remove(regs.indexOf(reg));
-                    if (regs.isEmpty())
-                        map.remove(oval); /* map cannot become empty */
-                }
+		ArrayList regs = (ArrayList)map.get(oval);
+		regs.remove(regs.indexOf(reg));
+		if (regs.isEmpty())
+		    map.remove(oval); /* map cannot become empty */
 	    }
 	}
     }
@@ -4287,32 +4186,29 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
      * defining class and field, if it isn't already there.  Return
      * the HashMap for the given class and field.
      */
-    @SuppressWarnings("unchecked")
-    private Map<Object,List<SvcReg>> addAttr(SvcReg reg,
+    private HashMap addAttr(SvcReg reg,
 			    EntryClass eclass,
 			    int fldidx,
 			    Object value)
     {
-        synchronized (serviceByAttr){
-            Map<Object,List<SvcReg>>[] attrMaps = serviceByAttr.get(eclass);
-            if (attrMaps == null) {
-                attrMaps = new Map[eclass.getNumFields()];
-                serviceByAttr.put(eclass, attrMaps);
-            }
-            Map<Object,List<SvcReg>> map = attrMaps[fldidx];
-            if (map == null) {
-                map = Collections.synchronizedMap(new HashMap<Object,List<SvcReg>>(11));
-                attrMaps[fldidx] = map;
-            }
-            List<SvcReg> regs = map.get(value);
-            if (regs == null) {
-                regs = Collections.synchronizedList(new ArrayList<SvcReg>(3));
-                map.put(value, regs);
-            } else if (regs.contains(reg))
-                return map;
-            regs.add(reg);
-            return map;
-        }
+	HashMap[] attrMaps = (HashMap[])serviceByAttr.get(eclass);
+	if (attrMaps == null) {
+	    attrMaps = new HashMap[eclass.getNumFields()];
+	    serviceByAttr.put(eclass, attrMaps);
+	}
+	HashMap map = attrMaps[fldidx];
+	if (map == null) {
+	    map = new HashMap(11);
+	    attrMaps[fldidx] = map;
+	}
+	ArrayList regs = (ArrayList)map.get(value);
+	if (regs == null) {
+	    regs = new ArrayList(3);
+	    map.put(value, regs);
+	} else if (regs.contains(reg))
+	    return map;
+	regs.add(reg);
+	return map;
     }
 
     /**
@@ -4325,7 +4221,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    entryClasses.add(eclass);
 	    idx = entryClasses.size() - 1;
 	}
-	eclass = entryClasses.get(idx);
+	eclass = (EntryClass) entryClasses.get(idx);
 	eclass.setNumInstances(eclass.getNumInstances() + 1);	
     }
 
@@ -4376,7 +4272,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     private EntryClass getEmptyEntryClass(EntryClass eclass) {
 	EntryClass match = null;
 	for (int i = entryClasses.size(); --i >= 0; ) {
-	    EntryClass cand = entryClasses.get(i);
+	    EntryClass cand = (EntryClass)entryClasses.get(i);
 	    if (eclass.isAssignableFrom(cand)) {
 		if (cand.getNumFields() != 0 || match != null)
 		    return null;
@@ -4387,18 +4283,18 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     }
 
     /** Returns a list of services that match all types passed in */
-    private List<SvcReg> matchingServices(ServiceType[] types) {
-	List<SvcReg> matches = new ArrayList<SvcReg>();
+    private ArrayList matchingServices(ServiceType[] types) {
+	ArrayList matches = new ArrayList();
 	if (isEmpty(types)) {
-	    Map<ServiceID,SvcReg> map = serviceByTypeName.get(objectServiceType.getName());
+	    Map map = (Map) serviceByTypeName.get(objectServiceType.getName());
 	    matches.addAll(map.values());
 	} else {
-	    Map<ServiceID,SvcReg> map = serviceByTypeName.get(types[0].getName());
+	    Map map = (Map) serviceByTypeName.get(types[0].getName());
 	    if (map != null)
 	        matches.addAll(map.values());
 	    if (types.length > 1) {
-	        for (Iterator<SvcReg> it = matches.iterator(); it.hasNext(); ) {
-		    SvcReg reg = it.next();
+	        for (Iterator it = matches.iterator(); it.hasNext(); ) {
+		    SvcReg reg = (SvcReg) it.next();
 		    if (!matchType(types, reg.item.serviceType))
 		        it.remove();
 	        }
@@ -4413,30 +4309,28 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     {
 	if (eclass.getNumFields() == 0)
 	    return pickCodebase(eclass,
-				serviceByEmptyAttr.get(eclass),
+				(ArrayList)serviceByEmptyAttr.get(eclass),
 				now);
 	int fldidx = eclass.getNumFields() - 1;
-	Map<Object,List<SvcReg>>[] attrMaps =
-	    serviceByAttr.get(getDefiningClass(eclass, fldidx));
-        synchronized (attrMaps[fldidx]){
-            for (Iterator<List<SvcReg>> iter = attrMaps[fldidx].values().iterator();
-                 iter.hasNext(); )
-            {
-                try {
-                    return pickCodebase(eclass, iter.next(), now);
-                } catch (ClassNotFoundException e) {
-                }
-            }
-            throw new ClassNotFoundException();
-        }
+	HashMap[] attrMaps =
+	    (HashMap[])serviceByAttr.get(getDefiningClass(eclass, fldidx));
+	for (Iterator iter = attrMaps[fldidx].values().iterator();
+	     iter.hasNext(); )
+	{
+	    try {
+		return pickCodebase(eclass, (ArrayList)iter.next(), now);
+	    } catch (ClassNotFoundException e) {
+	    }
+	}
+	throw new ClassNotFoundException();
     }
 
     /** Return any valid codebase for an entry of the exact given class. */
-    private String pickCodebase(EntryClass eclass, List<SvcReg> svcs, long now)
+    private String pickCodebase(EntryClass eclass, ArrayList svcs, long now)
 	throws ClassNotFoundException
     {
 	for (int i = svcs.size(); --i >= 0; ) {
-	    SvcReg reg = svcs.get(i);
+	    SvcReg reg = (SvcReg)svcs.get(i);
 	    if (reg.leaseExpiration <= now)
 		continue;
 	    EntryRep[] sets = reg.item.attributeSets;
@@ -4768,7 +4662,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		DiscoveryConstraints.multicastAnnouncementMethod));
 	unicastDiscoveryConstraints = DiscoveryConstraints.process(
 	    rawUnicastDiscoveryConstraints);
+	serviceExpirer = new ServiceExpireThread();
+	eventExpirer = new EventExpireThread();
 	unicaster = new UnicastThread(unicastPort);
+	multicaster = new MulticastThread();
+	announcer = new AnnounceThread();
+	snapshotter = new SnapshotThread();
 	if (myServiceID == null) {
 	    myServiceID = newServiceID();
 	}
@@ -4812,7 +4711,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 				 discoer, null, config);
 
 	/* start up all the daemon threads */
+	serviceExpirer.start();
+	eventExpirer.start();
 	unicaster.start();
+	multicaster.start();
+	announcer.start();
         
         /* Shutdown hook so reggie sends a final announcement
          * packet if VM is terminated.  If reggie is terminated
@@ -4833,6 +4736,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    }
 	}));
         
+        snapshotter.start();
 	if (logger.isLoggable(Level.INFO)) {
 	    logger.log(Level.INFO, "started Reggie: {0}, {1}, {2}",
 		       new Object[]{ myServiceID,
@@ -4842,8 +4746,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	ready.ready();
     }
 
-    /** The code that does the real work of register.
-     * called while holding concurrentObj.writeLock() */
+    /** The code that does the real work of register. */
     private ServiceRegistration registerDo(Item nitem, long leaseDuration)
     {
 	if (nitem.service == null)
@@ -4858,18 +4761,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	long now = System.currentTimeMillis();
 	if (nitem.serviceID == null) {
 	    /* new service, match on service object */
-	    Map<ServiceID,SvcReg> svcs = serviceByTypeName.get(nitem.serviceType.getName());
+	    Map svcs = (Map)serviceByTypeName.get(nitem.serviceType.getName());
 	    if (svcs != null) {
-                synchronized (svcs){
-                    for (Iterator<SvcReg> it = svcs.values().iterator(); it.hasNext(); ) {
-                        SvcReg reg = it.next();
-                        if (nitem.service.equals(reg.item.service)) {
-                            nitem.serviceID = reg.item.serviceID;
-                            deleteService(reg, now);
-                            break;
-                        }
-                    }
-                }
+		for (Iterator it = svcs.values().iterator(); it.hasNext(); ) {
+		    SvcReg reg = (SvcReg)it.next();
+		    if (nitem.service.equals(reg.item.service)) {
+			nitem.serviceID = reg.item.serviceID;
+			deleteService(reg, now);
+			break;
+		    }
+		}
 	    }
 	    if (nitem.serviceID == null)
 		nitem.serviceID = newServiceID();
@@ -5078,7 +4979,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
      */
     private Object[] getFieldValuesDo(Template tmpl, int setidx, int fldidx)
     {
-	List<Object> values = new ArrayList<Object>();
+	ArrayList values = new ArrayList();
 	EntryRep etmpl = tmpl.attributeSetTemplates[setidx];
 	if (tmpl.serviceID == null &&
 	    isEmpty(tmpl.serviceTypes) &&
@@ -5088,26 +4989,24 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    long now = System.currentTimeMillis();
 	    EntryClass eclass = getDefiningClass(etmpl.eclass, fldidx);
 	    boolean checkAttr = !eclass.equals(etmpl.eclass);
-	    Map<Object,List<SvcReg>>[] attrMaps = serviceByAttr.get(eclass);
+	    HashMap[] attrMaps = (HashMap[])serviceByAttr.get(eclass);
 	    if (attrMaps != null && attrMaps[fldidx] != null) {
-                synchronized (attrMaps[fldidx]){
-                    for (Iterator<Map.Entry<Object,List<SvcReg>>> iter = attrMaps[fldidx].entrySet().iterator();
-                         iter.hasNext(); )
-                    {
-                        Map.Entry<Object,List<SvcReg>> ent = iter.next();
-                        List<SvcReg> regs = ent.getValue();
-                        Object value = ent.getKey();
-                        for (int i = regs.size(); --i >= 0; ) {
-                            SvcReg reg = regs.get(i);
-                            if (reg.leaseExpiration > now &&
-                                (!checkAttr ||
-                                 hasAttr(reg, etmpl.eclass, fldidx, value))) {
-                                values.add(value);
-                                break;
-                            }
-                        }
-                    }
-                }
+		for (Iterator iter = attrMaps[fldidx].entrySet().iterator();
+		     iter.hasNext(); )
+		{
+		    Map.Entry ent = (Map.Entry)iter.next();
+		    ArrayList regs = (ArrayList)ent.getValue();
+		    Object value = ent.getKey();
+		    for (int i = regs.size(); --i >= 0; ) {
+			SvcReg reg = (SvcReg)regs.get(i);
+			if (reg.leaseExpiration > now &&
+			    (!checkAttr ||
+			     hasAttr(reg, etmpl.eclass, fldidx, value))) {
+			    values.add(value);
+			    break;
+			}
+		    }
+		}
 	    }
 	} else {
 	    for (ItemIter iter = matchingItems(tmpl); iter.hasNext(); ) {
@@ -5661,15 +5560,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	stream.writeLong(announcementSeqNo);
 	marshalAttributes(lookupAttrs, stream);
 	marshalLocators(lookupLocators, stream);
-        synchronized (serviceByID){
-            for (Iterator iter = serviceByID.entrySet().iterator(); 
-                 iter.hasNext(); )
-            {
-                Map.Entry entry = (Map.Entry) iter.next();
-                if (myServiceID != entry.getKey())
-                    stream.writeObject(entry.getValue());
-            }
-        }
+	for (Iterator iter = serviceByID.entrySet().iterator(); 
+	     iter.hasNext(); )
+	{
+	    Map.Entry entry = (Map.Entry) iter.next();
+	    if (myServiceID != entry.getKey())
+		stream.writeObject(entry.getValue());
+	}
 	stream.writeObject(null);
 	for (Iterator iter = eventByID.values().iterator(); iter.hasNext(); )
 	{

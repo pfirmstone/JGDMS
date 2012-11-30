@@ -22,7 +22,6 @@ import com.sun.jini.qa.harness.QAConfig;
 import java.util.logging.Level;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /** This class verifies that the <code>LookupDiscovery</code> utility
  *  monitors the multicast announcements sent from lookup services
@@ -100,7 +99,7 @@ public class MulticastMonitorStopReplace extends Discovered {
         synchronized(mainListener) {
             stopAnnouncements();
             /* Replace current groups with new groups to cause discards */
-            List locGroupsPairList = replaceMemberGroups();
+            ArrayList locGroupsPairList = replaceMemberGroups();
             /* Set the expected discard event info */
             mainListener.setLookupsToDiscover
                                      (locGroupsPairList,

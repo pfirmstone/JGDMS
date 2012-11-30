@@ -8,7 +8,7 @@ function test_tar_release {
 	cd $TMP_DIR
 
 	tar xf apache-river-$VERSION-src.tar.gz
-	cd apache-river-2.2.1
+	cd apache-river-2.2.0
 	
 	ant build
 
@@ -91,7 +91,7 @@ function confirm_continue {
 	[[ 'n' = $CONTINUE || 'N' = $CONTINUE ]] && echo $QUIT_MSG
 }
 
-VERSION=2.2.1
+VERSION=2.2.0
 
 echo "Rolling River Release $VERSION"
 

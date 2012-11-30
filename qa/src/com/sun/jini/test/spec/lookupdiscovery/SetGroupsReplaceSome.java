@@ -22,7 +22,6 @@ import com.sun.jini.qa.harness.QAConfig;
 import java.util.logging.Level;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * With respect to the <code>setGroups</code> method, this class verifies
@@ -53,7 +52,7 @@ import java.util.List;
  */
 public class SetGroupsReplaceSome extends Discovered {
 
-    protected List oldLookupsToDiscover = null;
+    protected ArrayList oldLookupsToDiscover = null;
     protected String[] newGroupsToDiscover = new String[] {"SetGroups_newSet"};
 
     protected boolean changeAll = false;

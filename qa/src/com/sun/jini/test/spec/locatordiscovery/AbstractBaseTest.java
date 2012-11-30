@@ -32,8 +32,6 @@ import net.jini.core.lookup.ServiceRegistrar;
 
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
 
 /**
  * This class is an abstract class that acts as the base class from which
@@ -67,9 +65,9 @@ import java.util.List;
  */
 abstract public class AbstractBaseTest extends BaseQATest {
 
-    protected volatile LookupLocatorDiscovery locatorDiscovery = null;
-    protected final List locatorDiscoveryList = Collections.synchronizedList(new ArrayList(1));
-    protected volatile LookupListener mainListener = null;
+    protected LookupLocatorDiscovery locatorDiscovery = null;
+    protected ArrayList locatorDiscoveryList = new ArrayList(1);
+    protected LookupListener mainListener = null;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test as follows:
@@ -143,7 +141,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  </ul>
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(List locGroupsListToDiscover,
+    protected void doDiscovery(ArrayList locGroupsListToDiscover,
                                LookupLocatorDiscovery lld,
                                LookupListener listener) throws TestException
     {
@@ -168,7 +166,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  created during setup is to be used for discovery.
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(List locGroupsListToDiscover,
+    protected void doDiscovery(ArrayList locGroupsListToDiscover,
                                LookupListener listener) throws TestException
     {
         doDiscovery(locGroupsListToDiscover,locatorDiscovery,listener);

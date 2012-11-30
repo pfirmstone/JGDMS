@@ -2,6 +2,3 @@ testClass=BadLocatorDiscoveryListener
 testCategories=locatordiscovery,locatordiscovery_impl,impllocatordiscovery
 include0=locatordiscovery.properties
 include1=com/sun/jini/test/share/reggie3_2.properties
-testjvmargs=\
--Dqautil.debug.sync=true,\
-${testjvmargs}

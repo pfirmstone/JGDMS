@@ -36,9 +36,9 @@
     <category rdf:resource="http://projects.apache.org/category/javaee" />
     <release>
       <Version>
-        <name>Apache River 2.2.1</name>
+        <name>Apache River 2.2.0</name>
         <created>2011-06-20</created>
-        <revision>2.2.1</revision>
+        <revision>2.2.0</revision>
       </Version>
     </release>
 	    <repository>

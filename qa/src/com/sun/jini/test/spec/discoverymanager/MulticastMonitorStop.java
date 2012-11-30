@@ -23,7 +23,6 @@ import java.util.logging.Level;
 import java.util.ArrayList;
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
-import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscoveryManager</code> utility
@@ -105,7 +104,7 @@ public class MulticastMonitorStop extends Discovered {
         synchronized(mainListener) {
             stopAnnouncements();
             /* Replace current groups with new groups to cause discards */
-            List locGroupsPairList = replaceMemberGroups(false);
+            ArrayList locGroupsPairList = replaceMemberGroups(false);
             mainListener.setLookupsToDiscover(locGroupsPairList,
                                               locatorsToDiscover,
                                               groupsToDiscover);

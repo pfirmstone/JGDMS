@@ -63,7 +63,6 @@ import java.rmi.RemoteException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Properties;
 
 import net.jini.config.ConfigurationException;
@@ -711,7 +710,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
                                throws UnknownLeaseException, RemoteException
                                                               
     {
-        List lusList = getLookupListSnapshot
+        ArrayList lusList = getLookupListSnapshot
                                         ("AbstractBaseTest.registerServices");
         /* Construct and register the expected service(s) */
         int begIndx = ( (startVal >= 0) ? startVal : 0 );

@@ -21,7 +21,6 @@ package com.sun.jini.test.spec.discoverymanager;
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscoveryManager</code> utility
@@ -88,7 +87,7 @@ public class GroupsMulticastMonitorReplace extends Discovered {
          * maps to change until setLookupsToDiscover returns.
          */
         synchronized(mainListener) {
-            List locGroupsPairList = null;
+            ArrayList locGroupsPairList = null;
             /* Replace current groups with new groups to cause discards */
             if(replacementGroups == null) {//use unique generated groups
                 locGroupsPairList = replaceMemberGroups();

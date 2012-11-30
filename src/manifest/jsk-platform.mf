@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
 Class-Path: jsk-resources.jar
 Implementation-Vendor: Apache Software Foundation
-Implementation-Version: 2.2.1
+Implementation-Version: 2.2.0

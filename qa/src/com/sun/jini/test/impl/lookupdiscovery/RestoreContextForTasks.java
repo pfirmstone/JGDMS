@@ -140,7 +140,7 @@ public class RestoreContextForTasks extends BaseQATest {
      *  </ul>
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    private void doDiscovery(List locGroupsListStartedLookups,
+    private void doDiscovery(ArrayList locGroupsListStartedLookups,
                                LookupDiscovery ld,
                                LookupListener listener,
                                String[] groupsToDiscover)

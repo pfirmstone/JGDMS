@@ -34,7 +34,6 @@ import net.jini.core.lookup.ServiceMatches;
 
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -117,7 +116,7 @@ public class RegisterStorm extends AbstractBaseTest {
 	logger.log(Level.FINE, 
 		   "querying the lookup service "
 		   +"to verify all service registrations ...");
-	List lusList = getLookupListSnapshot
+	ArrayList lusList = getLookupListSnapshot
 	    ("impl.joinmanager.RegisterStorm");
 	ServiceRegistrar reg = (ServiceRegistrar)lusList.get(0);
 	/* Verify nServices registered with lookup service 0 */

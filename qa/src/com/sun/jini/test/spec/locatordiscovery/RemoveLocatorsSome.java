@@ -25,7 +25,6 @@ import com.sun.jini.qa.harness.TestException;
 import net.jini.core.discovery.LookupLocator;
 
 import java.util.ArrayList;
-import java.util.List;
 
 /**
  * With respect to the <code>removeLocators</code> method, this class
@@ -52,9 +51,9 @@ import java.util.List;
  */
 public class RemoveLocatorsSome extends Discovered {
 
-    protected List curLookupsToDiscover = initLookupsToStart;
-    protected List newLookupsToDiscover = new ArrayList(11);
-    protected List lookupsToRemoveList = new ArrayList(11);
+    protected ArrayList curLookupsToDiscover = initLookupsToStart;
+    protected ArrayList newLookupsToDiscover = new ArrayList(11);
+    protected ArrayList lookupsToRemoveList = new ArrayList(11);
     protected LookupLocator[] locsToRemove = new LookupLocator[0];
 
     protected boolean changeAll = false;
