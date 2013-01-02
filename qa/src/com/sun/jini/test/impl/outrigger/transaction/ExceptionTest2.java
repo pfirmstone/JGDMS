@@ -28,7 +28,6 @@ import net.jini.core.entry.Entry;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 
-
 /**
  * Force to generate <tt>TransactionException</tt>s
  * by aborting the transaction while <tt>space.read</tt> or <tt>space.take</tt>
@@ -85,7 +84,7 @@ public class ExceptionTest2 extends TransactionTestBase {
         Transaction txn = createTransaction();
 
         // invoke read/take thread
-        EntryGetter getter = new EntryGetter(space, ope, txn, this);
+        EntryGetter getter = new EntryGetter(getSpace(), ope, txn, this);
         getter.start();
 
         // wait for a while,

@@ -22,7 +22,7 @@ import com.sun.jini.mahalo.*;
 import net.jini.core.transaction.*;
 import net.jini.core.transaction.server.*;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 import net.jini.config.Configuration;

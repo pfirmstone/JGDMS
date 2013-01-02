@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set03;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -77,9 +78,9 @@ public class SimpleRemoveLookupLocators extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 	/* Create the lookup service */
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 	/* retrieve the proxy to the JoinAdmin methods */
 	adminProxy = (JoinAdmin) super.getAdminProxy();
 	/* load the LookupLocator class and create an instance of this class
@@ -101,6 +102,7 @@ public class SimpleRemoveLookupLocators extends QATestRegistrar {
 	    expectedLocators[k] = addLocators[i];
 	    k++;
 	}
+        return this;
     }
 
     /** Executes the current QA test.
@@ -108,7 +110,7 @@ public class SimpleRemoveLookupLocators extends QATestRegistrar {
      *  Retrieves the initial set of locators belonging to the Registrar
      *  and verifies that this set contains the expected set of classes
      *  (currently, should be empty). Invokes addLookupLocators() to add 
-     *  to the Registrar the set of locator instances created in setup.
+     *  to the Registrar the set of locator instances created in construct.
      *  Retrieves the set of LookupLocators belonging to the Registrar
      *  and verifies that this set contains the expected elements. Invokes
      *  removeLookupLocators() to remove the sub-set of locators designated
@@ -143,7 +145,7 @@ public class SimpleRemoveLookupLocators extends QATestRegistrar {
 					+(addLocators[i]).getClass()+")");
 	    }
 	}
-	/* remove the set of locators created in setup from the Registrar */
+	/* remove the set of locators created in construct from the Registrar */
 	adminProxy.removeLookupLocators(removeLocators);
 	/* retrieve all locators belonging to the Registrar and verify
 	 * that this set contains the expected elements

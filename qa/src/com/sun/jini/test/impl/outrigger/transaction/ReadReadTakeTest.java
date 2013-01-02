@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.outrigger.transaction;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 // Test harness specific classes
@@ -40,7 +41,7 @@ import com.sun.jini.test.share.TestBase;
  * trying each combination of aborting/committing T1 and using
  * take/takeIfExists.
  */
-public class ReadReadTakeTest extends TestBase {
+public class ReadReadTakeTest extends TestBase implements Test {
     /** Space under test */
     protected JavaSpace space;
 

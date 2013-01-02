@@ -23,7 +23,8 @@ import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.ObjectEndpoint;
 import net.jini.jeri.OutboundRequest;
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.InvocationHandler;
 import java.util.Arrays;
@@ -58,7 +59,7 @@ import com.sun.jini.test.spec.activation.util.MethodSetProxy;
  *        d) assert the return value is returned
  * </pre>
  */
-public class Invoke_MethodsNoActivationTest extends QATest {
+public class Invoke_MethodsNoActivationTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

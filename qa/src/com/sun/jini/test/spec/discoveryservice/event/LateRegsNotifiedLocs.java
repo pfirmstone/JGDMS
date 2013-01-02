@@ -20,6 +20,7 @@ package com.sun.jini.test.spec.discoveryservice.event;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that, upon registration, so-called "late-joiner"
@@ -63,12 +64,13 @@ public class LateRegsNotifiedLocs extends LateRegsNotifiedGroups {
     /** Performs actions necessary to prepare for execution of the 
      *  current test. Populates the sets of group and/or locators to use.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         logger.log(Level.FINE, "setup()");
         groupsToDiscover = getGroupsToDiscover(useOnlyLocDiscovery);
         locsToDiscover = getLocatorsToDiscover(useOnlyLocDiscovery);
-    }//end setup
+        return this;
+    }//end construct
 
 } //end class LateRegsNotifiedLocs
 

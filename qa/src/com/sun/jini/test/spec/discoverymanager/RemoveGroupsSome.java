@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import com.sun.jini.test.share.GroupsUtil;
 import net.jini.discovery.DiscoveryGroupManagement;
 import java.util.ArrayList;
+import java.util.List;
 import com.sun.jini.qa.harness.QAConfig;
 
 /**
@@ -76,7 +77,7 @@ public class RemoveGroupsSome extends Discovered {
      */
     public void run() throws Exception {
         super.run();
-        setGroupsToRemove(initLookupsToStart,alternateRemoval);
+        setGroupsToRemove(getInitLookupsToStart(),alternateRemoval);
         /* Must sync on listener since Discovered/Discarded/Changed Map
          * will change as events arrive, and setLookupsToDiscover
          * examines the contents of those maps. So we don't want those
@@ -84,7 +85,7 @@ public class RemoveGroupsSome extends Discovered {
          */
         synchronized(mainListener) {
             /* Set the expected discarded event info */
-            mainListener.setLookupsToDiscover(initLookupsToStart,
+            mainListener.setLookupsToDiscover(getInitLookupsToStart(),
                                               locatorsToDiscover,
                                               newGroupsToDiscover);
         }//end sync(mainListener)
@@ -106,12 +107,12 @@ public class RemoveGroupsSome extends Discovered {
      *  invoked by the run() method. This method constructs the set of
      *  groups to remove from the lookup discovery manager.
      */
-    void setGroupsToRemove(ArrayList list, boolean alternate) {
-        ArrayList removeList = new ArrayList(11);
-        ArrayList newDiscoverList = new ArrayList(11);
+    void setGroupsToRemove(List list, boolean alternate) {
+        List removeList = new ArrayList(11);
+        List newDiscoverList = new ArrayList(11);
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
-            String[] curGroups = pair.groups;
+            String[] curGroups = pair.getGroups();
             if( (curGroups == null) || (curGroups.length == 0) ) continue;
             if( ((i%2) == 0) || !alternate ) {//index is even or removeAll
                 for(int j=0;j<curGroups.length;j++) {

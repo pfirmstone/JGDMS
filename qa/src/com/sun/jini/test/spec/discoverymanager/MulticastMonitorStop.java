@@ -20,9 +20,10 @@ package com.sun.jini.test.spec.discoverymanager;
 
 import java.util.logging.Level;
 
-import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>LookupDiscoveryManager</code> utility
@@ -72,10 +73,11 @@ public class MulticastMonitorStop extends Discovered {
      *  completely away.
      */
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         mainListener = new GroupChangeListener();
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
@@ -104,7 +106,7 @@ public class MulticastMonitorStop extends Discovered {
         synchronized(mainListener) {
             stopAnnouncements();
             /* Replace current groups with new groups to cause discards */
-            ArrayList locGroupsPairList = replaceMemberGroups(false);
+            List locGroupsPairList = replaceMemberGroups(false);
             mainListener.setLookupsToDiscover(locGroupsPairList,
                                               locatorsToDiscover,
                                               groupsToDiscover);

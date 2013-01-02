@@ -20,6 +20,7 @@ package com.sun.jini.test.impl.start;
 import java.util.logging.Level;
 
 import com.sun.jini.action.GetIntegerAction;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.start.ServiceStarter;
 import com.sun.jini.start.SharedActivatableServiceDescriptor;
@@ -33,7 +34,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Properties;
 
-public class SharedActivatableServiceDescriptorTest3 extends StarterBase {
+public class SharedActivatableServiceDescriptorTest3 extends StarterBase implements Test {
 
     private static String cb = "http://host:port/cb";
     private static String pol = "policy";

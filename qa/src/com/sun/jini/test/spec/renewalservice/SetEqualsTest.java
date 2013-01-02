@@ -31,9 +31,10 @@ import net.jini.lease.LeaseRenewalSet;
 
 // 
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 // com.sun.qa.
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 /**
  * SetEqualsTest asserts that two lease renewal set proxies are equal
@@ -60,10 +61,10 @@ public class SetEqualsTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Sets up the testing environment.
      */
-    public void setup(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
+    public Test construct(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
 
        // mandatory call to parent
-       super.setup(sysConfig);
+       super.construct(sysConfig);
 	
        // Announce where we are in the test
        logger.log(Level.FINE, "SetEqualsTest: In setup() method.");
@@ -82,7 +83,7 @@ public class SetEqualsTest extends AbstractLeaseRenewalServiceTest {
        MarshalledObject marshObj = new MarshalledObject(set1);
        set4 = (LeaseRenewalSet) marshObj.get();
        set4 = prepareSet(set4);
-
+       return this;
     }
 
     /**

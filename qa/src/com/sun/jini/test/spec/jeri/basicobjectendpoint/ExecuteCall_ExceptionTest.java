@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicobjectendpoint;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.OutboundRequest;
 import net.jini.jeri.BasicObjectEndpoint;
@@ -87,10 +88,11 @@ import java.io.EOFException;
  *      11) assert EOFException is thrown directly
  * </pre>
  */
-public class ExecuteCall_ExceptionTest extends QATest {
+public class ExecuteCall_ExceptionTest extends QATestEnvironment implements Test {
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

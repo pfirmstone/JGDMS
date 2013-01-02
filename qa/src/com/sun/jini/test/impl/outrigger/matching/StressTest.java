@@ -34,9 +34,11 @@ import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.constants.TimeConstants;
-import net.jini.admin.Administrable;
-import com.sun.jini.outrigger.JavaSpaceAdmin;
 import com.sun.jini.outrigger.AdminIterator;
+import com.sun.jini.outrigger.JavaSpaceAdmin;
+import net.jini.admin.Administrable;
+import com.sun.jini.qa.harness.Test;
+import java.io.IOException;
 
 
 /**
@@ -101,8 +103,8 @@ public class StressTest extends MatchTestCore {
 
     /**
      * The <code>TaskManager</code> handling read/write tasks.
-     * Not valid until <code>setup()</code> is called.
-     * @see StressTest#setup
+     * Not valid until <code>construct()</code> is called.
+     * @see StressTest#construct
      */
     private TaskManager taskMgr = null;
 
@@ -131,7 +133,7 @@ public class StressTest extends MatchTestCore {
     /**
      * If set, compute timing statistics for reads, takes, and
      * and write operations.
-     * Not valid until <code>setup()</code> is called.
+     * Not valid until <code>construct()</code> is called.
      */
     protected boolean timingStats;
 
@@ -139,7 +141,7 @@ public class StressTest extends MatchTestCore {
      * If set, verify each take operation with a subsequent read operation.
      * That is, try reading an entry after it was taken in order
      * to verify that the take took place.
-     * Not valid until <code>setup()</code> is called.
+     * Not valid until <code>construct()</code> is called.
      */
     protected boolean verifyingTakes;
 
@@ -213,13 +215,13 @@ public class StressTest extends MatchTestCore {
      * Sets up a TaskManager with enough threads to run all tasks concurrently
      * as well as requesting a space to be started.
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
         if (debug) {
             logger.log(Level.INFO, "setup()");
         }
 
         // Get the space for testing
-        super.setup(config);
+        super.construct(config);
 
         if (debug) {
             logger.log(Level.INFO, "\tHave a JavaSpace");
@@ -247,6 +249,7 @@ public class StressTest extends MatchTestCore {
         taskMgr = new TaskManager(numReaders + numWriters,
                 1000 * 60, // idle timeout -- 60 secs
                 1.0f); // load factor
+        return this;
     }
 
     /**
@@ -273,7 +276,7 @@ public class StressTest extends MatchTestCore {
         /*
          * Determine allocation of write requests per write task
          * Note: There is already a pre-check for entryAllocation == 0
-         * in the setup() method. If entryAllocation == 0 the program
+         * in the construct() method. If entryAllocation == 0 the program
          * should fail earlier than here.
          */
         int entryAllocation = numEntries / numWriters;
@@ -303,7 +306,7 @@ public class StressTest extends MatchTestCore {
         /*
          * Determine allocation of read requests per read task.
          * Note: There is already a pre-check for entryAllocation == 0
-         * in the setup() method. If entryAllocation == 0 the program
+         * in the construct() method. If entryAllocation == 0 the program
          * should fail earlier than here.
          */
         entryAllocation = numEntries / numReaders;
@@ -1013,7 +1016,7 @@ public class StressTest extends MatchTestCore {
         /**
          * Internal counter variable.
          */
-        private int _count = 0;
+        private volatile int _count = 0;
 
         /**
          * Constructor. Declared to enforce protection level.

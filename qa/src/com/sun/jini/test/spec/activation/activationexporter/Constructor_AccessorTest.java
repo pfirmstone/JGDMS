@@ -19,7 +19,8 @@ package com.sun.jini.test.spec.activation.activationexporter;
 
 import java.util.logging.Level;
 import java.rmi.activation.ActivationID;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.spec.activation.util.FakeActivationID;
 import net.jini.export.Exporter;
@@ -52,7 +53,7 @@ import com.sun.jini.test.spec.activation.util.FakeExporter;
  *     6) verify NullPointerException is thrown
  * </pre>
  */
-public class Constructor_AccessorTest extends QATest {
+public class Constructor_AccessorTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

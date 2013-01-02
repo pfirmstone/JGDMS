@@ -36,6 +36,7 @@ import net.jini.space.JavaSpace;
 
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.constants.TimeConstants;
+import com.sun.jini.qa.harness.Test;
 
 public class InterOpTest extends EMSTestBase implements TimeConstants {
 
@@ -72,7 +73,7 @@ public class InterOpTest extends EMSTestBase implements TimeConstants {
 	RemoteEventListener mbRel = getMailboxListener(mr);
 
 	logger.log(Level.INFO, "Getting our own listener");
-	TestListener listener = TestUtils.createListener(manager);
+	TestListener listener = TestUtils.createListener(getManager());
 
 	//Setup space to generate events
 	logger.log(Level.INFO, "Setting up space notifications");
@@ -131,12 +132,13 @@ public class InterOpTest extends EMSTestBase implements TimeConstants {
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	parse();
+        return this;
     }
 }

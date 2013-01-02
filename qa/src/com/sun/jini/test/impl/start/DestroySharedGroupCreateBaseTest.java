@@ -17,7 +17,8 @@
  */
 package com.sun.jini.test.impl.start;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.start.DestroySharedGroup;
 import com.sun.jini.start.ServiceDescriptor;
 
@@ -28,7 +29,7 @@ import net.jini.config.EmptyConfiguration;
 import java.lang.reflect.Method;
 import javax.security.auth.login.LoginContext;
 
-public abstract class DestroySharedGroupCreateBaseTest extends StarterBase {
+public abstract class DestroySharedGroupCreateBaseTest extends StarterBase implements Test {
     private static final Class[] destroyArgs = 
 	new Class[] { ServiceDescriptor[].class, Configuration.class };
     private static Method destroy;

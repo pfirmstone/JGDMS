@@ -37,7 +37,7 @@ import net.jini.core.discovery.LookupLocator;
  *
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *   <li> one or more initial lookup services started during setup
+ *   <li> one or more initial lookup services started during construct
  *   <li> one or more additional lookup services to be started after
  *        setLocators is invoked with the empty set
  *   <li> an instance of the lookup locator discovery utility configured to
@@ -84,7 +84,7 @@ public class SetLocatorsEmpty extends AbstractBaseTest {
          * lookup services to be started.
          */
         LookupLocator[] locsToDiscover
-                                    = toLocatorArray(allLookupsToStart);
+                                    = toLocatorArray(getAllLookupsToStart());
         logger.log(Level.FINE, "starting discovery by creating a "
                           +"LookupLocatorDiscovery to discover -- ");
         for(int i=0;i<locsToDiscover.length;i++) {
@@ -99,7 +99,7 @@ public class SetLocatorsEmpty extends AbstractBaseTest {
          * above is operational by verifying that the INITIIAL lookups
          * are discovered.
          */
-        mainListener.setLookupsToDiscover(initLookupsToStart);
+        mainListener.setLookupsToDiscover(getInitLookupsToStart());
         lld.addDiscoveryListener(mainListener);
         waitForDiscovery(mainListener);
 

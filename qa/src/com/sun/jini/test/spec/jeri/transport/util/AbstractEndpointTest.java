@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.jeri.transport.util;
 
 //harness imports
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.LegacyTest;
 
 //jeri imports
+import com.sun.jini.qa.harness.Test;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationFile;
@@ -31,7 +32,7 @@ import net.jini.jeri.ServerEndpoint;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
-public abstract class AbstractEndpointTest implements Test {
+public abstract class AbstractEndpointTest implements LegacyTest {
 
     protected static QAConfig sysConfig;
     protected static Logger log;
@@ -39,9 +40,10 @@ public abstract class AbstractEndpointTest implements Test {
         + "jeri.serverendpoint";
     private final static String seEntry = "endpoint";
 
-    public void setup(QAConfig config) {
+    public Test construct(QAConfig config) {
         sysConfig = config;
         log = Logger.getLogger("com.sun.jini.test.spec.jeri.transport");
+        return this;
     }
 
     public void tearDown() {

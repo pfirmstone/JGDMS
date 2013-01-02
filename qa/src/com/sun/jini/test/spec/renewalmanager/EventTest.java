@@ -34,25 +34,25 @@ import net.jini.lease.DesiredExpirationListener;
 import net.jini.lease.LeaseRenewalEvent;
 
 import com.sun.jini.qa.harness.TestException;
-
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 /**
  * Register a number of leases with various desired and actual expirations
  * and types of listeners and make sure that the correct events come back.
  */
-public class EventTest extends QATest {
+public class EventTest extends QATestEnvironment implements Test {
     /** The utility under test */
     private LeaseRenewalManager lrm;
 
     /**
      * Sets up the testing environment.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 
        // mandatory call to parent
-       super.setup(sysConfig);
+       super.construct(sysConfig);
 	
        // output the name of this test
        logger.log(Level.FINE, "Test Name = " + this.getClass().getName());
@@ -63,6 +63,7 @@ public class EventTest extends QATest {
        // capture an instance of the Properties file.
        QAConfig config = (QAConfig)getConfig();
        lrm = new LeaseRenewalManager(sysConfig.getConfiguration());
+       return this;
     }
 
     /**

@@ -89,7 +89,7 @@ public class MulticastMonitorTerminate extends Discovered {
      * <p><ul>
      *     <li> verifies the lookup discovery mechanism is functional by
      *          using group discovery to discover the lookup services
-     *          started during setup
+     *          started during construct
      *     <li> stops the generation of multicast announcements by each
      *          lookup service, and makes each lookup service unreachable
      *     <li> verifies that the lookup discovery utility eventually 

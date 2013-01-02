@@ -22,6 +22,7 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.share.DiscoveryProtocolSimulator;
 import com.sun.jini.test.share.GroupsUtil;
@@ -86,10 +87,11 @@ public class SetLocatorsReplaceAll extends SetLocatorsReplaceSome {
      *
      *  Retrieves additional configuration values. 
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         locatorsMap = getModLocatorsDiscardMap(useOnlyLocDiscovery);
-    }//end setup
+        return this;
+    }//end construct
 
 } //end class SetLocatorsReplaceAll
 

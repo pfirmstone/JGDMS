@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicinvocationhandler;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.Integrity;
@@ -93,7 +94,7 @@ import java.util.logging.Level;
  *                 checkTrustEquivalence returns expected value
  * </pre>
  */
-public class CheckTrustEquivalenceTest extends QATest {
+public class CheckTrustEquivalenceTest extends QATestEnvironment implements Test {
 
     // an ObjectEndpoint that impls TrustEquivalence and is configurable
     class FakeTrustedObjectEndpoint 
@@ -149,7 +150,8 @@ public class CheckTrustEquivalenceTest extends QATest {
     };
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

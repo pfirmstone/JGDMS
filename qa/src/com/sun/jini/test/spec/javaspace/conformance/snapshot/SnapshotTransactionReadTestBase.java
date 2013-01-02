@@ -17,14 +17,29 @@
  */
 package com.sun.jini.test.spec.javaspace.conformance.snapshot;
 
-// com.sun.jini.qa
-import com.sun.jini.test.spec.javaspace.conformance.AbstractTestBase;
-
+import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
- * Abstract Test base for all javaspace conformance tests for snapshots.
  *
- * @author Mikhail A. Markov
+ * @author peter
  */
-public abstract class SnapshotAbstractTestBase extends AbstractTestBase {
+public abstract class SnapshotTransactionReadTestBase extends SnapshotReadTestBase {
+
+    public SnapshotTransactionReadTestBase() {
+    }
+
+    /**
+     * Sets up the testing environment.
+     *
+     * @param config QAConfig from the runner for construct.
+     */
+    public Test construct(QAConfig config) throws Exception {
+        // mandatory call to parent
+        super.construct(config);
+        // get an instance of Transaction Manager
+        mgr = getTxnManager();
+        return this;
+    }
+    
 }

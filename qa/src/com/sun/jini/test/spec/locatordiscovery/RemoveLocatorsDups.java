@@ -19,7 +19,7 @@
 package com.sun.jini.test.spec.locatordiscovery;
 
 import java.util.logging.Level;
-
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import net.jini.core.discovery.LookupLocator;
@@ -58,8 +58,8 @@ public class RemoveLocatorsDups extends RemoveLocatorsSome {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Create a set of locators to remove that contain duplicates */
         dupLocs = new LookupLocator[2*locsToRemove.length];
         int len1 = locsToRemove.length;
@@ -71,7 +71,8 @@ public class RemoveLocatorsDups extends RemoveLocatorsSome {
             dupLocs[i] = locsToRemove[i-len1];
         }//end loop
         locsToRemove = dupLocs;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class RemoveLocatorsDups
 

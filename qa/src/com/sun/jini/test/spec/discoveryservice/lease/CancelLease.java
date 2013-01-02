@@ -24,6 +24,7 @@ import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.DiscoveryServiceUtil;
@@ -79,8 +80,8 @@ public class CancelLease extends AbstractBaseTest {
      *  that the registration is valid)
      *  Retrieves and stores the lease granted on the registration
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         String[] expectedGroups = getGroupsToDiscover();
         reg = DiscoveryServiceUtil.getRegistration
                                 (discoverySrvc,
@@ -97,12 +98,13 @@ public class CancelLease extends AbstractBaseTest {
                                           (lease.getExpiration(),
                                            System.currentTimeMillis());
         logger.log(Level.FINE, "initial lease duration = "+duration);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  
      *  1. Requests the cancellation of the lease on the registration granted
-     *     during setup
+     *     during construct
      *  2. Verifies the lease is no longer valid by doing the following:
      *     a. attempts to retrieve the set of groups that the service
      *        will discover on behalf of the client; if the lease was

@@ -20,9 +20,9 @@ package com.sun.jini.test.spec.url.httpmd.wrongmdexc;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
 import com.sun.jini.qa.harness.TestException;
@@ -96,7 +96,7 @@ public class WrongMDExceptionHandler extends WrongMDException {
      * <pre>
      * This method performs all preparations.
      * These preparations include the following:
-     * - invoking super.setup() method,
+     * - invoking super.construct() method,
      * - setting and then checking the ability to specify a TestHandler
      *   stream handler when constructing a HTTPMD URL,
      * - creating TestHandler object.
@@ -105,8 +105,8 @@ public class WrongMDExceptionHandler extends WrongMDException {
      *    testClassServer.port    - HTTP Server port number
      * </pre>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config); // getting test parameters
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config); // getting test parameters
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /*
@@ -123,6 +123,7 @@ public class WrongMDExceptionHandler extends WrongMDException {
 
         /* Creating TestHandler object */
         handler = new TestHandler();
+        return this;
     }
 
     /**

@@ -19,12 +19,13 @@
 package com.sun.jini.test.spec.locatordiscovery;
 
 import java.util.logging.Level;
-
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import net.jini.core.discovery.LookupLocator;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * With respect to the <code>removeLocators</code> method, this class
@@ -51,19 +52,20 @@ import java.util.ArrayList;
  */
 public class RemoveLocatorsSome extends Discovered {
 
-    protected ArrayList curLookupsToDiscover = initLookupsToStart;
-    protected ArrayList newLookupsToDiscover = new ArrayList(11);
-    protected ArrayList lookupsToRemoveList = new ArrayList(11);
-    protected LookupLocator[] locsToRemove = new LookupLocator[0];
+    protected volatile List curLookupsToDiscover = new ArrayList(0);
+    protected final List newLookupsToDiscover = new ArrayList(11);
+    protected final List lookupsToRemoveList = new ArrayList(11);
+    protected volatile LookupLocator[] locsToRemove = new LookupLocator[0];
 
-    protected boolean changeAll = false;
+    protected volatile boolean changeAll = false;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        curLookupsToDiscover = getInitLookupsToStart();
         /* Remove the locators for the lookup services at an even index.
          * Remove locators at an odd index as well if changeAll is true.
          */
@@ -71,20 +73,21 @@ public class RemoveLocatorsSome extends Discovered {
             LocatorGroupsPair curPair =
                                 (LocatorGroupsPair)curLookupsToDiscover.get(i);
             if( ((i%2) == 0) || changeAll ) {//index is even or changeAll
-                lookupsToRemoveList.add(curPair.locator);
+                lookupsToRemoveList.add(curPair.getLocator());
             } else {
                 newLookupsToDiscover.add(curPair);
             }//endif
         }//end loop
         locsToRemove =(LookupLocator[])(lookupsToRemoveList).toArray
                                (new LookupLocator[lookupsToRemoveList.size()]);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *     <li> re-configures the lookup locator discovery utility to discover
      *          the set of locators whose elements are the locators of each
-     *          lookup service that was started during setup
+     *          lookup service that was started during construct
      *     <li> starts the unicast discovery process by adding a discovery
      *          listener to the lookup locator discovery utility
      *     <li> verifies that the discovery process is working by waiting

@@ -30,7 +30,8 @@ import net.jini.security.Security;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.security.util.Util;
 import com.sun.jini.test.spec.security.util.BasePolicyProvider;
 import com.sun.jini.test.spec.security.util.BaseDynamicPolicyProvider;
@@ -107,7 +108,7 @@ import com.sun.jini.test.spec.security.util.FakePrincipal;
  *     19) assert that method will return normally
  * </pre>
  */
-public class GrantTest2 extends QATest {
+public class GrantTest2 extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

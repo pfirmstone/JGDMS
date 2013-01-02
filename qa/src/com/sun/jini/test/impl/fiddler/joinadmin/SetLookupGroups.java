@@ -26,6 +26,7 @@ import com.sun.jini.test.share.GroupsUtil;
 import com.sun.jini.test.share.JoinAdminUtil;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.admin.JoinAdmin;
@@ -75,8 +76,8 @@ public class SetLookupGroups extends AbstractBaseTest {
      *  of groups that should be expected after replacing the service's
      *  current group set with the new set of groups.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         newGroupSet = getTestGroupSet();
         expectedGroups = newGroupSet;
         if(expectedGroups != DiscoveryGroupManagement.ALL_GROUPS){
@@ -90,6 +91,7 @@ public class SetLookupGroups extends AbstractBaseTest {
         } else {
             logger.log(Level.FINE, "expectedGroups = ALL_GROUPS");
         }
+        return this;
     }
 
     /** Executes the current test by doing the following:

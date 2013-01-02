@@ -26,6 +26,7 @@ import net.jini.core.entry.Entry;
 import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa
+import com.sun.jini.test.spec.javaspace.conformance.JavaSpaceTest;
 import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
 
 
@@ -42,7 +43,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * @author Mikhail A. Markov
  */
-public class SnapshotWriteTest extends SnapshotAbstractTestBase {
+public class SnapshotWriteTest extends JavaSpaceTest {
 
     /**
      * This method asserts that write with positive finite lease times

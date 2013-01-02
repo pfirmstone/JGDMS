@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -106,10 +107,10 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      *  contains one of the event leases created during the event 
      *  notification registration process.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 
         QATestUtils.setLeaseDuration(sysConfig, 1000L * 60 * 60);
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 	listener = new Listener();
 	logger.log(Level.FINE, "in setup() method.");
         nInstances = super.getNInstances();
@@ -127,6 +128,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
 	notificationEvnt = new ServiceEvent[nInstances];
 	leaseStartTime = QATestUtils.getCurTime();
 	registerAllEvents();
+        return this;
     }
 
     /** Executes the current QA test.
@@ -236,7 +238,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
     
     /* For each registered service, registers an event notification request,
      * with a specified lease duration, based on the contents of the 
-     * corresponding template created during setup and corresponding to
+     * corresponding template created during construct and corresponding to
      * the appropriate transition mask. Populates the array of Leases so
      * that each element contains one of the event leases returned by the 
      * event notification registration process.

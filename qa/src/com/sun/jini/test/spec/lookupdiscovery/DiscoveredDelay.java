@@ -34,12 +34,12 @@ import com.sun.jini.test.share.GroupsUtil;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *    <li> one or more "initial" lookup services, each belonging to a finite
- *         set of member groups, and each started during setup, before the
+ *         set of member groups, and each started during construct, before the
  *         test begins execution
  *    <li> one or more "additional" lookup services, each belonging to a finite
  *         set of member groups, and each started after the test has begun
  *         execution, and after the initial lookup services started during
- *         setup have been discovered
+ *         construct have been discovered
  *    <li> one instance of the lookup discovery utility
  *    <li> the lookup discovery utility is configured to discover the
  *         member groups of each lookup service that is to be started
@@ -56,7 +56,7 @@ public class DiscoveredDelay extends Discovered {
      * <p><ul>
      *    <li> configures the lookup discovery utility to discover the
      *         member groups of each lookup service that was started during
-     *         setup
+     *         construct
      *    <li> starts the multicast discovery process by adding a discovery
      *         listener to the lookup discovery utility
      *    <li> verifies that the lookup discovery utility under test sends
@@ -74,11 +74,11 @@ public class DiscoveredDelay extends Discovered {
         /* Verify discovery of the initial lookups */
         super.run();
         /* Configure the listener's expected lookups for all the lookups */
-        mainListener.setLookupsToDiscover(allLookupsToStart);
+        mainListener.setLookupsToDiscover(getAllLookupsToStart());
         /* Configure the lookup discovery utility to discover both the initial
          * and the additional lookups
          */
-        String[] additionalGroups = toGroupsArray(addLookupsToStart);
+        String[] additionalGroups = toGroupsArray(getAddLookupsToStart());
         ldToUse.addGroups(additionalGroups);
         logger.log(Level.FINE, "added additional groups to "
                           +"lookup discovery --");

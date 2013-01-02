@@ -28,7 +28,8 @@ import com.sun.jini.discovery.Discovery;
 import com.sun.jini.discovery.EncodeIterator;
 import com.sun.jini.discovery.MulticastAnnouncement;
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
@@ -54,7 +55,7 @@ import net.jini.discovery.LookupDiscovery;
  *
  * 
  */
-public class UnicastDelay extends QATest {
+public class UnicastDelay extends QATestEnvironment implements Test {
     private static final int DISCOVERYPORT = Constants.discoveryPort;
     private static final int NUMLD = 100;
     private Throwable failure = null;
@@ -90,9 +91,10 @@ public class UnicastDelay extends QATest {
 	}
     }
     
-    public void setup(QAConfig qaconfig) throws Exception {
-	super.setup(qaconfig);
+    public Test construct(QAConfig qaconfig) throws Exception {
+	super.construct(qaconfig);
 	config = qaconfig.getConfig().getConfiguration();
+        return this;
     }
     
     public void run() throws Exception {

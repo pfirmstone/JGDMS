@@ -25,6 +25,7 @@ import com.sun.jini.test.share.BaseQATest;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.DiscoveryGroupManagement;
@@ -36,6 +37,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -47,7 +49,7 @@ import java.util.ArrayList;
  * multicast request, and unicast request protocols on behalf of the
  * tests that sub-class this abstract class.
  * <p>
- * This class provides an implementation of the <code>setup</code> method
+ * This class provides an implementation of the <code>construct</code> method
  * which performs standard functions related to the initialization of the
  * system state necessary to execute the test.
  *
@@ -100,8 +102,8 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *         utility
      * </ul>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
 	/* Start group and locator discovery by creating a lookup 
 	 * discovery  manager.
 	 */
@@ -117,6 +119,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
 				       config.getConfiguration());
 	ldmList.add(discoveryMgr);
 	mainListener = new LookupListener();
+        return this;
     }
 
     /** Executes the current test
@@ -165,7 +168,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  </ul>
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListStartedLookups,
+    protected void doDiscovery(List locGroupsListStartedLookups,
                                LookupDiscoveryManager ldm,
                                LookupListener listener,
                                LookupLocator[] locsToDiscover,
@@ -205,12 +208,12 @@ abstract public class AbstractBaseTest extends BaseQATest {
 
     /** Convenience method that encapsulates basic discovery processing.
      *  Use this method when a lookup discovery manager different from
-     *  the standard one created during setup is to be used for discovery,
+     *  the standard one created during construct is to be used for discovery,
      *  and you know the row from the static discoverBy matrix to use when
      *  determining the lookups to discover by group, by locator, and by both.
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListStartedLookups,
+    protected void doDiscovery(List locGroupsListStartedLookups,
                                LookupDiscoveryManager ldm,
                                LookupListener listener,
                                int discoverByRow) throws TestException,
@@ -227,7 +230,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
 
     /** Convenience method that encapsulates basic discovery processing.
      *  Use this method when the standard lookup discovery manager
-     *  created during setup is to be used for discovery, and you know
+     *  created during construct is to be used for discovery, and you know
      *  the row from the static discoverBy matrix to use when determining
      *  the lookups to discover by group, by locator, and by both.
      *  @throws com.sun.jini.qa.harness.TestException
@@ -254,16 +257,16 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  mechanism(s) (group, locator or both) are to be used to discover
      *  the corresponding lookup service.
      */
-    public static LookupLocator[] toLocatorsToDiscover(ArrayList list,
+    public static LookupLocator[] toLocatorsToDiscover(List list,
                                                        int discoverByRow)
     {
-        ArrayList locList = new ArrayList(list.size());
+        List locList = new ArrayList(list.size());
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
             if(    (discoverBy[discoverByRow][i] == BY_BOTH)
                 || (discoverBy[discoverByRow][i] == BY_LOC) )
             {
-                locList.add(pair.locator);
+                locList.add(pair.getLocator());
             }//endif
         }//end loop
         return 
@@ -279,13 +282,13 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  mechanism(s) (group, locator or both) are to be used to discover
      *  the corresponding lookup service.
      */
-    public static String[] toGroupsToDiscover(ArrayList list,
+    public static String[] toGroupsToDiscover(List list,
                                               int discoverByRow)
     {
-        ArrayList groupsList = new ArrayList(11);
+        List groupsList = new ArrayList(11);
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
-            String[] curGroups = pair.groups;
+            String[] curGroups = pair.getGroups();
             if(curGroups.length == 0) continue;//skip NO_GROUPS
             if(    (discoverBy[discoverByRow][i] == BY_BOTH)
                 || (discoverBy[discoverByRow][i] == BY_GROUP) )

@@ -21,6 +21,7 @@ package com.sun.jini.test.impl.outrigger.admin;
 import com.sun.jini.test.share.DestroyTest;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -29,10 +30,11 @@ import java.util.logging.Level;
  */
 public class DestroyTestMahalo extends DestroyTest {
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
 
         // Log out test parameters.
         logger.log(Level.INFO, "checkPersistenceDir = " + checkDir);
+        return this;
     }
 }

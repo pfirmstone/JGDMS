@@ -47,7 +47,8 @@ import net.jini.constraint.BasicMethodConstraints;
 import net.jini.security.TrustVerifier;
 
 // com.sun.jini
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.spec.constraint.util.TrueTrustVerifierContext;
 import com.sun.jini.test.spec.constraint.util.FalseTrustVerifierContext;
@@ -217,7 +218,7 @@ import com.sun.jini.test.spec.constraint.util.TestConstraint;
  *     48) assert that 'isTrustedObject' method will return false
  * </pre>
  */
-public class VerifyObjectTrustTest extends QATest {
+public class VerifyObjectTrustTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

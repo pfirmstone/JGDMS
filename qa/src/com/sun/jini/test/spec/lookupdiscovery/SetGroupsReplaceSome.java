@@ -18,10 +18,12 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * With respect to the <code>setGroups</code> method, this class verifies
@@ -52,7 +54,7 @@ import java.util.ArrayList;
  */
 public class SetGroupsReplaceSome extends Discovered {
 
-    protected ArrayList oldLookupsToDiscover = null;
+    protected List oldLookupsToDiscover = null;
     protected String[] newGroupsToDiscover = new String[] {"SetGroups_newSet"};
 
     protected boolean changeAll = false;
@@ -61,8 +63,8 @@ public class SetGroupsReplaceSome extends Discovered {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
 	oldLookupsToDiscover = locGroupsList;
 	ArrayList newGroupsList = new ArrayList(11);
 	/* Change the groups to discover for the lookup services at an
@@ -72,7 +74,7 @@ public class SetGroupsReplaceSome extends Discovered {
 	for(int i=0;i<oldLookupsToDiscover.size();i++) {
 	    LocatorGroupsPair oldPair =
 		(LocatorGroupsPair)oldLookupsToDiscover.get(i);
-	    String[] oldGroups = oldPair.groups;
+	    String[] oldGroups = oldPair.getGroups();
 	    String[] newGroups = oldGroups;
 	    if( ((i%2) == 0) || changeAll ) {//index is even or changeAll
 		if(oldGroups.length == 0) {
@@ -90,12 +92,13 @@ public class SetGroupsReplaceSome extends Discovered {
 	}//end loop
 	newGroupsToDiscover =(String[])(newGroupsList).toArray
 	    (new String[newGroupsList.size()]);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *    <li> re-configures the lookup discovery utility to use group 
-     *         discovery to discover the lookup services started during setup
+     *         discovery to discover the lookup services started during construct
      *    <li> starts the multicast discovery process by adding a discovery
      *         listener to the lookup discovery utility
      *    <li> verifies that the discovery process is working by waiting

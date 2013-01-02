@@ -124,7 +124,7 @@ public class IfExistsTest extends TransactionTestBase {
         }
 
         // invoke read/take thread
-        EntryGetter getter = new EntryGetter(space, ope, txn, this);
+        EntryGetter getter = new EntryGetter(getSpace(), ope, txn, this);
         getter.start();
 
         // wait for a while,

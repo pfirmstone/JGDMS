@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -86,8 +87,8 @@ public class EvntLeaseExpiration extends QATestRegistrar {
      *  a lease duration that is less than the duration of the service
      *  leases.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	logger.log(Level.FINE, "in setup() method.");
 	listener = new Listener();
         evntLeaseDurMS = 5*QATestUtils.N_MS_PER_SEC;
@@ -102,6 +103,7 @@ public class EvntLeaseExpiration extends QATestRegistrar {
 			   ServiceRegistrar.TRANSITION_MATCH_MATCH,
 			   listener, null, evntLeaseDurMS);
 	evntReg = prepareEventRegistration(evntReg);
+        return this;
     }
 
     /** wait for the event lease to expire and then verify that NO events

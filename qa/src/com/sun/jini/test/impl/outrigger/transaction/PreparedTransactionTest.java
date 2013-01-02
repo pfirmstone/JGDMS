@@ -28,6 +28,7 @@ import net.jini.core.entry.*;
 import net.jini.core.transaction.*;
 import net.jini.core.transaction.server.*;
 import com.sun.jini.constants.TxnConstants;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.share.TesterTransaction;
 import com.sun.jini.test.share.TesterTransactionManager;
 
@@ -79,11 +80,12 @@ public abstract class PreparedTransactionTest extends TransactionTestBase
     /**
      * Sets up the testing environment.
      *
-     * @param config Arguments from the runner for setup.
+     * @param config Arguments from the runner for construct.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
+        return this;
     }
 
     /**
@@ -128,7 +130,7 @@ public abstract class PreparedTransactionTest extends TransactionTestBase
         logger.log(Level.INFO, "wrote entry " + written);
         writeEntry(tt.transaction, written);
         tt.assertParticipants(1); // just to be sure
-        Entry taken = space.take(toTake, tt.transaction, 0);
+        Entry taken = getSpace().take(toTake, tt.transaction, 0);
         assertEquals(taken, toTake, "reading 'toTake' entry");
 
         if (!active) {
@@ -197,7 +199,7 @@ public abstract class PreparedTransactionTest extends TransactionTestBase
 
     private void canSee(Entry tmpl, Entry shouldMatch, String desc)
             throws Exception {
-        Entry e = space.read(tmpl, null, 0);
+        Entry e = getSpace().read(tmpl, null, 0);
         assertEquals(e, shouldMatch, desc);
     }
 }

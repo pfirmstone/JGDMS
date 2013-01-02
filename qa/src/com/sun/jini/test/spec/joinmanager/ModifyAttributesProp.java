@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.AttributesUtil;
 
@@ -54,8 +55,8 @@ public class ModifyAttributesProp extends RegisterAttributes {
      *          the current attributes to the new set
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Construct both the template set and the new attribute set to be 1
          * element greater than the initial attribute set with the extra
          * element in the attribute set duplicating one of the other elements
@@ -70,15 +71,16 @@ public class ModifyAttributesProp extends RegisterAttributes {
             attrTmpls[i] = new TestServiceIntAttr
                      (( ((TestServiceIntAttr)serviceAttrs[i]).val).intValue());
             newServiceAttrs[i] = new TestServiceIntAttr
-            (nAttributes+( ((TestServiceIntAttr)attrTmpls[i]).val).intValue());
+            (getnAttributes()+( ((TestServiceIntAttr)attrTmpls[i]).val).intValue());
             expectedAttrs[i] = new TestServiceIntAttr
                   (( ((TestServiceIntAttr)newServiceAttrs[i]).val).intValue());
         }//end loop
         attrTmpls[attrTmpls.length-1] = new TestServiceIntAttr
                             (( ((TestServiceIntAttr)tmpTmpl).val).intValue());
         newServiceAttrs[newServiceAttrs.length-1] = new TestServiceIntAttr
-      (nAttributes+( ((TestServiceIntAttr)newServiceAttrs[0]).val).intValue());
-    }//end setup
+      ( getnAttributes()+( ((TestServiceIntAttr)newServiceAttrs[0]).val).intValue());
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
@@ -103,7 +105,7 @@ public class ModifyAttributesProp extends RegisterAttributes {
 
         logger.log(Level.FINE, "verifying changed attributes were "
                                   +"propagated to each lookup service ...");
-        verifyPropagation(expectedAttrs,nSecsJoin);
+        verifyPropagation(expectedAttrs, getnSecsJoin());
         logger.log(Level.FINE, "changed attributes successfully propagated to "
                           +"all "+curLookupListSize("ModifyAttributesProp.run")
                           +" lookup service(s)");

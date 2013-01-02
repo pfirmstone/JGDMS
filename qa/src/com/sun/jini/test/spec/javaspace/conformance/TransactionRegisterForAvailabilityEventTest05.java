@@ -41,7 +41,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * @author Pavel Bogdanov
  */
 public class TransactionRegisterForAvailabilityEventTest05
-        extends AbstractTestBase
+        extends TransactionTest
 {
     private ArrayList templates = new ArrayList();
     private ArrayList expectedResult = new ArrayList();
@@ -49,21 +49,6 @@ public class TransactionRegisterForAvailabilityEventTest05
     private SimpleEntry sampleEntry1 = new SimpleEntry("TestEntry #1", 1);
     private SimpleEntry sampleEntry2 = new SimpleEntry("TestEntry #2", 2);
     private SimpleEntry sampleEntry3 = new SimpleEntry("TestEntry #1", 2);
-
-    /**
-     * Sets up the testing environment
-     *
-     * @param config
-     * @throws Exception
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
 
     /**
      * This method asserts that for JavaSpace05's
@@ -117,7 +102,7 @@ public class TransactionRegisterForAvailabilityEventTest05
         Transaction txn = getTransaction();
         ArrayList registrations = new ArrayList();
 
-        TestEventListener05.setConfiguration(config.getConfiguration());
+        TestEventListener05.setConfiguration(getConfig().getConfiguration());
         JavaSpace05 space05 = (JavaSpace05) space;
         reset(txn);
 

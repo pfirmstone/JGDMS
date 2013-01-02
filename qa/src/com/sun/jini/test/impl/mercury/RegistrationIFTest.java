@@ -22,7 +22,6 @@ import java.util.logging.Level;
 // Test harness specific classes
 
 import com.sun.jini.qa.harness.TestException;
-
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
 
@@ -36,6 +35,7 @@ import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.UnknownEventException;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 public class RegistrationIFTest extends MailboxTestBase 
     implements TimeConstants 
@@ -60,18 +60,19 @@ public class RegistrationIFTest extends MailboxTestBase
 	} catch (IllegalArgumentException iae) {
 	}
 
-	rel =  TestUtils.createListener(manager);
+	rel =  TestUtils.createListener(getManager());
 	mr1.enableDelivery(rel);
 	mr1.disableDelivery();
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	parse();
+        return this;
     }
 }

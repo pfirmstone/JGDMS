@@ -18,11 +18,12 @@
 package com.sun.jini.test.spec.constraint.basicmethodconstraints;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.lang.reflect.Method;
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -57,7 +58,7 @@ import net.jini.core.constraint.InvocationConstraints;
  *        Assert that not empty string was returned.
  * </pre>
  */
-public class ToString_Test extends QATest {
+public class ToString_Test extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

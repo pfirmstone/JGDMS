@@ -18,19 +18,21 @@
 package com.sun.jini.test.impl.thread;
 //harness imports
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.LegacyTest;
 import com.sun.jini.qa.harness.Test;
 
 /**
  * Abstract utility class that serves as the base for all
  * thread tests
  */
-public abstract class AbstractThreadTest implements Test {
+public abstract class AbstractThreadTest implements LegacyTest {
 
     protected static QAConfig sysConfig;
 
     //inherit javadoc
-    public void setup(QAConfig config) {
+    public Test construct(QAConfig config) {
         sysConfig = config;
+        return this;
     }
 
     //inherit javadoc

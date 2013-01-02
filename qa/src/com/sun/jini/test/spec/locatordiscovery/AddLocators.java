@@ -38,7 +38,7 @@ import net.jini.core.discovery.LookupLocator;
  *
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *   <li> one or more "initial" lookup services, each started during setup,
+ *   <li> one or more "initial" lookup services, each started during construct,
  *        before the test begins execution
  *   <li> one or more "additional" lookup services, each started after the
  *        test has begun execution
@@ -61,7 +61,7 @@ public class AddLocators extends Discovered {
      *     <li> start the additional lookup services
      *     <li> verifies that the lookup locator discovery utility under test
      *          discovers the initial lookup services that were started 
-     *          during setup
+     *          during construct
      *     <li> re-configures the listener's expected event state to expect
      *          the discovery of the addtional lookup services
      *     <li> re-configures the lookup locator discovery utility to discover
@@ -76,16 +76,16 @@ public class AddLocators extends Discovered {
         /* Start the additional lookup services */
         startAddLookups();
         /* Verify discovery of the initial lookups */
-        doDiscovery(initLookupsToStart,mainListener);
+        doDiscovery(getInitLookupsToStart(),mainListener);
         /* Configure the listener's expected event state for the additional
          * lookup services
          */
         mainListener.clearAllEventInfo();
-        mainListener.setLookupsToDiscover(addLookupsToStart);
+        mainListener.setLookupsToDiscover(getAddLookupsToStart());
         /* Configure the lookup locator discovery utility to discover the
          * additional lookups
          */
-        LookupLocator[] locsToAdd = toLocatorArray(addLookupsToStart);
+        LookupLocator[] locsToAdd = toLocatorArray(getAddLookupsToStart());
         locatorDiscovery.addLocators(locsToAdd);
         logger.log(Level.FINE, "added additional locators to "
                           +"lookup locator discovery --");

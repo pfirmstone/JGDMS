@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.discoverymanager;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 /**
  * With respect to the <code>discard</code> method, this class verifies
  * that the <code>LookupDiscoveryManager</code> utility operates in a manner
@@ -55,14 +56,15 @@ public class GroupsDiscardUnreachable extends DiscardUnreachable{
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
-        groupsToDiscover = toGroupsToDiscover(initLookupsToStart,
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
+        groupsToDiscover = toGroupsToDiscover(getInitLookupsToStart(),
                                               AbstractBaseTest.ALL_BY_GROUP);
         locatorsToDiscover = toLocatorsToDiscover
-                                             (initLookupsToStart,
+                                             (getInitLookupsToStart(),
                                               AbstractBaseTest.ALL_BY_GROUP);
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class GroupsDiscardUnreachable
 

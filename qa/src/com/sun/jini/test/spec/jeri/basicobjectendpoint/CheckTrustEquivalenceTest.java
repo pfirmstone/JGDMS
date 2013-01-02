@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicobjectendpoint;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.BasicObjectEndpoint;
 import net.jini.security.proxytrust.TrustEquivalence;
@@ -79,7 +80,7 @@ import java.util.logging.Level;
  *           4) assert correct result is returned
  * </pre>
  */
-public class CheckTrustEquivalenceTest extends QATest {
+public class CheckTrustEquivalenceTest extends QATestEnvironment implements Test {
 
     // an Endpoint that impls TrustEquivalence and is configurable
     class FakeTrustedEndpoint 
@@ -123,7 +124,8 @@ public class CheckTrustEquivalenceTest extends QATest {
     };
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

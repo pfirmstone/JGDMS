@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.discovery.LookupDiscoveryManager;
@@ -56,8 +57,8 @@ public class TerminateDiscovery extends AbstractBaseTest {
      *         to the default discovery manager
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Discover & join lookups just started */
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
@@ -68,9 +69,10 @@ public class TerminateDiscovery extends AbstractBaseTest {
          */
         LookupDiscoveryManager discMgr 
               = (LookupDiscoveryManager)(joinMgrSrvcID.getDiscoveryManager());
-        discMgr.setGroups(toGroupsArray(initLookupsToStart));
+        discMgr.setGroups(toGroupsArray(getInitLookupsToStart()));
         discMgr.addDiscoveryListener(mainListener);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
@@ -94,8 +96,8 @@ public class TerminateDiscovery extends AbstractBaseTest {
         /* Verify that the initial lookups were discovered */
         logger.log(Level.FINE, "verifying initial lookup "
 		   +"service(s) are discovered ...");
-        mainListener.setLookupsToDiscover(lookupsStarted,
-                                          toGroupsArray(lookupsStarted));
+        mainListener.setLookupsToDiscover(getLookupsStarted(),
+                                          toGroupsArray(getLookupsStarted()));
         waitForDiscovery(mainListener);
         /* Start a new lookup service */
         logger.log(Level.FINE, "starting another lookup service "
@@ -104,8 +106,8 @@ public class TerminateDiscovery extends AbstractBaseTest {
         /* Verify that the new lookup was discovered */
         logger.log(Level.FINE, ""+": verifying the new lookup "
                                         +"service is discovered ...");
-        mainListener.setLookupsToDiscover(lookupsStarted,
-                                          toGroupsArray(lookupsStarted));
+        mainListener.setLookupsToDiscover(getLookupsStarted(),
+                                          toGroupsArray(getLookupsStarted()));
         waitForDiscovery(mainListener);
         /* Terminate the join manager */
         logger.log(Level.FINE, "terminating the join manager ...");
@@ -117,8 +119,8 @@ public class TerminateDiscovery extends AbstractBaseTest {
         /* Verify that the new lookup was NOT discovered */
         logger.log(Level.FINE, "verifying the new lookup "
                           +"service was NOT discovered ...");
-        mainListener.setLookupsToDiscover(lookupsStarted,
-                                          toGroupsArray(lookupsStarted));
+        mainListener.setLookupsToDiscover(getLookupsStarted(),
+                                          toGroupsArray(getLookupsStarted()));
         try {
             waitForDiscovery(mainListener);
             throw new TestException("discovery still works even though "

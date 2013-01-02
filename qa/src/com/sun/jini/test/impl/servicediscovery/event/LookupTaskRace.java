@@ -20,6 +20,7 @@ package com.sun.jini.test.impl.servicediscovery.event;
 
 import com.sun.jini.test.spec.servicediscovery.AbstractBaseTest;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.DiscoveryServiceUtil;
 
@@ -129,27 +130,34 @@ public class LookupTaskRace extends AbstractBaseTest {
      *  3. Creates a template that will match the test service based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
 	// from constructor, apparently never accessed
         System.setProperty( "sdm.testType", String.valueOf(thisTestType) );
-        super.setup(config);
+        super.construct(config);
+        int nLookupServices = getLookupServices().getnLookupServices();
+        int nServices = getLookupServices().getnServices();
+        int nAddServices = getLookupServices().getnAddServices();
         nAddedExpected  = nServices;
         testServiceType = AbstractBaseTest.TEST_SERVICE;
         testDesc = ": "+nLookupServices+" lookup service(s), "
                        +(nServices+nAddServices)+"service(s), should receive "
                        +nAddedExpected+" serviceAdded event(s)";
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
      *  1. Register the service with each lookup service started during
-     *     setup.
+     *     construct.
      *  2. Create a cache that discovers the service, and register
      *     for service discovery events from that cache.
      *  3. Verifies that the expected number of serviceAdded events are sent
      *     by the cache.
      */
     protected void applyTestDef() throws Exception {
+        int nServices = getLookupServices().getnServices();
+        int nAttributes = getLookupServices().getnAttributes();
+        int nSecsServiceDiscovery = getLookupServices().getnSecsServiceDiscovery();
 	/* Register new proxies */
 	registerServices(0,nServices,nAttributes,testServiceType);
 	/* Create a cache for the services that were registered. */

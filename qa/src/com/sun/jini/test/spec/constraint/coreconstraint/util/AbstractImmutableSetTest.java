@@ -20,13 +20,14 @@ package com.sun.jini.test.spec.constraint.coreconstraint.util;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 import java.util.Set;
 
@@ -43,7 +44,7 @@ import java.util.Set;
  *
  * </pre>
  */
-abstract public class AbstractImmutableSetTest extends QATest {
+abstract public class AbstractImmutableSetTest extends QATestEnvironment implements Test {
     protected QAConfig config;
 
     /**

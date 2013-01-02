@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.servicediscovery.lookup;
 import net.jini.lookup.ServiceItemFilter;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -58,28 +59,29 @@ public class LookupWaitFilter extends LookupWait {
      *  2. Creates a service discovery manager that discovers the lookup
      *     services started above
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = ": single service lookup employing -- template, filter, "
                    +"blocking";
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
      *  1. Invokes the desired version of the <code>lookup</code> method
      *     on the service discovery manager - applying the filter created
-     *     during setup - and verifies that when no services are registered
-     *     with the lookup services started during setup, the blocking
+     *     during construct - and verifies that when no services are registered
+     *     with the lookup services started during construct, the blocking
      *     mechanism of the <code>lookup</code> method blocks for the full
      *     amount of time requested
-     *  2. With each of the lookup services started in setup, registers 3
+     *  2. With each of the lookup services started in construct, registers 3
      *     services each with 1 associated attribute 
      *  3. Again invokes the desired version of the <code>lookup</code>
      *     method - applying the filter - and verifies that the service
      *     returned is the service expected, and the <code>lookup</code>
      *     method blocks until the registration of the desired services 
      *     have completed successfully
-     *  4. With each of the lookup services started in setup, registers 4
+     *  4. With each of the lookup services started in construct, registers 4
      *     more services each with 1 associated attribute 
      *  5. Again invokes the desired version of the <code>lookup</code>
      *     method - applying the filter - and verifies that because the filter

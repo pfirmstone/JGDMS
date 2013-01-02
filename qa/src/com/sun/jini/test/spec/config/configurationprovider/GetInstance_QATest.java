@@ -19,8 +19,9 @@
 package com.sun.jini.test.spec.config.configurationprovider;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -47,7 +48,7 @@ import java.security.AccessControlException;
  * This class collects together common parts for all getInstance
  * method tests infrastructure.
  */
-public abstract class GetInstance_QATest extends QATest {
+public abstract class GetInstance_QATest extends QATestEnvironment implements Test {
 
     /**
      * Name of file with configuration for tests.

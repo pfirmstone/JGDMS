@@ -24,6 +24,7 @@ import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.share.DiscoveryProtocolSimulator;
 import com.sun.jini.test.share.GroupsUtil;
@@ -88,13 +89,14 @@ public class SetLocatorsReplaceSome extends AbstractBaseTest {
      *
      *  Retrieves additional configuration values. 
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         useDiscoveryList = useGroupAndLocDiscovery0;
         locatorsMap      = getModLocatorsDiscardMap(useDiscoveryList);
         discardType      = ACTIVE_DISCARDED; // want groups and locators
         regInfoMap       = registrationMap;
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>

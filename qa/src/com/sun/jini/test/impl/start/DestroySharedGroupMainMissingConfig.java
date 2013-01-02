@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.start;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
@@ -27,7 +28,7 @@ import net.jini.config.ConfigurationException;
 import java.io.File;
 import java.util.Arrays;
 
-public class DestroySharedGroupMainMissingConfig  extends StarterBase {
+public class DestroySharedGroupMainMissingConfig  extends StarterBase implements Test {
     public void run() throws Exception {
 	File config = File.createTempFile("ServiceStarterMainMissingConfig", 
 				    ".tmp");

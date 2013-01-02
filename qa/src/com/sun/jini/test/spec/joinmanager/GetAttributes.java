@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.AttributesUtil;
 
@@ -53,21 +54,22 @@ public class GetAttributes extends AbstractBaseTest {
      *          the previous step (if any)
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Discover & join lookups just started */
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
                                         getLookupDiscoveryManager(),leaseMgr,
 					sysConfig.getConfiguration());
         joinMgrList.add(joinMgrSrvcID);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
      *   Verifies that the set of attributes returned by the method
      *   <code>getAttributes</code> is the same as the set of attributes
-     *   with which the join manager was constructed during setup.
+     *   with which the join manager was constructed during construct.
      */
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");

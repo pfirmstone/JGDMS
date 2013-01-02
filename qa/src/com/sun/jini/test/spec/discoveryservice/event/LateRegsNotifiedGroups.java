@@ -27,6 +27,7 @@ import net.jini.core.discovery.LookupLocator;
 import java.util.HashMap;
 import java.util.Map;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that, upon registration, so-called "late-joiner"
@@ -73,12 +74,13 @@ public class LateRegsNotifiedGroups extends AbstractBaseTest {
     /** Performs actions necessary to prepare for execution of the 
      *  current test. Populates the sets of group and/or locators to use.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         logger.log(Level.FINE, "setup()");
         groupsToDiscover = getGroupsToDiscover(useOnlyGroupDiscovery);
         locsToDiscover = getLocatorsToDiscover(useOnlyGroupDiscovery);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>

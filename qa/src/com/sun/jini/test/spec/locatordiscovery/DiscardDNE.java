@@ -19,7 +19,7 @@
 package com.sun.jini.test.spec.locatordiscovery;
 
 import java.util.logging.Level;
-
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.services.lookupsimulator.LookupSimulatorProxy;
@@ -66,13 +66,14 @@ public class DiscardDNE extends DiscardNull {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         proxy = new LookupSimulatorProxy(null,new ServiceID(1,2));
         discardStr = new String("attempt to discard a registrar that "
                                 +"DOES NOT EXIST in the managed set of "
                                 +"registrars ...");
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class DiscardDNE
 

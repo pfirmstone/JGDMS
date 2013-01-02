@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.start;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
@@ -28,7 +29,7 @@ import java.net.URL;
 import java.util.Arrays;
 import java.util.logging.Level;
 
-public class ClassLoaderUtilTest extends StarterBase {
+public class ClassLoaderUtilTest extends StarterBase implements Test {
 
     public void run() throws Exception {
 

@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.id.uuidfactory;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -57,7 +58,7 @@ import java.util.logging.Level;
  *          3) verify the returned Uuid contains the correct values
  * </pre>
  */
-public class ReadTest extends QATest {
+public class ReadTest extends QATestEnvironment implements Test {
 
     long[][] cases = {
         { 0, 0 },
@@ -73,7 +74,8 @@ public class ReadTest extends QATest {
         { Long.MIN_VALUE, Long.MAX_VALUE }
     };
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     public void run() throws Exception {

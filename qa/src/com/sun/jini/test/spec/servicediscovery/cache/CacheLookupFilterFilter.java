@@ -25,6 +25,7 @@ import net.jini.lookup.ServiceItemFilter;
 import net.jini.core.lookup.ServiceItem;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -76,16 +77,17 @@ public class CacheLookupFilterFilter extends CacheLookup {
      *     template matching performed by the lookup cache (first-stage
      *     filtering)
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "single service cache lookup -- services pre-registered, "
                    +"first-stage filter, second-stage filter";
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
      *  1. Requests the creation of a lookup cache that will perform template
-     *     matching using the template created during setup, and which will
+     *     matching using the template created during construct, and which will
      *     apply the first-stage filter to the results of the template
      *     matching
      *  2. Invokes the desired version of the <code>lookup</code> method -
@@ -136,8 +138,8 @@ public class CacheLookupFilterFilter extends CacheLookup {
 				    +"returned service is null");
         } else {
             boolean srvcOK = false;
-            for(int i=0;i<expectedServiceList.size();i++) {
-                if((srvcItem.service).equals(expectedServiceList.get(i))) {
+            for(int i=0;i<getExpectedServiceList().size();i++) {
+                if((srvcItem.service).equals(getExpectedServiceList().get(i))) {
                     srvcOK = true;
                     break;
                 }//endif

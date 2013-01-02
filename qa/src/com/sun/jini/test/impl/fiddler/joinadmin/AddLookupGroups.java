@@ -34,6 +34,7 @@ import net.jini.discovery.LookupDiscoveryService;
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.AbstractServiceAdmin;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class determines whether or not the lookup discovery service can
@@ -75,13 +76,13 @@ public class AddLookupGroups extends AbstractBaseTest {
      *  Starts one lookup discovery service, and then constructs the set
      *  of groups that should be expected after adding a new set of groups.
      */
-    public void setup(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         newGroupSet = getTestGroupSet();
 	AbstractServiceAdmin admin = 
-	    (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	    (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         if (admin == null) {
-            return;
+            return this;
         }
         String[] configGroups = admin.getGroups();
         /* Construct the expected groups set */
@@ -105,6 +106,7 @@ public class AddLookupGroups extends AbstractBaseTest {
 					   Level.FINE);
             }
         }
+        return this;
     }
 
     /** Executes the current test by doing the following:

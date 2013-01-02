@@ -25,7 +25,8 @@ package com.sun.jini.test.impl.lookupdiscovery;
 
 import com.sun.jini.config.Config;
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
@@ -47,7 +48,7 @@ import net.jini.discovery.LookupDiscovery;
  *
  * 
  */
-public class MulticastRequestDelay extends QATest {
+public class MulticastRequestDelay extends QATestEnvironment implements Test {
     private static final int DISCOVERYPORT = Constants.discoveryPort;
     private static final int NUMLD = 100;
     private static final InetAddress localHost;
@@ -157,9 +158,10 @@ public class MulticastRequestDelay extends QATest {
 	}
     }
     
-    public void setup(QAConfig qaconfig) throws Exception {
-	super.setup(qaconfig);
+    public Test construct(QAConfig qaconfig) throws Exception {
+	super.construct(qaconfig);
 	config = qaconfig.getConfig().getConfiguration();
+        return this;
     }
  
     public void tearDown() {

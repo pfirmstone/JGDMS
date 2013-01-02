@@ -44,7 +44,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  * @author Mikhail A. Markov
  */
 public class SnapshotReadIfExistsNO_WAITTest
-        extends SnapshotAbstractReadTestBase 
+        extends SnapshotReadTestBase 
 {
     /**
      * This method asserts that for readIfExists with NO_WAIT timeout:

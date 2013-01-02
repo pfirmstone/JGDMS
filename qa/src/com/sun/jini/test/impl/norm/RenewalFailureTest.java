@@ -21,6 +21,7 @@ import java.util.logging.Level;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import java.io.PrintWriter;
@@ -54,7 +55,7 @@ import com.sun.jini.test.share.TestBase;
  * the appropriate events get generated, and that the leases are removed
  * from the set.
  */
-public class RenewalFailureTest extends TestBase {
+public class RenewalFailureTest extends TestBase implements Test {
     /** Wiggle room for various timing parameters */
     final static private long slop = 10000;
 
@@ -73,9 +74,10 @@ public class RenewalFailureTest extends TestBase {
     /** Should we try shuting down the service under test? */
     private boolean tryShutdown;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	this.parse();
+        return this;
     }
 
     /**

@@ -24,6 +24,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.DiscoveryServiceUtil;
 
 import com.sun.jini.logging.Levels;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.LookupDiscoveryManager;
 
@@ -55,7 +56,7 @@ import java.util.logging.Level;
  * instances of NewOldServiceTask produced by NotifyEventTask when a
  * service event is received from L0.
  *
- * This test starts lookup L0 during setup. Then, when the test begins
+ * This test starts lookup L0 during construct. Then, when the test begins
  * running, half the services are registered with L0, followed by the
  * creation of half the SDMs and corresponding caches; which causes the
  * tasks being tested to be queued, and event generation to ultimately
@@ -228,23 +229,30 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
      *
      *  1. Start 1 (transient) lookup service
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
+        int nLookupServices = 0;
+        int nServices = 0;
+        int nAddServices = 0;
         testDesc = ""+nLookupServices+" lookup service(s), "
                        +(nServices+nAddServices)+" service(s), should receive "
                        +nAddedExpected+" serviceAdded and "+nRemovedExpected
                        +" serviceRemoved event(s)";
         testConfig = config;
 
-        createSDMInSetup = false;
+        createSDMduringConstruction = false;
         nLookupServices    = 1;
-        nAddLookupServices = 0;
-        nServices          = 0;
-        nAddServices       = 0;
-        nAttributes        = 0;
-        super.setup(config);
-
-        ldm = (LookupDiscoveryManager)(getLookupDiscoveryManager());
-    }//end setup
+        System.setProperty("net.jini.lookup.nLookupServices", Integer.toString(nLookupServices));
+//        nAddLookupServices = 0;
+//        nServices          = 0;
+//        nAddServices       = 0;
+//        nAttributes        = 0;
+        
+        super.construct(config);
+        if ( getLookupServices().getnLookupServices() != nLookupServices) 
+            throw new TestException("nLookupServices not set");
+        ldm = getLookupDiscoveryManager();
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  

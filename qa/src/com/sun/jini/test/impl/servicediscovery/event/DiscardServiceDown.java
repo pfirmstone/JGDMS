@@ -20,6 +20,7 @@ package com.sun.jini.test.impl.servicediscovery.event;
 
 import net.jini.core.lookup.ServiceItem;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
@@ -54,15 +55,18 @@ public class DiscardServiceDown extends DiscardServiceUp {
      *  3. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        int nLookupServices = getLookupServices().getnLookupServices();
+        int nServices = getLookupServices().getnServices();
         testDesc = ""+nLookupServices+" lookup service(s), "+nServices
                        +" service(s) -- discard down service and wait for "
                        +"re-discovery";
         nAddedExpected      = 1*nServices;
         nRemovedExpected    = 1*nServices;
         simulateDownService = true;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class DiscardServiceDown
 

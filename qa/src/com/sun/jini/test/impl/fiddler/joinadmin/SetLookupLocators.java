@@ -27,6 +27,7 @@ import com.sun.jini.test.share.LocatorsUtil;
 import com.sun.jini.test.share.JoinAdminUtil;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.admin.JoinAdmin;
@@ -80,8 +81,8 @@ public class SetLookupLocators extends AbstractBaseTest {
      *  of locators that should be expected expected after replacing the
      *  service's current set of locators  with the new set of locators.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         newLocatorSet = getTestLocatorSet();
         /* Construct the expected locators set */
         if(newLocatorSet == null) {
@@ -92,7 +93,8 @@ public class SetLookupLocators extends AbstractBaseTest {
                                            "expectedLocators",
 					   Level.FINE);
         }
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  

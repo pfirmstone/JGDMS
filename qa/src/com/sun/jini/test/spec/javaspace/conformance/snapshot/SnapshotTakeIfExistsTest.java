@@ -41,7 +41,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * @author Mikhail A. Markov
  */
-public class SnapshotTakeIfExistsTest extends SnapshotAbstractTakeTestBase {
+public class SnapshotTakeIfExistsTest extends SnapshotTakeTestBase {
 
     /**
      * This method asserts that for takeIfExists with timeouts

@@ -19,10 +19,11 @@ package com.sun.jini.test.spec.io.marshalinputstream;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.AdminManager;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.loader.ClassLoading;
 
@@ -83,7 +84,7 @@ import java.lang.reflect.Proxy;
  *           assert loadClass equals the returned class
  * </pre>
  */
-public class LoadClass_VerifyCodebaseIntegrityTest extends QATest {
+public class LoadClass_VerifyCodebaseIntegrityTest extends QATestEnvironment implements Test {
 
     QAConfig config;
     Object[][] cases;
@@ -92,7 +93,7 @@ public class LoadClass_VerifyCodebaseIntegrityTest extends QATest {
 
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         this.config = (QAConfig) sysConfig;
         config.setDynamicParameter(
                 "qaClassServer.port",
@@ -130,6 +131,7 @@ public class LoadClass_VerifyCodebaseIntegrityTest extends QATest {
             {proxy,        f, codebase, t},
             {proxy,        t, codebase, f}
         };
+        return this;
     }
 
     // inherit javadoc

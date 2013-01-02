@@ -23,7 +23,8 @@ import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.ObjectEndpoint;
 import net.jini.jeri.OutboundRequest;
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.InvocationHandler;
 import java.util.Arrays;
@@ -76,7 +77,7 @@ import com.sun.jini.test.spec.activation.util.ExceptionThrowingProxy;
  *     6) assert the tested exception is thrown
  * </pre>
  */
-public class Invoke_WithExceptionNoActivationTest extends QATest {
+public class Invoke_WithExceptionNoActivationTest extends QATestEnvironment implements Test {
     Throwable[] cases = { 
               new ArrayIndexOutOfBoundsException(),
               new AssertionError(),

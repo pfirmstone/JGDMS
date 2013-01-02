@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.start;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 import java.io.File;
@@ -40,7 +41,7 @@ import com.sun.jini.start.SharedActivationGroupDescriptor;
 import com.sun.jini.system.FileSystem;
 import net.jini.config.EmptyConfiguration;
 
-public class ServiceStarterCreateSharedGroupTest extends StarterBase {
+public class ServiceStarterCreateSharedGroupTest extends StarterBase implements Test {
     public void run() throws Exception {
         String policy = getConfig().getStringConfigVal(
             "sharedGroup.policyfile", null);

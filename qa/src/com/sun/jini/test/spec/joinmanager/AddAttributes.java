@@ -25,6 +25,7 @@ import com.sun.jini.test.share.AttributesUtil;
 
 import net.jini.core.entry.Entry;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -55,10 +56,11 @@ public class AddAttributes extends GetAttributes {
      *          a new set
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         expectedAttrs = addAttrsAndRemoveDups(serviceAttrs,newServiceAttrs);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>

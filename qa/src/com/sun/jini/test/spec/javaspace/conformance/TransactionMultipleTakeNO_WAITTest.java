@@ -26,6 +26,7 @@ import net.jini.space.JavaSpace;
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * TransactionMultipleTakeNO_WAITTest asserts that for take with NO_WAIT
@@ -41,21 +42,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class TransactionMultipleTakeNO_WAITTest extends AbstractTakeTestBase {
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param config QAConfig from the runner for setup.
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
+public class TransactionMultipleTakeNO_WAITTest extends AbstractTransactionTakeTest {
 
     /**
      * This method asserts that for take with NO_WAIT timeout

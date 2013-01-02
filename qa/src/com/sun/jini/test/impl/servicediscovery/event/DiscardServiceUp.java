@@ -30,7 +30,9 @@ import net.jini.core.lookup.ServiceItem;
 import java.rmi.RemoteException;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
+import java.util.List;
 
 /**
  * This class verifies that the <code>ServiceDiscoveryManager</code> handles
@@ -85,8 +87,10 @@ public class DiscardServiceUp extends AbstractBaseTest {
      *  3. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        int nLookupServices = getLookupServices().getnLookupServices();
+        int nServices = getLookupServices().getnServices();
         testDesc = ""+nLookupServices+" lookup service(s), "+nServices
                        +" service(s) -- discard still-up service and wait for "
                        +"re-discovery";
@@ -94,12 +98,13 @@ public class DiscardServiceUp extends AbstractBaseTest {
         nRemovedExpected    = 1*nServices;
         simulateDownService = false;
         testServiceType     = AbstractBaseTest.TEST_SERVICE;
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
      *  1. Register the service(s) with each lookup service started during
-     *     setup.
+     *     construct.
      *  2. Create a cache that discovers the service(s), and register
      *     for service discovery events from that cache.
      *  3. Verifies the service was discovered by the cache by invoking
@@ -185,6 +190,8 @@ public class DiscardServiceUp extends AbstractBaseTest {
      *  this situation.
      */
     protected long getAddedWait() {
+        int nLookupServices = getLookupServices().getnLookupServices();
+        int nServices = getLookupServices().getnServices();       
         long deltaWait = nServices*5*1000;
         long addedWait = (2*discardWait) + deltaWait;//1st assume not down
         if(simulateDownService) {//services down, adjust discardWait, addedWait
@@ -215,6 +222,9 @@ public class DiscardServiceUp extends AbstractBaseTest {
      * and creates a LookupCache
      */
     protected void regServicesAndCreateCache() throws Exception {
+        int nServices = getLookupServices().getnServices();
+        int nAttributes = getLookupServices().getnAttributes();
+        int nSecsServiceDiscovery = getLookupServices().getnSecsServiceDiscovery();
         /* Register new proxies */
         registerServices(0,nServices,nAttributes,testServiceType);
         /* Create a cache for the services that were registered. */
@@ -242,6 +252,7 @@ public class DiscardServiceUp extends AbstractBaseTest {
      * events.
      */
     protected void doServiceDiscard(ServiceItem srvcItem[]) throws Exception {
+        int nServices = getLookupServices().getnServices();
         /* Discard each service. */
         for(int i=0;i<srvcItem.length;i++) {
             logger.log(Level.FINE, "discarding service["+i+"] -- ID = "
@@ -361,6 +372,8 @@ public class DiscardServiceUp extends AbstractBaseTest {
     protected void verifyQueryResults(ServiceItem srvcItem[],String qStr) 
 	throws Exception
     {
+        int nServices = getLookupServices().getnServices();
+        List expectedServiceList = getExpectedServiceList();
         if(srvcItem.length == 0) {
             logger.log(Level.FINE, ""+qStr+" -- no services in cache");
             throw new TestException(" -- "+qStr+" -- no services in cache");
@@ -408,7 +421,7 @@ public class DiscardServiceUp extends AbstractBaseTest {
             logger.log(Level.FINE, ""+qStr+" -- no services in cache, as expected");
             return;
         }//endif
-
+        List expectedServiceList = getExpectedServiceList();
         for(int i=0;i<srvcItem.length;i++) {
             if(srvcItem[i].service == null) continue;
             for(int j=0;i<expectedServiceList.size();j++) {

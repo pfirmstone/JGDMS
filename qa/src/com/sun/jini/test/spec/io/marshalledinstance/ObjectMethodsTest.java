@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.io.marshalledinstance;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.io.MarshalledInstance;
 
@@ -88,7 +89,7 @@ import java.util.logging.Level;
  *      18) verify instance is not .equals or .fullyEquals to FakeObject
  * </pre>
  */
-public class ObjectMethodsTest extends QATest {
+public class ObjectMethodsTest extends QATestEnvironment implements Test {
 
     class FakeMarshalledInstance extends MarshalledInstance {
         public FakeMarshalledInstance(Object obj) throws IOException {
@@ -97,7 +98,8 @@ public class ObjectMethodsTest extends QATest {
     }
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

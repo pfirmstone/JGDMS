@@ -35,6 +35,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // Shared classes
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.share.TestBase;
 import com.sun.jini.test.share.UninterestingEntry;
 
@@ -44,13 +45,14 @@ import com.sun.jini.test.share.UninterestingEntry;
  * test the contence() method as this is exercies by the
  * AdminIteratorTest in the matching package.
  */
-public class SimpleAdminTest extends TestBase {
+public class SimpleAdminTest extends TestBase implements Test {
     private boolean activatable;
     private int numRestarts;
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
+        return this;
     }
 
     /**

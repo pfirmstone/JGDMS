@@ -23,7 +23,8 @@ import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.ObjectEndpoint;
 import net.jini.jeri.OutboundRequest;
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.InvocationHandler;
 import java.util.Arrays;
@@ -87,7 +88,7 @@ import java.rmi.UnknownHostException;
  *        server side exception is the common result
  * </pre>
  */
-public class Invoke_WithExceptionWithActivationTest extends QATest {
+public class Invoke_WithExceptionWithActivationTest extends QATestEnvironment implements Test {
     Throwable[] cases = {
             new ConnectException(""),
             new ConnectIOException(""),

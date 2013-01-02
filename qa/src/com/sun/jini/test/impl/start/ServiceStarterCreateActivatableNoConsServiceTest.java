@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.start;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
@@ -25,7 +26,7 @@ import java.io.File;
 
 import net.jini.event.EventMailbox;
 
-public class ServiceStarterCreateActivatableNoConsServiceTest extends StarterBase {
+public class ServiceStarterCreateActivatableNoConsServiceTest extends StarterBase implements Test {
     private static String[] serviceNames = {
         "com.sun.jini.test.impl.start.TestServiceNoConsImpl"
     };
@@ -34,7 +35,7 @@ public class ServiceStarterCreateActivatableNoConsServiceTest extends StarterBas
         Object service = null;
 	for (int i=0; i < serviceNames.length; i++) {
 	    try {
-		service = manager.startService(serviceNames[i]);
+		service = getManager().startService(serviceNames[i]);
                 throw new TestException(
                         "Unexpected success in creating bad service: "
 		        + serviceNames[i]);

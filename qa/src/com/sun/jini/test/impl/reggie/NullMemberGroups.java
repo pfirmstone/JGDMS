@@ -17,7 +17,8 @@
  */
 package com.sun.jini.test.impl.reggie;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import java.util.logging.Level;
 import net.jini.config.ConfigurationException;
@@ -26,12 +27,12 @@ import net.jini.config.ConfigurationException;
  * Verifies fix for 4935237 ("reggie should throw clearer exception if member
  * groups set to ALL_GROUPS").
  */
-public class NullMemberGroups extends QATest {
+public class NullMemberGroups extends QATestEnvironment implements Test {
 
     public void run() throws Exception {
 	logger.log(Level.INFO, "run()");
 	try {
-	    manager.startLookupService();
+	    getManager().startLookupService();
 	    throw new TestException(
 		"Started service with invalid configuration");
 	} catch (Exception e) {

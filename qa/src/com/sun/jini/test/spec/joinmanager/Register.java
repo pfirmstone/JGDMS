@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.lookup.JoinManager;
@@ -50,15 +51,16 @@ public class Register extends AbstractBaseTest {
      *          lookup services started in the previous step
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Discover & join lookups just started */
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
                                         getLookupDiscoveryManager(),leaseMgr,
 					sysConfig.getConfiguration());
         joinMgrList.add(joinMgrSrvcID);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
@@ -72,8 +74,8 @@ public class Register extends AbstractBaseTest {
         /* Verify that the lookups were discovered */
         logger.log(Level.FINE, "verifying the lookup "
                                         +"service(s) are discovered ...");
-        mainListener.setLookupsToDiscover(lookupsStarted,
-                                          toGroupsArray(lookupsStarted));
+        mainListener.setLookupsToDiscover(getLookupsStarted(),
+                                          toGroupsArray(getLookupsStarted()));
         waitForDiscovery(mainListener);
         verifyJoin();
         logger.log(Level.FINE, "join manager successfully registered "

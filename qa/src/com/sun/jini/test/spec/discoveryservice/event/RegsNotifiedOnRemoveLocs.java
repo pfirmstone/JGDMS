@@ -86,7 +86,7 @@ public class RegsNotifiedOnRemoveLocs extends LateRegsNotifiedOn2SetLocs {
      * <li> creates two separate sets of registrations with the lookup
      *      discovery service, requesting the discovery of both sets of
      *      locators which should, respectively, equal the locators of the
-     *      lookup services started in setup
+     *      lookup services started in construct
      * <li> verifies that the listeners for the registrations in either set
      *      receive the appropriate remote discovery event for the both sets
      *      of locators

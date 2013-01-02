@@ -22,6 +22,8 @@ import java.util.logging.Level;
 
 import java.util.ArrayList;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscoveryManager</code> utility
@@ -54,10 +56,11 @@ public class MulticastMonitorChange extends Discovered {
     /** Performs actions necessary to prepare for execution of the current
      *  test (refer to the description of this method in the parent class).
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         mainListener = new GroupChangeListener();
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
@@ -83,7 +86,7 @@ public class MulticastMonitorChange extends Discovered {
          */
         synchronized(mainListener) {
             /* Replace alternate groups to cause changed events */
-            ArrayList locGroupsPairList = replaceMemberGroups(true);
+            List locGroupsPairList = replaceMemberGroups(true);
             /* Set the expected changed event info */
             mainListener.setLookupsToDiscover(locGroupsPairList,
                                               locatorsToDiscover,

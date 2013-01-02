@@ -22,7 +22,7 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
-
+import com.sun.jini.qa.harness.Test;
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.lookup.JoinManager;
 
@@ -49,8 +49,8 @@ public class TerminateLeases extends AbstractBaseTest {
      *          lookup services started in the previous step
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Discover & join lookups just started */
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
@@ -60,13 +60,14 @@ public class TerminateLeases extends AbstractBaseTest {
          *       termination during tearDown because it will be terminated
          *       in the run method
          */
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *     <li> verifies that the test service is registered (it's leases
      *          are being managed) with each lookup service started during
-     *          setup
+     *          construct
      *     <li> terminates the join manager
      *     <li> verifies that the test service is no longer registered (the
      *          leases are no longer being managed) with any of the lookup
@@ -78,8 +79,8 @@ public class TerminateLeases extends AbstractBaseTest {
         /* Verify that the lookups were discovered */
         logger.log(Level.FINE, "verifying the lookup "
                                         +"service(s) are discovered ...");
-        mainListener.setLookupsToDiscover(lookupsStarted,
-                                          toGroupsArray(lookupsStarted));
+        mainListener.setLookupsToDiscover(getLookupsStarted(),
+                                          toGroupsArray(getLookupsStarted()));
         waitForDiscovery(mainListener);
         /* Verify join is successful */
         logger.log(Level.FINE, "verifying test service is "

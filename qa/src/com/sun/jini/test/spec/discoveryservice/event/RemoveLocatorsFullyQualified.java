@@ -20,6 +20,7 @@ package com.sun.jini.test.spec.discoveryservice.event;
 
 import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.share.LocatorsUtil;
 
 import net.jini.discovery.LookupDiscoveryRegistration;
@@ -155,8 +156,8 @@ public class RemoveLocatorsFullyQualified extends AbstractBaseTest {
     protected HashMap regInfoMap = registrationMap;
 
     /** Retrieves additional configuration values. */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
 //      debugFlag = true;
 //      displayOn = true;
         useDiscoveryList = useOnlyLocDiscovery;
@@ -198,7 +199,8 @@ public class RemoveLocatorsFullyQualified extends AbstractBaseTest {
             }
             logger.log(Level.FINE, "qualifiedLocs["+i+"] = "+qualifiedLocs[i]);
         }//end loop
-    }//end setup
+        return this;
+    }//end construct
 
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");

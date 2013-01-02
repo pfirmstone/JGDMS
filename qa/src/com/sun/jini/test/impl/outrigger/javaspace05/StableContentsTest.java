@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.outrigger.javaspace05;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 // Test harness specific classes
@@ -49,7 +50,7 @@ import com.sun.jini.test.share.TestBase;
  * templates. Each trail makes sure that all of the expected entries
  * and only the expected entries come back.
  */
-public class StableContentsTest extends TestBase {
+public class StableContentsTest extends TestBase implements Test {
     final private static String configNameBase = 
 	"com.sun.jini.test.impl.outrigger.javaspace05.StableContentsTest.";
 

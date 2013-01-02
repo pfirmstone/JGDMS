@@ -63,14 +63,14 @@ public class SecurityTestNonActivatable extends AbstractStartBaseTest {
         try {
             logger.log(Level.FINE, "activating test service 1");
 	    service1 = 
-		(TestService) manager.startService(propertyKey + "1");
+		(TestService) getManager().startService(propertyKey + "1");
         } catch (RemoteException re) {
             re.printStackTrace();
         }
         try {
             logger.log(Level.FINE, "activating test service 2");
 	    service2 = 
-		(TestService) manager.startService(propertyKey + "2");
+		(TestService) getManager().startService(propertyKey + "2");
         } catch (RemoteException re) {
             re.printStackTrace();
         }

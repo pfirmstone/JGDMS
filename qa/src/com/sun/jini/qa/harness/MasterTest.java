@@ -55,7 +55,7 @@ class MasterTest {
     /** The QAConfig instance, read from System.in */
     private static QAConfig config;
 
-    /** obtained from QATest after setup returns */
+    /** obtained from QATestEnvironment after construct returns */
     private static AdminManager manager;
 
     private static SlaveTest slaveTest;
@@ -186,11 +186,12 @@ class MasterTest {
      * @param td the test description for the test
      */
     private static void doTest(final TestDescription td) {
-	Test test = td.getTest();
+	TestEnvironment testEnv = td.getTest();
+        Test test = null;
 	String shortName = "<popup>" + td.getShortName() + "</popup>";
 	String progress = " " + config.getTestIndex() + " of " 
 	                   + config.getTestTotal();
-	if (test == null) {
+	if (testEnv == null) {
 	    exit(false, 
 		 Test.ENV,
 		 "Error constructing test from test description");
@@ -204,7 +205,7 @@ class MasterTest {
 	callAutot = 
 	    config.getStringConfigVal("com.sun.jini.qa.harness.callAutoT", 
 				      null);
-	if ((test instanceof QATest) && callAutot != null) {
+	if ((testEnv instanceof QATestEnvironment) && callAutot != null) {
 	    autotRequestThread.setDaemon(true);
 	    autotRequestThread.start();
 	    config.enableTestHostCalls(true);
@@ -214,11 +215,12 @@ class MasterTest {
 						  + shortName + progress));
 	try {
 	    logger.log(Level.INFO, 
-		"\n============================== CALLING SETUP() " +
+		"\n============================== CALLING CONSTRUCT() " +
 		"==============================\n");
-	    test.setup(config);
-	    if (test instanceof QATest) {
-		manager = ((QATest) test).manager;
+	    test = testEnv.construct(config);
+            if (test == null) throw new TestException("construct returned null Test");
+	    if (testEnv instanceof QATestEnvironment) {
+		manager = ((QATestEnvironment) testEnv).getManager();
 	    }
 	} catch (Throwable e) {
 	    setupOK = false;
@@ -226,8 +228,8 @@ class MasterTest {
 	    type = config.analyzeFailure(e, Test.ENV);
 	    if (type != Test.PASSED) {
 		e.printStackTrace();
-		msg = (e instanceof TestException) ? "Setup Failed"
-		                                   : "Unexpected Exception in setup";
+		msg = (e instanceof TestException) ? "Construct Failed"
+		                                   : "Unexpected Exception in construct";
 		msg += ": " + e;
 		result = false;
 	    }
@@ -246,7 +248,7 @@ class MasterTest {
 		// don't start this thread on windows to avoid hangs
 		// occuring on win2k when InetAddress.getByName was being called
 		if (! (osName.startsWith("Win"))) {
-		    Thread requestThread = new Thread(new RequestHandler(test), 
+		    Thread requestThread = new Thread(new RequestHandler(testEnv), 
 						      "RequestHandler");
 		    requestThread.setDaemon(true);
 		    requestThread.start();
@@ -277,7 +279,7 @@ class MasterTest {
 	    logger.log(Level.INFO, 
 		"\n============================ CALLING TEARDOWN() " +
 		"=============================\n");
-	    test.tearDown();
+	    testEnv.tearDown();
 	} catch (Exception e) { //ignore failures, no logical recovery
 	}
 	if (config.getTestIndex() < config.getTestTotal()) {
@@ -309,15 +311,15 @@ class MasterTest {
 
     static interface MasterTestRequest extends Serializable{
 
-	public void doRequest(Test test) throws Exception;
+	public void doRequest(TestEnvironment test) throws Exception;
     }
 
     private static class RequestHandler implements Runnable {
 
-	Test test;
+	TestEnvironment testExEnv;
 
-	RequestHandler(Test test) {
-	    this.test =test;
+	RequestHandler(TestEnvironment test) {
+	    this.testExEnv =test;
 	}
 
 	public void run() {
@@ -327,7 +329,7 @@ class MasterTest {
 		    try {
 			MasterTestRequest request = 
 			    (MasterTestRequest) ois.readObject();
-			request.doRequest(test);
+			request.doRequest(testExEnv);
 		    } catch (Exception e) {
 			logger.log(Level.SEVERE, 
 				   "Exception processing request",

@@ -38,7 +38,7 @@ import com.sun.jini.qa.harness.TestException;
  *
  * @author Mikhail A. Markov
  */
-public class NotifyLeaseFOREVERTest extends AbstractTestBase {
+public class NotifyLeaseFOREVERTest extends JavaSpaceTest {
 
     /**
      * This method asserts, that for notify with <code>Lease.FOREVER</code>

@@ -138,7 +138,7 @@ public class SimpleTransactionTest extends TransactionTestBase {
         SimpleEntry entry = null;
 
         try {
-            entry = (SimpleEntry) ope.get(space, template, txn2,
+            entry = (SimpleEntry) ope.get(getSpace(), template, txn2,
                     JavaSpace.NO_WAIT);
         } catch (Exception e) {
             fail("Exception thrown while reading/taking an entry", e);

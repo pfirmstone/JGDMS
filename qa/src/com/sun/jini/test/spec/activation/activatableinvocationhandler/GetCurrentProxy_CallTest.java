@@ -24,7 +24,8 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.rmi.Remote;
 import java.rmi.activation.ActivationID;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import net.jini.activation.ActivatableInvocationHandler;
 import com.sun.jini.test.spec.activation.util.FakeActivationID;
 import com.sun.jini.test.spec.activation.util.RemoteMethodSetInterface;
@@ -70,7 +71,7 @@ import com.sun.jini.test.spec.activation.util.MethodSetProxy;
  *       17) assert the returned value is equal to MethodSetProxy object
  * </pre>
  */
-public class GetCurrentProxy_CallTest extends QATest {
+public class GetCurrentProxy_CallTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

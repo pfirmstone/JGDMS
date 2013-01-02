@@ -42,7 +42,7 @@ public class RemoveLookupLocatorsDups extends RemoveLookupLocators {
     LookupLocator[] getTestLocatorSet() throws MalformedURLException {
         /* First retrieve a sub-set of the initial locators */
 	AbstractServiceAdmin admin = 
-	    (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	    (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         LookupLocator[] subsetCurLocators = LocatorsUtil.getSubset(admin.getLocators());
         /* Next, use the above sub-set to construct a set with duplicates */
         return (LocatorsUtil.getLocatorsWithDups(subsetCurLocators));

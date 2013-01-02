@@ -26,7 +26,7 @@ import java.rmi.*;
 
 
 /**
- * Verifies that multi-component classpaths in the setup VM are
+ * Verifies that multi-component classpaths in the construct VM are
  * supported.
  */
  
@@ -35,7 +35,7 @@ public class MultipleClasspathComponentTest extends AbstractStartBaseTest {
     public void run() throws Exception {
 	logger.log(Level.INFO, "run()");
 
-        SharedGroup group_proxy = (SharedGroup)manager.startService(
+        SharedGroup group_proxy = (SharedGroup)getManager().startService(
 		"com.sun.jini.start.SharedGroup");
     }
 }

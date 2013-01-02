@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set03;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -77,9 +78,9 @@ public class SimpleSetLookupLocators extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 	/* Create the lookup service */
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 	/* retrieve the proxy to the JoinAdmin methods */
 	adminProxy = (JoinAdmin) super.getAdminProxy();
 	/* load the LookupLocator class */
@@ -96,6 +97,7 @@ public class SimpleSetLookupLocators extends QATestRegistrar {
 	for (int i=0,j=0;i<SET_HOSTS.length;i++) {
 	    setLocators[i] = QAConfig.getConstrainedLocator(SET_HOSTS[i],SET_PORTS[i]);
 	}
+        return this;
     }
 
     /** Executes the current QA test.
@@ -103,11 +105,11 @@ public class SimpleSetLookupLocators extends QATestRegistrar {
      *  Retrieves the initial set of locators belonging to the Registrar
      *  and verifies that this set contains the expected set of classes
      *  (currently, should be empty). Invokes addLookupLocators() to add 
-     *  to the Registrar the set of locator instances created in setup.
+     *  to the Registrar the set of locator instances created in construct.
      *  Retrieves the set of LookupLocators belonging to the Registrar
      *  and verifies that this set contains the expected elements. Invokes
      *  setLookupLocators() to replace the current set of locators in
-     *  Registrar with the the set of locators created in setup. Retrieves
+     *  Registrar with the the set of locators created in construct. Retrieves
      *  the set of LookupLocators belonging to the Registrar and verifies
      *  that this set contains the expected elements. 
      *  @exception QATestException usually indicates test failure
@@ -140,7 +142,7 @@ public class SimpleSetLookupLocators extends QATestRegistrar {
 	    }
 	}
 	/* replace (set) the set of locators added above with the second set
-	 * of locators created in setup
+	 * of locators created in construct
 	 */
 	adminProxy.setLookupLocators(setLocators);
 	/* retrieve all locators belonging to the Registrar and verify

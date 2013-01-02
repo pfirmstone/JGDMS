@@ -26,6 +26,7 @@ import net.jini.core.event.EventRegistration;
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * TransactionNotifyTest asserts, that for notify with finite lease times
@@ -38,21 +39,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class TransactionNotifyTest extends AbstractTestBase {
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param config QAConfig from the runner for setup.
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
+public class TransactionNotifyTest extends TransactionTest {
 
     /**
      * This method asserts, that for notify with finite lease times

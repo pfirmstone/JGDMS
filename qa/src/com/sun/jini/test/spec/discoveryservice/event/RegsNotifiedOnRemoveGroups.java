@@ -85,7 +85,7 @@ public class RegsNotifiedOnRemoveGroups extends LateRegsNotifiedOn2SetGroups {
      * <li> creates two separate sets of registrations with the lookup
      *      discovery service, requesting the discovery of both sets of groups
      *      which should, respectively, equal the member groups of both
-     *      lookup services started in setup
+     *      lookup services started in construct
      * <li> verifies that the listeners for the registrations in either set
      *      receive the appropriate remote discovery event for the both sets
      *      of groups

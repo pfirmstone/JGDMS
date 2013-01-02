@@ -70,7 +70,7 @@ public class ReactivationTest extends TransactionTestBase {
         Transaction txn = null;
 
         try {
-            Transaction.Created tc = TransactionFactory.create(txmgr,
+            Transaction.Created tc = TransactionFactory.create(getTxmgr(),
                     Lease.FOREVER);
             txn = tc.transaction;
         } catch (Exception e) {
@@ -90,7 +90,7 @@ public class ReactivationTest extends TransactionTestBase {
         Transaction txn2 = null;
 
         try {
-            Transaction.Created tc = TransactionFactory.create(txmgr,
+            Transaction.Created tc = TransactionFactory.create(getTxmgr(),
                     Lease.FOREVER);
             txn2 = tc.transaction;
         } catch (Exception e) {

@@ -78,12 +78,12 @@ public class LateRegsNotifiedOnAddGroups extends LateRegsNotifiedOn2SetGroups {
      * <li> creates a first set of registration(s) with the lookup discovery
      *      service, requesting the discovery of the first set of groups,
      *      which should equal the member groups of the first lookup service(s)
-     *      started in setup
+     *      started in construct
      * <li> verifies that the listener for the first registration(s) receives
      *      the appropriate remote discovery event for the first set of groups
      * <li> on each of the initial registration(s) calls addGroups, requesting
      *      that the discovery of the second set of groups, which should equal
-     *      the member groups of the second lookup service(s) started in setup
+     *      the member groups of the second lookup service(s) started in construct
      * <li> verifies that the listener for the first registration(s) receive
      *      the appropriate remote discovery event for the second set of groups
      * <li> creates a second set of registration(s) with the lookup discovery

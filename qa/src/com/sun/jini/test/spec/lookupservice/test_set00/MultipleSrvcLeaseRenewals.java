@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -71,9 +72,9 @@ public class MultipleSrvcLeaseRenewals extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i;
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 
 	logger.log(Level.FINE, "MultipleSrvcLeaseRenewals : in setup() method.");
 
@@ -91,6 +92,7 @@ public class MultipleSrvcLeaseRenewals extends QATestRegistrar {
 	    srvcIDTmpls[i] = new ServiceTemplate(srvcRegs[i].getServiceID(),
                                                  null,null);
 	}
+        return this;
     }
 
     /** Executes the current QA test.

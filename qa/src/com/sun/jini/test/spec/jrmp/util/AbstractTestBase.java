@@ -40,16 +40,16 @@ import java.net.ServerSocket;
 import java.util.logging.Level;
 
 // com.sun.jini
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 import net.jini.jrmp.JrmpExporter;
-
+import com.sun.jini.qa.harness.Test;
 
 /**
  * Abstract Test base for all jrmp spec tests.
  */
-public abstract class AbstractTestBase extends QATest {
+public abstract class AbstractTestBase extends QATestEnvironment implements Test {
 
     /** Constant for no-arg constructor type */
     public static final int NOARG_FACTORY = 0;
@@ -102,11 +102,11 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Sets up the testing environment.
      *
-     * @param sysConfig Configuration for setup.
+     * @param sysConfig Configuration for construct.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         // mandatory call to parent
-        super.setup(sysConfig);
+        super.construct(sysConfig);
 
         // obtain type of constructor being used
         cType = sysConfig.getIntConfigVal("jrmp.util.constructorType", 0);
@@ -141,6 +141,7 @@ public abstract class AbstractTestBase extends QATest {
         } else {
             cSsf = null;
         }
+        return this;
     }
 
     /**

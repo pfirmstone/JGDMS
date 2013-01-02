@@ -42,7 +42,7 @@ public class Equality extends AbstractBaseTest {
     /** Executes the current test by doing the following:
      * <p>
      *   Compares the instance of <code>LookupLocatorDiscovery</code>
-     *   created during setup to itself and to a new instance; and
+     *   created during construct to itself and to a new instance; and
      *   verifies that the <code>equals</code> method returns the 
      *   appropriate result depending on the particular instances of 
      *   <code>LookupLocatorDiscovery</code> being compared.

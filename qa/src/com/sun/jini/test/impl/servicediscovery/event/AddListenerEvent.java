@@ -31,6 +31,7 @@ import java.rmi.RemoteException;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that bug 4712396 has been fixed. As stated in the
@@ -84,8 +85,10 @@ public class AddListenerEvent extends AbstractBaseTest {
      *  3. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        int nLookupServices = getLookupServices().getnLookupServices();
+        int nServices = getLookupServices().getnServices();
         testDesc = "" + nLookupServices + " lookup service(s), " + nServices
                  + " service(s), " + nListeners + " ServiceDiscoveryListeners";
         nAddedExpected   = nServices;
@@ -93,12 +96,13 @@ public class AddListenerEvent extends AbstractBaseTest {
         for(int i=0;i<sdmListener.length;i++) {
             sdmListener[i] = new SDMListener(getConfig(), "", i);
         }//endloop
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
      *  1. Register the service(s) with each lookup service started during
-     *     setup.
+     *     construct.
      *  2. Create a cache that discovers the service(s), and register
      *     1 listner to receive service discovery events from that cache.
      *  3. Verifies that the expected number of serviceAdded events are sent
@@ -113,6 +117,9 @@ public class AddListenerEvent extends AbstractBaseTest {
      */
     protected void applyTestDef() throws Exception {
 	/* Register new proxies */
+        int nServices = getLookupServices().getnServices();
+        int nAttributes = getLookupServices().getnAttributes();
+        int nSecsServiceDiscovery = getLookupServices().getnSecsServiceDiscovery();
 	registerServices(0,nServices,nAttributes,testServiceType);
 	/* Create a cache for the service that was registered; register
              * the first listener to receive service discovery events.

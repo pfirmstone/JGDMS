@@ -40,7 +40,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
-
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 
@@ -76,11 +76,11 @@ public class ModifyAttrServiceChanged extends AbstractBaseTest {
      *  3. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "change set of service attribute(s) -- "
                    +"expect service changed event(s)";
-        nAddedExpected   = nServices;
+        nAddedExpected   = getnServices();
         nChangedExpected = nAddedExpected;
         testServiceType  = AbstractBaseTest.TEST_SERVICE;
 
@@ -96,7 +96,8 @@ public class ModifyAttrServiceChanged extends AbstractBaseTest {
             cacheDelay = 60*1000;
             eventDelay = 60*1000;
         }//endif
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
@@ -213,7 +214,7 @@ public class ModifyAttrServiceChanged extends AbstractBaseTest {
              */
             for(Iterator itr = eSet.iterator(); itr.hasNext(); ) {
                 /* Retrieve the (key,value) pair from the set of mappings 
-                 * that was populated during setup. The key is the test
+                 * that was populated during construct. The key is the test
                  * service that was registered with the lookup service(s).
                  * The value is an ArrayList contain a set of data structures
                  * of type AbstractBaseTest.RegInfo, containing information
@@ -324,12 +325,12 @@ public class ModifyAttrServiceChanged extends AbstractBaseTest {
 
     /** This method registers the configured number of test service(s) with 
      *  the configured number of lookup service(s) that were started during
-     *  setup. Additionally, for each lookup service with which a given
+     *  construct. Additionally, for each lookup service with which a given
      *  service is registered, this method associates the configured number
      *  of test attributes. After registration is complete, this method
      *  verifies that each registration was successful by performing a
      *  blocking lookup on the service discovery manager created during
-     *  setup. 
+     *  construct. 
      *
      *  To verify the success of each registration, a template reflecting
      *  both the class type of the registered service(s) and the exact,
@@ -346,18 +347,18 @@ public class ModifyAttrServiceChanged extends AbstractBaseTest {
      *  display the value returned by this method.
      */
     protected void registerAndVerify(long waitDur) throws Exception {
-        if(nServices <= 0) throw new TestException
+        if(getnServices() <= 0) throw new TestException
 	    ("no service(s) registered -- check the configuration file");
-        if(nAttributes != 1) throw new TestException
+        if(getnAttributes() != 1) throw new TestException
 	    ("# of attributes registered with "
-	     +"each service ("+nAttributes+") != 1 "
+	     +"each service ("+getnAttributes()+") != 1 "
 	     +"-- check the configuration file");
         /* Register each test service and its corresponding attribute. */
-	registerServices(0,nServices,nAttributes,testServiceType);
+	registerServices(0, getnServices(), getnAttributes(),testServiceType);
         String testServiceClassname 
         = "com.sun.jini.test.spec.servicediscovery.AbstractBaseTest$TestService";
-        TestService[] expectedService = new TestService[nServices];
-        ServiceTemplate[] lookupTmpl  = new ServiceTemplate[nServices];
+        TestService[] expectedService = new TestService[getnServices()];
+        ServiceTemplate[] lookupTmpl  = new ServiceTemplate[getnServices()];
         for(int i=0;i<expectedService.length;i++) {
             int val = SERVICE_BASE_VALUE+i;
             expectedService[i] = new TestService(val);
@@ -419,7 +420,7 @@ public class ModifyAttrServiceChanged extends AbstractBaseTest {
 		/* template does exact match on attribute value, using a
 		 * less restrictive template could return any service
 		 */
-		for(int j=0;j<expectedServiceList.size();j++) {
+		for(int j=0;j<getExpectedServiceList().size();j++) {
 		    if( (srvcItem.service).equals(expectedService[i]) ) {
 			logger.log(Level.FINE, "expected "
 				   +"service found -- requested "

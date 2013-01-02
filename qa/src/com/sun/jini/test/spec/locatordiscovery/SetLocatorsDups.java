@@ -19,7 +19,7 @@
 package com.sun.jini.test.spec.locatordiscovery;
 
 import java.util.logging.Level;
-
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.LocatorsUtil;
@@ -40,7 +40,7 @@ import java.util.ArrayList;
  *
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *   <li> one or more "initial" lookup services, each started during setup,
+ *   <li> one or more "initial" lookup services, each started during construct,
  *        before the test begins execution
  *   <li> one or more "additional" lookup services, each started after the
  *        test has begun execution
@@ -66,31 +66,32 @@ public class SetLocatorsDups extends AbstractBaseTest {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Create a set of locators to discover that contain duplicates */
         ArrayList newLookups = new ArrayList(11);
-        int len1 = addLookupsToStart.size();
+        int len1 = getAddLookupsToStart().size();
         int len2 = 2*len1;
         for(int i=0;i<len1;i++) {
             LocatorGroupsPair pair
-                                = (LocatorGroupsPair)addLookupsToStart.get(i);
+                                = (LocatorGroupsPair)getAddLookupsToStart().get(i);
             newLookups.add(i,pair);
         }//end loop
         for(int i=len1;i<len2;i++) {
             LocatorGroupsPair pair
-                          = (LocatorGroupsPair)addLookupsToStart.get(i-len1);
+                          = (LocatorGroupsPair)getAddLookupsToStart().get(i-len1);
             newLookups.add(i,pair);
         }//end loop
         dupLocs = toLocatorArray(newLookups);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *     <li> start the additional lookup services
      *     <li> verifies that the lookup locator discovery utility under test
      *          discovers the initial lookup services that were started 
-     *          during setup
+     *          during construct
      *     <li> re-configures the listener's expected event state to expect
      *          the discovery of the new, replacement set of lookup services
      *     <li> re-configures the lookup locator discovery utility to discover
@@ -106,12 +107,12 @@ public class SetLocatorsDups extends AbstractBaseTest {
         /* Start the additional lookup services */
         startAddLookups();
         /* Verify discovery of the initial lookups */
-        doDiscovery(initLookupsToStart,mainListener);
+        doDiscovery(getInitLookupsToStart(),mainListener);
         /* Configure the listener's expected event state for the additional
          * lookup services
          */
         mainListener.clearAllEventInfo();
-        mainListener.setLookupsToDiscover(addLookupsToStart);
+        mainListener.setLookupsToDiscover(getAddLookupsToStart());
         /* Configure the lookup locator discovery utility to discover the
          * additional lookups
          */

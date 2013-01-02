@@ -22,6 +22,7 @@ import java.util.logging.Level;
 // Test harness specific classes
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.rmi.*;
 import net.jini.core.lease.Lease;
@@ -116,9 +117,10 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
 	cancelSlop = getConfig().getLongConfigVal("com.sun.jini.test.share.cancel_slop", 0);
     }
 
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	parse();
+        return this;
     }
 
     public void run() throws Exception {

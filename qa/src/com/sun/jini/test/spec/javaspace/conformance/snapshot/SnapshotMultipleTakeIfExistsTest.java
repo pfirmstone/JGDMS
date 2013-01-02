@@ -44,7 +44,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  * @author Mikhail A. Markov
  */
 public class SnapshotMultipleTakeIfExistsTest
-        extends SnapshotAbstractTakeTestBase 
+        extends SnapshotTakeTestBase 
 {
 
     /**

@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set03;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -59,9 +60,10 @@ public class SimpleSetMemberGroups extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	adminProxy = (DiscoveryAdmin) super.getAdminProxy();
+        return this;
     }
 
     /** Executes the current QA test.

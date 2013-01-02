@@ -33,6 +33,7 @@ import com.sun.jini.outrigger.AdminIterator;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 // Shared classes
@@ -43,7 +44,7 @@ import com.sun.jini.test.share.UninterestingEntry;
  * Write a large number of identical entries into the space and then
  * tryes to delete all of them using the AdminIterator.
  */
-public class IdenticalAdminIteratorTest extends TestBase {
+public class IdenticalAdminIteratorTest extends TestBase implements Test {
 
     /** Number of entries to write */
     private int numberToWrite = 1000;
@@ -57,9 +58,10 @@ public class IdenticalAdminIteratorTest extends TestBase {
     /** True if we are going to retry remote exceptions on iterator opts */
     private boolean retry = false;
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
+        return this;
     }
 
     /**

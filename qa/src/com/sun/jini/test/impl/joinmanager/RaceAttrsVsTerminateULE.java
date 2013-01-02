@@ -19,7 +19,9 @@
 package com.sun.jini.test.impl.joinmanager;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.joinmanager.AbstractBaseTest;
+import java.util.List;
 
 import net.jini.lookup.JoinManager;
 
@@ -56,15 +58,16 @@ public class RaceAttrsVsTerminateULE extends AbstractBaseTest {
      *          lookup services started in the previous step
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         newServiceAttrs =
                removeDups( addAttrsDup1DupAll(serviceAttrs,newServiceAttrs) );
         /* Discover & join lookups just started */
         jm = new JoinManager(testService,serviceAttrs,serviceID,
                              getLookupDiscoveryManager(),leaseMgr,
                              sysConfig.getConfiguration());
-    }//end setup
+        return this;
+    }//end construct
 
     /** Call one of the attribute mutator methods and then immediately
      *  terminate the JoinManager to test for regression. Regression occurs
@@ -94,6 +97,7 @@ public class RaceAttrsVsTerminateULE extends AbstractBaseTest {
      */
     public void run() throws Exception {
         /* Verify all lookups are discovered */
+        List<LocatorGroupsPair> lookupsStarted = getLookupServices().getLookupsStarted();
         mainListener.setLookupsToDiscover(lookupsStarted,
                                           toGroupsArray(lookupsStarted));
         waitForDiscovery(mainListener);

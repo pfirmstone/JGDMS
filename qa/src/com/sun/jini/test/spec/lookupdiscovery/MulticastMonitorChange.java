@@ -18,10 +18,12 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscovery</code> utility
@@ -65,23 +67,24 @@ import java.util.ArrayList;
  */
 public class MulticastMonitorChange extends Discovered {
 
-    protected String[] replacementGroups = null;//null ==> generate new groups
-    protected boolean alternateReplacements = true;//some replaced, some not
+    protected volatile String[] replacementGroups = null;//null ==> generate new groups
+    protected volatile boolean alternateReplacements = true;//some replaced, some not
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         listenerToUse = new AbstractBaseTest.GroupChangeListener();
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *    <li> verifies the lookup discovery mechanism is functional by
      *         using group discovery to discover the lookup services
-     *         started during setup
+     *         started during construct
      *    <li> for alternating elements, replaces with a new group name,
      *         the member group elements of each of the discovered lookup
      *         services
@@ -100,7 +103,7 @@ public class MulticastMonitorChange extends Discovered {
          * maps to change until setLookupsToDiscover returns.
          */
         synchronized(listenerToUse) {
-            ArrayList locGroupsPairList = null;
+            List locGroupsPairList = null;
             /* Replace groups with new groups to cause changed events */
             locGroupsPairList = replaceMemberGroups(alternateReplacements);
             /* Set the expected changed event info */

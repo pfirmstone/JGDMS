@@ -30,6 +30,7 @@ import net.jini.core.lookup.ServiceItem;
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -66,21 +67,22 @@ public class CacheLookup extends AbstractBaseTest {
      *  4. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         testDesc = "single service cache lookup -- services pre-registered, "
                    +"no first-stage filter, no second-stage filter";
-        logger.log(Level.FINE, "registering "+nServices
-                              +" service(s) each with "+nAttributes
+        logger.log(Level.FINE, "registering "+getnServices()
+                              +" service(s) each with "+getnAttributes()
                               +" attribute(s) ...");
-        registerServices(nServices,nAttributes);
+        registerServices(getnServices(), getnAttributes());
         cacheDelay = 20*1000;
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
      *  1. Requests the creation of a lookup cache that will perform template
-     *     matching using the template created during setup, and which will
+     *     matching using the template created during construct, and which will
      *     apply NO first-stage filtering to the results of the template
      *     matching (<code>null</code> filter parameter)
      *  2. Invokes the desired version of the <code>lookup</code> method -
@@ -115,8 +117,8 @@ public class CacheLookup extends AbstractBaseTest {
             throw new TestException(" -- service component of "
                               +"returned service is null");
         } else {
-            for(int i=0;i<expectedServiceList.size();i++) {
-                if((srvcItem.service).equals(expectedServiceList.get(i))) {
+            for(int i=0;i<getExpectedServiceList().size();i++) {
+                if((srvcItem.service).equals(getExpectedServiceList().get(i))) {
                     return;// passed
                 }//endif
             }//end loop (i)

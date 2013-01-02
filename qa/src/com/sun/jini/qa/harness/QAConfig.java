@@ -2016,14 +2016,14 @@ public class QAConfig implements Serializable {
     /**
      * Analyze a failure exception. All registered analyzers are 
      * called with the given exception in the order registered. If an
-     * analyzer returns a value other than Test.UNKNOWN then that value
-     * is returned by this method. If all analyzers return Test.UNKNOWN,
+     * analyzer returns a value other than LegacyTest.UNKNOWN then that value
+     * is returned by this method. If all analyzers return LegacyTest.UNKNOWN,
      * or if no analyzers are registered, then this method returns the
      * given default value.
      *
      * @param e the exception to analyze
      * @param defaultType the default failure type to return if all analyzers
-     *                    return <code>Test.UNKNOWN</code>, or if there are no
+     *                    return <code>LegacyTest.UNKNOWN</code>, or if there are no
      *                    registered analyzers
      * @return the failure type
      */
@@ -2511,7 +2511,7 @@ public class QAConfig implements Serializable {
 
     /**
      * Obtain the test overrides from the set of installed overrider
-     * providers. Test overrides have a <code>serviceName</code> of
+     * providers. LegacyTest overrides have a <code>serviceName</code> of
      * <code>null</code>.
      *
      * @return a (possibly zero length) array of overrides

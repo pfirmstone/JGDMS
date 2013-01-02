@@ -21,6 +21,7 @@ import java.util.logging.Level;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 // All other imports
@@ -42,10 +43,11 @@ public class TakeOneTest extends MatchTestBase {
     /**
      * Sets up the testing environment.
      *
-     * @param config Arguments from the runner for setup.
+     * @param config Arguments from the runner for construct.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
+        return this;
     }
 
     public void run() throws Exception {

@@ -30,6 +30,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // Shared classes
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.share.TestBase;
 
 
@@ -94,9 +95,10 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
      */
     protected abstract boolean isAvailable() throws TestException;
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
+        return this;
     }
 
     /**

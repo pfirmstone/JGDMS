@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicilfactory;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.BasicILFactory;
 import net.jini.core.constraint.RemoteMethodControl;
@@ -63,7 +64,7 @@ import java.util.logging.Level;
  *        RemoteMethodControl and TrustEquivalence interfaces is returned
  * </pre>
  */
-public class GetExtraProxyInterfacesTest extends QATest {
+public class GetExtraProxyInterfacesTest extends QATestEnvironment implements Test {
 
     // test case infrastructure
     class FakeBasicILFactory extends BasicILFactory {
@@ -76,7 +77,8 @@ public class GetExtraProxyInterfacesTest extends QATest {
     }
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

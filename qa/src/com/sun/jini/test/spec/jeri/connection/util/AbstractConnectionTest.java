@@ -19,26 +19,28 @@ package com.sun.jini.test.spec.jeri.connection.util;
 
 //test harness related imports
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.LegacyTest;
 
 
 //java.util.logging
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Logger;
 
 /**
  * Abstract class for <code>BasicJeriExporter</code> tests
  */
-public abstract class AbstractConnectionTest implements Test{
+public abstract class AbstractConnectionTest implements LegacyTest{
 
     protected static QAConfig config;
     protected static Logger log = Logger.getLogger(
         "com.sun.jini.test.spec.jeri.connection");
     private int port = 0;
 
-    public void setup(QAConfig config) {
+    public Test construct(QAConfig config) {
         this.config = config;
         port = config.getIntConfigVal(
             "com.sun.jini.test.spec.jeri.connection.listenPort", 9090);
+        return this;
     }
 
     public void tearDown() {

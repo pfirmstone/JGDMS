@@ -55,7 +55,7 @@ public class RemoveLookupGroupsDups extends RemoveLookupGroups {
     String[] getTestGroupSet() {
         /* First retrieve a sub-set of the initial groups */
 	AbstractServiceAdmin admin = 
-	    (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	    (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         String[] subsetCurGroups = GroupsUtil.getSubset(admin.getGroups());
         /* Next, use the above sub-set to construct a set with duplicates */
         return GroupsUtil.getGroupsWithDups(subsetCurGroups);

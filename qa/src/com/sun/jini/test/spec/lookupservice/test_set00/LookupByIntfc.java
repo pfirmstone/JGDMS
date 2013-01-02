@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -59,13 +60,13 @@ public class LookupByIntfc extends QATestRegistrar {
      *  which each element contains one of the interfaces, implemented
      *  by the corresponding service, from the set of test interfaces.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k;
         int indx;
         Class sClass;
         Class iClass[] = new Class[super.INTERFACES.length];
 
-        super.setup(sysConfig); 
+        super.construct(sysConfig); 
 
 	logger.log(Level.FINE, "in setup() method.");
 
@@ -102,6 +103,7 @@ public class LookupByIntfc extends QATestRegistrar {
 		}
 	    }
 	}
+        return this;
     }
 
     /** Executes the current QA test.
@@ -109,7 +111,7 @@ public class LookupByIntfc extends QATestRegistrar {
      *  For each registered service:  
      *     For each interface in the set of test interfaces:  
      *        Performs a match lookup using the corresponding template 
-     *        created during setup and then tests that the number of matches
+     *        created during construct and then tests that the number of matches
      *        found equals the number of matches expected; and that the set
      *        of objects returned equals the expected set of corresponding
      *        service items.

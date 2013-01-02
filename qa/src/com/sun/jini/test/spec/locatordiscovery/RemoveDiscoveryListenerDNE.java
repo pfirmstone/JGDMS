@@ -61,7 +61,7 @@ public class RemoveDiscoveryListenerDNE extends Discovered {
      *   <ul>
      *     <li> re-configures the lookup locator discovery utility to discover
      *          the set of locators whose elements are the locators of each
-     *          lookup service that was started during setup
+     *          lookup service that was started during construct
      *     <li> starts the unicast discovery process by adding a listener to
      *          the lookup locator discovery utility
      *     <li> verifies that the discovery process is working by waiting

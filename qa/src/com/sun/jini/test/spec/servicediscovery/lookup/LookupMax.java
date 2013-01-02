@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import net.jini.core.lookup.ServiceItem;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -55,10 +56,11 @@ public class LookupMax extends Lookup {
      *  4. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "multiple service lookup employing -- template";
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
@@ -72,17 +74,16 @@ public class LookupMax extends Lookup {
         /* Through the service discovery manager, query the discovered lookup
          * service(s) for the desired services
          */
-        ServiceItem[] srvcItems = srvcDiscoveryMgr.lookup(template,
-                                                          nServices,
+        ServiceItem[] srvcItems = srvcDiscoveryMgr.lookup(template, getnServices(),
                                                           firstStageFilter);
         if(srvcItems == null) {
             throw new TestException
 		(" -- array of service items returned is null");
-        } else if( srvcItems.length != expectedServiceList.size() ) {
+        } else if( srvcItems.length != getExpectedServiceList().size() ) {
             logger.log(Level.FINE, "number of service items "
                               +"returned ("+srvcItems.length+") != "
                               +"expected number of service items ("
-                              +expectedServiceList.size()+")");
+                              +getExpectedServiceList().size()+")");
             for(int i=0;i<srvcItems.length;i++) {
                 logger.log(Level.FINE, "  service["+i+"] = "
                                   +srvcItems[i].service);
@@ -90,7 +91,7 @@ public class LookupMax extends Lookup {
             throw new TestException(" -- number of service items returned ("
 				    +srvcItems.length+") != expected number "
 				    +"of service items ("
-				    +expectedServiceList.size()+")");
+				    +getExpectedServiceList().size()+")");
         } else {/* Compare the returned array to set of expected services */
 	    label_i:
             for(int i=0;i<srvcItems.length;i++) {
@@ -103,9 +104,9 @@ public class LookupMax extends Lookup {
 					    +"returned service item "+i
 					    +" is null");
                 } else {
-                    for(int j=0;j<expectedServiceList.size();j++) {
+                    for(int j=0;j<getExpectedServiceList().size();j++) {
                         if( (srvcItems[i].service).equals
-                                               (expectedServiceList.get(j)) )
+                                               (getExpectedServiceList().get(j)) )
                         {
                             continue label_i; // next srvcItems[i]
                         }//endif

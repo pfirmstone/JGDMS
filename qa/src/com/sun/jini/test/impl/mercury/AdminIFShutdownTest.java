@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Arrays;
 
 import com.sun.jini.admin.DestroyAdmin;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.admin.Administrable;
 import net.jini.admin.JoinAdmin;
@@ -283,12 +284,13 @@ public class AdminIFShutdownTest extends AdminIFBase {
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	parse();
+        return this;
     }
 }

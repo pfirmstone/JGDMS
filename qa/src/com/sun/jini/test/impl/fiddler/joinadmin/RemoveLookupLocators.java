@@ -37,6 +37,7 @@ import java.net.MalformedURLException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import com.sun.jini.qa.harness.AbstractServiceAdmin;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class determines whether or not the lookup discovery service can
@@ -68,7 +69,7 @@ public class RemoveLookupLocators extends AbstractBaseTest {
      */
     LookupLocator[] getTestLocatorSet() throws MalformedURLException {
 	AbstractServiceAdmin admin = 
-	    (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	    (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         return LocatorsUtil.getSubset(admin.getLocators());
     }
 
@@ -79,13 +80,13 @@ public class RemoveLookupLocators extends AbstractBaseTest {
      *  of locators that should be expected after removing a sub-set of
      *  locators.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         removeLocatorSet = getTestLocatorSet();
 	AbstractServiceAdmin admin = 
-	    (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	    (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         if (admin == null) {
-            return;
+            return this;
         }
         LookupLocator[] configLocators = admin.getLocators();
 
@@ -112,6 +113,7 @@ public class RemoveLookupLocators extends AbstractBaseTest {
                                            "expectedLocators",
 					   Level.FINE);
         }
+        return this;
     }
 
     /** Executes the current test by doing the following:

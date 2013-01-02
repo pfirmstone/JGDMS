@@ -23,6 +23,7 @@ import java.util.logging.Level;
 
 // 
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 // net.jini
 import net.jini.core.lease.Lease;
@@ -30,7 +31,7 @@ import net.jini.lease.LeaseRenewalService;
 import net.jini.lease.LeaseRenewalSet;
 
 // com.sun.jini
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.test.share.TestLease;
 import com.sun.jini.test.share.TestLeaseProvider;
 import com.sun.jini.test.share.OpCountingOwner;
@@ -72,10 +73,10 @@ public class RemovalTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Sets up the testing environment.
      */
-    public void setup(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
+    public Test construct(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
 
        // mandatory call to parent
-       super.setup(sysConfig);
+       super.construct(sysConfig);
 	
        // Announce where we are in the test
        logger.log(Level.FINE, "RemovalTest: In setup() method.");
@@ -92,7 +93,7 @@ public class RemovalTest extends AbstractLeaseRenewalServiceTest {
 
        // calculate the renewal time for the renewal set's lease
        setLeaseGrant = renewGrant * 5 / 3;
-
+       return this;
     }
 
     /**

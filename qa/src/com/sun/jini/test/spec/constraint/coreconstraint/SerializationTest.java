@@ -23,10 +23,11 @@ import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 // java.rmi
@@ -86,7 +87,7 @@ import net.jini.core.constraint.InvocationConstraint;
  *
  * </pre>
  */
-public class SerializationTest extends QATest {
+public class SerializationTest extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**

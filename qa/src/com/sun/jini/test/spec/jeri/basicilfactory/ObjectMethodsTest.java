@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicilfactory;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.InvocationDispatcher;
@@ -83,7 +84,7 @@ import java.util.logging.Level;
  *                verify instances are NOT .equals to each other (symmetric)
  * </pre>
  */
-public class ObjectMethodsTest extends QATest {
+public class ObjectMethodsTest extends QATestEnvironment implements Test {
 
     class FakeInvocationLayerFactory implements InvocationLayerFactory {
         public InvocationLayerFactory.Instances createInstances(Remote impl,
@@ -110,7 +111,8 @@ public class ObjectMethodsTest extends QATest {
     };
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

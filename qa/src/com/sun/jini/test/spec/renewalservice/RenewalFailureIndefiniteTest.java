@@ -32,9 +32,10 @@ import net.jini.lease.LeaseRenewalSet;
 
 // 
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.test.share.FailingOpCountingOwner;
 import com.sun.jini.test.share.RememberingRemoteListener;
 import com.sun.jini.test.share.TestLease;
@@ -86,10 +87,10 @@ public class RenewalFailureIndefiniteTest
     /**
      * Sets up the testing environment.
      */
-    public void setup(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
+    public Test construct(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
 
        // mandatory call to parent
-       super.setup(sysConfig);
+       super.construct(sysConfig);
 	
        // Announce where we are in the test
        logger.log(Level.FINE, "RenewalFailureIndefiniteTest: In setup() method.");
@@ -109,6 +110,7 @@ public class RenewalFailureIndefiniteTest
 	   new RemoteException("RenewalFailureIndefiniteTest");
        indefiniteOwner = 
 	   new FailingOpCountingOwner(indefiniteException, 0, renewGrant);
+       return this;
     }
 
     /**

@@ -29,6 +29,7 @@ import net.jini.lookup.ServiceDiscoveryManager;
 import java.rmi.RemoteException;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
@@ -65,19 +66,20 @@ public class ReRegisterGoodEquals extends AbstractBaseTest {
      *  3. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
-        testDesc = ""+nLookupServices+" lookup service(s), "+nServices
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
+        testDesc = ""+getnLookupServices()+" lookup service(s), "+getnServices()
                        +" service(s) with well-defined equals() method";
-        nAddedExpected   = nServices*2;
-        nRemovedExpected = nAddedExpected-nServices;
+        nAddedExpected   = getnServices()*2;
+        nRemovedExpected = nAddedExpected-getnServices();
         testServiceType  = AbstractBaseTest.TEST_SERVICE;
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
      *  1. Register the service(s) with each lookup service started during
-     *     setup.
+     *     construct.
      *  2. Create a cache that discovers the service(s), and register
      *     for service discovery events from that cache.
      *  3. After the original services have been discovered and all expected
@@ -94,7 +96,7 @@ public class ReRegisterGoodEquals extends AbstractBaseTest {
      */
     protected void applyTestDef() throws Exception {
 	/* Register new proxies */
-	registerServices(0,nServices,nAttributes,testServiceType);
+	registerServices(0, getnServices(), getnAttributes(),testServiceType);
 	/* Create a cache for the services that were registered. */
 	try {
 	    logger.log(Level.FINE, "requesting a lookup cache");
@@ -109,15 +111,15 @@ public class ReRegisterGoodEquals extends AbstractBaseTest {
 				    +"creation");
 	}
 	logger.log(Level.FINE, "wait "
-		   +nSecsServiceDiscovery+" seconds to allow the "
+		   +getnSecsServiceDiscovery()+" seconds to allow the "
 		   +"cache to be populated ... ");
-        DiscoveryServiceUtil.delayMS(nSecsServiceDiscovery*1000);
+        DiscoveryServiceUtil.delayMS(getnSecsServiceDiscovery()*1000);
         /* Re-register new proxies */
-	reRegisterServices(0,nServices,nAttributes,testServiceType);
+	reRegisterServices(0, getnServices(), getnAttributes(),testServiceType);
 	logger.log(Level.FINE, "wait "
-		   +nSecsServiceDiscovery+" seconds to allow the "
+		   +getnSecsServiceDiscovery()+" seconds to allow the "
 		   +"cache to be re-populated ... ");
-        DiscoveryServiceUtil.delayMS(nSecsServiceDiscovery*1000);
+        DiscoveryServiceUtil.delayMS(getnSecsServiceDiscovery()*1000);
 	int nAdded   = srvcListener.getNAdded();
 	int nRemoved = srvcListener.getNRemoved();
 	logger.log(Level.FINE, "nAdded = "+nAdded

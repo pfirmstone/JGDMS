@@ -21,6 +21,7 @@ package com.sun.jini.test.impl.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.AttributesUtil;
 
@@ -81,8 +82,8 @@ public class SetAddAttributesOrder extends RegisterAttributes {
      *          method
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* From some given value, different from any of the current
 	 * attribute values, create a set of attributes with which to
 	 * initially replace all of the current attributes. 
@@ -142,8 +143,8 @@ public class SetAddAttributesOrder extends RegisterAttributes {
             expectedAttrs[i] = new TestServiceIntAttr
          ((((AbstractBaseTest.TestServiceIntAttr)addAttrs[n]).val).intValue());
         }//end loop
-
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
@@ -170,7 +171,7 @@ public class SetAddAttributesOrder extends RegisterAttributes {
         logger.log(Level.FINE, "verifying attributes were "
                                         +"modified in the correct order on "
                                         +"each lookup service ...");
-        verifyPropagation(expectedAttrs,nSecsJoin);
+        verifyPropagation(expectedAttrs,getLookupServices().getnSecsJoin());
         AttributesUtil.displayAttributeSet(expectedAttrs,
 					   "expectedAttrs",
 					   Level.FINE);

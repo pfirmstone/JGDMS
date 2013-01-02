@@ -32,8 +32,7 @@ import net.jini.core.lease.Lease;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionFactory;
 import net.jini.core.transaction.server.TransactionManager;
-import com.sun.jini.outrigger.JavaSpaceAdmin;
-import com.sun.jini.outrigger.AdminIterator;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.share.TestBase;
 
 
@@ -42,41 +41,41 @@ import com.sun.jini.test.share.TestBase;
  *
  * @author H.Fukuda
  */
-public abstract class TransactionTestBase extends TestBase {
-    protected boolean verbose = true;
-    protected boolean disableTxn = false;
+public abstract class TransactionTestBase extends TestBase implements Test {
+    private boolean verbose = true;
+//    private boolean disableTxn = false;
 
     // for the convenience of simple tests
-    protected JavaSpace space;
-    protected JavaSpaceAdmin admin;
-    protected TransactionManager txmgr;
+    private JavaSpace space;
+    private TransactionManager txmgr;
 
     // for two space test
-    protected JavaSpace[] spaces = new JavaSpace[2];
+    private JavaSpace[] spaces = new JavaSpace[2];
 
     /**
      * Sets up the testing environment.
      *
-     * @param config Arguments from the runner for setup.
+     * @param config Arguments from the runner for construct.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
+        return this;
     }
 
-    /**
-     * Parse non-generic option(s).
-     */
-    protected void parse() throws Exception {
-        super.parse();
-
-        /*
-         * schuldy 5-Nov-1999 bug 4288354 - always be verbose
-         * verbose = line.getBoolean("verbose");
-         */
-        disableTxn = getConfig().getBooleanConfigVal("com.sun.jini.qa.outrigger."
-                + "transaction.disableTxn", false);
-    }
+//    /**
+//     * Parse non-generic option(s).
+//     */
+//    protected void parse() throws Exception {
+//        super.parse();
+//
+//        /*
+//         * schuldy 5-Nov-1999 bug 4288354 - always be verbose
+//         * verbose = line.getBoolean("verbose");
+//         */
+//        setDisableTxn(getConfig().getBooleanConfigVal("com.sun.jini.qa.outrigger."
+//                 + "transaction.disableTxn", false));
+//    }
 
     /**
      * Makes sure the designated service is activated by getting its admin
@@ -92,41 +91,41 @@ public abstract class TransactionTestBase extends TestBase {
 
     protected void spaceOnlySetup() throws TestException {
 
-        // setup servers
+        // construct servers
         specifyServices(new Class[] {
             JavaSpace.class});
         prep(0);
-        space = spaces[0] = (JavaSpace) services[0];
+        setSpace(getSpaces()[0] = (JavaSpace) services[0]);
     }
 
     protected void simpleSetup() throws TestException {
 
-        // setup servers
+        // construct servers
         specifyServices(new Class[] {
             TransactionManager.class, JavaSpace.class});
         prep(0);
         prep(1);
-        txmgr = (TransactionManager) services[0];
-        space = spaces[0] = (JavaSpace) services[1];
+        setTxmgr((TransactionManager) services[0]);
+        setSpace(getSpaces()[0] = (JavaSpace) services[1]);
     }
 
     protected void twoSpaceSetup() throws TestException {
 
-        // setup servers
+        // construct servers
         specifyServices(new Class[] {
             TransactionManager.class, JavaSpace.class, JavaSpace.class});
         prep(0);
         prep(1);
         prep(2);
-        txmgr = (TransactionManager) services[0];
-        spaces[0] = (JavaSpace) services[1];
-        spaces[1] = (JavaSpace) services[2];
+        setTxmgr((TransactionManager) services[0]);
+        getSpaces()[0] = (JavaSpace) services[1];
+        getSpaces()[1] = (JavaSpace) services[2];
     }
 
     protected void scrubSpaces() throws TestException {
         for (int i = 0; i < 2; i++) {
-            if (spaces[i] != null) {
-                super.scrubSpace(spaces[i]);
+            if (getSpaces()[i] != null) {
+                super.scrubSpace(getSpaces()[i]);
             }
         }
     }
@@ -149,7 +148,7 @@ public abstract class TransactionTestBase extends TestBase {
     protected void writeEntry(int id, Transaction txn, Entry entry)
             throws TestException {
         try {
-            Lease l = spaces[id].write(entry, txn, Lease.FOREVER);
+            Lease l = getSpaces()[id].write(entry, txn, Lease.FOREVER);
             addOutriggerLease(l, true);
         } catch (Exception e) {
             throw new TestException("Can't write an entry with a transaction",
@@ -166,7 +165,7 @@ public abstract class TransactionTestBase extends TestBase {
     protected void writeEntry(Transaction txn, Entry entry)
             throws TestException {
         try {
-            Lease l = space.write(entry, txn, Lease.FOREVER);
+            Lease l = getSpace().write(entry, txn, Lease.FOREVER);
             addOutriggerLease(l, true);
         } catch (Exception e) {
             throw new TestException("Can't write an entry with a transaction",
@@ -185,7 +184,7 @@ public abstract class TransactionTestBase extends TestBase {
         Transaction.Created tc = null;
 
         try {
-            tc = TransactionFactory.create(txmgr, Lease.FOREVER);
+            tc = TransactionFactory.create(getTxmgr(), Lease.FOREVER);
             addMahaloLease(tc.lease, true);
         } catch (Exception e) {
             throw new TestException("Can't make transaction object", e);
@@ -234,7 +233,7 @@ public abstract class TransactionTestBase extends TestBase {
     }
 
     public void passOperation(SpaceOperation ope) {
-        if (verbose) {
+        if (isVerbose()) {
             logger.log(Level.FINE, "[" + ope + "]: Pass");
         }
     }
@@ -244,7 +243,7 @@ public abstract class TransactionTestBase extends TestBase {
     }
 
     public void pass(String msg) {
-        if (verbose) {
+        if (isVerbose()) {
             logger.log(Level.FINE, msg);
         }
     }
@@ -257,4 +256,54 @@ public abstract class TransactionTestBase extends TestBase {
         return new String[] {
             "outrigger" };
     }
+
+    /**
+     * @return the verbose
+     */
+    protected boolean isVerbose() {
+        return verbose;
+    }
+
+//    /**
+//     * @param disableTxn the disableTxn to set
+//     */
+//    protected void setDisableTxn(boolean disableTxn) {
+//        this.disableTxn = disableTxn;
+//    }
+
+    /**
+     * @return the space
+     */
+    protected JavaSpace getSpace() {
+        return space;
+    }
+
+    /**
+     * @param space the space to set
+     */
+    protected void setSpace(JavaSpace space) {
+        this.space = space;
+    }
+
+    /**
+     * @return the txmgr
+     */
+    protected TransactionManager getTxmgr() {
+        return txmgr;
+    }
+
+    /**
+     * @param txmgr the txmgr to set
+     */
+    protected void setTxmgr(TransactionManager txmgr) {
+        this.txmgr = txmgr;
+    }
+
+    /**
+     * @return the spaces
+     */
+    protected JavaSpace[] getSpaces() {
+        return spaces;
+    }
+
 }

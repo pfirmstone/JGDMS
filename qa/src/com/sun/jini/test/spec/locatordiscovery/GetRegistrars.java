@@ -27,6 +27,7 @@ import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupLocatorDiscovery</code> utility
@@ -38,11 +39,11 @@ import java.util.ArrayList;
  *
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *    <li> one or more lookup services, each started during setup
+ *    <li> one or more lookup services, each started during construct
  *    <li> one instance of the lookup locator discovery utility
  *    <li> the lookup locator discovery utility is configured to discover the
  *         set of locators whose elements are the locators of each lookup
- *         service that was started in setup
+ *         service that was started in construct
  *    <li> one instance of DiscoveryListener registered with the lookup
  *         locator discovery utility
  * </ul><p>
@@ -59,16 +60,16 @@ public class GetRegistrars extends Discovered {
      * <p><ul>
      *    <li> configures the lookup locator discovery utility to discover
      *         the set of locators whose elements are the locators of each
-     *         lookup service that was started during setup
+     *         lookup service that was started during construct
      *    <li> starts the unicast discovery process by adding a discovery
      *         listener to the lookup locator discovery utility
      *    <li> verifies that the lookup locator discovery utility under test
      *         discoveres all of the lookup services that were started
-     *         during setup
+     *         during construct
      *    <li> invokes getRegistrars to retrieve the registrars the lookup
      *         locator discovery utility has currently discovered
      *    <li> compares the registrars returned by getRegistrars with the 
-     *         registrars that were started during setup (and discovered
+     *         registrars that were started during construct (and discovered
      *         by the lookup locator discovery utility), and verifies
      *         that those sets are the same
      * </ul>
@@ -79,7 +80,7 @@ public class GetRegistrars extends Discovered {
 
         logger.log(Level.FINE, "calling getRegistrars ... ");
         ServiceRegistrar[] regs = locatorDiscovery.getRegistrars();
-        ArrayList lusList = getLookupListSnapshot("GetRegistrars.run");
+        List lusList = getLookupListSnapshot("GetRegistrars.run");
         logger.log(Level.FINE, "# of lookups started = "+lusList.size()
                           +", # of registrars from LookupLocatorDiscover = "
                           +regs.length);

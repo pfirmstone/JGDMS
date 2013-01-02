@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -52,10 +53,11 @@ public class DiscoveredStagger extends AbstractBaseTest {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         delayLookupStart = true;
-        super.setup(sysConfig);
-    }//end setup
+        super.construct(sysConfig);
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
@@ -81,25 +83,25 @@ public class DiscoveredStagger extends AbstractBaseTest {
         boolean oldUseFastTimeout = useFastTimeout;
         useFastTimeout = false;
         StaggeredStartThread lookupsThread =
-                                new StaggeredStartThread(1,allLookupsToStart);
+                                new StaggeredStartThread(1, getAllLookupsToStart());
         try {
             /* Start 1st lookup service (so it's up before discovery starts) */
             LocatorGroupsPair pair
-                                 = (LocatorGroupsPair)allLookupsToStart.get(0);
-            int port = (pair.locator).getPort();
+                                 = (LocatorGroupsPair)getAllLookupsToStart().get(0);
+            int port = (pair.getLocator()).getPort();
             if(portInUse(port)) port = 0;//use randomly chosen port
-            startLookup(0, port, pair.locator.getHost());
+            startLookup(0, port, pair.getLocator().getHost());
             /* Re-configure LookupDiscovery to discover given  groups */
             logger.log(Level.FINE,
                           "change LookupDiscovery to discover -- ");
-            String[] groupsToDiscover = toGroupsArray(allLookupsToStart);
+            String[] groupsToDiscover = toGroupsArray(getAllLookupsToStart());
             for(int i=0;i<groupsToDiscover.length;i++) {
                 logger.log(Level.FINE,
                                   "   "+groupsToDiscover[i]);
             }//end loop
             lookupDiscovery.setGroups(groupsToDiscover);
             /* Add the given listener to the LookupDiscovery utility */
-            mainListener.setLookupsToDiscover(allLookupsToStart);
+            mainListener.setLookupsToDiscover(getAllLookupsToStart());
             lookupDiscovery.addDiscoveryListener(mainListener);
             /* Start remaining lookup services in a time-staggered fashion */
             lookupsThread.start();

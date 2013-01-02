@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicinvocationdispatcher;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.BasicInvocationDispatcher;
 import net.jini.export.ExportPermission;
@@ -79,7 +80,7 @@ import java.util.logging.Level;
  *     4) assert IllegalArgumentException is thrown
  * </pre>
  */
-public class CheckPermissionClassTest extends QATest {
+public class CheckPermissionClassTest extends QATestEnvironment implements Test {
 
     // fake Permission subclasses
     class DefaultConstructorPermission extends BasicPermission {
@@ -106,7 +107,8 @@ public class CheckPermissionClassTest extends QATest {
     };
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

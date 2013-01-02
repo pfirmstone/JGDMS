@@ -76,7 +76,7 @@ public class MulticastMonitorStop extends Discovered {
      * <p><ul>
      *    <li> verifies the lookup discovery mechanism is functional by
      *         using group discovery to discover the lookup services
-     *         started during setup
+     *         started during construct
      *    <li> stops the generation of multicast announcements by each
      *         lookup service, but allows the lookup services to remain
      *         running and reachable

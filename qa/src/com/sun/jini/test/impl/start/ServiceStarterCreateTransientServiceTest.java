@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.start;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
@@ -29,7 +30,7 @@ import java.util.Arrays;
 import net.jini.event.EventMailbox;
 import net.jini.config.EmptyConfiguration;
 
-public class ServiceStarterCreateTransientServiceTest extends StarterBase {
+public class ServiceStarterCreateTransientServiceTest extends StarterBase implements Test {
     private static String[] serviceNames = {
 	"net.jini.core.lookup.ServiceRegistrar",
 	"net.jini.discovery.LookupDiscoveryService",
@@ -41,7 +42,7 @@ public class ServiceStarterCreateTransientServiceTest extends StarterBase {
     public void run() throws Exception {
         Object service = null;
 	for (int i=0; i < serviceNames.length; i++) {
-            service = manager.startService(serviceNames[i]);
+            service = getManager().startService(serviceNames[i]);
             logger.log(Level.INFO, "Created service:" + service );
 	}
         return;

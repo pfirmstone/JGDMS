@@ -28,6 +28,8 @@ import net.jini.core.lookup.ServiceItem;
 import java.util.ArrayList;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
+import java.util.List;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -58,14 +60,15 @@ public class Lookup extends AbstractBaseTest {
      *  4. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "single service lookup employing -- template";
-        logger.log(Level.FINE, "registering "+nServices
-                              +" service(s) each with "+nAttributes
+        logger.log(Level.FINE, "registering "+getnServices()
+                              +" service(s) each with "+getnAttributes()
                               +" attribute(s) ...");
-        registerServices(nServices,nAttributes);
-    }//end setup
+        registerServices(getnServices(), getnAttributes());
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
@@ -87,12 +90,12 @@ public class Lookup extends AbstractBaseTest {
             throw new TestException(" -- service component of "
                               +"returned service is null");
         } else {
-            for(int i=0;i<expectedServiceList.size();i++) {
-                if((srvcItem.service).equals(expectedServiceList.get(i))) {
+            for(int i=0;i<getExpectedServiceList().size();i++) {
+                if((srvcItem.service).equals(getExpectedServiceList().get(i))) {
 	            return;//passed
                 }//endif
             }//end loop (i)
-            displaySrvcInfoOnFailure(srvcItem,expectedServiceList);
+            displaySrvcInfoOnFailure(srvcItem, getExpectedServiceList());
             throw new TestException(" -- returned service item "
 				    +" is not equivalent to any of the "
 				    +"service(s) registered with lookup");
@@ -101,11 +104,11 @@ public class Lookup extends AbstractBaseTest {
 
     /** Convenience method that should be called when failure occurs. This
      *  method displays useful debug information about the given 
-     *  <code>ServiceItem</code> in relation to the <code>ArrayList</code>
+     *  <code>ServiceItem</code> in relation to the <code>List</code>
      *  containing the registered services.
      */
     protected void displaySrvcInfoOnFailure(ServiceItem srvcItem,
-                                            ArrayList srvcList)
+                                            List srvcList)
     {
         logger.log(Level.FINE, "returned service item "
                               +" is not equivalent to any of the "

@@ -41,7 +41,7 @@ import java.lang.reflect.InvocationTargetException;
 
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -51,7 +51,7 @@ import java.util.logging.Level;
  *  member class, and most methods, contained in this class is public 
  *  and static; this class does not need to be instantiated.
  *
- *  @see QATest
+ *  @see QATestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  */
 public class QATestUtils {

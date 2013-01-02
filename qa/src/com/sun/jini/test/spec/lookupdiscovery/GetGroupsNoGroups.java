@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.DiscoveryGroupManagement;
 
@@ -48,10 +49,11 @@ public class GetGroupsNoGroups extends GetGroups {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	groupsToDiscover = DiscoveryGroupManagement.NO_GROUPS;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class GetGroupsNoGroups
 

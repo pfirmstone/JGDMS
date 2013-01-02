@@ -21,10 +21,11 @@ package com.sun.jini.test.spec.io.marshalinputstream;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.AdminManager;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.spec.io.util.FakeMarshalInputStream;
 import com.sun.jini.test.spec.io.util.FakeObjectEndpoint;
@@ -104,14 +105,14 @@ import java.net.MalformedURLException;
  *        is thrown directly
  * </pre>
  */
-public class Resolve_LoadClassExceptionTest extends QATest {
+public class Resolve_LoadClassExceptionTest extends QATestEnvironment implements Test {
 
     QAConfig config;
     Object[][] cases;
     String interfaceName = "com.sun.jini.test.spec.io.util.FakeInterface";
     AdminManager manager;
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         this.config = (QAConfig) sysConfig;
         config.setDynamicParameter(
                 "qaClassServer.port",
@@ -158,6 +159,7 @@ public class Resolve_LoadClassExceptionTest extends QATest {
             {npe,    proxy, t, codebase},
             {ae,     proxy, t, codebase}
         };
+        return this;
     }
 
     /**

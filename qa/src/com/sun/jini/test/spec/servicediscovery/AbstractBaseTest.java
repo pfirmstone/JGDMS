@@ -25,6 +25,7 @@ import com.sun.jini.test.share.BaseQATest;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.share.DiscoveryServiceUtil;
 import com.sun.jini.test.share.GroupsUtil;
@@ -63,6 +64,7 @@ import java.rmi.RemoteException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Properties;
 
 import net.jini.config.ConfigurationException;
@@ -81,7 +83,7 @@ import net.jini.config.ConfigurationException;
  * in the various test classes that test the methods of the service
  * discovery manager that interact with a filter object.
  * <p>
- * This class provides an implementation of the <code>setup</code> method
+ * This class provides an implementation of the <code>construct</code> method
  * which performs standard functions related to the initialization of the
  * system state necessary to execute the test.
  *
@@ -381,7 +383,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
 
     protected String[] subCategories;
 
-    protected boolean createSDMInSetup = true;
+    protected boolean createSDMduringConstruction = true;
     protected boolean waitForLookupDiscovery = true;
 
     protected ServiceDiscoveryManager srvcDiscoveryMgr = null;
@@ -425,6 +427,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
         /* Construct the member groups with which to configure the
          * LookupDiscoveryManager utility
          */
+        List initLookupsToStart = getLookupServices().getInitLookupsToStart();
         String[] groupsToDiscover = toGroupsArray(initLookupsToStart);
         GroupsUtil.displayGroupSet(groupsToDiscover,"  groupsToDiscover",
                                   Level.FINE);
@@ -489,8 +492,8 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *    <li> constructs the template and filter to use for service discovery
      * </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
 	/* LeaseRenewalManager for services to be registered with lookup */
 	leaseRenewalMgr =
 	    new LeaseRenewalManager(sysConfig.getConfiguration());
@@ -498,8 +501,9 @@ abstract public class AbstractBaseTest extends BaseQATest {
 	setupDiscardWait();
         getSetupInfo();
 	mainListener = new LookupListener();
+        List initLookupsToStart = getLookupServices().getInitLookupsToStart();
 	mainListener.setLookupsToDiscover(initLookupsToStart);
-	if(createSDMInSetup) {
+	if(createSDMduringConstruction) {
 	    /* Construct the ServiceDiscoveryManager that will be tested */
 	    logger.log(Level.FINE, "constructing a service discovery manager");
 	    srvcDiscoveryMgr = new ServiceDiscoveryManager
@@ -513,7 +517,8 @@ abstract public class AbstractBaseTest extends BaseQATest {
 	template          = getServiceTemplate();
 	firstStageFilter  = getFirstStageFilter();
 	secondStageFilter = getSecondStageFilter();
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  
@@ -663,12 +668,12 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  attribute(s) based on the value of the given number of services
      *  and number of attributes.
      *
-     *  This method is not called in the setup() method of this class because
+     *  This method is not called in the construct() method of this class because
      *  there are tests (for example, tests for the blocking versions of
      *  lookup()) that do not wish to have services pre-registered. Such
      *  tests typically wish to have more control over when the services
      *  being looked up are registered with the various lookup services
-     *  started in setup().
+     *  started in construct().
      */
     protected void registerServices(int nSrvcs, int nAttrs) 
                                throws UnknownLeaseException, RemoteException
@@ -710,7 +715,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
                                throws UnknownLeaseException, RemoteException
                                                               
     {
-        ArrayList lusList = getLookupListSnapshot
+        List lusList = getLookupListSnapshot
                                         ("AbstractBaseTest.registerServices");
         /* Construct and register the expected service(s) */
         int begIndx = ( (startVal >= 0) ? startVal : 0 );
@@ -753,7 +758,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
                     testService = new TestService(srvcVal);
                     break;
             }//end switch(serviceType)
-            expectedServiceList.add( testService );
+            getExpectedServiceList().add( testService );
             /* Each test service is registered with at least one lookup. The
              * intent is to register some with all lookups, other services
              * with only some of the lookups. This is done so that when
@@ -845,10 +850,10 @@ abstract public class AbstractBaseTest extends BaseQATest {
             leaseRenewalMgr.cancel( (Lease)(leaseList.get(i)) );
         }//end loop
         leaseList.clear();
-        expectedServiceList.clear();
+        getExpectedServiceList().clear();
     }//end unregisterServices
 
-    /** Convenience method called by setup that configures the current test
+    /** Convenience method called by construct that configures the current test
      *  run with the appropriate timeout value for the service discard thread.
      *  These tests must also be configured to register a
      *  DiscardWaitOverrideProvider which will define a test override for
@@ -862,12 +867,12 @@ abstract public class AbstractBaseTest extends BaseQATest {
     /* Retrieves/stores/displays configuration values for the current test */
     private void getSetupInfo() {
         /* category/test-specific info */
-        if( (nServices+nAddServices) > 0) {
+        if( (getnServices()+getnAddServices()) > 0) {
             logger.log(Level.FINE, " ----- Category/Test Info ----- ");
 
             logger.log(Level.FINE,
                        " # of secs to wait for cache to populate  -- "
-                       +nSecsServiceDiscovery);
+                       +getnSecsServiceDiscovery());
 
             nSecsServiceEvent = getConfig().getIntConfigVal
                                          ("net.jini.lookup.nSecsServiceEvent",

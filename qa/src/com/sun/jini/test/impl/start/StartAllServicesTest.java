@@ -60,7 +60,7 @@ public class StartAllServicesTest extends AbstractStartBaseTest {
             Arrays.asList(services));
         Object serviceRef = null;
         for (int i=0; i < services.length; i++) {
-            serviceRef = manager.startService(services[i]);
+            serviceRef = getManager().startService(services[i]);
 	    logger.log(Level.INFO, "{0} ref: {1}", 
                 new Object[] { services[i], serviceRef });
 	}

@@ -26,6 +26,7 @@ import net.jini.core.entry.Entry;
 import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa
+import com.sun.jini.test.spec.javaspace.conformance.JavaSpaceTest;
 import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
 
 
@@ -38,7 +39,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * @author Mikhail A. Markov
  */
-public class SnapshotWriteNegativeLeaseTest extends SnapshotAbstractTestBase {
+public class SnapshotWriteNegativeLeaseTest extends JavaSpaceTest {
 
     /**
      * This method asserts, that we will get an IllegalArgumentException if the

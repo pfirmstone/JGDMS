@@ -32,12 +32,13 @@ import java.io.*;
 import java.rmi.*;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
  */
 public abstract class TxnManagerTest extends TestBase
-    implements TransactionConstants, TxnManagerTestOpcodes
+    implements TransactionConstants, TxnManagerTestOpcodes, Test
 {
     protected static final boolean DEBUG = true;
 
@@ -52,9 +53,10 @@ public abstract class TxnManagerTest extends TestBase
 	mgrs[0]= (TransactionManager)services[0]; // prepared by specifyServices
     }
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         super.parse();
+        return this;
     }
 
     /**

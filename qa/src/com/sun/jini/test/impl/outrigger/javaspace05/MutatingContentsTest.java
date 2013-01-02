@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.outrigger.javaspace05;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 // Test harness specific classes
@@ -53,7 +54,7 @@ import com.sun.jini.test.share.TestBase;
  * expected entries come back - making allowances for entries that
  * were added and removed during the course of the iteration.  
  */
-public class MutatingContentsTest extends TestBase {
+public class MutatingContentsTest extends TestBase implements Test {
     final private static String configNameBase = 
 	"com.sun.jini.test.impl.outrigger.javaspace05.MutatingContentsTest.";
 

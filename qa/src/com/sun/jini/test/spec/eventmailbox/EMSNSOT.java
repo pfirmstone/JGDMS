@@ -34,6 +34,7 @@ import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 
 import com.sun.jini.constants.TimeConstants;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.impl.mercury.EMSTestBase;
 import com.sun.jini.test.impl.mercury.TestUtils;
@@ -71,7 +72,7 @@ public class EMSNSOT extends EMSTestBase implements TimeConstants {
 
 	// Create an event generator and pass it the
 	// mailbox's remote event listener.
-	TestGenerator myGen = TestUtils.createGenerator(manager);
+	TestGenerator myGen = TestUtils.createGenerator(getManager());
 	EventRegistration evtReg = 
 	    myGen.register(EVENT_ID,	// Event ID to use
 			   null,		// handback
@@ -81,9 +82,9 @@ public class EMSNSOT extends EMSTestBase implements TimeConstants {
 	checkLease(tgl, DURATION1); 
 
 	// Create two listener objects
-	TestListener bad = TestUtils.createNSOListener(manager);
+	TestListener bad = TestUtils.createNSOListener(getManager());
 	int badCount = 0;
-	TestListener good = TestUtils.createListener(manager);
+	TestListener good = TestUtils.createListener(getManager());
 	int goodCount = 0;
 
 	// Generate some events from first generator
@@ -150,12 +151,13 @@ public class EMSNSOT extends EMSTestBase implements TimeConstants {
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	parse();
+        return this;
     }
 }

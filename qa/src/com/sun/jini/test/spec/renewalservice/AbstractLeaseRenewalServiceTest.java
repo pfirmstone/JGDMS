@@ -42,18 +42,19 @@ import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 // net.jini
+import com.sun.jini.qa.harness.Test;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.export.Exporter;
 
 /**
- * This class performs common setup tasks for all
+ * This class performs common construct tasks for all
  * LeaseRenewalServiceTests.
  */
-public abstract class AbstractLeaseRenewalServiceTest extends QATest {
+public abstract class AbstractLeaseRenewalServiceTest extends QATestEnvironment implements Test {
 
     /**
      * The test configuration object
@@ -78,10 +79,10 @@ public abstract class AbstractLeaseRenewalServiceTest extends QATest {
     /**
      * Sets up the testing environment.
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
 
        // mandatory call to parent
-       super.setup(config);
+       super.construct(config);
 
        testConfiguration = config.getConfiguration();
 	
@@ -110,8 +111,9 @@ public abstract class AbstractLeaseRenewalServiceTest extends QATest {
        // start each service as requested
        for (int i = 0; i < numLRS; i++) {
 	   logger.log(Level.FINE, "Starting LRS service #" + i);
-	   lrsServices.add(manager.startService(serviceName));
+	   lrsServices.add(getManager().startService(serviceName));
        }
+       return this;
     }
 
     /**
@@ -132,7 +134,7 @@ public abstract class AbstractLeaseRenewalServiceTest extends QATest {
      *          If index is greater than or equal to the number of LRS 
      *          proxy instances.
      * 
-     * @see    #setup(QAConfig)
+     * @see    #construct(QAConfig)
      */
     public LeaseRenewalService getLRS(int index) {
 
@@ -153,7 +155,7 @@ public abstract class AbstractLeaseRenewalServiceTest extends QATest {
      *          If index is greater than or equal to the number of LRS 
      *          proxy instances.
      * 
-     * @see    #setup(QAConfig)
+     * @see    #construct(QAConfig)
      */
     public LeaseRenewalService getLRS() {
 	return getLRS(0);

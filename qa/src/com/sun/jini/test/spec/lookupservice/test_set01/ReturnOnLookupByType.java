@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set01;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -83,8 +84,8 @@ public class ReturnOnLookupByType extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
         nClasses = super.getNTestClasses();
         nInstancesPerClass = super.getNInstancesPerClass();
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
@@ -96,6 +97,7 @@ public class ReturnOnLookupByType extends QATestRegistrar {
 	    Class[] classType = {c};
 	    tmpls[i] = new ServiceTemplate(null,classType,null);
 	}
+        return this;
     }
 
     /** Executes the current QA test.

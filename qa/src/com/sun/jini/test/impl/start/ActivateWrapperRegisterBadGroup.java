@@ -43,7 +43,7 @@ public class ActivateWrapperRegisterBadGroup extends AbstractStartBaseTest {
         logger.log(Level.INFO, "run()");
         ActivateDesc adesc = 
             ActivateWrapperTestUtil.getServiceActivateDesc(
-                    "net.jini.event.EventMailbox", config);
+                    "net.jini.event.EventMailbox", getConfig());
         logger.log(Level.INFO, "EventMailbox ActivateDesc = " + adesc);
 
         logger.log(Level.INFO, "Creating activation group");

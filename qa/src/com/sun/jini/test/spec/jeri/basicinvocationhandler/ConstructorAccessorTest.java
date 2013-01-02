@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicinvocationhandler;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.ObjectEndpoint;
@@ -84,10 +85,11 @@ import java.util.logging.Level;
  *    12) verify the get method return the appropriate values
  * </pre>
  */
-public class ConstructorAccessorTest extends QATest {
+public class ConstructorAccessorTest extends QATestEnvironment implements Test {
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

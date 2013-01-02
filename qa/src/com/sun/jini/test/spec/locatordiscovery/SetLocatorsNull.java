@@ -20,6 +20,7 @@ package com.sun.jini.test.spec.locatordiscovery;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>LookupLocatorDiscovery</code>
@@ -48,10 +49,11 @@ public class SetLocatorsNull extends SetLocatorsNullElement {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         nullLocs = null;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class SetLocatorsNull
 

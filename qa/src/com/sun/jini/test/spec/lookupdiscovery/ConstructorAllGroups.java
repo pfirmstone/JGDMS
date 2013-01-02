@@ -36,7 +36,7 @@ import net.jini.discovery.LookupDiscovery;
  *
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *   <li> one or more initial lookup services started during setup
+ *   <li> one or more initial lookup services started during construct
  *   <li> an instance of the lookup discovery utility constructed with
  *        a null parameter
  *   <li> one instance of DiscoveryListener registered with the lookup
@@ -70,7 +70,7 @@ public class ConstructorAllGroups extends AbstractBaseTest {
 				     getConfig().getConfiguration());
         lookupDiscoveryList.add(newLD);
         /* Verify discovery - set the expected groups to discover */
-        mainListener.setLookupsToDiscover(allLookupsToStart);
+        mainListener.setLookupsToDiscover(getAllLookupsToStart());
         /* Add the listener to the LookupDiscovery utility */
         newLD.addDiscoveryListener(mainListener);
         /* Wait for the discovery of the expected lookup service(s) */

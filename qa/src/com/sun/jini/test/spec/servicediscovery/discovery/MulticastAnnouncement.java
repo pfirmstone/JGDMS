@@ -30,17 +30,18 @@ import java.util.Vector;
 
 // Test harness packages
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 // net.jini
+import com.sun.jini.qa.harness.Test;
 import net.jini.discovery.IncomingMulticastAnnouncement;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.discovery.OutgoingMulticastAnnouncement;
 import net.jini.core.lookup.ServiceID;
 
 
-public class MulticastAnnouncement extends QATest {
+public class MulticastAnnouncement extends QATestEnvironment implements Test {
 
     private static String makeGroup(int length) {
         StringBuffer buf = new StringBuffer(length);

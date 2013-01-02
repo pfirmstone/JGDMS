@@ -20,9 +20,9 @@ package com.sun.jini.test.spec.url.httpmd.wrongmdexc;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
 import com.sun.jini.qa.harness.TestException;
@@ -69,7 +69,7 @@ import net.jini.url.httpmd.WrongMessageDigestException;
  *
  * </pre>
  */
-public class Constructor extends QATest {
+public class Constructor extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**
@@ -93,13 +93,14 @@ public class Constructor extends QATest {
      *                      {@link WrongMessageDigestException}
      * </pre>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /* Getting test parameter */
         originalMsg = config.getStringConfigVal("Constructor.Msg",
                 "My Message");
+        return this;
     }
 
     /**

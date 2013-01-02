@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set02;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -140,7 +141,7 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k;
         int transitionMask =   ServiceRegistrar.TRANSITION_MATCH_NOMATCH
                              | ServiceRegistrar.TRANSITION_NOMATCH_MATCH
@@ -165,7 +166,7 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
         QATestUtils.setLeaseDuration(sysConfig,maxNMsToWaitForEvents);
 
         /* create the lookup service */
-	super.setup(sysConfig);
+	super.construct(sysConfig);
         /* create the event handler */
 	listener = new Listener();
         /* load and create an initialized instance (non-null fields) of each
@@ -261,6 +262,7 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
 			     Long.MAX_VALUE);
 	    }
 	}
+        return this;
     }
 
     /** Executes the current QA test.
@@ -271,7 +273,7 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
      *       the "accumulation" vector with that information.
      *    2. Replaces (sets) all of the attributes belonging to the
      *       current service with the second set of attributes created 
-     *       during setup.
+     *       during construct.
      *    3. Verifies that the events expected are actually sent by the
      *       lookup service.
      *  @exception QATestException usually indicates test failure

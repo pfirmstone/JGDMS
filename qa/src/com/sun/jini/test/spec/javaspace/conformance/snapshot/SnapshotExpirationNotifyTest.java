@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.javaspace.conformance.snapshot;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 // net.jini
@@ -31,6 +32,7 @@ import com.sun.jini.qa.harness.TestException;
 // com.sun.jini.qa
 import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
 import com.sun.jini.test.spec.javaspace.conformance.NotifyCounter;
+import com.sun.jini.test.spec.javaspace.conformance.TransactionTest;
 
 
 /**
@@ -43,21 +45,7 @@ import com.sun.jini.test.spec.javaspace.conformance.NotifyCounter;
  *
  * @author Mikhail A. Markov
  */
-public class SnapshotExpirationNotifyTest extends SnapshotAbstractTestBase {
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param sysConfig QAConfig from the runner for setup.
-     */
-    public void setup(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
-
-        // mandatory call to parent
-        super.setup(sysConfig);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
+public class SnapshotExpirationNotifyTest extends TransactionTest {
 
     /**
      * This method asserts, that the request specified by a

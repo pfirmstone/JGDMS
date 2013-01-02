@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.AttributesUtil;
 
@@ -51,24 +52,25 @@ public class AddAttributesServiceControlled extends GetAttributes {
      *          input to the addAttributes method
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         if(newServiceAttrs == null) {
             newServiceAttrs = new Entry[3];
-            for(int i=0;i<nAttributes;i++) {
+            for(int i=0;i<getnAttributes();i++) {
                 newServiceAttrs[i] = new TestServiceIntAttr
-                                       (SERVICE_BASE_VALUE + nAttributes + i);
+                                       (SERVICE_BASE_VALUE + getnAttributes() + i);
             }//end loop
         }//endif
         /* Replace one of the attributes with a ServiceControlled attribute */
         if(newServiceAttrs.length > 1) {
             newServiceAttrs[1] = new ServiceControlledAttr
-                                       (SERVICE_BASE_VALUE + nAttributes + 1);
+                                       (SERVICE_BASE_VALUE + getnAttributes() + 1);
         } else {
             newServiceAttrs[0] = new ServiceControlledAttr
-                                       (SERVICE_BASE_VALUE + nAttributes);
+                                       (SERVICE_BASE_VALUE + getnAttributes());
         }//endif
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>

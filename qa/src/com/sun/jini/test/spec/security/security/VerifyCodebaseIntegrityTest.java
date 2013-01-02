@@ -30,7 +30,8 @@ import net.jini.security.Security;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.security.util.Util;
 import com.sun.jini.test.spec.security.util.BaseIntegrityVerifier;
 import com.sun.jini.test.spec.security.util.TrueIntegrityVerifier;
@@ -139,7 +140,7 @@ import com.sun.jini.test.spec.security.util.FakeClassLoader;
  *     21) assert that method will return normally
  * </pre>
  */
-public class VerifyCodebaseIntegrityTest extends QATest {
+public class VerifyCodebaseIntegrityTest extends QATestEnvironment implements Test {
 
     /** Resource name method */
     protected static String resName =

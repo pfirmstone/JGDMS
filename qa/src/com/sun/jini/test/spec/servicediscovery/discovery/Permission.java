@@ -20,11 +20,12 @@ package com.sun.jini.test.spec.servicediscovery.discovery;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import net.jini.discovery.DiscoveryPermission;
 import java.security.PermissionCollection;
 
-public class Permission extends QATest {
+public class Permission extends QATestEnvironment implements Test {
 
     public void run() throws Exception {
         check("foo", "foo", true);

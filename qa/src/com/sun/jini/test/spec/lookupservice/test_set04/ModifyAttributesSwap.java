@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set04;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -48,8 +49,8 @@ public class ModifyAttributesSwap extends QATestRegistrar {
     private Attr08 attr3;
     private Entry[] attrs;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 
 	attr0 = new Attr07();
 	attr0.setDefaults();
@@ -67,6 +68,7 @@ public class ModifyAttributesSwap extends QATestRegistrar {
 
 	reg = registerItem(new ServiceItem(null, new Long(0), attrs),
 			   getProxy());
+        return this;
     }
 
     public void run() throws Exception {

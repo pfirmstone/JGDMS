@@ -18,12 +18,14 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscovery</code> utility
@@ -70,16 +72,17 @@ public class MulticastMonitorReplace extends Discovered {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
-        nLookupsToReplace = genMap.size();//replace groups on all lookups
-    }//end setup
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        nLookupsToReplace = getGenMap().size();//replace groups on all lookups
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *    <li> verifies the lookup discovery mechanism is functional by
      *         using group discovery to discover the lookup services
-     *         started during setup
+     *         started during construct
      *    <li> replaces the member groups of each of the discovered lookup
      *         services with a new set that contains none of the elements
      *         from the set of groups the lookup discovery utility is
@@ -96,18 +99,18 @@ public class MulticastMonitorReplace extends Discovered {
          * maps to change until setLookupsToDiscover returns.
          */
         synchronized(listenerToUse) {
-            ArrayList locGroupsPairList = null;
+            List locGroupsPairList = null;
             /* Replace current groups with new groups to cause discards */
             if(replacementGroups == null) {//use unique generated groups
                 locGroupsPairList = replaceMemberGroups();
-            } else {//use groups preset in setup
+            } else {//use groups preset in construct
                 locGroupsPairList = replaceMemberGroups(nLookupsToReplace,
                                                         replacementGroups);
             }//endif
             /* Set the expected discard event info */
             listenerToUse.setLookupsToDiscover
                                      (locGroupsPairList,
-                                      toGroupsArray(initLookupsToStart));
+                                      toGroupsArray(getInitLookupsToStart()));
         }//end sync(listenerToUse)
         waitForDiscard(listenerToUse);
     }//end run

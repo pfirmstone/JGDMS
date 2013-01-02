@@ -18,6 +18,7 @@
 package com.sun.jini.test.impl.servicediscovery.event;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import com.sun.jini.test.spec.servicediscovery.AbstractBaseTest;
@@ -126,11 +127,14 @@ public class LookupDropProxyTaskRace extends AbstractBaseTest {
      *  3. Creates a template that will match the test service based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
 	// the next line used to be in the constructor. Don't see where
 	// this property is ever used
         System.setProperty( "sdm.testType", String.valueOf(thisTestType) );
-        super.setup(config);
+        super.construct(config);
+        int nLookupServices = getLookupServices().getnLookupServices();
+        int nServices = getLookupServices().getnServices();
+        int nAddServices = getLookupServices().getnAddServices();
         nAddedExpected   = nServices;
         nRemovedExpected = nAddedExpected;
         testDesc = ""+nLookupServices+" lookup service(s), "+nServices
@@ -142,7 +146,8 @@ public class LookupDropProxyTaskRace extends AbstractBaseTest {
                        +" serviceRemoved event(s)";
         ldm = (LookupDiscoveryManager)(srvcDiscoveryMgr.getDiscoveryManager());
         srvcListener = new SDMListener(config,"");
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
@@ -151,6 +156,9 @@ public class LookupDropProxyTaskRace extends AbstractBaseTest {
      *  3. Discard the lookup service to initiate the DropProxyRegTask
      */
     protected void applyTestDef() throws Exception {
+        int nLookupServices = getLookupServices().getnLookupServices();
+        int nServices = getLookupServices().getnServices();
+        int nAttributes = getLookupServices().getnAttributes();
 	logger.log(Level.FINE, "pre-register "+nServices
 		   +" service(s) with the "+nLookupServices+" lookup "
 		   +"service(s)");

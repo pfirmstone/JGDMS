@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.share;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 // Test harness specific classes
@@ -35,7 +36,7 @@ import net.jini.core.transaction.server.TransactionManager;
 /**
  * Base class for tests that thest JoinAdmin related functionality
  */
-public abstract class LookupTestBase extends TestBase {
+public abstract class LookupTestBase extends TestBase implements Test {
     protected Object    service;
     protected Object    admin;
 

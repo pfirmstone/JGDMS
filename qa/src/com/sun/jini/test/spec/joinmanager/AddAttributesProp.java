@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.AttributesUtil;
 
@@ -58,11 +59,12 @@ public class AddAttributesProp extends RegisterAttributes {
      *          the new set
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         newServiceAttrs = addAttrsWithDups(serviceAttrs,newServiceAttrs);
         expectedAttrs   = addAttrsAndRemoveDups(serviceAttrs,newServiceAttrs);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
@@ -83,7 +85,7 @@ public class AddAttributesProp extends RegisterAttributes {
 
         logger.log(Level.FINE, "verifying added attributes were "
                                   +"propagated to each lookup service ...");
-        verifyPropagation(expectedAttrs,nSecsJoin);
+        verifyPropagation(expectedAttrs, getnSecsJoin());
         logger.log(Level.FINE, "added attributes successfully propagated to "
                           +"all "+curLookupListSize("AddAttributesProp.run")
                           +" lookup service(s)");

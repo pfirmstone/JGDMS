@@ -32,6 +32,7 @@ import net.jini.lookup.ServiceDiscoveryManager;
 
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
@@ -70,11 +71,11 @@ public class AddListenerNPE extends AbstractBaseTest {
      *     no groups and no locators.
      *  2. Creates an instance of <code>ServiceDiscoveryManager</code>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        createSDMInSetup = false;
+    public Test construct(QAConfig sysConfig) throws Exception {
+        createSDMduringConstruction = false;
         waitForLookupDiscovery = false;
         terminateDelay = 0;
-        super.setup(sysConfig);
+        super.construct(sysConfig);
         testDesc = "NullPointerException should occur upon adding a null "
                    +"listener to a lookup cache";
         logger.log(Level.FINE, "constructing a service discovery manager");
@@ -88,7 +89,8 @@ public class AddListenerNPE extends AbstractBaseTest {
 					null,
 					sysConfig.getConfiguration());
         sdmList.add(srvcDiscoveryMgr);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  

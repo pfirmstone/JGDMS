@@ -19,11 +19,12 @@
 package com.sun.jini.test.spec.config.abstractconfiguration;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import com.sun.jini.test.spec.config.util.TestComponent;
@@ -294,7 +295,7 @@ import net.jini.config.AbstractConfiguration.Primitive;
  *       Repeat test for all primitive types.
  * </pre>
  */
-public class GetEntry_Test extends QATest {
+public class GetEntry_Test extends QATestEnvironment implements Test {
     /**
      * An object to point to method:
      *      public Object getEntry(String component, String name,

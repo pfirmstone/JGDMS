@@ -35,6 +35,7 @@ import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 public class RegDisableShutdownTest extends EMSTestBase implements TimeConstants {
@@ -84,7 +85,7 @@ public class RegDisableShutdownTest extends EMSTestBase implements TimeConstants
 
 	// Create an event generator and pass it the
 	// mailbox's remote event listener.
-	TestGenerator myGen = TestUtils.createGenerator(manager);
+	TestGenerator myGen = TestUtils.createGenerator(getManager());
 	EventRegistration evtReg = 
 	    myGen.register(EVENT_ID,	// Event ID to use
 			   null,		// handback
@@ -94,7 +95,7 @@ public class RegDisableShutdownTest extends EMSTestBase implements TimeConstants
 	checkLease(tgl, DURATION); 
 
 	// Create our target listener
-	TestListener listener = TestUtils.createListener(manager);
+	TestListener listener = TestUtils.createListener(getManager());
 	int evtCnt = 0;
 
 	logger.log(Level.INFO, "Generating an event" + listener);
@@ -127,12 +128,13 @@ public class RegDisableShutdownTest extends EMSTestBase implements TimeConstants
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	parse();
+        return this;
     }
 }

@@ -21,13 +21,14 @@ import java.util.logging.Level;
 import java.util.*;
 
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import net.jini.config.ConfigurationException;
 import com.sun.jini.start.ServiceStarter;
 import com.sun.jini.start.SharedGroup;
 import com.sun.jini.qa.harness.OverrideProvider;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.io.*;
 import java.rmi.*;
@@ -43,8 +44,9 @@ import net.jini.event.EventMailbox;
  
 public class MailboxImplReadyStateTest extends MailboxTestBase {
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
+        return this;
     }
 
     public void run() throws Exception {

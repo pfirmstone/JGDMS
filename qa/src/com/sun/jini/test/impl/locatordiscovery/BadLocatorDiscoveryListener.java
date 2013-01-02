@@ -63,18 +63,18 @@ public class BadLocatorDiscoveryListener extends AbstractBaseTest {
         /* Start the additional lookup services */
         startAddLookups();
         /* Verify discovery of the initial lookups */
-        doDiscovery(initLookupsToStart, mainListener);
+        doDiscovery(getLookupServices().getInitLookupsToStart(), mainListener);
         /*
          * Configure the listener's expected event state for the additional
          * lookup services
          */
         mainListener.clearAllEventInfo();
-        mainListener.setLookupsToDiscover(addLookupsToStart);
+        mainListener.setLookupsToDiscover(getLookupServices().getAddLookupsToStart());
         /*
          * Configure the lookup locator discovery utility to discover the
          * additional lookups
          */
-        LookupLocator[] locsToAdd = toLocatorArray(addLookupsToStart);
+        LookupLocator[] locsToAdd = toLocatorArray(getLookupServices().getAddLookupsToStart());
         locatorDiscovery.addLocators(locsToAdd);
         logger.log(Level.FINE, "added additional locators to "
                 + "lookup locator discovery --");

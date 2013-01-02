@@ -35,7 +35,8 @@ import net.jini.security.Security;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.security.util.FakeCaller;
 import com.sun.jini.test.spec.security.util.FakePrincipal;
 import com.sun.jini.test.spec.security.util.TestPrivilegedAction;
@@ -78,7 +79,7 @@ import com.sun.jini.test.spec.security.util.TestPrivilegedAction;
  *     13) assert that privileges will be enabled inside 'doPrivileged' method
  * </pre>
  */
-public class DoPrivilegedTest extends QATest {
+public class DoPrivilegedTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

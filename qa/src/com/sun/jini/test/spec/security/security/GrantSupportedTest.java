@@ -27,7 +27,8 @@ import net.jini.security.Security;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.security.util.BasePolicyProvider;
 import com.sun.jini.test.spec.security.util.TestDynamicPolicyProvider;
 
@@ -71,7 +72,7 @@ import com.sun.jini.test.spec.security.util.TestDynamicPolicyProvider;
  *     12) assert that true will be returned
  * </pre>
  */
-public class GrantSupportedTest extends QATest {
+public class GrantSupportedTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

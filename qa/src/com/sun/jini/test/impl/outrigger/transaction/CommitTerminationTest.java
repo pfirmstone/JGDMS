@@ -110,7 +110,7 @@ public class CommitTerminationTest extends TransactionTestBase {
         Entry gotEntry = new SimpleEntry();
 
         try {
-            gotEntry = ope.get(space, template, txn, 10000);
+            gotEntry = ope.get(getSpace(), template, txn, 10000);
             throw new TestException("get did not get a TransactionException");
         } catch (TransactionException e) {
         }

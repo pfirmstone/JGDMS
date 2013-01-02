@@ -17,11 +17,8 @@
  */
 package com.sun.jini.test.share;
 
-import java.util.logging.Level;
 
 // java.*
-import java.rmi.RMISecurityManager;
-import java.rmi.UnmarshalException;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.util.List;
@@ -43,25 +40,23 @@ import net.jini.lookup.DiscoveryAdmin;
 // com.sun.jini
 import com.sun.jini.outrigger.JavaSpaceAdmin;
 import com.sun.jini.outrigger.AdminIterator;
-import com.sun.jini.admin.DestroyAdmin;
 
-import com.sun.jini.qa.harness.Admin;
-import com.sun.jini.qa.harness.ActivatableServiceStarterAdmin;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.test.share.DiscoveryAdminUtil;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
- * Base class for spaces QA tests.  Provides convince functions for
+ * Base class for spaces QA tests.  Provides convenience functions for
  * logging failure, starting/finding and cleaning up the services under
  * test.  Also sets up a command line parser.
  * <p>
@@ -127,82 +122,91 @@ import net.jini.security.ProxyPreparer;
  * be used to let the test know if it should be testing the lookup
  * service or the JavaSpace.
  */
-public abstract class TestBase extends QATest {
-    DiscoveryAdmin admin = null;
+public abstract class TestBase extends QATestEnvironment {
+    volatile DiscoveryAdmin admin = null;
 
     /**
      * Holds instances to LRS proxy objects returned from StartService.
      */
-    private ArrayList startedServices = new ArrayList();
+    private final ArrayList startedServices = new ArrayList();//access using synchronized
 
     /** URL to find lookup, null if we are in standAlone mode */
-    protected LookupLocator locator = null;
+    protected volatile LookupLocator locator = null;
 
     /** Lookup groups to find lookup, null if we are in standAlone mode */
-    protected String groups[] = null;
+    protected volatile String groups[] = null;
 
     /**
      * Number of milliseconds to wait after cleaning up the services.
      */
-    protected long cleanupWait = 0;
+    protected volatile long cleanupWait = 0;
 
     /** True is we are in standalone mode */
-    protected boolean standAlone;
+    protected volatile boolean standAlone;
 
     /**
      * Flag that indicates we should try to scrub the services once we find them
      */
-    protected boolean scrub = false;
+    protected volatile boolean scrub = false;
 
     /** Flag that indicates we should not destroy on exit. */
-    protected boolean destroy = true;
+    protected volatile boolean destroy = true;
 
     /**
      * Class name to substitute for Administrable when looking/starting
      * services to test
      */
-    protected String administrableSubstitute = null;
+    protected volatile String administrableSubstitute = null;
 
     /**
      * Class name to substitute for JavaSpace when looking/starting
      * services to test
      */
-    protected String javaSpaceSubstitute = null;
+    protected volatile String javaSpaceSubstitute = null;
 
     /** List of leases to cancel during cleanup */
-    private List leaseList = new java.util.LinkedList();
+    private final List leaseList = new java.util.LinkedList();//access using synchronized
 
     /**
      * Set of services to test.  @see#specifyServices for details
+     * 
+     * Only updated while holding lock to startedServices.
      */
-    protected Object[] services;
+    protected volatile Object[] services;
 
     /**
      * True if we should be using lookup
      */
-    private boolean useLookup;
+    private volatile boolean useLookup;
 
     /**
      * If we kill a VM during the test the min time to wait before restart
      */
-    protected long minPostKillWait;
+    protected volatile long minPostKillWait;
 
     // Do we wait at the end
-    protected boolean waitAtEnd;
+    protected volatile boolean waitAtEnd;
 
     /**
      * the name of service for which these test are written
      */
     protected final String serviceName = "net.jini.lease.LeaseRenewalService";
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
 
         // output the name of this test
         logger.log(Level.FINE, "Test Name = " + this.getClass().getName());
 
         // set security manager
-        System.setSecurityManager(new RMISecurityManager());
+        System.setSecurityManager(new CombinerSecurityManager());
+        return new Test(){
+
+            public void run() throws Exception {
+                // do nothing
+            }
+            
+        };
     }
 
     protected void specifyServices(Class[] serviceClasses)
@@ -213,19 +217,20 @@ public abstract class TestBase extends QATest {
 
             if (useLookup) {
                 ServiceRegistrar lookupProxy =
-		    manager.startLookupService(); // prepared by util
+		    getManager().startLookupService(); // prepared by util
 		// prepared by DiscoveryAdminUtil
                 admin = DiscoveryAdminUtil.getDiscoveryAdmin(lookupProxy);
             }
 
             // Setup services
-            for (int i = 0; i < serviceClasses.length; i++) {
-                logger.log(Level.FINE, "Starting service #" + i + ": "
-                        + serviceClassNames[i]);
-                startedServices.add(manager.startService(serviceClassNames[i]));
+            synchronized (startedServices){
+                for (int i = 0; i < serviceClasses.length; i++) {
+                    logger.log(Level.FINE, "Starting service #" + i + ": "
+                            + serviceClassNames[i]);
+                    startedServices.add(getManager().startService(serviceClassNames[i]));
+                }
+                services = startedServices.toArray(new Object[startedServices.size()]);
             }
-            services = startedServices.toArray(new Object[] {});
-
             if (scrub) {
                 for (int i = 0; i < services.length; i++) {
                     if (services[i] instanceof JavaSpace) {
@@ -235,7 +240,7 @@ public abstract class TestBase extends QATest {
             }
         } catch (Exception ex) {
             ex.printStackTrace();
-            throw new TestException("Exception has been catched in"
+            throw new TestException("Exception has been caught in"
                     + " specifyServices: " + ex.getMessage());
         }
     }
@@ -321,7 +326,7 @@ public abstract class TestBase extends QATest {
     private long shutdownNoSleep(int index) throws Exception {
         Object o = services[index];
         try {
-	    if (!manager.killVM(o)) {
+	    if (!getManager().killVM(o)) {
 		logger.log(Level.SEVERE, "Could not call killVM for service " + o);
             } else {
 		// get delay in seconds
@@ -533,7 +538,11 @@ public abstract class TestBase extends QATest {
      * destroyed.  This will set its entry in the services array to null
      */
     protected void serviceDestroyed(int index) {
-        services[index] = null;
+        synchronized (startedServices){ //to avoid interleved write.
+            Object [] serv = services;
+            serv[index] = null;
+            services = serv; //guarantees change to volatile array is visible to other threads.
+        }
     }
 
     protected void parse() throws Exception {

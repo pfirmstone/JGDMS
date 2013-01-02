@@ -22,9 +22,9 @@ import java.util.logging.Level;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 // java.util.logging
@@ -91,7 +91,7 @@ import net.jini.loader.DownloadPermission;
  * </ol>
  *
  */
-public class Constructor extends QATest {
+public class Constructor extends QATestEnvironment implements Test {
 
     /** Symbolic name of default DownloadPermission object */
     private static final String DEFAULT_NAME = "permit";
@@ -102,16 +102,17 @@ public class Constructor extends QATest {
     /**
      * Sets up the testing environment.
      *
-     * @param sysConfig QAConfig from the runner for setup.
+     * @param sysConfig QAConfig from the runner for construct.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         // Set shared vm mode to be disabled in all cases
         ((QAConfig)
                 sysConfig).setDynamicParameter("com.sun.jini.qa.harness.shared",
                 "false");
 
         // mandatory call to parent
-        super.setup(sysConfig);
+        super.construct(sysConfig);
+        return this;
     }
 
     /**

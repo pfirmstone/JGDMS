@@ -37,7 +37,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class WriteLeaseFOREVERTest extends AbstractTestBase {
+public class WriteLeaseFOREVERTest extends JavaSpaceTest {
 
     /**
      * This method asserts that write with <code>Lease.FOREVER</code> lease time

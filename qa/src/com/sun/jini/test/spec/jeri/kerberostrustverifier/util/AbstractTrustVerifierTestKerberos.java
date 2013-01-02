@@ -19,12 +19,13 @@ package com.sun.jini.test.spec.jeri.kerberostrustverifier.util;
 
 //harness imports
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.LegacyTest;
 
 //java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Logger;
 
-public abstract class AbstractTrustVerifierTestKerberos implements Test {
+public abstract class AbstractTrustVerifierTestKerberos implements LegacyTest {
 
     protected static QAConfig sysConfig;
     protected static Logger log;
@@ -32,10 +33,11 @@ public abstract class AbstractTrustVerifierTestKerberos implements Test {
         + "jeri.kerberostrustverifier";
 
     //inherit javadoc
-    public void setup(QAConfig config) {
+    public Test construct(QAConfig config) {
         sysConfig = config;
         log = Logger.getLogger(
             "com.sun.jini.test.spec.jeri.kerberostrustverifier");
+        return this;
     }
 
     //inherit javadoc

@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.discovery.DiscoveryManagement;
@@ -31,7 +32,6 @@ import net.jini.lookup.JoinManager;
 
 import net.jini.core.discovery.LookupLocator;
 
-import java.util.ArrayList;
 
 /**
  * This class verifies that when <code>null</code> is input to the
@@ -60,8 +60,8 @@ public class LDMNullPublicGroup extends AbstractBaseTest {
      *          an instance of a test service and null to all other arguments
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         logger.log(Level.FINE, "creating a callback join manager ...");
         joinMgrCallback = new JoinManager(testService,serviceAttrs,callback,
                                           discoveryMgr,leaseMgr,
@@ -72,12 +72,13 @@ public class LDMNullPublicGroup extends AbstractBaseTest {
                                         discoveryMgr,leaseMgr,
 					sysConfig.getConfiguration());
         joinMgrList.add(joinMgrSrvcID);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
      *   For each instance of the <code>JoinManager</code> utility class
-     *   created during the setup process,
+     *   created during the construct process,
      *   <ul>
      *     <li> retrieves the instance of DiscoveryManagement being
      *          employed by the JoinManager

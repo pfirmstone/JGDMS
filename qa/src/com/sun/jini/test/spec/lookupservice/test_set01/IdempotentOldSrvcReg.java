@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set01;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -82,14 +83,15 @@ public class IdempotentOldSrvcReg extends QATestRegistrar {
      *  with its corresponding service item (this is so that when the service
      *  is re-registered, it is registered with that same service ID). 
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         ServiceItem[] srvcItems ;
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
 	ServiceRegistration[] srvcRegs = super.registerAll();
         for ( int i = 0; i < srvcItems.length; i++ ) {
             srvcItems[i].serviceID = srvcRegs[i].getServiceID();
 	}
+        return this;
     }
 
     /** Executes the current QA test.

@@ -20,6 +20,7 @@ package com.sun.jini.test.impl.servicediscovery.event;
 
 import com.sun.jini.test.spec.servicediscovery.AbstractBaseTest;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.DiscoveryServiceUtil;
 
@@ -137,22 +138,23 @@ public class NotifyEventDropProxyTaskRace extends AbstractBaseTest {
      *  3. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config)
+    public Test construct(QAConfig config)
                                                             throws Exception
     {
 	// from constructor, apparently never accessed
         System.setProperty( "sdm.testType", String.valueOf(thisTestType) );
-        super.setup(config);
-        nAddedExpected   = nAddServices;
+        super.construct(config);
+        nAddedExpected   = getnAddServices();
         nRemovedExpected = nAddedExpected;
         testServiceType  = AbstractBaseTest.TEST_SERVICE;
-        testDesc = ""+nLookupServices+" lookup service(s), "
-                       +(nServices+nAddServices)+" service(s), should receive "
+        testDesc = ""+getnLookupServices()+" lookup service(s), "
+                       +(getnServices()+getnAddServices())+" service(s), should receive "
                        +nAddedExpected+" serviceAdded and "+nRemovedExpected
                        +" serviceRemoved event(s)";
         ldm = (LookupDiscoveryManager)(srvcDiscoveryMgr.getDiscoveryManager());
         srvcListener = new SDMListener(config,"");
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
@@ -173,17 +175,17 @@ public class NotifyEventDropProxyTaskRace extends AbstractBaseTest {
 		       +" seconds for event registration to complete");
             DiscoveryServiceUtil.delayMS(nSecsRemoteCall*1000);
 	    /* kick off the NotifyEventTask/NewOldServiceTask combo */
-	    logger.log(Level.FINE, "wait over ... register "+nAddServices
+	    logger.log(Level.FINE, "wait over ... register "+getnAddServices()
 		       +" service to cause NOMATCH_MATCH to "
 		       +"initiate NotifyEventTask");
 	    registerServices
-		(nServices,nAddServices,nAttributes,testServiceType);
+		(getnServices(), getnAddServices(), getnAttributes(),testServiceType);
 	    logger.log(Level.FINE, "service registration call completed");
             logger.log(Level.FINE, 
-		       "wait "+nSecsServiceDiscovery+" seconds to allow "
+		       "wait "+getnSecsServiceDiscovery()+" seconds to allow "
 		       +"serviceAdded event(s) to arrive after service "
                        +"registration");
-            DiscoveryServiceUtil.delayMS(nSecsServiceDiscovery*1000);
+            DiscoveryServiceUtil.delayMS(getnSecsServiceDiscovery()*1000);
 	    logger.log(Level.FINE,
 		       "service(s) registered ... DISCARD lookup "
 		       +"service to initiate ProxyRegDropTask");

@@ -20,7 +20,7 @@ package com.sun.jini.test.spec.jeri.transport.kerberos;
 import java.util.logging.Level;
 
 //harness imports
-import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.LegacyTest;
 import com.sun.jini.qa.harness.TestException;
 
 //utility classes
@@ -46,8 +46,8 @@ public class KerberosWrapper extends AbstractEndpointTest {
         String wrappedTest = sysConfig
             .getStringConfigVal("jeri.transport.wrappedTest",null);
         Class c = Class.forName(wrappedTest);
-        final Test test = (Test) c.newInstance();
-        test.setup(sysConfig);
+        final LegacyTest test = (LegacyTest) c.newInstance();
+        test.construct(sysConfig);
         Subject.doAs(subject,
             new PrivilegedExceptionAction(){
                 public Object run() throws Exception {

@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicinvocationdispatcher;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.export.ExportPermission;
 import net.jini.core.constraint.InvocationConstraint;
@@ -131,7 +132,7 @@ import java.util.logging.Level;
  *    16) assert getClassLoader returns proper value
  * </pre>
  */
-public class ConstructorAccessorTest extends QATest {
+public class ConstructorAccessorTest extends QATestEnvironment implements Test {
 
     // fake Permission subclasses
     class DefaultConstructorPermission extends BasicPermission {
@@ -152,7 +153,7 @@ public class ConstructorAccessorTest extends QATest {
     Object[][] cases;
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         ArrayList noMethods = new ArrayList();
         ArrayList nullMethods = new ArrayList();
             nullMethods.add(null);
@@ -199,6 +200,7 @@ public class ConstructorAccessorTest extends QATest {
             {noMethods,   caps,  null, null,      null,  null},
             {noMethods,   caps,  null, null,      loader,null}
         };
+        return this;
     }
 
     // inherit javadoc

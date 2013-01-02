@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -40,7 +41,7 @@ import java.util.ArrayList;
  *
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *   <li> one or more initial lookup services started during setup
+ *   <li> one or more initial lookup services started during construct
  *   <li> an instance of the lookup discovery utility constructed
  *        using a set of groups in which at least 1 element duplicates
  *        at least 1 other element in the set
@@ -62,23 +63,24 @@ public class ConstructorDups extends AbstractBaseTest {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	/* Create a set of groups to discover that contain duplicates */
-	int len1 = allLookupsToStart.size();
+	int len1 = getAllLookupsToStart().size();
 	int len2 = 2*len1;
 	for(int i=0;i<len1;i++) {
 	    LocatorGroupsPair pair
-		= (LocatorGroupsPair)allLookupsToStart.get(i);
+		= (LocatorGroupsPair)getAllLookupsToStart().get(i);
 	    newLookups.add(i,pair);
 	}//end loop
 	for(int i=len1;i<len2;i++) {
 	    LocatorGroupsPair pair
-		= (LocatorGroupsPair)allLookupsToStart.get(i-len1);
+		= (LocatorGroupsPair)getAllLookupsToStart().get(i-len1);
 	    newLookups.add(i,pair);
 	}//end loop
 	dupGroups = toGroupsArray(newLookups);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>

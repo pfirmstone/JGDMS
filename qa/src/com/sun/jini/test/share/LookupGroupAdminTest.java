@@ -28,15 +28,17 @@ import java.rmi.*;
 import net.jini.admin.JoinAdmin;
 import java.util.Set;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 public class LookupGroupAdminTest extends LookupTestBase {
     private JoinAdmin joinAdmin;
     static final private String[] strarray = new String[0];
     private String[] originalState;
 
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	this.parse();
+        return this;
     }
 
     protected void checkGroups(Set groups, String op) throws RemoteException, TestException {

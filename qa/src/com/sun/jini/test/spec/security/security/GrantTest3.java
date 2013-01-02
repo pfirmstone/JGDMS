@@ -35,7 +35,8 @@ import net.jini.security.GrantPermission;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.security.util.BasePolicyProvider;
 import com.sun.jini.test.spec.security.util.TestDynamicPolicyProvider;
 import com.sun.jini.test.spec.security.util.FakePrincipal;
@@ -118,7 +119,7 @@ import com.sun.jini.test.spec.security.util.Util;
  *         only those permissions which current context is authorized to grant
  * </pre>
  */
-public class GrantTest3 extends QATest {
+public class GrantTest3 extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

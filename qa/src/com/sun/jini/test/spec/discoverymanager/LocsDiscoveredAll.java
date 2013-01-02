@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.discoverymanager;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>LookupDiscoveryManager</code> utility
@@ -54,11 +55,12 @@ public class LocsDiscoveredAll extends DiscoveredAll {
      *
      *  Retrieves additional configuration values. 
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
-        locatorsToDiscover = toLocatorsToDiscover(initLookupsToStart,
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
+        locatorsToDiscover = toLocatorsToDiscover(getInitLookupsToStart(),
                                                   AbstractBaseTest.ALL_BY_LOC);
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class LocsDiscoveredAll
 

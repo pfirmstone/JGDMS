@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.io.marshalledinstance;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.io.MarshalledInstance;
 
@@ -66,7 +67,7 @@ import java.util.logging.Level;
  *             equivalent to marshalObject
  * </pre>
  */
-public class ConvertToMarshalledObjectTest extends QATest {
+public class ConvertToMarshalledObjectTest extends QATestEnvironment implements Test {
 
     // test cases
     Object[][] cases = {
@@ -77,7 +78,8 @@ public class ConvertToMarshalledObjectTest extends QATest {
     };
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

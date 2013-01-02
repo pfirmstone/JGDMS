@@ -30,8 +30,9 @@ import java.security.Permission;
 import java.security.Policy;
 import java.security.PrivilegedAction;
 import net.jini.security.*;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /*
  * Permission key:
@@ -41,7 +42,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * RuntimePermission("C") -- granted to RestoreContext
  * AllPermission          -- granted to CheckContextAction
  */
-public class GetContextTest extends QATest {
+public class GetContextTest extends QATestEnvironment implements Test {
 
     public static volatile SecurityContext securityContext;
     public static final Permission[] passPermissions = {
@@ -58,8 +59,8 @@ public class GetContextTest extends QATest {
     private volatile String restoreContextJarFile;
     private volatile String checkContextActionJarFile;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
         getContextJarFile = sysConfig.getStringConfigVal("getContextJarFile",
                 sysConfig.getKitHomeDir() + File.separator
 		+ "lib" + File.separator
@@ -74,6 +75,7 @@ public class GetContextTest extends QATest {
                 sysConfig.getKitHomeDir() + File.separator
 		+ "lib" + File.separator
                 + "qa1-start-cb3.jar");
+        return this;
     }
 
     public void run() throws Exception {

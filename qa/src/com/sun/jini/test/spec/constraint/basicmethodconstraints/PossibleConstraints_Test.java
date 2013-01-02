@@ -18,11 +18,12 @@
 package com.sun.jini.test.spec.constraint.basicmethodconstraints;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.lang.reflect.Method;
 import java.util.Iterator;
 import java.util.logging.Logger;
@@ -81,7 +82,7 @@ import net.jini.core.constraint.InvocationConstraints;
  *        form. (the same as in p. 2)
  * </pre>
  */
-public class PossibleConstraints_Test extends QATest {
+public class PossibleConstraints_Test extends QATestEnvironment implements Test {
     public static class HaveFoundException extends Exception {};
 
     /**

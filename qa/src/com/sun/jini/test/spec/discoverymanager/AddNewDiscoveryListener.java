@@ -80,7 +80,7 @@ public class AddNewDiscoveryListener extends Discovered {
         super.run();
         logger.log(Level.FINE, "adding a new listener to the "
 		   +"lookup discovery manager ... ");
-        newListener.setLookupsToDiscover(initLookupsToStart,
+        newListener.setLookupsToDiscover(getInitLookupsToStart(),
                                          locatorsToDiscover,
                                          groupsToDiscover);
         discoveryMgr.addDiscoveryListener(newListener);

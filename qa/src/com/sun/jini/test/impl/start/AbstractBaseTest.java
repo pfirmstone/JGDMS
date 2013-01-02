@@ -25,13 +25,14 @@ import com.sun.jini.test.share.BaseQATest;
 import java.util.ArrayList;
 import java.util.Properties;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class is an abstract class that acts as the base class which
  * most, if not all, tests of the <code>ServiceStarter</code> utility
  * class should extend.
  * 
- * This class provides an implementation of the <code>setup</code> method
+ * This class provides an implementation of the <code>construct</code> method
  * which performs standard functions related to the initialization of the
  * system state necessary to execute the test.
  *
@@ -45,9 +46,10 @@ abstract public class AbstractBaseTest extends BaseQATest {
     /** Performs actions necessary to prepare for execution of the 
      *  current test
      */
-    public void setup(QAConfig  config) throws Exception {
+    public Test construct(QAConfig  config) throws Exception {
         delayLookupStart = true;
-        super.setup(config);
+        super.construct(config);
+        return this;
     }
 }
 

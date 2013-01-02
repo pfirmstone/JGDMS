@@ -32,6 +32,7 @@ import net.jini.discovery.LookupDiscoveryService;
 
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.AbstractServiceAdmin;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class determines whether or not the lookup discovery service can
@@ -55,15 +56,16 @@ public class GetStorageLocation extends AbstractBaseTest {
      *  tests's initial configuration, the location to which the service
      *  is expected to store its persistent state.
      */
-    public void setup(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
-        if (manager.getAdmin(discoverySrvc) == null) {
-	    return;
+    public Test construct(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        if (getManager().getAdmin(discoverySrvc) == null) {
+	    return this;
         }
-        expectedLocation = ((AbstractServiceAdmin) (manager.getAdmin(discoverySrvc))).getLogDir();
+        expectedLocation = ((AbstractServiceAdmin) (getManager().getAdmin(discoverySrvc))).getLogDir();
         logger.log(Level.FINE, ""
                           +": expectedLocation = "+expectedLocation);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  

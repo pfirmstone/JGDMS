@@ -24,7 +24,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 // java.io
@@ -174,7 +174,7 @@ public class IsPreferredClass extends AbstractTestBase {
     }
 
     /**
-     * Reset setup parameters by passing parameters and create
+     * Reset construct parameters by passing parameters and create
      * {@link QATestPreferredClassLoader}.
      * <br><br>
      * Then run the test case according <b>Test Description</b>
@@ -190,7 +190,7 @@ public class IsPreferredClass extends AbstractTestBase {
             throws TestException {
 
         /*
-         * Reset setup parameters by passing parameters.
+         * Reset construct parameters by passing parameters.
          */
         super.isHttp = isHttp;
         super.annotation = annotation;

@@ -23,7 +23,8 @@ import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.ObjectEndpoint;
 import net.jini.jeri.OutboundRequest;
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import java.rmi.Remote;
 import java.rmi.activation.ActivationID;
 import java.lang.reflect.Proxy;
@@ -64,7 +65,7 @@ import com.sun.jini.test.spec.activation.util.MethodSetProxy;
  *        d) assert the valid value is returned
  * </pre>
  */
-public class Invoke_MethodsWithActivationTest extends QATest {
+public class Invoke_MethodsWithActivationTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

@@ -19,7 +19,7 @@
 package com.sun.jini.test.share;
 
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 import net.jini.admin.Administrable;

@@ -27,6 +27,7 @@ import net.jini.core.event.EventRegistration;
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 
 /**
@@ -40,21 +41,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class NotifyNullTxnParamTest extends AbstractTestBase {
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param config Arguments from the runner for setup.
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
+public class NotifyNullTxnParamTest extends TransactionTest {
 
     /**
      * This method asserts, that:

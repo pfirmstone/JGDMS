@@ -27,7 +27,8 @@ import net.jini.security.AuthenticationPermission;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 
 
 /**
@@ -46,7 +47,7 @@ import com.sun.jini.qa.harness.QATest;
  *     3) assert that returned PermissionCollection is empty
  * </pre>
  */
-public class NewPermissionCollectionTest extends QATest {
+public class NewPermissionCollectionTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

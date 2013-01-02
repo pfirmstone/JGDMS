@@ -20,13 +20,14 @@ package com.sun.jini.test.impl.mahalo;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import net.jini.config.ConfigurationException;
 import com.sun.jini.start.ServiceStarter;
 import com.sun.jini.start.SharedGroup;
 import com.sun.jini.qa.harness.OverrideProvider;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.VMKiller;
 
 import java.io.*;
@@ -41,7 +42,7 @@ import net.jini.core.transaction.server.TransactionManager;
  * are not equal
  */
  
-public class TxnMgrImplNullRecoveredLocators extends QATest {
+public class TxnMgrImplNullRecoveredLocators extends QATestEnvironment implements Test {
 
     private static class OverrideGenerator implements OverrideProvider {
 
@@ -81,9 +82,10 @@ public class TxnMgrImplNullRecoveredLocators extends QATest {
 	}
     }
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
         sysConfig.addOverrideProvider(new OverrideGenerator());
+        return this;
     }
 
     public void run() throws Exception {
@@ -94,8 +96,8 @@ public class TxnMgrImplNullRecoveredLocators extends QATest {
 	    "net.jini.core.transaction.server.TransactionManager";
 	try {
 	    txn_mgr_proxy = 
-		(TransactionManager)manager.startService(serviceName); 
-	    if (!manager.killVM(txn_mgr_proxy)) {
+		(TransactionManager)getManager().startService(serviceName); 
+	    if (!getManager().killVM(txn_mgr_proxy)) {
 		logger.log(Level.INFO, "Could not kill " + serviceName);
 	    }
 

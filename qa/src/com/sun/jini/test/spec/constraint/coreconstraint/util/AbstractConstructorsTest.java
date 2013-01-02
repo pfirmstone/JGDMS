@@ -24,16 +24,17 @@ import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 
 /**
  * Abstract class to test constructors.
  */
-abstract public class AbstractConstructorsTest extends QATest {
+abstract public class AbstractConstructorsTest extends QATestEnvironment implements Test {
     protected QAConfig config;
 
     /**

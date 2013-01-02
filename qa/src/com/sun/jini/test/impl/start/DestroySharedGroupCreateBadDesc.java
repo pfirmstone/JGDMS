@@ -20,7 +20,7 @@ package com.sun.jini.test.impl.start;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.start.DestroySharedGroup;
 import com.sun.jini.start.ServiceDescriptor;
 import com.sun.jini.start.SharedActivatableServiceDescriptor;

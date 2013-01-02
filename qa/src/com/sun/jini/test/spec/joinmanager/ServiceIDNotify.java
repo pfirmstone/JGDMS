@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.lookup.JoinManager;
@@ -57,8 +58,8 @@ public class ServiceIDNotify extends AbstractBaseTest {
      *          previous step
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         logger.log(Level.FINE, "creating a callback join manager ...");
         callback = new SrvcIDListener(testService);
         joinMgrCallback = new JoinManager(testService,serviceAttrs,callback,
@@ -66,7 +67,8 @@ public class ServiceIDNotify extends AbstractBaseTest {
                                           leaseMgr,
 					  sysConfig.getConfiguration());
         joinMgrList.add(joinMgrCallback);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
@@ -79,8 +81,8 @@ public class ServiceIDNotify extends AbstractBaseTest {
         /* Verify that the lookups were discovered */
         logger.log(Level.FINE, "verifying the lookup "
                                         +"service(s) are discovered ...");
-        mainListener.setLookupsToDiscover(lookupsStarted,
-                                          toGroupsArray(lookupsStarted));
+        mainListener.setLookupsToDiscover(getLookupsStarted(),
+                                          toGroupsArray(getLookupsStarted()));
         waitForDiscovery(mainListener);
         verifyJoin(expectedNEvents);
     }//end run

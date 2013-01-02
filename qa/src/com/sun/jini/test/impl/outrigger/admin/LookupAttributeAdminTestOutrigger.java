@@ -21,6 +21,7 @@ package com.sun.jini.test.impl.outrigger.admin;
 import com.sun.jini.test.share.LookupAttributeAdminTest;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,11 +32,12 @@ import java.util.logging.Logger;
 public class LookupAttributeAdminTestOutrigger
         extends LookupAttributeAdminTest {
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
 
         // Log out test parameters.
         logger.log(Level.INFO, "tryShutdown = " + tryShutdown);
         logger.log(Level.INFO, "restart_wait = " + minPostKillWait);
+        return this;
     }
 }

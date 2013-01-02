@@ -20,9 +20,9 @@ package com.sun.jini.test.spec.url.httpmd.handler;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
 import com.sun.jini.qa.harness.TestException;
@@ -108,7 +108,7 @@ import com.sun.jini.test.spec.url.httpmd.util.TestHandler;
  *
  * </pre>
  */
-public class OpenConnection extends QATest {
+public class OpenConnection extends QATestEnvironment implements Test {
     QAConfig config;
     final static int BUFSIZE = 8;
 
@@ -165,8 +165,8 @@ public class OpenConnection extends QATest {
      *    testClassServer.port       - HTTP Server port number
      * </pre>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /*
@@ -223,6 +223,7 @@ public class OpenConnection extends QATest {
             getFileContents(classServerSrcDir + absfn);
             expectedResult = expectedFileContents;
         }
+        return this;
     }
 
     /**

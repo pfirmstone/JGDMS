@@ -26,6 +26,7 @@ import java.rmi.RemoteException;
 
 
 import com.sun.jini.constants.TimeConstants;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.TestBase;
 import net.jini.config.Configuration;
@@ -41,7 +42,7 @@ import net.jini.core.lease.LeaseDeniedException;
 
 
 
-public abstract class TxnMgrTestBase extends TestBase {
+public abstract class TxnMgrTestBase extends TestBase implements Test {
 
     protected void parse() throws Exception {
 	 super.parse();

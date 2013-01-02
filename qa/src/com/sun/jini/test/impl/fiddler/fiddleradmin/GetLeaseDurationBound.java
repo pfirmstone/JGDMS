@@ -31,6 +31,7 @@ import net.jini.discovery.LookupDiscoveryService;
 
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class determines whether or not the lookup discovery service can
@@ -49,12 +50,13 @@ public class GetLeaseDurationBound extends AbstractBaseTest {
      *  tests's configuration property file, the value of the lease duration
      *  bound with which the service is expected to be initially configured.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         expectedValue = 
 	    config.getLongConfigVal(serviceName + ".leasedurationbound", 0);
         logger.log(Level.FINE, "expectedValue = " + expectedValue);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  

@@ -25,6 +25,7 @@ import com.sun.jini.qa.harness.QAConfig;
 import java.rmi.RemoteException;
 
 import com.sun.jini.constants.TimeConstants;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.event.EventMailbox;
 import net.jini.event.MailboxRegistration;
@@ -105,12 +106,13 @@ public class EMSIFT extends MailboxTestBase implements TimeConstants {
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	parse();
+        return this;
     }
 }

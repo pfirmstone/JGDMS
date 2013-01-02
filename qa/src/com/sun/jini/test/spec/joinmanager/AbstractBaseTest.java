@@ -28,6 +28,7 @@ import com.sun.jini.test.share.LocatorsUtil;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.DiscoveryGroupManagement;
@@ -57,6 +58,8 @@ import java.rmi.RemoteException;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 import net.jini.config.ConfigurationException;
 
@@ -74,7 +77,7 @@ import net.jini.config.ConfigurationException;
  * in the various test classes that test the methods of the service
  * discovery manager that interact with a filter object.
  * <p>
- * This class provides an implementation of the <code>setup</code> method
+ * This class provides an implementation of the <code>construct</code> method
  * which performs standard functions related to the initialization of the
  * system state necessary to execute the test.
  *
@@ -262,23 +265,23 @@ abstract public class AbstractBaseTest extends BaseQATest {
 
     protected final static int SERVICE_BASE_VALUE = 667;
 
-    protected LookupDiscoveryManager discoveryMgr = null;
-    protected LeaseRenewalManager leaseMgr        = null;
+    protected volatile LookupDiscoveryManager discoveryMgr = null;
+    protected volatile LeaseRenewalManager leaseMgr        = null;
 
-    protected JoinManager joinMgrCallback         = null;
-    protected JoinManager joinMgrSrvcID           = null;
-    protected ArrayList   joinMgrList             = new ArrayList(1);
+    protected volatile JoinManager joinMgrCallback         = null;
+    protected volatile JoinManager joinMgrSrvcID           = null;
+    protected final List<JoinManager> joinMgrList          = new CopyOnWriteArrayList<JoinManager>();
 
-    protected LookupListener mainListener         = null;
+    protected volatile LookupListener mainListener         = null;
 
-    protected TestService testService    = new TestService(SERVICE_BASE_VALUE);
-    protected ServiceID serviceID        = new ServiceID(0,SERVICE_BASE_VALUE);
-    protected ServiceIDListener callback = null;
-    protected Entry[] serviceAttrs       = null;
-    protected Entry[] newServiceAttrs    = null;
-    protected Entry[] attrTmpls          = null;
-    protected ServiceTemplate template   = null;
-    protected HashMap srvcToNEvents = new HashMap(5);
+    protected final TestService testService    = new TestService(SERVICE_BASE_VALUE);
+    protected final ServiceID serviceID        = new ServiceID(0,SERVICE_BASE_VALUE);
+    protected volatile ServiceIDListener callback = null;
+    protected volatile Entry[] serviceAttrs       = null;
+    protected volatile Entry[] newServiceAttrs    = null;
+    protected volatile Entry[] attrTmpls          = null;
+    protected volatile ServiceTemplate template   = null;
+    protected final HashMap<Object,Integer> srvcToNEvents = new HashMap<Object,Integer>(5); //use synchronized to access.
 
     /** Constructs and returns the LookupDiscoveryManager to use when
      *  constructing a JoinManager (can be overridden by sub-classes)
@@ -286,14 +289,14 @@ abstract public class AbstractBaseTest extends BaseQATest {
     protected LookupDiscoveryManager getLookupDiscoveryManager()
                                                          throws IOException
     {
-        return getLookupDiscoveryManager(toGroupsArray(allLookupsToStart),
+        return getLookupDiscoveryManager(toGroupsArray(getAllLookupsToStart()),
                                          null);
     }//end getLookupDiscoveryManager
 
     protected LookupDiscoveryManager getLookupDiscoveryManager(QAConfig config)
                                                          throws IOException
     {
-        return getLookupDiscoveryManager(toGroupsArray(allLookupsToStart),
+        return getLookupDiscoveryManager(toGroupsArray(getAllLookupsToStart()),
                                          null, config);
     }//end getLookupDiscoveryManager
 
@@ -384,28 +387,29 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *    <li> creates a default listener for use with instances of JoinManager
      * </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
-        if(nAttributes > 0) {
-            serviceAttrs = new Entry[nAttributes];
-            attrTmpls    = new Entry[nAttributes];
-            for(int i=0;i<nAttributes;i++) {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        if(getnAttributes() > 0) {
+            serviceAttrs = new Entry[getnAttributes()];
+            attrTmpls    = new Entry[getnAttributes()];
+            for(int i=0;i<getnAttributes();i++) {
                serviceAttrs[i] = new TestServiceIntAttr
                                                      (SERVICE_BASE_VALUE + i);
                 attrTmpls[i] = new TestServiceIntAttr(SERVICE_BASE_VALUE + i);
             }//end loop
         }//endif
-        if(nAddAttributes > 0) {
-            if(nAttributes <= 0) serviceAttrs = new Entry[0];
-            newServiceAttrs = new Entry[nAddAttributes];
-            for(int i=0;i<nAddAttributes;i++) {
+        if(getnAddAttributes() > 0) {
+            if(getnAttributes() <= 0) serviceAttrs = new Entry[0];
+            newServiceAttrs = new Entry[getnAddAttributes()];
+            for(int i=0;i<getnAddAttributes();i++) {
                 newServiceAttrs[i] = new TestServiceIntAttr
-                                       (SERVICE_BASE_VALUE + nAttributes + i);
+                                       (SERVICE_BASE_VALUE + getnAttributes() + i);
             }//end loop
         }//endif
         template = getServiceTemplate();
         mainListener = new LookupListener();
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test
      */
@@ -465,20 +469,20 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  possibility that more events than expected may arrive.
      */
     protected void verifyJoin() throws Exception {
-        logger.log(Level.FINE, "waiting at least "+nSecsJoin
+        logger.log(Level.FINE, "waiting at least "+getnSecsJoin()
                                        +" seconds but no more than "
-                                       +(2*nSecsJoin)+" seconds for join ...");
+                                       +(2*getnSecsJoin())+" seconds for join ...");
         /* Wait at least nSecsJoin */
-        for(int i=0;i<nSecsJoin;i++) {
+        for(int i=0;i<getnSecsJoin();i++) {
             DiscoveryServiceUtil.delayMS(1000);
         }//end loop
         /* Wait no more than another nSecsJoin */
-        ArrayList lusList = getLookupListSnapshot
+        List lusList = getLookupListSnapshot
                                               ("AbstractBaseTest.verifyJoin");
-        ArrayList regList = new ArrayList(lusList.size());
+        List regList = new ArrayList(lusList.size());
         long T0 = System.currentTimeMillis();
         long deltaT = 0;
-        long maxT   = nSecsJoin * 1000; //work in milliseconds
+        long maxT   = getnSecsJoin() * 1000; //work in milliseconds
         while(deltaT < maxT) {
             for(int i=0;i<lusList.size();i++) {
                 ServiceRegistrar reg = (ServiceRegistrar)lusList.get(i);
@@ -518,7 +522,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
         verifyJoin();
         /* Wait no more than another nSecsJoin for the service ID events */
         int nEventsRcvd = 0;
-        for(int i=0;i<nSecsJoin;i++) {
+        for(int i=0;i<getnSecsJoin();i++) {
             synchronized(srvcToNEvents) {
                 if(srvcToNEvents.size() > 0) {
                     Integer objN = (Integer)srvcToNEvents.get(testService);
@@ -535,7 +539,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
             DiscoveryServiceUtil.delayMS(1000);
         }//end loop
         if(nEventsRcvd != nEventsExpected) {
-            throw new TestException("join failed -- waited "+nSecsJoin
+            throw new TestException("join failed -- waited "+getnSecsJoin()
                               +" seconds -- "+nEventsExpected
                               +" ServiceID event(s) expected, "+nEventsRcvd
                               +" ServiceID event(s) received");
@@ -545,9 +549,9 @@ abstract public class AbstractBaseTest extends BaseQATest {
                                         +nEventsRcvd
                                         +" ServiceID event(s) received");
         /* Retrieve and store the service's ID as stored in each lookup */
-        ArrayList lusList = getLookupListSnapshot
+        List lusList = getLookupListSnapshot
                                               ("AbstractBaseTest.verifyJoin");
-        ArrayList srvcIDs = new ArrayList(lusList.size());
+        List srvcIDs = new ArrayList(lusList.size());
         for(int i=0;i<lusList.size();i++) {
             ServiceRegistrar reg = (ServiceRegistrar)lusList.get(i);
 	    /* Verify 1 service registered with lookup service i */
@@ -593,7 +597,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
     protected void verifyAttrsInJoinMgr(JoinManager joinMgr, Entry[] attrs) 
 	throws Exception
     {
-        ArrayList lusList = getLookupListSnapshot
+        List lusList = getLookupListSnapshot
                                      ("AbstractBaseTest.verifyAttrsInJoinMgr");
         if(lusList.size() > 0) {
             verifyJoin(1);
@@ -645,7 +649,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
     protected void verifyPropagation(Entry[] attrs, int nSecsWait) 
 	throws Exception
     {
-        ArrayList lusList = getLookupListSnapshot
+        List lusList = getLookupListSnapshot
                                        ("AbstractBaseTest.verifyPropagation");
         if(lusList.size() > 0) {
             if(nSecsWait > 0) {
@@ -658,7 +662,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
                 DiscoveryServiceUtil.delayMS(1000);
             }//end loop
             /* Wait no more than another nSecsWait */
-            ArrayList regList = new ArrayList(lusList.size());
+            List regList = new ArrayList(lusList.size());
             for(int i=0;i<lusList.size();i++) {
                 regList.add(lusList.get(i));
             }//end loop

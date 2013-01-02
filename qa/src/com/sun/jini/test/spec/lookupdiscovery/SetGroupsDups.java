@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -36,7 +37,7 @@ import java.util.ArrayList;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *   <li> one or more lookup services, each belonging to a finite
- *        set of member groups, and each started during setup, before the
+ *        set of member groups, and each started during construct, before the
  *        test begins execution
  *   <li> one instance of the lookup discovery utility configured to discover
  *        the set of groups whose elements are the member groups of the
@@ -63,8 +64,8 @@ public class SetGroupsDups extends SetGroupsReplaceSome {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	int len1 = newGroupsToDiscover.length;
 	int len2 = 2*len1;
 	ArrayList dupGroupsList = new ArrayList(len2);
@@ -76,7 +77,8 @@ public class SetGroupsDups extends SetGroupsReplaceSome {
 	}//end loop
 	newGroupsToDiscover = (String[])(dupGroupsList).toArray
 	    (new String[dupGroupsList.size()]);
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class SetGroupsDups
 

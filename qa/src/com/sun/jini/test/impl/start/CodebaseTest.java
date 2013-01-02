@@ -51,15 +51,15 @@ public class CodebaseTest extends AbstractStartBaseTest {
         TestService service2 = null;
         logger.log(Level.FINE, "activating test service 1");
 	service1 = 
-		(TestService) manager.startService(propertyKey + "1");
+		(TestService) getManager().startService(propertyKey + "1");
         logger.log(Level.FINE, "activating test service 2");
 	service2 = 
-		(TestService) manager.startService(propertyKey + "2");
+		(TestService) getManager().startService(propertyKey + "2");
 
 	ActivatableServiceStarterAdmin admin1 = 
-	    (ActivatableServiceStarterAdmin) manager.getAdmin(service1);
+	    (ActivatableServiceStarterAdmin) getManager().getAdmin(service1);
 	ActivatableServiceStarterAdmin admin2 = 
-	    (ActivatableServiceStarterAdmin) manager.getAdmin(service2);
+	    (ActivatableServiceStarterAdmin) getManager().getAdmin(service2);
 
         if (!admin1.getGroupID().equals(admin2.getGroupID())) {
             throw new TestException("Test services have different "

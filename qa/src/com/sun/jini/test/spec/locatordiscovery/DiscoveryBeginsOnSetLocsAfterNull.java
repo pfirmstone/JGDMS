@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.locatordiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>LookupLocatorDiscovery</code> utility
@@ -28,7 +29,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * <p>
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *    <li> one or more initial lookup services started during setup
+ *    <li> one or more initial lookup services started during construct
  *    <li> an instance of the lookup locator discovery utility created by
  *         passing null to the constructor
  *    <li> one instance of DiscoveryListener registered with the lookup
@@ -38,7 +39,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * If the lookup locator discovery utility functions as specified, then the
  * listener will receive no events until the <code>setLocators</code> method
  * is called to re-configure the lookup locator discovery utility to discover
- * the lookup services started during setup.
+ * the lookup services started during construct.
  */
 public class DiscoveryBeginsOnSetLocsAfterNull
                                     extends DiscoveryBeginsOnAddLocsAfterNull
@@ -47,10 +48,11 @@ public class DiscoveryBeginsOnSetLocsAfterNull
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         addLocs = false;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class DiscoveryBeginsOnSetLocsAfterNull
 

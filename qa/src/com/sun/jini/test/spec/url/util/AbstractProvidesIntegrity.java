@@ -20,11 +20,12 @@ package com.sun.jini.test.spec.url.util;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 // java.util
@@ -44,7 +45,7 @@ import java.net.URL;
  * </pre>
  */
 
-public abstract class AbstractProvidesIntegrity extends QATest {
+public abstract class AbstractProvidesIntegrity extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**
@@ -55,9 +56,10 @@ public abstract class AbstractProvidesIntegrity extends QATest {
     /**
      * This method performs all preparations.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
+        return this;
     }
 
     /**

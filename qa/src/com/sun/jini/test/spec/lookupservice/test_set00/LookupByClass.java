@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -56,8 +57,8 @@ public class LookupByClass extends QATestRegistrar {
      *  which each element contains the class type of one of the registered
      *  services.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
         nClasses = super.getNTestClasses();
         nInstances = super.getNInstances();
         nInstancesPerClass = super.getNInstancesPerClass();
@@ -71,13 +72,14 @@ public class LookupByClass extends QATestRegistrar {
 	    exactClassTmpls[i] = new ServiceTemplate(null,
 						     exactClassType,null);
 	}
+        return this;
     }
 
     /** Executes the current QA test.
      *
      *  For each service registered:  
      *      Performs a match lookup using the corresponding template 
-     *      created during setup and then tests that the number of matches
+     *      created during construct and then tests that the number of matches
      *      found equals the number of matches expected; and that the set
      *      of objects returned equals the expected set of corresponding
      *      service items.

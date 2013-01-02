@@ -27,6 +27,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 import java.util.HashSet;
 
@@ -128,8 +129,8 @@ public class PreferencesRequirementsTest extends AbstractImmutableSetTest {
      * Creates {@link net.jini.core.constraint.InvocationConstraints} object
      * to be tested.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
         
         // Create InvocationConstraints object to be tested
@@ -149,6 +150,7 @@ public class PreferencesRequirementsTest extends AbstractImmutableSetTest {
             throw new TestException("Exception has been thrown while creating"
                     + " InvocationConstraints object", e);
         }
+        return this;
     }
 
     /**

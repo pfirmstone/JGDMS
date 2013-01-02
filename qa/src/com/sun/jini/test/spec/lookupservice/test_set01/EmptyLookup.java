@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set01;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -55,19 +56,20 @@ public class EmptyLookup extends QATestRegistrar {
      *  with all entries null, that will be used in a lookup; and that will 
      *  return all items registered.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
         /* add 1 to include the Registrar Service itself */
         expectedNMatches = 1+super.getNInstances();
 	ServiceItem[] srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
 	ServiceRegistration[] srvcRegs = super.registerAll();
 	proxy = super.getProxy();
 	tmpl = new ServiceTemplate(null,null,null);
+        return this;
     }
 
     /** Executes the current QA test.
      *
-     *  Performs a match lookup using the template created during setup and 
+     *  Performs a match lookup using the template created during construct and 
      *  zero maximum matches. Verifies that the expected number of services
      *  are returned by the call to lookup().
      */

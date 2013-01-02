@@ -17,9 +17,10 @@
  */
 package com.sun.jini.test.spec.jeri.basicinvocationhandler;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.spec.jeri.util.Util;
 import com.sun.jini.test.spec.jeri.util.FakeOutboundRequest;
@@ -39,7 +40,7 @@ import java.rmi.MarshalException;
 import java.rmi.RemoteException;
 import java.net.ProtocolException;
 
-public abstract class AbstractInvokeTest extends QATest {
+public abstract class AbstractInvokeTest extends QATestEnvironment implements Test {
     protected ByteArrayInputStream requestStream;
     protected int counter;
     protected long methodHash;
@@ -54,8 +55,8 @@ public abstract class AbstractInvokeTest extends QATest {
     }
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
-        // setup infrastructure needed by test
+    public Test construct(QAConfig sysConfig) throws Exception {
+        // construct infrastructure needed by test
         counter = 1;
 
         request = new FakeOutboundRequest();
@@ -72,6 +73,7 @@ public abstract class AbstractInvokeTest extends QATest {
 
         methodHash = Util.computeMethodHash(
             FakeInterface.class.getMethod("fakeMethod", null));
+        return this;
     }
 
     // inherit javadoc

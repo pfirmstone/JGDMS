@@ -25,9 +25,10 @@ import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -327,7 +328,7 @@ import net.jini.core.constraint.InvocationConstraint;
  *
  * </pre>
  */
-public class CreateTest extends QATest {
+public class CreateTest extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**

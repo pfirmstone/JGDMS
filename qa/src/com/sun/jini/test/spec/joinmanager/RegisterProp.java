@@ -51,15 +51,15 @@ public class RegisterProp extends Register {
         super.run();
 
         /* Stagger-start additional lookup services */
-        logger.log(Level.FINE, "starting "+nAddLookupServices
+        logger.log(Level.FINE, "starting "+getnAddLookupServices()
                           +" additional lookup service(s) ...");
         StaggeredStartThread lookupsThread =
-             new StaggeredStartThread(lookupsStarted.size(),allLookupsToStart);
+             new StaggeredStartThread(getLookupsStarted().size(), getAllLookupsToStart());
         lookupsThread.start();
         try {
             mainListener.clearAllEventInfo();
-            mainListener.setLookupsToDiscover(addLookupsToStart,
-                                             toGroupsArray(addLookupsToStart));
+            mainListener.setLookupsToDiscover(getAddLookupsToStart(),
+                                             toGroupsArray(getAddLookupsToStart()));
             waitForDiscovery(mainListener);
         } finally {
             /* If an exception occurred before the thread finished starting
@@ -78,7 +78,7 @@ public class RegisterProp extends Register {
                           +"service with each new lookup service ...");
         verifyJoin();
         logger.log(Level.FINE, "join manager successfully registered "
-                          +"TestService with all "+nAddLookupServices
+                          +"TestService with all "+getnAddLookupServices()
                           +" additional lookup service(s)");
     }//end run
 

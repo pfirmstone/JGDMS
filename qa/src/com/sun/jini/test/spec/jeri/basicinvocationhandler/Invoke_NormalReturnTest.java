@@ -122,7 +122,7 @@ public class Invoke_NormalReturnTest extends AbstractInvokeTest {
 
     // inherit javadoc
     public void run() throws Exception {
-        // setup infrastructure needed by test
+        // construct infrastructure needed by test
         request.setDeliveryStatusReturn(true);
         FakeInterface fi = (FakeInterface) Proxy.newProxyInstance(
             FakeInterface.class.getClassLoader(),

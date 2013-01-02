@@ -20,9 +20,9 @@ package com.sun.jini.test.spec.url.httpmd.handler;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
 import com.sun.jini.qa.harness.TestException;
@@ -96,7 +96,7 @@ import com.sun.jini.test.spec.url.httpmd.util.TestHandler;
  *
  * </pre>
  */
-public class HashCode extends QATest {
+public class HashCode extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**
@@ -142,8 +142,8 @@ public class HashCode extends QATest {
      *    &lt;TestCaseName&gt;.Url2 - String representation of 2-nd HTTPMD URL object
      * </pre>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /*
@@ -158,6 +158,7 @@ public class HashCode extends QATest {
 
         /* Creating TestHandler object */
         handler = new TestHandler();
+        return this;
     }
 
     /**

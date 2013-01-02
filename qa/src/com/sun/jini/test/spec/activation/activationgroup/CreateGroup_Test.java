@@ -18,7 +18,8 @@
 package com.sun.jini.test.spec.activation.activationgroup;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.spec.activation.util.FakeActivationGroup;
 import com.sun.jini.test.spec.activation.util.FakeActivationGroupID;
@@ -57,7 +58,7 @@ import java.util.Properties;
  *       5) verify instance of java.rmi.activation.ActivationGroup is created
  * </pre>
  */
-public class CreateGroup_Test extends QATest {
+public class CreateGroup_Test extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

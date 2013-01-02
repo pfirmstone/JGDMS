@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set02;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -52,8 +53,8 @@ public class ExpiredServiceLeaseRenew extends QATestRegistrar {
     private int nInstances = 0;
     private long leaseStartTime;  
     
-    public void setup(QAConfig sysConfig) throws Exception {
- 	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+ 	super.construct(sysConfig);
         nInstances = super.getNInstances();
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
 	proxy = super.getProxy();
@@ -63,6 +64,7 @@ public class ExpiredServiceLeaseRenew extends QATestRegistrar {
 	    srvcLeases[i] = getRegistrationLease(srvcRegs[i]);
 	}
 	leaseStartTime = QATestUtils.getCurTime();
+        return this;
     }
 
     /** Executes the current QA test. */

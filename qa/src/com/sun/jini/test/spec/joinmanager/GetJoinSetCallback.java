@@ -21,12 +21,14 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.lookup.JoinManager;
 import net.jini.core.lookup.ServiceRegistrar;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -61,8 +63,8 @@ public class GetJoinSetCallback extends AbstractBaseTest {
      *          the lookup services started in the previous step
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Discover & join lookups just started */
         String jmType = ( (callbackJM) ? "callback" : "service ID" );
         logger.log(Level.FINE, "creating a "+jmType+" join manager ...");
@@ -79,28 +81,28 @@ public class GetJoinSetCallback extends AbstractBaseTest {
             nServiceIDEventsExpected = 0;
         }//endif
         joinMgrList.add(jm);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
      *   Verifies that the set of lookup services returned by the method
      *   <code>getJoinSet</code> is the same as the set of lookup services
      *   with which the test service was registered by the join manager
-     *   created during setup.
+     *   created during construct.
      */
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");
 	/* Verify that the lookups were discovered */
 	logger.log(Level.FINE, "verifying the lookup "
 		   +"service(s) are discovered ...");
-	mainListener.setLookupsToDiscover(lookupsStarted,
-					  toGroupsArray(lookupsStarted));
+	mainListener.setLookupsToDiscover(getLookupsStarted(),
+					  toGroupsArray(getLookupsStarted()));
 	waitForDiscovery(mainListener);
 	verifyJoin();
 	joinRegs = jm.getJoinSet();
-	ArrayList lusList = getLookupListSnapshot("GetJoinSetCallback.run");
-	startedRegs = (ServiceRegistrar[])(lusList).toArray
-	    (new ServiceRegistrar[lusList.size()]);
+	List<ServiceRegistrar> lusList = getLookupListSnapshot("GetJoinSetCallback.run");
+	startedRegs = (lusList).toArray(new ServiceRegistrar[lusList.size()]);
 	logger.log(Level.FINE, "comparing the join set to the "
 		   +"set of lookup service(s) started ...");
 	if( !arraysEqual(joinRegs,startedRegs) ) {
@@ -120,7 +122,7 @@ public class GetJoinSetCallback extends AbstractBaseTest {
      *  stored in the <code>joinRegs</code> array, will return a new
      *  array that contains the the same lookup services as those
      *  with which the service was registered by the join manager
-     *  created during setup.
+     *  created during construct.
      *  
      *  This method will return <code>null</code> if there are no problems.
      *  If the <code>String</code> returned by this method is 

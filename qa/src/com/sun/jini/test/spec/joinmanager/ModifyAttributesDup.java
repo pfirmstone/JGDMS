@@ -20,6 +20,7 @@ package com.sun.jini.test.spec.joinmanager;
 
 import net.jini.core.entry.Entry;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -42,8 +43,8 @@ public class ModifyAttributesDup extends ModifyAttributesOne {
      *          intended change to the one element in the current set
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Construct template&attribute set duplicating 1 current attribute */
         Entry tmpEntry0 = attrTmpls[0];
         Entry tmpEntry1 = newServiceAttrs[0];
@@ -55,7 +56,8 @@ public class ModifyAttributesDup extends ModifyAttributesOne {
             newServiceAttrs[i] = new TestServiceIntAttr
                          (( ((TestServiceIntAttr)tmpEntry1).val).intValue());
         }//end loop
-    }//end setup
+        return this;
+    }//end construct
 
 } //end class ModifyAttributesDup
 

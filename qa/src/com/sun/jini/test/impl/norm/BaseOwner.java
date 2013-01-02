@@ -35,10 +35,8 @@ import java.util.logging.Logger;
  */
 abstract public class BaseOwner extends LeaseOwner {
 
-    protected static Logger logger = Logger.getLogger("com.sun.jini.qa.harness.test");
-
     /** String to be returned by <code>didPass</code> */
-    protected String rslt = null;
+    volatile protected String rslt = null;
 
     /** Max time we are will to grant on a renewal request */
     final private long maxExtension;
@@ -53,16 +51,16 @@ abstract public class BaseOwner extends LeaseOwner {
     final protected long slop;
 
     /** Current expiration time of lease */
-    protected long expiration;
+    volatile protected long expiration;
 
     /** Time of last renewal */
-    private long lastRenewal;
+    volatile private long lastRenewal;
 
     /** Object to notify if we fail */
-    private Object notifyOnFailure;
+    final private Object notifyOnFailure;
 
     /** In the context of a batch renew call the current time */
-    protected long now;
+    volatile protected long now;
 
     /** 
      * Simple constructor 

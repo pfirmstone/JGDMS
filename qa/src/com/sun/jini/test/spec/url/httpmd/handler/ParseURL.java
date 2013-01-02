@@ -20,9 +20,9 @@ package com.sun.jini.test.spec.url.httpmd.handler;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
 import com.sun.jini.qa.harness.TestException;
@@ -250,7 +250,7 @@ import java.net.URL;
  *
  * </pre>
  */
-public class ParseURL extends QATest {
+public class ParseURL extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**
@@ -297,8 +297,8 @@ public class ParseURL extends QATest {
      *                                    String representation)
      * </pre>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /* Getting test parameters and creating TestItem objects */
@@ -307,6 +307,7 @@ public class ParseURL extends QATest {
         for (int i = 0; i < tc_names.length; i++) {
             items.add(i, new TestItem(tc_names[i]));
         }
+        return this;
     }
 
     /**

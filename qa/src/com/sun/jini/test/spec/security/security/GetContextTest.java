@@ -33,7 +33,8 @@ import net.jini.security.SecurityContext;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.security.util.BasePolicyProvider;
 import com.sun.jini.test.spec.security.util.SCSPolicyProvider;
 import com.sun.jini.test.spec.security.util.SCSSecurityManager;
@@ -93,7 +94,7 @@ import com.sun.jini.test.spec.security.util.TestPrivilegedExceptionAction;
  *         'getContext' method of SCSSecurityManager
  * </pre>
  */
-public class GetContextTest extends QATest {
+public class GetContextTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

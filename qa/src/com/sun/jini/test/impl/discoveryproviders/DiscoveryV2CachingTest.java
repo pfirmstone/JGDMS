@@ -19,7 +19,7 @@
 package com.sun.jini.test.impl.discoveryproviders;
 //harness imports
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.LegacyTest;
 
 import java.lang.ref.Reference;
 import java.lang.ref.WeakReference;
@@ -29,15 +29,17 @@ import java.net.URL;
 import java.util.List;
 import java.util.LinkedList;
 import com.sun.jini.discovery.Discovery;
+import com.sun.jini.qa.harness.Test;
 
-// Need to refactor Test methods to an abstract base class if more tests are
+// Need to refactor LegacyTest methods to an abstract base class if more tests are
 // created in this category.
-public class DiscoveryV2CachingTest implements Test {
+public class DiscoveryV2CachingTest implements LegacyTest {
     protected static QAConfig sysConfig;
 
     //inherit javadoc
-    public void setup(QAConfig config) {
+    public Test construct(QAConfig config) {
         sysConfig = config;
+        return this;
     }
 
     //inherit javadoc
@@ -104,7 +106,7 @@ public class DiscoveryV2CachingTest implements Test {
      * mappings are not pinned unnecessarily.
      * 2. It ensures that discovery instances are garbage collected when
      * memory runs low.
-     * Test 1,2 throws java.lang.AssertionError on failure.
+     * LegacyTest 1,2 throws java.lang.AssertionError on failure.
      *
      */
     public void run() throws Exception {

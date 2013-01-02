@@ -67,6 +67,7 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class determines if, when a client's lease on a registration with the
@@ -199,14 +200,14 @@ public class LeaseExpiration extends AbstractBaseTest {
      *  Retrieve the set of group(s) with which the lookup service was started
      *  Create a handback object to help identify received discovery events
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         /* Start a lookup service */
         logger.log(Level.FINE, 
                           "starting a new lookup service");
         synchronized(eventLock) {
             eventReceived = false;
-            srvcReg = manager.startLookupService(); // already prepared
+            srvcReg = getManager().startLookupService(); // already prepared
             lookupList.add( srvcReg );
         }
         DiscoveryAdmin admin = DiscoveryAdminUtil.getDiscoveryAdmin(srvcReg);
@@ -218,13 +219,14 @@ public class LeaseExpiration extends AbstractBaseTest {
 		   +GroupsUtil.toCommaSeparatedStr(memberGroups));
 	handback = new MarshalledObject
                               (GroupsUtil.toCommaSeparatedStr(memberGroups));
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  
      *  1. Request a registration with the lookup discovery service started
-     *     during setup; requesting that the service discover lookup services
-     *     belonging to the group(s) used during setup to start the lookup
+     *     during construct; requesting that the service discover lookup services
+     *     belonging to the group(s) used during construct to start the lookup
      *     service 
      *  2. Pass the lease on the registration to a LeaseRenewalManager so
      *     the lease does not expire if the creation of the second lookup
@@ -234,7 +236,7 @@ public class LeaseExpiration extends AbstractBaseTest {
      *     (this is done to demonstrate that the event mechanism of the
      *     lookup discovery service is functioning properly)
      *  4. Start a second lookup service belonging to the same group(s) as
-     *     the lookup service started during setup
+     *     the lookup service started during construct
      *  5. Verify that the lookup discovery service sends another event
      *     announcing the discovery of a lookup service belonging to the
      *     group(s) used to start the lookup service just started (This is
@@ -251,7 +253,7 @@ public class LeaseExpiration extends AbstractBaseTest {
      *  7. Verify that the lease has indeed expired by attempting to renew
      *     the lease
      *  8. Start a third lookup service belonging to the same group(s) as
-     *     the lookup service started during setup
+     *     the lookup service started during construct
      *  9. Verify that the lookup discovery service does not send anymore
      *     discovery events to the registration's listener
      */
@@ -310,7 +312,7 @@ public class LeaseExpiration extends AbstractBaseTest {
                           "starting a new lookup service");
         synchronized(eventLock) {
             eventReceived = false;
-	    srvcReg = manager.startLookupService(); // prepared
+	    srvcReg = getManager().startLookupService(); // prepared
             lookupList.add( srvcReg );
         }//end synchronized
         // prepared by DiscoveryAdminUtil
@@ -380,7 +382,7 @@ public class LeaseExpiration extends AbstractBaseTest {
                           "starting a new lookup service");
         synchronized(eventLock) {
             eventReceived = false;
-	    srvcReg = manager.startLookupService(); // prepared
+	    srvcReg = getManager().startLookupService(); // prepared
             lookupList.add( srvcReg );
         }//end synchronized
 

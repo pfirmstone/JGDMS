@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.id.uuidfactory;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -63,7 +64,7 @@ import java.util.logging.Level;
  *        and assert the correct exception is thrown
  * </pre>
  */
-public class CreateGenerateTest extends QATest {
+public class CreateGenerateTest extends QATestEnvironment implements Test {
 
     long[][] cases1 = {
         { 0, 0 },
@@ -92,7 +93,8 @@ public class CreateGenerateTest extends QATest {
         "01234567-89ab-cdef-0123--56789ABCDEF"
     };
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     public void run() throws Exception {

@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -108,14 +109,14 @@ public class NotifyOnAttrDel extends QATestRegistrar {
      *  and the appropriate transition mask; along with a handback containing 
      *  the service ID . 
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 
         int i,j,k;
         ServiceID curSrvcID;
         EventRegistration[] evntRegs;
         int regTransitions =   ServiceRegistrar.TRANSITION_MATCH_MATCH
                              | ServiceRegistrar.TRANSITION_MATCH_NOMATCH;
-        super.setup(sysConfig);
+        super.construct(sysConfig);
 
 	logger.log(Level.FINE, "in setup() method.");
 
@@ -155,11 +156,12 @@ public class NotifyOnAttrDel extends QATestRegistrar {
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);
 	}
+        return this;
     }
 
     /** Executes the current QA test.
      *
-     *  For each service instance created during setup, deletes the attribute
+     *  For each service instance created during construct, deletes the attribute
      *  belonging to that service by modifying the attribute with the
      *  the corresponding null attribute from the second set. Waits a 
      *  configured amount of time to allow for all of the events to be 

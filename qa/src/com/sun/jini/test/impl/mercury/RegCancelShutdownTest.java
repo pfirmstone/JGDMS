@@ -27,6 +27,7 @@ import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 
 import com.sun.jini.constants.TimeConstants;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.event.EventMailbox;
 import net.jini.event.MailboxPullRegistration;
@@ -79,12 +80,13 @@ public class RegCancelShutdownTest extends EMSTestBase implements TimeConstants 
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	parse();
+        return this;
     }
 }

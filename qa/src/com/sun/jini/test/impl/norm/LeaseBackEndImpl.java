@@ -32,7 +32,7 @@ import net.jini.config.ConfigurationException;
 import net.jini.export.Exporter;
 import java.io.Serializable;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 import net.jini.export.Exporter;

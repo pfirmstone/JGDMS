@@ -27,7 +27,8 @@ import net.jini.security.AccessPermission;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.security.util.TestAccessPermission;
 
 
@@ -146,7 +147,7 @@ import com.sun.jini.test.spec.security.util.TestAccessPermission;
  *     63) assert that true will be returned
  * </pre>
  */
-public class EqualsTest extends QATest {
+public class EqualsTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

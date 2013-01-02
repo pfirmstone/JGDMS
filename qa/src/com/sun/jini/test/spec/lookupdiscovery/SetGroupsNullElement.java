@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>setGroups</code> method, this class verifies
@@ -45,14 +46,15 @@ public class SetGroupsNullElement extends AddGroupsNullElement {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	NPEStr = new String("NullPointerException on group replacement "
 			    +"as expected");
 	doStr = new String
 	    ("setting groups in lookup discovery to --");
 	doFlag = DO_SET;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class SetGroupsNullElement
 

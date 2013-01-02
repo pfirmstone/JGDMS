@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set03;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -93,9 +94,9 @@ public class SimpleModifyLookupAttributes extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 	/* create the lookup service */
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 	/* retrieve the proxy to the JoinAdmin methods */
 	adminProxy = (JoinAdmin) super.getAdminProxy();
 
@@ -137,6 +138,7 @@ public class SimpleModifyLookupAttributes extends QATestRegistrar {
         for(int i=initialAttrs.length,j=0;i<expectedModAttrs.length;i++,j++){
             expectedModAttrs[i] = modAttrs[j];
 	}
+        return this;
     }
 
     /** Executes the current QA test.
@@ -144,12 +146,12 @@ public class SimpleModifyLookupAttributes extends QATestRegistrar {
      *  Retrieves the initial set of attribute classes belonging to the
      *  Registrar and then verifies that this set contains the expected
      *  set of classes. Invokes addLookupAttributes() to add to the 
-     *  Registrar the set of attribute instances created in setup; and
+     *  Registrar the set of attribute instances created in construct; and
      *  then retrieves all attributes belonging to the Registrar and
      *  verifies that the retrieved set contains the expected classes.
      *  Invokes modifyLookupAttributes() to modify the first set of
      *  attributes added to the Registrar with the second set of attributes
-     *  created in setup; and then retrieves all attributes belonging to 
+     *  created in construct; and then retrieves all attributes belonging to 
      *  the Registrar and verifies that the retrieved set contains the
      *  expected classes.
      *  @exception QATestException usually indicates test failure
@@ -172,7 +174,7 @@ public class SimpleModifyLookupAttributes extends QATestRegistrar {
 	    }
 	}
 	/* invoke addLookupAttributes() to add to the Registrar the first 
-	 * set of attribute instances created in setup
+	 * set of attribute instances created in construct
 	 */
 	adminProxy.addLookupAttributes(addAttrs);
 	/* retrieve the current set of attribute classes belonging to the
@@ -193,7 +195,7 @@ public class SimpleModifyLookupAttributes extends QATestRegistrar {
 	}
 	/* invoke modifyLookupAttributes() to modify the first set of
 	 * attributes added to the Registrar with the second set of attributes
-	 * created in setup
+	 * created in construct
 	 */
 	adminProxy.modifyLookupAttributes(addAttrs,modAttrs);
 	/* retrieve the current set of attribute classes belonging to the

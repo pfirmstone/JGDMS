@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -114,13 +115,13 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
      *  and the appropriate transition mask; along with a callback containing 
      *  the service ID.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i;
         ServiceID curSrvcID;
 	EventRegistration[] evntRegs;
         int regTransitions =   ServiceRegistrar.TRANSITION_MATCH_MATCH
                              | ServiceRegistrar.TRANSITION_MATCH_NOMATCH;
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 
 	logger.log(Level.FINE, "in setup() method.");
 
@@ -142,6 +143,7 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);
 	}
+        return this;
     }
 
     /** Executes the current QA test.

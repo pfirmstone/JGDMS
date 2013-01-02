@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set01;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -92,7 +93,7 @@ public class ReturnOnLookupByTypeAttr extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k;
         int n;
         Entry[] attrs;
@@ -100,7 +101,7 @@ public class ReturnOnLookupByTypeAttr extends QATestRegistrar {
         /* change to n if you want to skip the first n attributes in the set */
         int attrStartIndx = 0; 
 
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 
         attrs = super.createAttributes(ATTR_CLASSES);
         nAttrs = super.getNAttrInstances();
@@ -131,6 +132,7 @@ public class ReturnOnLookupByTypeAttr extends QATestRegistrar {
 		k++;
 	    }
 	}
+        return this;
     }
 
     /** Executes the current QA test.

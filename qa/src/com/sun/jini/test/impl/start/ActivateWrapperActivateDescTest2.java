@@ -49,7 +49,7 @@ public class ActivateWrapperActivateDescTest2 extends AbstractStartBaseTest {
         MarshalledObject mo = new MarshalledObject(adesc);
     
         logger.log(Level.INFO, "Obtaining shared group info");
-        ActivationGroupID gid = TestUtil.loadSharedCreate(manager.getSharedVMLog());
+        ActivationGroupID gid = TestUtil.loadSharedCreate(getManager().getSharedVMLog());
     
         logger.log(Level.INFO, "Obtaining probe reference");
         ActivationID aid = 

@@ -24,9 +24,10 @@ import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 import java.util.HashSet;
 
@@ -112,7 +113,7 @@ import net.jini.core.constraint.ServerAuthentication;
  *
  * </pre>
  */
-public class CombineTest extends QATest {
+public class CombineTest extends QATestEnvironment implements Test {
     QAConfig config;
 
 
@@ -189,8 +190,8 @@ public class CombineTest extends QATest {
      * Creates {@link CombineTest.TestCase} objects for all test cases specified
      * in the class description.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         // Requirements
@@ -423,6 +424,7 @@ public class CombineTest extends QATest {
         // The expected InvocationConstraints object
         icExp = new InvocationConstraints(reqs, prefs);
         tc[9] = new TestCase(icArg1, icArg2, icExp);
+        return this;
     }
 
     /**

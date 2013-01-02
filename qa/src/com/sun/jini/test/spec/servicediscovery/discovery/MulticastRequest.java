@@ -30,15 +30,16 @@ import java.util.Vector;
 
 // Test harness imports
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 // net.jini
+import com.sun.jini.qa.harness.Test;
 import net.jini.discovery.OutgoingMulticastRequest;
 import net.jini.discovery.IncomingMulticastRequest;
 import net.jini.core.lookup.ServiceID;
 
 
-public class MulticastRequest extends QATest {
+public class MulticastRequest extends QATestEnvironment implements Test {
 
     private static String makeGroup(int length) {
         StringBuffer buf = new StringBuffer(length);

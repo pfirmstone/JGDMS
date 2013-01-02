@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set01;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -86,17 +87,18 @@ public class GetServiceTypesEmpty extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
 	srvcRegs = super.registerAll();
 	proxy = super.getProxy();
 	emptyTmpl = new ServiceTemplate(null,null,null);
+        return this;
     }
 
     /** Executes the current QA test.
      *
-     *  Using the empty ServiceTemplate created during setup, invokes the
+     *  Using the empty ServiceTemplate created during construct, invokes the
      *  method getServiceTypes(). Verifies that the set of class types returned
      *  matches the expected set of type descriptors.
      *  @exception QATestException usually indicates test failure

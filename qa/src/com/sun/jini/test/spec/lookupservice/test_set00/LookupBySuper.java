@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -63,12 +64,12 @@ public class LookupBySuper extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k;
         boolean exit_loop;
         int indx;
 
-	super.setup(sysConfig); 
+	super.construct(sysConfig); 
 
 	logger.log(Level.FINE, "in setup() method.");
 
@@ -102,6 +103,7 @@ public class LookupBySuper extends QATestRegistrar {
 		}
 	    }
 	}
+        return this;
     }
 
     /** Executes the current QA test.
@@ -109,7 +111,7 @@ public class LookupBySuper extends QATestRegistrar {
      *  For each registered service:  
      *     For each super class in the set of super classes:  
      *        Performs a match lookup using the corresponding template 
-     *        created during setup and then tests that the number of matches
+     *        created during construct and then tests that the number of matches
      *        found equals the number of matches expected; and that the set
      *        of objects returned equals the expected set of corresponding
      *        service items.

@@ -19,12 +19,13 @@ package com.sun.jini.test.spec.jeri.basicjeritrustverifier.util;
 
 //harness imports
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.LegacyTest;
 
 //java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Logger;
 
-public abstract class AbstractTrustVerifierTest implements Test {
+public abstract class AbstractTrustVerifierTest implements LegacyTest {
 
     protected static QAConfig sysConfig;
     protected static Logger log;
@@ -32,10 +33,11 @@ public abstract class AbstractTrustVerifierTest implements Test {
         + "jeri.basicjeritrustverifier";
 
     //inherit javadoc
-    public void setup(QAConfig config) {
+    public Test construct(QAConfig config) {
         sysConfig = config;
         log = Logger.getLogger(
             "com.sun.jini.test.spec.jeri.basicjeritrustverifier");
+        return this;
     }
 
     //inherit javadoc

@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set01;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -113,9 +114,9 @@ public class GetFieldValuesAttr extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         /* create the lookup service */
-	super.setup(sysConfig);
+	super.construct(sysConfig);
         /* retrieve the proxies to the lookup service */
 	proxy = super.getProxy();
         /* load each of the attribute classes and create an initialized
@@ -130,6 +131,7 @@ public class GetFieldValuesAttr extends QATestRegistrar {
          */
         srvcItem = super.createServiceItem(TEST_SRVC_CLASSES[0],0,attrEntries);
         srvcReg  = registerItem(srvcItem,Long.MAX_VALUE, proxy);
+        return this;
     }
 
     /** Performs actions necessary to prepare for execution of the 
@@ -138,7 +140,7 @@ public class GetFieldValuesAttr extends QATestRegistrar {
      *  For each attribute belonging to the service registered with lookup and
      *     for each field value of the attribute:
      *       1. Calls the method getFieldValues() inputting the template
-     *          created during setup.
+     *          created during construct.
      *       2. Verifies that getFieldValues() returns the expected results.
      *  @exception QATestException usually indicates test failure
      */

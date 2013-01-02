@@ -36,10 +36,10 @@ import net.jini.discovery.LookupDiscovery;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *    <li> one or more lookup services, each belonging to a finite set of
- *         member groups, and each started during setup, before the test
+ *         member groups, and each started during construct, before the test
  *         begins execution
  *    <li> one or more "initial" lookup services, each belonging to a finite
- *         set of member groups, and each started during setup, before the
+ *         set of member groups, and each started during construct, before the
  *         test begins execution
  *    <li> one or more "additional" lookup services, each belonging to a finite
  *         set of member groups, and each started after the listener has been
@@ -87,9 +87,9 @@ public class RemoveDiscoveryListener extends AbstractBaseTest {
          * instance configured to discover BOTH the initial and additional
          * lookup services to be started.
          */
-        String[] groupsToDiscover = toGroupsArray(allLookupsToStart);
-        String[] initialGroups    = toGroupsArray(initLookupsToStart);
-        String[] additionalGroups = toGroupsArray(addLookupsToStart);
+        String[] groupsToDiscover = toGroupsArray(getAllLookupsToStart());
+        String[] initialGroups    = toGroupsArray(getInitLookupsToStart());
+        String[] additionalGroups = toGroupsArray(getAddLookupsToStart());
         logger.log(Level.FINE,
                           "create LookupDiscovery to initially "
                           +"discover groups -- ");
@@ -111,13 +111,13 @@ public class RemoveDiscoveryListener extends AbstractBaseTest {
          */
         logger.log(Level.FINE,
                       "verifying discovery for initial listener ...");
-        mainListener.setLookupsToDiscover(initLookupsToStart);
+        mainListener.setLookupsToDiscover(getInitLookupsToStart());
         ld.addDiscoveryListener(mainListener);
         waitForDiscovery(mainListener);
 
         logger.log(Level.FINE,
                  "verifying discovery for listener to be removed ...");
-        newListener.setLookupsToDiscover(initLookupsToStart);
+        newListener.setLookupsToDiscover(getInitLookupsToStart());
         ld.addDiscoveryListener(newListener);
         waitForDiscovery(newListener);
 
@@ -154,7 +154,7 @@ public class RemoveDiscoveryListener extends AbstractBaseTest {
 
         logger.log(Level.FINE,
                           "verifying events are still being sent ...");
-        mainListener.setLookupsToDiscover(addLookupsToStart);
+        mainListener.setLookupsToDiscover(getAddLookupsToStart());
         waitForDiscovery(mainListener);
 
         logger.log(Level.FINE, "verifying removed listener "

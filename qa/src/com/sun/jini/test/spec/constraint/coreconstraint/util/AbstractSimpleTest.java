@@ -20,11 +20,12 @@ package com.sun.jini.test.spec.constraint.coreconstraint.util;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 // java.util
@@ -94,7 +95,7 @@ import net.jini.core.constraint.ServerMinPrincipal;
  *
  * </pre>
  */
-abstract public class AbstractSimpleTest extends QATest {
+abstract public class AbstractSimpleTest extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**

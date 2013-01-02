@@ -36,7 +36,8 @@ import net.jini.security.Security;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.security.util.FakeCaller;
 import com.sun.jini.test.spec.security.util.FakePrincipal;
 import com.sun.jini.test.spec.security.util.TestPrivilegedExceptionAction;
@@ -119,7 +120,7 @@ import com.sun.jini.test.spec.security.util.PEAThrowingUncheckedEx;
  *         PEAThrowingUncheckedEx
  * </pre>
  */
-public class DoPrivilegedExceptionTest extends QATest {
+public class DoPrivilegedExceptionTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

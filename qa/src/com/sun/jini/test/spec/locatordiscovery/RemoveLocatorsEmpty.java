@@ -58,7 +58,7 @@ public class RemoveLocatorsEmpty extends Discovered {
     /** Executes the current test by doing the following:
      * <p><ul>
      *     <li> verifies that the lookup locator discovery utility under test
-     *          discovers the lookup services that were started during setup
+     *          discovers the lookup services that were started during construct
      *     <li> re-configures the listener's expected event state to expect
      *          no more discarded events
      *     <li> removes the empty set from the set of locators with which the
@@ -74,7 +74,7 @@ public class RemoveLocatorsEmpty extends Discovered {
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");
         /* Verify discovery of the initial lookups */
-        doDiscovery(initLookupsToStart,mainListener);
+        doDiscovery(getInitLookupsToStart(),mainListener);
         mainListener.clearAllEventInfo();
         /* Remove the empty set */
         LookupLocator[] locsToRemove = new LookupLocator[0];

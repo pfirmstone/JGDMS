@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.outrigger.transaction;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 // Test harness specific classes
@@ -38,7 +39,7 @@ import com.sun.jini.test.share.TestBase;
  * the entry under the transaction, commits the transaction and then
  * checks to see if the entry is gone.
  */
-public class ReadTakeCommitTest extends TestBase {
+public class ReadTakeCommitTest extends TestBase implements Test {
 
     /** Space under test */
     protected JavaSpace space;

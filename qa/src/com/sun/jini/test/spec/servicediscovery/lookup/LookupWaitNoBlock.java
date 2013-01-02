@@ -25,6 +25,7 @@ import net.jini.core.lookup.ServiceItem;
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -72,10 +73,11 @@ public class LookupWaitNoBlock extends Lookup {
      *  4. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "single service lookup employing -- template, blocking";
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
@@ -93,7 +95,7 @@ public class LookupWaitNoBlock extends Lookup {
 	//XXX change from 2 to 20 to tolerate latencies when running secure
         long maxActualBlock = 20*1000;//immediate return = no greater than 2 sec
 	//to account for network delays
-        logger.log(Level.FINE, ""+expectedServiceList.size()
+        logger.log(Level.FINE, ""+getExpectedServiceList().size()
 		   +" service(s) "
 		   +"registered, look up exactly 1 service "
 		   +"-- blocking "+waitDurSecs+" second(s)");
@@ -116,14 +118,14 @@ public class LookupWaitNoBlock extends Lookup {
 				    +"returned service is null");
 	} else {
 	    boolean srvcOK = false;
-	    for(int i=0;i<expectedServiceList.size();i++) {
-		if((srvcItem.service).equals(expectedServiceList.get(i))) {
+	    for(int i=0;i<getExpectedServiceList().size();i++) {
+		if((srvcItem.service).equals(getExpectedServiceList().get(i))) {
 		    srvcOK = true;
 		    break;
 		}//endif
 	    }//end loop (i)
 	    if(!srvcOK) {
-		displaySrvcInfoOnFailure(srvcItem,expectedServiceList);
+		displaySrvcInfoOnFailure(srvcItem, getExpectedServiceList());
 		throw new TestException(" -- returned service item is not "
 					+"equivalent to any expected service");
 	    }//endif

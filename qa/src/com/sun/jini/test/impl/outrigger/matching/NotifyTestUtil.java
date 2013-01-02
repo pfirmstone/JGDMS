@@ -21,7 +21,7 @@ import java.util.logging.Level;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import java.io.PrintWriter;
 

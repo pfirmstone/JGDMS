@@ -20,9 +20,9 @@ package com.sun.jini.test.spec.url.httpmd.wrongmdexc;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
 import com.sun.jini.qa.harness.TestException;
@@ -76,7 +76,7 @@ import java.io.IOException;
  *
  * </pre>
  */
-public class WrongMDException extends QATest {
+public class WrongMDException extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**
@@ -99,13 +99,14 @@ public class WrongMDException extends QATest {
      *    testClassServer.port    - HTTP Server port number
      * </pre>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /* Getting test parameters */
         filename = config.getStringConfigVal("WrongMDException.File", null);
         classServerPort = config.getIntConfigVal("testClassServer.port", 0);
+        return this;
     }
 
     /**

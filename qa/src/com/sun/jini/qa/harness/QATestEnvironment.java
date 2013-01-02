@@ -28,6 +28,8 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
@@ -36,30 +38,29 @@ import net.jini.core.lease.UnknownLeaseException;
 
 /**
  * A base class for tests to be run by the harness.
- * It partially implements the <code>com.sun.jini.qa.harness.Test</code> interface.
- * Minimal implementations for <code>setup</code> and <code>teardown</code>
+ * It implements the <code>com.sun.jini.qa.harness.TestEnvironment</code> interface.
+ * Minimal implementations for <code>construct</code> and <code>teardown</code>
  * are provided. Subclasses of this class are responsible for implementing
- * the <code>run</code> method, and may override
- * <code>setup</code> and <code>teardown</code> to add test specific
+ * the <code>com.sun.jini.qa.harness.Test</code> interface <code>run</code> method, and may override
+ * <code>construct</code> and <code>teardown</code> to add test specific
  * initialization and cleanup operations.
  * <p>
  * A protected <code>logger</code> is instantiated by this class for use
  * by subclasses, with the logger name <code>com.sun.jini.qa.harness.test</code>.
  */
-public abstract class QATest implements Test {
+public abstract class QATestEnvironment implements TestEnvironment {
 
     /** the logger */
     protected static final Logger logger = 
 	Logger.getLogger("com.sun.jini.qa.harness");
 
     /** Keeps track of leases for automatic cancellation when test ends. */
-    private final Collection<Lease> leaseArray = new ArrayList<Lease>();
-
+    private final Collection<Lease> leaseArray = new ArrayList<Lease>();//access must be synchronized
     /** The admin manager for managing services */
-    protected volatile AdminManager manager;
+    private volatile AdminManager manager;
 
     /** The config object for accessing the test environment */
-    protected volatile QAConfig config;
+    private volatile QAConfig config;
 
     /** 
      * Mostly mimics the behavior of the assert keyword. 
@@ -105,7 +106,7 @@ public abstract class QATest implements Test {
     /**
      * This method is called by the <code>MasterTest</code> immediately before
      * the run method is called. Override this method to implement test specific
-     * setup code.  This method:
+     * construct code.  This method:
      * <ul>
      *   <li>saves a reference to <code>config</code>
      *   <li>starts the class server identified by the 
@@ -120,11 +121,11 @@ public abstract class QATest implements Test {
      * <P>
      * In the majority of cases this method will be overridden. The first action
      * taken by the method should be a call to
-     * <code>super.setup(sysConfig)</code>.
+     * <code>super.construct(sysConfig)</code>.
      * 
-     * @throws Exception if any failure occurs during setup  
+     * @throws Exception if any failure occurs during construct  
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
 	int delayTime = 
 	    config.getIntConfigVal("com.sun.jini.qa.harness.startDelay", 0);
 	if (delayTime > 0) {
@@ -138,14 +139,14 @@ public abstract class QATest implements Test {
 	if (config.getBooleanConfigVal("com.sun.jini.qa.harness.runkitserver", 
 				       true)) 
 	{
-	    manager.startService("qaClassServer");
+	    getManager().startService("qaClassServer");
 	    SlaveRequest request = new StartClassServerRequest("qaClassServer");
 	    SlaveTest.broadcast(request);
 	}
 	if (config.getBooleanConfigVal("com.sun.jini.qa.harness.runjiniserver", 
 				       true)) 
 	{
-	    manager.startService("jiniClassServer");
+	    getManager().startService("jiniClassServer");
 	    SlaveRequest request = 
 		new StartClassServerRequest("jiniClassServer");
 	    SlaveTest.broadcast(request);
@@ -154,11 +155,18 @@ public abstract class QATest implements Test {
 	    config.getStringConfigVal("com.sun.jini.qa.harness.testClassServer",
 				      "");
 	if (testClassServer.trim().length() > 0) {
-	    manager.startService("testClassServer");
+	    getManager().startService("testClassServer");
 	    SlaveRequest request = 
 		new StartClassServerRequest(testClassServer);
 	    SlaveTest.broadcast(request);
 	}
+        return new Test(){
+
+            public void run() throws Exception {
+                // Do nothing
+            }
+            
+        };
     }
 
     /**
@@ -176,11 +184,11 @@ public abstract class QATest implements Test {
      */
     public void tearDown() {
 	cancelTrackedLeases();
-	if (manager != null) { // null if test didn't call super.setup
+	if (getManager() != null) { // null if test didn't call super.construct
 	    try {
 		logger.log(Level.FINE, 
 			   "Destroying remaining managed services");
-		manager.destroyAllServices();
+		getManager().destroyAllServices();
 	    } catch (Exception ex) {
 		logger.log(Level.INFO, 
 			   "Unexpected exception while cleaning up services",
@@ -196,7 +204,9 @@ public abstract class QATest implements Test {
      * @param lease the Lease to add to the tracking array
      */
     public void trackLease(Lease lease) {
-	leaseArray.add(lease);
+        synchronized (leaseArray){
+            leaseArray.add(lease);
+        }
     }
 
     /**
@@ -207,9 +217,16 @@ public abstract class QATest implements Test {
      * leases are discarded.
      */
     public void cancelTrackedLeases() {
-	Iterator iter = leaseArray.iterator();
+        // copy leaseArray to avoid calling remote method while synchronized.
+        Collection<Lease> cancel;
+        synchronized (leaseArray){
+            cancel = new ArrayList<Lease>(leaseArray.size());
+            cancel.addAll(leaseArray);
+            leaseArray.clear();
+        }
+	Iterator<Lease> iter = cancel.iterator();
 	while (iter.hasNext()) {
-	   Lease lease = (Lease) iter.next();
+	   Lease lease = iter.next();
 	   try {
 	       lease.cancel();
 	   } catch (UnknownLeaseException ignore) {
@@ -217,12 +234,11 @@ public abstract class QATest implements Test {
 	       logger.log(Level.INFO, "Failed to cancel lease", ex);
 	   }
 	}
-	leaseArray.clear();
     }
 
     // delay is done here in case multiple groups are present
     public void forceThreadDump() {
-	Iterator it = manager.iterator();
+	Iterator it = getManager().iterator();
 	while (it.hasNext()) {
 	    Object admin = it.next();
 	    if (admin instanceof NonActivatableGroupAdmin) {
@@ -235,4 +251,12 @@ public abstract class QATest implements Test {
 	    }
 	}
     }
+
+    /**
+     * @return the manager
+     */
+    protected AdminManager getManager() {
+            return manager;
+    }
+
 }

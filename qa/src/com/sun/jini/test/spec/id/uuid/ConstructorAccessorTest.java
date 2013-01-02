@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.id.uuid;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.id.Uuid;
 
@@ -62,7 +63,7 @@ import com.sun.jini.test.spec.id.util.FakeUuid;
  *        return the correct values
  * </pre>
  */
-public class ConstructorAccessorTest extends QATest {
+public class ConstructorAccessorTest extends QATestEnvironment implements Test {
 
     class FakeUuidExternalizable extends Uuid implements Externalizable {
         public FakeUuidExternalizable(long bits0, long bits1) {
@@ -73,7 +74,8 @@ public class ConstructorAccessorTest extends QATest {
             throws IOException, ClassNotFoundException { }
     }
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     public void run() throws Exception {

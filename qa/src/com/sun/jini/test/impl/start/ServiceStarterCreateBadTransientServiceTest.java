@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.start;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
@@ -32,7 +33,7 @@ import java.io.FileWriter;
 import java.util.Arrays;
 import java.security.AccessControlException;
 
-public class ServiceStarterCreateBadTransientServiceTest extends StarterBase {
+public class ServiceStarterCreateBadTransientServiceTest extends StarterBase implements Test {
     public static File getServiceConfigFile() throws Exception {
         File config = File.createTempFile("Mercury", ".config");
 	config.deleteOnExit();

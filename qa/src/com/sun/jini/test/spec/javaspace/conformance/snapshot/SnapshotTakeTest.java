@@ -40,7 +40,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * @author Mikhail A. Markov
  */
-public class SnapshotTakeTest extends SnapshotAbstractTakeTestBase {
+public class SnapshotTakeTest extends SnapshotTakeTestBase {
 
     /**
      * This method asserts that for take with timeouts other then NO_WAIT:

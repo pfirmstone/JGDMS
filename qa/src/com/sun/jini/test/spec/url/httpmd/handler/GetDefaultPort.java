@@ -20,9 +20,9 @@ package com.sun.jini.test.spec.url.httpmd.handler;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
 import com.sun.jini.qa.harness.TestException;
@@ -96,7 +96,7 @@ import java.net.URL;
  *
  * </pre>
  */
-public class GetDefaultPort extends QATest {
+public class GetDefaultPort extends QATestEnvironment implements Test {
     QAConfig config;
 
     /** HTTPMD URL object */
@@ -125,8 +125,8 @@ public class GetDefaultPort extends QATest {
      *    &lt;TestCaseName&gt;.Port - port number of HTTPMD URL object
      * </pre>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /* Getting test parameters */
@@ -138,6 +138,7 @@ public class GetDefaultPort extends QATest {
                     new Integer(config.getIntConfigVal(testCases[i] + ".Port",
                     - 1)));
         }
+        return this;
     }
 
     /**

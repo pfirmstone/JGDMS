@@ -44,7 +44,7 @@ public class ActivateWrapperRegisterBadStubCodebase extends AbstractStartBaseTes
 	try { 
             net.jini.event.EventMailbox mailbox =
 		    (net.jini.event.EventMailbox)
-	            manager.startService("net.jini.event.EventMailbox");
+	            getManager().startService("net.jini.event.EventMailbox");
             throw new TestException( "ActivateWrapper.register()"
 				     + " did not throw expected exception" );
 	} catch (Exception ue) {

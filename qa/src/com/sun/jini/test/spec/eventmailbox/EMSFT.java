@@ -27,6 +27,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 import com.sun.jini.constants.TimeConstants;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.event.EventMailbox;
 import net.jini.event.MailboxRegistration;
@@ -76,7 +77,7 @@ public class EMSFT extends EMSTestBase implements TimeConstants {
 
 	// Create an event generator and pass it the
 	// mailbox's remote event listener.
-	TestGenerator myGen = TestUtils.createGenerator(manager);
+	TestGenerator myGen = TestUtils.createGenerator(getManager());
 	EventRegistration evtReg = 
 	    myGen.register(EVENT_ID,     	// Event ID to use
 			   null,  		// handback
@@ -87,7 +88,7 @@ public class EMSFT extends EMSTestBase implements TimeConstants {
 
 	// Create another event generator and pass it the
 	// mailbox's remote event listener.
-	TestGenerator myGen2 = TestUtils.createGenerator(manager);
+	TestGenerator myGen2 = TestUtils.createGenerator(getManager());
 	EventRegistration evtReg2 = 
 	    myGen2.register(EVENT_ID2,     	// Event ID to use
 			    null,  		// handback
@@ -97,8 +98,8 @@ public class EMSFT extends EMSTestBase implements TimeConstants {
 	checkLease(tgl2, DURATION1); 
 
 	// Create two listener objects
-	TestListener myRel = TestUtils.createListener(manager);
-	TestListener myRel2 = TestUtils.createListener(manager);
+	TestListener myRel = TestUtils.createListener(getManager());
+	TestListener myRel2 = TestUtils.createListener(getManager());
 	int myRelCount = 0, myRelCount2 = 0;
 
 	// Generate some events from first generator
@@ -282,12 +283,13 @@ public class EMSFT extends EMSTestBase implements TimeConstants {
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	parse();
+        return this;
     }
 }

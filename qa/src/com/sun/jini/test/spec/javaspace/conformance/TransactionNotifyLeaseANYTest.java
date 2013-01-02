@@ -27,6 +27,7 @@ import net.jini.core.event.EventRegistration;
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * TransactionNotifyLeaseANYTest asserts, that for notify with
@@ -39,21 +40,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class TransactionNotifyLeaseANYTest extends AbstractTestBase {
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param config QAConfig from the runner for setup.
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
+public class TransactionNotifyLeaseANYTest extends TransactionTest {
 
     /**
      * This method asserts, that for notify with <code>Lease.ANY</code>

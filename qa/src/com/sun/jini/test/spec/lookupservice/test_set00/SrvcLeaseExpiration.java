@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.qa.harness.TestException;
 import java.util.logging.Level;
@@ -68,9 +69,9 @@ public class SrvcLeaseExpiration extends QATestRegistrar {
      *  an approximate service lease start time for each service item by 
      *  retrieving the current system time.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 
 	logger.log(Level.FINE, "in setup() method.");
 
@@ -86,6 +87,7 @@ public class SrvcLeaseExpiration extends QATestRegistrar {
                                                  null,null);
 	}
 	leaseStartTime = QATestUtils.getCurTime();
+        return this;
     }
 
     /** Executes the current QA test.
@@ -126,7 +128,7 @@ public class SrvcLeaseExpiration extends QATestRegistrar {
     }
  
     /* Perform both a simple and a match lookup using the ServiceTemplate
-     * created during setup. Verifies that every simple lookup returns
+     * created during construct. Verifies that every simple lookup returns
      * a null object; and every match lookup returns zero matches.
      */
     private void doLookupNoMatch() throws TestException, RemoteException {

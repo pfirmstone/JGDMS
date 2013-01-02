@@ -38,11 +38,11 @@ import java.util.Iterator;
  *
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *   <li> one or more "initial" lookup services, each started during setup,
+ *   <li> one or more "initial" lookup services, each started during construct,
  *        before the test begins execution
  *   <li> one or more "additional" lookup services, each started after the
  *        test has begun execution, and after the initial lookup services
- *        started during setup have been discovered
+ *        started during construct have been discovered
  *   <li> one instance of the lookup locator discovery utility
  *   <li> the lookup locator discovery utility is configured to discover the
  *        set of locators whose elements are the locators of each lookup
@@ -62,7 +62,7 @@ public class DiscoveredDelay extends Discovered {
      * <p><ul>
      *    <li> configures the lookup locator discovery utility to discover
      *         the set of locators whose elements are the locators of each
-     *         lookup service that was started during setup
+     *         lookup service that was started during construct
      *    <li> starts the unicast discovery process by adding a discovery
      *         listener to the lookup locator discovery utility
      *    <li> verifies that the lookup locator discovery utility under test
@@ -81,11 +81,11 @@ public class DiscoveredDelay extends Discovered {
         super.run();
 
         /* Configure the listener's expected lookups for all the lookups */
-        mainListener.setLookupsToDiscover(allLookupsToStart);
+        mainListener.setLookupsToDiscover(getAllLookupsToStart());
         /* Configure the lookup locator discovery utility to discover both
          * the initial and the additional lookups
          */
-        LookupLocator[] addLocs = toLocatorArray(addLookupsToStart);
+        LookupLocator[] addLocs = toLocatorArray(getAddLookupsToStart());
         locatorDiscovery.addLocators(addLocs);
         logger.log(Level.FINE, "added additional locators to "
                           +"lookup locator discovery --");

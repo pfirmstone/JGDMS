@@ -19,11 +19,12 @@
 package com.sun.jini.test.spec.config.nosuchentryexception;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.config.NoSuchEntryException;
@@ -65,7 +66,7 @@ import net.jini.config.NoSuchEntryException;
  *      passed exception;
  * </pre>
  */
-public class Constructor_Test extends QATest {
+public class Constructor_Test extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

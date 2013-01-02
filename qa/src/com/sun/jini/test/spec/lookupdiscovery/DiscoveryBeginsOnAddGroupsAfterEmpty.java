@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -34,7 +35,7 @@ import net.jini.discovery.LookupDiscovery;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *   <li> one or more initial lookup services, each belonging to a finite
- *        set of member groups, started during setup
+ *        set of member groups, started during construct
  *   <li> an instance of the lookup discovery utility created by passing
  *        and empty String array (DiscoveryGroupManagement.NO_GROUPS) to
  *        the constructor
@@ -47,7 +48,7 @@ import net.jini.discovery.LookupDiscovery;
  * If the lookup discovery utility functions as specified, then the
  * listener will receive no events until the <code>addGroups</code> method
  * is called to re-configure the lookup discovery utility to discover
- * the lookup services started during setup.
+ * the lookup services started during construct.
  */
 public class DiscoveryBeginsOnAddGroupsAfterEmpty extends AbstractBaseTest {
 
@@ -60,10 +61,11 @@ public class DiscoveryBeginsOnAddGroupsAfterEmpty extends AbstractBaseTest {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
-        groupsToDiscover = toGroupsArray(initLookupsToStart);
-    }//end setup
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        groupsToDiscover = toGroupsArray(getInitLookupsToStart());
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
@@ -73,10 +75,10 @@ public class DiscoveryBeginsOnAddGroupsAfterEmpty extends AbstractBaseTest {
      *         and verifies the listener receives no events
      *    <li> depending on the value of <code>addGroups</code>, invokes either
      *         addGroups or setGroups to re-configure the lookup discovery
-     *         utility to discover the lookup services started in setup
+     *         utility to discover the lookup services started in construct
      *    <li> verifies that the lookup discovery utility under test
      *         sends the expected discovered events, having the expected
-     *         contents related to the lookups started in setup
+     *         contents related to the lookups started in construct
      * </ul>
      */
     public void run() throws Exception {
@@ -101,7 +103,7 @@ public class DiscoveryBeginsOnAddGroupsAfterEmpty extends AbstractBaseTest {
         ld.addDiscoveryListener(mainListener);
         waitForDiscovery(mainListener);
         /* Re-configure the listener to expect events for the lookups
-         * started during setup.
+         * started during construct.
          */
         logger.log(Level.FINE, "calling "+methodStr
                           +" to change the groups to discover to -- ");
@@ -117,10 +119,10 @@ public class DiscoveryBeginsOnAddGroupsAfterEmpty extends AbstractBaseTest {
                 }//end loop
             }//endif
         }//endif
-        mainListener.setLookupsToDiscover(initLookupsToStart);
+        mainListener.setLookupsToDiscover(getInitLookupsToStart());
         /* Using either addGroups ore setGroups, re-configure the lookup
          * discovery utility to discover the lookup services started in
-         * setup
+         * construct
          */
         if(addGroups) {
             ld.addGroups(groupsToDiscover);

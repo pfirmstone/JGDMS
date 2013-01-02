@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.jeri.basicinvocationdispatcher;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.BasicInvocationDispatcher;
 import net.jini.io.MarshalInputStream;
@@ -124,7 +125,7 @@ import java.util.logging.Level;
  *        and the proper return value
  * </pre>
  */
-public class Dispatch_NormalReturnTest extends QATest {
+public class Dispatch_NormalReturnTest extends QATestEnvironment implements Test {
 
     protected int counter;
     protected ByteArrayInputStream response;
@@ -168,8 +169,8 @@ public class Dispatch_NormalReturnTest extends QATest {
     }
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
-        // setup infrastructure needed by test
+    public Test construct(QAConfig sysConfig) throws Exception {
+        // construct infrastructure needed by test
         counter = 1;
         context = new ArrayList();
 
@@ -185,6 +186,7 @@ public class Dispatch_NormalReturnTest extends QATest {
             FakeRemoteInterface.class.getClassLoader(),
             new Class[] { FakeRemoteInterface.class },
             handler);
+        return this;
     }
 
     // inherit javadoc

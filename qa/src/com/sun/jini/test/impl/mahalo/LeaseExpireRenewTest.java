@@ -26,6 +26,7 @@ import com.sun.jini.qa.harness.TestException;
 import java.rmi.RemoteException;
 
 import com.sun.jini.constants.TimeConstants;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.UnknownLeaseException;
@@ -64,10 +65,11 @@ public class LeaseExpireRenewTest extends TxnMgrTestBase
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	parse();
+        return this;
     }
 }

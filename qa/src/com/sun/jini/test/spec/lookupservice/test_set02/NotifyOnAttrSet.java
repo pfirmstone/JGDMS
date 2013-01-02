@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set02;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -110,14 +111,14 @@ public class NotifyOnAttrSet extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k;
         ServiceID curSrvcID;
 	EventRegistration[] evntRegs;
         int regTransitions =   ServiceRegistrar.TRANSITION_MATCH_MATCH
                              | ServiceRegistrar.TRANSITION_MATCH_NOMATCH;
         /* create the lookup service */
-	super.setup(sysConfig);
+	super.construct(sysConfig);
         /* create a single event handler to process all received events */
 	listener = new Listener();
         /* load and instantiate a set of initialized (non-null fields) 
@@ -177,13 +178,14 @@ public class NotifyOnAttrSet extends QATestRegistrar {
 			     Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(evntRegs[i]);
 	}
+        return this;
     }
 
     /** Executes the current QA test.
      *
-     *  For each service instance created during setup, calls setAttributes()
+     *  For each service instance created during construct, calls setAttributes()
      *  to replace that service's attribute with the corresponding attribute
-     *  from the second set of attributes created during setup. Waits a
+     *  from the second set of attributes created during construct. Waits a
      *  configured amount of time to allow for all of the events to be 
      *  generated and collected. Determines if all of the expected -- as well 
      *  as no un-expected -- events have arrived. This test depends on the 

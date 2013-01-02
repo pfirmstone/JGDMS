@@ -83,7 +83,7 @@ public class ExpiredRegRecovery extends MailboxTestBase
 		"Unsupported mailbox type requested" + mbType);
 	}
 	
-        Admin admin = manager.getAdmin(mb);
+        Admin admin = getManager().getAdmin(mb);
         if (! (admin instanceof ActivatableServiceStarterAdmin)) {
             throw new RemoteException("Service is not activatable");
         }

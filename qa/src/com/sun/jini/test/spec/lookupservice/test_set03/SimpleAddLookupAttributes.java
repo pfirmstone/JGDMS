@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set03;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -62,9 +63,9 @@ public class SimpleAddLookupAttributes extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 	/* Create the lookup service */
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 	/* retrieve the proxy to the JoinAdmin methods */
 	adminProxy = (JoinAdmin) super.getAdminProxy();
 	/* populate the expectedAttrs array with the names of both the
@@ -85,6 +86,7 @@ public class SimpleAddLookupAttributes extends QATestRegistrar {
 	    Class loadedAttrObj = Class.forName(ATTR_CLASSES[i]);
 	    attrInstances[i] = (Entry)loadedAttrObj.newInstance();
 	}
+        return this;
     }
 
     /** Executes the current QA test.
@@ -92,7 +94,7 @@ public class SimpleAddLookupAttributes extends QATestRegistrar {
      *  Retrieves the initial set of attribute classes belonging to the
      *  Registrar and then verifies that this set contains the expected
      *  set of classes. Invokes addLookupAttributes() to add to the 
-     *  Registrar the set of attribute instances created in setup.
+     *  Registrar the set of attribute instances created in construct.
      *  Retrieves the set of attribute classes belonging to the Registrar
      *  and verifies that this set contains the expected classes.
      *  @exception QATestException usually indicates test failure
@@ -113,7 +115,7 @@ public class SimpleAddLookupAttributes extends QATestRegistrar {
 				  + "is NOT equal to the set expected");
 	}
 	/* invoke addLookupAttributes() to add to the Registrar the set of
-	 * attribute instances created in setup
+	 * attribute instances created in construct
 	 */
 	adminProxy.addLookupAttributes(attrInstances);
 	/* retrieve the set of attribute classes belonging to the Registrar

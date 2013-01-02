@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.lookup.JoinManager;
@@ -51,8 +52,8 @@ public class Equality extends AbstractBaseTest {
      *          an instance of a test service and null to all other arguments
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         logger.log(Level.FINE, "creating a callback join manager ...");
         joinMgrCallback = new JoinManager(testService,
 					  serviceAttrs,
@@ -69,12 +70,13 @@ public class Equality extends AbstractBaseTest {
 					leaseMgr,
 					sysConfig.getConfiguration());
         joinMgrList.add(joinMgrSrvcID);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
      *   For each instance of the <code>JoinManager</code> utility class
-     *   created during the setup process, verifies that the 
+     *   created during the construct process, verifies that the 
      *   <code>equals</code> method returns the appropriate result
      *   depending on the particular instances of <code>JoinManager</code>
      *   being compared.

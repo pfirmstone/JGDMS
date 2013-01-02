@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.share;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 // Test harness specific classes
@@ -30,7 +31,7 @@ import net.jini.admin.Administrable;
  * Base class for tests which grab a lease and make sure the returned lease
  * meets give constraints.
  */
-public abstract class LeaseGrantTestBase extends TestBase {
+public abstract class LeaseGrantTestBase extends TestBase implements Test {
     // If true then the tests expects leases to granted
     // exactly.  If false the grant can be for less than the request
     private boolean exact = false; 

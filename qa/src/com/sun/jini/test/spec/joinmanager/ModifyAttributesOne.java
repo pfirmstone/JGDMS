@@ -20,6 +20,7 @@ package com.sun.jini.test.spec.joinmanager;
 
 import net.jini.core.entry.Entry;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -42,8 +43,8 @@ public class ModifyAttributesOne extends ModifyAttributes {
      *          one of the elements of the current attribute set
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         chngIndx = serviceAttrs.length/2;//don't just pick first element
         /* Construct a template that will match 1 of the current attributes */
         attrTmpls = new Entry[1];
@@ -61,7 +62,8 @@ public class ModifyAttributesOne extends ModifyAttributes {
         }//end loop
         expectedAttrs[chngIndx] = new TestServiceIntAttr
                   (( ((TestServiceIntAttr)newServiceAttrs[0]).val).intValue());
-    }//end setup
+        return this;
+    }//end construct
 
 } //end class ModifyAttributesOne
 

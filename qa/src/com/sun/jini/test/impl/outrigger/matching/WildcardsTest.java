@@ -24,6 +24,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // All other imports
+import com.sun.jini.qa.harness.Test;
 import net.jini.core.entry.Entry;
 import net.jini.space.JavaSpace;
 import net.jini.core.entry.UnusableEntryException;
@@ -39,10 +40,11 @@ public class WildcardsTest extends SingletonMatchTestBase {
     /**
      * Sets up the testing environment.
      *
-     * @param config Arguments from the runner for setup.
+     * @param config Arguments from the runner for construct.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
+        return this;
     }
 
     public void run() throws Exception {

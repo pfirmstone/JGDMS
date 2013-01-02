@@ -28,21 +28,22 @@ import net.jini.security.policy.*;
 import java.io.File;
 import java.net.*;
 import java.security.*;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
 
-public class LoaderSplitPolicyProviderTest extends QATest {
+public class LoaderSplitPolicyProviderTest extends QATestEnvironment implements Test {
     private String ldrPolicyFile;
     private String defPolicyFile;
     private String fooJarFile;
     private String barJarFile;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
         ldrPolicyFile = sysConfig.getStringConfigVal("ldrPolicyfile",
                 sysConfig.getKitHomeDir() + File.separator + "policy"
                 + File.separator
@@ -59,6 +60,7 @@ public class LoaderSplitPolicyProviderTest extends QATest {
                 sysConfig.getKitHomeDir() + File.separator
 		+ "lib" + File.separator
                 + "qa1-start-cb2.jar");
+        return this;
     }
 
     public void run() throws Exception {

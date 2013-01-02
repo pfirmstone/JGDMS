@@ -22,6 +22,7 @@ import net.jini.core.entry.Entry;
 
 import java.util.ArrayList;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -42,8 +43,8 @@ public class ModifyAttributesDeleteOne extends ModifyAttributesOne {
      *          one of the elements of the current attribute set
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Construct the attribute set that indicates deletion is requested */
         newServiceAttrs = new Entry[1];
         newServiceAttrs[0] = null;
@@ -54,7 +55,8 @@ public class ModifyAttributesDeleteOne extends ModifyAttributesOne {
             tmpList.add(expectedAttrs[i]);
         }//end loop
         expectedAttrs = (Entry[])(tmpList).toArray(new Entry[tmpList.size()]);
-    }//end setup
+        return this;
+    }//end construct
 
 } //end class ModifyAttributesDeleteOne
 

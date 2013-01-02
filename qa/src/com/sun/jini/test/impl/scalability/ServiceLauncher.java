@@ -21,7 +21,8 @@ import java.util.logging.Level;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import java.rmi.NoSuchObjectException;
@@ -34,7 +35,7 @@ import java.util.HashMap;
  * cancels, and/or expires leases.  Tests for availably by adding
  * leases to the set.
  */
-public class ServiceLauncher extends QATest {
+public class ServiceLauncher extends QATestEnvironment implements Test {
 
     private static HashMap nameMap = new HashMap();
     static {
@@ -47,8 +48,8 @@ public class ServiceLauncher extends QATest {
 	nameMap.put("reggie", "net.jini.core.lookup.ServiceRegistrar");
     }
 
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	String serviceList = 
 	    config.getStringConfigVal("com.sun.jini.qa.harness.scalability.serviceList", "");
         StringTokenizer tok = new StringTokenizer(serviceList);
@@ -58,15 +59,16 @@ public class ServiceLauncher extends QATest {
 		service = (String) nameMap.get(service);
 	    }
 	    try {
-		manager.startService(service);
+		getManager().startService(service);
 	    } catch (Exception e) {
 		throw new TestException("Failed to start " + service, e);
 	    }
 	}
+        return this;
     }
 
     public void run() throws Exception {
-	config.suspendRun("service launcher suspended" 
+	getConfig().suspendRun("service launcher suspended" 
 			  + "<popup>resume to teardown and terminate</popup>");
     }
 }

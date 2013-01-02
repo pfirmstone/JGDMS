@@ -32,7 +32,7 @@ import net.jini.core.transaction.Transaction;
  *
  * @author Pavel Bogdanov
  */
-public class TakeTest05 extends AbstractTestBase {
+public class TakeTest05 extends JavaSpaceTest {
 
     private final long MAX_ENTRIES = 5;
 

@@ -21,6 +21,7 @@ import java.util.logging.Level;
 
 //test harness related imports
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.LegacyTest;
 import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
@@ -31,14 +32,15 @@ import java.util.logging.Logger;
 /**
  * Abstract class for <code>BasicJeriExporter</code> tests
  */
-public abstract class BJEAbstractTest implements Test {
+public abstract class BJEAbstractTest implements LegacyTest {
 
     protected static QAConfig config;
     protected static Logger log;
 
-    public void setup(QAConfig config) {
+    public Test construct(QAConfig config) {
         this.config = config;
         log = Logger.getLogger("com.sun.jini.test.spec.jeri.basicjeriexporter");
+        return this;
     }
 
     public void tearDown() {

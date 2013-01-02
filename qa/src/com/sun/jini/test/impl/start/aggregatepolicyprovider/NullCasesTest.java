@@ -24,10 +24,11 @@ package com.sun.jini.test.impl.start.aggregatepolicyprovider;
 import com.sun.jini.start.AggregatePolicyProvider;
 import java.security.*;
 import net.jini.security.policy.*;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
-public class NullCasesTest extends QATest {
+public class NullCasesTest extends QATestEnvironment implements Test {
     public void run() throws Exception {
 	if (System.getSecurityManager() == null) {
 	    System.setSecurityManager(new SecurityManager());

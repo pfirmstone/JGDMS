@@ -87,7 +87,7 @@ public class ExceptionTest1 extends TransactionTestBase {
 
         if (useDummy) {
             pass("step-0: write a dummy entry under a transaction");
-	    space.write(wentry, txn, Lease.FOREVER);
+	    getSpace().write(wentry, txn, Lease.FOREVER);
         }
 
         // abort/commit this transaction
@@ -115,12 +115,12 @@ public class ExceptionTest1 extends TransactionTestBase {
 		    new SimpleEventListener(getConfig().getConfiguration());
                 pass("step-3: register the listener with the terminated"
                         + " transaction");
-                space.notify(template, txn, listener, Lease.FOREVER, null);
+                getSpace().notify(template, txn, listener, Lease.FOREVER, null);
                 fail("TransactionException has not thrown while registering"
                         + " notify with a terminated txn.");
             } else {
                 pass("step-2: write an entry with the terminated transaction");
-                space.write(wentry, txn, Lease.FOREVER);
+                getSpace().write(wentry, txn, Lease.FOREVER);
                 fail("TransactionException has not thrown while writing with a"
                         + " terminated txn.");
             }

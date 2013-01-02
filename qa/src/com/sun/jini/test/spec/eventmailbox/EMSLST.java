@@ -29,6 +29,7 @@ import com.sun.jini.test.impl.mercury.TestListener;
 import com.sun.jini.test.impl.mercury.TestGenerator;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 public class EMSLST extends StressTest {
 
@@ -54,7 +55,7 @@ public class EMSLST extends StressTest {
 	}
 
 	// Creating event generators that use the mailbox listeners
-	TestGenerator[] myGen = TestUtils.createGenerators(NUM_REGS, manager);
+	TestGenerator[] myGen = TestUtils.createGenerators(NUM_REGS, getManager());
 	EventRegistration[] evtReg = new EventRegistration[NUM_REGS]; 
 	for (i = 0; i < NUM_REGS; i++) {
 	    evtReg[i] = myGen[i].register(
@@ -67,7 +68,7 @@ public class EMSLST extends StressTest {
 	}
 
 	// Create listener objects
-	TestListener[] listeners = TestUtils.createListeners(NUM_REGS, manager);
+	TestListener[] listeners = TestUtils.createListeners(NUM_REGS, getManager());
 
 	boolean sync = false;
 	boolean shutdown = false;
@@ -77,12 +78,13 @@ public class EMSLST extends StressTest {
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	parse();
+        return this;
     }
 }

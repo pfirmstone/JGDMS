@@ -21,6 +21,7 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.LegacyTest;
 import com.sun.jini.qa.harness.Test;
 
 import java.io.BufferedReader;
@@ -43,9 +44,9 @@ import java.util.Properties;
 
 /**
  * This class acts as a wrapper that enable the End2End security test
- * to run as a <code>com.sun.jini.qa.harness.Test</code>
+ * to run as a <code>com.sun.jini.qa.harness.LegacyTest</code>
  */
-public class Driver implements Test {
+public class Driver implements LegacyTest {
 
     private QAConfig config;
     private File error;
@@ -62,12 +63,12 @@ public class Driver implements Test {
         + "end2end.e2etest.Driver");
 
     /**
-     * The <code>setup</code> method creates the creates output files for the
+     * The <code>construct</code> method creates the creates output files for the
      * test and also runs a user specified kinit command in order to populate
      * the kerberos ticket cache with a forwardable ticket.  This is done
      * only if the kerberos provider is being used.
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
         this.config = config;
         createStreams();
         String props = config.getStringConfigVal(
@@ -78,6 +79,7 @@ public class Driver implements Test {
             .getStringConfigVal("com.sun.jini.qa.harness.assertions","")
             + " -cp " + config.getStringConfigVal("testClassPath",null)
             + " com.sun.jini.test.impl.end2end.e2etest.End2EndTest";
+        return this;
     }
 
     /**
@@ -100,7 +102,7 @@ public class Driver implements Test {
     }
 
     /**
-     * Dummy method to satisfy <code>com.sun.jini.qa.harness.Test</code>
+     * Dummy method to satisfy <code>com.sun.jini.qa.harness.LegacyTest</code>
      * interface.
      */
     public void tearDown() {

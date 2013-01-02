@@ -19,11 +19,12 @@
 package com.sun.jini.test.spec.config.configurationfile;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import net.jini.config.ConfigurationFile;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationNotFoundException;
@@ -52,7 +53,7 @@ import com.sun.jini.test.spec.config.util.FakeClassLoader;
  *   This class contains common parts of some ConfigurationFile tests.
  * </pre>
  */
-public abstract class Template_Test extends QATest {
+public abstract class Template_Test extends QATestEnvironment implements Test {
     /**
      * An object to point to constructor:
      *   public ConfigurationFile(String[] options)

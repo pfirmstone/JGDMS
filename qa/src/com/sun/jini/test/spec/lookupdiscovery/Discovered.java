@@ -18,13 +18,15 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
+import java.util.ArrayList;
 
 import java.util.logging.Level;
 
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscovery;
 
-import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscovery</code> utility
@@ -55,28 +57,29 @@ import java.util.ArrayList;
  */
 public class Discovered extends AbstractBaseTest {
 
-    protected ArrayList       locGroupsList  = new ArrayList(1);
-    protected LookupDiscovery ldToUse        = null;
-    protected LookupListener  listenerToUse  = null;
-    protected String[] groupsToDiscover  = DiscoveryGroupManagement.NO_GROUPS;
+    protected volatile List       locGroupsList  = new ArrayList(0);
+    protected volatile LookupDiscovery ldToUse        = null;
+    protected volatile LookupListener  listenerToUse  = null;
+    protected volatile String[] groupsToDiscover  = DiscoveryGroupManagement.NO_GROUPS;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
-	locGroupsList    = initLookupsToStart;
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
+	locGroupsList    = getInitLookupsToStart();
 	ldToUse          = lookupDiscovery;
 	listenerToUse    = mainListener;
 	groupsToDiscover = toGroupsArray(locGroupsList);
+        return this;
     }
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *    <li> re-configures the lookup discovery utility to use group
      *         discovery to discover the set of lookup services started during
-     *         setup
+     *         construct
      *    <li> starts the multicast discovery process by adding a listener to
      *         the lookup discovery utility
      *    <li> verifies that the lookup discovery utility under test

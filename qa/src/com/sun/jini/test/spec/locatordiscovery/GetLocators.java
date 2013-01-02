@@ -23,7 +23,7 @@ import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.LocatorsUtil;
-
+import com.sun.jini.qa.harness.Test;
 import net.jini.discovery.LookupLocatorDiscovery;
 
 import net.jini.core.discovery.LookupLocator;
@@ -58,13 +58,14 @@ public class GetLocators extends AbstractBaseTest {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         delayLookupStart = true;//don't start lookups, just want config info
-        super.setup(sysConfig);
-        configLocs = toLocatorArray(initLookupsToStart);
+        super.construct(sysConfig);
+        configLocs = toLocatorArray(getInitLookupsToStart());
         lld = new LookupLocatorDiscovery(configLocs, sysConfig.getConfiguration());
         locatorDiscoveryList.add(lld);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>

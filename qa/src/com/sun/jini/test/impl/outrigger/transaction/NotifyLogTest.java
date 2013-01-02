@@ -45,7 +45,7 @@ public class NotifyLogTest extends TransactionTestBase {
 
         // Force an event registration under transaction
         logger.log(Level.INFO, "Registering for notification");
-        final EventRegistration reg = space.notify(notifyEntry, txn,
+        final EventRegistration reg = getSpace().notify(notifyEntry, txn,
                 listener, Lease.FOREVER, null);
         Lease lease = reg.getLease();
         lease = (Lease)
@@ -82,7 +82,7 @@ public class NotifyLogTest extends TransactionTestBase {
 
         // Try to write the entry we wrote
         logger.log(Level.INFO, "Looking for second write in log");
-        final Entry ent = space.takeIfExists(dataEntry, null,
+        final Entry ent = getSpace().takeIfExists(dataEntry, null,
                 JavaSpace.NO_WAIT);
 
         if (ent == null || !ent.equals(dataEntry)) {

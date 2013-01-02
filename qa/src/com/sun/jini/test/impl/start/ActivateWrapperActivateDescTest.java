@@ -44,29 +44,29 @@ public class ActivateWrapperActivateDescTest extends AbstractStartBaseTest {
 	logger.log(Level.INFO, "run()");
 
 	String implClassName = 
-	    config.getStringConfigVal(mailbox + ".impl", null); 
+	    getConfig().getStringConfigVal(mailbox + ".impl", null); 
 	logger.log(Level.INFO, "\timplClassName = " + implClassName);
 
 	String classpathStr =
-	    config.getStringConfigVal(mailbox + ".classpath", null)
+	    getConfig().getStringConfigVal(mailbox + ".classpath", null)
             + java.io.File.pathSeparator    			      
-            + config.getStringConfigVal(registrar + ".classpath", null); 
+            + getConfig().getStringConfigVal(registrar + ".classpath", null); 
 
 	logger.log(Level.INFO, "\tclasspath = " + classpathStr);
 	URL[] classpath = null;
 	classpath = ClassLoaderUtil.getClasspathURLs(classpathStr);
 
 	String codebase0 = 
-	    config.getStringConfigVal(registrar + ".codebase", null);
+	    getConfig().getStringConfigVal(registrar + ".codebase", null);
 	String codebase1 = 
-	    config.getStringConfigVal(mailbox + ".codebase", null);
+	    getConfig().getStringConfigVal(mailbox + ".codebase", null);
 	String codebaseStr = codebase0 + " " + codebase1;
 	logger.log(Level.INFO, "\tcodebase = " + codebaseStr);
         URL[] codebase = null;
 	codebase =  ClassLoaderUtil.getCodebaseURLs(codebaseStr);
 	
 	String policy =
-	    config.getStringConfigVal(mailbox + ".policyfile", null);
+	    getConfig().getStringConfigVal(mailbox + ".policyfile", null);
 	logger.log(Level.INFO, "\tpolicy = " + policy);
 
 	String logDir = null;

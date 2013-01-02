@@ -20,6 +20,7 @@ package com.sun.jini.test.spec.locatordiscovery;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>removeLocators</code> method, this class
@@ -78,10 +79,11 @@ public class RemoveLocatorsAll extends RemoveLocatorsSome {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         changeAll = true;
-        super.setup(sysConfig);
-    }//end setup
+        super.construct(sysConfig);
+        return this;
+    }//end construct
 
 }//end class RemoveLocatorsAll
 

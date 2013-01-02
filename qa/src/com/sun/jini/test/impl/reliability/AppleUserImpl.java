@@ -72,10 +72,11 @@ import java.net.InetAddress;
 import net.jini.config.Configuration;
 import net.jini.export.Exporter;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.SlaveRequest;
 import com.sun.jini.qa.harness.SlaveTest;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * The AppleUserImpl class implements the behavior of the remote
@@ -83,7 +84,7 @@ import com.sun.jini.qa.harness.SlaveTest;
  * passes each of its remote "apple" objects to an apple user, and an
  * AppleUserThread is created for each apple.
  */
-public class AppleUserImpl extends QATest implements AppleUser {
+public class AppleUserImpl extends QATestEnvironment implements AppleUser, Test {
 
     private int threadNum = 0;
     private long testDuration;
@@ -230,8 +231,9 @@ public class AppleUserImpl extends QATest implements AppleUser {
     }
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
+        return this;
     }
 
     /**
@@ -241,9 +243,9 @@ public class AppleUserImpl extends QATest implements AppleUser {
     public void run() throws Exception {
 	// run ApplicationServer on a separate host if running distributed
         boolean othervm = (QAConfig.getConfig().getHostList().size() > 1);
-	maxLevel = config.getIntConfigVal(
+	maxLevel = getConfig().getIntConfigVal(
             "com.sun.jini.test.impl.reliability.maxLevel",7);
-	testDuration = config.getIntConfigVal(
+	testDuration = getConfig().getIntConfigVal(
             "com.sun.jini.test.impl.reliability.minutes",1) * 60 * 1000;
 
         Configuration c = QAConfig.getConfig().getConfiguration();

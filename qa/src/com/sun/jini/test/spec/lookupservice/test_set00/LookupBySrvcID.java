@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -56,9 +57,9 @@ public class LookupBySrvcID extends QATestRegistrar {
      *  which each element contains the service ID of one of the registered
      *  service items.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 
 	logger.log(Level.FINE, "in setup() method.");
 
@@ -73,17 +74,18 @@ public class LookupBySrvcID extends QATestRegistrar {
 	    srvcIDTmpls[i] = new ServiceTemplate(srvcRegs[i].getServiceID(),
                                                  null,null);
 	}
+        return this;
     }
 
     /** Executes the current QA test.
      *
      *  For each service registered:  
      *      1. Performs a simple lookup using the corresponding template 
-     *         created during setup and then tests that the object returned 
+     *         created during construct and then tests that the object returned 
      *         equals the service item that was registered with the 
      *         corresponding service ID.
      *      2. Performs a match lookup using the corresponding template 
-     *         created during setup and then tests that the number of matches
+     *         created during construct and then tests that the number of matches
      *         found equals 1; and that the object returned equals the 
      *         service item that was registered with the corresponding 
      *         service ID.

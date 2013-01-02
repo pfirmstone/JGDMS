@@ -42,7 +42,7 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.ActivatableServiceStarterAdmin;
 
 import net.jini.config.Configuration;
@@ -53,18 +53,19 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.qa.harness.TestException;
 
 /** Besides providing implementations for the abstract methods of the 
- *  super class (QATest), this class is the common super class of 
+ *  super class (QATestEnvironment), this class is the common super class of 
  *  all QA test classes of the Lookup component of the Jini System. 
  *  This class encapsulates shared data and methods on behalf of each 
  *  of those test classes.
  *
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.QATestEnvironment
  */
-public abstract class QATestRegistrar extends QATest {
+public abstract class QATestRegistrar extends QATestEnvironment implements Test {
 
     /** The default codebase for the RMI sub-system */
     private final static String DEF_RMI_CODEBASE 
@@ -334,9 +335,9 @@ public abstract class QATestRegistrar extends QATest {
         return (String[])(stringList.toArray(new String[stringList.size()]));
     }
 
-    /** After performing high-level setup by invoking the setup() method
-     *  in the super class (QATest), this method will perform mid-level,
-     *  general-purpose setup actions necessary to prepare for execution of 
+    /** After performing high-level construct by invoking the construct() method
+     *  in the super class (QATestEnvironment), this method will perform mid-level,
+     *  general-purpose construct actions necessary to prepare for execution of 
      *  the current QA test.
      *
      *  This method parses the argument list to retrieve and process the
@@ -355,11 +356,11 @@ public abstract class QATestRegistrar extends QATest {
      *  @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
 	int i,j;
 	int index;
 
-	super.setup(config);
+	super.construct(config);
 
 	logger.log(Level.FINE, "QATestRegistrar : in setup() method.");
 
@@ -467,10 +468,11 @@ public abstract class QATestRegistrar extends QATest {
         getSetupInfo();
 
 	// Receive Lookup proxy
-	proxy = manager.startLookupService();
+	proxy = getManager().startLookupService();
 	// Receive admin proxy fro Lookup
 	adminProxy = ((Administrable)proxy).getAdmin();
 	adminProxy = config.prepare("test.reggieAdminPreparer",adminProxy);
+        return this;
     }
  
     /* Retrieve (and display) configuration values for the current test */
@@ -491,32 +493,32 @@ public abstract class QATestRegistrar extends QATest {
         /* begin service info */
         logger.log(Level.FINE,
                           "----- ServiceRegistrar Service Info ----- ");
-        String serviceImplClassname = config.getStringConfigVal
+        String serviceImplClassname = getConfig().getStringConfigVal
                                                          (serviceName+".impl",
                                                           "no implClassname");
         logger.log(Level.FINE, "service impl class     -- "
                                         +serviceImplClassname);
 
-        String serviceCobaseArg = config.getStringConfigVal
+        String serviceCobaseArg = getConfig().getStringConfigVal
                                                      (serviceName+".codebase",
                                                       "no codebase");
         String serviceCodebase = serviceCobaseArg;
         logger.log(Level.FINE, "service codebase       -- "
                                         +serviceCodebase);
 
-        String serviceClasspath = config.getStringConfigVal
+        String serviceClasspath = getConfig().getStringConfigVal
                                                    (serviceName+".classpath",
                                                     "no classpath");
         logger.log(Level.FINE, "service classpath      -- "
                                         +serviceClasspath);
 
-        String servicePolicyFile = config.getStringConfigVal
+        String servicePolicyFile = getConfig().getStringConfigVal
                                                  (serviceName+".policyfile",
                                                   "no policyFile");
         logger.log(Level.FINE, "service policy file    -- "
                                         +servicePolicyFile);
 
-        int nInstances = config.getIntConfigVal(serviceName+".instances", 1);
+        int nInstances = getConfig().getIntConfigVal(serviceName+".instances", 1);
         logger.log(Level.FINE, "# of service instances -- "
                                         +nInstances);
         /* end service info */
@@ -973,7 +975,7 @@ public abstract class QATestRegistrar extends QATest {
                                                          throws Exception
     {
 	Object reg = regProxy.register(srvcItem,Long.MAX_VALUE);
-	reg = config.prepare("test.reggieServiceRegistrationPreparer", reg);
+	reg = getConfig().prepare("test.reggieServiceRegistrationPreparer", reg);
 	return (ServiceRegistration) reg;
     }
 
@@ -994,7 +996,7 @@ public abstract class QATestRegistrar extends QATest {
                                                          throws Exception
     {
 	Object reg = regProxy.register(srvcItem,srvcLeaseDurMS);
-	reg = config.prepare("test.reggieServiceRegistrationPreparer", reg);
+	reg = getConfig().prepare("test.reggieServiceRegistrationPreparer", reg);
 	return (ServiceRegistration) reg;
     }
 
@@ -1006,7 +1008,7 @@ public abstract class QATestRegistrar extends QATest {
 
     protected Lease prepareRegistrationLease(Lease lease) throws Exception {
 	return (Lease) 
-	       config.prepare("test.reggieServiceLeasePreparer", lease);
+	       getConfig().prepare("test.reggieServiceLeasePreparer", lease);
     }
 
     protected LeaseMap prepareRegistrationLeaseMap(LeaseMap leaseMap) {
@@ -1017,7 +1019,7 @@ public abstract class QATestRegistrar extends QATest {
     protected Lease getEventLease(EventRegistration reg) throws Exception {
 	    Lease lease = reg.getLease();
 	    return (Lease) 
-		   config.prepare("test.reggieEventLeasePreparer", lease);
+		   getConfig().prepare("test.reggieEventLeasePreparer", lease);
     }
 
     //XXX can exception handling be any smarter?
@@ -1025,7 +1027,7 @@ public abstract class QATestRegistrar extends QATest {
 	throws Exception
     {
 	return (EventRegistration) 
-	       config.prepare("test.reggieEventRegistrationPreparer", reg);
+	       getConfig().prepare("test.reggieEventRegistrationPreparer", reg);
     }
 
     protected Object exportListener(RemoteEventListener listener) 
@@ -1034,7 +1036,7 @@ public abstract class QATestRegistrar extends QATest {
 	// wrap a configuration exception in a RemoteException to avoid having
 	// to redefine the constructors for a million subclasses of BasicListener
 	Exporter exporter = QAConfig.getDefaultExporter();
-	Configuration c = config.getConfiguration();
+	Configuration c = getConfig().getConfiguration();
 	if (c instanceof com.sun.jini.qa.harness.QAConfiguration) {
 	    try {
 		exporter = (Exporter) c.getEntry("test",

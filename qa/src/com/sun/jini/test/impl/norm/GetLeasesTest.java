@@ -22,6 +22,7 @@ import java.util.logging.Level;
 // Test harness specific classes
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.Set;
 import java.util.HashSet;
@@ -45,7 +46,7 @@ import com.sun.jini.test.share.TestBase;
  * still in the set and then calls getLeases again to ensure that all the other
  * leases are still present.
  */
-public class GetLeasesTest extends TestBase {
+public class GetLeasesTest extends TestBase implements Test {
 
     /** Membership duration for short lease */    
     private long membershipDuration;
@@ -56,9 +57,10 @@ public class GetLeasesTest extends TestBase {
     /** The set of leases we think are in the renewal set */
     final private Set leases = new HashSet();
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	this.parse();
+        return this;
     }
 
     /**

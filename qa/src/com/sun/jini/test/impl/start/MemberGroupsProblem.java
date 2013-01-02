@@ -22,6 +22,7 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.rmi.RemoteException;
 
@@ -40,10 +41,11 @@ public class MemberGroupsProblem extends AbstractBaseTest {
     /** Performs actions necessary to prepare for execution of the 
      *  current test.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
 	System.setProperty("com.sun.jini.start.membergroups.problem", "true");
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>

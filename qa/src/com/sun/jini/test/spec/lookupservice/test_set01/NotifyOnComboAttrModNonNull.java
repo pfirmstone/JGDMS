@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set01;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -140,7 +141,7 @@ public class NotifyOnComboAttrModNonNull extends QATestRegistrar {
      *  a handback which contains the corresponding service/attribute 
      *  "tuple" to be associated with the event. 
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k;
         int transitionMask =   ServiceRegistrar.TRANSITION_MATCH_NOMATCH
                              | ServiceRegistrar.TRANSITION_NOMATCH_MATCH
@@ -165,7 +166,7 @@ public class NotifyOnComboAttrModNonNull extends QATestRegistrar {
         QATestUtils.setLeaseDuration(sysConfig,maxNMsToWaitForEvents);
 
         /* create the lookup service */
-	super.setup(sysConfig);
+	super.construct(sysConfig);
         /* create the event handler */
 	listener = new Listener();
         /* load and create an initialized instance (non-null fields) of each
@@ -262,6 +263,7 @@ public class NotifyOnComboAttrModNonNull extends QATestRegistrar {
 			     Long.MAX_VALUE);
 	    }
 	}
+        return this;
     }
 
     /** Executes the current QA test.

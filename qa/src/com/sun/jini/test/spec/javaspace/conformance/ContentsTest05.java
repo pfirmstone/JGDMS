@@ -34,7 +34,7 @@ import net.jini.space.MatchSet;
  *
  * @author Pavel Bogdanov
  */
-public class ContentsTest05 extends AbstractTestBase {
+public class ContentsTest05 extends JavaSpaceTest {
 
     private final long MAX_ENTRIES = 5;
 

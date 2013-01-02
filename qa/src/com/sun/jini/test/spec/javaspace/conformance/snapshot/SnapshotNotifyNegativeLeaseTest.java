@@ -28,6 +28,7 @@ import net.jini.core.event.EventRegistration;
 import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa
+import com.sun.jini.test.spec.javaspace.conformance.JavaSpaceTest;
 import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
 
 
@@ -40,7 +41,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * @author Mikhail A. Markov
  */
-public class SnapshotNotifyNegativeLeaseTest extends SnapshotAbstractTestBase {
+public class SnapshotNotifyNegativeLeaseTest extends JavaSpaceTest {
 
     /**
      * This method asserts, that we will get

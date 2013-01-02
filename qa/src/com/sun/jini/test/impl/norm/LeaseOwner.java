@@ -17,7 +17,6 @@
  */
 package com.sun.jini.test.impl.norm;
 
-import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
 
@@ -29,7 +28,7 @@ import java.util.logging.Logger;
  */
 public abstract class LeaseOwner {
 
-    protected static Logger logger = Logger.getLogger("com.sun.jini.qa.harness.test");
+    protected final static Logger logger = Logger.getLogger("com.sun.jini.qa.harness.test");
 
     /**
      * The renewal service is renewing the given lease. 

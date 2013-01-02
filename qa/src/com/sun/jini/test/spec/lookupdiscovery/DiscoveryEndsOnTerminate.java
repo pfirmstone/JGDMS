@@ -33,7 +33,7 @@ import net.jini.discovery.LookupDiscovery;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *    <li> one or more initial lookup services, each belonging to a finite
- *         set of member groups, started during setup
+ *         set of member groups, started during construct
  *    <li> one or more additional lookup services, each belonging to a finite
  *         set of member groups, to be started after termination of the lookup
  *         discovery utility
@@ -74,7 +74,7 @@ public class DiscoveryEndsOnTerminate extends AbstractBaseTest {
          * instance configured to discover BOTH the initial and additional
          * lookup services to be started.
          */
-        String[] groupsToDiscover = toGroupsArray(allLookupsToStart);
+        String[] groupsToDiscover = toGroupsArray(getAllLookupsToStart());
         logger.log(Level.FINE,
                           "starting discovery by creating a "
                           +"LookupDiscovery to discover -- ");
@@ -89,7 +89,7 @@ public class DiscoveryEndsOnTerminate extends AbstractBaseTest {
          * operational by verifying that the INITIIAL lookups are
          * discovered.
          */
-        mainListener.setLookupsToDiscover(initLookupsToStart);
+        mainListener.setLookupsToDiscover(getInitLookupsToStart());
         ld.addDiscoveryListener(mainListener);
         waitForDiscovery(mainListener);
 

@@ -40,7 +40,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * @author Mikhail A. Markov
  */
-public class SnapshotReadTest extends SnapshotAbstractReadTestBase {
+public class SnapshotReadTest extends SnapshotReadTestBase {
 
     /**
      * This method asserts that for read with timeouts other then NO_WAIT:

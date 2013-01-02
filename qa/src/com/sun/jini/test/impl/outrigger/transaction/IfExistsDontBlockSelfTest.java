@@ -24,6 +24,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // All other imports
+import com.sun.jini.qa.harness.Test;
 import java.rmi.*;
 import java.io.File;
 import net.jini.core.lease.Lease;
@@ -40,7 +41,7 @@ import com.sun.jini.test.share.TestBase;
  * <code>readIfExits</code>/<code>takeIfExists</code> under the same
  * transaction.  Final query should return almost immediately.
  */
-public class IfExistsDontBlockSelfTest extends TestBase {
+public class IfExistsDontBlockSelfTest extends TestBase implements Test {
 
     /** Space under test */
     protected JavaSpace space;
@@ -63,11 +64,12 @@ public class IfExistsDontBlockSelfTest extends TestBase {
     /**
      * Sets up the testing environment.
      *
-     * @param config Arguments from the runner for setup.
+     * @param config Arguments from the runner for construct.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
+        return this;
     }
 
     /**

@@ -29,18 +29,19 @@ import net.jini.admin.Administrable;
 // Test harness specific classes
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 
 
 // Shared classes
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.share.TestBase;
 
 
 /**
  * Test to make sure blocking reads can be interrupted
  */
-public class InterruptTest extends TestBase {
+public class InterruptTest extends TestBase implements Test {
 
 
     private class ReadThread extends Thread {
@@ -63,9 +64,10 @@ public class InterruptTest extends TestBase {
         }
     }
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         super.parse();
+        return this;
     }
 
     public void run() throws Exception {

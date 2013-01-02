@@ -20,7 +20,8 @@ package com.sun.jini.test.impl.locatordiscovery;
 
 import com.sun.jini.config.Config;
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import java.net.DatagramPacket;
 import java.net.InetAddress;
 import java.net.MulticastSocket;
@@ -42,7 +43,7 @@ import net.jini.discovery.LookupLocatorDiscovery;
  * .75 * initialUnicastDelayRange</code>.
  *
  */
-public class UnicastDelay extends QATest {
+public class UnicastDelay extends QATestEnvironment implements Test {
     
     private static final int DISCOVERYPORT = Constants.discoveryPort;
     private Configuration config;
@@ -80,9 +81,10 @@ public class UnicastDelay extends QATest {
 	}
     }
     
-    public void setup(QAConfig qaConfig) throws Exception {
-	super.setup(qaConfig);
+    public Test construct(QAConfig qaConfig) throws Exception {
+	super.construct(qaConfig);
 	config = qaConfig.getConfig().getConfiguration();
+        return this;
     }
     
     public void run() throws Exception {

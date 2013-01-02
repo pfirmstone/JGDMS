@@ -51,15 +51,15 @@ public class ModifyAttributesPropNew extends ModifyAttributesProp {
         super.run();
 
         /* Stagger-start additional lookup services */
-        logger.log(Level.FINE, "starting "+nAddLookupServices
+        logger.log(Level.FINE, "starting "+getnAddLookupServices()
                           +" additional lookup service(s) ...");
         StaggeredStartThread lookupsThread =
-             new StaggeredStartThread(lookupsStarted.size(),allLookupsToStart);
+             new StaggeredStartThread(getLookupsStarted().size(), getAllLookupsToStart());
         lookupsThread.start();
 	try {
             mainListener.clearAllEventInfo();
-            mainListener.setLookupsToDiscover(addLookupsToStart,
-                                             toGroupsArray(addLookupsToStart));
+            mainListener.setLookupsToDiscover(getAddLookupsToStart(),
+                                             toGroupsArray(getAddLookupsToStart()));
             waitForDiscovery(mainListener);
         } finally {
             /* If an exception occurred before the thread finished starting
@@ -77,7 +77,7 @@ public class ModifyAttributesPropNew extends ModifyAttributesProp {
         logger.log(Level.FINE, "verifying all attributes were "
                           +"propagated to each new lookup service ...");
         /* Wait for added lookups before beginning verification */
-        verifyPropagation(expectedAttrs,nSecsJoin);
+        verifyPropagation(expectedAttrs, getnSecsJoin());
         logger.log(Level.FINE, "join manager successfully propagated "
                           +"all attributes to the new lookup service(s)");
     }//end run

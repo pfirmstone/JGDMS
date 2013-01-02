@@ -34,11 +34,11 @@ import net.jini.core.lookup.ServiceRegistrar;
  *
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *    <li> one or more lookup services, each started during setup
+ *    <li> one or more lookup services, each started during construct
  *    <li> one instance of the lookup locator discovery utility
  *    <li> the lookup locator discovery utility is configured to discover the
  *         set of locators whose elements are the locators of each lookup
- *         service that was started in setup
+ *         service that was started in construct
  *    <li> one instance of DiscoveryListener registered with the lookup
  *         locator discovery utility
  * </ul><p>

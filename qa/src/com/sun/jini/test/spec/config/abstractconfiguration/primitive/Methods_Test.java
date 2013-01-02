@@ -19,11 +19,12 @@
 package com.sun.jini.test.spec.config.abstractconfiguration.primitive;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.config.AbstractConfiguration.Primitive;
@@ -100,7 +101,7 @@ import net.jini.config.AbstractConfiguration.Primitive;
  *       assert that not empty string is returned;
  * </pre>
  */
-public class Methods_Test extends QATest {
+public class Methods_Test extends QATestEnvironment implements Test {
     /**
      * Table of test cases for all primitive classes.
      * Structure: config content, type, data value

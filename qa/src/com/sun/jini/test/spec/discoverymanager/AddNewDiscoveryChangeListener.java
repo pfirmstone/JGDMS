@@ -19,6 +19,7 @@
 package com.sun.jini.test.spec.discoverymanager;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>addDiscoveryListener</code> method, this class
@@ -56,9 +57,10 @@ public class AddNewDiscoveryChangeListener extends AddNewDiscoveryListener {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         newListener = new GroupChangeListener();
+        return this;
     }
 
 }//end class AddNewDiscoveryChangeListener

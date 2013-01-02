@@ -23,7 +23,8 @@ import java.util.logging.Level;
 import java.lang.reflect.Proxy;
 import net.jini.activation.ActivatableInvocationHandler;
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.activation.util.FakeActivationID;
 
 
@@ -85,7 +86,7 @@ import com.sun.jini.test.spec.activation.util.FakeActivationID;
  *         steps 8 to 10 are for ActivatableInvocationHandler
  * </pre>
  */
-public class Invoke_ObjectMethodsTest extends QATest {
+public class Invoke_ObjectMethodsTest extends QATestEnvironment implements Test {
 
 
     interface FakeInterface1 {

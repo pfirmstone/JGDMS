@@ -81,9 +81,9 @@ public class NotifyTransactionTest extends TransactionTestBase {
         try {
             tCatcher = new SimpleEventListener(getConfig().getConfiguration());
             nCatcher = new SimpleEventListener(getConfig().getConfiguration());
-            tReg = space.notify(template, txn, tCatcher, Lease.FOREVER,
+            tReg = getSpace().notify(template, txn, tCatcher, Lease.FOREVER,
                     null);
-            nReg = space.notify(template, null, nCatcher, Lease.FOREVER,
+            nReg = getSpace().notify(template, null, nCatcher, Lease.FOREVER,
                     null);
 	    // preparation added for completeness. No remote calls are made on these
 	    tReg = (EventRegistration)

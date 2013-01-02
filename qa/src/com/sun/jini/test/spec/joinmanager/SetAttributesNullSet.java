@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
@@ -40,10 +41,11 @@ public class SetAttributesNullSet extends SetAttributesNullElement {
      *          the setAttributes method
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         newServiceAttrs = null;
-    }//end setup
+        return this;
+    }//end construct
 
 } //end class SetAttributesNullSet
 

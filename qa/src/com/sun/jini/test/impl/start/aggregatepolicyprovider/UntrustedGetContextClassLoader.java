@@ -24,10 +24,11 @@ package com.sun.jini.test.impl.start.aggregatepolicyprovider;
 
 import com.sun.jini.start.AggregatePolicyProvider;
 import net.jini.security.policy.*;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
-public class UntrustedGetContextClassLoader extends QATest {
+public class UntrustedGetContextClassLoader extends QATestEnvironment implements Test {
 
     static AggregatePolicyProvider policy;
 

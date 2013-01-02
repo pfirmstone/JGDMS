@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.io.marshalinputstream;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.spec.io.util.FakeSecurityManager;
 
@@ -97,7 +98,7 @@ import java.util.logging.Level;
  *    17) assert SecurityException is thrown
  * </pre>
  */
-public class ConstructorAccessorTest extends QATest {
+public class ConstructorAccessorTest extends QATestEnvironment implements Test {
 
     private SecurityManager original;
 
@@ -110,8 +111,9 @@ public class ConstructorAccessorTest extends QATest {
         }
     }
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         original = System.getSecurityManager();
+        return this;
     }
 
     /**

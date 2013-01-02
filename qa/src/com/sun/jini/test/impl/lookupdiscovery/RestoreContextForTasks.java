@@ -26,13 +26,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import java.io.IOException;
 import net.jini.config.Configuration;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscovery;
 import net.jini.loader.pref.PreferredClassLoader;
-
 /**
  * With respect to the current implementation of the
  * <code>LookupDiscovery</code> utility, this class verifies
@@ -108,14 +108,15 @@ public class RestoreContextForTasks extends BaseQATest {
 	    return false;
 	}
     }
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	ClassLoader cl = PreferredClassLoader.newInstance(new URL[]
 	    {new URL("file://" + System.getProperty(QAHOMEPROP) + JARLOCATION)},
 	    this.getClass().getClassLoader(), null, false);
 	tp = (TestTaskProducer)
 	    Class.forName(CLASSNAME, true, cl).newInstance();
 	uld = tp.setup(sysConfig.getConfiguration());
+        return this;
     }
     /** (Copied from AbstractBaseTest). We cannot use that class for this test,
      *  because we only want a LookupDiscovery instance created from an
@@ -140,7 +141,7 @@ public class RestoreContextForTasks extends BaseQATest {
      *  </ul>
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    private void doDiscovery(ArrayList locGroupsListStartedLookups,
+    private void doDiscovery(List locGroupsListStartedLookups,
                                LookupDiscovery ld,
                                LookupListener listener,
                                String[] groupsToDiscover)
@@ -173,6 +174,7 @@ public class RestoreContextForTasks extends BaseQATest {
     }//end doDiscovery
     
     public void run() throws Exception {
+        List initLookupsToStart = getLookupServices().getInitLookupsToStart();
 	doDiscovery(initLookupsToStart, uld, 
 		new LookupListener(), toGroupsArray(initLookupsToStart));
 	tp.run();

@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.io.marshalledinstance;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.io.MarshalledInstance;
 
@@ -64,10 +65,11 @@ import java.util.ArrayList;
  *    14) assert no exception is thrown
  * </pre>
  */
-public class ConstructorTest extends QATest {
+public class ConstructorTest extends QATestEnvironment implements Test {
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

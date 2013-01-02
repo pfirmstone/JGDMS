@@ -19,7 +19,7 @@
 package com.sun.jini.test.spec.locatordiscovery;
 
 import java.util.logging.Level;
-
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import net.jini.core.discovery.LookupLocator;
@@ -55,10 +55,11 @@ public class DiscoveredStagger extends AbstractBaseTest {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         delayLookupStart = true;
-        super.setup(sysConfig);
-    }//end setup
+        super.construct(sysConfig);
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
@@ -86,25 +87,25 @@ public class DiscoveredStagger extends AbstractBaseTest {
         boolean oldUseFastTimeout = useFastTimeout;
         useFastTimeout = false;
         StaggeredStartThread lookupsThread =
-                                new StaggeredStartThread(1,allLookupsToStart);
+                                new StaggeredStartThread(1, getAllLookupsToStart());
         try {
             /* Start 1st lookup service (so it's up before discovery starts) */
             LocatorGroupsPair pair
-                                 = (LocatorGroupsPair)allLookupsToStart.get(0);
-	    LookupLocator l = pair.locator;
+                                 = (LocatorGroupsPair)getAllLookupsToStart().get(0);
+	    LookupLocator l = pair.getLocator();
             int port = l.getPort();
             if(portInUse(port)) port = 0;//use randomly chosen port
             startLookup(0, port, l.getHost());
             /* Re-configure LookupLocatorDiscovery to discover given locators*/
             logger.log(Level.FINE, "change LookupLocatorDiscovery to discover -- ");
             LookupLocator[] locatorsToDiscover
-                                          = toLocatorArray(allLookupsToStart);
+                                          = toLocatorArray(getAllLookupsToStart());
             for(int i=0;i<locatorsToDiscover.length;i++) {
                 logger.log(Level.FINE, "    "+locatorsToDiscover[i]);
             }//end loop
             locatorDiscovery.setLocators(locatorsToDiscover);
             /* Add the given listener to the LookupLocatorDiscovery utility */
-            mainListener.setLookupsToDiscover(allLookupsToStart);
+            mainListener.setLookupsToDiscover(getAllLookupsToStart());
             locatorDiscovery.addDiscoveryListener(mainListener);
             /* Start remaining lookup services in a time-staggered fashion */
             lookupsThread.start();

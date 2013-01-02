@@ -31,6 +31,7 @@ import net.jini.discovery.LookupDiscoveryService;
 
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class determines whether or not the lookup discovery service can
@@ -51,11 +52,12 @@ public class SetLogToSnapshotThreshold extends AbstractBaseTest {
      *  which to replace the value of the service's current log-to-snapshot
      *  threshold.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         expectedValue = 1+(2*config.getIntConfigVal(serviceName
                                                 +".logtosnapshotthreshold",0));
         logger.log(Level.FINE, "expectedValue = "+expectedValue);
+        return this;
     }
 
     /** Executes the current test by doing the following:

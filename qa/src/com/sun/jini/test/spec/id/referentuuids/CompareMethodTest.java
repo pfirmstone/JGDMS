@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.id.referentuuids;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
@@ -56,11 +57,11 @@ import java.util.logging.Level;
  *     2) assert expectedResult is returned
  * </pre>
  */
-public class CompareMethodTest extends QATest {
+public class CompareMethodTest extends QATestEnvironment implements Test {
 
     Object[][] cases;
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         // expectedResult
         Boolean f = Boolean.FALSE;
         Boolean t = Boolean.TRUE;
@@ -81,6 +82,7 @@ public class CompareMethodTest extends QATest {
             {new FakeReferentUuid(u1),  new Object(),              f},
             {new Object(),              new Object(),              f}
         };
+        return this;
     }
 
     public void run() throws Exception {

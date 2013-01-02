@@ -25,6 +25,7 @@ import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest;
 import com.sun.jini.test.share.DiscoveryServiceUtil;
 
 import com.sun.jini.fiddler.FiddlerAdmin;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.admin.Administrable;
 
@@ -61,9 +62,9 @@ public class ProxyToString extends AbstractBaseTest {
      *  Requests a registration with the service; obtains a registration proxy.
      *  Retrieves the lease on the registration.
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
 
-        super.setup(config);//start fiddler and retrieve the service proxy
+        super.construct(config);//start fiddler and retrieve the service proxy
 
         fiddlerProxy = discoverySrvc;//discoverySrvc set in AbstractBaseTest
 
@@ -83,11 +84,11 @@ public class ProxyToString extends AbstractBaseTest {
                                 new DiscoveryServiceUtil.BasicEventListener());
 
         fiddlerLease = getPreparedLease(fiddlerRegistration);
-
-    }//end setup
+        return this;
+    }//end construct
 
     /** Invokes the <code>toString</code> method on each of the proxies
-     *  retrieved during setup and logs the results. If no exception occurs,
+     *  retrieved during construct and logs the results. If no exception occurs,
      *  then this test passes. The output should then be inspected to verify
      *  that each method produces a <code>String</code> with the intended
      *  content and format.

@@ -23,6 +23,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 import com.sun.jini.constants.TimeConstants;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.event.EventMailbox;
 import net.jini.event.MailboxRegistration;
@@ -103,7 +104,7 @@ public class EMSRIFT2 extends EMSTestBase implements TimeConstants {
 	}
 
 	// Pass our listener to the mailbox
-	TestListener myRel = TestUtils.createListener(manager);
+	TestListener myRel = TestUtils.createListener(getManager());
 	mr1.enableDelivery(myRel);
 	assertCount(myRel, 0);
 	mr2.enableDelivery(myRel);
@@ -150,12 +151,13 @@ public class EMSRIFT2 extends EMSTestBase implements TimeConstants {
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	parse();
+        return this;
     }
 }

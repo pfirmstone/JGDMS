@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.proxytrustilfactory;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.ProxyTrustILFactory;
 import net.jini.export.ExportPermission;
@@ -89,7 +90,7 @@ import java.util.logging.Level;
  *     4) assert IllegalArgumentException is thrown
  * </pre>
  */
-public class ConstructorAccessorTest extends QATest {
+public class ConstructorAccessorTest extends QATestEnvironment implements Test {
 
     // fake ProxyTrustILFactory subclass
     class FakeProxyTrustILFactory extends ProxyTrustILFactory {
@@ -150,7 +151,8 @@ public class ConstructorAccessorTest extends QATest {
     };
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

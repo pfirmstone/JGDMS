@@ -20,11 +20,12 @@ package com.sun.jini.test.spec.export.servercontext;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 // java.util
@@ -94,7 +95,7 @@ import com.sun.jini.test.spec.export.util.FakeType;
  *
  * </pre>
  */
-public class DoWithServerContext extends QATest {
+public class DoWithServerContext extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**
@@ -118,8 +119,8 @@ public class DoWithServerContext extends QATest {
     /**
      * This method performs all preparations.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /* Create context element */
@@ -128,6 +129,7 @@ public class DoWithServerContext extends QATest {
         /* Create server context collection with the created element */
         context = new ArrayList();
         context.add(cxtElement);
+        return this;
     }
 
     /**

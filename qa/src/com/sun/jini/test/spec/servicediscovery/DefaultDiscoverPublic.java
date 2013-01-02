@@ -26,6 +26,7 @@ import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.lookup.ServiceDiscoveryManager;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the lookup discovery processing performed by the
@@ -51,11 +52,11 @@ public class DefaultDiscoverPublic extends AbstractBaseTest {
      *     inputting <code>null</code> to the <code>DiscoveryManagement</code>
      *     parameter.
      */
-    public void setup(QAConfig config) throws Exception {
-        createSDMInSetup = false;
+    public Test construct(QAConfig config) throws Exception {
+        createSDMduringConstruction = false;
         waitForLookupDiscovery = false;
         terminateDelay = 0;
-        super.setup(config);
+        super.construct(config);
         testDesc = "service discovery manager with default lookup "
                    +"discovery manager (should discover public lookups)";
         srvcDiscoveryMgr = 
@@ -63,7 +64,8 @@ public class DefaultDiscoverPublic extends AbstractBaseTest {
 					null,
 					config.getConfiguration());
         sdmList.add(srvcDiscoveryMgr);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  

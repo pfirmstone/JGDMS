@@ -41,7 +41,7 @@ public class ActivateWrapperRegisterBadImplClass extends AbstractStartBaseTest {
 	try { 
 	    net.jini.event.EventMailbox mailbox =
 		    (net.jini.event.EventMailbox)
-		    manager.startService("net.jini.event.EventMailbox");
+		    getManager().startService("net.jini.event.EventMailbox");
             logger.log(Level.INFO, "Created bad impl object");
             throw new TestException( "ActivateWrapper.register()"
 		    + " did not throw expected exception" );

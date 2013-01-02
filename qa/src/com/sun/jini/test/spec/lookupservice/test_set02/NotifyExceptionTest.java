@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set02;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -50,9 +51,10 @@ public abstract class NotifyExceptionTest extends QATestRegistrar {
      *
      * Creates the lookup service and a do-nothing remote event listener.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	listener = new Listener();
+        return this;
     }
 
     /** Performs cleanup actions necessary to achieve a graceful exit of 

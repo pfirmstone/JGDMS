@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -35,6 +36,8 @@ import net.jini.core.lookup.ServiceRegistrar;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -46,7 +49,7 @@ import java.util.ArrayList;
  * multicast request, and unicast request protocols on behalf of the
  * tests that sub-class this abstract class.
  * <p>
- * This class provides an implementation of the <code>setup</code> method
+ * This class provides an implementation of the <code>construct</code> method
  * which performs standard functions related to the initialization of the
  * system state necessary to execute the test.
  *
@@ -56,9 +59,9 @@ import java.util.ArrayList;
  */
 abstract public class AbstractBaseTest extends BaseQATest {
 
-    protected LookupDiscovery lookupDiscovery = null;
-    protected ArrayList lookupDiscoveryList = new ArrayList(1);
-    protected LookupListener mainListener = null;
+    protected volatile LookupDiscovery lookupDiscovery = null;
+    protected final List<LookupDiscovery> lookupDiscoveryList = new CopyOnWriteArrayList<LookupDiscovery>();
+    protected volatile LookupListener mainListener = null;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test as follows:
@@ -71,8 +74,8 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *         utility
      * </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
 	/* Start group discovery by creating a lookup discovery  utility */
 	logger.log(Level.FINE,
 		   "creating a lookup discovery initially "
@@ -83,6 +86,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
 	     sysConfig.getConfiguration());
 	lookupDiscoveryList.add(lookupDiscovery);
 	mainListener = new LookupListener();
+        return this;
     }
 
     /** Executes the current test
@@ -131,7 +135,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  </ul>
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListStartedLookups,
+    protected void doDiscovery(List locGroupsListStartedLookups,
                                LookupDiscovery ld,
                                LookupListener listener,
                                String[] groupsToDiscover)
@@ -165,13 +169,13 @@ abstract public class AbstractBaseTest extends BaseQATest {
 
     /** Convenience method that encapsulates basic discovery processing.
      *  Use this method when the standard lookup discovery utility
-     *  created during setup is to be used for discovery, but the set of
+     *  created during construct is to be used for discovery, but the set of
      *  groups to discover is different than the member groups of the
      *  lookup services referenced in the locGroupsListStartedLookups
      *  parameter.
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListStartedLookups,
+    protected void doDiscovery(List locGroupsListStartedLookups,
                                LookupListener listener,
                                String[] groupsToDiscover)
                                                        throws TestException,
@@ -183,13 +187,13 @@ abstract public class AbstractBaseTest extends BaseQATest {
 
     /** Convenience method that encapsulates basic discovery processing.
      *  Use this method when a lookup discovery utility different from
-     *  the standard one created during setup is to be used for discovery,
+     *  the standard one created during construct is to be used for discovery,
      *  and the set of groups to discover is the same as the member groups
      *  of the lookup services referenced in the locGroupsListStartedLookups
      *  parameter.
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListStartedLookups,
+    protected void doDiscovery(List locGroupsListStartedLookups,
                                LookupDiscovery ld,
                                LookupListener listener) throws TestException,
                                                                IOException
@@ -201,13 +205,13 @@ abstract public class AbstractBaseTest extends BaseQATest {
 
     /** Convenience method that encapsulates basic discovery processing.
      *  Use this method when the standard lookup discovery utility
-     *  created during setup is to be used for discovery, and the set
+     *  created during construct is to be used for discovery, and the set
      *  of groups to discover is the same as the member groups of the
      *  lookup services referenced in the locGroupsListStartedLookups
      *  parameter.
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListStartedLookups,
+    protected void doDiscovery(List locGroupsListStartedLookups,
                                LookupListener listener) throws TestException,
                                                                IOException
     {

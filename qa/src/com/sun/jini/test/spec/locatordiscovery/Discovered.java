@@ -31,7 +31,7 @@ import com.sun.jini.qa.harness.TestException;
  *
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *   <li> one or more "initial" lookup services, each started during setup,
+ *   <li> one or more "initial" lookup services, each started during construct,
  *        before the test begins execution
  *   <li> one client with one instance of the lookup locator discovery utility
  *   <li> the lookup locator discovery utility is configured to discover the
@@ -52,7 +52,7 @@ public class Discovered extends AbstractBaseTest {
      * <p><ul>
      *    <li> configures the lookup locator discovery utility to discover
      *         the set of locators whose elements are the locators of each
-     *         lookup service that was started during setup
+     *         lookup service that was started during construct
      *    <li> starts the unicast discovery process by adding a discovery
      *         listener to the lookup locator discovery utility
      *    <li> verifies that the lookup locator discovery utility under test
@@ -62,7 +62,7 @@ public class Discovered extends AbstractBaseTest {
      */
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");
-        doDiscovery(initLookupsToStart,mainListener);
+        doDiscovery(getInitLookupsToStart(),mainListener);
     }//end run
 
 }//end class Discovered

@@ -26,19 +26,20 @@ import net.jini.space.JavaSpace;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.test.spec.javaspace.conformance.JavaSpaceTest;
 import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
 
 
 /**
- * Abstract Test Base tests read/readIfExists methods for snapshots.
+ * Abstract Test Base tests take/takeIfExists methods for snapshots.
  *
  * @author Mikhail A. Markov
  */
-public abstract class SnapshotAbstractReadTestBase
-        extends SnapshotAbstractTestBase {
+public abstract class SnapshotTakeTestBase
+        extends JavaSpaceTest {
 
     /**
-     * Main testing method which tests read/readIfExists method
+     * Main testing method which tests take/takeIfExists method
      * with or without transactions, measure time of invocation
      * and check that result entry match specified template.
      *
@@ -47,12 +48,19 @@ public abstract class SnapshotAbstractReadTestBase
      *         true if we tests wrong template, expects no matching
      *         or false if not.
      * @param txn Transaction under wich we test method (may be null).
-     * @param timeout Timeout for read/readIfExists operations.
+     * @param timeout Timeout for take/takeIfExists operations.
      * @param curIter Iteration number for correct output strings creation.
+     * @param iterNum
+     *         Whole number of tests:
+     *         if current iteration number is equal to this parameter,
+     *         then we expected that there will be no matching
+     *         entries in the space after tested method invocation,
+     *         if no - then at lease one matching entry must remain
+     *         in the space.
      * @param ifExistsMethod
      *         Which method to test:
-     *         true - means "readIfExists" method,
-     *         false - means "read" one.
+     *         true - means "takeIfExists" method,
+     *         false - means "take" one.
      *
      * @return
      *        Null if test passes successfully or string with error
@@ -62,9 +70,10 @@ public abstract class SnapshotAbstractReadTestBase
      *         Thrown if any exception is catched during testing.
      */
     public String testTemplate(SimpleEntry template, boolean isWrongTempl,
-            Transaction txn, long timeout, int curIter, boolean ifExistsMethod)
-            throws TestException {
+            Transaction txn, long timeout, int curIter, int iterNum,
+            boolean ifExistsMethod) throws TestException {
         SimpleEntry result;
+        SimpleEntry takenEntry;
         Entry snapshot;
         long curTime1;
         long curTime2;
@@ -112,9 +121,9 @@ public abstract class SnapshotAbstractReadTestBase
 
         // fill method string
         if (ifExistsMethod) {
-            methodStr = "readIfExists";
+            methodStr = "takeIfExists";
         } else {
-            methodStr = "read";
+            methodStr = "take";
         }
 
         // fill template string
@@ -136,12 +145,13 @@ public abstract class SnapshotAbstractReadTestBase
             curTime1 = System.currentTimeMillis();
 
             if (ifExistsMethod) {
-                result = (SimpleEntry) space.readIfExists(snapshot, txn,
+                result = (SimpleEntry) space.takeIfExists(snapshot, txn,
                         timeout);
             } else {
-                result = (SimpleEntry) space.read(snapshot, txn, timeout);
+                result = (SimpleEntry) space.take(snapshot, txn, timeout);
             }
             curTime2 = System.currentTimeMillis();
+            takenEntry = result;
 
             // check that it has returned required entry
             if (isWrongTempl) {
@@ -153,12 +163,13 @@ public abstract class SnapshotAbstractReadTestBase
             } else {
                 if (result == null) {
                     return "performed " + iterStr + methodStr + " with "
-                        + tmplStr + txnStr + " and " + timeoutStr + " timeout,"
-                        + " expected non null but read null result.";
+                            + tmplStr + txnStr + " and " + timeoutStr
+                            + " timeout, expected non null but took null"
+                            + " result.";
                 } else if (template != null && !template.implies(result)) {
                     return "performed " + iterStr + methodStr + " with "
                             + tmplStr + txnStr + " and " + timeoutStr
-                            + " timeout, expected matching entry, but read "
+                            + " timeout, expected matching entry, but took "
                             + result;
                 }
             }
@@ -185,6 +196,62 @@ public abstract class SnapshotAbstractReadTestBase
                             + " but expected at least in" + timeout;
                 }
             }
+
+            // if we test wrong template then test passed
+            if (isWrongTempl) {
+                logDebugText(iterStr + methodStr + " with " + tmplStr + txnStr
+                        + " and " + timeoutStr + " timeout works as expected.");
+                return null;
+            }
+
+            if (iterNum == 0) {
+
+                /*
+                 * we expect, that there are no entries like taken one
+                 * are available in the space
+                 */
+                result = (SimpleEntry) space.read(takenEntry, txn, checkTime);
+
+                if (result != null) {
+                    return "performed " + iterStr + methodStr + " with "
+                            + tmplStr + txnStr + " and " + timeoutStr
+                            + " timeout did not remove taken entry"
+                            + " from the space.";
+                }
+            } else if ((iterNum - curIter) == 0) {
+
+                /*
+                 * this is the last checking,
+                 * check that there are no matching entries available
+                 * in the space
+                 */
+                result = (SimpleEntry) space.read(template, txn, checkTime);
+
+                if (result != null) {
+                    return "performed " + iterStr + methodStr + " with "
+                            + tmplStr + txnStr + " and " + timeoutStr
+                            + " timeout,"
+                            + " expected, that there are no entries available"
+                            + " in the space but at least 1 " + result
+                            + " is still there.";
+                }
+            } else {
+
+                /*
+                 * check that at least one matching entry is available
+                 * in the space
+                 */
+                result = (SimpleEntry) space.read(template, txn, checkTime);
+
+                if (result == null) {
+                    return "performed " + iterStr + methodStr + " with "
+                            + tmplStr + txnStr + " and " + timeoutStr
+                            + " timeout,"
+                            + " there are no entries in the space after"
+                            + " tested method invocation but at least 1"
+                            + " is expected to remain.";
+                }
+            }
         } catch (Exception ex) {
             throw new TestException("The following exception has been thrown"
                     + " while trying to test " + iterStr + methodStr + " with "
@@ -202,12 +269,19 @@ public abstract class SnapshotAbstractReadTestBase
      *
      * @param template Template to be tested.
      * @param txn Transaction under wich we test method (may be null).
-     * @param timeout Timeout for read/readIfExists operations.
+     * @param timeout Timeout for take/takeIfExists operations.
      * @param curIter Iteration number for correct output strings creation.
+     * @param iterNum
+     *         Whole number of tests:
+     *         if current iteration number is equal to this parameter,
+     *         then we expected that there will be no matching
+     *         entries in the space after tested method invocation,
+     *         if no - then at lease one matching entry must remain
+     *         in the space.
      * @param ifExistsMethod
      *         Which method to test:
-     *         true - means "readIfExists" method,
-     *         false - means "read" one.
+     *         true - means "takeIfExists" method,
+     *         false - means "take" one.
      *
      * @return
      *        Null if test passes successfully or string with error
@@ -219,9 +293,9 @@ public abstract class SnapshotAbstractReadTestBase
      * @see #testTemplate
      */
     public String testWrongTemplate(SimpleEntry template, Transaction txn,
-            long timeout, int curIter, boolean ifExistsMethod)
+            long timeout, int curIter, int iterNum, boolean ifExistsMethod)
             throws TestException {
-        return testTemplate(template, true, txn, timeout, curIter,
+        return testTemplate(template, true, txn, timeout, curIter, iterNum,
                 ifExistsMethod);
     }
 
@@ -231,12 +305,19 @@ public abstract class SnapshotAbstractReadTestBase
      *
      * @param template Template to be tested.
      * @param txn Transaction under wich we test method (may be null).
-     * @param timeout Timeout for read/readIfExists operations.
+     * @param timeout Timeout for take/takeIfExists operations.
      * @param curIter Iteration number for correct output strings creation.
+     * @param iterNum
+     *         Whole number of tests:
+     *         if current iteration number is equal to this parameter,
+     *         then we expected that there will be no matching
+     *         entries in the space after tested method invocation,
+     *         if no - then at lease one matching entry must remain
+     *         in the space.
      * @param ifExistsMethod
      *         Which method to test:
-     *         true - means "readIfExists" method,
-     *         false - means "read" one.
+     *         true - means "takeIfExists" method,
+     *         false - means "take" one.
      *
      * @return
      *        Null if test passes successfully or string with error
@@ -248,9 +329,9 @@ public abstract class SnapshotAbstractReadTestBase
      * @see #testTemplate
      */
     public String testTemplate(SimpleEntry template, Transaction txn,
-            long timeout, int curIter, boolean ifExistsMethod)
+            long timeout, int curIter, int iterNum, boolean ifExistsMethod)
             throws TestException {
-        return testTemplate(template, false, txn, timeout, curIter,
+        return testTemplate(template, false, txn, timeout, curIter, iterNum,
                 ifExistsMethod);
     }
 }

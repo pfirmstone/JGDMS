@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.qa.harness.TestException;
 import java.util.logging.Level;
@@ -105,14 +106,14 @@ public class NotifyOnAttrMod extends QATestRegistrar {
      *  on the contents of the corresponding template and the appropriate 
      *  transition mask; along with a handback containing the service ID . 
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 
         int i,j,k;
         ServiceID curSrvcID;
 	EventRegistration[] evntRegs;
         int regTransitions =   ServiceRegistrar.TRANSITION_MATCH_MATCH
                              | ServiceRegistrar.TRANSITION_MATCH_NOMATCH;
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 
 	logger.log(Level.FINE, "in setup() method.");
 
@@ -155,13 +156,14 @@ public class NotifyOnAttrMod extends QATestRegistrar {
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);
 	}
+        return this;
     }
 
     /** Executes the current QA test.
      *
-     *  For each service instance created during setup, modifies the attribute
+     *  For each service instance created during construct, modifies the attribute
      *  belonging to that service with the corresponding attribute from the
-     *  second set of attributes created during setup. Waits a configured
+     *  second set of attributes created during construct. Waits a configured
      *  amount of time to allow for all of the events to be generated
      *  and collected. Determines if all of the expected -- as well as 
      *  no un-expected -- events have arrived. This test depends on the 

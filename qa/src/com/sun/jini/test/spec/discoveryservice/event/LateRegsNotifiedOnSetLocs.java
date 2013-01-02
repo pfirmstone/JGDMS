@@ -70,7 +70,7 @@ public class LateRegsNotifiedOnSetLocs extends AbstractBaseTest {
      * <li> create a first set of registration(s) with the lookup discovery
      *      service, requesting that NO_GROUPS and no locators be discovered
      * <li> calls setLocators, requesting the discovery of the locators of
-     *      the lookup service(s) started in setup
+     *      the lookup service(s) started in construct
      * <li> verifies that the discovery process is working for the first
      *      registration by waiting for the expected discovery events
      * <li> creates a second set of registration(s) with the lookup discovery

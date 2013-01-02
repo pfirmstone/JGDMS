@@ -38,7 +38,7 @@ import com.sun.jini.qa.harness.TestException;
  *
  * @author Mikhail A. Markov
  */
-public class NotifyLeaseANYTest extends AbstractTestBase {
+public class NotifyLeaseANYTest extends JavaSpaceTest {
 
     /**
      * This method asserts, that for notify with <code>Lease.ANY</code>

@@ -37,7 +37,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class NotifyTest extends AbstractTestBase {
+public class NotifyTest extends JavaSpaceTest {
 
     /**
      * This method asserts, that for notify with finite lease times:

@@ -20,6 +20,7 @@ package com.sun.jini.test.spec.discoverymanager;
 
 import net.jini.discovery.DiscoveryGroupManagement;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>LookupDiscoveryManager</code> utility
@@ -54,9 +55,10 @@ public class DiscoveredAll extends Discovered {
      *
      *  Retrieves additional configuration values. 
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         groupsToDiscover = DiscoveryGroupManagement.ALL_GROUPS;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class DiscoveredAll

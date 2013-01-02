@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.lookup.JoinManager;
@@ -52,10 +53,11 @@ public class GetJoinSetServiceID extends GetJoinSetCallback {
      *          started in the previous step
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         callbackJM = false;//create a "serviceID join manager"
-        super.setup(sysConfig);
-    }//end setup
+        super.construct(sysConfig);
+        return this;
+    }//end construct
 
 } //end class GetJoinSetServiceID
 

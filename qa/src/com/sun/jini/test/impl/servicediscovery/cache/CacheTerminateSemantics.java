@@ -27,6 +27,7 @@ import net.jini.lookup.ServiceDiscoveryListener;
 
 import net.jini.core.lookup.ServiceItem;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
@@ -71,8 +72,8 @@ public class CacheTerminateSemantics extends AbstractBaseTest {
      *  1. Creates a service discovery manager using the default input
      *  2. Creates a lookup cache using the default input
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "verify invocation semantics of public methods after "
                    +"termination";
         waitForLookupDiscovery = false;
@@ -81,11 +82,12 @@ public class CacheTerminateSemantics extends AbstractBaseTest {
         cache = srvcDiscoveryMgr.createLookupCache(template,
                                                    firstStageFilter,
                                                    null);//listener
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
-     *  1. Terminates the lookup cache created in setup and verifies that
+     *  1. Terminates the lookup cache created in construct and verifies that
      *     an invocation of any of that cache's public methods (except the
      *     terminate method itself) will result in an
      *     <code>IllegalStateException</code>. 

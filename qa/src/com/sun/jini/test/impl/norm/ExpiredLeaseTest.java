@@ -40,6 +40,7 @@ import net.jini.lease.RenewalFailureEvent;
 import com.sun.jini.test.share.TestBase;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /** 
  * Test that registers for renewal failure events, creates an expired
@@ -50,7 +51,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * that will expire after the sever is restarted and check to see if 
  * an event is delvered for that lease as well
  */
-public class ExpiredLeaseTest extends TestBase {
+public class ExpiredLeaseTest extends TestBase implements Test {
 
     /** Should we try shuting down the service under test? */
     private boolean tryShutdown;
@@ -58,9 +59,10 @@ public class ExpiredLeaseTest extends TestBase {
     /** How long should we wait before giving up on event delevery */
     private long eventWait;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	this.parse();
+        return this;
     }
 
     /**
@@ -127,7 +129,7 @@ public class ExpiredLeaseTest extends TestBase {
 
 	logger.log(Level.INFO, "First half of test passed, ");
 
-	Admin admin = manager.getAdmin(lrs);
+	Admin admin = getManager().getAdmin(lrs);
 	if (admin instanceof ActivatableServiceStarterAdmin) {
 	    logger.log(Level.INFO, "trying second half");
 	    final Lease second = LocalLease.getDestructingLocalLease(Lease.FOREVER,

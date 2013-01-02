@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import net.jini.lookup.ServiceItemFilter;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -66,22 +67,23 @@ public class LookupMaxFilter extends LookupMax {
      *     registered above; and which will be applied to the results of the
      *     template matching performed by the service discovery manager
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         testDesc = "multiple service lookup employing -- template, filter";
         /* Construct the list of expected services based on how the filter
          * is expected to function
          */
         logger.log(Level.FINE,
 		   "constructing the list of expected services ...");
-        for(int i=0,indx=0,len=expectedServiceList.size();i<len;i++) {
-            if(srvcValOdd((TestService)expectedServiceList.get(indx))){
-                expectedServiceList.remove(indx);
+        for(int i=0,indx=0,len=getExpectedServiceList().size();i<len;i++) {
+            if(srvcValOdd((TestService)getExpectedServiceList().get(indx))){
+                getExpectedServiceList().remove(indx);
             } else {
                 indx++;
             }//endif
         }//end loop
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class LookupMaxFilter
 

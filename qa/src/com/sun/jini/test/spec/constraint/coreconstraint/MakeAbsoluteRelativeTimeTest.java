@@ -24,9 +24,10 @@ import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 import java.util.Iterator;
 import java.util.Set;
@@ -174,7 +175,7 @@ import net.jini.core.constraint.InvocationConstraint;
  *
  * </pre>
  */
-public class MakeAbsoluteRelativeTimeTest extends QATest {
+public class MakeAbsoluteRelativeTimeTest extends QATestEnvironment implements Test {
     QAConfig config;
 
 

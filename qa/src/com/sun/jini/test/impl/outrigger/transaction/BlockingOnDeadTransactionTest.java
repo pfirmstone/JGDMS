@@ -29,6 +29,7 @@ import net.jini.core.entry.*;
 import net.jini.core.transaction.Transaction;
 import net.jini.admin.Administrable;
 import com.sun.jini.admin.DestroyAdmin;
+import com.sun.jini.qa.harness.Test;
 import java.rmi.UnmarshalException;
 
 
@@ -56,11 +57,12 @@ public class BlockingOnDeadTransactionTest extends TransactionTestBase
     /**
      * Sets up the testing environment.
      *
-     * @param config Arguments from the runner for setup.
+     * @param config Arguments from the runner for construct.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
+        return this;
     }
 
     public void run() throws Exception {
@@ -84,7 +86,7 @@ public class BlockingOnDeadTransactionTest extends TransactionTestBase
 
         // read the entry under one transaction
         Transaction t1 = createTransaction();
-        Entry readResult = space.read(entry, t1, 0);
+        Entry readResult = getSpace().read(entry, t1, 0);
         assertEquals(entry, readResult, "read");
         timeLog("entry read under t1");
 
@@ -99,14 +101,14 @@ public class BlockingOnDeadTransactionTest extends TransactionTestBase
 
         // read the entry under another transaction
         Transaction t2 = createTransaction();
-        readResult = space.read(entry, t2, 0);
+        readResult = getSpace().read(entry, t2, 0);
         assertEquals(entry, readResult, "read");
         timeLog("entry read under t2");
         timeLog("destroying");
 
         try {
             DestroyAdmin admin = (DestroyAdmin) ((Administrable)
-                    txmgr).getAdmin();
+                    getTxmgr()).getAdmin();
             admin = (DestroyAdmin) getConfig().prepare("test.mahaloAdminPreparer",
                                                          admin);
 
@@ -171,7 +173,7 @@ public class BlockingOnDeadTransactionTest extends TransactionTestBase
                 if (!usePolling) {
                     timeLog("BlockAndTake: starting to take: timeout is "
                             + BLOCK_TIME + ", tmpl = " + tmpl);
-                    takeResult = space.take(tmpl, txn, BLOCK_TIME);
+                    takeResult = getSpace().take(tmpl, txn, BLOCK_TIME);
                 } else {
                     timeLog("BlockAndTake: starting to take: polling time is "
                             + BLOCK_TIME + ", tmpl = " + tmpl);
@@ -180,7 +182,7 @@ public class BlockingOnDeadTransactionTest extends TransactionTestBase
 
                     while (System.currentTimeMillis() < endTime) {
                         timeLog("poll #" + pollNum++);
-                        takeResult = space.takeIfExists(tmpl, txn,
+                        takeResult = getSpace().takeIfExists(tmpl, txn,
                                 JavaSpace.NO_WAIT);
 
                         if (takeResult != null) {

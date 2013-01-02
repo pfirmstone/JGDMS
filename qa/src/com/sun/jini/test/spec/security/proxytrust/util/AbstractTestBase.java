@@ -31,9 +31,10 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 
 // com.sun.jini
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 // net.jini
+import com.sun.jini.qa.harness.Test;
 import net.jini.export.Exporter;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ProxyTrustExporter;
@@ -52,7 +53,7 @@ import net.jini.core.constraint.Integrity;
 /**
  * Base class for proxytrust spec-tests.
  */
-public abstract class AbstractTestBase extends QATest {
+public abstract class AbstractTestBase extends QATestEnvironment implements Test {
 
     /**
      * Holds expected results for 'isTrustedObject' method calls of

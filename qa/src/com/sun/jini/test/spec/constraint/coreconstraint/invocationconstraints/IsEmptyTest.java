@@ -25,9 +25,10 @@ import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 import java.util.HashSet;
 
@@ -73,7 +74,7 @@ import net.jini.core.constraint.Delegation;
  *
  * </pre>
  */
-public class IsEmptyTest extends QATest {
+public class IsEmptyTest extends QATestEnvironment implements Test {
     QAConfig config;
 
 
@@ -136,8 +137,8 @@ public class IsEmptyTest extends QATest {
      * Creates {@link IsEmptyTest.TestCase} objects for all test cases specified
      * in the class description.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
         
         // Requirements
@@ -177,6 +178,7 @@ public class IsEmptyTest extends QATest {
         reqs.add(Delegation.YES);
         prefs.add(Delegation.YES);
         tc[3] = new TestCase(new InvocationConstraints(reqs, prefs), false);
+        return this;
     }
 
     /**

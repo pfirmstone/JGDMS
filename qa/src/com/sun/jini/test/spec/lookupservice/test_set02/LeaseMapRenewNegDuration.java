@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set02;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -40,14 +41,15 @@ public class LeaseMapRenewNegDuration extends QATestRegistrar {
     private ServiceRegistration reg2;
     private LeaseMap lmap;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	reg1 = registerItem(new ServiceItem(null, new Long(0), null),
 			    getProxy());
 	reg2 = registerItem(new ServiceItem(null, new Long(1), null),
 			    getProxy());
 	lmap = prepareRegistrationLeaseMap(getRegistrationLease(reg1).createLeaseMap(-500));
 	lmap.put(getRegistrationLease(reg2), new Long(300));
+        return this;
     }
 
     public void run() throws Exception {

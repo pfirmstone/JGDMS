@@ -83,7 +83,7 @@ public class DiscardUnreachable extends Discovered {
          */
         synchronized(mainListener) {
             logger.log(Level.FINE, "terminating each lookup service ...");
-            /* Stop announcements & destroy all lookups started in setup */
+            /* Stop announcements & destroy all lookups started in construct */
             terminateAllLookups();
             DiscoveryServiceUtil.delayMS(7000);//wait for shutdown complete
             logger.log(Level.FINE, "discarding un-reachable lookup services ...");

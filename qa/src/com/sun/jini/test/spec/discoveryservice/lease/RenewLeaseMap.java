@@ -25,6 +25,7 @@ import com.sun.jini.test.share.DiscoveryServiceUtil;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.LookupDiscoveryRegistration;
 
@@ -78,8 +79,8 @@ public class RenewLeaseMap extends AbstractBaseTest {
      *  Constructs a LeaseMap that maps each lease to the new duration
      *  that will be used in a renewal request.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         /* Create the registrations */
         expectedDurations = getRenewalDurations();
         reg = new LookupDiscoveryRegistration[expectedDurations.length];
@@ -123,13 +124,14 @@ public class RenewLeaseMap extends AbstractBaseTest {
                 }
             }
         }//end loop
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  
      *  1. Requests the renewal of all leases referenced in the map
-     *     constructed during setup
-     *  2. For each lease granted during setup,
+     *     constructed during construct
+     *  2. For each lease granted during construct,
      *     a. retrieves the current expiration on the renewed lease
      *     b. converts the expiration to a duration, rounding to a whole value
      *     c. compares the value expected to the value returned

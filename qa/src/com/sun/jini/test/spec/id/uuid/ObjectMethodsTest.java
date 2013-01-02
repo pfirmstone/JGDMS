@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.id.uuid;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -60,9 +61,10 @@ import java.util.logging.Level;
  *        string representation
  * </pre>
  */
-public class ObjectMethodsTest extends QATest {
+public class ObjectMethodsTest extends QATestEnvironment implements Test {
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     public void run() throws Exception {

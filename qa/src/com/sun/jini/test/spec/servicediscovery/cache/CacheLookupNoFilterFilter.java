@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.servicediscovery.cache;
 import net.jini.lookup.ServiceItemFilter;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -60,16 +61,17 @@ public class CacheLookupNoFilterFilter extends CacheLookup {
      *  4. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "single service cache lookup -- services pre-registered, "
                    +"no first-stage filter, second-stage filter";
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
      *  1. Requests the creation of a lookup cache that will perform template
-     *     matching using the template created during setup, and which will
+     *     matching using the template created during construct, and which will
      *     apply NO first-stage filtering to the results of the template
      *     matching (<code>null</code> filter parameter)
      *  2. Invokes the desired version of the <code>lookup</code> method -

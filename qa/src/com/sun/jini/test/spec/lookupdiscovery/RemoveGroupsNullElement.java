@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>removeGroups</code> method, this class verifies
@@ -45,8 +46,8 @@ public class RemoveGroupsNullElement extends AddGroupsNullElement {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	/* Change the groups to remove to include some of the groups the
 	 * lookup discovery utility is currently configured to discover
 	 */
@@ -59,7 +60,8 @@ public class RemoveGroupsNullElement extends AddGroupsNullElement {
 			    +"as expected");
 	doStr = new String("removing groups from lookup discovery --");
 	doFlag = DO_REMOVE;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class RemoveGroupsNullElement
 

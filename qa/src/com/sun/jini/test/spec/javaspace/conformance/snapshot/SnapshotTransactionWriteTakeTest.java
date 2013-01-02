@@ -28,7 +28,9 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // com.sun.jini.qa
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
+import com.sun.jini.test.spec.javaspace.conformance.TransactionTest;
 
 
 /**
@@ -41,21 +43,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * @author Mikhail A. Markov
  */
-public class SnapshotTransactionWriteTakeTest extends SnapshotAbstractTestBase {
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param config QAConfig from the runner for setup.
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
+public class SnapshotTransactionWriteTakeTest extends TransactionTest {
 
     /**
      * This method asserts that if the entry is written and after that

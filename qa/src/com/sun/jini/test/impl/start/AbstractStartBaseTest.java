@@ -21,7 +21,8 @@ package com.sun.jini.test.impl.start;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -29,7 +30,7 @@ import com.sun.jini.qa.harness.QATest;
  * class should extend.
  * 
  * <p>
- * This class provides an implementation of the <code>setup</code> method
+ * This class provides an implementation of the <code>construct</code> method
  * which performs standard functions related to the initialization of the
  * system state necessary to execute the test.
  *
@@ -39,9 +40,9 @@ import com.sun.jini.qa.harness.QATest;
  * 
  *
  * @see com.sun.jini.qa.harness.QAConfig
- * @see com.sun.jini.qa.harness.QATest
+ * @see com.sun.jini.qa.harness.QATestEnvironment
  */
-abstract public class AbstractStartBaseTest extends QATest {
+abstract public class AbstractStartBaseTest extends QATestEnvironment implements Test {
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test as follows:
@@ -54,16 +55,17 @@ abstract public class AbstractStartBaseTest extends QATest {
      * The shared group is explicitly started because the harness is designed
      * to start it lazily.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         logger.log(Level.FINE, "AbstractBaseTest:setup()");
         getSetupInfo();
 	if (config.getBooleanConfigVal("com.sun.jini.qa.harness.shared",
 				       true)) 
 	{
-	    manager.startService("sharedGroup");
+	    getManager().startService("sharedGroup");
 	}
-    }//end setup
+        return this;
+    }//end construct
 
     /* Retrieve (and display) configuration values for the current test */
     private void getSetupInfo() {

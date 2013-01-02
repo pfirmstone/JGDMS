@@ -32,15 +32,16 @@ import java.util.Iterator;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 
 /**
  * Test to make sure that extended AbstractEntry objects and
  * implemented Entry objects work as specified.
  */
-public class AbstractEntryTest extends QATest {
+public class AbstractEntryTest extends QATestEnvironment implements Test {
     private int failed = 0; // count of failed tests
     private boolean verbose;
 
@@ -92,9 +93,10 @@ public class AbstractEntryTest extends QATest {
         }
     }
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
+        return this;
     }
 
     /**

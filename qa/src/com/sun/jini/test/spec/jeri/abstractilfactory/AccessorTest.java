@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.jeri.abstractilfactory;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.AbstractILFactory;
 import net.jini.core.constraint.RemoteMethodControl;
@@ -98,7 +99,7 @@ import java.util.logging.Level;
  *          from FakeRemoteSubImpl's Remote interfaces is returned
  * </pre>
  */
-public class AccessorTest extends QATest {
+public class AccessorTest extends QATestEnvironment implements Test {
 
     interface FakeRemoteInterface extends Remote {
         public void fakeMethod1() throws RemoteException;
@@ -146,7 +147,8 @@ public class AccessorTest extends QATest {
     }
 
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     public void run() throws Exception {

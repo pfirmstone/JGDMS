@@ -19,7 +19,7 @@ package com.sun.jini.test.spec.url.https.integrity;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
-
+import com.sun.jini.qa.harness.Test;
 // java.util
 import java.util.logging.Level;
 
@@ -200,13 +200,14 @@ public class ProvidesIntegrity extends AbstractProvidesIntegrity {
      *    - expected result (boolean value or Exception class).
      * </pre>
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
         /* Creating TestItem objects */
         for (int i = 0; i < tc_url.length; i++) {
             items.add(i, new TestItem("TestCase" + (i + 1),
                                       tc_url[i],
                                       tc_expected[i]));
         }
+        return this;
     }
 
     /**

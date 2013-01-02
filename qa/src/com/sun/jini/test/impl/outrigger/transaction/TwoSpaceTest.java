@@ -96,7 +96,7 @@ public class TwoSpaceTest extends TransactionTestBase {
         pass("step-2: read/take the entry with a transaction");
 
         try {
-            entry = ope.get(spaces[0], template, txn, 10000);
+            entry = ope.get(getSpaces()[0], template, txn, 10000);
         } catch (Exception e) {
             fail("Unexpected exception has thrown", e);
         }
@@ -158,7 +158,7 @@ public class TwoSpaceTest extends TransactionTestBase {
         Entry entry = null;
 
         try {
-            entry = spaces[id].take(template, null, JavaSpace.NO_WAIT);
+            entry = getSpaces()[id].take(template, null, JavaSpace.NO_WAIT);
         } catch (Exception e) {
             fail("Unexpected exception thrown while taking an entry", e);
         }

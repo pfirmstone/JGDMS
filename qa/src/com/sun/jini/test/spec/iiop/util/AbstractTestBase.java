@@ -26,9 +26,10 @@ import java.rmi.Remote;
 import java.util.logging.Level;
 
 // com.sun.jini
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import net.jini.iiop.IiopExporter;
 
 // org.omg
@@ -41,7 +42,7 @@ import javax.rmi.CORBA.Stub;
 /**
  * Abstract Test base for all iiop spec tests.
  */
-public abstract class AbstractTestBase extends QATest {
+public abstract class AbstractTestBase extends QATestEnvironment implements Test {
 
     /** Constant for no-arg constructor type */
     public static final int NOARG_FACTORY = 0;
@@ -63,11 +64,11 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Sets up the testing environment.
      *
-     * @param sysConfig Configuration for setup.
+     * @param sysConfig Configuration for construct.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         // mandatory call to parent
-        super.setup(sysConfig);
+        super.construct(sysConfig);
 
         // obtain type of constructor being used
         cType = sysConfig.getIntConfigVal("iiop.util.constructorType",
@@ -89,6 +90,7 @@ public abstract class AbstractTestBase extends QATest {
                 orb = null;
             }
         }
+        return this;
     }
 
     /**

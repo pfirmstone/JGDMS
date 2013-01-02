@@ -45,6 +45,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class determines if the lookup discovery service can, when requested
@@ -84,8 +85,8 @@ public class CancelLeaseMap extends AbstractBaseTest {
      *  that each registration is valid)
      *  Constructs a LeaseMap that maps each lease to its current duration
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         /* Create the registrations */
         reg = new LookupDiscoveryRegistration[5];
         lease = new Lease[reg.length];
@@ -135,13 +136,14 @@ public class CancelLeaseMap extends AbstractBaseTest {
                 }
             }
         }//end loop
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  
      *  1. Requests the cancellation of all leases referenced in the map
-     *     constructed during setup
-     *  2. For each lease granted during setup, verifies the lease is no
+     *     constructed during construct
+     *  2. For each lease granted during construct, verifies the lease is no
      *     longer valid by doing the following:
      *     a. attempts to retrieve the set of groups that the service
      *        will discover on behalf of the client; if the lease was

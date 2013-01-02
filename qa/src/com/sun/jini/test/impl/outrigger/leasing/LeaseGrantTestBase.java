@@ -31,6 +31,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // Shared classes
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.share.TestBase;
 
 
@@ -38,7 +39,7 @@ import com.sun.jini.test.share.TestBase;
  * Base class for tests which grab a lease and make sure the returned lease
  * meets give constraints.
  */
-public abstract class LeaseGrantTestBase extends TestBase {
+public abstract class LeaseGrantTestBase extends TestBase implements Test {
 
     /**
      * If true then the tests expects leases to granted
@@ -165,9 +166,10 @@ public abstract class LeaseGrantTestBase extends TestBase {
         }
     }
 
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
+        return this;
     }
 
     /**

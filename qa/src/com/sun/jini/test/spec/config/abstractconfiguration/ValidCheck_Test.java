@@ -19,10 +19,11 @@
 package com.sun.jini.test.spec.config.abstractconfiguration;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.util.Random;
@@ -34,7 +35,7 @@ import java.util.Arrays;
  * Common parts for Valid*_Test.
  * </pre>
  */
-public abstract class ValidCheck_Test extends QATest {
+public abstract class ValidCheck_Test extends QATestEnvironment implements Test {
 
 
     /**

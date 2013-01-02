@@ -21,6 +21,7 @@ import java.util.logging.Level;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import java.rmi.NoSuchObjectException;
@@ -56,9 +57,10 @@ public class UseRenewalServiceLeaseRemoveTest extends LeaseUsesTestBase {
      */
     private boolean firstTime = true;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	this.parse();
+        return this;
     }
 
     protected void parse() throws Exception {

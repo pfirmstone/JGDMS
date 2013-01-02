@@ -27,6 +27,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 import com.sun.jini.constants.TimeConstants;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.event.PullEventMailbox;
 import net.jini.event.MailboxPullRegistration;
@@ -80,7 +81,7 @@ public class EMSFT_PULL extends EMSTestBase implements TimeConstants {
 
 	// Create an event generator and pass it the
 	// mailbox's remote event listener.
-	TestGenerator myGen = TestUtils.createGenerator(manager);
+	TestGenerator myGen = TestUtils.createGenerator(getManager());
 	EventRegistration evtReg = 
 	    myGen.register(EVENT_ID,     	// Event ID to use
 			   null,  		// handback
@@ -91,7 +92,7 @@ public class EMSFT_PULL extends EMSTestBase implements TimeConstants {
 
 	// Create another event generator and pass it the
 	// mailbox's remote event listener.
-	TestGenerator myGen2 = TestUtils.createGenerator(manager);
+	TestGenerator myGen2 = TestUtils.createGenerator(getManager());
 	EventRegistration evtReg2 = 
 	    myGen2.register(EVENT_ID2,     	// Event ID to use
 			    null,  		// handback
@@ -101,7 +102,7 @@ public class EMSFT_PULL extends EMSTestBase implements TimeConstants {
 	checkLease(tgl2, DURATION1); 
 
 	// Create "listener" to collect events for this test
-	TestPullListener tpl = TestUtils.createPullListener(manager);
+	TestPullListener tpl = TestUtils.createPullListener(getManager());
 	int myTplCount = 0;
 
 	// Generate some events from first generator
@@ -188,12 +189,13 @@ public class EMSFT_PULL extends EMSTestBase implements TimeConstants {
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	parse();
+        return this;
     }
 }

@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.DiscoveryGroupManagement;
 
@@ -61,13 +62,14 @@ public class MulticastMonitorReplaceNone extends MulticastMonitorReplace {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         replacementGroups = DiscoveryGroupManagement.NO_GROUPS;
-        int N = nLookupServices + nAddLookupServices;
+        int N = getnLookupServices() + getnAddLookupServices();
         nLookupsToReplace = 1 + ( (N-1)/2 );
         if(nLookupsToReplace <= 0) nLookupsToReplace = 1;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class MulticastMonitorReplaceNone
 

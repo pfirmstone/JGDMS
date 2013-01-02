@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.start;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
@@ -27,7 +28,7 @@ import java.lang.reflect.Constructor;
 import java.util.Arrays;
 import java.util.Properties;
 
-public class SharedActivationGroupDescriptorTest extends StarterBase {
+public class SharedActivationGroupDescriptorTest extends StarterBase implements Test {
 
     private static String p = "policy";
     private static String cp = "classpath/bogus.jar";

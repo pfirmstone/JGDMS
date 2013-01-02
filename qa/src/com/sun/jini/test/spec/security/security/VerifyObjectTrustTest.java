@@ -30,7 +30,8 @@ import net.jini.security.Security;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.security.util.Util;
 import com.sun.jini.test.spec.security.util.TestObject;
 import com.sun.jini.test.spec.security.util.BaseTrustVerifier;
@@ -194,7 +195,7 @@ import com.sun.jini.test.spec.security.util.FakeClassLoader;
  *     48) assert that method will return normally
  * </pre>
  */
-public class VerifyObjectTrustTest extends QATest {
+public class VerifyObjectTrustTest extends QATestEnvironment implements Test {
 
     /** Resource name method */
     protected static String resName =

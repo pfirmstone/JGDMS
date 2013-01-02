@@ -20,13 +20,14 @@ package com.sun.jini.test.impl.start;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import net.jini.config.ConfigurationException;
 import com.sun.jini.start.ServiceStarter;
 import com.sun.jini.start.SharedGroup;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.OverrideProvider;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.io.*;
 import java.rmi.*;
@@ -40,7 +41,7 @@ import net.jini.event.EventMailbox;
  * are not equal
  */
  
-public class SharedGroupNullConfigEntries extends QATest {
+public class SharedGroupNullConfigEntries extends QATestEnvironment implements Test {
 
     private static class OverrideGenerator implements OverrideProvider {
 
@@ -66,9 +67,10 @@ public class SharedGroupNullConfigEntries extends QATest {
         }
     }
 
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         sysConfig.addOverrideProvider(new OverrideGenerator());
+        return this;
     }
 
     public void run() throws Exception {
@@ -83,7 +85,7 @@ public class SharedGroupNullConfigEntries extends QATest {
 	}
 	for (int i=0; i < numGroups; i++) {
 	    try {
-                group_proxy = (SharedGroup)manager.startService(serviceName); 
+                group_proxy = (SharedGroup)getManager().startService(serviceName); 
 	        throw new TestException( 
 		    "Started service with invalid configuration");
 	    } catch (Exception e) {

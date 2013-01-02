@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicilfactory;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.InvocationDispatcher;
@@ -72,7 +73,7 @@ import java.util.logging.Level;
  *        IllegalArgumentException is thrown
  * </pre>
  */
-public class CreateInvocationDispatcherTest extends QATest {
+public class CreateInvocationDispatcherTest extends QATestEnvironment implements Test {
 
     // test case infrastructure
     class FakeBasicILFactory extends BasicILFactory {
@@ -88,7 +89,8 @@ public class CreateInvocationDispatcherTest extends QATest {
     }
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

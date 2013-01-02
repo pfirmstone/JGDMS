@@ -27,6 +27,7 @@ import com.sun.jini.test.share.JoinAdminUtil;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.admin.JoinAdmin;
 import net.jini.discovery.LookupDiscoveryService;
@@ -73,8 +74,8 @@ public class AddLookupAttributes extends AbstractBaseTest {
      *  set of attributes that should be expected after adding a new set
      *  to the service.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         Entry[] configAttributes = getConfigAttributeSet();
         newAttributeSet = getTestAttributeSet();
         boolean serviceControlled = false;
@@ -113,7 +114,8 @@ public class AddLookupAttributes extends AbstractBaseTest {
 					      "expectedAttrs",
 					      Level.FINE);
         }
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  

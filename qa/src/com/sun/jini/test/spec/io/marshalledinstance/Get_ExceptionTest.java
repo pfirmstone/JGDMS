@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.io.marshalledinstance;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.AdminManager;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.io.MarshalledInstance;
 
@@ -67,14 +68,14 @@ import java.lang.reflect.UndeclaredThrowableException;
  *     3) call the MarshalledInstance get methods
  *     4) assert readObjectException is thrown directly
  *   Additionally, perform the following steps:
- *     5) setup FakeIntegrityVerifier return values by setting system properties
+ *     5) construct FakeIntegrityVerifier return values by setting system properties
  *     6) construct a FakeArgument instance by calling RMIClassLoader.loadClass
  *     7) construct a MarshalledInstance with the FakeArgument
  *     8) call the MarshalledInstance get methods, passing in true
  *     9) assert a ClassNotFoundException is thrown
  * </pre>
  */
-public class Get_ExceptionTest extends QATest {
+public class Get_ExceptionTest extends QATestEnvironment implements Test {
 
     QAConfig config;
     AdminManager manager;
@@ -93,13 +94,14 @@ public class Get_ExceptionTest extends QATest {
         new ClassNotFoundException()
     };
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         this.config = (QAConfig) sysConfig;
         config.setDynamicParameter(
                 "qaClassServer.port",
                 config.getStringConfigVal("com.sun.jini.test.port", "8082"));
         manager = new AdminManager(sysConfig);
         manager.startService("testClassServer");
+        return this;
     }
 
     public void run() throws Exception {

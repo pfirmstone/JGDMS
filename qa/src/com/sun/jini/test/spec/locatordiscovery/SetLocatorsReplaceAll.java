@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.locatordiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>setLocators</code> method, this class verifies
@@ -54,10 +55,11 @@ public class SetLocatorsReplaceAll extends SetLocatorsReplaceSome {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         changeAll = true;
-        super.setup(sysConfig);
-    }//end setup
+        super.construct(sysConfig);
+        return this;
+    }//end construct
 
 }//end class SetLocatorsReplaceAll
 

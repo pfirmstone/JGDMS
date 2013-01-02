@@ -18,9 +18,10 @@
 package com.sun.jini.test.spec.jeri.mux.util;
 //harness imports
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.LegacyTest;
 
 //jeri imports
+import com.sun.jini.qa.harness.Test;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.jeri.Endpoint;
@@ -37,7 +38,7 @@ import java.util.logging.Logger;
  * Abstract utility class that serves as the base for all
  * Jini ERI Multiplexing Protocol tests.
  */
-public abstract class AbstractMuxTest implements Test {
+public abstract class AbstractMuxTest implements LegacyTest {
 
     protected static QAConfig sysConfig;
     protected static Logger log;
@@ -49,7 +50,7 @@ public abstract class AbstractMuxTest implements Test {
     private String host = null;
 
     //inherit javadoc
-    public void setup(QAConfig config) throws UnknownHostException {
+    public Test construct(QAConfig config) throws UnknownHostException {
         sysConfig = config;
         log = Logger.getLogger("com.sun.jini.test.spec.jeri.mux");
         port = config.getIntConfigVal("com.sun.jini.test.spec"
@@ -59,6 +60,7 @@ public abstract class AbstractMuxTest implements Test {
         host = InetAddress.getLocalHost().getHostAddress();
         endpoint = new TestEndpoint(port,host);
         se = new TestServerEndpoint(port);
+        return this;
     }
 
     //inherit javadoc

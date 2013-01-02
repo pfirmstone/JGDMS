@@ -20,7 +20,7 @@ package com.sun.jini.test.spec.discoverymanager;
 
 import java.util.logging.Level;
 
-import java.util.ArrayList;
+import java.util.List;
 import com.sun.jini.qa.harness.QAConfig;
 
 /**
@@ -80,8 +80,8 @@ public class MulticastMonitorTerminate extends Discovered {
              * both group and locator discovery are retrieved, and the
              * expected discard info is set for those lookups.
              */
-            ArrayList discoveredByGroupsList =
-                                    filterListByGroups(initLookupsToStart,
+            List discoveredByGroupsList =
+                                    filterListByGroups(getInitLookupsToStart(),
                                                        groupsToDiscover);
             mainListener.setDiscardEventInfo(discoveredByGroupsList);
         }//end sync(mainListener)

@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.impl.joinmanager;
 
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
@@ -62,17 +63,18 @@ public class TerminateSemantics extends AbstractBaseTest {
      *          lease renewal manager
      *   </ul>
      */
-    public void setup(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
                                         null,null,
 					sysConfig.getConfiguration());
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
-     *  Terminates the join manager created in setup and verifies that
+     *  Terminates the join manager created in construct and verifies that
      *  an invocation of any of that join manager's public methods will
      *  result in an <code>IllegalStateException</code>.
      */

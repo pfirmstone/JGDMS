@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that when the <code>setLocators</code> method is called
@@ -64,8 +65,8 @@ public class LateRegsNotifiedOn2SetLocs extends AbstractBaseTest {
      *  for properly configured lookup services, discard events, as well as
      *  discovery events will be generated.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         logger.log(Level.FINE, "setup()");
         LookupLocator[] allLocsToDiscover = getLocatorsToDiscover
                                                        (useOnlyLocDiscovery);
@@ -84,20 +85,21 @@ public class LateRegsNotifiedOn2SetLocs extends AbstractBaseTest {
                 locs1[i-len0] = allLocsToDiscover[i];
             }//end loop
         }//endif
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      * <li> create a first set of registration(s) with the lookup discovery
      *      service, requesting that NO_GROUPS and no locators be discovered
      * <li> calls setLocators, requesting the discovery of the locators of
-     *      the lookup service(s) started in setup
+     *      the lookup service(s) started in construct
      * <li> verifies that the discovery/discard process is working for the
      *      initial registration(s) by waiting for the expected discovery
      *      and discard events
      * <li> calls setLocators, requesting the discovery of the 2nd set of
      *      locators which should equal the locators of the 2nd lookup service
-     *      started in setup
+     *      started in construct
      * <li> verifies that the discovery/discard process is working for the
      *      initial registration(s) by waiting for the expected discovery and
      *      discard events

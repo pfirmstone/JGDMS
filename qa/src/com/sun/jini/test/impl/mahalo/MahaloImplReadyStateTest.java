@@ -21,13 +21,14 @@ import java.util.logging.Level;
 import java.util.*;
 
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import net.jini.config.ConfigurationException;
 import com.sun.jini.start.ServiceStarter;
 import com.sun.jini.start.SharedGroup;
 import com.sun.jini.qa.harness.OverrideProvider;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.io.*;
 import java.rmi.*;
@@ -43,9 +44,10 @@ import net.jini.core.transaction.server.TransactionManager;
  
 public class MahaloImplReadyStateTest extends TxnMgrTestBase {
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
-    }
+    // Appears to be an unnecessary override.
+//    public Test construct(QAConfig sysConfig) throws Exception {
+//	return super.construct(sysConfig);
+//    }
 
     public void run() throws Exception {
         

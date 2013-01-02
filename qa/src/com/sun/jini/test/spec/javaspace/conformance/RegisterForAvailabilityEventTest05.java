@@ -38,7 +38,7 @@ import com.sun.jini.qa.harness.TestException;
  *
  * @author Pavel Bogdanov
  */
-public class RegisterForAvailabilityEventTest05 extends AbstractTestBase {
+public class RegisterForAvailabilityEventTest05 extends JavaSpaceTest {
 
     private ArrayList templates = new ArrayList();
     private ArrayList expectedResult = new ArrayList();
@@ -94,7 +94,7 @@ public class RegisterForAvailabilityEventTest05 extends AbstractTestBase {
     public void run() throws Exception {
         ArrayList registrations = new ArrayList();
 
-        TestEventListener05.setConfiguration(config.getConfiguration());
+        TestEventListener05.setConfiguration(getConfig().getConfiguration());
         JavaSpace05 space05 = (JavaSpace05) space;
         reset();
 

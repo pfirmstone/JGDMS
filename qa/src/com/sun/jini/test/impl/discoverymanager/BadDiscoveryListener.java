@@ -98,7 +98,7 @@ public class BadDiscoveryListener extends Discovered {
         }
         logger.log(Level.FINE, "adding a new listener to the "
                 + "lookup discovery manager ... ");
-        newListener.setLookupsToDiscover(initLookupsToStart,
+        newListener.setLookupsToDiscover(getLookupServices().getInitLookupsToStart(),
                 locatorsToDiscover, groupsToDiscover);
         discoveryMgr.addDiscoveryListener(newListener);
         waitForDiscovery(newListener);

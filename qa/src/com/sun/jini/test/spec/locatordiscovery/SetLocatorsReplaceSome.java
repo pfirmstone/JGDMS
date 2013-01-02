@@ -19,13 +19,14 @@
 package com.sun.jini.test.spec.locatordiscovery;
 
 import java.util.logging.Level;
-
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 import net.jini.core.discovery.LookupLocator;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * With respect to the <code>setLocators</code> method, this class verifies
@@ -57,28 +58,30 @@ import java.util.ArrayList;
  *
  */
 public class SetLocatorsReplaceSome extends Discovered {
+    
+    protected final List newLookupsToDiscover = new ArrayList(11);
+    protected final List newLocatorsList = new ArrayList(11);
 
-    protected LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
-    protected ArrayList oldLookupsToDiscover = initLookupsToStart;
-    protected ArrayList newLookupsToDiscover = new ArrayList(11);
-    protected ArrayList newLocatorsList = new ArrayList(11);
-
-    protected boolean changeAll = false;
+    protected volatile LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
+    protected volatile List oldLookupsToDiscover = new ArrayList(0);
+    
+    protected volatile boolean changeAll = false;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        oldLookupsToDiscover = getInitLookupsToStart();
         /* Change the locators for the lookup services at an even index.
          * Change locators at an odd index as well if changeAll is true.
          */
         for(int i=0;i<oldLookupsToDiscover.size();i++) {
             LocatorGroupsPair oldPair =
                                 (LocatorGroupsPair)oldLookupsToDiscover.get(i);
-            LookupLocator oldLoc = oldPair.locator;
-            String[] oldGroups   = oldPair.groups;
+            LookupLocator oldLoc = oldPair.getLocator();
+            String[] oldGroups   = oldPair.getGroups();
             String oldHost       = oldLoc.getHost();
             int    oldPort       = oldLoc.getPort();
             String newHost       = new String(oldHost);
@@ -95,13 +98,14 @@ public class SetLocatorsReplaceSome extends Discovered {
         }//end loop
         newLocatorsToDiscover =(LookupLocator[])(newLocatorsList).toArray
                                    (new LookupLocator[newLocatorsList.size()]);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *     <li> re-configures the lookup locator discovery utility to discover
      *          the set of locators whose elements are the locators of each
-     *          lookup service that was started during setup
+     *          lookup service that was started during construct
      *     <li> starts the unicast discovery process by adding a discovery
      *          listener to the lookup locator discovery utility
      *     <li> verifies that the discovery process is working by waiting

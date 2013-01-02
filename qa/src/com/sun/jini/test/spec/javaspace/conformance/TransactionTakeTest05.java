@@ -35,7 +35,7 @@ import net.jini.core.transaction.TransactionException;
  *
  * @author Pavel Bogdanov
  */
-public class TransactionTakeTest05 extends AbstractTestBase {
+public class TransactionTakeTest05 extends TransactionTest {
 
     private final long MAX_ENTRIES = 5;
 
@@ -45,21 +45,6 @@ public class TransactionTakeTest05 extends AbstractTestBase {
     private SimpleEntry sampleEntry1 = new SimpleEntry("TestEntry #1", 1);
     private SimpleEntry sampleEntry2 = new SimpleEntry("TestEntry #2", 2);
     private SimpleEntry sampleEntry3 = new SimpleEntry("TestEntry #1", 2);
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param config
-     * @throws Exception
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
 
     /**
      * This method asserts that for take operation:<br>

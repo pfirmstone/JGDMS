@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set01;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -147,10 +148,10 @@ public class GetEntryClassesAttrVals extends QATestRegistrar {
      *  of attributes. Adds each attribute instance from the first set of
      *  attributes to each registered service.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k;
 
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 
         /* create the array of Entry arrays holding the attributes */
         Entry[][] srvcAttrs    = new Entry[nAttrClasses][1];
@@ -230,11 +231,12 @@ public class GetEntryClassesAttrVals extends QATestRegistrar {
 		srvcRegs[i].addAttributes(srvcAttrs[j]);
 	    }
         }
+        return this;
     }
 
     /** Executes the current QA test.
      *
-     *  Using the ServiceTemplate created during setup, invokes the method
+     *  Using the ServiceTemplate created during construct, invokes the method
      *  getEntryClasses(). Verifies that the set of class types returned
      *  matches the expected set of type descriptors.
      */

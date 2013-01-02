@@ -22,9 +22,9 @@ import java.util.logging.Level;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 // java.net
@@ -63,7 +63,7 @@ import com.sun.jini.test.spec.policyprovider.util.Util;
  * This class sets up the testing environment and
  * has some helper methods.
  */
-public abstract class AbstractTestBase extends QATest {
+public abstract class AbstractTestBase extends QATestEnvironment implements Test {
 
     /** java.security.policy property string */
     protected static final String SECURITYPOLICY = "java.security.policy";
@@ -113,11 +113,11 @@ public abstract class AbstractTestBase extends QATest {
     /**
      * Sets up the testing environment.
      *
-     * @param sysConfig QAConfig from the runner for setup.
+     * @param sysConfig QAConfig from the runner for construct.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         // mandatory call to parent
-        super.setup(sysConfig);
+        super.construct(sysConfig);
 
         // set up parent's config.
         this.config = (QAConfig) getConfig();
@@ -129,6 +129,7 @@ public abstract class AbstractTestBase extends QATest {
          *
          */
         port = config.getIntConfigVal("com.sun.jini.test.port", 8082);
+        return this;
     }
 
     /**

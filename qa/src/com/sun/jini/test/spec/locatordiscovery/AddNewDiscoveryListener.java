@@ -19,7 +19,7 @@
 package com.sun.jini.test.spec.locatordiscovery;
 
 import java.util.logging.Level;
-
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 
@@ -59,17 +59,18 @@ public class AddNewDiscoveryListener extends Discovered {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         newListener = new AbstractBaseTest.LookupListener();
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
      *   <ul>
      *     <li> re-configures the lookup locator discovery utility to discover
      *          the set of locators whose elements are the locators of each
-     *          lookup service that was started during setup
+     *          lookup service that was started during construct
      *     <li> starts the unicast discovery process by adding a listener to
      *          the lookup locator discovery utility
      *     <li> verifies that the discovery process is working by waiting
@@ -87,7 +88,7 @@ public class AddNewDiscoveryListener extends Discovered {
 
         logger.log(Level.FINE, "adding a new listener to "
 		   +"LookupLocatorDiscovery ... ");
-        newListener.setLookupsToDiscover(initLookupsToStart);
+        newListener.setLookupsToDiscover(getInitLookupsToStart());
         locatorDiscovery.addDiscoveryListener(newListener);
         waitForDiscovery(newListener);
     }//end run

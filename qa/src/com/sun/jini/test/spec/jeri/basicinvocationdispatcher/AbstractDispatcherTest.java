@@ -17,9 +17,10 @@
  */
 package com.sun.jini.test.spec.jeri.basicinvocationdispatcher;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.io.MarshalInputStream;
 
@@ -39,7 +40,7 @@ import java.rmi.ServerException;
 import java.rmi.UnmarshalException;
 import java.rmi.RemoteException;
 
-public abstract class AbstractDispatcherTest extends QATest {
+public abstract class AbstractDispatcherTest extends QATestEnvironment implements Test {
 
     protected int counter;
     protected ByteArrayInputStream response;
@@ -51,8 +52,8 @@ public abstract class AbstractDispatcherTest extends QATest {
     protected FakeBasicInvocationDispatcher dispatcher;
     protected Object[] nullArgs;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-        // setup infrastructure needed by test
+    public Test construct(QAConfig sysConfig) throws Exception {
+        // construct infrastructure needed by test
         counter = 1;
         context = new ArrayList();
 
@@ -73,6 +74,7 @@ public abstract class AbstractDispatcherTest extends QATest {
                 null,                             //serverConstraints
                 null,                             //permClass
                 null);                            //classLoader
+        return this;
     }
 
     public void tearDown() {

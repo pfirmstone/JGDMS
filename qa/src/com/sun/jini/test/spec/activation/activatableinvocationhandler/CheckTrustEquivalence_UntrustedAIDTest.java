@@ -19,7 +19,8 @@ package com.sun.jini.test.spec.activation.activatableinvocationhandler;
 
 import java.util.logging.Level;
 import net.jini.activation.ActivatableInvocationHandler;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import java.rmi.activation.ActivationID;
 import com.sun.jini.test.spec.activation.util.FakeActivationID;
 import com.sun.jini.test.spec.activation.util.RMCProxy;
@@ -50,7 +51,7 @@ import com.sun.jini.test.spec.activation.util.RMCProxy;
  *          verify the return value is false
  * </pre>
  */
-public class CheckTrustEquivalence_UntrustedAIDTest extends QATest {
+public class CheckTrustEquivalence_UntrustedAIDTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -35,7 +36,7 @@ import net.jini.discovery.DiscoveryGroupManagement;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *   <li> one or more lookup services, each belonging to a finite
- *        set of member groups, and each started during setup, before the
+ *        set of member groups, and each started during construct, before the
  *        test begins execution
  *   <li> one instance of the lookup discovery utility initially configured
  *        to discover NO_GROUPS
@@ -57,10 +58,11 @@ public class SetGroupsAllGroups extends Discovered {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         groupsToDiscover = DiscoveryGroupManagement.ALL_GROUPS;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class SetGroupsAllGroups
 

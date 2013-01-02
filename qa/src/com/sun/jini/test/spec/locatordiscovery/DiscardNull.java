@@ -67,12 +67,12 @@ public class DiscardNull extends Discovered {
      * <p><ul>
      *    <li> re-configures the lookup locator discovery utility to discover
      *         the set of locators whose elements are the locators of each
-     *         lookup service that was started during setup
+     *         lookup service that was started during construct
      *    <li> starts the unicast discovery process by adding a listener to
      *         the lookup locator discovery utility
      *    <li> verifies that the discovery process is working by waiting
      *         for the expected discovery events
-     *    <li> for each lookup service started during setup, destroys the
+     *    <li> for each lookup service started during construct, destroys the
      *         lookup service and invokes the discard method on the lookup
      *         locator discovery utility
      *    <li> verifies that the discard mechanism is working correctly by
@@ -109,7 +109,7 @@ public class DiscardNull extends Discovered {
 	    discoveredProxies[i] = (ServiceRegistrar)
 	    getConfig().prepare("test.reggiePreparer", 
 				discoveredProxies[i]);
-	    manager.destroyService(discoveredProxies[i]);
+	    getManager().destroyService(discoveredProxies[i]);
 	    locatorDiscovery.discard( discoveredProxies[i] );
 	}//end loop
         waitForDiscard(mainListener);//verify the discarded events

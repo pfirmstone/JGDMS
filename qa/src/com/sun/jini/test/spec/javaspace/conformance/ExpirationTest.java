@@ -33,7 +33,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class ExpirationTest extends AbstractTestBase {
+public class ExpirationTest extends JavaSpaceTest {
 
     /**
      * This method asserts, that when the lease expires,

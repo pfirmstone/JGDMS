@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.DiscoveryGroupManagement;
 
@@ -77,12 +78,13 @@ public class MulticastMonitorAllChange extends MulticastMonitorChange {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         groupsToDiscover = DiscoveryGroupManagement.ALL_GROUPS;
         alternateReplacements = false;//replace all groups
         useFastTimeout = false;//needs max discovery time for lookup start
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class MulticastMonitorAllChange
 

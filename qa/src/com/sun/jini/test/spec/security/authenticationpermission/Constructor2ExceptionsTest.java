@@ -28,7 +28,8 @@ import net.jini.security.AuthenticationPermission;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.spec.security.util.FakePrincipal;
 
 
@@ -70,7 +71,7 @@ import com.sun.jini.test.spec.security.util.FakePrincipal;
  *     12) assert that IllegalArgumentException will be thrown
  * </pre>
  */
-public class Constructor2ExceptionsTest extends QATest {
+public class Constructor2ExceptionsTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

@@ -34,7 +34,7 @@ import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 /**

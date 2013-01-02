@@ -19,6 +19,7 @@
 package com.sun.jini.test.spec.servicediscovery.lookup;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -60,13 +61,14 @@ public class LookupMinMaxNoBlock extends LookupMinEqualsMax {
      *  4. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "multiple service lookup employing -- template, "
                    +"blocking, more than minMatches available, should "
                    +"return without blocking";
         minMatches = 1;//guarantee acceptable # is less than # available
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  

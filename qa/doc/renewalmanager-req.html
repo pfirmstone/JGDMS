@@ -1,2455 +1,1394 @@
-<!--
- ! Licensed to the Apache Software Foundation (ASF) under one
- ! or more contributor license agreements.  See the NOTICE file
- ! distributed with this work for additional information
- ! regarding copyright ownership. The ASF licenses this file
- ! to you under the Apache License, Version 2.0 (the
- ! "License"); you may not use this file except in compliance
- ! with the License. You may obtain a copy of the License at
- ! 
- !      http://www.apache.org/licenses/LICENSE-2.0
- ! 
- ! Unless required by applicable law or agreed to in writing, software
- ! distributed under the License is distributed on an "AS IS" BASIS,
- ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- ! See the License for the specific language governing permissions and
- ! limitations under the License.
- !-->
-<html xmlns:o="urn:schemas-microsoft-com:office:office"
-xmlns:w="urn:schemas-microsoft-com:office:word"
-xmlns="http://www.w3.org/TR/REC-html40">
-
-<head>
-<meta http-equiv=Content-Type content="text/html; charset=windows-1252">
-<meta name=ProgId content=Word.Document>
-<meta name=Generator content="Microsoft Word 9">
-<meta name=Originator content="Microsoft Word 9">
-<link rel=File-List href="./lrm-req_files/filelist.xml">
-<title>LeaseRenewalManager Utility Requirements</title>
-<!--[if gte mso 9]><xml>
- <o:DocumentProperties>
-  <o:Author>SMI Software</o:Author>
-  <o:LastAuthor>SMI Software</o:LastAuthor>
-  <o:Revision>1</o:Revision>
-  <o:TotalTime>0</o:TotalTime>
-  <o:Created>2000-02-07T13:11:00Z</o:Created>
-  <o:LastSaved>2000-02-07T13:11:00Z</o:LastSaved>
-  <o:Pages>3</o:Pages>
-  <o:Words>1513</o:Words>
-  <o:Characters>8627</o:Characters>
-  <o:Company>Sun Microsystems</o:Company>
-  <o:Lines>71</o:Lines>
-  <o:Paragraphs>17</o:Paragraphs>
-  <o:CharactersWithSpaces>10594</o:CharactersWithSpaces>
-  <o:Version>9.2720</o:Version>
- </o:DocumentProperties>
-</xml><![endif]--><!--[if gte mso 9]><xml>
- <w:WordDocument>
-  <w:DisplayHorizontalDrawingGridEvery>0</w:DisplayHorizontalDrawingGridEvery>
-  <w:DisplayVerticalDrawingGridEvery>0</w:DisplayVerticalDrawingGridEvery>
-  <w:UseMarginsForDrawingGridOrigin/>
-  <w:Compatibility>
-   <w:FootnoteLayoutLikeWW8/>
-   <w:ShapeLayoutLikeWW8/>
-   <w:AlignTablesRowByRow/>
-   <w:ForgetLastTabAlignment/>
-   <w:LayoutRawTableWidth/>
-   <w:LayoutTableRowsApart/>
-  </w:Compatibility>
- </w:WordDocument>
-</xml><![endif]-->
-<style>
-<!--
- /* Font Definitions */
-@font-face
-	{font-family:Courier;
-	panose-1:0 0 0 0 0 0 0 0 0 0;
-	mso-font-alt:"Courier New";
-	mso-font-charset:0;
-	mso-generic-font-family:modern;
-	mso-font-format:other;
-	mso-font-pitch:fixed;
-	mso-font-signature:3 0 0 0 1 0;}
-@font-face
-	{font-family:Times-Bold;
-	panose-1:0 0 0 0 0 0 0 0 0 0;
-	mso-font-charset:0;
-	mso-generic-font-family:roman;
-	mso-font-format:other;
-	mso-font-pitch:auto;
-	mso-font-signature:3 0 0 0 1 0;}
- /* Style Definitions */
-p.MsoNormal, li.MsoNormal, div.MsoNormal
-	{mso-style-parent:"";
-	margin:0in;
-	margin-bottom:.0001pt;
-	mso-pagination:widow-orphan;
-	font-size:10.0pt;
-	font-family:"Times New Roman";
-	mso-fareast-font-family:"Times New Roman";}
-h1
-	{mso-style-next:Normal;
-	margin-top:12.0pt;
-	margin-right:0in;
-	margin-bottom:3.0pt;
-	margin-left:0in;
-	mso-pagination:widow-orphan;
-	page-break-after:avoid;
-	mso-outline-level:1;
-	font-size:14.0pt;
-	mso-bidi-font-size:10.0pt;
-	font-family:Arial;
-	mso-bidi-font-family:"Times New Roman";
-	mso-font-kerning:14.0pt;
-	mso-bidi-font-weight:normal;}
-h2
-	{mso-style-next:Normal;
-	margin-top:12.0pt;
-	margin-right:0in;
-	margin-bottom:3.0pt;
-	margin-left:0in;
-	mso-pagination:widow-orphan;
-	page-break-after:avoid;
-	mso-outline-level:2;
-	font-size:12.0pt;
-	mso-bidi-font-size:10.0pt;
-	font-family:Arial;
-	mso-bidi-font-family:"Times New Roman";
-	mso-bidi-font-weight:normal;
-	font-style:italic;
-	mso-bidi-font-style:normal;}
-@page Section1
-	{size:8.5in 11.0in;
-	margin:1.0in 1.25in 1.0in 1.25in;
-	mso-header-margin:.5in;
-	mso-footer-margin:.5in;
-	mso-paper-source:0;}
-div.Section1
-	{page:Section1;}
- /* List Definitions */
-@list l0
-	{mso-list-id:82999791;
-	mso-list-type:hybrid;
-	mso-list-template-ids:549125712 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l0:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l1
-	{mso-list-id:325282551;
-	mso-list-type:hybrid;
-	mso-list-template-ids:-1399275904 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l1:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l2
-	{mso-list-id:331881155;
-	mso-list-type:hybrid;
-	mso-list-template-ids:-760817038 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l2:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l3
-	{mso-list-id:432212075;
-	mso-list-type:hybrid;
-	mso-list-template-ids:522462804 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l3:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l4
-	{mso-list-id:748308491;
-	mso-list-type:hybrid;
-	mso-list-template-ids:177102910 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l4:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l5
-	{mso-list-id:783960421;
-	mso-list-type:hybrid;
-	mso-list-template-ids:-838145742 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l5:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l6
-	{mso-list-id:935135512;
-	mso-list-type:simple;
-	mso-list-template-ids:1056744852;}
-@list l6:level1
-	{mso-level-start-at:0;
-	mso-level-number-format:bullet;
-	mso-level-text:-;
-	mso-level-tab-stop:.25in;
-	mso-level-number-position:left;
-	margin-left:.25in;
-	text-indent:-.25in;
-	font-family:"Times New Roman";}
-@list l7
-	{mso-list-id:1208103437;
-	mso-list-type:hybrid;
-	mso-list-template-ids:-1366416904 67698703 67698713 67698715 67698703 67698713 67698715 67698703 67698713 67698715;}
-@list l7:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l8
-	{mso-list-id:1465342668;
-	mso-list-type:hybrid;
-	mso-list-template-ids:632455074 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l8:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l9
-	{mso-list-id:1567568201;
-	mso-list-type:hybrid;
-	mso-list-template-ids:-767907624 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l9:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l10
-	{mso-list-id:1596210429;
-	mso-list-type:hybrid;
-	mso-list-template-ids:-593601176 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l10:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l11
-	{mso-list-id:1767456905;
-	mso-list-type:hybrid;
-	mso-list-template-ids:495624354 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l11:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l12
-	{mso-list-id:2061974651;
-	mso-list-type:hybrid;
-	mso-list-template-ids:210692132 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l12:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-@list l13
-	{mso-list-id:2096978495;
-	mso-list-type:hybrid;
-	mso-list-template-ids:-633017206 -1 -1 -1 -1 -1 -1 -1 -1 -1;}
-@list l13:level1
-	{mso-level-tab-stop:.5in;
-	mso-level-number-position:left;
-	text-indent:-.25in;}
-ol
-	{margin-bottom:0in;}
-ul
-	{margin-bottom:0in;}
--->
-</style>
-</head>
-
-<body lang=EN-US style='tab-interval:.5in'>
-
-<div class=Section1>
-
-<h2>LeaseRenewalManager Utility Requirements</h2>
-
-<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-
-<table border=1 cellspacing=0 cellpadding=0 style='border-collapse:collapse;
- border:none;mso-border-alt:solid windowtext .5pt;mso-padding-alt:0in 5.4pt 0in 5.4pt'>
- <thead>
-  <tr>
-   <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-   padding:0in 5.4pt 0in 5.4pt'>
-   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>ID<o:p></o:p></b></p>
-   </td>
-   <td width=564 valign=top style='width:423.0pt;border:solid windowtext .5pt;
-   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
-   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>LeaseRenewalManager
-   Utility</b> <b style='mso-bidi-font-weight:normal'>Requirement<o:p></o:p></b></p>
-   </td>
-   <td width=78 valign=top style='width:58.5pt;border:solid windowtext .5pt;
-   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
-   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Section<o:p></o:p></b></p>
-   </td>
-   <td width=240 valign=top style='width:2.5in;border:solid windowtext .5pt;
-   border-left:none;mso-border-left-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'>
-   <p class=MsoNormal><b style='mso-bidi-font-weight:normal'>Comments<o:p></o:p></b></p>
-   </td>
-  </tr>
- </thead>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=1 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>Methods of this class that accept </span><span
-  style='font-family:Courier;layout-grid-mode:line'>Lease.FOREVER </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>or </span><span style='font-family:Courier;layout-grid-mode:line'>Lease.ANY
-  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>as the desired expiration time will treat </span><span
-  style='font-family:Courier;layout-grid-mode:line'>Lease.FOREVER </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>and </span><span style='font-family:Courier;layout-grid-mode:line'>Lease.ANY
-  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>as semantically identical. That is, if either </span><span
-  style='font-family:Courier;layout-grid-mode:line'>Lease.FOREVER </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>or </span><span style='font-family:Courier;layout-grid-mode:line'>Lease.ANY
-  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>is requested, renewal requests will be made
-  indefinitely until a cancellation request is made.</span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='color:black'>5.4<o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=2 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>When the </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseRenewalManager </span><span style='font-family:
-  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>makes a
-  remote call (for example, when requesting the renewal of a lease), any
-  invocations made on the methods of the </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseRenewalManager </span><span style='font-family:
-  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>will not
-  be blocked.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='color:black'>&quot;<o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=3 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>Should the </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseRenewalManager </span><span style='font-family:
-  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>invoke a
-  method on a registered listener (a local call), calls from that method to any
-  method of the </span><span style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager
-  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>are guaranteed not to result in a deadlock condition.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=4 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>equals </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method for this
-  class returns true if and only if two instances of this class refer to the
-  same object. That is, x and y are equal instances of this class if and only
-  if x == y has the value </span><span style='font-family:Courier;layout-grid-mode:
-  line'>true</span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=5 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The first form of the constructor takes no arguments.
-  This form of the constructor instantiates a </span><span style='font-family:
-  Courier;layout-grid-mode:line'>LeaseRenewalManager </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>object that initially manages no leases.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=6 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The second form of the constructor creates a </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>that initially manages a single lease. This form of the constructor
-  requires that a reference to the initial lease be supplied as an argument.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=7 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The second form of the constructor creates a </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>that initially manages a single lease. This form of the constructor …
-  also takes an </span><span style='font-family:Courier;layout-grid-mode:line'>expiration
-  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>argument that represents the desired (absolute) time
-  of expiration for the lease …<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=8 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The second form of the constructor creates a </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>that initially manages a single lease. This form of the constructor … a
-  reference to a </span><span style='font-family:Courier;layout-grid-mode:line'>LeaseListener
-  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>object that receives notifications of exceptional
-  conditions occurring during renewal attempts.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><b
-  style='mso-bidi-font-weight:normal'><span style='font-size:10.0pt;font-family:
-  "Times New Roman";mso-fareast-font-family:"Times New Roman";mso-ansi-language:
-  EN-US;mso-fareast-language:EN-US;mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=9 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></b></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewUntil </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method adds a
-  lease to the set of leases being managed by the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>. This method takes as arguments a reference to the lease to manage ...<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=10 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewUntil </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>… <o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal>What happens if this reference is null?</p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=11 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewUntil </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method adds a
-  lease to the set of leases being managed by the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>. This method takes as arguments … the desired (absolute) time of
-  expiration of the lease…<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=12 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewUntil </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>…A value of </span><span
-  style='font-family:Courier;layout-grid-mode:line'>Lease.ANY </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>or </span><span style='font-family:Courier;layout-grid-mode:line'>Lease.FOREVER
-  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>may be passed as the value of the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>expiration </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>argument,<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=13 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewUntil </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method adds a
-  lease to the set of leases being managed by the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>. This method takes as arguments … a reference to the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseListener </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>object that will receive notification of exceptional conditions when
-  attempting lease renewal.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=14 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewUntil </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>… and the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseListener </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>argument may be </span><span style='font-family:Courier;layout-grid-mode:
-  line'>null</span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=15 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewUntil … </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>If the lease
-  input to this method is already in the set of managed leases, the listener
-  object and the desired expiration associated with that lease will be replaced
-  with the new listener and expiration.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=16 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The lease will remain in the set of managed leases
-  until …The lease expires<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=17 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The lease will remain in the set of managed leases
-  until …</span><b style='mso-bidi-font-weight:normal'><span style='font-family:
-  Times-Bold;layout-grid-mode:line'> </span></b><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>The lease is
-  cancelled<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=18 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The lease will remain in the set of managed leases
-  until …</span><b style='mso-bidi-font-weight:normal'><span style='font-family:
-  Times-Bold;layout-grid-mode:line'> </span></b><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>An explicit
-  removal of the lease from the set is requested<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=19 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The lease will remain in the set of managed leases
-  until …</span><b style='mso-bidi-font-weight:normal'><span style='font-family:
-  Times-Bold;layout-grid-mode:line'> </span></b><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>An </span><span
-  style='font-family:Courier;layout-grid-mode:line'>UnknownLeaseException</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>,a </span><span style='font-family:Courier;layout-grid-mode:line'>LeaseDeniedException</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>,or any other non-remote exception is received during a lease renewal
-  attempt<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=20 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The lease will remain in the set of managed leases
-  until …</span><b style='mso-bidi-font-weight:normal'><span style='font-family:
-  Times-Bold;layout-grid-mode:line'> </span></b><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>A (remote) </span><span
-  style='font-family:Courier;layout-grid-mode:line'>NoSuchObjectException </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>is received during a lease renewal attempt<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=21 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>If the value input to this argument does indeed extend
-  beyond the actual lease expiration time, then the lease will be
-  systematically renewed at appropriate times until one of the conditions listed
-  above occurs.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=22 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>If the value input is less than or equal to the actual
-  expiration time, nothing will be done to modify the time when the lease
-  actually expires. That is, the lease will not be renewed with an expiration
-  time that is less than the originally granted expiration.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=23 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>If a non-</span><span style='font-family:Courier;
-  layout-grid-mode:line'>null </span><span style='font-family:Arial;mso-bidi-font-family:
-  "Times New Roman";layout-grid-mode:line'>object reference is passed in for
-  the </span><span style='font-family:Courier;layout-grid-mode:line'>LeaseListener
-  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>argument, the object will receive notification of
-  exceptional conditions occurring upon a renewal attempt. In particular,
-  exceptional conditions may include </span><span style='font-family:Courier;
-  layout-grid-mode:line'>UnknownLeaseException</span><span style='font-family:
-  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>, </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseDeniedException</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>, and </span><span style='font-family:Courier;layout-grid-mode:line'>RemoteException</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>, as well as any other non-</span><span style='font-family:Courier;
-  layout-grid-mode:line'>RemoteException</span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=24 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>If a </span><span style='font-family:Courier;
-  layout-grid-mode:line'>RemoteException </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>occurs during a
-  renewal request for a lease, renewal requests will continue to be made until
-  either the lease is renewed, or the lease expiration time has been exceeded. <o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=25 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>In the latter case, the first </span><span
-  style='font-family:Courier;layout-grid-mode:line'>RemoteException </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>received will be passed on to the </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseListener</span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=26 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewFor </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method adds a
-  lease to the set of leases being managed by the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>. This method takes as input a reference to the lease to manage, a </span><span
-  style='font-family:Courier;layout-grid-mode:line'>long </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>value representing the desired duration of the lease, and a reference
-  to a </span><span style='font-family:Courier;layout-grid-mode:line'>LeaseListener
-  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>object that will receive notifications of exceptional
-  conditions when attempting lease renewal. This method will test for
-  arithmetic overflow in the duration parameter. Should such overflow be
-  present, the duration will be set to<o:p></o:p></span></p>
-  <p class=MsoNormal><span style='font-family:Courier;layout-grid-mode:line'>Lease.FOREVER</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>. The semantics of this method are identical to those of the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>renewUntil </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>method described above, with the expiration parameter of </span><span
-  style='font-family:Courier;layout-grid-mode:line'>renewUntil </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>set to a value of duration + current time (in milliseconds).<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=27 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewFor </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method adds a
-  lease to the set of leases being managed by the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>. This method takes as input a reference to the lease to manage, <o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=28 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewFor </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method adds a
-  lease to the set of leases being managed by the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>. This method takes as input … a </span><span style='font-family:Courier;
-  layout-grid-mode:line'>long </span><span style='font-family:Arial;mso-bidi-font-family:
-  "Times New Roman";layout-grid-mode:line'>value representing the desired
-  duration of the lease, <o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=29 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>This method will test for arithmetic overflow in the
-  duration parameter. Should such overflow be present, the duration will be set
-  to </span><span style='font-family:Courier;layout-grid-mode:line'>Lease.FOREVER</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=30 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>renewFor </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method adds a
-  lease to the set of leases being managed by the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>. This method takes as input … a reference to a </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseListener </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>object that will receive notifications of exceptional conditions when
-  attempting lease renewal. <o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=31 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The semantics of this method are identical to those of
-  the </span><span style='font-family:Courier;layout-grid-mode:line'>renewUntil
-  </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>method described above, with the expiration parameter
-  of </span><span style='font-family:Courier;layout-grid-mode:line'>renewUntil </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>set to a value of duration + current time (in milliseconds).<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=32 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>getExpiration </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method returns
-  the desired time of expiration requested for a particular lease, not the
-  actual expiration that was originally granted when the lease was
-  created.<span style="mso-spacerun: yes">  </span><o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=33 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>getExpiration </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
-  only argument to this method is the reference to the lease object.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal>What about a null reference?</p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=34 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>getExpiration </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … If the
-  lease is not in the set of managed leases, an </span><span style='font-family:
-  Courier;layout-grid-mode:line'>UnknownLeaseException </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>will be thrown.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=35 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>setExpiration </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method replaces
-  the current desired expiration of a given lease contained in the set of
-  managed leases with a new desired expiration time.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=36 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>setExpiration </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
-  only arguments to this method are the reference to the lease object <o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=37 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>setExpiration </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
-  only arguments to this method are … the new expiration time.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=38 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>setExpiration </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … If the
-  lease is not in the set of managed leases, an </span><span style='font-family:
-  Courier;layout-grid-mode:line'>UnknownLeaseException </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>will be thrown.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=39 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>remove </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method removes
-  a given lease from the set of managed leases.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=40 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The only argument to this method is the reference to
-  the lease object.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal>What about null?</p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=41 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>If the lease is not in the set of managed leases, an </span><span
-  style='font-family:Courier;layout-grid-mode:line'>UnknownLeaseException </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>will be thrown.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=42 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>cancel </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method both
-  removes a given lease from the set of managed leases and cancels the given
-  lease.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=43 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>cancel </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
-  only argument to this method is the reference to the lease object. <o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=44 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>cancel </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
-  only argument to this method is the reference to the lease object. If the
-  lease is not in the set of managed leases, an </span><span style='font-family:
-  Courier;layout-grid-mode:line'>UnknownLeaseException </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>will be thrown.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=45 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>cancel </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
-  only argument to this method is the reference to the lease object. Any
-  exception (remote or non-remote) occurring during the cancellation of the
-  lease will have no effect on the removal of the lease from the managed set.
-  That is, even if an exception occurs during the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>cancel </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>operation, the lease must have been removed from the managed set upon
-  return from this method.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=46 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>cancel </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … The
-  only argument to this method is the reference to the lease object. Any
-  exception thrown by the </span><span style='font-family:Courier;layout-grid-mode:
-  line'>cancel </span><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>method of the lease object itself may also be thrown
-  by this method.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=47 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>clear </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method removes
-  all leases from the set of managed leases. It does not request the cancellation
-  of those leases. This method takes no arguments.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=48 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>clear </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method … It
-  does not request the cancellation of those leases.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=49 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseListener </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>interface
-  defines the mechanism through which an entity receives notification from the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>that … A lease has expired<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=50 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseListener </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>interface
-  defines the mechanism through which an entity receives notification from the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>that … A lease renewal request has been denied before the desired
-  absolute expiration time of the lease was reached<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=51 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>When either of the above events occurs, the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>will send an instance of </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseRenewalEvent </span><span style='font-family:
-  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>to that
-  listener object.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=52 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>With respect to the lease referenced by the event sent
-  to the listener, the </span><span style='font-family:Courier;layout-grid-mode:
-  line'>LeaseRenewalManager </span><span style='font-family:Arial;mso-bidi-font-family:
-  "Times New Roman";layout-grid-mode:line'>will remove that lease prior to
-  sending the </span><span style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalEvent</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=53 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseRenewalEvent … </span><span style='font-family:
-  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>The </span><span
-  style='font-family:Courier;layout-grid-mode:line'>getLease </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>method returns a reference to the </span><span style='font-family:Courier;
-  layout-grid-mode:line'>Lease </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>object
-  associated with the event. This method takes no arguments.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=54 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>getExpiration </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method returns
-  a </span><span style='font-family:Courier;layout-grid-mode:line'>long </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>value representing the desired absolute expiration of the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>Lease </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>object associated with the event. This method takes no input arguments.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=55 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>The </span><span style='font-family:Courier;
-  layout-grid-mode:line'>getException </span><span style='font-family:Arial;
-  mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>method returns
-  the exception that caused the event to be sent.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=56 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>If the lease’s expiration time is reached before the </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalManager </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>can request renewal, a </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseRenewalEvent </span><span style='font-family:
-  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>will be
-  sent with no associated exception. In this case, invoking this method will
-  return </span><span style='font-family:Courier;layout-grid-mode:line'>null</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=57 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>If the </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseRenewalManager </span><span style='font-family:
-  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>sends a </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalEvent </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>because a renewal request was denied, this method will return </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseDeniedException</span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
- <tr>
-  <td width=61 valign=top style='width:45.9pt;border:solid windowtext .5pt;
-  border-top:none;mso-border-top-alt:solid windowtext .5pt;padding:0in 5.4pt 0in 5.4pt'><span
-  style='font-size:10.0pt;font-family:"Times New Roman";mso-fareast-font-family:
-  "Times New Roman";mso-ansi-language:EN-US;mso-fareast-language:EN-US;
-  mso-bidi-language:AR-SA'>
-  <ol style='margin-top:0in' start=58 type=1>
-   <li class=MsoNormal style='mso-list:l1 level1 lfo8;tab-stops:list .5in'><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></li>
-  </ol>
-  </span></td>
-  <td width=564 valign=top style='width:423.0pt;border-top:none;border-left:
-  none;border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><span style='font-family:Arial;mso-bidi-font-family:"Times New Roman";
-  layout-grid-mode:line'>If the </span><span style='font-family:Courier;
-  layout-grid-mode:line'>LeaseRenewalManager </span><span style='font-family:
-  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>sends a </span><span
-  style='font-family:Courier;layout-grid-mode:line'>LeaseRenewalEvent </span><span
-  style='font-family:Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:
-  line'>because a renewal request could not be completed before the expiration
-  of the lease, this method will return </span><span style='font-family:Courier;
-  layout-grid-mode:line'>UnknownLeaseException</span><span style='font-family:
-  Arial;mso-bidi-font-family:"Times New Roman";layout-grid-mode:line'>.<o:p></o:p></span></p>
-  </td>
-  <td width=78 valign=top style='width:58.5pt;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><span
-  style='color:black'><o:p></o:p></span></p>
-  </td>
-  <td width=240 valign=top style='width:2.5in;border-top:none;border-left:none;
-  border-bottom:solid windowtext .5pt;border-right:solid windowtext .5pt;
-  mso-border-top-alt:solid windowtext .5pt;mso-border-left-alt:solid windowtext .5pt;
-  padding:0in 5.4pt 0in 5.4pt'>
-  <p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-  </td>
- </tr>
-</table>
-
-<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-
-<p class=MsoNormal><![if !supportEmptyParas]>&nbsp;<![endif]><o:p></o:p></p>
-
-</div>
-
-</body>
-
-</html>
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<HTML>
+<HEAD>
+	<META HTTP-EQUIV="CONTENT-TYPE" CONTENT="text/html; charset=iso-8859-1">
+	<TITLE>LeaseRenewalManager Utility Requirements</TITLE>
+	<META NAME="GENERATOR" CONTENT="StarOffice 8  (Solaris Sparc)">
+	<META NAME="AUTHOR" CONTENT="SMI Software">
+	<META NAME="CREATED" CONTENT="20000208;130000">
+	<META NAME="CHANGEDBY" CONTENT="Peter Firmstone">
+	<META NAME="CHANGED" CONTENT="20130101;15224700">
+	<STYLE TYPE="text/css">
+	<!--
+		@page { size: 21.59cm 27.94cm; margin-right: 3.18cm; margin-top: 2.54cm; margin-bottom: 2.54cm }
+		P { margin-bottom: 0.21cm; direction: ltr; color: #000000; widows: 2; orphans: 2 }
+		P.western { font-family: "Times New Roman", serif; font-size: 10pt; so-language: en-US }
+		P.cjk { font-family: "Times New Roman", serif; font-size: 10pt }
+		P.ctl { font-family: "Times New Roman", serif; font-size: 10pt; so-language: ar-SA }
+	-->
+	</STYLE>
+</HEAD>
+<BODY LANG="en-AU" TEXT="#000000" DIR="LTR">
+<P LANG="en-US" ALIGN=CENTER STYLE="margin-top: 0.42cm; page-break-after: avoid">
+<FONT FACE="Arial, sans-serif"><FONT SIZE=5><B>LeaseRenewalManager
+Utility Requirements</B></FONT></FONT></P>
+<P LANG="en-US" CLASS="western" STYLE="margin-bottom: 0cm"><BR>
+</P>
+<TABLE WIDTH=100% BORDER=1 BORDERCOLOR="#000000" CELLPADDING=7 CELLSPACING=0>
+	<COL WIDTH=17*>
+	<COL WIDTH=153*>
+	<COL WIDTH=21*>
+	<COL WIDTH=65*>
+	<THEAD>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<P LANG="en-US" CLASS="western"><B>ID</B></P>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><B>LeaseRenewalManager Utility</B>
+				<B>Requirement</B></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><B>Section</B></P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><B>Comments</B></P>
+			</TD>
+		</TR>
+	</THEAD>
+	<TBODY>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">Methods
+				of this class that accept </FONT><FONT FACE="Courier, Courier New, monospace">Lease.FOREVER
+				</FONT><FONT FACE="Arial, sans-serif">or </FONT><FONT FACE="Courier, Courier New, monospace">Lease.ANY
+				</FONT><FONT FACE="Arial, sans-serif">as the desired expiration
+				time will treat </FONT><FONT FACE="Courier, Courier New, monospace">Lease.FOREVER
+				</FONT><FONT FACE="Arial, sans-serif">and </FONT><FONT FACE="Courier, Courier New, monospace">Lease.ANY
+				</FONT><FONT FACE="Arial, sans-serif">as semantically identical.
+				That is, if either </FONT><FONT FACE="Courier, Courier New, monospace">Lease.FOREVER
+				</FONT><FONT FACE="Arial, sans-serif">or </FONT><FONT FACE="Courier, Courier New, monospace">Lease.ANY
+				</FONT><FONT FACE="Arial, sans-serif">is requested, renewal
+				requests will be made indefinitely until a cancellation request
+				is made.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western">5.4</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=2>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">When
+				the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">makes a remote call (for
+				example, when requesting the renewal of a lease), any invocations
+				made on the methods of the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">will not be blocked.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western">&quot;</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=3>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">Should
+				the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">invoke a method on a
+				registered listener (a local call), calls from that method to any
+				method of the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">are guaranteed not to
+				result in a deadlock condition.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=4>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">equals </FONT><FONT FACE="Arial, sans-serif">method
+				for this class returns true if and only if two instances of this
+				class refer to the same object. That is, x and y are equal
+				instances of this class if and only if x == y has the value </FONT><FONT FACE="Courier, Courier New, monospace">true</FONT><FONT FACE="Arial, sans-serif">.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=5>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				first form of the constructor takes no arguments. This form of
+				the constructor instantiates a </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">object that initially
+				manages no leases.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=6>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				second form of the constructor creates a </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">that initially manages a
+				single lease. This form of the constructor requires that a
+				reference to the initial lease be supplied as an argument.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=7>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				second form of the constructor creates a </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">that initially manages a
+				single lease. This form of the constructor &hellip; also takes an
+				</FONT><FONT FACE="Courier, Courier New, monospace">expiration
+				</FONT><FONT FACE="Arial, sans-serif">argument that represents
+				the desired (absolute) time of expiration for the lease &hellip;</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=8>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				second form of the constructor creates a </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">that initially manages a
+				single lease. This form of the constructor &hellip; a reference
+				to a </FONT><FONT FACE="Courier, Courier New, monospace">LeaseListener
+				</FONT><FONT FACE="Arial, sans-serif">object that receives
+				notifications of exceptional conditions occurring during renewal
+				attempts.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=9>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewUntil
+				</FONT><FONT FACE="Arial, sans-serif">method adds a lease to the
+				set of leases being managed by the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager</FONT><FONT FACE="Arial, sans-serif">.
+				This method takes as arguments a reference to the lease to manage
+				...</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=10>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewUntil </FONT><FONT FACE="Arial, sans-serif">&hellip;
+				</FONT>
+				</P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western">What happens if this reference is
+				null?</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=11>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewUntil
+				</FONT><FONT FACE="Arial, sans-serif">method adds a lease to the
+				set of leases being managed by the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager</FONT><FONT FACE="Arial, sans-serif">.
+				This method takes as arguments &hellip; the desired (absolute)
+				time of expiration of the lease&hellip;</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=12>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewUntil </FONT><FONT FACE="Arial, sans-serif">&hellip;A
+				value of </FONT><FONT FACE="Courier, Courier New, monospace">Lease.ANY
+				</FONT><FONT FACE="Arial, sans-serif">or </FONT><FONT FACE="Courier, Courier New, monospace">Lease.FOREVER
+				</FONT><FONT FACE="Arial, sans-serif">may be passed as the value
+				of the </FONT><FONT FACE="Courier, Courier New, monospace">expiration
+				</FONT><FONT FACE="Arial, sans-serif">argument,</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=13>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewUntil
+				</FONT><FONT FACE="Arial, sans-serif">method adds a lease to the
+				set of leases being managed by the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager</FONT><FONT FACE="Arial, sans-serif">.
+				This method takes as arguments &hellip; a reference to the
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseListener
+				</FONT><FONT FACE="Arial, sans-serif">object that will receive
+				notification of exceptional conditions when attempting lease
+				renewal.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=14>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewUntil </FONT><FONT FACE="Arial, sans-serif">&hellip;
+				and the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseListener
+				</FONT><FONT FACE="Arial, sans-serif">argument may be </FONT><FONT FACE="Courier, Courier New, monospace">null</FONT><FONT FACE="Arial, sans-serif">.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=15>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewUntil &hellip;
+				</FONT><FONT FACE="Arial, sans-serif">If the lease input to this
+				method is already in the set of managed leases, the listener
+				object and the desired expiration associated with that lease will
+				be replaced with the new listener and expiration.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=16>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				lease will remain in the set of managed leases until &hellip;The
+				lease expires</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=17>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				lease will remain in the set of managed leases until &hellip;</FONT><FONT FACE="Times-Bold, serif"><B>
+				</B></FONT><FONT FACE="Arial, sans-serif">The lease is cancelled</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=18>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				lease will remain in the set of managed leases until &hellip;</FONT><FONT FACE="Times-Bold, serif"><B>
+				</B></FONT><FONT FACE="Arial, sans-serif">An explicit removal of
+				the lease from the set is requested</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=19>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				lease will remain in the set of managed leases until &hellip;</FONT><FONT FACE="Times-Bold, serif"><B>
+				</B></FONT><FONT FACE="Arial, sans-serif">An
+				</FONT><FONT FACE="Courier, Courier New, monospace">UnknownLeaseException</FONT><FONT FACE="Arial, sans-serif">,a
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseDeniedException</FONT><FONT FACE="Arial, sans-serif">,or
+				any other non-remote exception is received during a lease renewal
+				attempt</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=20>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				lease will remain in the set of managed leases until &hellip;</FONT><FONT FACE="Times-Bold, serif"><B>
+				</B></FONT><FONT FACE="Arial, sans-serif">A (remote)
+				</FONT><FONT FACE="Courier, Courier New, monospace">NoSuchObjectException
+				</FONT><FONT FACE="Arial, sans-serif">is received during a lease
+				renewal attempt</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=21>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">If
+				the value input to this argument does indeed extend beyond the
+				actual lease expiration time, then the lease will be
+				systematically renewed at appropriate times until one of the
+				conditions listed above occurs.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=22>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">If
+				the value input is less than or equal to the actual expiration
+				time, nothing will be done to modify the time when the lease
+				actually expires. That is, the lease will not be renewed with an
+				expiration time that is less than the originally granted
+				expiration.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=23>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">If
+				a non-</FONT><FONT FACE="Courier, Courier New, monospace">null
+				</FONT><FONT FACE="Arial, sans-serif">object reference is passed
+				in for the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseListener
+				</FONT><FONT FACE="Arial, sans-serif">argument, the object will
+				receive notification of exceptional conditions occurring upon a
+				renewal attempt. In particular, exceptional conditions may
+				include </FONT><FONT FACE="Courier, Courier New, monospace">UnknownLeaseException</FONT><FONT FACE="Arial, sans-serif">,
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseDeniedException</FONT><FONT FACE="Arial, sans-serif">,
+				and </FONT><FONT FACE="Courier, Courier New, monospace">RemoteException</FONT><FONT FACE="Arial, sans-serif">,
+				as well as any other non-</FONT><FONT FACE="Courier, Courier New, monospace">RemoteException</FONT><FONT FACE="Arial, sans-serif">.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=24>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">If
+				a </FONT><FONT FACE="Courier, Courier New, monospace">RemoteException
+				</FONT><FONT FACE="Arial, sans-serif">occurs during a renewal
+				request for a lease, renewal requests will continue to be made
+				until either the lease is renewed, or the lease expiration time
+				has been exceeded. </FONT>
+				</P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=25>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">In
+				the latter case, the first </FONT><FONT FACE="Courier, Courier New, monospace">RemoteException
+				</FONT><FONT FACE="Arial, sans-serif">received will be passed on
+				to the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseListener</FONT><FONT FACE="Arial, sans-serif">.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=26>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western" STYLE="margin-bottom: 0cm"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewFor
+				</FONT><FONT FACE="Arial, sans-serif">method adds a lease to the
+				set of leases being managed by the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager</FONT><FONT FACE="Arial, sans-serif">.
+				This method takes as input a reference to the lease to manage, a
+				</FONT><FONT FACE="Courier, Courier New, monospace">long </FONT><FONT FACE="Arial, sans-serif">value
+				representing the desired duration of the lease, and a reference
+				to a </FONT><FONT FACE="Courier, Courier New, monospace">LeaseListener
+				</FONT><FONT FACE="Arial, sans-serif">object that will receive
+				notifications of exceptional conditions when attempting lease
+				renewal. This method will test for arithmetic overflow in the
+				duration parameter. Should such overflow be present, the duration
+				will be set to</FONT></P>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Courier, Courier New, monospace">Lease.FOREVER</FONT><FONT FACE="Arial, sans-serif">.
+				The semantics of this method are identical to those of the
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewUntil
+				</FONT><FONT FACE="Arial, sans-serif">method described above,
+				with the expiration parameter of </FONT><FONT FACE="Courier, Courier New, monospace">renewUntil
+				</FONT><FONT FACE="Arial, sans-serif">set to a value of duration
+				+ current time (in milliseconds).</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=27>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewFor
+				</FONT><FONT FACE="Arial, sans-serif">method adds a lease to the
+				set of leases being managed by the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager</FONT><FONT FACE="Arial, sans-serif">.
+				This method takes as input a reference to the lease to manage, </FONT>
+				</P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=28>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewFor
+				</FONT><FONT FACE="Arial, sans-serif">method adds a lease to the
+				set of leases being managed by the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager</FONT><FONT FACE="Arial, sans-serif">.
+				This method takes as input &hellip; a </FONT><FONT FACE="Courier, Courier New, monospace">long
+				</FONT><FONT FACE="Arial, sans-serif">value representing the
+				desired duration of the lease, </FONT>
+				</P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=29>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">This
+				method will test for arithmetic overflow in the duration
+				parameter. Should such overflow be present, the duration will be
+				set to </FONT><FONT FACE="Courier, Courier New, monospace">Lease.FOREVER</FONT><FONT FACE="Arial, sans-serif">.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=30>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">renewFor
+				</FONT><FONT FACE="Arial, sans-serif">method adds a lease to the
+				set of leases being managed by the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager</FONT><FONT FACE="Arial, sans-serif">.
+				This method takes as input &hellip; a reference to a
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseListener
+				</FONT><FONT FACE="Arial, sans-serif">object that will receive
+				notifications of exceptional conditions when attempting lease
+				renewal. </FONT>
+				</P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=31>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				semantics of this method are identical to those of the </FONT><FONT FACE="Courier, Courier New, monospace">renewUntil
+				</FONT><FONT FACE="Arial, sans-serif">method described above,
+				with the expiration parameter of </FONT><FONT FACE="Courier, Courier New, monospace">renewUntil
+				</FONT><FONT FACE="Arial, sans-serif">set to a value of duration
+				+ current time (in milliseconds).</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=32>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">getExpiration
+				</FONT><FONT FACE="Arial, sans-serif">method returns the desired
+				time of expiration requested for a particular lease, not the
+				actual expiration that was originally granted when the lease was
+				created.  </FONT>
+				</P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=33>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">getExpiration
+				</FONT><FONT FACE="Arial, sans-serif">method &hellip; The only
+				argument to this method is the reference to the lease object.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western">What about a null reference?</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=34>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">getExpiration
+				</FONT><FONT FACE="Arial, sans-serif">method &hellip; If the
+				lease is not in the set of managed leases, an
+				</FONT><FONT FACE="Courier, Courier New, monospace">UnknownLeaseException
+				</FONT><FONT FACE="Arial, sans-serif">will be thrown.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=35>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">setExpiration
+				</FONT><FONT FACE="Arial, sans-serif">method replaces the current
+				desired expiration of a given lease contained in the set of
+				managed leases with a new desired expiration time.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=36>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">setExpiration
+				</FONT><FONT FACE="Arial, sans-serif">method &hellip; The only
+				arguments to this method are the reference to the lease object </FONT>
+				</P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=37>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">setExpiration
+				</FONT><FONT FACE="Arial, sans-serif">method &hellip; The only
+				arguments to this method are &hellip; the new expiration time.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=38>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">setExpiration
+				</FONT><FONT FACE="Arial, sans-serif">method &hellip; If the
+				lease is not in the set of managed leases, an
+				</FONT><FONT FACE="Courier, Courier New, monospace">UnknownLeaseException
+				</FONT><FONT FACE="Arial, sans-serif">will be thrown.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=39>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">remove </FONT><FONT FACE="Arial, sans-serif">method
+				removes a given lease from the set of managed leases.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=40>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				only argument to this method is the reference to the lease
+				object.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western">What about null?</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=41>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">If
+				the lease is not in the set of managed leases, an
+				</FONT><FONT FACE="Courier, Courier New, monospace">UnknownLeaseException
+				</FONT><FONT FACE="Arial, sans-serif">will be thrown.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=42>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">cancel </FONT><FONT FACE="Arial, sans-serif">method
+				both removes a given lease from the set of managed leases and
+				cancels the given lease.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=43>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">cancel </FONT><FONT FACE="Arial, sans-serif">method
+				&hellip; The only argument to this method is the reference to the
+				lease object. </FONT>
+				</P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=44>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">cancel </FONT><FONT FACE="Arial, sans-serif">method
+				&hellip; The only argument to this method is the reference to the
+				lease object. If the lease is not in the set of managed leases,
+				an </FONT><FONT FACE="Courier, Courier New, monospace">UnknownLeaseException
+				</FONT><FONT FACE="Arial, sans-serif">will be thrown.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=45>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">cancel </FONT><FONT FACE="Arial, sans-serif">method
+				&hellip; The only argument to this method is the reference to the
+				lease object. Any exception (remote or non-remote) occurring
+				during the cancellation of the lease will have no effect on the
+				removal of the lease from the managed set. That is, even if an
+				exception occurs during the </FONT><FONT FACE="Courier, Courier New, monospace">cancel
+				</FONT><FONT FACE="Arial, sans-serif">operation, the lease must
+				have been removed from the managed set upon return from this
+				method.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=46>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">cancel </FONT><FONT FACE="Arial, sans-serif">method
+				&hellip; The only argument to this method is the reference to the
+				lease object. Any exception thrown by the </FONT><FONT FACE="Courier, Courier New, monospace">cancel
+				</FONT><FONT FACE="Arial, sans-serif">method of the lease object
+				itself may also be thrown by this method.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=47>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">clear </FONT><FONT FACE="Arial, sans-serif">method
+				removes all leases from the set of managed leases. It does not
+				request the cancellation of those leases. This method takes no
+				arguments.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=48>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">clear </FONT><FONT FACE="Arial, sans-serif">method
+				&hellip; It does not request the cancellation of those leases.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=49>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseListener
+				</FONT><FONT FACE="Arial, sans-serif">interface defines the
+				mechanism through which an entity receives notification from the
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">that &hellip; A lease has
+				expired</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=50>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseListener
+				</FONT><FONT FACE="Arial, sans-serif">interface defines the
+				mechanism through which an entity receives notification from the
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">that &hellip; A lease
+				renewal request has been denied before the desired absolute
+				expiration time of the lease was reached</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=51>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">When
+				either of the above events occurs, the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">will send an instance of
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalEvent
+				</FONT><FONT FACE="Arial, sans-serif">to that listener object.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=52>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">With
+				respect to the lease referenced by the event sent to the
+				listener, the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">will remove that lease
+				prior to sending the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalEvent</FONT><FONT FACE="Arial, sans-serif">.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=53>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalEvent
+				&hellip; </FONT><FONT FACE="Arial, sans-serif">The </FONT><FONT FACE="Courier, Courier New, monospace">getLease
+				</FONT><FONT FACE="Arial, sans-serif">method returns a reference
+				to the </FONT><FONT FACE="Courier, Courier New, monospace">Lease
+				</FONT><FONT FACE="Arial, sans-serif">object associated with the
+				event. This method takes no arguments.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=54>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">getExpiration
+				</FONT><FONT FACE="Arial, sans-serif">method returns a </FONT><FONT FACE="Courier, Courier New, monospace">long
+				</FONT><FONT FACE="Arial, sans-serif">value representing the
+				desired absolute expiration of the </FONT><FONT FACE="Courier, Courier New, monospace">Lease
+				</FONT><FONT FACE="Arial, sans-serif">object associated with the
+				event. This method takes no input arguments.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=55>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">The
+				</FONT><FONT FACE="Courier, Courier New, monospace">getException
+				</FONT><FONT FACE="Arial, sans-serif">method returns the
+				exception that caused the event to be sent.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=56>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">If
+				the lease&rsquo;s expiration time is reached before the
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">can request renewal, a
+				</FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalEvent
+				</FONT><FONT FACE="Arial, sans-serif">will be sent with no
+				associated exception. In this case, invoking this method will
+				return </FONT><FONT FACE="Courier, Courier New, monospace">null</FONT><FONT FACE="Arial, sans-serif">.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=57>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">If
+				the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">sends a </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalEvent
+				</FONT><FONT FACE="Arial, sans-serif">because a renewal request
+				was denied, this method will return </FONT><FONT FACE="Courier, Courier New, monospace">LeaseDeniedException</FONT><FONT FACE="Arial, sans-serif">.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+		<TR VALIGN=TOP>
+			<TD WIDTH=6%>
+				<OL START=58>
+					<LI><P LANG="en-US" CLASS="western"></P>
+				</OL>
+			</TD>
+			<TD WIDTH=60%>
+				<P LANG="en-US" CLASS="western"><FONT FACE="Arial, sans-serif">If
+				the </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalManager
+				</FONT><FONT FACE="Arial, sans-serif">sends a </FONT><FONT FACE="Courier, Courier New, monospace">LeaseRenewalEvent
+				</FONT><FONT FACE="Arial, sans-serif">because a renewal request
+				could not be completed before the expiration of the lease, this
+				method will return </FONT><FONT FACE="Courier, Courier New, monospace">UnknownLeaseException</FONT><FONT FACE="Arial, sans-serif">.</FONT></P>
+			</TD>
+			<TD WIDTH=8%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+			<TD WIDTH=25%>
+				<P LANG="en-US" CLASS="western"><BR>
+				</P>
+			</TD>
+		</TR>
+	</TBODY>
+</TABLE>
+<P LANG="en-US" CLASS="western" STYLE="margin-bottom: 0cm"><BR>
+</P>
+<P LANG="en-US" CLASS="western" STYLE="margin-bottom: 0cm"><BR>
+</P>
+</BODY>
+</HTML>

@@ -40,7 +40,7 @@ public class ActivateWrapperRegisterUnsharedImpl extends AbstractStartBaseTest {
         logger.log(Level.INFO, "run()");
 	try { 
 	    Object service =
-		    manager.startService(
+		    getManager().startService(
                     "com.sun.jini.test.impl.start.UnsharedProbe");
             logger.log(Level.INFO, "Activated unshared impl object");
             throw new TestException( "ActivateWrapper.register()"

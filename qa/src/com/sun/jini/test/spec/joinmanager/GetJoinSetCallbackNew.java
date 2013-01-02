@@ -40,7 +40,7 @@ public class GetJoinSetCallbackNew extends GetJoinSetCallback {
      *   Verifies that each invocation of method <code>getJoinSet</code>
      *   returns a new array that contains the same lookup services as those
      *   with which the service was registered by the join manager
-     *   created during setup.
+     *   created during construct.
      */
     public void run() throws Exception {
         super.run();

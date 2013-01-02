@@ -22,6 +22,7 @@ import java.util.logging.Level;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 // All other imports
@@ -35,9 +36,10 @@ public class LookupLocatorAdminTest extends LookupTestBase {
     static final private LookupLocator[] LLarray = new LookupLocator[0];
     private LookupLocator[] originalState;
 
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	this.parse();
+        return this;
     }
 
     protected void checkLocators(Set locators, String op)

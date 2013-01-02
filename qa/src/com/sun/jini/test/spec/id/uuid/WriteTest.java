@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.id.uuid;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -59,7 +60,7 @@ import com.sun.jini.test.spec.id.util.FakeUuid;
  *             to the ByteArrayOutputStream
  * </pre>
  */
-public class WriteTest extends QATest {
+public class WriteTest extends QATestEnvironment implements Test {
 
     long[][] cases = {
         { 0, 0 },
@@ -75,7 +76,8 @@ public class WriteTest extends QATest {
         { Long.MIN_VALUE, Long.MAX_VALUE }
     };
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     public void run() throws Exception {

@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import com.sun.jini.test.share.BaseQATest;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.discovery.DiscoveryManagement;
@@ -31,7 +32,8 @@ import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
 
 import java.rmi.RemoteException;
-import java.util.ArrayList;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.List;
 
 /**
  * This class is an abstract class that acts as the base class from which
@@ -42,7 +44,7 @@ import java.util.ArrayList;
  * used as a listener to participate in the process of discovering lookup
  * services on behalf of the tests that are decendants of this abstract class.
  * <p>
- * This class provides an implementation of the <code>setup</code> method
+ * This class provides an implementation of the <code>construct</code> method
  * which performs standard functions related to the initialization of the
  * system state necessary to execute the test.
  * <p>
@@ -65,9 +67,9 @@ import java.util.ArrayList;
  */
 abstract public class AbstractBaseTest extends BaseQATest {
 
-    protected LookupLocatorDiscovery locatorDiscovery = null;
-    protected ArrayList locatorDiscoveryList = new ArrayList(1);
-    protected LookupListener mainListener = null;
+    protected volatile LookupLocatorDiscovery locatorDiscovery = null;
+    protected final List<LookupLocatorDiscovery> locatorDiscoveryList = new CopyOnWriteArrayList<LookupLocatorDiscovery>();
+    protected volatile LookupListener mainListener = null;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test as follows:
@@ -81,8 +83,8 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *         discovery utility
      * </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         try {
             /* Start locator discovery by creating a lookup locator discovery*/
             logger.log(Level.FINE, "creating a lookup locator discovery "
@@ -97,7 +99,8 @@ abstract public class AbstractBaseTest extends BaseQATest {
             e.printStackTrace();
             throw new Exception(e.toString());
         }
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test
      */
@@ -127,7 +130,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
 
     /** Convenience method that encapsulates basic discovery processing.
      *  This method is useful when a lookup locator discovery utility different
-     *  from the standard one created during setup is to be used for discovery.
+     *  from the standard one created during construct is to be used for discovery.
      *  
      *  This method does the following:
      *  <p><ul>
@@ -141,7 +144,7 @@ abstract public class AbstractBaseTest extends BaseQATest {
      *  </ul>
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListToDiscover,
+    protected void doDiscovery(List locGroupsListToDiscover,
                                LookupLocatorDiscovery lld,
                                LookupListener listener) throws TestException
     {
@@ -163,10 +166,10 @@ abstract public class AbstractBaseTest extends BaseQATest {
 
     /** Convenience method that encapsulates basic discovery processing.
      *  Use this method when the standard lookup locator discovery utility
-     *  created during setup is to be used for discovery.
+     *  created during construct is to be used for discovery.
      *  @throws com.sun.jini.qa.harness.TestException
      */
-    protected void doDiscovery(ArrayList locGroupsListToDiscover,
+    protected void doDiscovery(List locGroupsListToDiscover,
                                LookupListener listener) throws TestException
     {
         doDiscovery(locGroupsListToDiscover,locatorDiscovery,listener);

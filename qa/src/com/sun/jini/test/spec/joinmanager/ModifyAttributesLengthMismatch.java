@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.AttributesUtil;
 
@@ -47,15 +48,16 @@ public class ModifyAttributesLengthMismatch extends ModifyAttributes {
      *          attribute templates
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Construct new attributes with different length than templates */
         newAttrs = new Entry[newServiceAttrs.length-1];
         for(int i=0;i<newAttrs.length;i++) {
             newAttrs[i] = new TestServiceIntAttr
                  (( ((TestServiceIntAttr)newServiceAttrs[i]).val).intValue());
         }//end loop
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>

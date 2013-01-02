@@ -20,11 +20,12 @@ package com.sun.jini.test.spec.export.servercontext;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 // java.util
@@ -89,7 +90,7 @@ import com.sun.jini.test.spec.export.util.AnFakeType;
  *
  * </pre>
  */
-public class DoWithServerContext_IllegalStateException extends QATest {
+public class DoWithServerContext_IllegalStateException extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**
@@ -133,8 +134,8 @@ public class DoWithServerContext_IllegalStateException extends QATest {
     /**
      * This method performs all preparations.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /* Create server context elements of different types */
@@ -147,6 +148,7 @@ public class DoWithServerContext_IllegalStateException extends QATest {
         
         ancontext = new ArrayList();
         ancontext.add(anCxtElement);
+        return this;
     }
 
     /**

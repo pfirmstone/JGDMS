@@ -22,10 +22,12 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.share.AttributesUtil;
 import com.sun.jini.test.share.DiscoveryServiceUtil;
 import com.sun.jini.test.spec.joinmanager.AbstractBaseTest;
+import java.util.List;
 
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.lookup.JoinManager;
@@ -108,9 +110,9 @@ public class AddAttributesRace extends AbstractBaseTest {
      *         services running within the same multicast radius of the new
      *         lookup services
      *    <li> creates a discovery manager that discovers the lookup service(s)
-     *         started during setup
+     *         started during construct
      *    <li> verifies the discovery of the lookup service(s) started during
-     *         setup
+     *         construct
      *    <li> initializes the initial set of attributes with which to
      *         register the service, the new set of attributes to add
      *         to the service through join manager, and the set of attributes
@@ -118,11 +120,12 @@ public class AddAttributesRace extends AbstractBaseTest {
      *         service(s) started above
      *   </ul>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         /* Make sure lookups are discovered before creating join manager */
         logger.log(Level.FINE, "do lookup service discovery ...");
         ldm = getLookupDiscoveryManager();
+        List lookupsStarted = getLookupServices().getLookupsStarted();
         mainListener.setLookupsToDiscover(lookupsStarted,
                                           toGroupsArray(lookupsStarted));
         waitForDiscovery(mainListener);
@@ -138,7 +141,8 @@ public class AddAttributesRace extends AbstractBaseTest {
         AttributesUtil.displayAttributeSet(expectedAttrs,
                                            "expected service attrs",
 					   Level.FINE);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>

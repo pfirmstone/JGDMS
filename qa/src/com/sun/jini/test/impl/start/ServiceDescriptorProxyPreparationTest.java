@@ -43,6 +43,7 @@ import java.util.Enumeration;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.SharedGroupAdmin;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.start.ActivateWrapper;
 import com.sun.jini.start.ActivateWrapper.ActivateDesc;
 import com.sun.jini.start.ClassLoaderUtil;
@@ -57,7 +58,7 @@ import net.jini.event.EventMailbox;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 
-public class ServiceDescriptorProxyPreparationTest extends StarterBase {
+public class ServiceDescriptorProxyPreparationTest extends StarterBase implements Test {
 
     private final RemoteException antiMercuryException = 
 	new RemoteException("Mercury service encountered");
@@ -77,9 +78,9 @@ public class ServiceDescriptorProxyPreparationTest extends StarterBase {
 
     public void run() throws Exception {
         SharedGroup sg = null;
-        sg = (SharedGroup)manager.startService("sharedGroup");
+        sg = (SharedGroup)getManager().startService("sharedGroup");
 	SharedGroupAdmin sga = null;
-	sga = (SharedGroupAdmin)manager.getAdmin(sg);
+	sga = (SharedGroupAdmin)getManager().getAdmin(sg);
 
         String codebase = 
             getConfig().genIntegrityCodebase(

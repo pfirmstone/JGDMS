@@ -26,22 +26,24 @@ import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceMatches;
 import net.jini.core.lookup.ServiceTemplate;
 
-import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.LegacyTest;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 
 /**
- * Test that verifies that toString() methods of ServiceItem,
+ * LegacyTest that verifies that toString() methods of ServiceItem,
  * ServiceMatches, and ServiceTemplate can handle null values,
  * 0-length arrays, and arrays with null elements.
  * 
  */
-public class ToStringTest implements Test {
+public class ToStringTest implements LegacyTest {
 
     private QAConfig config = null;
 
-    public void setup(QAConfig config) {
+    public Test construct(QAConfig config) {
         this.config = config;
+        return this;
     }
 
     public void run() throws Exception {

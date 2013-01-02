@@ -20,6 +20,7 @@ package com.sun.jini.test.spec.discoverymanager;
 
 import java.util.Map;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>removeGroups</code> method, this class verifies
@@ -57,9 +58,10 @@ public class RemoveGroupsAll extends RemoveGroupsSome {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         alternateRemoval = false;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class RemoveGroupsAll

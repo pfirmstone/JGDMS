@@ -45,6 +45,7 @@ import com.sun.jini.test.impl.mercury.TestListener;
 import com.sun.jini.test.impl.mercury.TestGenerator;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 public class PullTimeoutTest 
@@ -130,7 +131,7 @@ public class PullTimeoutTest
 
 	// Create an event generator and pass it the
 	// mailbox's remote event listener.
-	TestGenerator myGen = TestUtils.createGenerator(manager);
+	TestGenerator myGen = TestUtils.createGenerator(getManager());
 	logger.log(Level.FINEST, 
 	    "Test generator class tree" 
 	    + getClassLoaderTree(myGen.getClass().getClassLoader()));
@@ -144,7 +145,7 @@ public class PullTimeoutTest
 
 	// Create another event generator and pass it the
 	// mailbox's remote event listener.
-	TestGenerator myGen2 = TestUtils.createGenerator(manager);
+	TestGenerator myGen2 = TestUtils.createGenerator(getManager());
 	logger.log(Level.FINEST, 
 	    "Test generator class tree" 
 	    + getClassLoaderTree(myGen2.getClass().getClassLoader()));
@@ -280,12 +281,13 @@ public class PullTimeoutTest
             
     }
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	parse();
+        return this;
     }
 }

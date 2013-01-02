@@ -38,21 +38,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class TransactionWriteLeaseFOREVERTest extends AbstractTestBase {
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param config QAConfig from the runner for setup.
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
+public class TransactionWriteLeaseFOREVERTest extends TransactionTest {
 
     /**
      * This method asserts that write with <code>Lease.FOREVER</code>

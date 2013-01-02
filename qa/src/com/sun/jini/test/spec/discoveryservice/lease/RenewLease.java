@@ -25,6 +25,7 @@ import com.sun.jini.test.share.DiscoveryServiceUtil;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.LookupDiscoveryRegistration;
 
@@ -66,8 +67,8 @@ public class RenewLease extends AbstractBaseTest {
      *  Starts one lookup discovery service.
      *  Requests a registration with the service.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         reg = DiscoveryServiceUtil.getRegistration
                                (discoverySrvc,
                                 new DiscoveryServiceUtil.BasicEventListener());
@@ -75,7 +76,8 @@ public class RenewLease extends AbstractBaseTest {
                                           ((getPreparedLease(reg)).getExpiration(),
                                            System.currentTimeMillis());
         logger.log(Level.FINE, "initial lease duration = "+duration);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  

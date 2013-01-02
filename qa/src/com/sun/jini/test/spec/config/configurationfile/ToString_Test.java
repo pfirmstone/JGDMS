@@ -19,11 +19,12 @@
 package com.sun.jini.test.spec.config.configurationfile;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import net.jini.config.ConfigurationFile;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationNotFoundException;
@@ -120,7 +121,7 @@ import com.sun.jini.test.spec.config.util.FakeClassLoader;
  *          assert the toString method returns non empty string;
  * </pre>
  */
-public class ToString_Test extends QATest {
+public class ToString_Test extends QATestEnvironment implements Test {
     /**
      * An object to point to constructor:
      *   public ConfigurationFile(String[] options)
@@ -407,14 +408,14 @@ public class ToString_Test extends QATest {
     /**
      * Prepare test for running.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
-        QAConfig config = (QAConfig) sysConfig;
-        port = config.getIntConfigVal("HTTPServer.port", -1);
-        manager.startService("HTTPServer");
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        port = sysConfig.getIntConfigVal("HTTPServer.port", -1);
+        getManager().startService("HTTPServer");
         md = MessageDigest.getInstance("MD5");
         createFile(confFile, someValidConf);
         fakeClassLoader = new FakeClassLoader();
+        return this;
     }
 
     /**

@@ -20,13 +20,14 @@ package com.sun.jini.test.impl.mahalo;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import net.jini.config.ConfigurationException;
 import com.sun.jini.start.ServiceStarter;
 import com.sun.jini.start.SharedGroup;
 import com.sun.jini.qa.harness.OverrideProvider;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.io.*;
 import java.rmi.*;
@@ -39,7 +40,7 @@ import net.jini.core.transaction.server.TransactionManager;
  * are not equal
  */
  
-public class TxnMgrImplNullConfigEntries extends QATest {
+public class TxnMgrImplNullConfigEntries extends QATestEnvironment implements Test {
 
     private static class OverrideGenerator implements OverrideProvider {
 
@@ -69,9 +70,10 @@ public class TxnMgrImplNullConfigEntries extends QATest {
 	}
     }
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
         sysConfig.addOverrideProvider(new OverrideGenerator());
+        return this;
     }
 
     public void run() throws Exception {
@@ -88,7 +90,7 @@ public class TxnMgrImplNullConfigEntries extends QATest {
 	for (int i=0; i < instances; i++) {
 	    try {
                 txn_mgr_proxy = 
-		    (TransactionManager)manager.startService(serviceName); 
+		    (TransactionManager)getManager().startService(serviceName); 
 	        throw new TestException( 
 		    "Started service with invalid configuration");
 	    } catch (Exception e) {

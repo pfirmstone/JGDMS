@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set01;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -91,8 +92,8 @@ public class GetServiceTypesClass extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
         nClasses = super.getNTestClasses();
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
 	srvcRegs = super.registerAll();
@@ -104,12 +105,13 @@ public class GetServiceTypesClass extends QATestRegistrar {
 	    Class[] classType = {c};
 	    classTmpls[i] = new ServiceTemplate(null,classType,null);
 	}
+        return this;
     }
 
     /** Executes the current QA test.
      *
      *  For each class type of the test services created and registered
-     *  during setup, uses the corresponding ServiceTemplate to invoke the
+     *  during construct, uses the corresponding ServiceTemplate to invoke the
      *  method getServiceTypes(). Verifies that the set of class types returned
      *  matches the expected set of type descriptors.
      */

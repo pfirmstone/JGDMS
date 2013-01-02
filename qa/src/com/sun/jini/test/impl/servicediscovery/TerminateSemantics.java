@@ -30,6 +30,7 @@ import net.jini.core.lookup.ServiceItem;
 
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
@@ -66,17 +67,18 @@ public class TerminateSemantics extends AbstractBaseTest {
      *
      *  1. Creates a service discovery manager using the default input
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "verify invocation semantics of public methods after "
                    +"termination";
         waitForLookupDiscovery = false;
         terminateDelay = 0;
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
-     *  1. Terminates the service discovery manager created in setup and
+     *  1. Terminates the service discovery manager created in construct and
      *     verifies that an invocation of any of that service discovery
      *     manager's public methods (except the terminate method itself)
      *     will result in an <code>IllegalStateException</code>. 

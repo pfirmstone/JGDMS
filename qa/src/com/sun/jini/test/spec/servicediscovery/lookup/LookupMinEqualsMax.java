@@ -30,6 +30,7 @@ import java.rmi.RemoteException;
 import java.util.ArrayList;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -70,14 +71,15 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
      *  4. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = ": multiple service lookup employing -- template, "
                    +"blocking, minMatches = maxMatches";
-        registerServices(nServices,nAttributes);
-        maxMatches = nServices+nAddServices-1;
+        registerServices(getnServices(), getnAttributes());
+        maxMatches = getnServices()+getnAddServices()-1;
         minMatches = maxMatches;
-    }//end setup
+        return this;
+    }//end construct
 
     /** Cleans up all state. */
     public void tearDown() {
@@ -115,7 +117,7 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
          * returned.
          */
         waitDur = 1*60*1000; //reset the amount of time to block
-        verifyBlocking(nServices,nAddServices,waitDur);
+        verifyBlocking(getnServices(), getnAddServices(),waitDur);
     }//end applyTestDef
 
     /** Tests that the blocking mechanism of the lookup() method will block
@@ -150,14 +152,14 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
 		       +maxMatches+" service(s) -- blocking "
 		       +waitDurSecs+" second(s)");
             /* Register all services after waiting less than the block time */
-            logger.log(Level.FINE, ""+": "+expectedServiceList.size()
+            logger.log(Level.FINE, ""+": "+getExpectedServiceList().size()
 		       +" service(s) "
 		       +"registered, registering "+nSrvcs
 		       +" more service(s) ...");
             (new RegisterThread(startVal,nSrvcs,0,waitDur)).start();
         } else {//(nSrvcs<=0)
             /* Will register no more services */
-            logger.log(Level.FINE, ""+": "+expectedServiceList.size()
+            logger.log(Level.FINE, ""+": "+getExpectedServiceList().size()
 		       +" service(s) "
 		       +"registered, look up at least "
 		       +minMatches+" service(s), but no more than "
@@ -179,9 +181,9 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
 	DiscoveryServiceUtil.delayMS(regCompletionDelay);
 	/* populate the expected info after lookup to prevent delay */
 	ArrayList expectedSrvcs 
-	    = new ArrayList(expectedServiceList.size());
-	for(int i=0;i<expectedServiceList.size();i++) {
-	    expectedSrvcs.add(expectedServiceList.get(i));
+	    = new ArrayList(getExpectedServiceList().size());
+	for(int i=0;i<getExpectedServiceList().size();i++) {
+	    expectedSrvcs.add(getExpectedServiceList().get(i));
 	}//end loop
 	/* Modify the list based on whether or not a filter exists */
 	if(    (firstStageFilter != null)
@@ -225,7 +227,7 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
 	 * Below, determine the number of services to expect based on
 	 * the specified behavior described above.    
 	 */
-	int nPreReg  = countSrvcsByVal(nServices);
+	int nPreReg  = countSrvcsByVal(getnServices());
 	int nPostReg = expectedSrvcs.size();
 	int nExpectedSrvcs = nPreReg;
 

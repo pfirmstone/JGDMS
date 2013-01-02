@@ -101,7 +101,7 @@ public class CommitAbortTest extends TransactionTestBase {
         // try to read/take the entry without transaction
         SimpleEntry entry = null;
 
-	entry = (SimpleEntry) ope.get(space, template, null, JavaSpace.NO_WAIT);
+	entry = (SimpleEntry) ope.get(getSpace(), template, null, JavaSpace.NO_WAIT);
 
         // check the result
         if (useAbort) {

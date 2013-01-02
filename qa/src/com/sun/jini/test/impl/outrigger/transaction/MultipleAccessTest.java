@@ -69,14 +69,14 @@ public class MultipleAccessTest extends TransactionTestBase {
         writeEntries(txn);
 
         // start illegal access thread
-        Peeker peeker = new Peeker(space, this);
+        Peeker peeker = new Peeker(getSpace(), this);
         peeker.start();
 
         // create & start worker threads
         Worker[] workers = new Worker[NUM_WORKERS];
 
         for (int i = 0; i < NUM_WORKERS; i++) {
-            workers[i] = new Worker(space, txn, i, i + 1, NUM_ENTRIES,
+            workers[i] = new Worker(getSpace(), txn, i, i + 1, NUM_ENTRIES,
                     this);
             workers[i].start();
         }
@@ -150,7 +150,7 @@ public class MultipleAccessTest extends TransactionTestBase {
             template.id = new Integer(i);
 
             try {
-                entry = (SimpleEntry) space.takeIfExists(template, null,
+                entry = (SimpleEntry) getSpace().takeIfExists(template, null,
                         JavaSpace.NO_WAIT);
             } catch (Exception e) {
                 fail("[checkEntries]: Exception thrown while try to read an"

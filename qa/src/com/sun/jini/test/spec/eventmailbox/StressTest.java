@@ -40,41 +40,43 @@ import com.sun.jini.constants.TimeConstants;
 import com.sun.jini.test.impl.mercury.EMSTestBase;
 import com.sun.jini.test.impl.mercury.TestListener;
 import com.sun.jini.test.impl.mercury.TestGenerator;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 public abstract class StressTest extends EMSTestBase implements TimeConstants {
-    private static int genCount = 0;
-    private static int evtCount = 0;
+    private static final AtomicInteger genCount = new AtomicInteger();
+    private static final AtomicInteger evtCount = new AtomicInteger();
 
     private class EventGeneratorThread extends Thread {
 
-        private TestGenerator tg;
-        private long eventID;
-        private int numEvents;
+        private final TestGenerator tg;
+        private final long eventID;
+        private final AtomicInteger numEvents;
 
-	private RemoteEvent[] events = null;
+	private volatile RemoteEvent[] events = null;
 
 
         public EventGeneratorThread(TestGenerator tg, long eventID, 
 				    int numEvents) 
 	{
-	    super("EventGeneratorThread-" + ++genCount);
+	    super("EventGeneratorThread-" + genCount.incrementAndGet());
             this.tg = tg;
             this.eventID = eventID;
-            this.numEvents = numEvents;
+            this.numEvents = new AtomicInteger(numEvents);
 	    events = new RemoteEvent[numEvents];
         }
 
         public void run() {
 	    int counter = 0;
+            RemoteEvent[] events = this.events; // copy reference.
             try {
-                while (numEvents-- > 0) {
+                while (numEvents.getAndDecrement() > 0) {
                     events[counter++] = tg.generateEvent(eventID, 2);
                     if (counter % 99 == 0) {
 	                logger.log(Level.FINE, 
                             getName() + " has sent " + counter + " events.");
                     }
-                    yield();
+                    //yield();
                     try {
                         Thread.sleep(100);
                     } catch (InterruptedException ie) { /*ignore*/}
@@ -87,6 +89,7 @@ public abstract class StressTest extends EMSTestBase implements TimeConstants {
                     + counter + " events and terminated:");
                 e.printStackTrace();
             }
+            this.events = events; // publish changes.
         }
 
 	public RemoteEvent[] getEvents() {
@@ -96,12 +99,12 @@ public abstract class StressTest extends EMSTestBase implements TimeConstants {
 
     private class EventListenerThread extends Thread {
 
-        private TestListener tl;
-        private int numEvents;
-        private long wait;
+        private final TestListener tl;
+        private final int numEvents;
+        private final long wait;
 
         public EventListenerThread(TestListener tl, int numEvents, long wait) {
-	    super("EventListenerThread-" + ++evtCount);
+	    super("EventListenerThread-" + evtCount.incrementAndGet());
             this.tl = tl;
             this.numEvents = numEvents;
             this.wait = wait;

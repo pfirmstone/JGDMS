@@ -2,3 +2,6 @@ testClass=MulticastMonitorChange
 testCategories=lookupdiscovery,lookupdiscovery_spec,speclookupdiscovery
 include0=lookupdiscovery.properties
 include1=com/sun/jini/test/share/reggie3_0.properties
+#testjvmargs=-Xdebug,\
+#-Xrunjdwp:transport=dt_socket+,address=8000+,server=y+,suspend=y,\
+#${testjvmargs}

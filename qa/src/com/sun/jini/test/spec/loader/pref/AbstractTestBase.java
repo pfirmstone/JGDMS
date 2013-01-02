@@ -21,10 +21,11 @@ import java.util.logging.Level;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 // java.net
@@ -54,7 +55,7 @@ import com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider;
  * This class sets up the testing environment and
  * has some helper methods.
  */
-public abstract class AbstractTestBase extends QATest {
+public abstract class AbstractTestBase extends QATestEnvironment implements Test {
 
     /** The name of java.rmi.server.codebase system property */
     protected static final String RMICODEBASE = "java.rmi.server.codebase";
@@ -63,57 +64,57 @@ public abstract class AbstractTestBase extends QATest {
     protected static final String INVCODEBASE = "Invalid_codebase";
 
     /** The QAConfig object */
-    protected QAConfig config;
+    protected volatile QAConfig config;
 
     /**
      * The instrumented preferred class loader
      * {@link QATestPreferredClassLoader}
      */
-    protected QATestPreferredClassLoader loader;
+    protected volatile QATestPreferredClassLoader loader;
 
     /**
      *  Flag to define whether http or file url will be used
      *  for download preferred classes and resources
      */
-    protected boolean isHttp;
+    protected volatile boolean isHttp;
 
     /**
      * Http port to download preferred classes and resources via
      * com.sun.jini.qa.port
      */
-    protected int port;
+    protected volatile int port;
 
     /** Auxiliary http port to download preferred classes and resources */
-    protected int auxPort;
+    protected volatile int auxPort;
 
     /**
      * Flag to define boolean requireDlPerm argument that will be passed to
      * {@link QATestPreferredClassLoader} constructor.
      */
-    protected boolean dlPerm;
+    protected volatile boolean dlPerm;
 
     /**
      * String to define the exportAnnotation string that will be passed to
      * {@link QATestPreferredClassLoader} constructor.
      */
-    protected String annotation;
+    protected volatile String annotation;
 
     /**
      *  Flag to indicate that SecurityException should be thrown.
      */
-    protected boolean expectSecurityException;
+    protected volatile boolean expectSecurityException;
 
     /**
      *  String codebase for {@link QATestPreferredClassProvider}.
      */
-    protected String codebaseParam;
+    protected volatile String codebaseParam;
 
     /**
      * Sets up the testing environment.
      *
-     * @param config QAConfig from the runner for setup.
+     * @param config QAConfig from the runner for construct.
      */
-    public void setup(QAConfig config) throws Exception {
+    public Test construct(QAConfig config) throws Exception {
         this.config = config;
 
         // Set shared vm mode to be disabled in all cases
@@ -129,7 +130,7 @@ public abstract class AbstractTestBase extends QATest {
         }
 
         // mandatory call to parent
-        super.setup(config);
+        super.construct(config);
 
 
         /*
@@ -159,6 +160,7 @@ public abstract class AbstractTestBase extends QATest {
                 config.getBooleanConfigVal("loader.expectSecurityException",
                 false);
         codebaseParam = config.getStringConfigVal("loader.codebase", null);
+        return this;
     }
 
     /**
@@ -184,7 +186,7 @@ public abstract class AbstractTestBase extends QATest {
             throws TestException {
 
         /*
-         * Obtain array of URL according setup patameters.
+         * Obtain array of URL according construct patameters.
          */
         URL[] urls = Util.getUrls(isHttp, jar, jar2, config, port);
         ClassLoader prnt = Util.systemClassLoader();

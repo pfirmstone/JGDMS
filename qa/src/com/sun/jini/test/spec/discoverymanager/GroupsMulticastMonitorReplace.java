@@ -20,7 +20,8 @@ package com.sun.jini.test.spec.discoverymanager;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
-import java.util.ArrayList;
+import com.sun.jini.qa.harness.Test;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscoveryManager</code> utility
@@ -56,15 +57,16 @@ public class GroupsMulticastMonitorReplace extends Discovered {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
-        groupsToDiscover = toGroupsToDiscover(initLookupsToStart,
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
+        groupsToDiscover = toGroupsToDiscover(getInitLookupsToStart(),
                                               AbstractBaseTest.ALL_BY_GROUP);
         locatorsToDiscover = toLocatorsToDiscover
-                                             (initLookupsToStart,
+                                             (getInitLookupsToStart(),
                                               AbstractBaseTest.ALL_BY_GROUP);
-        nLookupsToReplace = genMap.size();//replace groups on all lookups
-    }//end setup
+        nLookupsToReplace = getGenMap().size();//replace groups on all lookups
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
@@ -87,11 +89,11 @@ public class GroupsMulticastMonitorReplace extends Discovered {
          * maps to change until setLookupsToDiscover returns.
          */
         synchronized(mainListener) {
-            ArrayList locGroupsPairList = null;
+            List locGroupsPairList = null;
             /* Replace current groups with new groups to cause discards */
             if(replacementGroups == null) {//use unique generated groups
                 locGroupsPairList = replaceMemberGroups();
-            } else {//use groups preset in setup
+            } else {//use groups preset in construct
                 locGroupsPairList = replaceMemberGroups(nLookupsToReplace,
                                                         replacementGroups);
             }//endif

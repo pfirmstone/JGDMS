@@ -21,7 +21,6 @@ package com.sun.jini.test.impl.outrigger.matching;
 import net.jini.core.entry.Entry;
 import java.lang.reflect.*;
 
-
 /**
  * Template generator that generate all the templates that are a
  * proper super clase of and match the UniqueEntry or NBEUniqueEntry

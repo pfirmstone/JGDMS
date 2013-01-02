@@ -89,7 +89,7 @@ public class NullArgsTest extends AbstractDispatcherTest {
     public void run() throws Exception {
         try {
 
-            // setup infrastructure needed by test
+            // construct infrastructure needed by test
             request = new FakeInboundRequest(null);
             InvocationConstraints constraints = InvocationConstraints.EMPTY;
             Object[] args = {};

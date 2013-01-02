@@ -22,6 +22,7 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -53,15 +54,16 @@ public class AddAttributesDup extends AddAttributes {
      *          method
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Create an array that contains elements from the set of attributes
          * with which the join manager is currently configured, the new
          * set of attributes to be added to the initial set, and duplicates
          * of the elements from the set to be added.
          */
         newServiceAttrs = addAttrsWithDups(serviceAttrs,newServiceAttrs);
-    }//end setup
+        return this;
+    }//end construct
 
 } //end class AddAttributesDup
 

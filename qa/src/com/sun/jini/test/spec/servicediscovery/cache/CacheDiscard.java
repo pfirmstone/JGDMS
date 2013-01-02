@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import net.jini.core.lookup.ServiceItem;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>discard</code> method of the
@@ -42,12 +43,13 @@ public class CacheDiscard extends CacheLookup {
      *  4. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "single service cache lookup and then discard -- "
                    +"services pre-registered, "
                    +"no first-stage filter, no second-stage filter";
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  

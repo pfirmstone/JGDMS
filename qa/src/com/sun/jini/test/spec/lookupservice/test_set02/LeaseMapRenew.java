@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set02;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -93,17 +94,17 @@ public class LeaseMapRenew extends QATestRegistrar {
      *  registered service items. 
      *  <p>
      *  The initial lease duration is greater than the lease renewal
-     *  duration to accomodate systems with excessive setup times.
+     *  duration to accomodate systems with excessive construct times.
      *  Some test systems were observed to require more than 15 seconds
-     *  for setup, which caused the early leases to expire before the
+     *  for construct, which caused the early leases to expire before the
      *  first leasemap renewal call.
      *
      *  @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i;
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 	listener = new Listener();
         nInstances = super.getNInstances();
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
@@ -127,6 +128,7 @@ public class LeaseMapRenew extends QATestRegistrar {
 	registerAllEvents();
 	createLeaseMap();
 	logger.log(Level.FINEST, "setup complete");
+        return this;
    }
 
     /** Executes the current QA test.
@@ -198,7 +200,7 @@ public class LeaseMapRenew extends QATestRegistrar {
 
     /* For each registered service, registers an event notification request,
      * with a specified lease duration, based on the contents of the 
-     * corresponding template created during setup and corresponding to
+     * corresponding template created during construct and corresponding to
      * the appropriate transition mask. Populates the array of Leases so
      * that each element contains one of the event leases returned by the 
      * event notification registration process.

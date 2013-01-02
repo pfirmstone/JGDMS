@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>removeGroups</code> method, this class
@@ -35,7 +36,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *   <li> one or more lookup services, each belonging to a finite
- *        set of member groups, and each started during setup, before the
+ *        set of member groups, and each started during construct, before the
  *        test begins execution
  *   <li> one instance of the lookup discovery utility configured to discover
  *        the set of groups whose elements are the member groups of the
@@ -56,9 +57,10 @@ public class RemoveGroupsRemoveAll extends RemoveGroupsRemoveSome {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         changeAll = true;
-        super.setup(sysConfig);
-    }//end setup
+        super.construct(sysConfig);
+        return this;
+    }//end construct
 
 }//end class RemoveGroupsRemoveAll

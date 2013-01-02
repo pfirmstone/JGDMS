@@ -28,6 +28,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // com.sun.jini.qa
+import com.sun.jini.test.spec.javaspace.conformance.JavaSpaceTest;
 import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
 
 
@@ -45,7 +46,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * @author Mikhail A. Markov
  */
-public class SnapshotWriteLeaseANYTest extends SnapshotAbstractTestBase {
+public class SnapshotWriteLeaseANYTest extends JavaSpaceTest {
 
     /**
      * This method asserts that write with <code>Lease.ANY</code>

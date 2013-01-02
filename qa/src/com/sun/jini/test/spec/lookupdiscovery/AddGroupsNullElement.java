@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -64,9 +65,9 @@ public class AddGroupsNullElement extends ConstructorNullElement {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
-	configGroups = toGroupsArray(initLookupsToStart);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
+	configGroups = toGroupsArray(getInitLookupsToStart());
 	logger.log(Level.FINE, "creating a new "
 		   +"LookupDiscovery initially configured to "
 		   +"discover -- ");
@@ -75,7 +76,8 @@ public class AddGroupsNullElement extends ConstructorNullElement {
 	newLD = new LookupDiscovery(configGroups,
 				    sysConfig.getConfiguration());
 	lookupDiscoveryList.add(newLD);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>

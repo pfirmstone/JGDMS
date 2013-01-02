@@ -26,6 +26,7 @@ import java.rmi.RemoteException;
 
 
 import com.sun.jini.constants.TimeConstants;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.TestBase;
 import net.jini.config.Configuration;
@@ -44,7 +45,7 @@ import net.jini.core.lease.LeaseDeniedException;
 
 
 
-public abstract class MailboxTestBase extends TestBase {
+public abstract class MailboxTestBase extends TestBase implements Test {
 
     protected static final String MAILBOX_PROPERTY_NAME = "com.sun.jini.test.impl.mercury.serviceInterface";    
     protected static final String MAILBOX_IF_NAME = EventMailbox.class.getName();

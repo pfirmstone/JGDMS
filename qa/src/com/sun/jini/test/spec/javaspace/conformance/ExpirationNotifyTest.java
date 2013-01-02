@@ -28,6 +28,7 @@ import net.jini.core.event.EventRegistration;
 import com.sun.jini.qa.harness.TestException;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * ExpirationNotifyTest asserts, that the request specified by a
@@ -37,21 +38,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class ExpirationNotifyTest extends AbstractTestBase {
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param config QAConfig from the runner for setup.
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
+public class ExpirationNotifyTest extends TransactionTest {
 
     /**
      * This method asserts, that the request specified by a

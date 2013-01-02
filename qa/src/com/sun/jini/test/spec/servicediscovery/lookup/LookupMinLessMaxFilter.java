@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.servicediscovery.lookup;
 import net.jini.lookup.ServiceItemFilter;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -67,14 +68,15 @@ public class LookupMinLessMaxFilter extends LookupMinLessMax {
      *     registered above; and which will be applied to the results of the
      *     template matching performed by the service discovery manager
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "multiple service lookup employing -- template, filter, "
                    +"blocking, minMatches < maxMatches";
         maxMatches = countSrvcsByVal(maxMatches);
         minMatches = countSrvcsByVal(minMatches);
         if((minMatches+1) < maxMatches)  minMatches = minMatches+1;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class LookupMinLessMaxFilter
 

@@ -21,8 +21,9 @@ package com.sun.jini.test.spec.discoverymanager;
 import java.util.logging.Level;
 
 import net.jini.discovery.DiscoveryGroupManagement;
-import java.util.ArrayList;
+import java.util.List;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>LookupDiscoveryManager</code> utility
@@ -55,10 +56,11 @@ public class MulticastMonitorReplaceNone extends Discovered {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         mainListener = new GroupChangeListener();
-    }//end setup
+        return this;
+    }//end construct
 
     public void run() throws Exception {
         super.run();
@@ -69,7 +71,7 @@ public class MulticastMonitorReplaceNone extends Discovered {
          */
         synchronized(mainListener) {
             /* Replace all groups with NO_GROUPS to generate events */
-            ArrayList locGroupsPairList = replaceMemberGroups
+            List locGroupsPairList = replaceMemberGroups
                                       (DiscoveryGroupManagement.NO_GROUPS);
             /* Set the expected changed event info */
             mainListener.setLookupsToDiscover(locGroupsPairList,

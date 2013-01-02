@@ -37,6 +37,7 @@ import java.net.MalformedURLException;
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.AbstractServiceAdmin;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class determines whether or not the lookup discovery service can
@@ -78,13 +79,13 @@ public class AddLookupLocators extends AbstractBaseTest {
      *  Starts one lookup discovery service, and then constructs the set
      *  of locators that should be expected after adding a new set of locators.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         newLocatorSet = getTestLocatorSet();
 	AbstractServiceAdmin admin = 
-	    (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	    (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         if (admin == null) {
-            return;
+            return this;
         }
         LookupLocator[] configLocators = admin.getLocators();
 
@@ -111,7 +112,8 @@ public class AddLookupLocators extends AbstractBaseTest {
                                                Level.FINE);
             }
         }
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      *  

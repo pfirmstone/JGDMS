@@ -32,6 +32,7 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that when the <code>setGroups</code> method is called
@@ -64,8 +65,8 @@ public class LateRegsNotifiedOn2SetGroups extends AbstractBaseTest {
      *  for properly configured lookup services, discard events, as well as
      *  discovery events will be generated.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         logger.log(Level.FINE, "setup()");
         String[] allGroupsToDiscover = getGroupsToDiscover
                                                       (useOnlyGroupDiscovery);
@@ -84,7 +85,8 @@ public class LateRegsNotifiedOn2SetGroups extends AbstractBaseTest {
                 groups1[i-len0] = allGroupsToDiscover[i];
             }//end loop
         }//endif
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
@@ -92,13 +94,13 @@ public class LateRegsNotifiedOn2SetGroups extends AbstractBaseTest {
      *      service, requesting that NO_GROUPS and no locators be discovered
      * <li> calls setGroups, requesting the discovery of the 1st set of groups,
      *      which should equal the member groups of the 1st lookup service
-     *      started in setup
+     *      started in construct
      * <li> verifies that the discovery/discard process is working for the
      *      1st registration by waiting for the expected discovery and
      *      discard events
      * <li> calls setGroups, requesting the discovery of the 2nd set of groups,
      *      which should equal the member groups of the 2nd lookup service
-     *      started in setup
+     *      started in construct
      * <li> verifies that the discovery/discard process is working for the
      *      1st registration by waiting for the expected discovery and
      *      discard events

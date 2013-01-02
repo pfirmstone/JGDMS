@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -36,7 +37,7 @@ import java.util.ArrayList;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *    <li> one or more "initial" lookup services, each belonging to a finite
- *         set of member groups, and each started during setup, before the
+ *         set of member groups, and each started during construct, before the
  *         test begins execution
  *    <li> one or more "additional" lookup services, each belonging to a finite
  *         set of member groups that does not include any of the member groups
@@ -61,8 +62,8 @@ public class AddGroupsDups extends AddGroups {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	int len1 = groupsToAdd.length;
 	int len2 = 2*len1;
 	ArrayList dupGroupsList = new ArrayList(len2);
@@ -74,7 +75,8 @@ public class AddGroupsDups extends AddGroups {
 	}//end loop
 	groupsToAdd = 
 	   (String[])(dupGroupsList).toArray(new String[dupGroupsList.size()]);
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class AddGroupsDups
 

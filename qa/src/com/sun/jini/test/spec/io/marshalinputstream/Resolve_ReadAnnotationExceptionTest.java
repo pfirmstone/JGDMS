@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.io.marshalinputstream;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.spec.io.util.FakeMarshalInputStream;
 import com.sun.jini.test.spec.io.util.FakeMarshalOutputStream;
@@ -79,7 +80,7 @@ import java.rmi.ConnectIOException;
  *     6) assert readAnnotationException is thrown directly
  * </pre>
  */
-public class Resolve_ReadAnnotationExceptionTest extends QATest {
+public class Resolve_ReadAnnotationExceptionTest extends QATestEnvironment implements Test {
 
     Throwable[] cases = {
         new ClassNotFoundException(),
@@ -100,7 +101,8 @@ public class Resolve_ReadAnnotationExceptionTest extends QATest {
         new AssertionError()                    //Error subclass
     };
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     public void run() throws Exception {

@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -58,16 +59,17 @@ public class AddNewDiscoveryListener extends Discovered {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         newListener = new AbstractBaseTest.LookupListener();
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *    <li> re-configures the lookup discovery utility to use group
      *         discovery to discover the set of lookup services started during
-     *         setup
+     *         construct
      *    <li> starts the multicast discovery process by adding a listener to
      *         the lookup discovery utility
      *    <li> verifies that the discovery process is working by waiting
@@ -83,7 +85,7 @@ public class AddNewDiscoveryListener extends Discovered {
         super.run();
         logger.log(Level.FINE, "adding a new listener to "
                                         +"LookupDiscovery ... ");
-        newListener.setLookupsToDiscover(initLookupsToStart);
+        newListener.setLookupsToDiscover(getInitLookupsToStart());
         lookupDiscovery.addDiscoveryListener(newListener);
         waitForDiscovery(newListener);
     }//end run

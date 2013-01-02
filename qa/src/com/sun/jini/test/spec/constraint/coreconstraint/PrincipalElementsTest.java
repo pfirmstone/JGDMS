@@ -27,6 +27,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 import java.util.Set;
 import java.util.HashSet;
@@ -134,8 +135,8 @@ public class PrincipalElementsTest extends AbstractImmutableSetTest {
      * This method performs all preparations.
      * Test Objects are created here.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         for (int i = 0; i < set.length; i++) {
@@ -205,6 +206,7 @@ public class PrincipalElementsTest extends AbstractImmutableSetTest {
             throw new TestException("Exception has been thrown while creating"
                     + " ServerMinPrincipal object", e);
         }
+        return this;
     }
 
     /**

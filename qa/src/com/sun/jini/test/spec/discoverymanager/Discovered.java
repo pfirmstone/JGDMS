@@ -23,6 +23,8 @@ import java.util.logging.Level;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.core.discovery.LookupLocator;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscoveryManager</code> utility
@@ -70,13 +72,15 @@ public class Discovered extends AbstractBaseTest {
      *         configure the lookup discovery manager to discover
      *  </ul>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
+        List initLookupsToStart = getLookupServices().getInitLookupsToStart();
         groupsToDiscover = toGroupsToDiscover(initLookupsToStart,
                                               AbstractBaseTest.MIX);
         locatorsToDiscover = toLocatorsToDiscover(initLookupsToStart,
                                                   AbstractBaseTest.MIX);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
@@ -91,6 +95,7 @@ public class Discovered extends AbstractBaseTest {
      */
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");
+        List initLookupsToStart = getLookupServices().getInitLookupsToStart();
         doDiscovery(initLookupsToStart,discoveryMgr,mainListener,
                     locatorsToDiscover,groupsToDiscover);
     }//end run

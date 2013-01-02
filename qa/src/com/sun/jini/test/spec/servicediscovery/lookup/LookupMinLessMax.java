@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.servicediscovery.lookup;
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -57,11 +58,11 @@ public class LookupMinLessMax extends LookupMinEqualsMax {
      *  4. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "multiple service lookup employing -- template, "
                    +"blocking, minMatches < maxMatches";
-        if(nAddServices <= 2) {
+        if(getnAddServices() <= 2) {
             logger.log(Level.FINE, 
 		       "This test guarantees that the minimum "
 		       +"number of services to");
@@ -73,16 +74,17 @@ public class LookupMinLessMax extends LookupMinEqualsMax {
 		       +"services to add must be > 2.");
             logger.log(Level.FINE, 
 		       "The currently configured number of services "
-		       +"to add = "+nAddServices+".");
+		       +"to add = "+getnAddServices()+".");
             logger.log(Level.FINE, "Reset that number to 3.");
-            nAddServices = 3;
+            getLookupServices().setnAddServices(3);
             logger.log(Level.FINE, 
 		       "additional services to register -- "
-		       +nAddServices);
+		       +getnAddServices());
         }//endif
-        maxMatches = nServices+nAddServices-1;
-        minMatches = nServices+1;
-    }//end setup
+        maxMatches = getnServices()+getnAddServices()-1;
+        minMatches = getnServices()+1;
+        return this;
+    }//end construct
 
 }//end class LookupMinLessMax
 

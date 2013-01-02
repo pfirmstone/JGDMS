@@ -21,6 +21,7 @@ import java.util.logging.Level;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import java.lang.reflect.Constructor;
@@ -49,7 +50,7 @@ import com.sun.jini.test.share.TestBase;
  * events are recived (the one with the listener that did not throw
  * an exception) and fail otherwise
  */
-public class RemoveExactlyOneTest extends TestBase {
+public class RemoveExactlyOneTest extends TestBase implements Test {
     /** Total time we are willing to wait for events to happen */
     private long eventWaitFor;
 
@@ -88,9 +89,10 @@ public class RemoveExactlyOneTest extends TestBase {
      */
     private long leaseID;
 	
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	this.parse();
+        return this;
     }
 
     /**

@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -56,13 +57,14 @@ public class AddGroupsAllGroups extends Discovered {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         delayLookupStart = true;//don't start lookups, just want config info
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 	newLD = new LookupDiscovery(groupsToDiscover,
 				    sysConfig.getConfiguration());
 	lookupDiscoveryList.add(newLD);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>

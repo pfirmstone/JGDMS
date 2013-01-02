@@ -35,7 +35,8 @@ import net.jini.security.AccessPermission;
 
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 
 
 /**
@@ -74,7 +75,7 @@ import com.sun.jini.qa.harness.QATest;
  *     10) assert that object will be got without exceptions
  * </pre>
  */
-public class ReadObjectTest extends QATest {
+public class ReadObjectTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

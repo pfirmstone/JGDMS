@@ -24,10 +24,10 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // All other imports
+import com.sun.jini.qa.harness.Test;
 import java.util.List;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.rmi.*;
 import net.jini.core.lease.Lease;
 import net.jini.core.entry.Entry;
 import net.jini.space.JavaSpace;
@@ -35,20 +35,21 @@ import net.jini.core.entry.UnusableEntryException;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
 import com.sun.jini.test.share.TestBase;
+import java.rmi.RemoteException;
 
 
 /**
  * Base class for matching tests. Sets up an audited JavaSpace and
- * provides a number of convince methods.
+ * provides a number of convenience methods.
  */
-public abstract class MatchTestCore extends TestBase {
+public abstract class MatchTestCore extends TestBase implements Test {
 
     /**
      * True if test should use <code>takeIfExists</code> and
      * <code>readIfExists</code> over <code>take</code> and
      * <code>read</code>
-     * Not valid until <code>setup()</code> is called.
-     * @see MatchTestBase#setup
+     * Not valid until <code>construct()</code> is called.
+     * @see MatchTestBase#construct
      */
     protected boolean useIfExists = false;
 
@@ -59,7 +60,7 @@ public abstract class MatchTestCore extends TestBase {
 
     /**
      * Time in milliseconds to wait for a read or take.
-     * Not valid until <code>setup()</code> is called.
+     * Not valid until <code>construct()</code> is called.
      */
     protected long queryTimeOut; // 10 seconds
     private long tryShutdown;
@@ -67,8 +68,8 @@ public abstract class MatchTestCore extends TestBase {
     /**
      * Convince method for doing a read on the JavaSpace, uses the
      * proper form of read based on <code>useIfExists</code>.
-     * Not valid until <code>setup()</code> is called.
-     * @see MatchTestBase#setup
+     * Not valid until <code>construct()</code> is called.
+     * @see MatchTestBase#construct
      * @see MatchTestBase#useIfExists
      */
     protected Entry spaceRead(Entry tmpl, Transaction txn, long timeout)
@@ -84,8 +85,8 @@ public abstract class MatchTestCore extends TestBase {
     /**
      * Convince method for doing a take on the JavaSpace, uses the
      * proper form of take based on <code>useIfExists</code>.
-     * Not valid until <code>setup()</code> is called.
-     * @see MatchTestBase#setup
+     * Not valid until <code>construct()</code> is called.
+     * @see MatchTestBase#construct
      * @see MatchTestBase#useIfExists
      */
     protected Entry spaceTake(Entry tmpl, Transaction txn, long timeout)
@@ -101,8 +102,8 @@ public abstract class MatchTestCore extends TestBase {
     /**
      * Convince method for dumping a UnusableEntryException to the
      * log.
-     * Not valid until <code>setup()</code> is called.
-     * @see TestBase#setup
+     * Not valid until <code>construct()</code> is called.
+     * @see TestBase#construct
      */
     protected void dumpUnusableEntryException(UnusableEntryException e) {
         logger.log(Level.INFO, "   Partial Entry:" + e.partialEntry, e);
@@ -152,16 +153,17 @@ public abstract class MatchTestCore extends TestBase {
     /**
      * Sets up the testing environment.
      *
-     * @param config Arguments from the runner for setup.
+     * @param config Arguments from the runner for construct.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
 
         // Get the space for testing, and rebind it to audited space
         specifyServices(new Class[] {
             JavaSpace.class});
         space = (JavaSpace) services[0];
+        return this;
     }
 
     /**

@@ -25,9 +25,10 @@ import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 import java.util.HashSet;
 import java.util.Set;
@@ -82,7 +83,7 @@ import net.jini.core.constraint.ServerAuthentication;
  *
  * </pre>
  */
-public class ConflictTest extends QATest {
+public class ConflictTest extends QATestEnvironment implements Test {
     QAConfig config;
 
 
@@ -182,8 +183,8 @@ public class ConflictTest extends QATest {
      * Creates {@link ConflictTest.TestCase} objects for all test cases specified
      * in the class description.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
         
         // Requirements
@@ -242,6 +243,7 @@ public class ConflictTest extends QATest {
         prefs.add(Integrity.NO);
         prefs.add(ServerAuthentication.NO);
         tc[2] = new TestCase(reqs, prefs);
+        return this;
     }
 
     /**

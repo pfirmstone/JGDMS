@@ -22,7 +22,7 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 import net.jini.discovery.LookupLocatorDiscovery;
 
 import net.jini.core.discovery.LookupLocator;
@@ -56,8 +56,8 @@ public class ConstructorNullElement extends AbstractBaseTest {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Create an array of LookupLocator instances in which at least 1
          * element is null
          */
@@ -74,7 +74,8 @@ public class ConstructorNullElement extends AbstractBaseTest {
                         = ((indx == i) ? null : QAConfig.getConstrainedLocator(host,port));
             }//end loop
         }//endif
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>

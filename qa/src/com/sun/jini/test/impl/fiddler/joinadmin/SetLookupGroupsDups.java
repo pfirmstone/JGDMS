@@ -55,7 +55,7 @@ public class SetLookupGroupsDups extends SetLookupGroups {
      */
     String[] getTestGroupSet() {
 	AbstractServiceAdmin admin = 
-	    (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	    (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         return GroupsUtil.getGroupsWithDups(admin.getGroups());
     }
 }

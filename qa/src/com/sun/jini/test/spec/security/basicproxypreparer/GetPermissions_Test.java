@@ -18,11 +18,12 @@
 package com.sun.jini.test.spec.security.basicproxypreparer;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.security.BasicProxyPreparer;
@@ -73,7 +74,7 @@ import net.jini.core.constraint.Integrity;
  *	  repeat steps 1-3 passing null as proxy argument;
  * </pre>
  */
-public class GetPermissions_Test extends QATest {
+public class GetPermissions_Test extends QATestEnvironment implements Test {
 
     /**
      * Run BasicProxyPreparer constructor for valid test case.

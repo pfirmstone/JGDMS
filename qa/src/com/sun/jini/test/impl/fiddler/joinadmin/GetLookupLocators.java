@@ -35,6 +35,7 @@ import net.jini.core.discovery.LookupLocator;
 
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.AbstractServiceAdmin;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class determines whether or not the lookup discovery service can
@@ -59,15 +60,15 @@ public class GetLookupLocators extends AbstractBaseTest {
      *  member(s) correspond to the specific the lookup service(s) that
      *  the lookup discovery service is expected to attempt to join.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         String joinStr = 
 	    config.getStringConfigVal(serviceName + ".tojoin", null);
         logger.log(Level.FINE, "joinStr from QAConfig = " + joinStr);
 	AbstractServiceAdmin admin = 
-	    (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	    (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         if (admin == null) {
-            return;
+            return this;
         }
         expectedLocators = admin.getLocators();
         if(expectedLocators != null){
@@ -82,6 +83,7 @@ public class GetLookupLocators extends AbstractBaseTest {
         } else {
             logger.log(Level.FINE, "expectedLocators = null");
         }
+        return this;
     }
 
     /** Executes the current test by doing the following:

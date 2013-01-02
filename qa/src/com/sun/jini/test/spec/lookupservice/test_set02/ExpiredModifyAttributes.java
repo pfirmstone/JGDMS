@@ -20,6 +20,7 @@ import com.sun.jini.qa.harness.QAConfig;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 import java.rmi.RemoteException;
 import java.io.IOException;
@@ -54,8 +55,8 @@ public class ExpiredModifyAttributes extends QATestRegistrar {
     private Entry[] modAttrs;
     private int attrsLen;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	attrEntries = super.createAttributes(ATTR_CLASSES);
 	modAttrs = new Entry[attrEntries.length];
 	for(int i=0; i<modAttrs.length;i++) {
@@ -65,6 +66,7 @@ public class ExpiredModifyAttributes extends QATestRegistrar {
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
  	srvcRegs = registerAll(leaseDuration);
 	leaseStartTime = QATestUtils.getCurTime();
+        return this;
     }
 
     /** Executes the current QA test. */

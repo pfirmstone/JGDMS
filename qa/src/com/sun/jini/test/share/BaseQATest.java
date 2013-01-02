@@ -18,40 +18,27 @@
 
 package com.sun.jini.test.share;
 
-import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
-import com.sun.jini.test.share.DiscoveryProtocolSimulator;
-import com.sun.jini.test.share.DiscoveryServiceUtil;
-import com.sun.jini.test.share.GroupsUtil;
-import com.sun.jini.test.share.LocatorsUtil;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
-import net.jini.admin.Administrable;
-import net.jini.admin.JoinAdmin;
 
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.DiscoveryEvent;
 import net.jini.discovery.DiscoveryChangeListener;
 import net.jini.discovery.DiscoveryListener;
-import net.jini.discovery.LookupDiscoveryService;
 
-import net.jini.lookup.DiscoveryAdmin;
 
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lookup.ServiceRegistrar;
 
-import java.io.IOException;
 
-import java.net.InetAddress;
-import java.net.MalformedURLException;
-import java.net.UnknownHostException;
 
-import java.rmi.RemoteException;
 
 import java.util.ArrayList;
 import java.util.Collection;
@@ -62,11 +49,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 
 /**
  * This class is an abstract class that contains common functionality 
- * related to setup and tearDown that may be useful to many of tests.
+ * related to construct and tearDown that may be useful to many of tests.
  * acts as the base class which
  * 
  * This abstract class contains various static inner classes, any one
@@ -74,29 +62,155 @@ import java.util.logging.Level;
  * service discovery process on behalf of the tests that sub-class this
  * abstract class.
  * <p>
- * This class provides an implementation of both the <code>setup</code> method
+ * This class provides an implementation of both the <code>construct</code> method
  * and the <code>tearDown</code> method, which perform -- respectively --
  * standard functions related to the initialization and clean up of the
  * system state necessary to execute the test.
  * 
  * @see com.sun.jini.qa.harness.QAConfig
- * @see com.sun.jini.qa.harness.QATest
+ * @see com.sun.jini.qa.harness.QATestEnvironment
  */
-abstract public class BaseQATest extends QATest {
+abstract public class BaseQATest extends QATestEnvironment implements Test {
 
-    protected static final int AUTOMATIC_LOCAL_TEST = Integer.MAX_VALUE;
-    protected static final int MANUAL_TEST_REMOTE_COMPONENT = 1;
-    protected static final int MANUAL_TEST_LOCAL_COMPONENT  = 2;
+    public static final int AUTOMATIC_LOCAL_TEST = Integer.MAX_VALUE;
+    public static final int MANUAL_TEST_REMOTE_COMPONENT = 1;
+    public static final int MANUAL_TEST_LOCAL_COMPONENT  = 2;
 
-    protected boolean useFastTimeout = false;//for faster completion
-    protected int fastTimeout = 10;//default value
-    protected boolean displayOn = true;//verbose in waitForDiscovery/Discard
-    protected boolean debugsync = false;//turns on synchronization debugging
+    protected volatile boolean useFastTimeout = false;//for faster completion
+    protected volatile int fastTimeout = 10;//default value
+    protected volatile boolean displayOn = true;//verbose in waitForDiscovery/Discard
+    protected volatile boolean debugsync = false;//turns on synchronization debugging
+
+    /**
+     * @return the lookupServices
+     */
+    protected LookupServices getLookupServices() {
+        return lookupServices;
+    }
+
+    /**
+     * @return the lookupDiscoveryServices
+     */
+    protected LookupDiscoveryServices getLookupDiscoveryServices() {
+        return lookupDiscoveryServices;
+    }
+
+    /**
+     * @return the leaseRenewalServices
+     */
+    protected LeaseRenewalServices getLeaseRenewalServices() {
+        return leaseRenewalServices;
+    }
+
+    /**
+     * @return the eventMailBoxServices
+     */
+    protected EventMailBoxServices getEventMailBoxServices() {
+        return eventMailBoxServices;
+    }
+
+    /**
+     * @return the expectedServiceList
+     */
+    public List getExpectedServiceList() {
+        return expectedServiceList;
+    }
+
+    /**
+     * @return the nLookupServices
+     */
+    protected int getnLookupServices() {
+        return lookupServices.getnLookupServices();
+    }
+
+    /**
+     * @return the nAddLookupServices
+     */
+    protected int getnAddLookupServices() {
+        return lookupServices.getnAddLookupServices();
+    }
+
+    /**
+     * @return the nServices
+     */
+    protected int getnServices() {
+        return lookupServices.getnServices();
+    }
+
+    /**
+     * @return the nAddServices
+     */
+    protected int getnAddServices() {
+        return lookupServices.getnAddServices();
+    }
+
+    /**
+     * @return the nAttributes
+     */
+    protected int getnAttributes() {
+        return lookupServices.getnAttributes();
+    }
+
+    /**
+     * @return the nAddAttributes
+     */
+    protected int getnAddAttributes() {
+        return lookupServices.getnAddAttributes();
+    }
+
+    /**
+     * @return the nSecsServiceDiscovery
+     */
+    protected int getnSecsServiceDiscovery() {
+        return lookupServices.getnSecsServiceDiscovery();
+    }
+
+    /**
+     * @return the nSecsJoin
+     */
+    protected int getnSecsJoin() {
+        return lookupServices.getnSecsJoin();
+    }
+
+    /**
+     * @return the initLookupsToStart
+     */
+    protected List<LocatorGroupsPair> getInitLookupsToStart() {
+        return lookupServices.getInitLookupsToStart();
+    }
+
+    /**
+     * @return the addLookupsToStart
+     */
+    protected List<LocatorGroupsPair> getAddLookupsToStart() {
+        return lookupServices.getAddLookupsToStart();
+    }
+
+    /**
+     * @return the allLookupsToStart
+     */
+    protected List<LocatorGroupsPair> getAllLookupsToStart() {
+        return lookupServices.getAllLookupsToStart();
+    }
+
+    /**
+     * @return the lookupsStarted
+     */
+    protected List<LocatorGroupsPair> getLookupsStarted() {
+        return lookupServices.getLookupsStarted();
+    }
+
+    /**
+     * @return the genMap
+     */
+    protected Map<Object, String[]> getGenMap() {
+        return lookupServices.getGenMap();
+    }
 
     /** Ordered pair containing a LookupLocator and the corresponding groups */
-    public class LocatorGroupsPair {
-        public LookupLocator locator;
-        public String[]      groups;
+    public static class LocatorGroupsPair {
+        private final LookupLocator locator;
+        private final String[]      groups;
         public LocatorGroupsPair(LookupLocator locator, String[] groups) {
             this.locator = locator;
             this.groups  = groups;
@@ -105,15 +219,28 @@ abstract public class BaseQATest extends QATest {
             if(this == obj) return true;
             if( !(obj instanceof LocatorGroupsPair) ) return false;
             if(!((LocatorGroupsPair)obj).locator.equals(locator)) return false;
-            return GroupsUtil.compareGroupSets(groups,
-                                              ((LocatorGroupsPair)obj).groups, Level.OFF);
+            return GroupsUtil.compareGroupSets(getGroups(), ((LocatorGroupsPair)obj).getGroups(), Level.OFF);
         }//end equals
+
+        /**
+         * @return the locator
+         */
+        public LookupLocator getLocator() {
+            return locator;
+        }
+
+        /**
+         * @return the groups
+         */
+        public String[] getGroups() {
+            return groups.clone();
+        }
     }//end class LocatorGroupsPair
 
     /** Data structure representing a set of LookupLocators & groups to join */
-    public class ToJoinPair {
-        public LookupLocator[] locators;
-        public String[]        groups;
+    public static class ToJoinPair {
+        private final LookupLocator[] locators;
+        private final String[]        groups;
         public ToJoinPair(LookupLocator[] locators, String[] groups) {
             this.locators = locators;
             this.groups   = groups;
@@ -126,6 +253,20 @@ abstract public class BaseQATest extends QATest {
             this.locators = new LookupLocator[0];
             this.groups   = groups;
         }//end constructor
+
+        /**
+         * @return the locators
+         */
+        protected LookupLocator[] getLocators() {
+            return locators.clone();
+        }
+
+        /**
+         * @return the groups
+         */
+        protected String[] getGroups() {
+            return groups.clone();
+        }
     }//end class ToJoinPair
 
     /** Listener class used to monitor the discovery events sent from the
@@ -138,11 +279,39 @@ abstract public class BaseQATest extends QATest {
      */
     protected class LookupListener implements DiscoveryListener {
         public LookupListener(){ }
-        public HashMap discoveredMap = new HashMap(11);
-        public HashMap discardedMap  = new HashMap(11);
+        private final Map<LookupLocator,String[]> discoveredMap = new HashMap<LookupLocator,String[]>(11);
+        private final Map<LookupLocator,String[]> discardedMap  = new HashMap<LookupLocator,String[]>(11);
 
-        public HashMap expectedDiscoveredMap = new HashMap(11);
-        public HashMap expectedDiscardedMap  = new HashMap(11);
+        private final Map expectedDiscoveredMap = new HashMap(11);
+        private final Map expectedDiscardedMap  = new HashMap(11);
+        
+        Set<Map.Entry<LookupLocator,String[]>> getDiscovered(){
+            synchronized(this){
+                Set<Map.Entry<LookupLocator,String[]>> disc = new HashSet<Map.Entry<LookupLocator,String[]>>(discoveredMap.size());
+                disc.addAll(discoveredMap.entrySet());
+                return disc;
+            }
+        }
+        
+        /**
+         * Replaces and entry in the discovered map and removes LookupLocator
+         * from the discarded map
+         * @param l
+         * @param groups
+         * @return 
+         */
+        void updateDiscovered(LookupLocator l, String[] groups){
+            synchronized(this){
+                discardedMap.remove(l);
+                discoveredMap.put(l, groups);
+            }
+        }
+        
+        int discoveredCount(){
+            synchronized(this){
+                return discoveredMap.size();
+            }
+        }
 
         /** Returns the locators of the lookups from discoveredMap, which
          *  contains both the lookups that are expected to be discovered,
@@ -205,14 +374,14 @@ abstract public class BaseQATest extends QATest {
         /** Use this method to set the contents of the discoveredMap to a
          *  specific set of values.
          */
-        public void setDiscoveredMap(ArrayList locGroupsList) {
+        public void setDiscoveredMap(List locGroupsList) {
             synchronized(this) {
                 discoveredMap.clear();
                 discardedMap.clear();
                 for(int i=0;i<locGroupsList.size();i++) {
                     LocatorGroupsPair pair =
                                       (LocatorGroupsPair)locGroupsList.get(i);
-                    discoveredMap.put(pair.locator,pair.groups);
+                    discoveredMap.put(pair.getLocator(), pair.getGroups());
                 }//end loop
             }//end sync(this)
         }//end setDiscoveredMap
@@ -220,7 +389,7 @@ abstract public class BaseQATest extends QATest {
         /** Use this method to set the contents of both the discoveredMap
          *  and the expectedDiscardedMap to a specific set of values.
          */
-        public void setDiscardEventInfo(ArrayList locGroupsList) {
+        public void setDiscardEventInfo(List locGroupsList) {
             synchronized(this) {
                 discoveredMap.clear();
                 discardedMap.clear();
@@ -231,8 +400,8 @@ abstract public class BaseQATest extends QATest {
                      * will place discarded lookup in the discardedMap when
                      * the discarded event arrives.
                      */
-                    discoveredMap.put(pair.locator,pair.groups);
-                    expectedDiscardedMap.put(pair.locator,pair.groups);
+                    discoveredMap.put(pair.getLocator(), pair.getGroups());
+                    expectedDiscardedMap.put(pair.getLocator(), pair.getGroups());
                 }//end loop
             }//end sync(this)
         }//end clearDiscardEventInfo
@@ -243,13 +412,13 @@ abstract public class BaseQATest extends QATest {
          *  current and/or expected state of the fields of this class related
          *  to the discovered/discarded event state of this listener.
          */
-        public void setLookupsToDiscover(ArrayList locGroupsList) {
+        public void setLookupsToDiscover(List locGroupsList) {
             setLookupsToDiscover(locGroupsList, 
-                                 toLocatorArray(allLookupsToStart),
-                                 toGroupsArray(allLookupsToStart));
+                                 toLocatorArray(getLookupServices().getAllLookupsToStart()),
+                                 toGroupsArray(getLookupServices().getAllLookupsToStart()));
         }//end setLookupsToDiscover
 
-        public void setLookupsToDiscover(ArrayList locGroupsList,
+        public void setLookupsToDiscover(List locGroupsList,
                                          LookupLocator[] locatorsToDiscover)
         {
             setLookupsToDiscover(locGroupsList, 
@@ -257,7 +426,7 @@ abstract public class BaseQATest extends QATest {
                                  DiscoveryGroupManagement.NO_GROUPS);
         }//end setLookupsToDiscover
 
-        public void setLookupsToDiscover(ArrayList locGroupsList,
+        public void setLookupsToDiscover(List locGroupsList,
                                          String[] groupsToDiscover)
         {
             setLookupsToDiscover(locGroupsList, 
@@ -265,7 +434,7 @@ abstract public class BaseQATest extends QATest {
                                  groupsToDiscover);
         }//end setLookupsToDiscover
 
-        public void setLookupsToDiscover(ArrayList locGroupsList,
+        public void setLookupsToDiscover(List locGroupsList,
                                          LookupLocator[] locatorsToDiscover,
                                          String[] groupsToDiscover)
         {
@@ -292,8 +461,8 @@ abstract public class BaseQATest extends QATest {
                 for(int i=0;i<locGroupsList.size();i++) {
                     LocatorGroupsPair pair =
                                       (LocatorGroupsPair)locGroupsList.get(i);
-                    LookupLocator curLoc    = pair.locator;
-                    String[]      curGroups = pair.groups;
+                    LookupLocator curLoc    = pair.getLocator();
+                    String[]      curGroups = pair.getGroups();
                     if(    discoverByLocators(curLoc,locatorsToDiscover)
                         || discoverAll
                         || discoverByGroups(curGroups,groupsToDiscover) )
@@ -506,22 +675,24 @@ abstract public class BaseQATest extends QATest {
             }//end sync(this)
         }//end setLookupsToDiscover
 
-        /** Returns all of the groups (duplicates removed), across all lookup
-         *  services, that are currently expected to be discovered.
-         */
-        String[] getCurExpectedDiscoveredGroups() {
-            HashSet groupSet = new HashSet(expectedDiscoveredMap.size());
-            Set eSet = expectedDiscoveredMap.entrySet();
-	    Iterator iter = eSet.iterator();
-            while(iter.hasNext()) {
-                Map.Entry pair = (Map.Entry)iter.next();
-                String[] curGroups = (String[])pair.getValue();
-                for(int i=0;i<curGroups.length;i++) {
-                    groupSet.add(curGroups[i]);
-                }//end loop
-            }//end loop
-            return ((String[])(groupSet).toArray(new String[groupSet.size()]));
-        }//end getCurExpectedDiscoveredGroups
+//        /** Returns all of the groups (duplicates removed), across all lookup
+//         *  services, that are currently expected to be discovered.
+//         */
+//        String[] getCurExpectedDiscoveredGroups() {
+//            synchronized (this){
+//                HashSet groupSet = new HashSet(expectedDiscoveredMap.size());
+//                Set eSet = expectedDiscoveredMap.entrySet();
+//                Iterator iter = eSet.iterator();
+//                while(iter.hasNext()) {
+//                    Map.Entry pair = (Map.Entry)iter.next();
+//                    String[] curGroups = (String[])pair.getValue();
+//                    for(int i=0;i<curGroups.length;i++) {
+//                        groupSet.add(curGroups[i]);
+//                    }//end loop
+//                }//end loop
+//                return ((String[])(groupSet).toArray(new String[groupSet.size()]));
+//            }
+//        }//end getCurExpectedDiscoveredGroups
 
         public void discovered(DiscoveryEvent evnt) {
 	    /* the LDM (actually, its ld) has already prepared these registrars */
@@ -532,7 +703,7 @@ abstract public class BaseQATest extends QATest {
                 Map groupsMap = evnt.getGroups();
                 synchronized(this) {
                     boolean oneDiscovered = false;
-                    ArrayList lusList = getLookupListSnapshot
+                    List<ServiceRegistrar> lusList = getLookupListSnapshot
                                      ("BaseQATest$LookupListenter.discovered");
                     for(int i=0;i<regs.length;i++) {
                         LookupLocator loc = null;
@@ -595,7 +766,7 @@ abstract public class BaseQATest extends QATest {
                             {
                                 /* determine if it's a LUS of interest */
                                 LookupLocator[] locsToDiscover
-                                           = toLocatorArray(allLookupsToStart);
+                                           = toLocatorArray(getLookupServices().getAllLookupsToStart());
                                 if(isElementOf(loc,locsToDiscover)) {
                                 lookupOK = true;//is lookup of interest
                                 }//endif
@@ -603,8 +774,7 @@ abstract public class BaseQATest extends QATest {
                         }//endif
                         /* care only about the lookups of interest */
                         if( !lookupOK ) continue;
-                        discardedMap.remove(loc);
-                        discoveredMap.put(loc,groups);
+                        updateDiscovered(loc,groups);
                         LocatorsUtil.displayLocator(loc,
                                                     "  discovered locator",
                                                     Level.FINE);
@@ -642,9 +812,9 @@ abstract public class BaseQATest extends QATest {
                          * was started.
                          */
                         LocatorGroupsPair pair = 
-                            (LocatorGroupsPair)regsToLocGroupsMap.get(regs[i]);
+                            (LocatorGroupsPair)getLookupServices().getRegsToLocGroupsMap().get(regs[i]);
                         if(pair == null) continue;//lookup started outside test
-                        LookupLocator loc = pair.locator;
+                        LookupLocator loc = pair.getLocator();
                         /* Add to discardedMap only if previously discovered */
                         if((loc != null)&&(discoveredMap.remove(loc) != null)){
                             logger.log(Level.FINE,
@@ -682,8 +852,8 @@ abstract public class BaseQATest extends QATest {
     {
         public GroupChangeListener(){ }
 
-        public HashMap changedMap = new HashMap(11);
-        public HashMap expectedChangedMap = new HashMap(11);
+        private final Map<LookupLocator,String[]> changedMap = new HashMap<LookupLocator,String[]>(11);
+        private final Map<LookupLocator,String[]> expectedChangedMap = new HashMap<LookupLocator,String[]>(11);
 
         public void clearAllEventInfo() {
             synchronized(this) {
@@ -706,12 +876,12 @@ abstract public class BaseQATest extends QATest {
          *  current and/or expected state of the fields of this class related
          *  to the changed event state of this listener.
          */
-        public void setLookupsToDiscover(ArrayList locGroupsList) {
+        public void setLookupsToDiscover(List locGroupsList) {
             this.setLookupsToDiscover(locGroupsList, 
-                                      toGroupsArray(allLookupsToStart));
+                                      toGroupsArray(getLookupServices().getAllLookupsToStart()));
         }//end setLookupsToDiscover
 
-        public void setLookupsToDiscover(ArrayList locGroupsList,
+        public void setLookupsToDiscover(List locGroupsList,
                                          String[] groupsToDiscover)
         {
             this.setLookupsToDiscover(locGroupsList, 
@@ -719,7 +889,7 @@ abstract public class BaseQATest extends QATest {
                                       groupsToDiscover);
         }//end setLookupsToDiscover
 
-        public void setLookupsToDiscover(ArrayList locGroupsList,
+        public void setLookupsToDiscover(List locGroupsList,
                                          LookupLocator[] locatorsToDiscover,
                                          String[] groupsToDiscover)
         {
@@ -758,12 +928,12 @@ abstract public class BaseQATest extends QATest {
                  * in the discoveredMap - but which reflects the new member
                  * groups, should be placed in the expectedChangedMap.
                  */
-                Set eSet = discoveredMap.entrySet();
-	        Iterator iter = eSet.iterator();
+                Set<Map.Entry<LookupLocator,String[]>> eSet = getDiscovered();
+	        Iterator<Map.Entry<LookupLocator,String[]>> iter = eSet.iterator();
                 while(iter.hasNext()) {
-                    Map.Entry pair = (Map.Entry)iter.next();
-                    LookupLocator loc = (LookupLocator)pair.getKey();
-                    String[] oldGroups = (String[])pair.getValue();
+                    Map.Entry<LookupLocator,String[]> pair = iter.next();
+                    LookupLocator loc = pair.getKey();
+                    String[] oldGroups = pair.getValue();
 
                     if( !isElementOf(loc,locators) ) continue;
                     String[] newGroups = getGroups(loc,locGroupsList);
@@ -819,7 +989,7 @@ abstract public class BaseQATest extends QATest {
                 Map groupsMap = evnt.getGroups();
                 synchronized(this) {
                     boolean oneChanged = false;
-                    ArrayList regList = getLookupListSnapshot
+                    List<ServiceRegistrar> regList = getLookupListSnapshot
                                         ("BaseQATest$LookupListenter.changed");
                     for(int i=0;i<regs.length;i++) {
                         if( regList.contains(regs[i]) ) {
@@ -834,8 +1004,7 @@ abstract public class BaseQATest extends QATest {
                             LookupLocator loc = QAConfig.getConstrainedLocator(regs[i].getLocator());
                             String[] groups = (String[])groupsMap.get(regs[i]);
                             changedMap.put(loc,groups);
-                            discoveredMap.put(loc,groups);//replace old loc
-                            discardedMap.remove(loc);
+                            updateDiscovered(loc,groups);//replace old loc
                             LocatorsUtil.displayLocator(loc,
                                                         "  locator on groups changed",
                                                         Level.FINE);
@@ -851,7 +1020,7 @@ abstract public class BaseQATest extends QATest {
                                +changedMap.size());
                         logger.log(Level.FINE,
                                " number of currently discovered lookup(s) = "
-                               +discoveredMap.size());
+                               +discoveredCount());
                     }
                 }//end sync(this)
             } else {//(regs == null)
@@ -871,15 +1040,15 @@ abstract public class BaseQATest extends QATest {
                            = {    5*1000, 10*1000, 20*1000, 30*1000, 60*1000, 
                                2*60*1000,
                                  60*1000, 30*1000, 20*1000, 10*1000, 5*1000 };
-        private int startIndx = 0;
-        private ArrayList locGroupsList;
+        private final int startIndx;
+        private final List locGroupsList;
         /** Use this constructor if it is desired that all lookup services
          *  be started in this thread. The locGroupsList parameter is an
          *  ArrayList that should contain LocatorGroupsPair instances that
          *  reference the locator and corresponding member groups of each
          *  lookup service to start.
          */
-        public StaggeredStartThread(ArrayList locGroupsList) {
+        public StaggeredStartThread(List locGroupsList) {
             this(0,locGroupsList);
         }//end constructor
 
@@ -890,7 +1059,7 @@ abstract public class BaseQATest extends QATest {
          *  instances that reference the locator and corresponding member
          *  groups of each lookup service to start.
          */
-         public StaggeredStartThread(int startIndx,ArrayList locGroupsList) {
+         public StaggeredStartThread(int startIndx,List locGroupsList) {
             super("StaggeredStartThread");
             setDaemon(true);
             this.startIndx     = startIndx;
@@ -931,7 +1100,7 @@ abstract public class BaseQATest extends QATest {
                 }
                 LocatorGroupsPair pair
                                     = (LocatorGroupsPair)locGroupsList.get(i);
-		LookupLocator l = pair.locator;
+		LookupLocator l = pair.getLocator();
                 int port = l.getPort();
                 if(portInUse(port)) port = 0;
                 if( isInterrupted() )  break;//exit this thread
@@ -945,94 +1114,64 @@ abstract public class BaseQATest extends QATest {
     }//end class StaggeredStartThread
 
     /* Protected instance variables */
-    protected int testType = AUTOMATIC_LOCAL_TEST;
+    protected volatile int testType = AUTOMATIC_LOCAL_TEST;
 
-    protected String implClassname;
+//    protected String implClassname;
 
-    protected int maxSecsEventWait  = 10 * 60;
-    protected int announceInterval  = 2 * 60 * 1000;
-    protected int originalAnnounceInterval = 0;
-    protected int minNAnnouncements = 2;
-    protected int nIntervalsToWait  = 3;
+    protected volatile int maxSecsEventWait  = 10 * 60;
+//    protected int announceInterval  = 2 * 60 * 1000;
+//    protected int originalAnnounceInterval = 0;
+//    protected int minNAnnouncements = 2;
+    protected volatile int nIntervalsToWait  = 3;
 
-    protected boolean delayLookupStart = false;
-
-    protected int nLookupServices          = 0;
-    protected int nAddLookupServices       = 0;
-    protected int nRemoteLookupServices    = 0;
-    protected int nAddRemoteLookupServices = 0;
-
-    protected int nServices    = 0;//local/serializable test services
-    protected int nAddServices = 0;//additional local/serializable services
-
-    /* Specified jini services */
-    protected String ldsImplClassname               = "no ImplClassname";
-    protected int nLookupDiscoveryServices          = 0;
-    protected int nAddLookupDiscoveryServices       = 0;
-    protected int nRemoteLookupDiscoveryServices    = 0;
-    protected int nAddRemoteLookupDiscoveryServices = 0;
-
-    protected String lrsImplClassname               = "no ImplClassname";
-    protected int nLeaseRenewalServices             = 0;
-    protected int nAddLeaseRenewalServices          = 0;
-    protected int nRemoteLeaseRenewalServices       = 0;
-    protected int nAddRemoteLeaseRenewalServices    = 0;
-
-    protected String emsImplClassname               = "no ImplClassname";
-    protected int nEventMailboxServices             = 0;
-    protected int nAddEventMailboxServices          = 0;
-    protected int nRemoteEventMailboxServices       = 0;
-    protected int nAddRemoteEventMailboxServices    = 0;
-
-    /* Attributes per service */
-    protected int nAttributes    = 0;
-    protected int nAddAttributes = 0;
-
-    protected int nSecsLookupDiscovery  = 30;
-    protected int nSecsServiceDiscovery = 30;
-    protected int nSecsJoin             = 30;
-
-    protected String remoteHost = "UNKNOWN_HOST";
-
-    /* Data structures - lookup services */
-    protected ArrayList initLookupsToStart = new ArrayList(11);
-    protected ArrayList addLookupsToStart  = new ArrayList(11);
-    protected ArrayList allLookupsToStart  = new ArrayList(11);
-    protected ArrayList lookupsStarted     = new ArrayList(11);
-
-    protected ArrayList lookupList = new ArrayList(1);
-    protected HashMap genMap = new HashMap(11);
-    protected int nStarted = 0;
+    protected volatile boolean delayLookupStart = false;
+    /* refactored fields */
+    
+//    private int nLookupServices          = 0;
+//    private int nAddLookupServices       = 0;
+//    
+//    private int nServices    = 0;//local/serializable test services
+//    private int nAddServices = 0;//additional local/serializable services
+//
+//
+//    /* Attributes per service */
+//    private int nAttributes    = 0;
+//    private int nAddAttributes = 0;
+//
+////    protected int nSecsLookupDiscovery  = 30;
+//    private int nSecsServiceDiscovery = 30;
+//    private int nSecsJoin             = 30;
+//
+////    protected String remoteHost = "UNKNOWN_HOST";
+//
+//    /* Data structures - lookup services */
+//    private ArrayList initLookupsToStart = new ArrayList(11);
+//    private ArrayList addLookupsToStart  = new ArrayList(11);
+//    private ArrayList allLookupsToStart  = new ArrayList(11);
+//    private ArrayList lookupsStarted     = new ArrayList(11);
+//
+////    protected ArrayList lookupList = new ArrayList(1);
+//    private HashMap genMap = new HashMap(11);
+//    protected int nStarted = 0;
     /* Data structures - lookup discovery services */
-    protected ArrayList initLDSToStart = new ArrayList(11);
-    protected ArrayList addLDSToStart  = new ArrayList(11);
-    protected ArrayList allLDSToStart  = new ArrayList(11);
-    protected ArrayList ldsList = new ArrayList(1);
+//    protected ArrayList initLDSToStart = new ArrayList(11);
+//    protected ArrayList addLDSToStart  = new ArrayList(11);
+//    protected ArrayList allLDSToStart  = new ArrayList(11);
+//    protected ArrayList ldsList = new ArrayList(1);
+  
+    
+    /* end refactored fields */
+//    protected Class[] serviceClasses = null;
+    private final List expectedServiceList = new CopyOnWriteArrayList();
 
-    protected Class[] serviceClasses = null;
-    protected ArrayList expectedServiceList = new ArrayList(1);
-
-    protected QAConfig config = null;
-
-    private boolean announcementsStopped = false;
-
-    /* Need to keep a local mapping of registrars to their corresponding 
-     * locators and groups so that when a registrar is discarded (indicating
-     * that a remote call to retrieve the discarded registrar's locator and/or
-     * group information should not be made), the locator and/or groups can
-     * be retrieved through a non-remote mechanism. Each time a lookup service
-     * is started, the registrar and its locator/groups pair are added to this
-     * map.
-     */
-    protected HashMap regsToLocGroupsMap = new HashMap(11);
-
-    /* Private instance variables */
-
-    /* Need to keep track of member groups by the index of the corresponding
-     * lookup service so those groups can be mapped to the correct member
-     * groups configuration item. 
-     */
-    private ArrayList memberGroupsList = new ArrayList(11);
+    protected volatile QAConfig config = null;
+    
+    private volatile boolean announcementsStopped = false;
+    
+    private volatile LookupServices lookupServices;
+    private volatile LookupDiscoveryServices lookupDiscoveryServices;
+    private volatile LeaseRenewalServices leaseRenewalServices;
+    private volatile EventMailBoxServices eventMailBoxServices;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test as follows:
@@ -1044,22 +1183,26 @@ abstract public class BaseQATest extends QATest {
      *         lookup services
      * </ul>
      */
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	this.config = config;
 	logger.log(Level.FINE, " setup()");
 	debugsync = getConfig().getBooleanConfigVal("qautil.debug.sync",false);
-	getSetupInfo();
-	getLookupInfo();
+        testType = config.getIntConfigVal("com.sun.jini.testType",
+                                       BaseQATest.AUTOMATIC_LOCAL_TEST);
+        lookupServices = new LookupServices(config, getManager(), fastTimeout);
+        lookupDiscoveryServices = new LookupDiscoveryServices(config, getManager(), expectedServiceList);
+        leaseRenewalServices = new LeaseRenewalServices(config);
+        eventMailBoxServices = new EventMailBoxServices(config);
 	if(!delayLookupStart) {
 	    /* start desired initial lookup services so that they are up
 	     * and running before the test actually begins its execution
 	     */
 	    startInitLookups();
 	}//endif
-	getLDSInfo();
 	startInitLDS();
-    }//end setup
+        return this;
+    }//end construct
 
     /** Cleans up any remaining state not already cleaned up by the test
      *  itself. If simulated lookup services were used by the test, this 
@@ -1069,7 +1212,7 @@ abstract public class BaseQATest extends QATest {
      */
     public void tearDown() {
         try {
-            if(genMap.size() > 0) {
+            if(getLookupServices().getGenMap().size() > 0) {
                 logger.log(Level.FINE, 
                                 " tearDown - terminating lookup service(s)");
                 /* Stop announcements if the generator is simulated, but allow
@@ -1077,7 +1220,7 @@ abstract public class BaseQATest extends QATest {
                  * lookup services (simulated or non-simulated).
                  */
                 if( !announcementsStopped ) {
-                    Iterator iter = genMap.keySet().iterator();
+                    Iterator iter = getLookupServices().getGenMap().keySet().iterator();
                     for(int i=0;iter.hasNext();i++) {
                         Object generator = iter.next();
                         if(generator instanceof DiscoveryProtocolSimulator) {
@@ -1088,7 +1231,7 @@ abstract public class BaseQATest extends QATest {
                 }//endif(!announcementsStopped)
             }//endif
 	    /* Reset original net.jini.discovery.announce property */
-	    if(originalAnnounceInterval == 0) {
+	    if(lookupServices.getOriginalAnnounceInterval() == 0) {
                 Properties props = System.getProperties();
                 props.remove("net.jini.discovery.announce");
                 System.setProperties(props);
@@ -1147,11 +1290,11 @@ abstract public class BaseQATest extends QATest {
      *  the locator component of an element of the given <code>ArrayList</code>
      *  containing instances of <code>LocatorGroupsPair</code>.
      */
-    public static LookupLocator[] toLocatorArray(ArrayList list) {
+    public static LookupLocator[] toLocatorArray(List list) {
         LookupLocator[] locArray = new LookupLocator[list.size()];
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
-            locArray[i] = pair.locator;
+            locArray[i] = pair.getLocator();
         }//end loop
         return locArray;
     }//end toLocatorArray
@@ -1169,11 +1312,11 @@ abstract public class BaseQATest extends QATest {
      *  (although it can belong to NO_GROUPS), this method does not deal
      *  with the possibility of ALL_GROUPS in the given <code>ArrayList</code>.
      */
-    public static String[] toGroupsArray(ArrayList list) {
+    public static String[] toGroupsArray(List list) {
         ArrayList groupsList = new ArrayList(11);
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
-            String[] curGroups = pair.groups;
+            String[] curGroups = pair.getGroups();
             if(curGroups.length == 0) continue;//skip NO_GROUPS
             for(int j=0;j<curGroups.length;j++) {
                 groupsList.add(new String(curGroups[j]));
@@ -1235,10 +1378,10 @@ abstract public class BaseQATest extends QATest {
      *  mean simply that the given locator with corresponding groups
      *  was not found.
      */
-    public static String[] getGroups(LookupLocator loc, ArrayList list) {
+    public static String[] getGroups(LookupLocator loc, List list) {
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
-            if(loc.equals(pair.locator)) return pair.groups;
+            if(loc.equals(pair.getLocator())) return pair.getGroups();
         }//end loop
         return null; 
     }//end getGroups
@@ -1252,7 +1395,7 @@ abstract public class BaseQATest extends QATest {
      *  service belongs to groups which are not desired to be discovered,
      *  this method returns false.
      */
-    public static boolean discoverAllLookups(ArrayList list,
+    public static boolean discoverAllLookups(List list,
                                              String[] groupsToDiscover)
     {
         /* If ALL_GROUPS, then we must want to discover all the lookups */
@@ -1265,7 +1408,7 @@ abstract public class BaseQATest extends QATest {
          */
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
-            String[] curMemberGroups = pair.groups;
+            String[] curMemberGroups = pair.getGroups();
             if( !discoverByGroups(curMemberGroups,groupsToDiscover) ) {
                 return false;
             }//endif
@@ -1279,13 +1422,13 @@ abstract public class BaseQATest extends QATest {
      *  if one or more of the groups associated with a particular element of
      *  the given list are contained in the given set of groupsToDiscover.
      */
-    public static ArrayList filterListByGroups(ArrayList list,
+    public static List filterListByGroups(List list,
                                                String[] groupsToDiscover)
     {
         ArrayList filteredList = new ArrayList(list.size());
         for(int i=0;i<list.size();i++) {
             LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
-            String[] groups = pair.groups;
+            String[] groups = pair.getGroups();
             if(discoverByGroups(groups,groupsToDiscover)) {
                 filteredList.add(pair);
             }//endif
@@ -1369,24 +1512,12 @@ abstract public class BaseQATest extends QATest {
      *  The size of that list is retrieved while the list is locked, 
      *  so that the list is not modified while the copy is being made.
      */
-    protected ArrayList getLookupListSnapshot() {
+    protected List<ServiceRegistrar> getLookupListSnapshot() {
         return getLookupListSnapshot(null);
     }//end getLookupListSnapshot
 
-    protected ArrayList getLookupListSnapshot(String infoStr) {
-        String str = ( (infoStr == null) ? 
-                       "     sync on lookupList --> " :
-                       "     "+infoStr+" - sync on lookupList --> ");
-        if(debugsync) logger.log(Level.FINE, str+"requested");
-        synchronized(lookupList) {
-            if(debugsync) logger.log(Level.FINE, str+"granted");
-            ArrayList listSnapshot = new ArrayList(lookupList.size());
-            for(int i=0;i<lookupList.size();i++) {
-                listSnapshot.add(i,lookupList.get(i));
-            }//end loop
-            if(debugsync) logger.log(Level.FINE, str+"released");
-            return listSnapshot;
-        }//end sync(lookupList)
+    protected List<ServiceRegistrar> getLookupListSnapshot(String infoStr) {
+        return getLookupServices().getLookupListSnapshot(infoStr);
     }//end getLookupListSnapshot
 
     /** Convenience method that returns the current size of the
@@ -1400,16 +1531,7 @@ abstract public class BaseQATest extends QATest {
     }//end curLookupListSize
 
     protected int curLookupListSize(String infoStr) {
-        String str = ( (infoStr == null) ? 
-                       "     sync on lookupList --> " :
-                       "     "+infoStr+" - sync on lookupList --> ");
-        if(debugsync) logger.log(Level.FINE, str+"requested");
-        synchronized(lookupList) {
-            if(debugsync) logger.log(Level.FINE, str+"granted");
-            int size = lookupList.size();
-            if(debugsync) logger.log(Level.FINE, str+"released");
-            return size;
-        }//end sync(lookupList)
+        return getLookupServices().curLookupListSize(infoStr);
     }//end curLookupListSize
 
     /* Convenience method that removes the duplicate elements from the 
@@ -1432,13 +1554,8 @@ abstract public class BaseQATest extends QATest {
      *  otherwise. This method is useful for guaranteeing unique port
      *  numbers when starting lookup services.
      */
-    protected boolean portInUse(int port) {
-        for(int i=0;i<lookupsStarted.size();i++) {
-            LocatorGroupsPair pair = (LocatorGroupsPair)lookupsStarted.get(i);
-            int curPort = (pair.locator).getPort();
-            if(port == curPort) return true;
-        }//end loop
-        return false;
+    protected final boolean portInUse(int port) {
+        return getLookupServices().portInUse(port);
     }//end portInUse
 
     /** Constructs a <code>LookupLocator</code> using configuration information
@@ -1446,27 +1563,10 @@ abstract public class BaseQATest extends QATest {
      *  Useful when lookup services need to be started, or simply when
      *  instances of <code>LookupLocator</code> need to be constructed with
      *  meaningful state.
+     * @param indx 
      */
     protected LookupLocator getTestLocator(int indx) throws TestException {
-        /* Locator for lookup service corresponding to indx */
-        int port = getConfig().getServiceIntProperty
-                                    ("net.jini.core.lookup.ServiceRegistrar",
-                                     "port", indx);
-        if (port == Integer.MIN_VALUE) {
-	    port = 4160;
-	}
-	String hostname = 
-	    config.getServiceHost("net.jini.core.lookup.ServiceRegistrar", indx, null);
-	logger.log(Level.FINER, "getServiceHost returned " + hostname);
-	if (hostname == null) {
-	    hostname = "localhost";
-	    try {
-		hostname = InetAddress.getLocalHost().getHostName();
-	    } catch(UnknownHostException e) {
-		e.printStackTrace();
-	    }
-	}
-        return QAConfig.getConstrainedLocator(hostname,port);
+       return getLookupServices().getTestLocator(indx);
     }//end getTestLocator
 
     /** Constructs a <code>LookupLocator</code> using configuration information
@@ -1476,21 +1576,13 @@ abstract public class BaseQATest extends QATest {
      *  meaningful state.
      */
     protected LookupLocator getRemoteTestLocator(int indx) {
-        /* Locator for lookup service corresponding to indx */
-        int port = getConfig().getServiceIntProperty
-                                    ("net.jini.core.lookup.ServiceRegistrar",
-                                     "port", indx);
-        if (port == Integer.MIN_VALUE) {
-	    port = 4160;
-	}
-	// used for book keeping only, so don't need a constrainable locator
-        return QAConfig.getConstrainedLocator(remoteHost,port);
+        return getLookupServices().getRemoteTestLocator(indx);
     }//end getRemoteTestLocator
 
     /** Convenience method that can be used to start, at a single point 
      *  during the current test run, all of the lookup services needed by
      *  that test run. Useful when all of the lookup services are to be
-     *  started during setup processing.
+     *  started during construct processing.
      */
     protected void startAllLookups() throws Exception {
         startInitLookups();
@@ -1500,100 +1592,33 @@ abstract public class BaseQATest extends QATest {
     /** Convenience method that can be used to start, at a single point 
      *  during the current test run, all of the lookup services INITIALLY
      *  needed by that test run. Useful when an initial set of lookups are
-     *  to be started during setup processing, and (possibly) an additional
+     *  to be started during construct processing, and (possibly) an additional
      *  set of lookups are to be started at some later time, after the test
      *  has already begun execution.
      */
     protected void startInitLookups() throws Exception {
-        if(nLookupServices > 0) {
-            /* Skip over remote lookups to the indices of the local lookups */
-            int n0 = nRemoteLookupServices + nAddRemoteLookupServices;
-            int n1 = n0 + nLookupServices;
-            for(int i=n0;i<n1;i++) {
-                LocatorGroupsPair pair
-                               = (LocatorGroupsPair)initLookupsToStart.get(i);
-                int port = (pair.locator).getPort();
-                if(portInUse(port)) port = 0;
-                String hostname = startLookup(i,port, pair.locator.getHost());
-		logger.log(Level.FINEST, 
-			   "service host is '" + hostname 
-			   + "', this host is '" + config.getLocalHostName() + "'");
-                if(port == 0) {
-                    Object locGroupsPair = lookupsStarted.get(i);
-                    initLookupsToStart.set(i,locGroupsPair);
-                    allLookupsToStart.set(i,locGroupsPair);
-                }
-		LocatorGroupsPair p = (LocatorGroupsPair) initLookupsToStart.get(i);
-		LookupLocator l = p.locator;
-		logger.log(Level.FINEST, "init locator " + i + " = " + l);
-            }//end loop
-            if(testType != MANUAL_TEST_LOCAL_COMPONENT) {
-                if(!listsEqual(initLookupsToStart,lookupsStarted)) {
-                    logger.log(Level.FINE,
-                                      " initial lookups started != "
-                                      +"initial lookups wanted");
-                    logger.log(Level.FINE,
-                                      " initial lookups started --");
-                    displayLookupStartInfo(lookupsStarted);
-                    logger.log(Level.FINE,
-                                      " initial lookups wanted --");
-                    displayLookupStartInfo(initLookupsToStart);
-                    tearDown();
-                    throw new TestException("initial lookups started != "
-                                              +"initial lookups wanted");
-                }//endif
-            }//endif
-        }//endif(nLookupServices > 0)
+        try {   
+            getLookupServices().startInitLookups();
+        } catch (TestException e){
+            tearDown();
+            throw e;
+        }
     }//end startInitLookups
 
     /** Convenience method that can be used to start, at a single point 
      *  during the current test run, any additional lookup services 
      *  needed by that test run. Useful when an initial set of lookups are
-     *  to be started during setup processing, and an additional set of
+     *  to be started during construct processing, and an additional set of
      *  lookups are to be started at some later time, after the test
      *  has already begun execution.
      */
     protected void startAddLookups() throws Exception {
-        if(nAddLookupServices > 0) {
-            /* Skip over remote lookups and lookups already started to the
-             * indices of the additional local lookups
-             */
-            int n0 = nRemoteLookupServices + nAddRemoteLookupServices
-                                           + lookupsStarted.size();
-            int n1 = n0 + nAddLookupServices;
-            for(int i=n0;i<n1;i++) {
-                int j = i-n0;
-                LocatorGroupsPair pair
-                               = (LocatorGroupsPair)addLookupsToStart.get(j);
-                int port = (pair.locator).getPort();
-                if(portInUse(port)) port = 0;
-                String hostname = startLookup(i,port, pair.locator.getHost());
-                if(port == 0) {
-                    Object locGroupsPair = lookupsStarted.get(i);
-                    addLookupsToStart.set(j,locGroupsPair);
-                    allLookupsToStart.set(i,locGroupsPair);
-                }
-		LocatorGroupsPair p = (LocatorGroupsPair) addLookupsToStart.get(j);
-		LookupLocator l = p.locator;
-		logger.log(Level.FINEST, "add locator " + j + " = " + l);
-            }//end loop
-            if(testType != MANUAL_TEST_LOCAL_COMPONENT) {
-                if(!listsEqual(allLookupsToStart,lookupsStarted)) {
-                    logger.log(Level.FINE,
-                                      " additional lookups started != "
-                                      +"additional lookups wanted");
-                    logger.log(Level.FINE,
-                                      " additional lookups started --");
-                    displayLookupStartInfo(lookupsStarted);
-                    logger.log(Level.FINE,
-                                      " additional lookups wanted --");
-                    displayLookupStartInfo(allLookupsToStart);
-                    tearDown();
-                    throw new TestException("additional lookups started != "
-                                              +"additional lookups wanted");
-                }//endif
-            }//endif
-        }//endif(nAddLookupServices > 0)
+        try {  
+            getLookupServices().startAddLookups();
+        } catch (TestException e){
+            tearDown();
+            throw e;
+        }
     }//end startAddLookups
 
     /** 
@@ -1611,92 +1636,7 @@ abstract public class BaseQATest extends QATest {
     }
 
     protected String startLookup(int indx, int port, String serviceHost) throws Exception {
-        logger.log(Level.FINE, " starting lookup service "+indx);
-        /* retrieve the member groups with which to configure the lookup */
-        String[] memberGroups = (String[])memberGroupsList.get(indx);
-        ServiceRegistrar lookupProxy = null;
-	String simulatorName = 
-	    "com.sun.jini.test.services.lookupsimulator.LookupSimulatorImpl";
-        if(implClassname.equals(simulatorName)) {
-            DiscoveryProtocolSimulator generator = null;
-            if(debugsync) logger.log(Level.FINE,
-                              "     BaseQATest.startLookup - "
-                              +"sync on lookupList --> requested");
-            synchronized(lookupList) {
-                if(debugsync) logger.log(Level.FINE,
-                                  "     BaseQATest.startLookup - "
-                                  +"sync on lookupList --> granted");
-                /* Use either a random or an explicit locator port */
-                generator = new DiscoveryProtocolSimulator
-                                               (config,memberGroups,manager, port);
-                genMap.put( generator, memberGroups );
-                lookupProxy = generator.getLookupProxy();
-                lookupList.add( lookupProxy );
-                if(debugsync) logger.log(Level.FINE,
-                                  "     BaseQATest.startLookup - "
-                                  +"  added new proxy to lookupList");
-                if(debugsync) logger.log(Level.FINE,
-                                  "     BaseQATest.startLookup - "
-                                  +"sync on lookupList --> released");
-            }//end sync(lookupList)
-            /* Force non-unique groups for manual tests */
-            if(    (testType == MANUAL_TEST_REMOTE_COMPONENT)
-                || (testType == MANUAL_TEST_LOCAL_COMPONENT) ) 
-            {
-                generator.setMemberGroups(memberGroups);
-            }//endif
-        } else {//start a non-simulated lookup service implementation
-            if(debugsync) logger.log(Level.FINE,
-                              "     BaseQATest.startLookup - "
-                              +"sync on lookupList --> requested");
-            synchronized(lookupList) {
-                if(debugsync) logger.log(Level.FINE,
-                                  "     BaseQATest.startLookup - "
-                                  +"sync on lookupList --> granted");
-		/* returned proxy is already prepared */
-                lookupProxy = manager.startLookupService(serviceHost);
-                lookupList.add( lookupProxy );
-                if(debugsync) logger.log(Level.FINE,
-                                  "     BaseQATest.startLookup - "
-                                  +"  added new proxy to lookupList");
-                if(debugsync) logger.log(Level.FINE,
-                                  "     BaseQATest.startLookup - "
-                                  +"sync on lookupList --> released");
-            }//end sync(lookupList)
-            genMap.put( lookupProxy, memberGroups );
-            /* Force non-unique groups for manual tests */
-            if(    (testType == MANUAL_TEST_REMOTE_COMPONENT)
-                || (testType == MANUAL_TEST_LOCAL_COMPONENT) ) 
-            {
-                if(lookupProxy instanceof Administrable) {
-                    Object admin = ((Administrable)lookupProxy).getAdmin();
-		    admin = getConfig().prepare("test.reggieAdminPreparer", 
-						admin);
-                    if(admin instanceof DiscoveryAdmin) {
-                        ((DiscoveryAdmin)admin).setMemberGroups(memberGroups);
-                    }
-                }
-            }
-        }
-
-        LookupLocator lookupLocator = 
-	    QAConfig.getConstrainedLocator(lookupProxy.getLocator());
-        LocatorGroupsPair locGroupsPair = new LocatorGroupsPair(lookupLocator,
-                                                                memberGroups);
-        try {
-            lookupsStarted.add(indx,locGroupsPair);
-        } catch(IndexOutOfBoundsException e) {
-            /* There must be remote lookups, simply add it without the index */
-            lookupsStarted.add(locGroupsPair);
-        }
-        regsToLocGroupsMap.put(lookupProxy,locGroupsPair);
-
-        LocatorsUtil.displayLocator(lookupLocator,
-                                    "  locator",Level.FINE);
-        logger.log(Level.FINE, "   memberGroup(s) = "
-                          +GroupsUtil.toCommaSeparatedStr(memberGroups));
-        nStarted = genMap.size();
-	return serviceHost;
+        return getLookupServices().startLookup(indx, port, serviceHost);
     }
 
     /** Common code shared by each test that needs to wait for discovered
@@ -2153,7 +2093,7 @@ abstract public class BaseQATest extends QATest {
      *  <code>true</code> if the elements of the key sets and the value sets
      *  are found to be equal; returns <code>false</code> otherwise.
      */
-    protected boolean locGroupsMapsEqual( Map map0, Map map1 ) {
+    public static boolean locGroupsMapsEqual( Map map0, Map map1 ) {
         if(!locGroupsMapsEqualByLoc(map0,map1,false)) return false;
         return locGroupsMapsEqualByGroups(map0,map1,false);
     }//end locGroupsMapsEqual
@@ -2165,7 +2105,7 @@ abstract public class BaseQATest extends QATest {
      *  if the elements of the key sets and the value sets are found to be
      *  equal; returns <code>false</code> otherwise.
      */
-    protected boolean locGroupsMapsEqual( Map map0, Map map1,
+    public static boolean locGroupsMapsEqual( Map map0, Map map1,
                                           boolean displayOn)
     {
         if(!locGroupsMapsEqualByLoc(map0,map1,displayOn)) return false;
@@ -2177,7 +2117,7 @@ abstract public class BaseQATest extends QATest {
      *  if the locators in the key sets are found to be equal; returns
      *  <code>false</code> otherwise.
      */
-    protected boolean locGroupsMapsEqualByLoc( Map map0, Map map1 ) {
+    public static boolean locGroupsMapsEqualByLoc( Map map0, Map map1 ) {
         return locGroupsMapsEqualByLoc(map0,map1,false);
     }//end locGroupsMapsEqualByLoc
 
@@ -2188,7 +2128,7 @@ abstract public class BaseQATest extends QATest {
      *  if the locators in the key sets are found to be equal; returns
      *  <code>false</code> otherwise.
      */
-    protected boolean locGroupsMapsEqualByLoc( Map map0, Map map1,
+    public static boolean locGroupsMapsEqualByLoc( Map map0, Map map1,
                                                boolean displayOn )
     {
         if( (map0 == null) || (map1 == null) ) return false;
@@ -2221,7 +2161,7 @@ abstract public class BaseQATest extends QATest {
      *  value sets are found to be equal; returns <code>false</code>
      *  otherwise.
      */
-    protected boolean locGroupsMapsEqualByGroups( Map map0, Map map1 ) {
+    public static boolean locGroupsMapsEqualByGroups( Map map0, Map map1 ) {
         return locGroupsMapsEqualByGroups(map0,map1,false);
     }//end locGroupsMapsEqualByGroups
 
@@ -2233,7 +2173,7 @@ abstract public class BaseQATest extends QATest {
      *  value sets are found to be equal; returns <code>false</code>
      *  otherwise.
      */
-    protected boolean locGroupsMapsEqualByGroups( Map map0, Map map1,
+    public static boolean locGroupsMapsEqualByGroups( Map map0, Map map1,
                                                   boolean displayOn )
     {
         if( (map0 == null) || (map1 == null) ) return false;
@@ -2279,18 +2219,7 @@ abstract public class BaseQATest extends QATest {
 
     /** Returns the proxy to each lookup service started (already prepared)*/
     protected ServiceRegistrar[] getLookupProxies() {
-        ServiceRegistrar[] proxies = new ServiceRegistrar[genMap.size()];
-	Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            Object curObj = iter.next();
-            if(curObj instanceof DiscoveryProtocolSimulator) {
-                proxies[i]
-                      = ((DiscoveryProtocolSimulator)curObj).getLookupProxy();
-            } else {
-                proxies[i] = (ServiceRegistrar)curObj;
-            }//endif
-        }//end loop
-        return proxies;
+        return getLookupServices().getLookupProxies();
     }//end getLookupProxies
 
     /** For each lookup service corresponding to an element of the global
@@ -2302,22 +2231,7 @@ abstract public class BaseQATest extends QATest {
      *  @throws com.sun.jini.qa.harness.TestException
      */
     protected void terminateAllLookups() throws TestException {
-        Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            Object curObj = iter.next();
-            ServiceRegistrar regProxy = null;
-            if(curObj instanceof DiscoveryProtocolSimulator) {
-                DiscoveryProtocolSimulator curGen
-                                         = (DiscoveryProtocolSimulator)curObj;
-                regProxy = curGen.getLookupProxy();
-                curGen.stopAnnouncements();
-            } else {
-                regProxy = (ServiceRegistrar)curObj;
-            }//endif
-            /* destroy lookup service i */
-            manager.destroyService(regProxy);
-        }//end loop
-        announcementsStopped = true;
+        announcementsStopped = getLookupServices().terminateAllLookups();
     }//end terminateAllLookups
 
     /** This method stops the generation of multicast announcements from each
@@ -2329,22 +2243,7 @@ abstract public class BaseQATest extends QATest {
      *  reachable.)
      */
     protected void stopAnnouncements() {
-        Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            logger.log(Level.FINE, " stop multicast announcements "
-                              +"from lookup service "+i+" ...");
-            Object curObj = iter.next();
-            if(curObj instanceof DiscoveryProtocolSimulator) {
-                DiscoveryProtocolSimulator curGen
-                                         = (DiscoveryProtocolSimulator)curObj;
-                curGen.stopAnnouncements();
-            } else {//cannot stop the announcements, must destroy the lookup
-                /* It's not a simulated LUS, thus the only way to stop the
-                 * announcements is to destroy each LUS individually.
-                 */
-                manager.destroyService((ServiceRegistrar)curObj);
-            }//endif
-        }//end loop
+        
         announcementsStopped = true;
     }//end stopAnnouncements
 
@@ -2367,35 +2266,7 @@ abstract public class BaseQATest extends QATest {
                                        DiscoveryManagement dm,
                                        LookupListener listener)
     {
-        ArrayList proxiesToDiscard      = new ArrayList(1);
-        ArrayList locGroupsNotDiscarded = new ArrayList(1);
-        /* Determine proxies to discard and proxies that cannot be discarded */
-        for(int i=0;i<proxies.length;i++) {
-            LocatorGroupsPair curPair
-                      = (LocatorGroupsPair)regsToLocGroupsMap.get(proxies[i]);
-            try {
-                LookupLocator loc = QAConfig.getConstrainedLocator(proxies[i].getLocator());
-                logger.log(Level.FINE, " ");
-                if(curPair != null) {
-                    logger.log(Level.FINE,
-                                      " warning -- lookup service "
-                                      +"is still reachable --> locator = "
-                                      +curPair.locator+"\n");
-                    locGroupsNotDiscarded.add(curPair);
-                } else {
-                    logger.log(Level.FINE,
-                                      " warning -- lookup service "+i
-                                      +" is still reachable\n");
-                }//endif
-            } catch(RemoteException e) {//lookup is un-reachable, discard it
-                proxiesToDiscard.add(proxies[i]);
-            }
-        }//end loop
-        /* Perform the actual discards to generate the discard events */
-        for(int i=0;i<proxiesToDiscard.size();i++) {
-            dm.discard((ServiceRegistrar)proxiesToDiscard.get(i));
-        }//end loop
-        return locGroupsNotDiscarded;//return proxies we couldn't discard
+        return getLookupServices().pingAndDiscard(proxies, dm, listener);
     }//end pingAndDiscard
 
     /** Since the lookup discovery utility typically sends a unicast
@@ -2422,122 +2293,9 @@ abstract public class BaseQATest extends QATest {
      *  simulated lookup services.
      */
     protected void verifyAnnouncementsSent() {
-        logger.log(Level.FINE, 
-                          " number of announcements to wait for    -- "
-                          +minNAnnouncements);
-        logger.log(Level.FINE, 
-                          " number of intervals to wait through    -- "
-                          +nIntervalsToWait);
-        Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            DiscoveryProtocolSimulator curGen = 
-                                  (DiscoveryProtocolSimulator)iter.next();
-            logger.log(Level.FINE, 
-                              " gen "+i
-                              +" - waiting ... announcements so far -- "
-                              +curGen.getNAnnouncementsSent());
-            for(int j=0; ((j<nIntervalsToWait)
-                &&(curGen.getNAnnouncementsSent()< minNAnnouncements));j++)
-            {
-                DiscoveryServiceUtil.delayMS(announceInterval);
-                logger.log(Level.FINE, 
-                                  " gen "+i
-                                  +" - waiting ... announcements so far -- "
-                                  +curGen.getNAnnouncementsSent());
-            }//end loop
-            logger.log(Level.FINE, 
-                              " gen "+i
-                              +" - wait complete ... announcements  -- "
-                              +curGen.getNAnnouncementsSent());
-        }//end loop
+       
     }//end verifyAnnouncementsSent
 
-    /** This method replaces, with the given set of groups, the current
-     *  member groups of the given lookup service (<code>generator</code>).
-     *  This method returns an instance of <code>LocatorGroupsPair</code> in
-     *  which the locator of the given lookup service is paired with the given
-     *  set of new groups.
-     */
-    protected LocatorGroupsPair replaceMemberGroups(Object generator,
-                                                    String[] newGroups)
-                                                        throws RemoteException
-    {
-        ServiceRegistrar regProxy = null;
-        if(generator instanceof DiscoveryProtocolSimulator) {
-            regProxy
-                    = ((DiscoveryProtocolSimulator)generator).getLookupProxy();
-            ((DiscoveryProtocolSimulator)generator).setMemberGroups(newGroups);
-        } else {
-            regProxy = (ServiceRegistrar)generator;
-            DiscoveryAdmin admin
-                    = (DiscoveryAdmin)( ((Administrable)regProxy).getAdmin() );
-	    try {
-                admin = (DiscoveryAdmin)
-		        getConfig().prepare("test.reggieAdminPreparer", admin);
-	    } catch (TestException e) {
-		throw new RemoteException("Problem preparing admin", e);
-	    }
-            admin.setMemberGroups(newGroups);
-        }//endif
-        LookupLocator loc = QAConfig.getConstrainedLocator(regProxy.getLocator());
-        return new LocatorGroupsPair(loc,newGroups);
-    }//end replaceMemberGroups
-
-    /** Depending on the value of the boolean parameter <code>alternate</code>,
-     *  this method either replaces the current member groups of the
-     *  given lookup service (<code>generator</code>) with a new set
-     *  of groups containing NONE of the current groups of interest
-     *  (<code>alternate</code> == <code>false</code>), or a new set
-     *  of groups in which, alternately, half the elements are equal
-     *  to their counterparts in the original set, and half are different
-     *  from their counterparts.
-     *  
-     *  This method is intended to guarantee that the new set of groups 
-     *  that replaces the member groups of the given lookup service contains
-     *  some, if not all, new groups different from the original groups.
-     *
-     *  This method returns an instance of  <code>LocatorGroupsPair</code>
-     *  in which the locator of the given lookup service is paired with the
-     *  set of new groups generated by this method.
-     */
-    protected LocatorGroupsPair replaceMemberGroups(Object generator,
-                                                    boolean alternate)
-                                                        throws RemoteException
-    {
-        ServiceRegistrar regProxy = null;
-	DiscoveryAdmin admin = null;
-	// only prepare the real proxy (until simulators are secure)
-        if(generator instanceof DiscoveryProtocolSimulator) {
-            regProxy
-                   = ((DiscoveryProtocolSimulator)generator).getLookupProxy();
-	    admin = (DiscoveryAdmin)( ((Administrable)regProxy).getAdmin() );
-        } else {
-            regProxy = (ServiceRegistrar)generator;
-	    admin = (DiscoveryAdmin)( ((Administrable)regProxy).getAdmin() );
-	    try {
-                admin = (DiscoveryAdmin)
-		        getConfig().prepare("test.reggieAdminPreparer", admin);
-	    } catch (TestException e) {
-		throw new RemoteException("Problem preparing admin", e);
-	    }
-        }//endif
-        String[] groups    = admin.getMemberGroups();
-        String[] newGroups =  ( (groups.length > 0) ? 
-                          (new String[groups.length]) :
-                          (new String[] {"Group_"+regProxy.getServiceID()}) );
-        if(newGroups.length == 0) {
-            logger.log(Level.FINE, "   NO_GROUPS");
-        } else {
-            for(int i=0;i<newGroups.length;i++) {
-                boolean oddIndx = !((i%2) == 0);
-                newGroups[i] = ( (alternate && oddIndx) ? new String(groups[i])
-                                             : new String(groups[i]+"_new") );
-                logger.log(Level.FINE, "   newGroups["+i+"] = "
-                                           +newGroups[i]);
-            }//end loop
-        }//endif
-        return replaceMemberGroups(generator,newGroups);
-    }//end replaceMemberGroups
 
     /** Depending on the value of the boolean parameter <code>alternate</code>,
      *  for each lookup service that has been started, this method either
@@ -2562,23 +2320,8 @@ abstract public class BaseQATest extends QATest {
      *  This method can be used to cause various discovered/discarded/changed
      *  events to be sent by the discovery helper utility.
      */
-   protected ArrayList replaceMemberGroups(boolean alternate) {
-        ArrayList locGroupsList = new ArrayList(genMap.size());
-        Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            /* Replace the member groups of the current lookup service */
-            logger.log(Level.FINE, " lookup service "+i+" - "
-                              +"replacing member groups with -- ");
-            try {
-                locGroupsList.add(replaceMemberGroups(iter.next(),alternate));
-            } catch(RemoteException e) {
-                logger.log(Level.FINE, 
-                                  " failed to change member groups "
-                                  +"for lookup service "+i);
-                e.printStackTrace();
-            }
-        }//end loop
-        return locGroupsList;
+    protected List<LocatorGroupsPair> replaceMemberGroups(boolean alternate) {
+        return getLookupServices().replaceMemberGroups(alternate);
     }//end replaceMemberGroups
 
    /**  For each lookup service that has been started, this method replaces
@@ -2600,7 +2343,7 @@ abstract public class BaseQATest extends QATest {
      *  This method can be used to cause various discovered/discarded/changed
      *  events to be sent by the discovery helper utility.
      */
-   protected ArrayList replaceMemberGroups() {
+   protected List<LocatorGroupsPair> replaceMemberGroups() {
        return replaceMemberGroups(false);
    }//end replaceMemberGroups
 
@@ -2613,8 +2356,8 @@ abstract public class BaseQATest extends QATest {
      *  of the lookup services that was started; and in which the locator of
      *  the associated lookup service is paired with given set of groups.
      */
-   protected ArrayList replaceMemberGroups(String[] newGroups) {
-        return replaceMemberGroups(genMap.size(),newGroups);
+   protected List<LocatorGroupsPair> replaceMemberGroups(String[] newGroups) {
+       return getLookupServices().replaceMemberGroups(newGroups);
     }//end replaceMemberGroups
 
     /** For N of the lookup services started, this method replaces the lookup
@@ -2627,73 +2370,16 @@ abstract public class BaseQATest extends QATest {
      *  of the lookup services that was started; and in which the locator of
      *  the associated lookup service is paired with the given set of groups.
      */
-   protected ArrayList replaceMemberGroups(int nReplacements,
+   protected List<LocatorGroupsPair> replaceMemberGroups(int nReplacements,
                                            String[] newGroups)
    {
-        ArrayList locGroupsList = new ArrayList(genMap.size());
-        Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            Object generator = iter.next();
-            if(i<nReplacements) {
-                /* Replace the member groups of the current lookup service */
-                logger.log(Level.FINE, " lookup service "+i+" - "
-                                  +"replacing member groups with --");
-                if(newGroups.length == 0) {
-                    logger.log(Level.FINE, "   NO_GROUPS");
-                } else {
-                    for(int j=0;j<newGroups.length;j++) {
-                        logger.log(Level.FINE, "   newGroups["+j+"] = "
-                                                   +newGroups[j]);
-                    }//end loop
-                }//endif
-                try {
-                    locGroupsList.add
-                                  ( replaceMemberGroups(generator,newGroups) );
-                } catch(RemoteException e) {
-                    logger.log(Level.FINE, 
-                                      " failed to change member groups "
-                                      +"for lookup service "+i);
-                    e.printStackTrace();
-                }
-            } else {//(i >= nReplacements)
-                /* Leave member groups of the current lookup service as is*/
-                logger.log(Level.FINE, " lookup service "+i+" - "
-                                  +"leaving member groups unchanged --");
-                ServiceRegistrar regProxy = null;
-                if(generator instanceof DiscoveryProtocolSimulator) {
-                    regProxy
-                    = ((DiscoveryProtocolSimulator)generator).getLookupProxy();
-                } else {
-                    regProxy = (ServiceRegistrar)generator;
-                }//endif
-                try {
-                    LookupLocator loc = QAConfig.getConstrainedLocator(regProxy.getLocator());
-                    String[] groups   = regProxy.getGroups();
-                    if(groups.length == 0) {
-                        logger.log(Level.FINE, "   NO_GROUPS");
-                    } else {
-                        for(int j=0;j<groups.length;j++) {
-                            logger.log(Level.FINE, "   groups["+j+"] = "
-                                                       +groups[j]);
-                        }//end loop
-                    }//endif
-                    locGroupsList.add
-                                  ( new LocatorGroupsPair(loc,groups) );
-                } catch(RemoteException e) {
-                    logger.log(Level.FINE, 
-                                      " failed on locator/groups retrieval "
-                                      +"for lookup service "+i);
-                    e.printStackTrace();
-                }
-            }//endif
-        }//end loop
-        return locGroupsList;
+        return getLookupServices().replaceMemberGroups(nReplacements,newGroups);
     }//end replaceMemberGroups
 
     /** Convenience method that can be used to start, at a single point 
      *  during the current test run, all of the lookup discovery services
      *  needed by that test run. Useful when all of the lookup discovery
-     *  services are to be started during setup processing.
+     *  services are to be started during construct processing.
      */
     protected void startAllLDS() throws Exception {
         startInitLDS();
@@ -2703,684 +2389,76 @@ abstract public class BaseQATest extends QATest {
     /** Convenience method that can be used to start, at a single point 
      *  during the current test run, all of the lookup discovery services
      *  INITIALLY needed by that test run. Useful when an initial set of
-     *  lookup discovery services are to be started during setup processing,
+     *  lookup discovery services are to be started during construct processing,
      *  and (possibly) an additional set of lookup discovery services are to
      *  be started at some later time, after the test has already begun
      *  execution.
      */
     protected void startInitLDS() throws Exception {
-        if(nLookupDiscoveryServices > 0) {
-            /* Skip over remote LDSs to the indices of the local LDSs */
-            int n0 = nRemoteLookupDiscoveryServices 
-                              + nAddRemoteLookupDiscoveryServices;
-            int n1 = n0 + nLookupDiscoveryServices;
-            for(int i=n0;i<n1;i++) {
-                startLDS(i,(ToJoinPair)initLDSToStart.get(i));
-            }//end loop
-        }//endif(nLookupDiscoveryServices > 0)
+        getLookupDiscoveryServices().startInitLDS();
     }//end startInitLDS
 
     /** Convenience method that can be used to start, at a single point 
      *  during the current test run, any additional lookup discovery services 
      *  needed by that test run. Useful when an initial set of lookup discovery
-     *  services are to be started during setup processing, and an additional
+     *  services are to be started during construct processing, and an additional
      *  set of lookup discovery services are to be started at some later time,
      *  after the test has already begun execution.
      */
     protected void startAddLDS() throws Exception {
-        if(nAddLookupDiscoveryServices > 0) {
-            /* Skip over remote LDSs and LDSs already started to the
-             * indices of the additional local LDSs
-             */
-            int n0 = nRemoteLookupDiscoveryServices
-                                  + nAddRemoteLookupDiscoveryServices
-                                           + ldsList.size();
-            int n1 = n0 + nAddLookupDiscoveryServices;
-            for(int i=n0;i<n1;i++) {
-                int j = i-n0;
-                startLDS(i,(ToJoinPair)addLDSToStart.get(j));
-            }//end loop
-        }//endif(nAddLookupDiscoveryServices > 0)
+        getLookupDiscoveryServices().startAddLDS();
     }//end startAddLDS
 
-    /** Convenience method that can be used to start, at any point during
-     *  the current test run, a single lookup discovery service with
-     *  configuration referenced by the given parameter values. Useful when
-     *  individual lookup discovery services are to be started at different
-     *  points in time during the test run, or when a set of lookup discovery
-     *  services are to be started from within a loop.
-     */
-    protected void startLDS(int indx, ToJoinPair tojoinPair) throws Exception {
-        logger.log(Level.FINE, " starting lookup discovery service "
-                                        +indx);
-	/* the returned proxy is already prepared using the preparer named
-	 * by the service preparername property
-	 */
-        LookupDiscoveryService ldsProxy =
-             (LookupDiscoveryService)(manager.startService
-                                ("net.jini.discovery.LookupDiscoveryService"));
-        /* Force non-unique groups for manual tests */
-        if(    (testType == MANUAL_TEST_REMOTE_COMPONENT)
-            || (testType == MANUAL_TEST_LOCAL_COMPONENT) ) 
-        {
-            if(ldsProxy instanceof Administrable) {
-                Object admin = ((Administrable)ldsProxy).getAdmin();
-		admin = getConfig().prepare("test.fiddlerAdminPreparer", admin);
-                if(admin instanceof JoinAdmin) {
-                    ((JoinAdmin)admin).setLookupGroups(tojoinPair.groups);
-                }//endif
-            }//endif
-        }//endif
-        ldsList.add( ldsProxy );
-        expectedServiceList.add( ldsProxy );
-        LocatorsUtil.displayLocatorSet(tojoinPair.locators,
-                                    "  locators to join",Level.FINE);
-        GroupsUtil.displayGroupSet(tojoinPair.groups,
-                                    "  groups to join",Level.FINE);
-    }//end startLDS
+//    /** Convenience method that creates an array of Class objects in which
+//     *  element corresponds to a different service class type that will be
+//     *  started remotely and/or locally. The array returned by this method
+//     *  can be used when building templates that will be used to match on
+//     *  class type.
+//     */
+//    protected Class[] getServiceClassArray() {
+//        ArrayList classnamesList = new ArrayList(5);
+//        ArrayList loadedClassList = new ArrayList(expectedServiceList.size());
+//        if( (nLookupDiscoveryServices+nRemoteLookupDiscoveryServices) > 0) {
+//            classnamesList.add
+//                   (new String("net.jini.discovery.LookupDiscoveryService") );
+//        }//endif
+//        if( (nLeaseRenewalServices+nRemoteLeaseRenewalServices) > 0) {
+//            classnamesList.add
+//                          (new String("net.jini.lease.LeaseRenewalService") );
+//        }//endif
+//        if( (nEventMailboxServices+nRemoteEventMailboxServices) > 0) {
+//            classnamesList.add(new String("net.jini.event.EventMailbox") );
+//        }//endif
+//        for(int i=0;i<classnamesList.size();i++) {
+//            String classname = (String)classnamesList.get(i);
+//            try {
+//                loadedClassList.add(Class.forName(classname));
+//            } catch(ClassNotFoundException e) {
+//                logger.log(Level.FINE,
+//                                     " ClassNotFoundException while loading "
+//                                     +"service class "+classname);
+//                e.printStackTrace();
+//            }//end try
+//        }//end loop
+//        return ( (Class[])loadedClassList.toArray
+//                                        (new Class[loadedClassList.size()]) );
+//    }//end getServiceClassArray
 
-    /* Retrieves/stores/displays configuration values for the current test */
-    private void getSetupInfo() {
-        testType = getConfig().getIntConfigVal("com.sun.jini.testType",
-                                       AUTOMATIC_LOCAL_TEST);
-        /* begin harness info */
-        logger.log(Level.FINE, " ----- Harness Info ----- ");
-        String harnessCodebase = System.getProperty("java.rmi.server.codebase",
-                                                    "no codebase");
-        logger.log(Level.FINE,
-                          " harness codebase         -- "
-                          +harnessCodebase);
-
-        String harnessClasspath = System.getProperty("java.class.path",
-                                                    "no classpath");
-        logger.log(Level.FINE,
-                          " harness classpath        -- "
-                          +harnessClasspath);
-
-        String discDebug = System.getProperty("net.jini.discovery.debug",
-                                              "false");
-        logger.log(Level.FINE,
-                          " net.jini.discovery.debug        -- "
-                          +discDebug);
-        String regDebug = System.getProperty("com.sun.jini.reggie.proxy.debug",
-                                             "false");
-        logger.log(Level.FINE,
-                          " com.sun.jini.reggie.proxy.debug -- "
-                          +regDebug);
-        String joinDebug = System.getProperty("com.sun.jini.join.debug",
-                                              "false");
-        logger.log(Level.FINE,
-                          " com.sun.jini.join.debug         -- "
-                          +joinDebug);
-        String sdmDebug = System.getProperty("com.sun.jini.sdm.debug","false");
-        logger.log(Level.FINE,
-                          " com.sun.jini.sdm.debug          -- "
-                          +sdmDebug);
-
-        maxSecsEventWait = getConfig().getIntConfigVal
-                      ("net.jini.discovery.maxSecsEventWait",
-                        maxSecsEventWait);
-        logger.log(Level.FINE,
-                          " max secs event wait             -- "
-                          +maxSecsEventWait);
-        /* end harness info */
-
-        /* begin lookup info */
-        logger.log(Level.FINE, " ----- Lookup Service Info ----- ");
-        implClassname = getConfig().getStringConfigVal
-                                 ("net.jini.core.lookup.ServiceRegistrar.impl",
-                                  "no implClassname");
-        nLookupServices = getConfig().getIntConfigVal
-                           ("net.jini.lookup.nLookupServices",
-                             nLookupServices);
-        nRemoteLookupServices = getConfig().getIntConfigVal
-                           ("net.jini.lookup.nRemoteLookupServices",
-                             nRemoteLookupServices);
-        nAddLookupServices = getConfig().getIntConfigVal
-                           ("net.jini.lookup.nAddLookupServices",
-                             nAddLookupServices);
-
-        nAddRemoteLookupServices = getConfig().getIntConfigVal
-                           ("net.jini.lookup.nAddRemoteLookupServices",
-                             nAddRemoteLookupServices);
-        if(testType == MANUAL_TEST_REMOTE_COMPONENT) {
-            nLookupServices = nRemoteLookupServices;
-            nAddLookupServices = nAddRemoteLookupServices;
-            nRemoteLookupServices = 0;
-            nAddRemoteLookupServices = 0;
-        }//endif
-        logger.log(Level.FINE,
-                          " # of lookup services to start            -- "
-                          +nLookupServices);
-        logger.log(Level.FINE,
-                          " # of additional lookup services to start -- "
-                          +nAddLookupServices);
-
-        nSecsLookupDiscovery = getConfig().getIntConfigVal
-                      ("net.jini.lookup.nSecsLookupDiscovery",
-                        nSecsLookupDiscovery);
-        logger.log(Level.FINE,
-                          " seconds to wait for discovery            -- "
-                          +nSecsLookupDiscovery);
-
-        /* Multicast announcement info - give priority to the command line */
-        try {
-            int sysInterval = Integer.getInteger
-                                 ("net.jini.discovery.announce",0).intValue();
-	    originalAnnounceInterval = sysInterval;
-            if(sysInterval > 0) {
-                announceInterval = sysInterval;
-            } else {
-                sysInterval = getConfig().getIntConfigVal
-                                           ("net.jini.discovery.announce",0);
-                if(sysInterval > 0) announceInterval = sysInterval;
-            }
-            Properties props = System.getProperties();
-            props.put("net.jini.discovery.announce",
-                       (new Integer(announceInterval)).toString());
-            System.setProperties(props);
-        } catch (SecurityException e) { }
-        logger.log(Level.FINE,
-                          " discard if no announcements in (nSecs =) -- "
-                          +(announceInterval/1000));
-        minNAnnouncements = getConfig().getIntConfigVal
-                         ("net.jini.discovery.minNAnnouncements",
-                           minNAnnouncements);
-        nIntervalsToWait = getConfig().getIntConfigVal
-                          ("net.jini.discovery.nIntervalsToWait",
-                            nIntervalsToWait);
-        /* end lookup info */
-
-        fastTimeout = 
-	    getConfig().getIntConfigVal("com.sun.jini.test.share.fastTimeout", 
-				 fastTimeout);
-
-        /* begin local/serializable service info */
-        nServices = getConfig().getIntConfigVal("net.jini.lookup.nServices",nServices);
-        nAddServices = getConfig().getIntConfigVal("net.jini.lookup.nAddServices",
-                                           nAddServices);
-        if( (nServices+nAddServices) > 0) {
-            logger.log(Level.FINE,
-                              " ----- General Service Info ----- ");
-            logger.log(Level.FINE,
-                          " # of initial basic services to register  -- "
-                          +nServices);
-            logger.log(Level.FINE,
-                          " # of additional basic srvcs to register  -- "
-                          +nAddServices);
-
-            nAttributes = getConfig().getIntConfigVal("net.jini.lookup.nAttributes",
-                                              nAttributes);
-            logger.log(Level.FINE,
-                          " # of attributes per service              -- "
-                          +nAttributes);
-            nAddAttributes = getConfig().getIntConfigVal
-                                            ("net.jini.lookup.nAddAttributes",
-                                             nAddAttributes);
-            logger.log(Level.FINE,
-                          " # of additional attributes per service   -- "
-                          +nAddAttributes);
-            nSecsJoin = getConfig().getIntConfigVal
-                          ("net.jini.lookup.nSecsJoin",
-                            nSecsJoin);
-            logger.log(Level.FINE,
-                          " # of seconds to wait for service join    -- "
-                          +nSecsJoin);
-            nSecsServiceDiscovery = getConfig().getIntConfigVal
-                          ("net.jini.lookup.nSecsServiceDiscovery",
-                            nSecsServiceDiscovery);
-            logger.log(Level.FINE,
-                          " # of secs to wait for service discovery  -- "
-                          +nSecsServiceDiscovery);
-        }//endif(nServices+nAddServices > 0)
-
-        /* begin lookup discovery service info */
-        nLookupDiscoveryServices = getConfig().getIntConfigVal
-                           ("net.jini.discovery.nLookupDiscoveryServices",
-                             nLookupDiscoveryServices);
-        nRemoteLookupDiscoveryServices = getConfig().getIntConfigVal
-                         ("net.jini.discovery.nRemoteLookupDiscoveryServices",
-                           nRemoteLookupDiscoveryServices);
-        nAddLookupDiscoveryServices = getConfig().getIntConfigVal
-                           ("net.jini.discovery.nAddLookupDiscoveryServices",
-                             nAddLookupDiscoveryServices);
-
-        nAddRemoteLookupDiscoveryServices = getConfig().getIntConfigVal
-                      ("net.jini.discovery.nAddRemoteLookupDiscoveryServices",
-                       nAddRemoteLookupDiscoveryServices);
-        if(testType == MANUAL_TEST_REMOTE_COMPONENT) {
-            nLookupDiscoveryServices = nRemoteLookupDiscoveryServices;
-            nAddLookupDiscoveryServices = nAddRemoteLookupDiscoveryServices;
-            nRemoteLookupDiscoveryServices = 0;
-            nAddRemoteLookupDiscoveryServices = 0;
-        }//endif
-        int tmpN =   nLookupDiscoveryServices
-                   + nAddLookupDiscoveryServices
-                   + nRemoteLookupDiscoveryServices
-                   + nAddRemoteLookupDiscoveryServices;
-        if(tmpN > 0) {
-            logger.log(Level.FINE,
-                          " ----- Lookup Discovery Service Info ----- ");
-            logger.log(Level.FINE,
-                          " # of lookup discovery services to start  -- "
-                          +nLookupDiscoveryServices);
-            logger.log(Level.FINE,
-                          " # of additional lookup discovery srvcs   -- "
-                          +nAddLookupDiscoveryServices);
-        }//endif(tmpN > 0)
-
-        /* begin lease renewal service info */
-        nLeaseRenewalServices = getConfig().getIntConfigVal
-                           ("net.jini.lease.nLeaseRenewalServices",
-                             nLeaseRenewalServices);
-        nRemoteLeaseRenewalServices = getConfig().getIntConfigVal
-                         ("net.jini.lease.nRemoteLeaseRenewalServices",
-                           nRemoteLeaseRenewalServices);
-        nAddLeaseRenewalServices = getConfig().getIntConfigVal
-                           ("net.jini.lease.nAddLeaseRenewalServices",
-                             nAddLeaseRenewalServices);
-
-        nAddRemoteLeaseRenewalServices = getConfig().getIntConfigVal
-                      ("net.jini.lease.nAddRemoteLeaseRenewalServices",
-                       nAddRemoteLeaseRenewalServices);
-        if(testType == MANUAL_TEST_REMOTE_COMPONENT) {
-            nLeaseRenewalServices = nRemoteLeaseRenewalServices;
-            nAddLeaseRenewalServices = nAddRemoteLeaseRenewalServices;
-            nRemoteLeaseRenewalServices = 0;
-            nAddRemoteLeaseRenewalServices = 0;
-        }//endif
-        tmpN =   nLeaseRenewalServices+ nAddLeaseRenewalServices
-               + nRemoteLeaseRenewalServices + nAddRemoteLeaseRenewalServices;
-        if(tmpN > 0) {
-            logger.log(Level.FINE,
-                          " ----- Lease Renewal Service Info ----- ");
-            logger.log(Level.FINE,
-                          " # of lease renewal services to start     -- "
-                          +nLeaseRenewalServices);
-            logger.log(Level.FINE,
-                          " # of additional lease renewal srvcs      -- "
-                          +nAddLeaseRenewalServices);
-        }//endif(tmpN > 0)
-
-        /* begin event mailbox service info */
-        nEventMailboxServices = getConfig().getIntConfigVal
-                           ("net.jini.event.nEventMailboxServices",
-                             nEventMailboxServices);
-        nRemoteEventMailboxServices = getConfig().getIntConfigVal
-                         ("net.jini.event.nRemoteEventMailboxServices",
-                           nRemoteEventMailboxServices);
-        nAddEventMailboxServices = getConfig().getIntConfigVal
-                           ("net.jini.event.nAddEventMailboxServices",
-                             nAddEventMailboxServices);
-
-        nAddRemoteEventMailboxServices = getConfig().getIntConfigVal
-                      ("net.jini.event.nAddRemoteEventMailboxServices",
-                       nAddRemoteEventMailboxServices);
-        if(testType == MANUAL_TEST_REMOTE_COMPONENT) {
-            nEventMailboxServices = nRemoteEventMailboxServices;
-            nAddEventMailboxServices = nAddRemoteEventMailboxServices;
-            nRemoteEventMailboxServices = 0;
-            nAddRemoteEventMailboxServices = 0;
-        }//endif
-        tmpN =   nEventMailboxServices+ nAddEventMailboxServices
-               + nRemoteEventMailboxServices + nAddRemoteEventMailboxServices;
-        if(tmpN > 0) {
-            logger.log(Level.FINE,
-                          " ----- Event Mailbox Service Info ----- ");
-            logger.log(Level.FINE,
-                          " # of event mailbox services to start     -- "
-                          +nEventMailboxServices);
-            logger.log(Level.FINE,
-                          " # of additional event mailbox srvcs      -- "
-                          +nAddEventMailboxServices);
-        }//endif(tmpN > 0)
-
-        /* Handle remote/local components of manual tests */
-        remoteHost = getConfig().getStringConfigVal("net.jini.lookup.remotehost",
-                                            remoteHost);
-        switch(testType) {
-            case MANUAL_TEST_REMOTE_COMPONENT:
-                logger.log(Level.FINE,
-                                  " ***** REMOTE COMPONENT OF A MANUAL TEST "
-                                  +"(remote host = "+remoteHost+") ***** ");
-                break;
-            case MANUAL_TEST_LOCAL_COMPONENT:
-                logger.log(Level.FINE,
-                                  " ***** LOCAL COMPONENT OF A MANUAL TEST "
-                                  +"(remote host = "+remoteHost+") ***** ");
-                logger.log(Level.FINE,
-                              " ----- Remote Lookup Service Info ----- ");
-                logger.log(Level.FINE,
-                              " # of remote lookup services              -- "
-                              +nRemoteLookupServices);
-                logger.log(Level.FINE,
-                              " # of additional remote lookup services   -- "
-                              +nAddRemoteLookupServices);
-                logger.log(Level.FINE,
-                              " # of remote basic services               -- "
-                              +nServices);
-
-                logger.log(Level.FINE,
-                       " ----- Remote Lookup Discovery Service Info ----- ");
-                logger.log(Level.FINE,
-                              " # of remote lookup discovery services    -- "
-                              +nRemoteLookupDiscoveryServices);
-                logger.log(Level.FINE,
-                              " additional remote lookup discovery srvcs -- "
-                              +nAddRemoteLookupDiscoveryServices);
-
-                logger.log(Level.FINE,
-                       " ----- Remote Lease Renewal Service Info ----- ");
-                logger.log(Level.FINE,
-                              " # of remote lease renewal services    -- "
-                              +nRemoteLeaseRenewalServices);
-                logger.log(Level.FINE,
-                              " additional remote lease renewal srvcs -- "
-                              +nAddRemoteLeaseRenewalServices);
-
-                logger.log(Level.FINE,
-                       " ----- Remote Event Mailbox Service Info ----- ");
-                logger.log(Level.FINE,
-                              " # of remote event mailbox services    -- "
-                              +nRemoteEventMailboxServices);
-                logger.log(Level.FINE,
-                              " additional remote event mailbox srvcs -- "
-                              +nAddRemoteEventMailboxServices);
-                break;
-        }//end switch(testType)
-    }//end getSetupInfo
-
-    /** Retrieves and stores the information needed to configure any lookup
-     *  services that will be started for the current test run.
-     */
-    private void getLookupInfo() throws TestException {
-        /* Retrieve the member groups & locator of each lookup */
-        /* For all cases except MANUAL_TEST_LOCAL_COMPONENT, the number of
-         * remote lookups is zero (see getSetupInfo). For that case, we must
-         * handle the remote lookup services BEFORE handling the local lookups.
-         * This is because the local component may be both starting local
-         * lookups, and discovering remote lookups; but the remote component
-         * will only be starting the remote lookups, and will therefore have
-         * no knowledge of the local lookups. Because the groups and ports are
-         * ordered by the index numbers in the config file, if the local info
-         * were to be handled first, then the local component of the test
-         * would fall out of alignment with the remote component.
-         */
-        int n0 = 0;
-        int n1 = n0 + nRemoteLookupServices;
-        for(int i=0;i<n1;i++) {//initial remote lookups
-            /* Member groups for remote lookup service i */
-            String groupsArg = getConfig().getServiceStringProperty
-                                    ("net.jini.core.lookup.ServiceRegistrar",
-                                     "membergroups", i);
-            /* Do NOT use unique groups names since clocks on the local
-             * and remote sides are not synchronized, and host names are
-             * different
-             */
-            String[] memberGroups = config.parseString(groupsArg,",");
-            if(memberGroups == DiscoveryGroupManagement.ALL_GROUPS) {
-		logger.log(Level.FINER, "memberGroups = ALL_GROUPS");
-		continue;
-	    }
-            memberGroupsList.add(memberGroups);
-            /* Locator for initial remote lookup service i */
-            LookupLocator lookupLocator = getRemoteTestLocator(i);
-            initLookupsToStart.add
-                          (new LocatorGroupsPair(lookupLocator,memberGroups));
-        }//end loop
-        /* Remote lookups started after initial remote lookups */
-        n0 = n1;
-        n1 = n0 + nAddRemoteLookupServices;
-        for(int i=n0;i<n1;i++) {//additional remote lookups
-            /* Member groups for remote lookup service i */
-            String groupsArg = getConfig().getServiceStringProperty
-                                    ("net.jini.core.lookup.ServiceRegistrar",
-                                     "membergroups", i);
-            /* Use NON-unique groups for remote lookups */
-            String[] memberGroups = config.parseString(groupsArg,",");
-            if(memberGroups == DiscoveryGroupManagement.ALL_GROUPS) continue;
-            memberGroupsList.add(memberGroups);
-            /* Locator for additional remote lookup service i */
-            LookupLocator lookupLocator = getRemoteTestLocator(i);
-            addLookupsToStart.add
-                          (new LocatorGroupsPair(lookupLocator,memberGroups));
-        }//end loop
-        /* Handle all lookups to be started locally */
-        n0 = n1;
-        n1 = n0 + nLookupServices;
-        int portBias = n0;
-        for(int i=n0;i<n1;i++) {//initial local lookups
-            /* Member groups for lookup service i */
-            String groupsArg = getConfig().getServiceStringProperty
-                                    ("net.jini.core.lookup.ServiceRegistrar",
-                                     "membergroups", i);
-            if(testType == AUTOMATIC_LOCAL_TEST) {
-                /* Use unique group names to avoid conflict with other tests */
-                groupsArg = config.makeGroupsUnique(groupsArg);
-            }//endif
-            String[] memberGroups = config.parseString(groupsArg,",");
-            if(memberGroups == DiscoveryGroupManagement.ALL_GROUPS) {
-		logger.log(Level.FINER, "memberGroups = All_Groups");
-		continue;
-	    }
-            memberGroupsList.add(memberGroups);
-            /* Locator for initial lookup service i */
-            LookupLocator lookupLocator = getTestLocator(i-portBias);
-            initLookupsToStart.add
-                          (new LocatorGroupsPair(lookupLocator,memberGroups));
-        }//end loop
-        /* The lookup services to start after the initial lookup services */
-        n0 = n1;
-        n1 = n0 + nAddLookupServices;
-        for(int i=n0;i<n1;i++) {//additional local lookups
-            /* Member groups for lookup service i */
-            String groupsArg = getConfig().getServiceStringProperty
-                                    ("net.jini.core.lookup.ServiceRegistrar",
-                                     "membergroups", i);
-            if(testType == AUTOMATIC_LOCAL_TEST) {
-                /* Use unique group names to avoid conflict with other tests */
-                groupsArg = config.makeGroupsUnique(groupsArg);
-            }//endif
-            String[] memberGroups = config.parseString(groupsArg,",");
-            if(memberGroups == DiscoveryGroupManagement.ALL_GROUPS) continue;
-            memberGroupsList.add(memberGroups);
-            /* Locator for additional lookup service i */
-            LookupLocator lookupLocator = getTestLocator(i-portBias);
-            addLookupsToStart.add
-                          (new LocatorGroupsPair(lookupLocator,memberGroups));
-        }//end loop
-        /* Populate the ArrayList allLookupsToStart */
-        for(int i=0;i<initLookupsToStart.size();i++) {
-            allLookupsToStart.add(initLookupsToStart.get(i));
-        }//end loop
-        for(int i=0;i<addLookupsToStart.size();i++) {
-            allLookupsToStart.add(addLookupsToStart.get(i));
-        }//end loop
-    }//end getLookupInfo
-
-    /** Method used for debugging. Displays the following information about
-     *  the contents of the given list of <code>LocatorGroupsPair</code>
-     *  instances: the number of elements, the locator of the associated
-     *  lookup service, and the member groups of the associated lookup service.
-     */
-    private void displayLookupStartInfo(List lookupList) {
-        logger.log(Level.FINE, "   # of lookups = "
-                                        +lookupList.size());
-        for(int i=0;i<lookupList.size();i++) {
-            LocatorGroupsPair pair = (LocatorGroupsPair)lookupList.get(i);
-            LookupLocator loc    = pair.locator;
-            String[]      groups = pair.groups;
-            logger.log(Level.FINE,
-                              "     locator lookup["+i+"] = "+loc);
-            
-            GroupsUtil.displayGroupSet(groups,"       group",
-                                       Level.FINE);
-        }//end loop
-    }//end displayLookupStartInfo
-
-    /** Retrieves and stores the information needed to configure any lookup
-     *  discovery services that will be started for the current test run.
-     */
-    private void getLDSInfo() {
-        /* Retrieve groups/locators each lookup discovery service should join*/
-        int n0 = 0;
-        int n1 = n0 + nRemoteLookupDiscoveryServices;
-        for(int i=0;i<n1;i++) {//initial remote lookup discovery services
-            /* Locators and groups to join */
-            String tojoinArg = getConfig().getServiceStringProperty
-                                ("net.jini.discovery.LookupDiscoveryService",
-                                 "tojoin", i);
-            /* Do NOT use unique groups names since clocks on the local
-             * and remote sides are not synchronized, and host names are
-             * different
-             */
-            LookupLocator[] locsToJoin = getLocatorsFromToJoinArg(tojoinArg);
-            String[] groupsToJoin = getGroupsFromToJoinArg(tojoinArg);
-            initLDSToStart.add(new ToJoinPair(locsToJoin,groupsToJoin));
-        }//end loop
-        /*Remote lookup discovery servicess started after initial remote LDSs*/
-        n0 = n1;
-        n1 = n0 + nAddRemoteLookupDiscoveryServices;
-        for(int i=n0;i<n1;i++) {//additional remote lookup discovery services
-            /* Locators and groups to join */
-            String tojoinArg = getConfig().getServiceStringProperty
-                                ("net.jini.discovery.LookupDiscoveryService",
-                                 "tojoin", i);
-            /* Use NON-unique groups to join */
-            LookupLocator[] locsToJoin = getLocatorsFromToJoinArg(tojoinArg);
-            String[] groupsToJoin = getGroupsFromToJoinArg(tojoinArg);
-            addLDSToStart.add(new ToJoinPair(locsToJoin,groupsToJoin));
-        }//end loop
-        /* Handle all lookup discovery services to be started locally */
-        n0 = n1;
-        n1 = n0 + nLookupDiscoveryServices;
-        for(int i=n0;i<n1;i++) {//initial local lookup discovery services
-            /* Locators and groups to join */
-            String tojoinArg = getConfig().getServiceStringProperty
-                                ("net.jini.discovery.LookupDiscoveryService",
-                                 "tojoin", i);
-            if(testType == AUTOMATIC_LOCAL_TEST) {//use unique group names
-                tojoinArg = config.makeGroupsUnique(tojoinArg);
-            }//endif
-            LookupLocator[] locsToJoin = getLocatorsFromToJoinArg(tojoinArg);
-            String[] groupsToJoin = getGroupsFromToJoinArg(tojoinArg);
-            initLDSToStart.add(new ToJoinPair(locsToJoin,groupsToJoin));
-        }//end loop
-        /* The LDSs to start after the initial LDSs */
-        n0 = n1;
-        n1 = n0 + nAddRemoteLookupDiscoveryServices;
-        for(int i=n0;i<n1;i++) {//additional local lookup discovery services
-            /* Locators and groups to join */
-            String tojoinArg = getConfig().getServiceStringProperty
-                                ("net.jini.discovery.LookupDiscoveryService",
-                                 "tojoin", i);
-            if(testType == AUTOMATIC_LOCAL_TEST) {//use unique group names
-                tojoinArg = config.makeGroupsUnique(tojoinArg);
-            }//endif
-            LookupLocator[] locsToJoin = getLocatorsFromToJoinArg(tojoinArg);
-            String[] groupsToJoin = getGroupsFromToJoinArg(tojoinArg);
-            addLDSToStart.add(new ToJoinPair(locsToJoin,groupsToJoin));
-        }//end loop
-        /* Populate the ArrayList allLDSToStart */
-        for(int i=0;i<initLDSToStart.size();i++) {
-            allLDSToStart.add(initLDSToStart.get(i));
-        }//end loop
-        for(int i=0;i<addLDSToStart.size();i++) {
-            allLDSToStart.add(addLDSToStart.get(i));
-        }//end loop
-    }//end getLDSInfo
-
-    /** Convenience method that creates an array of Class objects in which
-     *  element corresponds to a different service class type that will be
-     *  started remotely and/or locally. The array returned by this method
-     *  can be used when building templates that will be used to match on
-     *  class type.
-     */
-    protected Class[] getServiceClassArray() {
-        ArrayList classnamesList = new ArrayList(5);
-        ArrayList loadedClassList = new ArrayList(expectedServiceList.size());
-        if( (nLookupDiscoveryServices+nRemoteLookupDiscoveryServices) > 0) {
-            classnamesList.add
-                   (new String("net.jini.discovery.LookupDiscoveryService") );
-        }//endif
-        if( (nLeaseRenewalServices+nRemoteLeaseRenewalServices) > 0) {
-            classnamesList.add
-                          (new String("net.jini.lease.LeaseRenewalService") );
-        }//endif
-        if( (nEventMailboxServices+nRemoteEventMailboxServices) > 0) {
-            classnamesList.add(new String("net.jini.event.EventMailbox") );
-        }//endif
-        for(int i=0;i<classnamesList.size();i++) {
-            String classname = (String)classnamesList.get(i);
-            try {
-                loadedClassList.add(Class.forName(classname));
-            } catch(ClassNotFoundException e) {
-                logger.log(Level.FINE,
-                                     " ClassNotFoundException while loading "
-                                     +"service class "+classname);
-                e.printStackTrace();
-            }//end try
-        }//end loop
-        return ( (Class[])loadedClassList.toArray
-                                        (new Class[loadedClassList.size()]) );
-    }//end getServiceClassArray
-
-    /** Special-purpose method that should be called by the remote component
-     *  of a manual test after that component of the test has started all of
-     *  the services for which it was configured. This method is useful
-     *  in such a manual test scenario because it is generally desirable for
-     *  the remote component to enter into a "wait state" so that the local
-     *  component of the test can run and interact with the remote component
-     *  without having to worry about the remote component shutting down
-     *  unexpectedly.
-     */
-    protected void waitForKeyboardInput() {
-        System.out.println(" start test in separate VM ... ");
-        System.out.println(" ***** WHEN DONE, PRESS ANY KEY TO EXIT *****");
-        try {
-            int c=System.in.read();
-        } catch (IOException e) { }
-    }//end waitForKeyboardInput
-
-    /** Convenience method that examines the given <code>String</code>
-     *  containing a comma-separated list of groups and locators to join,
-     *  and returns a <code>String</code> array containing the items that
-     *  correspond to the groups to join.
-     */
-    private String[] getGroupsFromToJoinArg(String tojoinArg) {
-        String[] tojoin = config.parseString(tojoinArg,",");
-        if(tojoin == null) return DiscoveryGroupManagement.ALL_GROUPS;
-        if(tojoin.length == 0) return DiscoveryGroupManagement.NO_GROUPS;
-        ArrayList tojoinList = new ArrayList(tojoin.length);
-        for(int i=0;i<tojoin.length;i++) {
-            if( !config.isLocator(tojoin[i]) ) tojoinList.add(tojoin[i]);
-        }//end loop
-        return ( (String[])tojoinList.toArray(new String[tojoinList.size()]) );
-    }//end getGroupsFromToJoinArg
-
-    /** Convenience method that examines the given <code>String</code>
-     *  containing a comma-separated list of groups and locators to join,
-     *  and returns a <code>LookupLocator</code> array containing the items
-     *  that correspond to the locators to join.
-     */
-//this method obtain constrainable locators because the locators are
-// administratively set after the service is started. It's not clear whether
-// this can be discarded in favor of the new initialLookupLocators configuration
-// entry
-    private LookupLocator[] getLocatorsFromToJoinArg(String tojoinArg) {
-        String[] tojoin = config.parseString(tojoinArg,",");
-        if(tojoin == null) return new LookupLocator[0];
-        if(tojoin.length == 0) return new LookupLocator[0];
-        ArrayList tojoinList = new ArrayList(tojoin.length);
-        for(int i=0;i<tojoin.length;i++) {
-            try {
-                tojoinList.add(QAConfig.getConstrainedLocator(tojoin[i]));
-            } catch(MalformedURLException e) {
-                continue;//not a valid locator (must be group), try next one
-            }
-        }//end loop
-        return ( (LookupLocator[])tojoinList.toArray
-                                     (new LookupLocator[tojoinList.size()]) );
-    }//end getLocatorsFromToJoinArg
+//    /** Special-purpose method that should be called by the remote component
+//     *  of a manual test after that component of the test has started all of
+//     *  the services for which it was configured. This method is useful
+//     *  in such a manual test scenario because it is generally desirable for
+//     *  the remote component to enter into a "wait state" so that the local
+//     *  component of the test can run and interact with the remote component
+//     *  without having to worry about the remote component shutting down
+//     *  unexpectedly.
+//     */
+//    protected void waitForKeyboardInput() {
+//        System.out.println(" start test in separate VM ... ");
+//        System.out.println(" ***** WHEN DONE, PRESS ANY KEY TO EXIT *****");
+//        try {
+//            int c=System.in.read();
+//        } catch (IOException e) { }
+//    }//end waitForKeyboardInput
 
 }//end class BaseQATest

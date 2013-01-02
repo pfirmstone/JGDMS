@@ -21,7 +21,9 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
+import net.jini.core.discovery.LookupLocator;
 
 import net.jini.discovery.DiscoveryManagement;
 
@@ -46,20 +48,21 @@ public class GetDiscoveryManager extends LDMNullPublicGroup {
      *          DiscoveryManagement created above
      *     <li> creates an instance of JoinManager using the version of
      *          the constructor that takes a service ID, inputting 
-     *          an instance of a test service andthe instance of
+     *          an instance of a test service and the instance of
      *          DiscoveryManagement created above
      *   </ul>
      */
-    public void setup(QAConfig config) throws Exception {
-        discoveryMgr = getLookupDiscoveryManager(config);
+    public Test construct(QAConfig config) throws Exception {
+        discoveryMgr = getLookupDiscoveryManager(new String[0], null, config);
         callback = new SrvcIDListener(testService);
-        super.setup(config);
-    }//end setup
+        super.construct(config);
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
      *   For each instance of the <code>JoinManager</code> utility class
-     *   created during the setup process,
+     *   created during the construct process,
      *   <ul>
      *     <li> retrieves the instance of DiscoveryManagement being
      *          employed by the JoinManager

@@ -21,7 +21,8 @@ import java.util.logging.Level;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import java.rmi.NoSuchObjectException;
@@ -34,32 +35,33 @@ import java.util.HashMap;
  * cancels, and/or expires leases.  Tests for availably by adding
  * leases to the set.
  */
-public class DemoScalabilityTest extends QATest {
+public class DemoScalabilityTest extends QATestEnvironment implements Test {
 
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
+        return this;
     }
 
     public void run() throws Exception {
 	// wait for 'all systems go'
-	config.suspendRun("Demo test suspended at phase 1"
+	getConfig().suspendRun("Demo test suspended at phase 1"
 			  + "<popup>Resume this test when<br>"
 			  + "all participating services are ready</popup>");
 
 	// simulate doing some work
-	config.setTestStatus("Performing test actions for 10 seconds");
+	getConfig().setTestStatus("Performing test actions for 10 seconds");
 	try {
 	    Thread.sleep(10000);
 	} catch (InterruptedException ignore) {
 	}
 
 	// simulate phase 2 work
-	config.suspendRun("Demo test suspended at phase 2"
+	getConfig().suspendRun("Demo test suspended at phase 2"
 			  + "<popup>Resume this test when<br>"
 			  + "all phase 2 activities are setup</popup>");
 
 	// wait for termination request
-	config.suspendRun("Demo test suspended at end of run"
+	getConfig().suspendRun("Demo test suspended at end of run"
 			  + "<popup>Resume this test to terminate</popup>");
     }
 }

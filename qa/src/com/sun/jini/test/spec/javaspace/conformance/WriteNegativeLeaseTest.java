@@ -29,7 +29,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class WriteNegativeLeaseTest extends AbstractTestBase {
+public class WriteNegativeLeaseTest extends JavaSpaceTest {
 
     /**
      * This method asserts, that we will get an IllegalArgumentException if the

@@ -29,6 +29,7 @@ import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.core.discovery.LookupLocator;
 
 import com.sun.jini.qa.harness.QAConfig;
+import java.util.List;
 
 /**
  * This class acts as a regression test for bug ID 4510435. This class verifies
@@ -90,7 +91,7 @@ public class RemoveGroupsLocsDiscard extends AbstractBaseTest {
      */
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");
-
+        List initLookupsToStart = getLookupServices().getInitLookupsToStart();
         /* From the lookups that have been started, retrieve the groups
          * and locators to discover. We want a "mix" where some of the
          * lookups started should be discovered by both group and locator,

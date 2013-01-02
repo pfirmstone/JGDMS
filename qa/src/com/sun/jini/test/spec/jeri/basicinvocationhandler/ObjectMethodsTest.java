@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicinvocationhandler;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.Integrity;
@@ -100,7 +101,7 @@ import java.util.logging.Level;
  *                verify that neither invocation handler is .equals to the other
  * </pre>
  */
-public class ObjectMethodsTest extends QATest {
+public class ObjectMethodsTest extends QATestEnvironment implements Test {
 
     interface FakeInterface1 {
         public Object fake1Method() throws Throwable;
@@ -152,7 +153,8 @@ public class ObjectMethodsTest extends QATest {
     };
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

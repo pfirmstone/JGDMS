@@ -18,13 +18,14 @@
 package com.sun.jini.test.spec.export.exportpermission;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
 
 // java.util
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 // davis packages
@@ -35,7 +36,7 @@ import net.jini.export.ExportPermission;
  * Abstract class for all {@link com.sun.jini.test.spec.export.exportpermission}
  * tests.
  */
-public abstract class ExportPermission_AbstractTest extends QATest {
+public abstract class ExportPermission_AbstractTest extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**

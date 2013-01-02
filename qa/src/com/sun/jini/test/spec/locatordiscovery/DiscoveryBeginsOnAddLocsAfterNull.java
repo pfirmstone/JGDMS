@@ -36,7 +36,7 @@ import net.jini.core.discovery.LookupLocator;
  * <p>
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *   <li> one or more initial lookup services started during setup
+ *   <li> one or more initial lookup services started during construct
  *   <li> an instance of the lookup locator discovery utility created by
  *        passing null to the constructor
  *   <li> one instance of DiscoveryListener registered with the lookup
@@ -46,7 +46,7 @@ import net.jini.core.discovery.LookupLocator;
  * If the lookup locator discovery utility functions as specified, then the
  * listener will receive no events until the <code>addLocators</code> method
  * is called to re-configure the lookup locator discovery utility to discover
- * the lookup services started during setup.
+ * the lookup services started during construct.
  *
  */
 public class DiscoveryBeginsOnAddLocsAfterNull extends AbstractBaseTest {
@@ -65,10 +65,10 @@ public class DiscoveryBeginsOnAddLocsAfterNull extends AbstractBaseTest {
      *    <li> depending on the value of <code>addLocs</code>, invokes either
      *         addLocators or setLocators to re-configure the lookup locator
      *         discovery utility to discover the lookup services started in
-     *         setup
+     *         construct
      *    <li> verifies that the locator discovery utility utility under test
      *         sends the expected discovered events, having the expected
-     *         contents related to the lookups started in setup
+     *         contents related to the lookups started in construct
      * </ul>
      */
     public void run() throws Exception {
@@ -93,18 +93,18 @@ public class DiscoveryBeginsOnAddLocsAfterNull extends AbstractBaseTest {
         lld.addDiscoveryListener(mainListener);
         waitForDiscovery(mainListener);
         /* Re-configure the listener to expect events for the lookups
-         * started during setup.
+         * started during construct.
          */
-        locsToDiscover = toLocatorArray(initLookupsToStart);
+        locsToDiscover = toLocatorArray(getInitLookupsToStart());
         logger.log(Level.FINE, "calling "+methodStr
                           +" to change the locators to discover to -- ");
         for(int i=0;i<locsToDiscover.length;i++) {
             logger.log(Level.FINE, "   "+locsToDiscover[i]);
         }//end loop
-        mainListener.setLookupsToDiscover(initLookupsToStart);
+        mainListener.setLookupsToDiscover(getInitLookupsToStart());
         /* Using either addLocators ore setLocators, re-configure the 
          * lookup locator discovery utility to discover the lookup
-         * services started in setup
+         * services started in construct
          */
         if(addLocs) {
             lld.addLocators(locsToDiscover);

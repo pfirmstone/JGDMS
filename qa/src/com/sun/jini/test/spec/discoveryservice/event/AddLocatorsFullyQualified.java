@@ -25,6 +25,7 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.share.GroupsUtil;
 import com.sun.jini.test.share.LocatorsUtil;
@@ -85,8 +86,8 @@ public class AddLocatorsFullyQualified extends AbstractBaseTest {
     protected HashMap regInfoMap = registrationMap;
 
     /** Retrieves additional configuration values. */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
 //      debugFlag = true;
 //      displayOn = true;
         useDiscoveryList = useOnlyLocDiscovery;
@@ -123,7 +124,8 @@ public class AddLocatorsFullyQualified extends AbstractBaseTest {
 	    }
             logger.log(Level.FINE, "locsToAdd["+i+"] = "+locsToAdd[i]);
         }//end loop
-    }//end setup
+        return this;
+    }//end construct
 
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");

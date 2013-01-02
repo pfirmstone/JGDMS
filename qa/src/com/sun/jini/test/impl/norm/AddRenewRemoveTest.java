@@ -21,6 +21,7 @@ import java.util.logging.Level;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.core.lease.Lease;
@@ -35,7 +36,7 @@ import com.sun.jini.test.share.TestBase;
  * Test creates a lease, places it in a lease renewal set, waits for 
  * to be renewed a designated number of times and then removes it.
  */
-public class AddRenewRemoveTest extends TestBase {
+public class AddRenewRemoveTest extends TestBase implements Test {
     /** Ammount of slop we are willing to tolerate around renewals */
     private long slop;
 
@@ -51,9 +52,10 @@ public class AddRenewRemoveTest extends TestBase {
     /** Should we try shuting down the service under test? */
     private boolean tryShutdown;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	this.parse();
+        return this;
     }
 
     /**

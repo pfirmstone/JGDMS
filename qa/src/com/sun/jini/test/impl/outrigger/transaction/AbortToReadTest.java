@@ -70,7 +70,7 @@ public class AbortToReadTest extends TransactionTestBase
 
         // take the entry under one transaction
         Transaction t1 = createTransaction();
-        Entry takeResult = space.take(entry, t1, 0);
+        Entry takeResult = getSpace().take(entry, t1, 0);
         assertEquals(entry, takeResult, "taken");
         timeLog("entry taken under t1");
 
@@ -131,7 +131,7 @@ public class AbortToReadTest extends TransactionTestBase
                 }
                 timeLog("BlockAndRead: starting to read: timeout is "
                         + BLOCK_TIME + " seconds, tmpl = " + tmpl);
-                readResult = space.read(tmpl, t2, BLOCK_TIME * SECONDS);
+                readResult = getSpace().read(tmpl, t2, BLOCK_TIME * SECONDS);
                 timeLog("BlockAndRead: read returned");
                 synchronized (this) {
                     readReturned = true;

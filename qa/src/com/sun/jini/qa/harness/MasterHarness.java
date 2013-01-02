@@ -1410,9 +1410,9 @@ class MasterHarness {
 	implements MasterTest.MasterTestRequest 
     {
 
-	public void doRequest(Test test) throws Exception {
-	    if (test instanceof QATest) {
-		((QATest) test).forceThreadDump(); // delay done by test
+	public void doRequest(TestEnvironment test) throws Exception {
+	    if (test instanceof QATestEnvironment) {
+		((QATestEnvironment) test).forceThreadDump(); // delay done by test
 	    }
 	}
     }

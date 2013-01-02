@@ -29,6 +29,7 @@ import com.sun.jini.admin.DestroyAdmin;
 import net.jini.admin.Administrable;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 
 public class DestroyTest extends LookupTestBase {
@@ -41,9 +42,10 @@ public class DestroyTest extends LookupTestBase {
     /** How much we'll wait after destroy() method call (in seconds) */
     private int destroyDelay;
 
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	this.parse();
+        return this;
     }
 
     /**

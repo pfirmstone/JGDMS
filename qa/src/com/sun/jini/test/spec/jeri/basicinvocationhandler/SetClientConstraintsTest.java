@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicinvocationhandler;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.BasicInvocationHandler;
 import net.jini.jeri.ObjectEndpoint;
@@ -83,7 +84,7 @@ import java.util.logging.Level;
  *    12) verify UndeclaredThrowableException is thrown
  * </pre>
  */
-public class SetClientConstraintsTest extends QATest {
+public class SetClientConstraintsTest extends QATestEnvironment implements Test {
 
     // a BasicInvocationHandler with a non-conforming constructor
     class FakeBadConstructorBasicInvocationHandler extends
@@ -111,7 +112,8 @@ public class SetClientConstraintsTest extends QATest {
     }
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

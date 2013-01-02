@@ -38,6 +38,7 @@ import net.jini.core.event.RemoteEventListener;
 import net.jini.core.event.UnknownEventException;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 public class UnknownEventRecoveryShutdownTest extends EMSTestBase 
@@ -50,7 +51,6 @@ public class UnknownEventRecoveryShutdownTest extends EMSTestBase
     // LeaseRenewalManager to keep our leases current.
     //
     private final long DURATION = 3*HOURS;
-
     private final int NUM_EVENTS = 5;
 
     private final long EVENT_ID = 1000;
@@ -91,7 +91,7 @@ public class UnknownEventRecoveryShutdownTest extends EMSTestBase
 
 	// Create an event generator and pass it the
 	// mailbox's remote event listener.
-	TestGenerator myGen = TestUtils.createGenerator(manager);
+	TestGenerator myGen = TestUtils.createGenerator(getManager());
 	EventRegistration evtReg = 
 	    myGen.register(EVENT_ID,	// Event ID to use
 			   null,		// handback
@@ -102,7 +102,7 @@ public class UnknownEventRecoveryShutdownTest extends EMSTestBase
 
 	// Create another event generator and pass it the
 	// mailbox's remote event listener.
-	TestGenerator myGen2 = TestUtils.createGenerator(manager);
+	TestGenerator myGen2 = TestUtils.createGenerator(getManager());
 	EventRegistration evtReg2 = 
 	    myGen2.register(EVENT_ID2,	// Event ID to use
 			    null,		// handback
@@ -112,8 +112,8 @@ public class UnknownEventRecoveryShutdownTest extends EMSTestBase
 	checkLease(tgl2, DURATION); 
 
 	// Create two listener objects
-	TestListener goodRel = TestUtils.createListener(manager);
-	TestListener badRel = TestUtils.createUEListener(manager);
+	TestListener goodRel = TestUtils.createListener(getManager());
+	TestListener badRel = TestUtils.createUEListener(getManager());
 	int goodRelCount = 0, badRelCount = 0;
 
 	// Generate some events from both generators
@@ -236,12 +236,13 @@ public class UnknownEventRecoveryShutdownTest extends EMSTestBase
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	parse();
+        return this;
     }
 }

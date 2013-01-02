@@ -42,7 +42,7 @@ public class ActivateWrapperRegisterBadStubClass extends AbstractStartBaseTest {
 	try {
 	    net.jini.event.EventMailbox mailbox =
 		    (net.jini.event.EventMailbox)
-		    manager.startService(
+		    getManager().startService(
 		    "com.sun.jini.test.impl.start.NoStubProbe");
             logger.log(Level.INFO, "Created a stub-less service");
             throw new TestException( "ActivateWrapper.register()"

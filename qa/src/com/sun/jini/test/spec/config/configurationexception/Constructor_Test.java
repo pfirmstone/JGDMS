@@ -19,11 +19,12 @@
 package com.sun.jini.test.spec.config.configurationexception;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.config.ConfigurationException;
@@ -65,14 +66,14 @@ import net.jini.config.ConfigurationException;
  *      passed exception;
  * </pre>
  */
-public class Constructor_Test extends QATest {
+public class Constructor_Test extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.
      */
     public void run() throws Exception {
         ConfigurationException ce;
-        ce = new ConfigurationException(null);
+        ce = new ConfigurationException((String) null);
         assertion(ce.getMessage() == null);
 
         ce = new ConfigurationException("");

@@ -36,7 +36,8 @@ import net.jini.lease.LeaseRenewalSet;
 import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.share.RenewingRemoteListener;
 
 /**
@@ -75,10 +76,10 @@ public class EventSequenceWarnTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Sets up the testing environment.
      */
-    public void setup(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
+    public Test construct(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
 
        // mandatory call to parent
-       super.setup(sysConfig);
+       super.construct(sysConfig);
 	
        // Announce where we are in the test
        logger.log(Level.FINE, "EventSequenceWarnTest: In setup() method.");
@@ -93,6 +94,7 @@ public class EventSequenceWarnTest extends AbstractLeaseRenewalServiceTest {
        // logs events as they arrive
        rrl01 = new RenewingRemoteListener(getExporter(), renewSetDur);
        rrl02 = new RenewingRemoteListener(getExporter(), renewSetDur);
+       return this;
     }
 
 

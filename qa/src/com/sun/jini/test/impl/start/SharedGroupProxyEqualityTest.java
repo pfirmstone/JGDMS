@@ -20,7 +20,8 @@ package com.sun.jini.test.impl.start;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.start.ServiceStarter;
 import com.sun.jini.start.SharedGroup;
 import com.sun.jini.qa.harness.TestException;
@@ -37,7 +38,7 @@ import net.jini.event.EventMailbox;
  * are not equal
  */
  
-public class SharedGroupProxyEqualityTest extends QATest {
+public class SharedGroupProxyEqualityTest extends QATestEnvironment implements Test {
 
     public void run() throws Exception {
 	logger.log(Level.INFO, "" + ":run()");
@@ -51,9 +52,9 @@ public class SharedGroupProxyEqualityTest extends QATest {
         SharedGroup bogus_group_proxy = null;
 	final String serviceName = "com.sun.jini.start.SharedGroup";
 	MarshalledObject marshObj01 = 
-		new MarshalledObject(manager.startService(serviceName));
+		new MarshalledObject(getManager().startService(serviceName));
         MarshalledObject marshObj02 = 
-		new MarshalledObject(manager.startService(serviceName));
+		new MarshalledObject(getManager().startService(serviceName));
 
         group_proxy = (SharedGroup) marshObj01.get();
         group_proxy_dup = (SharedGroup) marshObj01.get();

@@ -19,7 +19,8 @@ package com.sun.jini.test.spec.activation.activationexporter;
 
 import java.util.logging.Level;
 import java.rmi.activation.ActivationID;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import net.jini.export.Exporter;
 import net.jini.activation.ActivationExporter;
@@ -67,7 +68,7 @@ import java.lang.reflect.InvocationHandler;
  *     12) assert the result is true
  * </pre>
  */
-public class Unexport_CallTest extends QATest {
+public class Unexport_CallTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

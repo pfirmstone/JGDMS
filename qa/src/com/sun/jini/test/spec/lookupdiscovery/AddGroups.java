@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -37,7 +38,7 @@ import com.sun.jini.test.share.GroupsUtil;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *    <li> one or more "initial" lookup services, each belonging to a finite
- *         set of member groups, and each started during setup, before the
+ *         set of member groups, and each started during construct, before the
  *         test begins execution
  *    <li> one or more "additional" lookup services, each belonging to a finite
  *         set of member groups that does not include any of the member groups
@@ -57,23 +58,24 @@ import com.sun.jini.test.share.GroupsUtil;
  */
 public class AddGroups extends Discovered {
 
-    protected String[] groupsToAdd = toGroupsArray(addLookupsToStart);
+    protected String[] groupsToAdd = new String[0];
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	startAddLookups();//Start the additional lookup services
-	groupsToAdd = toGroupsArray(addLookupsToStart);
-    }//end setup
+	groupsToAdd = toGroupsArray(getAddLookupsToStart());
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *    <li> verifies that the lookup discovery utility under test
      *         discovers the initial lookup services that were started 
-     *         during setup
+     *         during construct
      *    <li> re-configures the listener's expected event state to expect
      *         the discovery of the addtional lookup services
      *    <li> invokes addGroups to re-configure the lookup discovery utility
@@ -86,12 +88,12 @@ public class AddGroups extends Discovered {
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");
         /* Verify discovery of the initial lookups */
-        doDiscovery(initLookupsToStart,listenerToUse);
+        doDiscovery(getInitLookupsToStart(),listenerToUse);
         /* Configure the listener's expected event state for the additional
          * lookup services
          */
         listenerToUse.clearAllEventInfo();
-        listenerToUse.setLookupsToDiscover(addLookupsToStart);
+        listenerToUse.setLookupsToDiscover(getAddLookupsToStart());
         /* Re-configure the lookup discovery utility to discover the
          * additional lookups
          */

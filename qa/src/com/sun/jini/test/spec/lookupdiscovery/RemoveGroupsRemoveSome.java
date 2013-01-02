@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -26,6 +27,7 @@ import com.sun.jini.test.share.GroupsUtil;
 import net.jini.discovery.DiscoveryGroupManagement;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * With respect to the <code>removeGroups</code> method, this class
@@ -42,7 +44,7 @@ import java.util.ArrayList;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *   <li> one or more lookup services, each belonging to a finite
- *        set of member groups, and each started during setup, before the
+ *        set of member groups, and each started during construct, before the
  *        test begins execution
  *   <li> one instance of the lookup discovery utility configured to discover
  *        the set of groups whose elements are the member groups of the
@@ -59,10 +61,10 @@ import java.util.ArrayList;
  */
 public class RemoveGroupsRemoveSome extends Discovered {
 
-    protected ArrayList curLookupsToDiscover = initLookupsToStart;
-    protected ArrayList newLookupsToDiscover = new ArrayList(11);
-    protected ArrayList lookupsToRemoveList = new ArrayList(11);
-    protected String[]  groupsToRemove = DiscoveryGroupManagement.NO_GROUPS;
+    protected volatile List curLookupsToDiscover = new ArrayList(0);
+    protected final List newLookupsToDiscover = new ArrayList(11);
+    protected final List lookupsToRemoveList = new ArrayList(11);
+    protected volatile String[]  groupsToRemove = DiscoveryGroupManagement.NO_GROUPS;
 
     protected boolean changeAll = false;
 
@@ -70,8 +72,9 @@ public class RemoveGroupsRemoveSome extends Discovered {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        curLookupsToDiscover = getInitLookupsToStart();
 	/* Remove the groups for the lookup services at an even index.
 	 * Remove groups at an odd index as well if changeAll is true.
 	 */
@@ -79,7 +82,7 @@ public class RemoveGroupsRemoveSome extends Discovered {
 	    LocatorGroupsPair curPair =
 		(LocatorGroupsPair)curLookupsToDiscover.get(i);
 	    if( ((i%2) == 0) || changeAll ) {//index is even or changeAll
-		String[] curGroups = curPair.groups;
+		String[] curGroups = curPair.getGroups();
 		if(    (curGroups != DiscoveryGroupManagement.ALL_GROUPS)
 		       && (curGroups.length != 0) )
                     {
@@ -93,12 +96,13 @@ public class RemoveGroupsRemoveSome extends Discovered {
 	}//end loop
 	groupsToRemove =(String[])(lookupsToRemoveList).toArray
 	    (new String[lookupsToRemoveList.size()]);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>
      *    <li> re-configures the lookup discovery utility to use group 
-     *         discovery to discover the lookup services started during setup
+     *         discovery to discover the lookup services started during construct
      *    <li> starts the multicast discovery process by adding a discovery
      *         listener to the lookup discovery utility
      *    <li> verifies that the discovery process is working by waiting

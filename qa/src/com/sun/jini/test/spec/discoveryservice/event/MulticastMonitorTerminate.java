@@ -24,6 +24,7 @@ import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.share.DiscoveryProtocolSimulator;
 import com.sun.jini.test.share.DiscoveryServiceUtil;
@@ -76,8 +77,8 @@ public class MulticastMonitorTerminate extends AbstractBaseTest {
      *
      *  Retrieves additional configuration values. 
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         logger.log(Level.FINE, 
                         "number of announcements to wait for    -- "
                         +minNAnnouncements);
@@ -93,7 +94,8 @@ public class MulticastMonitorTerminate extends AbstractBaseTest {
                         "stop announcements, will not destroy lookups");
         }
         discardType = COMM_DISCARDED;
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
@@ -187,7 +189,7 @@ public class MulticastMonitorTerminate extends AbstractBaseTest {
                 regProxy = (ServiceRegistrar)curObj;
             }//endif
             if(terminate) {//destroy lookups individually
-                manager.destroyService(regProxy);
+                getManager().destroyService(regProxy);
             } else {//don't terminate, replace member groups to gen discard evt
                 logger.log(Level.FINE, "lookup service "+i+" -- "
                                   +"replace member groups to "

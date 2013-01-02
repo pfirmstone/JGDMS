@@ -28,7 +28,7 @@ import net.jini.core.lease.Lease;
  *
  * @author Pavel Bogdanov
  */
-public class WriteTest05 extends AbstractTestBase {
+public class WriteTest05 extends JavaSpaceTest {
 
     /**
      * This method asserts that write:<br>

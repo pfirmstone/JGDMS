@@ -18,7 +18,8 @@
 package com.sun.jini.test.spec.activation.activationgroup;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.spec.activation.util.FakeActivationGroup;
 import java.util.logging.Logger;
@@ -51,7 +52,7 @@ import sun.rmi.server.UnicastServerRef;
  *          (exporting the grop as UnicastRemoteObject)
  * </pre>
  */
-public class Constructor_AccessorTest extends QATest {
+public class Constructor_AccessorTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

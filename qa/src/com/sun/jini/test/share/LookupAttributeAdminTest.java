@@ -29,6 +29,7 @@ import java.util.Set;
 import net.jini.admin.JoinAdmin;
 import net.jini.core.entry.Entry;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import net.jini.lookup.entry.ServiceControlled;
 
 public class LookupAttributeAdminTest extends LookupTestBase {
@@ -36,9 +37,10 @@ public class LookupAttributeAdminTest extends LookupTestBase {
     static final private Entry[] entryarray = new Entry[0];
     private Entry[] originalState;
 
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	this.parse();
+        return this;
     }
 
     protected static void fill(Set aSet, Object[] aArray) {

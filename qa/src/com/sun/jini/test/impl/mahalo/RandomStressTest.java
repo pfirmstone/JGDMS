@@ -29,6 +29,7 @@ import java.util.*;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.TxnManagerTest;
 
@@ -73,9 +74,10 @@ public class RandomStressTest extends TxnManagerTest {
     private Random random;
     private long seed = 0;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         this.parse();
+        return this;
     }
 
     /**

@@ -34,7 +34,7 @@ import com.sun.jini.qa.harness.TestException;
  *
  * @author Mikhail A. Markov
  */
-public class NotifyNegativeLeaseTest extends AbstractTestBase {
+public class NotifyNegativeLeaseTest extends JavaSpaceTest {
 
     /**
      * This method asserts, that we will get

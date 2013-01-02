@@ -19,7 +19,8 @@ package com.sun.jini.test.spec.activation.activationexporter;
 
 import java.util.logging.Level;
 import java.rmi.activation.ActivationID;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import net.jini.export.Exporter;
 import net.jini.activation.ActivationExporter;
@@ -61,7 +62,7 @@ import java.lang.reflect.InvocationHandler;
  *     8) assert this handler is instance of ActivatableInvocationHandler
  * </pre>
  */
-public class Export_CallTest extends QATest {
+public class Export_CallTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

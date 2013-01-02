@@ -32,7 +32,7 @@ import com.sun.jini.qa.harness.TestException;
  *
  * @author Mikhail A. Markov
  */
-public abstract class AbstractTakeTestBase extends AbstractTestBase {
+public abstract class AbstractTakeTestBase extends JavaSpaceTest {
 
     /**
      * Default Constructor requiring no arguments.

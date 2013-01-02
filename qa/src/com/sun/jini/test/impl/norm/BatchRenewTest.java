@@ -21,6 +21,7 @@ import java.util.logging.Level;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import java.rmi.RemoteException;
@@ -39,7 +40,7 @@ import com.sun.jini.test.share.TestBase;
  * some time and makes sure that only the leases that should
  * have expired expire.
  */
-public class BatchRenewTest extends TestBase {
+public class BatchRenewTest extends TestBase implements Test {
     /** Ammount of slop we are willing to tolerate around renewals */
     private long slop;
 
@@ -49,9 +50,10 @@ public class BatchRenewTest extends TestBase {
     /** Array of LeaseBackEndImpl */
     private LeaseBackEndImpl homes[] = new LeaseBackEndImpl[5];
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	this.parse();
+        return this;
     }
 
     /**

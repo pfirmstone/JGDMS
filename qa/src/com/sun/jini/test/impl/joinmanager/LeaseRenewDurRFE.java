@@ -22,7 +22,6 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
-
 import com.sun.jini.test.spec.joinmanager.AbstractBaseTest;
 
 import net.jini.discovery.DiscoveryGroupManagement;
@@ -78,6 +77,7 @@ import com.sun.jini.start.SharedGroup;
 import com.sun.jini.config.Config;
 import com.sun.jini.config.ConfigUtil;
 import com.sun.jini.logging.Levels;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.activation.ActivationExporter;
 import net.jini.activation.ActivationGroup;
@@ -107,6 +107,7 @@ import java.rmi.activation.ActivationException;
 import java.rmi.MarshalledObject;
 import java.rmi.server.ExportException;
 import java.security.PrivilegedExceptionAction;
+import java.util.List;
 import java.util.StringTokenizer;
 
 import javax.security.auth.Subject;
@@ -234,10 +235,10 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
      * service(s) as the TestService(s) just started, and which can be
      * accessed by the run() method.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         System.setProperty("com.sun.jini.qa.harness.runactivation", "true");
-        manager.startService("activationSystem");
+        getManager().startService("activationSystem");
         /* set shared convenience variables */
         host = sysConfig.getLocalHostName();
         jiniPort = sysConfig.getStringConfigVal("com.sun.jini.jsk.port",
@@ -280,6 +281,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         loggingFile = sysConfig.getStringConfigVal
                    ("java.util.logging.config.file","/vob/qa/src/qa1.logging");
         /* lookup discovery */
+        List lookupsStarted = getLookupServices().getLookupsStarted();
         LookupLocator[] locs = toLocatorArray(lookupsStarted);
         mainListener.setLookupsToDiscover(lookupsStarted, locs);
         ldm = getLookupDiscoveryManager(locs);
@@ -452,9 +454,10 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         /* create SDM to retrieve ref to TestService-i from lookup */
         sdm = new ServiceDiscoveryManager
                                     (ldm, null, sysConfig.getConfiguration());
-    }//end setup
+        return this;
+    }//end construct
 
-    /** For each separate TestService started during setup, do the following:
+    /** For each separate TestService started during construct, do the following:
      * <p><ul>
      *     <li> using a blocking lookup method on the service discovery
      *          manager, discover by service ID, the associated TestService;

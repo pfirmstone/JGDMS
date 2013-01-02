@@ -39,6 +39,7 @@ import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.UnknownEventException;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 public class PullRegistrationIFTest extends MailboxTestBase 
     implements TimeConstants 
@@ -74,7 +75,7 @@ public class PullRegistrationIFTest extends MailboxTestBase
         logger.log(Level.INFO, "Unable to resubmit listener reference -- OK");
         
         // create new listener object
-        rel =  TestUtils.createListener(manager);
+        rel =  TestUtils.createListener(getManager());
         logger.log(Level.INFO, "Got test listener reference: {0}", rel);
         
         // submit listener
@@ -124,12 +125,13 @@ public class PullRegistrationIFTest extends MailboxTestBase
     }
 
     /**
-     * Invoke parent's setup and parser
+     * Invoke parent's construct and parser
      * @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	parse();
+        return this;
     }
 }

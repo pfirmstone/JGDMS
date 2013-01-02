@@ -17,8 +17,9 @@
  */
 package com.sun.jini.test.impl.start;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -29,12 +30,12 @@ import java.util.logging.Logger;
 import java.util.logging.LogRecord;
 
 
-public abstract class StarterBase extends QATest {
+public abstract class StarterBase extends QATestEnvironment {
 
     protected MyHandler handler = null;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	Logger l = Logger.getLogger("com.sun.jini.start.service.starter");
 	l.setLevel(Level.ALL);
 	handler = new MyHandler();
@@ -42,8 +43,15 @@ public abstract class StarterBase extends QATest {
         if (getConfig().getBooleanConfigVal("com.sun.jini.qa.harness.shared",
                                        true))
         {
-            manager.startService("sharedGroup");
+            getManager().startService("sharedGroup");
         }
+        return new Test() {
+
+            public void run() throws Exception {
+                // do nothing.
+            }
+            
+        };
     }
 
     static class MyHandler extends Handler {

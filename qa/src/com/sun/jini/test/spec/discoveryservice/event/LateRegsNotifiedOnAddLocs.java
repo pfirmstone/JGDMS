@@ -78,14 +78,14 @@ public class LateRegsNotifiedOnAddLocs extends LateRegsNotifiedOn2SetLocs {
      * <li> creates a first set of registration(s) with the lookup discovery
      *      service, requesting the discovery of the first set of locators,
      *      which should equal the locators of the first lookup service(s)
-     *      started in setup
+     *      started in construct
      * <li> verifies that the listener for the first registration(s) receives
      *      the appropriate remote discovery event for the first set of
      *      locators
      * <li> on each of the initial registration(s) calls addLocators,
      *      requesting that the discovery of the second set of locators, which
      *      should equal the locators of the second lookup service(s) started
-     *      in setup
+     *      in construct
      * <li> verifies that the listener for the first registration(s) receive
      *      the appropriate remote discovery event for the second set of
      *      locators

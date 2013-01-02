@@ -20,9 +20,9 @@ package com.sun.jini.test.spec.url.httpmd.httpmdutil;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
 import com.sun.jini.qa.harness.TestException;
@@ -157,7 +157,7 @@ import java.security.NoSuchAlgorithmException;
  *
  * </pre>
  */
-public class ComputeDigest extends QATest {
+public class ComputeDigest extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**
@@ -210,8 +210,8 @@ public class ComputeDigest extends QATest {
      *                                          directory
      * </pre>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /* Creating an empty file (will be deleted when VM exits) */
@@ -236,7 +236,7 @@ public class ComputeDigest extends QATest {
         nonempty_file.deleteOnExit();
 
         /* Launching 2-nd HTTP Server */
-        manager.startService("ComputeDigest.SecondHTTPServer");
+        getManager().startService("ComputeDigest.SecondHTTPServer");
 
         /* Getting test parameters and creating TestItem objects */
         String[] tc_names = getTestCaseNames();
@@ -244,6 +244,7 @@ public class ComputeDigest extends QATest {
         for (int i = 0; i < tc_names.length; i++) {
             items.add(i, new TestItem(tc_names[i]));
         }
+        return this;
     }
 
     /**

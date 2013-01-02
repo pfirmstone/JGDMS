@@ -19,11 +19,12 @@
 package com.sun.jini.test.spec.config.emptyconfiguration;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.lang.reflect.Method;
@@ -80,7 +81,7 @@ import com.sun.jini.test.spec.config.util.TestComponent;
  *       assert that NullPointerException is thrown;
  * </pre>
  */
-public class GetEntryInternal_Test extends QATest {
+public class GetEntryInternal_Test extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

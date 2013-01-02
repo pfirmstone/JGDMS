@@ -77,7 +77,7 @@ public class NullArgsTest extends AbstractInvokeTest {
 
     // inherit javadoc
     public void run() throws Exception {
-        // setup additional infrastructure needed by test
+        // construct additional infrastructure needed by test
         ArrayList c = new ArrayList();
         Method method = impl.getClass().getMethod("fakeMethod",null);
         Object[] args = {};

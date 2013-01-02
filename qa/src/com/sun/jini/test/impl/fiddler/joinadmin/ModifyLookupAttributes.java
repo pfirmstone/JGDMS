@@ -26,6 +26,7 @@ import com.sun.jini.test.share.AttributesUtil;
 import com.sun.jini.test.share.JoinAdminUtil;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.admin.JoinAdmin;
@@ -101,8 +102,8 @@ public class ModifyLookupAttributes extends AbstractBaseTest {
      *  set of attributes that should be expected after adding and then
      *  modifying a new set of attributes.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         Entry[] configAttributes = getConfigAttributeSet();
         newAttributeSet = getTestAttributeSet();
 
@@ -147,6 +148,7 @@ public class ModifyLookupAttributes extends AbstractBaseTest {
                                                "expectedAttrs",
                                                Level.FINE);
         }
+        return this;
     }
 
     /** Executes the current test by doing the following:

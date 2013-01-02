@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.DiscoveryGroupManagement;
 
@@ -32,7 +33,7 @@ import net.jini.discovery.DiscoveryGroupManagement;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *   <li> one or more initial lookup services, each belonging to a finite
- *        set of member groups, started during setup
+ *        set of member groups, started during construct
  *   <li> an instance of the lookup discovery utility created by passing
  *        and empty String array (DiscoveryGroupManagement.NO_GROUPS) to
  *        the constructor
@@ -45,7 +46,7 @@ import net.jini.discovery.DiscoveryGroupManagement;
  * If the lookup discovery utility functions as specified, then the
  * listener will receive no events until the <code>setGroups</code> method
  * is called to re-configure the lookup discovery utility to discover
- * the lookup services started during setup.
+ * the lookup services started during construct.
  */
 public class DiscoveryBeginsOnSetGroupsAllAfterEmpty
                                   extends DiscoveryBeginsOnSetGroupsAfterEmpty
@@ -54,10 +55,11 @@ public class DiscoveryBeginsOnSetGroupsAllAfterEmpty
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         groupsToDiscover = DiscoveryGroupManagement.ALL_GROUPS;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class DiscoveryBeginsOnSetGroupsAllAfterEmpty
 

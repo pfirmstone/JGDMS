@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicilfactory;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicInvocationHandler;
@@ -104,7 +105,7 @@ import java.util.logging.Level;
  *               -verify ExportException is thrown
  * </pre>
  */
-public class CreateInstancesTest extends QATest {
+public class CreateInstancesTest extends QATestEnvironment implements Test {
 
     // test case infrastructure
     interface FakeRemoteInterface extends Remote {
@@ -150,7 +151,8 @@ public class CreateInstancesTest extends QATest {
     };
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

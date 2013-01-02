@@ -34,22 +34,7 @@ import net.jini.core.lease.Lease;
  *
  * @author Pavel Bogdanov
  */
-public class TransactionWriteTest05 extends AbstractTestBase {
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param config
-     * @throws Exception
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
+public class TransactionWriteTest05 extends TransactionTest {
 
     /**
      * This method asserts that write:<br>

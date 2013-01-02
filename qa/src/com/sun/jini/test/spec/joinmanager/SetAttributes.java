@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import com.sun.jini.test.share.AttributesUtil;
@@ -48,14 +49,15 @@ public class SetAttributes extends GetAttributes {
      *          the current set with a new set
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         if(AttributesUtil.compareAttributeSets(serviceAttrs,newServiceAttrs, Level.OFF)) {
             throw new TestException("newServiceAttrs is identical to "
                                   +"current serviceAttrs ... test is invalid");
         }//endif
         expectedAttrs = removeDups(newServiceAttrs);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>

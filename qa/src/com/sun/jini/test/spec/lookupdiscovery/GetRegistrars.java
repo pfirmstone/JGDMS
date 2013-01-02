@@ -27,6 +27,7 @@ import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscovery</code> utility
@@ -57,7 +58,7 @@ public class GetRegistrars extends Discovered {
      * <p><ul>
      *    <li> re-configures the lookup discovery utility to use group
      *         discovery to discover the set of lookup services started during
-     *         setup
+     *         construct
      *    <li> starts the multicast discovery process by adding a listener to
      *         the lookup discovery utility
      *    <li> verifies that the lookup discovery utility under test
@@ -66,7 +67,7 @@ public class GetRegistrars extends Discovered {
      *    <li> invokes getRegistrars to retrieve the registrars the lookup
      *         discovery utility has currently discovered
      *    <li> compares the registrars returned by getRegistrars with the 
-     *         registrars that were started during setup (and discovered
+     *         registrars that were started during construct (and discovered
      *         by the lookup discovery utility), and verifies that those sets
      *         are the same
      * </ul>
@@ -76,7 +77,7 @@ public class GetRegistrars extends Discovered {
         super.run();
         logger.log(Level.FINE, "calling getRegistrars ... ");
         ServiceRegistrar[] regs = ldToUse.getRegistrars(); // prepared by lds
-        ArrayList lusList = getLookupListSnapshot("GetRegistrars.run");
+        List lusList = getLookupListSnapshot("GetRegistrars.run");
         logger.log(Level.FINE,
                           "# of lookups started = "+lusList.size()
                           +", # of registrars from LookupDiscovery = "

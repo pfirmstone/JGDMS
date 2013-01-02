@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -54,10 +55,11 @@ public class AddNewDiscoveryChangeListener extends AddNewDiscoveryListener {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         newListener = new AbstractBaseTest.GroupChangeListener();
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class AddNewDiscoveryChangeListener
 

@@ -21,7 +21,7 @@ package com.sun.jini.test.spec.discoveryservice;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
@@ -85,6 +85,7 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -96,7 +97,7 @@ import com.sun.jini.proxy.BasicProxyTrustVerifier;
  * or locator discovery on behalf of the tests that sub-class this
  * abstract class.
  * <p>
- * This class provides an implementation of the <code>setup</code> method
+ * This class provides an implementation of the <code>construct</code> method
  * which performs standard functions related to the initialization of the
  * system state necessary to execute the test.
  *
@@ -105,9 +106,9 @@ import com.sun.jini.proxy.BasicProxyTrustVerifier;
  * be executed in order to verify the assertions addressed by that test.
  * 
  * @see com.sun.jini.qa.harness.QAConfig
- * @see com.sun.jini.qa.harness.QATest
+ * @see com.sun.jini.qa.harness.QATestEnvironment
  */
-abstract public class AbstractBaseTest extends QATest {
+abstract public class AbstractBaseTest extends QATestEnvironment implements Test {
 
     protected boolean debugFlag = false;//resets timeouts for faster completion
     protected boolean displayOn = false;//verbose in waitForDiscovery/Discard
@@ -835,8 +836,8 @@ abstract public class AbstractBaseTest extends QATest {
      *     <li> starts the configured number of lookup services
      *   </ul>
      */
-    public void setup(QAConfig config) throws Exception {
-	super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+	super.construct(config);
 	logger.entering("","setup");
 	getSetupInfo();
 	getLookupInfo();
@@ -848,8 +849,9 @@ abstract public class AbstractBaseTest extends QATest {
 		   +"service configured to join NO_GROUPS and NO_LOCATORS");
 	// returned proxy is already prepared
 	discoverySrvc = 
-	    (LookupDiscoveryService)(manager.startService(serviceName));
-    }//end setup
+	    (LookupDiscoveryService)(getManager().startService(serviceName));
+        return this;
+    }//end construct
 
     /** Executes the current test
      */
@@ -903,7 +905,7 @@ abstract public class AbstractBaseTest extends QATest {
     /** Convenience method that can be used to start, at a single point 
      *  during the current test run, all of the lookup services needed by
      *  that test run. Useful when all of the lookup services are to be
-     *  started during setup processing.
+     *  started during construct processing.
      */
     protected void startAllLookups() throws Exception {
         int totalNLookups = nLookupServices+nAddLookupServices;
@@ -946,12 +948,12 @@ abstract public class AbstractBaseTest extends QATest {
         {
             /* Use either a random or an explicit locator port */
             DiscoveryProtocolSimulator generator = 
-		new DiscoveryProtocolSimulator(config, memberGroups, manager, port);
+		new DiscoveryProtocolSimulator(getConfig(), memberGroups, getManager(), port);
             genMap.put( generator, memberGroups );
             lookupProxy = generator.getLookupProxy();
         } else {//start a non-simulated lookup service implementation
 	    logger.log(Level.FINER, "Starting lookup for host " + serviceHost);
-            lookupProxy = manager.startLookupService(serviceHost); // already prepared 
+            lookupProxy = getManager().startLookupService(serviceHost); // already prepared 
             genMap.put( lookupProxy, memberGroups );
         }//endif
         lookupList.add( lookupProxy );
@@ -1219,7 +1221,7 @@ abstract public class AbstractBaseTest extends QATest {
 					    mHandback,
 					    leaseDuration);	
 	    logger.log(Level.FINEST, "Preparing fiddler registration");
-	    Configuration c = config.getConfiguration();
+	    Configuration c = getConfig().getConfiguration();
 	    ProxyPreparer p = new BasicProxyPreparer();
 	    if (c instanceof com.sun.jini.qa.harness.QAConfiguration) {
 		  p = (ProxyPreparer) c.getEntry("test", 
@@ -2139,7 +2141,7 @@ abstract public class AbstractBaseTest extends QATest {
 
     /** Common code, shared by this class and its sub-classes, that is 
      *  invoked by the run() method. This will method will replace the
-     *  member groups of each lookup service started during setup. How
+     *  member groups of each lookup service started during construct. How
      *  those groups are replaced is dependent on the values of the input
      *  parameters. 
      * 
@@ -2426,7 +2428,7 @@ abstract public class AbstractBaseTest extends QATest {
 	    port = 4160;
 	}
 	String hostname = 
-	    config.getServiceHost("net.jini.core.lookup.ServiceRegistrar", indx, null);
+	    getConfig().getServiceHost("net.jini.core.lookup.ServiceRegistrar", indx, null);
 	if (hostname == null) {
 	    hostname = "localhost";
 	    try {
@@ -2449,8 +2451,8 @@ abstract public class AbstractBaseTest extends QATest {
             String groupsArg = getConfig().getServiceStringProperty
                                     ("net.jini.core.lookup.ServiceRegistrar",
                                      "membergroups", i);
-            String uniqueGroupsArg = config.makeGroupsUnique(groupsArg);
-            String[] memberGroups = config.parseString(uniqueGroupsArg,",");
+            String uniqueGroupsArg = getConfig().makeGroupsUnique(groupsArg);
+            String[] memberGroups = getConfig().parseString(uniqueGroupsArg,",");
             if(memberGroups == DiscoveryGroupManagement.ALL_GROUPS) continue;
             memberGroupsList.add(memberGroups);
             /*Constrained Locator for lookup service i */
@@ -2659,7 +2661,7 @@ abstract public class AbstractBaseTest extends QATest {
     protected Lease getPreparedLease(LookupDiscoveryRegistration reg) 
 	throws RemoteException
     {
-	Configuration c = config.getConfiguration();
+	Configuration c = getConfig().getConfiguration();
 	if (!(c instanceof com.sun.jini.qa.harness.QAConfiguration)) { // if none configuration
 	    return reg.getLease();
 	}

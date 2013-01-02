@@ -32,7 +32,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class LeaseTest extends AbstractTestBase {
+public class LeaseTest extends JavaSpaceTest {
 
     /**
      * This method asserts, that each write invocation returns a Lease object

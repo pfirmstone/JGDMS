@@ -37,7 +37,7 @@ import net.jini.core.discovery.LookupLocator;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *    <li> one or more initial lookup services with explicitly configured
- *         port numbers that are actually started during setup
+ *         port numbers that are actually started during construct
  *    <li> one or more addtional lookup services with explicitly configured
  *         port numbers that are never actually started during the test
  *    <li> one client with one instance of the lookup locator discovery utility
@@ -60,7 +60,7 @@ public class GetUndiscoveredLocators extends Discovered {
     /** Executes the current test by doing the following:
      * <p><ul>
      *    <li> configures the lookup locator discovery utility to discover
-     *         only the initial lookup services started during setup, and
+     *         only the initial lookup services started during construct, and
      *         verifies that the listener is notified of the discovery of
      *         those lookup services (this establishes the set of
      *         already-discovered locators in the listener)
@@ -88,9 +88,9 @@ public class GetUndiscoveredLocators extends Discovered {
          * lookups so it will have a set of discovered locators and a set
          * of un-discovered locators.
          */
-        locatorDiscovery.setLocators(toLocatorArray(allLookupsToStart));
+        locatorDiscovery.setLocators(toLocatorArray(getAllLookupsToStart()));
         /* Establish the full set of locators expected to be discovered */
-        mainListener.setLookupsToDiscover(allLookupsToStart);
+        mainListener.setLookupsToDiscover(getAllLookupsToStart());
 
         logger.log(Level.FINE, "retrieving un-discovered locators "
                           +"from LookupLocatorDiscovery ...");

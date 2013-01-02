@@ -19,6 +19,7 @@
 package com.sun.jini.test.impl.locatordiscovery;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.DiscoveryServiceUtil;
 import java.util.logging.Level;
@@ -58,20 +59,21 @@ public class DelayDiscoveryAfterDiscard extends AbstractBaseTest {
     /** Performs actions necessary to prepare for execution of the 
      *  current test.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
 	firstWait = sysConfig.getLongConfigVal(
 	    "com.sun.jini.test.impl.locatordiscovery.discardDelayFirstWait",
 	    5000);
 	nextWait = sysConfig.getLongConfigVal(
 	    "com.sun.jini.test.impl.locatordiscovery.discard",
 	    30000);
-    }//end setup
+        return this;
+    }//end construct
     /** Executes the current test by doing the following:
      * <p><ul>
      *    <li> configures the lookup locator discovery utility to discover
      *         the set of locators whose elements are the locators of each
-     *         lookup service that was started during setup
+     *         lookup service that was started during construct
      *    <li> starts the unicast discovery process by adding a discovery
      *         listener to the lookup locator discovery utility
      *    <li> verifies that the lookup locator discovery utility under test
@@ -81,7 +83,7 @@ public class DelayDiscoveryAfterDiscard extends AbstractBaseTest {
      */
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");
-        doDiscovery(initLookupsToStart, mainListener);
+        doDiscovery(getLookupServices().getInitLookupsToStart(), mainListener);
 	logger.log(Level.FINE, "calling getRegistrars ... ");
         ServiceRegistrar[] regs = locatorDiscovery.getRegistrars();
 	// there should only be one here, but we'll discard all of them

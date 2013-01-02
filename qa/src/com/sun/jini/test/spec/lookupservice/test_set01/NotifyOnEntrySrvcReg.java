@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set01;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.TestException;
@@ -132,7 +133,7 @@ public class NotifyOnEntrySrvcReg extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k,n;
         int transitionMask =   ServiceRegistrar.TRANSITION_NOMATCH_MATCH;
 
@@ -155,7 +156,7 @@ public class NotifyOnEntrySrvcReg extends QATestRegistrar {
         QATestUtils.setLeaseDuration(sysConfig,maxNMsToWaitForEvents);
 
         /* create the lookup service */
-	super.setup(sysConfig);
+	super.construct(sysConfig);
         /* create the event handler */
 	listener = new Listener();
         /* retrieve the proxies to the lookup service */
@@ -215,12 +216,13 @@ public class NotifyOnEntrySrvcReg extends QATestRegistrar {
                 k++;
 	    }
 	}
+        return this;
     }
 
     /** Executes the current QA test.
      *
-     *  For each service instance created during setup and
-     *     for each attribute instance created during setup:
+     *  For each service instance created during construct and
+     *     for each attribute instance created during construct:
      *       1. Retrieves the expected event information corresponding to
      *          the current service and attribute instance; populates
      *          the "accumulation" vector with that information.

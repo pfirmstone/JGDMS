@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import java.io.PrintWriter;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
@@ -43,7 +44,7 @@ import com.sun.jini.test.share.TestBase;
  * the set's lease expire.  Fails if the leases it places in the set
  * are renewed after the set expires.
  */
-public class LeaseExpirationTest extends TestBase {
+public class LeaseExpirationTest extends TestBase implements Test {
 
     /** Ammount of slop we are willing to tolerate around renewals */
     private long slop;
@@ -78,9 +79,10 @@ public class LeaseExpirationTest extends TestBase {
     /** The current expiration time of the set's lease */
     private long setLeaseCurrentExpiration;
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	this.parse();
+        return this;
     }
 
     /**

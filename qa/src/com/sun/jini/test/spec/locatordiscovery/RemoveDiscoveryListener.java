@@ -38,7 +38,7 @@ import net.jini.core.discovery.LookupLocator;
  * <p>
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
- *   <li> one or more initial lookup services started during setup
+ *   <li> one or more initial lookup services started during construct
  *   <li> one or more additional lookup services to be started after
  *        the listener has been removed
  *   <li> an instance of the lookup locator discovery utility configured to
@@ -87,9 +87,9 @@ public class RemoveDiscoveryListener extends AbstractBaseTest {
          * lookup services to be started.
          */
         LookupLocator[] locsToDiscover
-                                    = toLocatorArray(allLookupsToStart);
-        LookupLocator[] initLocs = toLocatorArray(initLookupsToStart);
-        LookupLocator[] addLocs = toLocatorArray(addLookupsToStart);
+                                    = toLocatorArray(getAllLookupsToStart());
+        LookupLocator[] initLocs = toLocatorArray(getInitLookupsToStart());
+        LookupLocator[] addLocs = toLocatorArray(getAddLookupsToStart());
         logger.log(Level.FINE, "create LookupLocatorDiscovery to initially "
                           +"discover -- ");
         for(int i=0;i<initLocs.length;i++) {
@@ -111,12 +111,12 @@ public class RemoveDiscoveryListener extends AbstractBaseTest {
          * are discovered by both listeners.
          */
         logger.log(Level.FINE, "verifying discovery for initial listener ...");
-        mainListener.setLookupsToDiscover(initLookupsToStart);
+        mainListener.setLookupsToDiscover(getInitLookupsToStart());
         lld.addDiscoveryListener(mainListener);
         waitForDiscovery(mainListener);
 
         logger.log(Level.FINE, "verifying discovery for listener to be removed ...");
-        newListener.setLookupsToDiscover(initLookupsToStart);
+        newListener.setLookupsToDiscover(getInitLookupsToStart());
         lld.addDiscoveryListener(newListener);
         waitForDiscovery(newListener);
 
@@ -150,7 +150,7 @@ public class RemoveDiscoveryListener extends AbstractBaseTest {
         logger.log(Level.FINE, "starting additional lookup services ...");
         startAddLookups();
         logger.log(Level.FINE, "verifying events are still being sent ...");
-        mainListener.setLookupsToDiscover(addLookupsToStart);
+        mainListener.setLookupsToDiscover(getAddLookupsToStart());
         waitForDiscovery(mainListener);
 
         logger.log(Level.FINE, "verifying removed listener "

@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.lookupservice.test_set00;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -100,13 +101,13 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
      *  appropriate transition mask; along with a handback containing the 
      *  service ID . 
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         int i;
         ServiceID curSrvcID;
 	EventRegistration[] evntRegs;
         int regTransitions =   ServiceRegistrar.TRANSITION_MATCH_MATCH
                              | ServiceRegistrar.TRANSITION_MATCH_NOMATCH;
-	super.setup(sysConfig);
+	super.construct(sysConfig);
 
 	logger.log(Level.FINE, "NotifyOnAttrAdd : in setup() method.");
 
@@ -131,11 +132,12 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
 			      Long.MAX_VALUE);
 	    evntRegs[i] = prepareEventRegistration(er);
 	}
+        return this;
     }
 
     /** Executes the current QA test.
      *
-     *  For each service instance created during setup, chooses one of the
+     *  For each service instance created during construct, chooses one of the
      *  attributes (random, round-robin, it doesn't matter) and adds 
      *  that attribute to the current service item. Waits a configured
      *  amount of time to allow for all of the events to be generated

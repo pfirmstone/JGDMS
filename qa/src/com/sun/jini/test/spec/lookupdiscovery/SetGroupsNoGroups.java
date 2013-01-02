@@ -39,12 +39,12 @@ import net.jini.discovery.DiscoveryGroupManagement;
  * The environment in which this class expects to operate is as follows:
  * <p><ul>
  *    <li> one or more "initial" lookup services, each belonging to a finite
- *         set of member groups, and each started during setup, before the
+ *         set of member groups, and each started during construct, before the
  *         test begins execution
  *    <li> one or more "additional" lookup services, each belonging to a finite
  *         set of member groups, and each started after the test has begun
  *         execution, and after the initial lookup services started during
- *         setup have been discovered
+ *         construct have been discovered
  *    <li> one instance of the lookup discovery utility initially configured
  *         to discover the member groups of the initial lookup services
  *    <li> one instance of DiscoveryListener registered with the lookup
@@ -65,7 +65,7 @@ public class SetGroupsNoGroups extends AbstractBaseTest {
      * <p><ul>
      *    <li> configures the lookup discovery utility to discover the
      *         member groups of both the initial lookup services started
-     *         during setup, and the addtional lookup services started below
+     *         during construct, and the addtional lookup services started below
      *    <li> starts the multicast discovery process by adding a discovery
      *         listener to the lookup discovery utility
      *    <li> verifies that group discovery is currently operational by
@@ -85,10 +85,10 @@ public class SetGroupsNoGroups extends AbstractBaseTest {
      * </ul>
      */
     public void run() throws Exception {
-        String[] initGroupsToDiscover = toGroupsArray(initLookupsToStart);
-        String[] allGroupsToDiscover  = toGroupsArray(allLookupsToStart);
+        String[] initGroupsToDiscover = toGroupsArray(getInitLookupsToStart());
+        String[] allGroupsToDiscover  = toGroupsArray(getAllLookupsToStart());
         /* Set the expected groups to discover to be the initial lookups */
-        mainListener.setLookupsToDiscover(initLookupsToStart,
+        mainListener.setLookupsToDiscover(getInitLookupsToStart(),
                                           initGroupsToDiscover);
         logger.log(Level.FINE, "starting discovery, groups "
                                         +"to discover --");
@@ -102,7 +102,7 @@ public class SetGroupsNoGroups extends AbstractBaseTest {
         waitForDiscovery(mainListener);
 
         /* Set expected lookups to be discarded due to discovery halting */
-        mainListener.setLookupsToDiscover(initLookupsToStart,
+        mainListener.setLookupsToDiscover(getInitLookupsToStart(),
                                       DiscoveryGroupManagement.NO_GROUPS);
         logger.log(Level.FINE, "halting discovery, setting "
                           +"groups to discover to NO_GROUPS ...");
@@ -119,7 +119,7 @@ public class SetGroupsNoGroups extends AbstractBaseTest {
         waitForDiscovery(mainListener);
 
         /* Set expected groups after restart to both initial & additional*/
-        mainListener.setLookupsToDiscover(allLookupsToStart,
+        mainListener.setLookupsToDiscover(getAllLookupsToStart(),
                                           allGroupsToDiscover);
         logger.log(Level.FINE, "re-starting discovery, groups "
                                         +"to discover --");

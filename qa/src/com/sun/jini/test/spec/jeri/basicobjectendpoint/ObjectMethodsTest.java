@@ -19,8 +19,9 @@ package com.sun.jini.test.spec.jeri.basicobjectendpoint;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.jeri.BasicObjectEndpoint;
 import net.jini.jeri.ObjectEndpoint;
@@ -73,10 +74,11 @@ import java.util.logging.Level;
  *        not .equals to a BasicObjectEndpoint instance
  * </pre>
  */
-public class ObjectMethodsTest extends QATest {
+public class ObjectMethodsTest extends QATestEnvironment implements Test {
 
     // inherit javadoc
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
+        return this;
     }
 
     // inherit javadoc

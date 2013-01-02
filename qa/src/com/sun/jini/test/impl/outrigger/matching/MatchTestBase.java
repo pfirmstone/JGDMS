@@ -24,6 +24,7 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 // All other imports
+import com.sun.jini.qa.harness.Test;
 import java.util.List;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -58,10 +59,10 @@ public abstract class MatchTestBase extends MatchTestCore {
     /**
      * Sets up the testing environment.
      *
-     * @param config Arguments from the runner for setup.
+     * @param config Arguments from the runner for construct.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         /*
          * Would like to this next bit in an initlize but they
          * can throw exception...
@@ -122,12 +123,13 @@ public abstract class MatchTestBase extends MatchTestCore {
         }
         space = new JavaSpaceAuditor(getConfig().getConfiguration(), space);
         logger.log(Level.INFO, "Have JavaSpace and re-bound to Auditor");
+        return this;
     }
 
     /**
      * Write a bunch of test entries to the JavaSpace.
-     * Not valid until <code>setup()</code> is called.
-     * @see MatchTestBase#setup
+     * Not valid until <code>construct()</code> is called.
+     * @see MatchTestBase#construct
      */
     protected void writeBunch() throws Exception {
 	writeBunch(Class.forName("net.jini.core.entry.Entry"));
@@ -136,8 +138,8 @@ public abstract class MatchTestBase extends MatchTestCore {
     /**
      * Write a bunch of test entries to the JavaSpace that are
      * instances of the passed class.
-     * Not valid until <code>setup()</code> is called.
-     * @see MatchTestBase#setup
+     * Not valid until <code>construct()</code> is called.
+     * @see MatchTestBase#construct
      */
     protected void writeBunch(Class filter) throws Exception {
 	for (Iterator i = writeList.iterator(); i.hasNext();) {
@@ -155,8 +157,8 @@ public abstract class MatchTestBase extends MatchTestCore {
      * Write a bunch of test entries to the JavaSpace that are
      * instances of the class of the passed entry. <code>null</code>
      * is considered to have the class <code>Entery</code>.
-     * Not valid until <code>setup()</code> is called.
-     * @see MatchTestBase#setup
+     * Not valid until <code>construct()</code> is called.
+     * @see MatchTestBase#construct
      */
     protected void writeBunch(Entry filter) throws Exception {
         if (filter == null) {

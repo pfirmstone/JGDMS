@@ -25,6 +25,7 @@ import com.sun.jini.test.share.DiscoveryServiceUtil;
 import net.jini.core.lookup.ServiceItem;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
@@ -60,12 +61,15 @@ public class DiscardDownReDiscover extends DiscardServiceDown {
      *  3. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        int nLookupServices = getLookupServices().getnLookupServices();
+        int nServices = getLookupServices().getnServices();
         testDesc = "" + nLookupServices+" lookup service(s), "+nServices
                        +" service(s) -- discard down service and wait for "
                        +"re-discovery after re-registration";
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
@@ -74,6 +78,9 @@ public class DiscardDownReDiscover extends DiscardServiceDown {
      */
     protected void applyTestDef() throws Exception {
         super.applyTestDef();
+        int nServices = getLookupServices().getnServices();
+        int nAttributes = getLookupServices().getnAttributes();
+        int nSecsServiceDiscovery = getLookupServices().getnSecsServiceDiscovery();
 	/* Re-register the original service(s) */
 	logger.log(Level.FINE, "re-registering the original "
 		   +"services");

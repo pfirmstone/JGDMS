@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.impl.start;
 
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.start.LifeCycle;
 import com.sun.jini.start.NonActivatableServiceDescriptor;
@@ -37,7 +38,7 @@ import net.jini.security.ProxyPreparer;
 
 import net.jini.config.EmptyConfiguration;
 
-public class SerializedServiceDescriptors extends StarterBase {
+public class SerializedServiceDescriptors extends StarterBase implements Test {
     private static LifeCycle lc =
 	new LifeCycle() { // default, no-op object
             public boolean unregister(Object impl) { return false; }

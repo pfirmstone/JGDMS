@@ -49,6 +49,7 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * Check to see how space deals with RuntimeException being thrown by
@@ -60,7 +61,7 @@ import com.sun.jini.proxy.BasicProxyTrustVerifier;
  * Register a 2nd handler, and write a 2nd entry.  Make sure the
  * first handler is not called and the second one is.
  */
-public class ThrowRuntimeException extends TestBase {
+public class ThrowRuntimeException extends TestBase implements Test {
 
     /**
      * How long to wait before giving up on an event notification to
@@ -130,11 +131,12 @@ public class ThrowRuntimeException extends TestBase {
     /**
      * Sets up the testing environment.
      *
-     * @param config Arguments from the runner for setup.
+     * @param config Arguments from the runner for construct.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.parse();
+        return this;
     }
 
     /**

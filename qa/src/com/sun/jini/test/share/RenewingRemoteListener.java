@@ -32,7 +32,7 @@ import net.jini.lease.LeaseRenewalSet;
 
 import net.jini.export.Exporter;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 

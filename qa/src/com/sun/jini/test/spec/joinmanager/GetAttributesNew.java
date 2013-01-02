@@ -41,7 +41,7 @@ public class GetAttributesNew extends GetAttributes {
      *   Verifies that each invocation of the <code>getAttributes</code>
      *   method returns a new array whose contents are equal to the contents
      *   of the set of attributes with which the join manager was constructed
-     *   during setup.
+     *   during construct.
      */
     public void run() throws Exception {
         super.run();

@@ -33,6 +33,7 @@ import net.jini.core.lookup.ServiceTemplate;
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -64,10 +65,11 @@ public class LookupWait extends AbstractBaseTest {
      *  2. Creates a service discovery manager that discovers the lookup
      *     services started above
      */
-    public void setup(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         testDesc = "single service lookup employing -- template, blocking";
-    }//end setup
+        return this;
+    }//end construct
 
     /** Cleans up all state. */
     public void tearDown() {
@@ -91,10 +93,10 @@ public class LookupWait extends AbstractBaseTest {
      *     on the service discovery manager - applying NO filtering
      *     (<code>null</code> filter parameter) - and verifies that when
      *     no services are registered with the lookup services started during
-     *     setup, the blocking mechanism of the <code>lookup</code>
+     *     construct, the blocking mechanism of the <code>lookup</code>
      *     method blocks for the full amount of time requested
      *  2. Registers 1 service with each of the lookup services started
-     *     in setup
+     *     in construct
      *  3. Again invokes the desired version of the <code>lookup</code>
      *     method - applying NO filtering - and verifies that the service
      *     returned is the service expected, and the <code>lookup</code>
@@ -224,9 +226,9 @@ public class LookupWait extends AbstractBaseTest {
                 } else {
                     if(nAttrs > 0) {
                         /* less restrictive tmpl could return any service */
-                        for(int j=0;j<expectedServiceList.size();j++) {
+                        for(int j=0;j<getExpectedServiceList().size();j++) {
                             if((srvcItem.service).equals
-                                                (expectedServiceList.get(j)))
+                                                (getExpectedServiceList().get(j)))
                             {
                                 logger.log(Level.FINE, "expected "
                                               +"service found -- requested "

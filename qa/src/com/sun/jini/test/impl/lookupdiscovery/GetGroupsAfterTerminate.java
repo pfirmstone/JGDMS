@@ -20,6 +20,7 @@ package com.sun.jini.test.impl.lookupdiscovery;
 
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the current implementation of the
@@ -49,9 +50,10 @@ public class GetGroupsAfterTerminate
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         methodType = GET_GROUPS;
+        return this;
     }
 }
 

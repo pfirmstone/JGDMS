@@ -20,11 +20,12 @@ package com.sun.jini.test.spec.url.httpmd.httpmdutil;
 import java.util.logging.Level;
 
 // com.sun.jini.qa
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
-
+import com.sun.jini.qa.harness.Test;
 // com.sun.jini.qa.harness
 import com.sun.jini.qa.harness.QAConfig; // base class for QAConfig
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 // java.util
@@ -346,7 +347,7 @@ import java.security.DigestInputStream;
  *
  * </pre>
  */
-public class ComputeDigestCodebase extends QATest {
+public class ComputeDigestCodebase extends QATestEnvironment implements Test {
     QAConfig config;
 
     /**
@@ -407,8 +408,8 @@ public class ComputeDigestCodebase extends QATest {
      *                                      is expected or Exception otherwise)
      * </pre>
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         this.config = (QAConfig) config; // or this.config = getConfig();
 
         /* Creating an empty file (is deleted when VM exits) */
@@ -423,6 +424,7 @@ public class ComputeDigestCodebase extends QATest {
         for (int i = 0; i < tc_names.length; i++) {
             items.add(i, new TestItem(tc_names[i]));
         }
+        return this;
     }
 
     /**

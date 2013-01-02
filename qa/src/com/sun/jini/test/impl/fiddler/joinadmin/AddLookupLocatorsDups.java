@@ -68,7 +68,7 @@ public class AddLookupLocatorsDups extends AddLookupLocators {
      *  parent class' version of this method)
      */
     LookupLocator[] getTestLocatorSet() throws MalformedURLException {
-	AbstractServiceAdmin admin = (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	AbstractServiceAdmin admin = (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         return LocatorsUtil.getLocatorsWithDups(admin.getLocators());
     }
 }

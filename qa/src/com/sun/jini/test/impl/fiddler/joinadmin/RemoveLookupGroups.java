@@ -35,6 +35,7 @@ import net.jini.discovery.LookupDiscoveryService;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import com.sun.jini.qa.harness.AbstractServiceAdmin;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class determines whether or not the lookup discovery service can
@@ -68,7 +69,7 @@ public class RemoveLookupGroups extends AbstractBaseTest {
      */
     String[] getTestGroupSet() {	
         AbstractServiceAdmin admin =
-	    (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	    (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         return GroupsUtil.getSubset(admin.getGroups());
     }
 
@@ -78,13 +79,13 @@ public class RemoveLookupGroups extends AbstractBaseTest {
      *  Starts one lookup discovery service, and then constructs the set
      *  of groups that should be expected after removing a set of groups.
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         removeGroupSet = getTestGroupSet();
         AbstractServiceAdmin admin =
-	    (AbstractServiceAdmin) manager.getAdmin(discoverySrvc);
+	    (AbstractServiceAdmin) getManager().getAdmin(discoverySrvc);
         if (admin == null) {
-            return;
+            return this;
         }
         String[] configGroups = admin.getGroups();
 
@@ -116,6 +117,7 @@ public class RemoveLookupGroups extends AbstractBaseTest {
 					   Level.FINE);
             }
         }
+        return this;
     }
 
     /** Executes the current test by doing the following:

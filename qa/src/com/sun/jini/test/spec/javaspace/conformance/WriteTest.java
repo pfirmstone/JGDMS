@@ -34,7 +34,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class WriteTest extends AbstractTestBase {
+public class WriteTest extends JavaSpaceTest {
 
     /**
      * This method asserts that write with positive finite lease times

@@ -28,6 +28,7 @@ import net.jini.lookup.ServiceDiscoveryManager;
 
 import java.rmi.RemoteException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
@@ -53,12 +54,13 @@ public class ReRegisterBadEquals extends ReRegisterGoodEquals {
      *  3. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
-        testDesc = ""+nLookupServices+" lookup service(s), "+nServices
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
+        testDesc = ""+getnLookupServices()+" lookup service(s), "+getnServices()
                        +" service(s) with poorly-defined equals() method";
         testServiceType  = AbstractBaseTest.TEST_SERVICE_BAD_EQUALS;
-    }//end setup
+        return this;
+    }//end construct
 
 }//end class ReRegisterBadEquals
 

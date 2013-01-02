@@ -27,24 +27,26 @@ import java.net.*;
 import java.security.*;
 import net.jini.security.policy.DynamicPolicyProvider;
 import net.jini.security.policy.PolicyFileProvider;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import org.apache.river.api.security.ConcurrentPolicyFile;
 
-public class SubPoliciesTest extends QATest {
+public class SubPoliciesTest extends QATestEnvironment implements Test {
     private String policy0File;
     private String policy1File;
     private static String jsk_home = System.getProperty("com.sun.jini.jsk.home");
 
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
         policy0File = sysConfig.getStringConfigVal("policy0File",
                 sysConfig.getKitHomeDir() + File.separator + "policy"
                 + File.separator + "policy.start.SubPoliciesTest.0");
         policy1File = sysConfig.getStringConfigVal("policy1File",
                 sysConfig.getKitHomeDir() + File.separator + "policy"
                 + File.separator + "policy.start.SubPoliciesTest.1");
+        return this;
     }
 
     public void run() throws Exception {

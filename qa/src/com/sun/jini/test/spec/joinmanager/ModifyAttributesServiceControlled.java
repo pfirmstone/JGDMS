@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.AttributesUtil;
 
@@ -40,7 +41,7 @@ import net.jini.core.entry.Entry;
  */
 public class ModifyAttributesServiceControlled extends AbstractBaseTest {
 
-    private Entry[] expectedAttrs;
+    private volatile Entry[] expectedAttrs;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test as follows:
@@ -62,11 +63,11 @@ public class ModifyAttributesServiceControlled extends AbstractBaseTest {
      *          manager configured to discover desired lookup services (if any)
      *   </ul>
      */
-    public void setup(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(com.sun.jini.qa.harness.QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         if(serviceAttrs == null) {
             serviceAttrs = new Entry[3];
-            for(int i=0;i<nAttributes;i++) {
+            for(int i=0;i<getnAttributes();i++) {
                 serviceAttrs[i] = new TestServiceIntAttr
                                                      (SERVICE_BASE_VALUE + i);
             }//end loop
@@ -78,32 +79,36 @@ public class ModifyAttributesServiceControlled extends AbstractBaseTest {
         } else {
             serviceAttrs[0] = new ServiceControlledAttr(SERVICE_BASE_VALUE);
         }//endif
-        attrTmpls = new Entry[serviceAttrs.length];
-        newServiceAttrs = new Entry[serviceAttrs.length];
-        expectedAttrs = new Entry[serviceAttrs.length];
+        Entry[] attrTmpls = new Entry[serviceAttrs.length];
+        Entry[] newServiceAttrs = new Entry[serviceAttrs.length];
+        Entry[] expectedAttrs = new Entry[serviceAttrs.length];
         for(int i=0;i<serviceAttrs.length;i++) {
             if(serviceAttrs[i] instanceof ServiceControlledAttr) {
                 attrTmpls[i] = new ServiceControlledAttr
                   (( ((ServiceControlledAttr)serviceAttrs[i]).val).intValue());
                 newServiceAttrs[i] = new ServiceControlledAttr
-                                       (SERVICE_BASE_VALUE + nAttributes + i);
+                                       (SERVICE_BASE_VALUE + getnAttributes() + i);
                 expectedAttrs[i] = new ServiceControlledAttr
                 ((((ServiceControlledAttr)newServiceAttrs[i]).val).intValue());
             } else {//default to TestServiceIntAttr
                 attrTmpls[i] = new TestServiceIntAttr
                     (( ((TestServiceIntAttr)serviceAttrs[i]).val).intValue());
                 newServiceAttrs[i] = new TestServiceIntAttr
-                                       (SERVICE_BASE_VALUE + nAttributes + i);
+                                       (SERVICE_BASE_VALUE + getnAttributes() + i);
                 expectedAttrs[i] = new TestServiceIntAttr
                   (( ((TestServiceIntAttr)newServiceAttrs[i]).val).intValue());
             }//endif
         }//end loop
+        this.attrTmpls = attrTmpls;//publish
+        this.newServiceAttrs = newServiceAttrs; //publish.
+        this.expectedAttrs = expectedAttrs;//publish.
         logger.log(Level.FINE, "creating a service ID join manager ...");
         joinMgrSrvcID = new JoinManager(testService,serviceAttrs,serviceID,
                                         getLookupDiscoveryManager(),leaseMgr,
 					sysConfig.getConfiguration());
         joinMgrList.add(joinMgrSrvcID);
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>

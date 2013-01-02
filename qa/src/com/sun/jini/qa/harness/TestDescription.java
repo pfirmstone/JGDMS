@@ -41,7 +41,7 @@ import java.util.StringTokenizer;
  * <ul>
  * <li><code>testClass</code>, the fully qualified name of the test
  *     implementation class to be run. This class must implement the 
- *     <code>com.sun.jini.qa.harness.Test</code> interface. A definition
+ *     <code>com.sun.jini.qa.harness.LegacyTest</code> interface. A definition
  *     for this parameter must be included in the <code>Properties</code>
  *     object provided in the constructor for this class. 
  * <li><code>testCategories</code>, the test categories associated with this
@@ -110,19 +110,19 @@ public class TestDescription implements Serializable {
 	Logger.getLogger("com.sun.jini.qa.harness.test");
 
     /**  The name of this <code>TestDescription</code> */
-    private String name;
+    private final String name;
 
     /** The config object */
-    private QAConfig config;
+    private final QAConfig config;
 
     /** The properties stored by this test description */
-    private Properties properties = new Properties();
+    private final Properties properties;
 
     /** A flag to be returned by the <code>nextConfiguration</code> call */
     boolean nextConf = true;
 
     /** The test provided by this descriptor */
-    Test test;
+    TestEnvironment test;
 
     /**
      * Construct a test description for a test with the given <code>name</code>.
@@ -357,20 +357,22 @@ public class TestDescription implements Serializable {
      * @return the test instance, or <code>null</code> if the test could not
      *          be instantiated
      */
-    Test getTest() {
+    TestEnvironment getTest() {
 	String className = getTestClassName();
 	// this method is called from the test vm, so the config.getTestLoader
 	// method must not be used, since it's value is null
 	if (className != null) {
 	    try {
 		Class testClass = Class.forName(className);
-		test = (Test) testClass.newInstance();
+		test = (TestEnvironment) testClass.newInstance();
 	    } catch (Throwable e) {
 		logger.log(Level.INFO, 
 			   "Failed to instantiate " + className,
 			   e);
 	    }
-	    }
+        } else {
+            logger.log(Level.INFO, "test class name was null");
+        }
 	return test;
     }
 

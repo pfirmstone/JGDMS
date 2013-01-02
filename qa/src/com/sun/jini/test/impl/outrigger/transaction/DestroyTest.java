@@ -71,7 +71,7 @@ public class DestroyTest extends TransactionTestBase {
         pass("step-1: create a transaction object");
         Transaction txn = null;
 
-	Transaction.Created tc = TransactionFactory.create(txmgr,
+	Transaction.Created tc = TransactionFactory.create(getTxmgr(),
 							   Lease.FOREVER);
 	txn = tc.transaction;
 
@@ -83,7 +83,7 @@ public class DestroyTest extends TransactionTestBase {
         pass("step-3: destroy transaction manager.");
 
 	DestroyAdmin admin = (DestroyAdmin) ((Administrable)
-					     txmgr).getAdmin();
+					     getTxmgr()).getAdmin();
 	admin = (DestroyAdmin) getConfig().prepare("test.mahaloAdminPreparer",
 						   admin);
 	

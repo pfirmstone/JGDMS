@@ -22,6 +22,7 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -44,10 +45,11 @@ public class AddAttributesNullSet extends AddAttributesNullElement {
      *          the addAttributes method
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         newServiceAttrs = null;
-    }//end setup
+        return this;
+    }//end construct
 
 } //end class AddAttributesNullSet
 

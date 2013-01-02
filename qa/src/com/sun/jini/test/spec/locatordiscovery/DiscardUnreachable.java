@@ -60,14 +60,14 @@ public class DiscardUnreachable extends Discovered {
      * <p><ul>
      *    <li> re-configures the lookup locator discovery utility to discover
      *         the set of locators whose elements are the locators of each
-     *         lookup service that was started during setup
+     *         lookup service that was started during construct
      *    <li> starts the unicast discovery process by adding to the
      *         lookup locator discovery utility, a listener that listens
      *         for only discovered and discarded events
      *    <li> verifies that the discovery process is working by waiting
      *         for the expected discovery events
      *    <li> retrieves the proxy to each lookup service 
-     *    <li> renders un-reachable, each lookup service started in setup
+     *    <li> renders un-reachable, each lookup service started in construct
      *    <li> discards from the lookup locator discovery utility, each
      *         un-reachable lookup service
      *    <li> verifies that the lookup locator discovery utility under test
@@ -87,7 +87,7 @@ public class DiscardUnreachable extends Discovered {
          */
         synchronized(mainListener) {
             logger.log(Level.FINE, "terminating each lookup service ...");
-            /* Stop announcements & destroy all lookups started in setup */
+            /* Stop announcements & destroy all lookups started in construct */
             terminateAllLookups();
             DiscoveryServiceUtil.delayMS(7000);//wait for shutdown complete
             logger.log(Level.FINE, "discarding un-reachable lookup services ...");

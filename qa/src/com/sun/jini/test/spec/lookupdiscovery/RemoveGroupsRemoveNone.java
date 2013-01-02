@@ -18,6 +18,7 @@
 
 package com.sun.jini.test.spec.lookupdiscovery;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 import java.util.logging.Level;
 
@@ -60,8 +61,8 @@ public class RemoveGroupsRemoveNone extends RemoveGroupsAllGroups {
      *  current test (refer to the description of this method in the
      *  parent class).
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-	super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+	super.construct(sysConfig);
 	initGroups = newLD.getGroups();
 	if(    (initGroups != DiscoveryGroupManagement.ALL_GROUPS)
 	       && (initGroups.length != 0) )
@@ -71,7 +72,8 @@ public class RemoveGroupsRemoveNone extends RemoveGroupsAllGroups {
 		groupsToRemove[i] = new String(initGroups[i]+"_new");
 	    }//end loop
 	}//endif
-    }//end setup
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p><ul>

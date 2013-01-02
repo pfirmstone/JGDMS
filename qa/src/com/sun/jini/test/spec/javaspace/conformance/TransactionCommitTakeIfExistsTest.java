@@ -28,6 +28,7 @@ import net.jini.space.JavaSpace;
 // com.sun.jini
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * TransactionCommitTakeIfExistsTest asserts that a takeIfExists is considered
@@ -35,21 +36,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class TransactionCommitTakeIfExistsTest extends AbstractTestBase {
-
-    /**
-     * Sets up the testing environment.
-     *
-     * @param config QAConfig from the runner for setup.
-     */
-    public void setup(QAConfig config) throws Exception {
-
-        // mandatory call to parent
-        super.setup(config);
-
-        // get an instance of Transaction Manager
-        mgr = getTxnManager();
-    }
+public class TransactionCommitTakeIfExistsTest extends TransactionTest {
 
     /**
      * This method asserts that a takeIfExists is considered to be successful

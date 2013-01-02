@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
@@ -45,8 +46,8 @@ public class SetAttributesDup extends SetAttributes {
      *          the current set with a new set
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         /* Create an array that contains 1 element from the set of attributes
          * with which the join manager is currently configured, the new
          * set of attributes to be added to the initial set, and duplicates
@@ -54,7 +55,8 @@ public class SetAttributesDup extends SetAttributes {
          */
         newServiceAttrs = addAttrsDup1DupAll(serviceAttrs,newServiceAttrs);
         expectedAttrs   = removeDups(newServiceAttrs);
-    }//end setup
+        return this;
+    }//end construct
 
 } //end class SetAttributesDup
 

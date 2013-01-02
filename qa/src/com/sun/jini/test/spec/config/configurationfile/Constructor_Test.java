@@ -19,11 +19,12 @@
 package com.sun.jini.test.spec.config.configurationfile;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import net.jini.config.ConfigurationFile;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationNotFoundException;
@@ -409,18 +410,19 @@ public class Constructor_Test extends Template_Test {
     /**
      * Prepare test for running.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
         QAConfig config = (QAConfig) sysConfig;
         port = config.getIntConfigVal("HTTPServer.port", -1);
         portNoAccess = config.getIntConfigVal("HTTPServer2.port", -1);
-        manager.startService("HTTPServer");
-        manager.startService("HTTPServer2");
+        getManager().startService("HTTPServer");
+        getManager().startService("HTTPServer2");
         md = MessageDigest.getInstance("MD5");
         createFile(confFile, someValidConf);
         createFile(brokenConfFile, someBrokenConf);
         createFile(noAccessFile, someValidConf);
         fakeClassLoader = new FakeClassLoader();
+        return this;
     }
 
     /**

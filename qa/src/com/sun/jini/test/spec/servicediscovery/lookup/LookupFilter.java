@@ -27,6 +27,7 @@ import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceTemplate;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -68,10 +69,11 @@ public class LookupFilter extends Lookup {
      *     registered above; and which will be applied to the results of the
      *     template matching performed by the service discovery manager
      */
-    public void setup(QAConfig config) throws Exception {
-        super.setup(config);
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
         testDesc = "single service lookup employing -- template, filter";
-    }//end setup
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
@@ -87,7 +89,7 @@ public class LookupFilter extends Lookup {
      *  
      *  1. Invokes the desired version of the <code>lookup</code> method
      *     on the service discovery manager - applying the filter created
-     *     during setup - to query the discovered lookup services for the
+     *     during construct - to query the discovered lookup services for the
      *     desired service. 
      *  2. Verifies that the service returned is the service expected
      */
@@ -105,10 +107,10 @@ public class LookupFilter extends Lookup {
          * to reflect how the lookup will be performed. Furthermore, the
          * contents must be adjusted on a service-by-service basis.
          */
-        for(int i=0;i<expectedServiceList.size();i++) {
+        for(int i=0;i<getExpectedServiceList().size();i++) {
             logger.log(Level.FINE, "test service "+i);
             TestService expectedService 
-                                   = (TestService)expectedServiceList.get(i);
+                                   = (TestService)getExpectedServiceList().get(i);
             if( srvcValOdd(expectedService) ) {
                 expectedService = null;
                 logger.log(Level.FINE, "  expect null on lookup");

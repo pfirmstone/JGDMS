@@ -17,8 +17,9 @@
  */
 package com.sun.jini.test.impl.reggie;
 
-import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.LegacyTest;
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.InputStream;
@@ -26,18 +27,19 @@ import java.io.InputStreamReader;
 import java.io.PrintStream;
 
 /**
- * Test that verifies that Reggie will attempt to connect to
+ * LegacyTest that verifies that Reggie will attempt to connect to
  * all addresses a multihomed client host resolves to
  * 
  */
-public class MultihomedClientTest implements Test {
+public class MultihomedClientTest implements LegacyTest {
 
     private String command = System.getProperty("java.home") + File.separator
         + "bin" + File.separator + "java ";
     private QAConfig config = null;
 
-    public void setup(QAConfig config) {
+    public Test construct(QAConfig config) {
         this.config = config;
+        return this;
     }
 
     public void run() throws Exception {

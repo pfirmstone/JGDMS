@@ -38,7 +38,7 @@ import com.sun.jini.qa.harness.QAConfig;
  *
  * @author Mikhail A. Markov
  */
-public class WriteLeaseANYTest extends AbstractTestBase {
+public class WriteLeaseANYTest extends JavaSpaceTest {
 
     /**
      * This method asserts that write with <code>Lease.ANY</code>

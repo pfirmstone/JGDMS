@@ -27,6 +27,7 @@ import net.jini.core.lease.Lease;
 import com.sun.jini.qa.harness.TestException;
 
 // com.sun.jini.qa
+import com.sun.jini.test.spec.javaspace.conformance.JavaSpaceTest;
 import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
 
 
@@ -38,7 +39,7 @@ import com.sun.jini.test.spec.javaspace.conformance.SimpleEntry;
  *
  * @author Mikhail A. Markov
  */
-public class SnapshotLeaseTest extends SnapshotAbstractTestBase {
+public class SnapshotLeaseTest extends JavaSpaceTest {
 
     /**
      * This method asserts, that each write invocation returns a Lease object

@@ -30,7 +30,7 @@ import java.rmi.activation.ActivationException;
 // Test harness imports
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 
 // jini packages
 import net.jini.admin.Administrable;
@@ -39,12 +39,13 @@ import net.jini.discovery.DiscoveryListener;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscovery;
 import com.sun.jini.admin.DestroyAdmin;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.start.ServiceStarter;
 import net.jini.lookup.DiscoveryAdmin;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceID;
 
-public class Discovery extends QATest {
+public class Discovery extends QATestEnvironment implements Test {
 
 
     private class Ignorer implements DiscoveryListener {
@@ -211,7 +212,7 @@ public class Discovery extends QATest {
 
         // Create an instance of the lookup service.
         logger.log(Level.INFO, "creating lookup service");
-        return manager.startLookupService();
+        return getManager().startLookupService();
     }
 
     protected DiscoveryAdmin getAdmin(ServiceRegistrar r)

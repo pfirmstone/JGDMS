@@ -25,6 +25,7 @@ import com.sun.jini.test.share.DiscoveryServiceUtil;
 import net.jini.core.lookup.ServiceItem;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 /**
@@ -57,19 +58,20 @@ public class ServiceDiscardCacheTerminate extends DiscardServiceUp {
      *  3. Creates a template that will match the test services based on
      *     service type only
      */
-    public void setup(QAConfig sysConfig) throws Exception {
-        super.setup(sysConfig);
-        testDesc = ""+nLookupServices+" lookup service(s), "+nServices
+    public Test construct(QAConfig sysConfig) throws Exception {
+        super.construct(sysConfig);
+        testDesc = ""+getnLookupServices()+" lookup service(s), "+getnServices()
                        +" service(s) -- service discard timer task "
                        +"termination when cache is terminated";
-        nAddedExpected   = 1*nServices;
-        nRemovedExpected = 1*nServices;
-    }//end setup
+        nAddedExpected   = 1*getnServices();
+        nRemovedExpected = 1*getnServices();
+        return this;
+    }//end construct
 
     /** Defines the actual steps of this particular test.
      *  
      *  1. Register the service(s) with each lookup service started during
-     *     setup.
+     *     construct.
      *  2. Create a cache that discovers the service(s), and register
      *     for service discovery events from that cache.
      *  3. Verifies the service was discovered by the cache by invoking

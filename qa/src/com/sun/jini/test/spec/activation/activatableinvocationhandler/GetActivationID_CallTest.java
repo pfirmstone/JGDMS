@@ -18,7 +18,8 @@
 package com.sun.jini.test.spec.activation.activatableinvocationhandler;
 
 import java.util.logging.Level;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import java.rmi.activation.ActivationID;
 import net.jini.activation.ActivatableInvocationHandler;
@@ -46,7 +47,7 @@ import com.sun.jini.test.spec.activation.util.MethodSetProxy;
  *       3) assert the returned value is the same as used in constructor
  * </pre>
  */
-public class GetActivationID_CallTest extends QATest {
+public class GetActivationID_CallTest extends QATestEnvironment implements Test {
 
     /**
      * This method performs all actions mentioned in class description.

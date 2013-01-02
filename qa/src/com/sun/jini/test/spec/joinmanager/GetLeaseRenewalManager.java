@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.lease.LeaseRenewalManager;
@@ -50,16 +51,17 @@ public class GetLeaseRenewalManager extends LDMNullPublicGroup {
      *          LeaseRenewalManager created above
      *   </ul>
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         leaseMgr = new LeaseRenewalManager(sysConfig.getConfiguration());
         callback = new SrvcIDListener(testService);
-        super.setup(sysConfig);
-    }//end setup
+        super.construct(sysConfig);
+        return this;
+    }//end construct
 
     /** Executes the current test by doing the following:
      * <p>
      *   For each instance of the <code>JoinManager</code> utility class
-     *   created during the setup process,
+     *   created during the construct process,
      *   <ul>
      *     <li> retrieves the instance of LeaseRenewalManager being
      *          employed by the JoinManager

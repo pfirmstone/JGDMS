@@ -117,7 +117,7 @@ public class Invoke_ExecuteCallNonNullReturnTest extends AbstractInvokeTest {
                 + executeCallReturn);
             logger.log(Level.FINE,"");
 
-            // setup infrastructure needed by test
+            // construct infrastructure needed by test
             objectEndpoint.setExecuteCallReturn(executeCallReturn);
             FakeInterface impl = (FakeInterface) Proxy.newProxyInstance(
                 FakeInterface.class.getClassLoader(),

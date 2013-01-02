@@ -19,9 +19,10 @@ package com.sun.jini.test.spec.io.marshalledinstance;
 
 import java.util.logging.Level;
 
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.AdminManager;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.io.MarshalledInstance;
 import net.jini.jeri.BasicInvocationHandler;
@@ -77,14 +78,14 @@ import java.lang.reflect.Proxy;
  *     4) assert an object equivalent to storeObject is returned
  * </pre>
  */
-public class Get_NormalTest extends QATest {
+public class Get_NormalTest extends QATestEnvironment implements Test {
 
     QAConfig config;
     Object[][] cases;
     String interfaceName = "com.sun.jini.test.spec.io.util.FakeInterface";
     AdminManager manager;
 
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
         this.config = (QAConfig) sysConfig;
         config.setDynamicParameter(
                 "qaClassServer.port",
@@ -118,7 +119,7 @@ public class Get_NormalTest extends QATest {
             {proxy,      f},
             {proxy,      t}
         };
-
+        return this;
     }
 
     public void run() throws Exception {

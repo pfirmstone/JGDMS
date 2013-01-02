@@ -32,7 +32,8 @@ import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 
 import com.sun.jini.qa.harness.QAConfig;
-import com.sun.jini.qa.harness.QATest;
+import com.sun.jini.qa.harness.QATestEnvironment;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.share.LeaseBackEndImpl;
 import com.sun.jini.test.share.LeaseOwner;
@@ -48,7 +49,7 @@ import com.sun.jini.test.share.TrackingOwner;
  * leases in the expired set don't get renewed after the set expires,
  * and that the other leases don't expire.
  */
-public class OneExpireOneNotTest extends QATest {
+public class OneExpireOneNotTest extends QATestEnvironment implements Test {
     /** The service under test */
     private LeaseRenewalService lrs;
 
@@ -71,10 +72,10 @@ public class OneExpireOneNotTest extends QATest {
     /**
      * Sets up the testing environment.
      */
-    public void setup(QAConfig sysConfig) throws Exception {
+    public Test construct(QAConfig sysConfig) throws Exception {
 
        // mandatory call to parent
-       super.setup(sysConfig);
+       super.construct(sysConfig);
 	
        // output the name of this test
        logger.log(Level.FINE, "Test Name = " + this.getClass().getName());
@@ -103,7 +104,8 @@ public class OneExpireOneNotTest extends QATest {
 
        // Get an LRS
        logger.log(Level.FINE, "Getting a " + SERVICE_NAME);
-       lrs = (LeaseRenewalService)manager.startService(SERVICE_NAME);
+       lrs = (LeaseRenewalService)getManager().startService(SERVICE_NAME);
+       return this;
     }
 
     public void run() throws Exception {
