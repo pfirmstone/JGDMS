@@ -57,7 +57,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * <code>run</code> method which defines the actual functions that must
  * be executed in order to verify the assertions addressed by that test.
  */
-abstract public class AbstractBaseTest extends BaseQATest {
+abstract public class AbstractBaseTest extends BaseQATest implements Test {
 
     protected volatile LookupDiscovery lookupDiscovery = null;
     protected final List<LookupDiscovery> lookupDiscoveryList = new CopyOnWriteArrayList<LookupDiscovery>();

@@ -24,6 +24,7 @@ import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.core.discovery.LookupLocator;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.Test;
 import java.util.List;
 
 /**
@@ -53,7 +54,7 @@ import java.util.List;
  * listener will receive the expected number of discovered events, with the
  * expected contents.
  */
-public class Discovered extends AbstractBaseTest {
+public class Discovered extends AbstractBaseTest implements Test {
 
     protected String[] groupsToDiscover = DiscoveryGroupManagement.NO_GROUPS;
     protected LookupLocator[] locatorsToDiscover = new LookupLocator[0];

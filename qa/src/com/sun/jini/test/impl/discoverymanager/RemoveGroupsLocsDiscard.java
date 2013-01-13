@@ -29,6 +29,7 @@ import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.core.discovery.LookupLocator;
 
 import com.sun.jini.qa.harness.QAConfig;
+import com.sun.jini.qa.harness.Test;
 import java.util.List;
 
 /**
@@ -63,7 +64,7 @@ import java.util.List;
  * Refer to the description for bug ID 4510435.
  *
  */
-public class RemoveGroupsLocsDiscard extends AbstractBaseTest {
+public class RemoveGroupsLocsDiscard extends AbstractBaseTest implements Test {
 
     /** Constructs an instance of this class. Initializes this classname */
     public RemoveGroupsLocsDiscard() {

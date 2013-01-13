@@ -29,6 +29,7 @@ import com.sun.jini.test.share.LocatorsUtil;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.DiscoveryGroupManagement;
@@ -85,7 +86,7 @@ import net.jini.config.ConfigurationException;
  * <code>run</code> method which defines the actual functions that must
  * be executed in order to verify the assertions addressed by that test.
  */
-abstract public class AbstractBaseTest extends BaseQATest {
+abstract public class AbstractBaseTest extends BaseQATest implements Test {
 
     /** Class whose different instances will be registered with various
      *  lookup services; each of which is expected to be discovered by the

@@ -26,6 +26,7 @@ import com.sun.jini.test.share.BaseQATest;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.Test;
 
 import net.jini.discovery.DiscoveryManagement;
 import net.jini.discovery.DiscoveryGroupManagement;
@@ -87,9 +88,9 @@ abstract public class AbstractBaseTest extends BaseQATest {
     protected static final int ALL_BY_LOC        = 3;
     protected static final int BY_LOC_AND_BOTH   = 4;
 
-    protected LookupDiscoveryManager discoveryMgr = null;
-    protected ArrayList ldmList = new ArrayList(1);
-    protected LookupListener mainListener = null;
+    protected volatile LookupDiscoveryManager discoveryMgr = null;
+    private final ArrayList<LookupDiscoveryManager> ldmList = new ArrayList<LookupDiscoveryManager>(1); //The same thread that calls construct calls tearDown, lack of sync ok.
+    protected volatile LookupListener mainListener = null;// this field is synchronized on, this is a candidate for returning a separate test object.
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test as follows:
@@ -119,12 +120,14 @@ abstract public class AbstractBaseTest extends BaseQATest {
 				       config.getConfiguration());
 	ldmList.add(discoveryMgr);
 	mainListener = new LookupListener();
-        return this;
-    }
+        return new Test() {
 
-    /** Executes the current test
-     */
-    abstract public void run() throws Exception;
+            public void run() throws Exception {
+                // nothing to do.
+            }
+            
+        };
+    }
 
     /** Cleans up all state. Terminates the lookup discovery utilities that
      *  may have been created, shutdowns any lookup service(s) that may

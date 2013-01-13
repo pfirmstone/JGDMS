@@ -24,6 +24,7 @@ import com.sun.jini.test.share.BaseQATest;
 
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 
 import net.jini.discovery.DiscoveryManagement;
@@ -65,7 +66,7 @@ import java.util.List;
  * in progress must be configured for explicit, pre-assigned, port numbers.
  *
  */
-abstract public class AbstractBaseTest extends BaseQATest {
+abstract public class AbstractBaseTest extends BaseQATest implements Test {
 
     protected volatile LookupLocatorDiscovery locatorDiscovery = null;
     protected final List<LookupLocatorDiscovery> locatorDiscoveryList = new CopyOnWriteArrayList<LookupLocatorDiscovery>();

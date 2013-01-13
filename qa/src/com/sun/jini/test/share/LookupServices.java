@@ -26,6 +26,7 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -44,7 +45,12 @@ import net.jini.discovery.DiscoveryManagement;
 import net.jini.lookup.DiscoveryAdmin;
 
 /**
- *
+ * This class was refactored out of BaseQATest, there are some minor issues
+ * remaining:
+ * 
+ * TODO: Ensure lookup service instances can only be started once.
+ * TODO: If the index is incorrect report the new index back to the caller.
+ * 
  * @author peter
  */
 public class LookupServices {
@@ -459,6 +465,23 @@ public class LookupServices {
         }//endif(nAddLookupServices > 0)
     }//end startAddLookups
 
+    /**
+     * Start next lookup.
+     * @return index of lookup started.
+     * @throws Exception  
+     */
+    public int startNextLookup(String info) throws Exception {
+        synchronized (lock){
+            int indx = curLookupListSize(info);
+            LocatorGroupsPair pair = allLookupsToStart.get(indx);
+            int port = (pair.getLocator()).getPort();
+            if(portInUse(port)) port = 0;//use randomly chosen port
+            startLookup(indx, port, pair.getLocator().getHost());
+            if (port == 0) refreshLookupLocatorListsAt(indx);
+            return indx;
+        }
+    }
+    
     /** 
      * Start a lookup service with configuration referenced by the
      * given parameter values.
@@ -569,7 +592,7 @@ public class LookupServices {
      * @return true if port in use. 
      */
     public boolean portInUse(int port) {
-        assert Thread.holdsLock(lock);
+        if (! Thread.holdsLock(lock)) throw new ConcurrentModificationException("calling thread doesn't hold lock");
         for(int i=0;i<lookupsStarted.size();i++) {
             LocatorGroupsPair pair = lookupsStarted.get(i);
             int curPort = (pair.getLocator()).getPort();
@@ -577,6 +600,21 @@ public class LookupServices {
         }//end loop
         return false;
     }//end portInUse
+    
+    private void refreshLookupLocatorListsAt(int index){
+        if (! Thread.holdsLock(lock)) throw new ConcurrentModificationException("calling thread doesn't hold lock");
+        LocatorGroupsPair locGroupsPair = lookupsStarted.get(index);
+        /* index range of init lookups */
+        int initLookupsBegin = nRemoteLookupServices + nAddRemoteLookupServices;
+        int initLookupsEnd = initLookupsBegin + nLookupServices;
+        /* index range of add lookups */
+        int addLookupsBegin = nRemoteLookupServices + nAddRemoteLookupServices + nLookupServices;
+        int addLookupsEnd = addLookupsBegin + nAddLookupServices;
+        /* update lookup lists */
+        if (index >= initLookupsBegin && index < initLookupsEnd) initLookupsToStart.set(index,locGroupsPair);
+        if (index >= addLookupsBegin && index < addLookupsEnd) addLookupsToStart.set(index, locGroupsPair);
+        allLookupsToStart.set(index,locGroupsPair);
+    }
     
     private LocatorGroupsPair getLocatorGroupsPair(int indx, String[] groups) throws TestException {
         LookupLocator l = getTestLocator(indx);
@@ -1282,5 +1320,100 @@ public class LookupServices {
     public void setnAddServices(int nAddServices) {
         this.nAddServices = nAddServices;
     }
+    
+    /**
+     * Returns a thread in which a number of lookup services are started after
+     * various time delays. This thread is intended to be used by tests that need to
+     * simulate "late joiner" lookup services. After all of the requested
+     * lookup services have been started, this thread will exit.
+     * 
+     * The thread doesn't start until Thread.start() is called.
+     * @return Thread that staggers starting of lookup services.
+     */
+    public Thread staggeredStartThread(int index){
+        return new StaggeredStartThread(index);
+    }
+    
+    /** Thread in which a number of lookup services are started after various
+     *  time delays. This thread is intended to be used by tests that need to
+     *  simulate "late joiner" lookup services. After all of the requested
+     *  lookup services have been started, this thread will exit.
+     */
+    private class StaggeredStartThread extends Thread {
+        private final long[] waitTimes
+                           = {    5*1000, 10*1000, 20*1000, 30*1000, 60*1000, 
+                               2*60*1000,
+                                 60*1000, 30*1000, 20*1000, 10*1000, 5*1000 };
+        private final int startIndx;
+
+        /** Use this constructor if a number of lookup services (equal to the
+         *  value of the given startIndx) have already been started; and this
+         *  thread will start the remaining lookup services. The locGroupsList
+         *  parameter is an ArrayList that should contain LocatorGroupsPair
+         *  instances that reference the locator and corresponding member
+         *  groups of each lookup service to start.
+         */
+         private StaggeredStartThread(int startIndx) {
+            super("StaggeredStartThread");
+            setDaemon(true);
+            this.startIndx = startIndx;
+        }//end constructor
+         
+        private int size(){
+            synchronized (lock){
+                return allLookupsToStart.size();
+            }
+        }
+
+        public void run() {
+            int n = waitTimes.length;
+            for(int i=startIndx;((!isInterrupted())&&(i<size()));
+                                                                          i++)
+            {
+                long waitMS = ( i < n ? waitTimes[i] : waitTimes[n-1] );
+                logger.log(Level.FINE,
+                              " waiting "+(waitMS/1000)+" seconds before "
+                              +"attempting to start the next lookup service");
+                try { 
+                    Thread.sleep(waitMS);
+                } catch(InterruptedException e) { 
+                    /* Need to re-interrupt this thread because catching
+                     * an InterruptedException clears the interrupted status
+                     * of this thread. 
+                     * 
+                     * If the sleep() call was not interrupted but was timed
+                     * out, this means that this thread should continue
+                     * processing; and the fact that the interrupted status
+                     * has been cleared is consistent with that fact. On the
+                     * other hand, if the sleep() was actually interrupted,
+                     * this means that some entity external to this thread
+                     * is signalling that this thread should exit. But the
+                     * code below that determines whether to exit or continue
+                     * processing bases its decision on the state of the
+                     * interrupted status. And since the interrupted status
+                     * was cleared when the InterruptedException was caught,
+                     * the interrupted status of this thread needs to be reset
+                     * to an interrupted state so that an exit will occur.
+                     */
+                    Thread.currentThread().interrupt();
+                }
+                
+                synchronized (lock){
+                    LocatorGroupsPair pair = allLookupsToStart.get(i);
+                    LookupLocator l = pair.getLocator();
+                    int port = l.getPort();
+                    if(portInUse(port)) port = 0;
+                    if( isInterrupted() )  break;//exit this thread
+                    try {
+                        startLookup(i, port, l.getHost());
+                    } catch(Exception e) {
+                        e.printStackTrace();
+                    }
+                    if(port == 0) refreshLookupLocatorListsAt(i);
+                }
+            }//end loop
+        }//end run
+    }//end class StaggeredStartThread
+
 
 }

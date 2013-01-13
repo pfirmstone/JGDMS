@@ -2206,6 +2206,7 @@ public class QAConfig implements Serializable {
 	    InetAddress hostAddr = InetAddress.getByName(hostName);
 	    hostName = hostAddr.getCanonicalHostName();
 	} catch (UnknownHostException ignore) {
+            logger.severe("InetAddress threw unknown host exception: " + hostName);
 	}
 	return hostName;
     }

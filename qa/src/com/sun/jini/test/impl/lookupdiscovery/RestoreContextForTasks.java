@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import java.io.IOException;
 import net.jini.config.Configuration;
@@ -58,7 +59,7 @@ import net.jini.loader.pref.PreferredClassLoader;
  * and must encounter <code>java.lang.SecurityException</code>.
  *
  */
-public class RestoreContextForTasks extends BaseQATest {
+public class RestoreContextForTasks extends BaseQATest implements Test {
     private static final String CLASSNAME =
 	"com.sun.jini.test.impl.lookupdiscovery.util.TestTaskProducerImpl";
     private static final String QAHOMEPROP = "com.sun.jini.test.home";

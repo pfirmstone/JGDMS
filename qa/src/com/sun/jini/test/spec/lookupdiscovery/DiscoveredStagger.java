@@ -23,6 +23,7 @@ import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.test.share.LookupServices;
 
 /**
  * This class verifies that the <code>LookupDiscovery</code> utility
@@ -82,22 +83,18 @@ public class DiscoveredStagger extends AbstractBaseTest {
          */
         boolean oldUseFastTimeout = useFastTimeout;
         useFastTimeout = false;
-        StaggeredStartThread lookupsThread =
-                                new StaggeredStartThread(1, getAllLookupsToStart());
+        LookupServices lookups = getLookupServices();
+        Thread lookupsThread = null;
         try {
             /* Start 1st lookup service (so it's up before discovery starts) */
-            LocatorGroupsPair pair
-                                 = (LocatorGroupsPair)getAllLookupsToStart().get(0);
-            int port = (pair.getLocator()).getPort();
-            if(portInUse(port)) port = 0;//use randomly chosen port
-            startLookup(0, port, pair.getLocator().getHost());
+            int index = lookups.startNextLookup(null);
+            lookupsThread = lookups.staggeredStartThread(index + 1);
             /* Re-configure LookupDiscovery to discover given  groups */
             logger.log(Level.FINE,
                           "change LookupDiscovery to discover -- ");
             String[] groupsToDiscover = toGroupsArray(getAllLookupsToStart());
             for(int i=0;i<groupsToDiscover.length;i++) {
-                logger.log(Level.FINE,
-                                  "   "+groupsToDiscover[i]);
+                logger.log(Level.FINE, "   {0}", groupsToDiscover[i]);
             }//end loop
             lookupDiscovery.setGroups(groupsToDiscover);
             /* Add the given listener to the LookupDiscovery utility */
@@ -116,7 +113,7 @@ public class DiscoveredStagger extends AbstractBaseTest {
              * to tell the thread to stop so that it doesn't continue running
              * into the next test.
              */
-            lookupsThread.interrupt();
+            if (lookupsThread != null ) lookupsThread.interrupt();
             useFastTimeout = oldUseFastTimeout;
         }
     }//end run

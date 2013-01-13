@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.Properties;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.Test;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -41,7 +42,7 @@ import com.sun.jini.qa.harness.Test;
  * be executed in order to verify the assertions addressed by that test.
  * 
  */
-abstract public class AbstractBaseTest extends BaseQATest {
+abstract public class AbstractBaseTest extends BaseQATest implements Test {
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test

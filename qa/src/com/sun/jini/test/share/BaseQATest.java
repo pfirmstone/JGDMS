@@ -70,7 +70,7 @@ import java.util.logging.Level;
  * @see com.sun.jini.qa.harness.QAConfig
  * @see com.sun.jini.qa.harness.QATestEnvironment
  */
-abstract public class BaseQATest extends QATestEnvironment implements Test {
+abstract public class BaseQATest extends QATestEnvironment {
 
     public static final int AUTOMATIC_LOCAL_TEST = Integer.MAX_VALUE;
     public static final int MANUAL_TEST_REMOTE_COMPONENT = 1;
@@ -1186,7 +1186,7 @@ abstract public class BaseQATest extends QATestEnvironment implements Test {
     public Test construct(QAConfig config) throws Exception {
 	super.construct(config);
 	this.config = config;
-	logger.log(Level.FINE, " setup()");
+	logger.log(Level.FINE, " construct()");
 	debugsync = getConfig().getBooleanConfigVal("qautil.debug.sync",false);
         testType = config.getIntConfigVal("com.sun.jini.testType",
                                        BaseQATest.AUTOMATIC_LOCAL_TEST);
@@ -1201,7 +1201,13 @@ abstract public class BaseQATest extends QATestEnvironment implements Test {
 	    startInitLookups();
 	}//endif
 	startInitLDS();
-        return this;
+        return new Test(){
+
+            public void run() throws Exception {
+                //Nothing to do.
+            }
+            
+        };
     }//end construct
 
     /** Cleans up any remaining state not already cleaned up by the test

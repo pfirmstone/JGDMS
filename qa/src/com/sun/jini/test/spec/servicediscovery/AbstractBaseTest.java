@@ -26,6 +26,7 @@ import com.sun.jini.test.share.BaseQATest;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
+import com.sun.jini.qa.harness.Test;
 
 import com.sun.jini.test.share.DiscoveryServiceUtil;
 import com.sun.jini.test.share.GroupsUtil;
@@ -96,7 +97,7 @@ import net.jini.config.ConfigurationException;
  * @see com.sun.jini.qa.harness.TestException
  * @see com.sun.jini.qa.harness.QAConfig
  */
-abstract public class AbstractBaseTest extends BaseQATest {
+abstract public class AbstractBaseTest extends BaseQATest implements Test {
 
     /** Note that for convenience, a number of inner classes are defined below.
      *  Each such inner class that is defined as <code>Serializable</code>
