@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.test.share.LookupServices;
 
 import net.jini.discovery.LookupDiscoveryManager;
 import net.jini.lookup.JoinManager;
@@ -102,7 +103,9 @@ public class TerminateDiscovery extends AbstractBaseTest {
         /* Start a new lookup service */
         logger.log(Level.FINE, "starting another lookup service "
                           +" to verify discovery in the join manager ...");
-        startLookup(curLookupListSize("TerminateDiscovery.run"),0);
+//        startLookup(curLookupListSize("TerminateDiscovery.run"),0);
+        LookupServices lookups = getLookupServices();
+        lookups.startNextLookup("TerminateDiscovery.run");
         /* Verify that the new lookup was discovered */
         logger.log(Level.FINE, ""+": verifying the new lookup "
                                         +"service is discovered ...");
@@ -115,7 +118,8 @@ public class TerminateDiscovery extends AbstractBaseTest {
         /* Start new lookup services */
         logger.log(Level.FINE, "starting another lookup service "
                           +"to verify discovery terminated ...");
-        startLookup(curLookupListSize("TerminateDiscovery.run"),0);
+//        startLookup(curLookupListSize("TerminateDiscovery.run"),0);
+        lookups.startNextLookup("TerminateDiscovery.run");
         /* Verify that the new lookup was NOT discovered */
         logger.log(Level.FINE, "verifying the new lookup "
                           +"service was NOT discovered ...");

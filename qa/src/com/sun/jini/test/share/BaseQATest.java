@@ -1030,89 +1030,6 @@ abstract public class BaseQATest extends QATestEnvironment {
         }//end changed
     }//end class GroupChangeListener
 
-    /** Thread in which a number of lookup services are started after various
-     *  time delays. This thread is intended to be used by tests that need to
-     *  simulate "late joiner" lookup services. After all of the requested
-     *  lookup services have been started, this thread will exit.
-     */
-    protected class StaggeredStartThread extends Thread {
-        private final long[] waitTimes
-                           = {    5*1000, 10*1000, 20*1000, 30*1000, 60*1000, 
-                               2*60*1000,
-                                 60*1000, 30*1000, 20*1000, 10*1000, 5*1000 };
-        private final int startIndx;
-        private final List locGroupsList;
-        /** Use this constructor if it is desired that all lookup services
-         *  be started in this thread. The locGroupsList parameter is an
-         *  ArrayList that should contain LocatorGroupsPair instances that
-         *  reference the locator and corresponding member groups of each
-         *  lookup service to start.
-         */
-        public StaggeredStartThread(List locGroupsList) {
-            this(0,locGroupsList);
-        }//end constructor
-
-        /** Use this constructor if a number of lookup services (equal to the
-         *  value of the given startIndx) have already been started; and this
-         *  thread will start the remaining lookup services. The locGroupsList
-         *  parameter is an ArrayList that should contain LocatorGroupsPair
-         *  instances that reference the locator and corresponding member
-         *  groups of each lookup service to start.
-         */
-         public StaggeredStartThread(int startIndx,List locGroupsList) {
-            super("StaggeredStartThread");
-            setDaemon(true);
-            this.startIndx     = startIndx;
-            this.locGroupsList = locGroupsList;
-        }//end constructor
-
-        public void run() {
-            int n = waitTimes.length;
-            for(int i=startIndx;((!isInterrupted())&&(i<locGroupsList.size()));
-                                                                          i++)
-            {
-                long waitMS = ( i < n ? waitTimes[i] : waitTimes[n-1] );
-                logger.log(Level.FINE,
-                              " waiting "+(waitMS/1000)+" seconds before "
-                              +"attempting to start the next lookup service");
-                try { 
-                    Thread.sleep(waitMS);
-                } catch(InterruptedException e) { 
-                    /* Need to re-interrupt this thread because catching
-                     * an InterruptedException clears the interrupted status
-                     * of this thread. 
-                     * 
-                     * If the sleep() call was not interrupted but was timed
-                     * out, this means that this thread should continue
-                     * processing; and the fact that the interrupted status
-                     * has been cleared is consistent with that fact. On the
-                     * other hand, if the sleep() was actually interrupted,
-                     * this means that some entity external to this thread
-                     * is signalling that this thread should exit. But the
-                     * code below that determines whether to exit or continue
-                     * processing bases its decision on the state of the
-                     * interrupted status. And since the interrupted status
-                     * was cleared when the InterruptedException was caught,
-                     * the interrupted status of this thread needs to be reset
-                     * to an interrupted state so that an exit will occur.
-                     */
-                    Thread.currentThread().interrupt();
-                }
-                LocatorGroupsPair pair
-                                    = (LocatorGroupsPair)locGroupsList.get(i);
-		LookupLocator l = pair.getLocator();
-                int port = l.getPort();
-                if(portInUse(port)) port = 0;
-                if( isInterrupted() )  break;//exit this thread
-                try {
-                    startLookup(i, port, l.getHost());
-                } catch(Exception e) {
-                    e.printStackTrace();
-                }
-            }//end loop
-        }//end run
-    }//end class StaggeredStartThread
-
     /* Protected instance variables */
     protected volatile int testType = AUTOMATIC_LOCAL_TEST;
 
@@ -1553,17 +1470,6 @@ abstract public class BaseQATest extends QATestEnvironment {
         return  ((Entry[])(attrsSet).toArray(new Entry[attrsSet.size()]) );
     }//end addAttrsAndRemoveDups
 
-    /** Method that compares the given port to the ports of all the lookup
-     *  services that have been currently started. Returns <code>true</code>
-     *  if the given port equals any of the ports referenced in the set
-     *  lookup services that have been started; <code>false</code>
-     *  otherwise. This method is useful for guaranteeing unique port
-     *  numbers when starting lookup services.
-     */
-    protected final boolean portInUse(int port) {
-        return getLookupServices().portInUse(port);
-    }//end portInUse
-
     /** Constructs a <code>LookupLocator</code> using configuration information
      *  corresponding to the value of the given parameter <code>indx</code>.
      *  Useful when lookup services need to be started, or simply when
@@ -1627,23 +1533,6 @@ abstract public class BaseQATest extends QATestEnvironment {
         }
     }//end startAddLookups
 
-    /** 
-     * Start a lookup service with configuration referenced by the
-     * given parameter values.
-     *
-     * @param indx the index of lookup services within the set of
-     *             lookups to start for this test
-     * @param port the port the lookup service is to use
-     * @return the name of the system the lookup service was started on
-     * @throws Exception if something goes wrong
-     */
-    protected String startLookup(int indx, int port) throws Exception {
-	return startLookup(indx, port, config.getLocalHostName());
-    }
-
-    protected String startLookup(int indx, int port, String serviceHost) throws Exception {
-        return getLookupServices().startLookup(indx, port, serviceHost);
-    }
 
     /** Common code shared by each test that needs to wait for discovered
      *  events from the discovery helper utility, and verify that the

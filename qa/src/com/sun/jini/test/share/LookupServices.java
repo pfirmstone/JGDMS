@@ -45,7 +45,7 @@ import net.jini.discovery.DiscoveryManagement;
 import net.jini.lookup.DiscoveryAdmin;
 
 /**
- * This class was refactored out of BaseQATest, there are some minor issues
+ * This class was refactored from BaseQATest, there are some minor issues
  * remaining:
  * 
  * TODO: Ensure lookup service instances can only be started once.
@@ -466,7 +466,9 @@ public class LookupServices {
     }//end startAddLookups
 
     /**
-     * Start next lookup.
+     * Start next lookup.  If no configured lookups exists a new one is
+     * created dynamically and appended to the end of the lookup lists.
+     * 
      * @return index of lookup started.
      * @throws Exception  
      */
@@ -474,9 +476,15 @@ public class LookupServices {
         synchronized (lock){
             int indx = curLookupListSize(info);
             LocatorGroupsPair pair = allLookupsToStart.get(indx);
-            int port = (pair.getLocator()).getPort();
-            if(portInUse(port)) port = 0;//use randomly chosen port
-            startLookup(indx, port, pair.getLocator().getHost());
+            int port = 0;
+            if (pair != null){
+                port = (pair.getLocator()).getPort();
+                if(portInUse(port)) port = 0;//use randomly chosen port
+                startLookup(indx, port, pair.getLocator().getHost());
+            } else {
+                String host = config.getLocalHostName();
+                startLookup(indx, port, host);
+            }
             if (port == 0) refreshLookupLocatorListsAt(indx);
             return indx;
         }
@@ -493,7 +501,7 @@ public class LookupServices {
      * @return the name of the system the lookup service was started on
      * @throws Exception if something goes wrong
      */
-    protected String startLookup(int indx, int port, String serviceHost) throws Exception {
+    private String startLookup(int indx, int port, String serviceHost) throws Exception {
         logger.log(Level.FINE, " starting lookup service {0}", indx);
         /* retrieve the member groups with which to configure the lookup */
         String[] memberGroups = memberGroupsList.get(indx);
@@ -591,8 +599,7 @@ public class LookupServices {
      * @param port
      * @return true if port in use. 
      */
-    public boolean portInUse(int port) {
-        if (! Thread.holdsLock(lock)) throw new ConcurrentModificationException("calling thread doesn't hold lock");
+    private boolean portInUse(int port) {
         for(int i=0;i<lookupsStarted.size();i++) {
             LocatorGroupsPair pair = lookupsStarted.get(i);
             int curPort = (pair.getLocator()).getPort();
@@ -602,7 +609,6 @@ public class LookupServices {
     }//end portInUse
     
     private void refreshLookupLocatorListsAt(int index){
-        if (! Thread.holdsLock(lock)) throw new ConcurrentModificationException("calling thread doesn't hold lock");
         LocatorGroupsPair locGroupsPair = lookupsStarted.get(index);
         /* index range of init lookups */
         int initLookupsBegin = nRemoteLookupServices + nAddRemoteLookupServices;

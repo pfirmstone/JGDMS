@@ -21,6 +21,7 @@ package com.sun.jini.test.spec.joinmanager;
 import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.test.share.LookupServices;
 
 /**
  * This class verifies that the <code>JoinManager</code> utility class
@@ -52,8 +53,9 @@ public class AddAttributesPropNew extends AddAttributesProp {
         /* Stagger-start additional lookup services */
         logger.log(Level.FINE, "starting "+getnAddLookupServices()
                           +" additional lookup service(s) ...");
-        StaggeredStartThread lookupsThread =
-             new StaggeredStartThread(getLookupsStarted().size(), getAllLookupsToStart());
+        LookupServices lookups = getLookupServices();
+        Thread lookupsThread = lookups.staggeredStartThread(lookups.curLookupListSize());
+//             new StaggeredStartThread(getLookupsStarted().size(), getAllLookupsToStart());
         lookupsThread.start();
         try {
             mainListener.clearAllEventInfo();
