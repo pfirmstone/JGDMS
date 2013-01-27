@@ -609,17 +609,18 @@ public class LookupServices {
     }//end portInUse
     
     private void refreshLookupLocatorListsAt(int index){
+        //Only update existing records, ignore new dynamicly started lookups.
         LocatorGroupsPair locGroupsPair = lookupsStarted.get(index);
         /* index range of init lookups */
         int initLookupsBegin = nRemoteLookupServices + nAddRemoteLookupServices;
         int initLookupsEnd = initLookupsBegin + nLookupServices;
         /* index range of add lookups */
-        int addLookupsBegin = nRemoteLookupServices + nAddRemoteLookupServices + nLookupServices;
+        int addLookupsBegin = initLookupsEnd;
         int addLookupsEnd = addLookupsBegin + nAddLookupServices;
         /* update lookup lists */
         if (index >= initLookupsBegin && index < initLookupsEnd) initLookupsToStart.set(index,locGroupsPair);
-        if (index >= addLookupsBegin && index < addLookupsEnd) addLookupsToStart.set(index, locGroupsPair);
-        allLookupsToStart.set(index,locGroupsPair);
+        if (index >= addLookupsBegin && index < addLookupsEnd) addLookupsToStart.set(index-addLookupsBegin, locGroupsPair);
+        if (index < allLookupsToStart.size()) allLookupsToStart.set(index,locGroupsPair);
     }
     
     private LocatorGroupsPair getLocatorGroupsPair(int indx, String[] groups) throws TestException {

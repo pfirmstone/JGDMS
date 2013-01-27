@@ -304,6 +304,7 @@ abstract public class BaseQATest extends QATestEnvironment {
             synchronized(this){
                 discardedMap.remove(l);
                 discoveredMap.put(l, groups);
+                this.notifyAll();
             }
         }
         
@@ -383,6 +384,7 @@ abstract public class BaseQATest extends QATestEnvironment {
                                       (LocatorGroupsPair)locGroupsList.get(i);
                     discoveredMap.put(pair.getLocator(), pair.getGroups());
                 }//end loop
+                this.notifyAll();
             }//end sync(this)
         }//end setDiscoveredMap
 
@@ -403,6 +405,7 @@ abstract public class BaseQATest extends QATestEnvironment {
                     discoveredMap.put(pair.getLocator(), pair.getGroups());
                     expectedDiscardedMap.put(pair.getLocator(), pair.getGroups());
                 }//end loop
+                this.notifyAll();
             }//end sync(this)
         }//end clearDiscardEventInfo
 
@@ -829,6 +832,7 @@ abstract public class BaseQATest extends QATestEnvironment {
                     logger.log(Level.FINE,
                               " number of currently discovered lookup(s) = "
                               +discoveredMap.size());
+                    this.notifyAll();
                 }//end sync(this)
             } else {//(regs == null)
                 logger.log(Level.FINE, " discard event received "
@@ -1568,9 +1572,9 @@ abstract public class BaseQATest extends QATestEnvironment {
         boolean discoveryComplete = false;
         boolean showCompInfo = true;//turn this off after 1st pass thru loop
 	Map discoveredClone = null;
+        synchronized (listener){
         iLoop:
-        for(int i=0;i<nSecsToWait1;i++) {
-            synchronized(listener) {
+            for(int i=0;i<nSecsToWait1;i++) {
                 Map discoveredMap = listener.discoveredMap;
                 Map expectedDiscoveredMap = listener.expectedDiscoveredMap;
 
@@ -1660,10 +1664,16 @@ abstract public class BaseQATest extends QATestEnvironment {
                                               +discoveredMap.size()+")");
                     }//endif
                 }//endif(nEventsReceived == nEventsExpected)
-            }//end sync(listener)
-            DiscoveryServiceUtil.delayMS(1000);
-            showCompInfo = false;//display comparison info only when i = 0
-        }//end loop(iLoop)
+                try {
+                    listener.wait(1000); // Wait for discovery for up to 1000 ms.
+                } catch (InterruptedException ex) {
+                    throw new TestException("Interrupted while waiting for discovery", ex);
+                }
+                //DiscoveryServiceUtil.delayMS(1000);
+                showCompInfo = false;//display comparison info only when i = 0
+            }//end loop(iLoop)
+
+        }//end sync(listener)
         logger.log(Level.FINE, " DISCOVERY wait period complete");
         synchronized(listener) {
             if(!discoveryComplete) {
@@ -1681,9 +1691,9 @@ abstract public class BaseQATest extends QATestEnvironment {
                               +" discovery event(s) expected, "
                               +listener.discoveredMap.size()
                               +" discovery event(s) received");
-        }//end sync(listener)
+        
     }//end waitForDiscovery
-
+    } // end sync (listener)
     /** Common code shared by each test that needs to wait for discarded
      *  events from the discovery helper utility, and verify that the
      *  expected discarded events have indeed arrived.
@@ -1718,9 +1728,9 @@ abstract public class BaseQATest extends QATestEnvironment {
         boolean discardComplete = false;
         boolean showCompInfo = true;//turn this off after 1st pass thru loop
 	Map discardedClone = null;
-        iLoop:
-	for(int i=0;i<nSecsToWait1;i++) {
-            synchronized(listener) {
+        synchronized (listener){
+            iLoop:
+            for(int i=0;i<nSecsToWait1;i++) {
                 Map discardedMap = listener.discardedMap;
                 Map expectedDiscardedMap = listener.expectedDiscardedMap;
 
@@ -1810,10 +1820,15 @@ abstract public class BaseQATest extends QATestEnvironment {
                                               +discardedMap.size()+")");
                     }//endif
                 }//endif(nEventsReceived == nEventsExpected)
-            }//end sync(listener)
-            DiscoveryServiceUtil.delayMS(1000);
-            showCompInfo = false;//display comparison info only when i = 0
-        }//end loop(iLoop)
+                try {
+                    listener.wait(1000);
+                } catch (InterruptedException ex) {
+                    throw new TestException("Test interrupted while waiting for discard", ex);
+                }
+                //DiscoveryServiceUtil.delayMS(1000);
+                showCompInfo = false;//display comparison info only when i = 0
+            }//end loop(iLoop)
+        }//end sync(listener)
         logger.log(Level.FINE, " DISCARD wait period complete");
         synchronized(listener) {
             if(!discardComplete) {
@@ -1868,9 +1883,9 @@ abstract public class BaseQATest extends QATestEnvironment {
         boolean changeComplete = false;
         boolean showCompInfo = true;//turn this off after 1st pass thru loop
 	Map changedClone = null;
-    iLoop:
-        for(int i=0;i<nSecsToWait1;i++) {
-            synchronized(listener) {
+        synchronized (listener){
+        iLoop:
+            for(int i=0;i<nSecsToWait1;i++) {
                 Map changedMap = listener.changedMap;
                 Map expectedChangedMap = listener.expectedChangedMap;
                 if(displayOn && 
@@ -1959,10 +1974,15 @@ abstract public class BaseQATest extends QATestEnvironment {
                                               +changedMap.size()+")");
                     }//endif
                 }//endif(nEventsReceived == nEventsExpected)
-            }//end sync(listener)
-            DiscoveryServiceUtil.delayMS(1000);
-            showCompInfo = false;//display comparison info only when i = 0
-        }//end loop(iLoop)
+                try {
+                    listener.wait(1000);
+                } catch (InterruptedException ex) {
+                    throw new TestException("Test interrupted while waiting for change event", ex);
+                }
+                //DiscoveryServiceUtil.delayMS(1000);
+                showCompInfo = false;//display comparison info only when i = 0
+            }//end loop(iLoop)
+        }//end sync(listener)
         logger.log(Level.FINE, " CHANGE wait period complete");
         synchronized(listener) {
             if(!changeComplete) {
