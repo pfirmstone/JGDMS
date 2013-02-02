@@ -104,10 +104,10 @@ java.util.logging.FileHandler.level = INFO
 #  FINEST (lowest value) 
 
 # For Everything
-sun.rmi.level = INFO
-net.jini.level = INFO
-
-com.sun.jini.level = INFO
+sun.rmi.level = CONFIG
+net.jini.level = CONFIG
+org.apache.river.level = CONFIG
+com.sun.jini.level = CONFIG
 
 # For the LogManager
 com.sun.jini.logging.LogManager.level = INFO
@@ -176,14 +176,14 @@ net.jini.security.policy.level = INFO
 net.jini.url.httpmd.level = INFO
 
 # For Discovery
-com.sun.jini.discovery.level = INFO
-#com.sun.jini.discovery.DiscoveryV1.level = INFO
-#com.sun.jini.discovery.DiscoveryV2.level = INFO
-#com.sun.jini.discovery.x500.level = INFO
+com.sun.jini.discovery.level = FINEST
+#com.sun.jini.discovery.DiscoveryV1.level = FINEST
+#com.sun.jini.discovery.DiscoveryV2.level = FINEST
+#com.sun.jini.discovery.x500.level = FINEST
 
 # For the Helper Utilities
-net.jini.discovery.LookupDiscovery.level = INFO
-net.jini.discovery.LookupLocatorDiscovery.level = INFO
+net.jini.discovery.LookupDiscovery.level = FINEST
+net.jini.discovery.LookupLocatorDiscovery.level = FINEST
 net.jini.lookup.JoinManager.level = INFO
 net.jini.lookup.ServiceDiscoveryManager.level = INFO
 net.jini.lease.LeaseRenewalManager.level = INFO
@@ -256,7 +256,7 @@ com.sun.jini.outrigger.transactions.level = INFO
 com.sun.jini.example.browser.level = INFO
 
 # For the test harness, tests, and infrastructure.
-com.sun.jini.qa.harness.test.level = INFO
-com.sun.jini.qa.harness.service.level = INFO
-com.sun.jini.qa.harness.config.level = INFO
-com.sun.jini.test.spec.jeri.mux.level = INFO
+com.sun.jini.qa.harness.test.level = FINE
+com.sun.jini.qa.harness.service.level = FINE
+com.sun.jini.qa.harness.config.level = FINE
+com.sun.jini.test.spec.jeri.mux.level = FINE
