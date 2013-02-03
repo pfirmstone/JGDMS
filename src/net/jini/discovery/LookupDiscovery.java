@@ -729,13 +729,15 @@ public class LookupDiscovery implements DiscoveryManagement,
     private static final int DEFAULT_SOCKET_TIMEOUT = 1*60*1000;
 
     /** Flag indicating whether or not this class is still functional. */
-    private boolean terminated = false;
-    /** Set of listeners to be sent discovered/discarded/changed events. */
-    private ArrayList listeners = new ArrayList(1);
-    /** The groups to discover. Empty set -- NO_GROUPS, null -- ALL_GROUPS */
-    private Set groups = null;
+    private volatile boolean terminated = false;
+    /** Set of listeners to be sent discovered/discarded/changed events.  Access sync on registrars */
+    private final ArrayList listeners = new ArrayList(1);
+    /** The groups to discover. Empty set -- NO_GROUPS, access synchronised on registrars */
+    private final Set groups;
+    /** If groups passed to constructor are null -- ALL_GROUPS, writes synchronised on registrars */
+    private volatile boolean all_groups;
     /** Map from ServiceID to UnicastResponse. */
-    private Map registrars = new HashMap(11);
+    private final Map registrars = new HashMap(11);
     /** 
      * Set that takes one of the following:
      * <p><ul>
@@ -750,31 +752,35 @@ public class LookupDiscovery implements DiscoveryManagement,
      * of the element, determines the processing to perform and what event
      * type to send to the registered listeners.
      */
-    private Set pendingDiscoveries = new HashSet(11);
+    private final Set pendingDiscoveries = new HashSet(11);
     /** Thread that handles pending notifications. */
-    private Notifier notifierThread;
-    /** Notifications to be sent to listeners. */
-    private LinkedList pendingNotifies = new LinkedList();
+    private final Notifier notifierThread;
+    /** Notifications to be sent to listeners.  Synchronised access with lock notify */
+    private final LinkedList pendingNotifies = new LinkedList();
     /** Task manager for running UnicastDiscoveryTasks and
      *  DecodeAnnouncementTasks.
      */
-    private TaskManager taskManager;
+    private final TaskManager taskManager;
     /* WakeupManager to delay tasks. */
-    private WakeupManager discoveryWakeupMgr = null;
-    private boolean isDefaultWakeupMgr = false;
+    private final WakeupManager discoveryWakeupMgr;
+    private final boolean isDefaultWakeupMgr;
     /* Outstanding tickets - Access synchronized on pendingDiscoveries */
-    private List tickets;
+    private final List tickets;
     /** Thread that handles incoming multicast announcements. */
-    private AnnouncementListener announceeThread;
+    private final AnnouncementListener announceeThread;
     /** Collection that contains instances of the Requestor Thread class,
      *  each of which participate in multicast discovery by periodically
      *  sending out multicast discovery requests for a finite period of time.
+     * 
+     * Access synchronised.
      */
-    private Collection requestors = new LinkedList();
+    private final Collection requestors = new LinkedList();
     /** Thread that manages incoming multicast responses. Runs only when
      *  there are Requestor threads running.
+     * 
+     * Writes synchronised on requestors.
      */
-    private ResponseListener respondeeThread = null;
+    private volatile ResponseListener respondeeThread;
     /** Security context that contains the access control context to restore
      * for callbacks, etc.
      */
@@ -782,8 +788,10 @@ public class LookupDiscovery implements DiscoveryManagement,
     /** Map from ServiceID to multicast announcement time stamps; used by the
      *  process that monitors multicast announcements from already-discovered
      *  lookup services, and determines when those announcements have stopped.
+     * 
+     * Access synchronised on registrars.
      */
-    private HashMap regInfo = new HashMap(11);
+    private final HashMap regInfo = new HashMap(11);
     /** Thread that monitors multicast announcements from already-discovered
      *  lookup services and, upon determining that those announcements have
      *  stopped, queues a reachability test with the UnicastDiscoveryTask
@@ -791,64 +799,68 @@ public class LookupDiscovery implements DiscoveryManagement,
      *  if the reachability test indicates that the lookup service is
      *  actually down.
      */
-    private AnnouncementTimerThread announcementTimerThread;
+    private final AnnouncementTimerThread announcementTimerThread;
     /* Preparer for the proxies to the lookup services that are discovered
      * and used by this utility.
      */
-    private ProxyPreparer registrarPreparer;
+    private final ProxyPreparer registrarPreparer;
     /* Utility for participating in version 2 of discovery protocols. */
-    private Discovery protocol2 = Discovery.getProtocol2(null);
+    private final Discovery protocol2 = Discovery.getProtocol2(null);
     /* Maximum number multicast requests to send when this utility is started
      * for the first time, and whenever the groups to discover are changed.
      */
-    private int multicastRequestMax = 7;
+    private final int multicastRequestMax;
     /* With respect to when this utility is started, as well as when the set
      * of groups to discover is changed, the value of this field represents
      * the number of milliseconds to wait after sending the n-th multicast
      * request, and before sending the (n+1)-st request, where n is less than
      * the value of <code)multicastRequestMax</code>.
      */
-    private long multicastRequestInterval = 5000L;
+    private final long multicastRequestInterval;
     /* With respect to when this utility is started, as well as when the set
      * of groups to discover is changed, the value of this field represents
      * the number of milliseconds to wait after sending the n-th multicast
      * request, where n is equal to the value of 
      * <code)multicastRequestMax</code>.
      */
-    private long finalMulticastRequestInterval = 2*60*1000L;
+    private final long finalMulticastRequestInterval;
     /* Name of requesting host to include in multicast request if
      * participating in version 2 of multicast request protocol.
      */
-    private String multicastRequestHost;
+    private final String multicastRequestHost;
     /* Constraints specified for outgoing multicast requests. */
-    private DiscoveryConstraints multicastRequestConstraints;
+    private final DiscoveryConstraints multicastRequestConstraints;
     /* The network interfaces (NICs) through which multicast packets will
      * be sent.
+     * 
+     * Effectively immutable array.
      */
-    private NetworkInterface[] nics;
+    private final NetworkInterface[] nics;
     /* NICs that initially failed are retried after this number of millisecs.*/
-    private int nicRetryInterval = 5*60*1000;
+    private final int nicRetryInterval;
     /* Controls how often (in milliseconds) this utility examines the
      * multicast announcements from previously discovered lookup services
      * for "liveness".
      */
-    private long multicastAnnouncementInterval = 2*60*1000L;
+    private final long multicastAnnouncementInterval;
     /* 
      * Controls how long to wait before responding to multicast
      * announcements
      */
-    private long unicastDelayRange = 0;
+    private final long unicastDelayRange;
     /* Controls how long to wait before sending out multicast requests */
-    private long initialMulticastRequestDelayRange = 0;
+    private final long initialMulticastRequestDelayRange;
     /* 
      * Flag which indicates that initial multicast request thread has been
      * started.
+     * 
+     * Access synchronized on requestors.
      */
     private boolean initialRequestorStarted = false;
     /* Constraints specified for incoming multicast announcements. */
-    private DiscoveryConstraints multicastAnnouncementConstraints;
+    private final DiscoveryConstraints multicastAnnouncementConstraints;
     /* Unprocessed constraints specified for unicast discovery. */
-    private InvocationConstraints rawUnicastDiscoveryConstraints;
+    private final InvocationConstraints rawUnicastDiscoveryConstraints;
 
     /** Constants used to tell the notifierThread the type of event to send */
     private static final int DISCOVERED = 0;
@@ -861,7 +873,7 @@ public class LookupDiscovery implements DiscoveryManagement,
     private static final int NICS_USE_LIST = 2;//use list of NICs from config
     private static final int NICS_USE_NONE = 3;//multicast disabled
     /** Flag that indicates how the set of network interfaces was configured */
-    private int nicsToUse = NICS_USE_ALL;
+    private final int nicsToUse;
 
     /** Data structure containing task data processed by the Notifier Thread */
     private static class NotifyTask {
@@ -894,14 +906,18 @@ public class LookupDiscovery implements DiscoveryManagement,
 
 	public void run() {
             logger.finest("LookupDiscovery - Notifier thread started");
-	    while (true) {
+	    while (!interrupted()) {
 		final NotifyTask task;
 		synchronized (pendingNotifies) {
 		    if (pendingNotifies.isEmpty()) {
-			notifierThread = null;
-			return;
+                        try {
+                            pendingNotifies.wait();
+                        } catch (InterruptedException ex) {
+                            break;
+                        }
 		    }//endif
 		    task = (NotifyTask)pendingNotifies.removeFirst();
+                    if (task == null) continue; // spurious wakeup.
 		}//end sync
                 /* The call to notify() on the registered listeners is
                  * performed inside a doPrivileged block that restores the
@@ -1016,7 +1032,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      */
     private class AnnouncementListener extends Thread {
 	/** Multicast socket for receiving packets */
-	private MulticastSocket sock;
+	private final MulticastSocket sock;
         /* Set of interfaces whose elements also belong to the nics[] array,
          * which encountered failure when setting the interface or joining
          * the desired multicast group, and which will be retried periodically.
@@ -1220,7 +1236,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      */
     private class ResponseListener extends Thread {
 	/** Server socket for accepting connections */
-	public ServerSocket serv;
+	public final ServerSocket serv;
 	
 	/** Create a daemon thread */
 	public ResponseListener() throws IOException {
@@ -1298,12 +1314,12 @@ public class LookupDiscovery implements DiscoveryManagement,
      */
     private class Requestor extends Thread {
 	/** Multicast socket for sending packets */
-	private MulticastSocket sock;
+	private final MulticastSocket sock;
 	/** Unicast response port */
-	private int responsePort;
+	private final int responsePort;
 	/** Groups to request */
-	private String[] groups;
-	private boolean delayFlag;
+	private final String[] groups;
+	private final boolean delayFlag;
 
 	/** Create a daemon thread */
 	public Requestor(String[] groups, int port, boolean delayFlag)
@@ -1408,11 +1424,11 @@ public class LookupDiscovery implements DiscoveryManagement,
             super("multicast announcement timer");
             setDaemon(true);
         }
-        public synchronized void run() {
+        public void run() {
             long timeThreshold = N_INTERVALS*multicastAnnouncementInterval;
             try {
                 while(!isInterrupted()) {
-                    wait(multicastAnnouncementInterval);
+                    sleep(multicastAnnouncementInterval);
                     long curTime = System.currentTimeMillis();
                     synchronized (registrars) {
                         /* can't modify regInfo while iterating over it, 
@@ -1897,10 +1913,11 @@ public class LookupDiscovery implements DiscoveryManagement,
      * @see #setGroups
      * @see DiscoveryPermission
      */
-    public LookupDiscovery(String[] groups) throws IOException {
-        try {
-            beginDiscovery(groups, EmptyConfiguration.INSTANCE);
-        } catch(ConfigurationException e) { /* swallow this exception */ }
+    public LookupDiscovery(String[] groups) throws IOException, ConfigurationException {
+        this(groups, EmptyConfiguration.INSTANCE);
+//        try {
+//            beginDiscovery(groups, EmptyConfiguration.INSTANCE);
+//        } catch(ConfigurationException e) { /* swallow this exception */ }
     }//end constructor
 
     /**
@@ -1943,7 +1960,214 @@ public class LookupDiscovery implements DiscoveryManagement,
     public LookupDiscovery(String[] groups, Configuration config)
                                    throws IOException, ConfigurationException
     {
-        beginDiscovery(groups, config);
+        testArrayForNullElement(groups);
+	checkGroups(groups);
+	if (groups != null) {
+	    this.groups = new HashSet(groups.length * 2);
+	    for (int i = 0; i < groups.length; i++) {
+		this.groups.add(groups[i]);
+	    }//end loop
+            all_groups = false;
+	} else {
+            this.groups = new HashSet();
+            all_groups = true;
+        }
+        
+        /* Read Configuration */
+        
+        if(config == null)  throw new NullPointerException("config is null");
+        /* Lookup service proxy preparer */
+        registrarPreparer = (ProxyPreparer)config.getEntry
+                                                    (COMPONENT_NAME,
+                                                     "registrarPreparer",
+                                                     ProxyPreparer.class,
+                                                     new BasicProxyPreparer());
+	/* constraints */
+	MethodConstraints constraints = (MethodConstraints)config.getEntry
+						    (COMPONENT_NAME,
+						     "discoveryConstraints",
+						     MethodConstraints.class,
+						     null);
+	if (constraints == null) {
+	    constraints = 
+		new BasicMethodConstraints(InvocationConstraints.EMPTY);
+	}
+	multicastRequestConstraints = DiscoveryConstraints.process(
+	    constraints.getConstraints(
+		DiscoveryConstraints.multicastRequestMethod));
+	multicastAnnouncementConstraints = DiscoveryConstraints.process(
+	    constraints.getConstraints(
+		DiscoveryConstraints.multicastAnnouncementMethod));
+	rawUnicastDiscoveryConstraints = 
+	    constraints.getConstraints(
+		DiscoveryConstraints.unicastDiscoveryMethod);
+
+        /* Task manager */
+        TaskManager taskManager;
+        try {
+            taskManager = (TaskManager)config.getEntry(COMPONENT_NAME,
+						       "taskManager",
+						       TaskManager.class);
+        } catch(NoSuchEntryException e) { /* use default */
+            taskManager = new TaskManager(MAX_N_TASKS,(15*1000),1.0f);
+        }
+        this.taskManager = taskManager;
+
+        /* Multicast request-related configuration items */
+        multicastRequestMax
+         = ( (Integer)config.getEntry
+                             (COMPONENT_NAME,
+                              "multicastRequestMax",
+                              int.class,
+                              Integer.valueOf(7) ) ).intValue();
+        multicastRequestInterval
+         = ( (Long)config.getEntry
+                            (COMPONENT_NAME,
+                            "multicastRequestInterval",
+                            long.class,
+                            Long.valueOf(5000L) ) ).longValue();
+        finalMulticastRequestInterval
+         = ( (Long)config.getEntry
+                      (COMPONENT_NAME,
+                       "finalMulticastRequestInterval",
+                       long.class,
+                       Long.valueOf(2*60*1000L) ) ).longValue();
+        String multicastRequestHost;
+	try {
+	    multicastRequestHost
+	     = (String) Config.getNonNullEntry(config,
+					       COMPONENT_NAME,
+					       "multicastRequestHost",
+					       String.class);
+	} catch (NoSuchEntryException nse) {
+	    multicastRequestHost = getLocalHost();
+	}
+        this.multicastRequestHost = multicastRequestHost;
+        /* Configuration items related to the network interface(s) */
+        NetworkInterface[] nics = null;
+        int nicsToUse = NICS_USE_ALL;
+        try {
+            nics = (NetworkInterface[])config.getEntry
+                                                   (COMPONENT_NAME,
+                                                    "multicastInterfaces",
+                                                    NetworkInterface[].class);
+            if(nics == null) {
+                nicsToUse = NICS_USE_SYS;
+                logger.config("LookupDiscovery - using system default network "
+                              +"interface for multicast");
+            } else {//(nics != null)
+                if( nics.length == 0 ) {
+                    nicsToUse = NICS_USE_NONE;
+                    logger.config("LookupDiscovery - MULTICAST DISABLED");
+                } else {//(nics.length > 0), use the given specific list
+                    nicsToUse = NICS_USE_LIST;
+                    if( logger.isLoggable(Level.CONFIG) ) {
+                        logger.log(Level.CONFIG,
+                               "LookupDiscovery - multicast network "
+                               +"interface(s): {0}", Arrays.asList(nics) );
+                    }//endif
+                }//endif
+            }//endif
+        } catch(NoSuchEntryException e) {// no config item, use default - all
+	    Enumeration en = NetworkInterface.getNetworkInterfaces();
+	    List nicList = (en != null) ?
+		Collections.list(en) : Collections.EMPTY_LIST;
+            nics = (NetworkInterface[])(nicList.toArray
+                                     (new NetworkInterface[nicList.size()]) );
+            nicsToUse = NICS_USE_ALL;
+            if( logger.isLoggable(Level.CONFIG) ) {
+                logger.log(Level.CONFIG,"LookupDiscovery - multicast network "
+                                        +"interface(s): {0}", nicList);
+            }//endif
+        }
+        this.nics = nics;
+        this.nicsToUse = nicsToUse;
+        
+        nicRetryInterval
+         = ( (Integer)config.getEntry
+                                (COMPONENT_NAME,
+                                 "multicastInterfaceRetryInterval",
+                                 int.class,
+                                 Integer.valueOf(5*60*1000) ) ).intValue();
+        /* Multicast announcement-related configuration items */
+        multicastAnnouncementInterval
+         = ( (Long)config.getEntry
+		      (COMPONENT_NAME,
+		       "multicastAnnouncementInterval",
+		       long.class,
+		       Long.valueOf(2*60*1000L) ) ).longValue();
+
+	unicastDelayRange = Config.getLongEntry(config,
+				    COMPONENT_NAME,
+				    "unicastDelayRange",
+				    0,
+				    0,
+				    Long.MAX_VALUE);
+	tickets = new ArrayList();
+        
+        /* Wakeup manager */
+        WakeupManager discoveryWakeupMgr = null;
+        boolean isDefaultWakeupMgr = false;
+	if (unicastDelayRange > 0) {
+	    try {
+		discoveryWakeupMgr =
+			(WakeupManager)config.getEntry(COMPONENT_NAME,
+						       "wakeupManager",
+						       WakeupManager.class);
+	    } catch(NoSuchEntryException e) { /* use default */
+		discoveryWakeupMgr = new WakeupManager(
+				     new WakeupManager.ThreadDesc(null, true));
+		isDefaultWakeupMgr = true;
+	    }
+	}
+        this.discoveryWakeupMgr = discoveryWakeupMgr;
+        this.isDefaultWakeupMgr = isDefaultWakeupMgr;
+        
+	initialMulticastRequestDelayRange = Config.getLongEntry(config,
+			    COMPONENT_NAME,
+			    "initialMulticastRequestDelayRange",
+			    0,
+			    0,
+			    Long.MAX_VALUE);
+        
+        /* End read configuration */
+        
+        if(nicsToUse ==  NICS_USE_NONE) { //disable discovery
+            announcementTimerThread = null;
+            announceeThread = null;
+            notifierThread = null;
+            return;
+        } 
+        
+        /* Start threads */
+        
+	try {
+            announcementTimerThread  = Security.doPrivileged(new PrivilegedExceptionAction<AnnouncementTimerThread>() {
+		public AnnouncementTimerThread run() throws Exception {
+                    return new AnnouncementTimerThread();
+		}//end run
+	    });//end doPrivileged
+	
+            announceeThread = Security.doPrivileged(new PrivilegedExceptionAction<AnnouncementListener>() {
+		public AnnouncementListener run() throws Exception {
+                    return new AnnouncementListener();
+		}//end run
+	    });//end doPrivileged
+	
+            notifierThread = Security.doPrivileged(new PrivilegedExceptionAction<Notifier>() {
+		public Notifier run() throws Exception {
+                    return new Notifier();
+		}//end run
+	    });//end doPrivileged
+	} catch (PrivilegedActionException e) {
+	    throw (IOException)e.getException();
+	}
+	if (!all_groups || !this.groups.isEmpty()) {
+            requestGroups(this.groups);
+        }//endif
+	announceeThread.start();
+	announcementTimerThread.start();
+        notifierThread.start();
     }//end constructor
 
     /**
@@ -2099,7 +2323,7 @@ public class LookupDiscovery implements DiscoveryManagement,
             if (terminated) {
                 throw new IllegalStateException("discovery terminated");
             }
-	    if (groups == null)
+	    if (all_groups)
 		return ALL_GROUPS;
 	    if (groups.isEmpty())
 		return NO_GROUPS;
@@ -2131,7 +2355,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 	synchronized (registrars) {
 	    if (terminated)
 		throw new IllegalStateException("discovery terminated");
-	    if (groups == null)
+	    if (all_groups)
 		throw new UnsupportedOperationException(
 					  "can't add to \"any groups\"");
 	    Collection req = new ArrayList(newGroups.length);
@@ -2186,14 +2410,14 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    if (terminated)
 		throw new IllegalStateException("discovery terminated");
 	    if (newGroups == null) {
-		if (groups != null) {
-		    groups = null;
-		    requestGroups(null);
+                if (!all_groups) {
+                    all_groups = true;
+                    groups.clear();
+                    requestGroups(null);
 		}
 		return;
 	    }
-	    if (groups == null) {
-		groups = new HashSet(11);
+	    if (all_groups == true) {
 		maybeDiscard = true;
 	    }
 	    Set toAdd = new HashSet(newGrps);
@@ -2236,7 +2460,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 	synchronized (registrars) {
 	    if (terminated)
 		throw new IllegalStateException("discovery terminated");
-	    if (groups == null)
+	    if (all_groups)
 		throw new UnsupportedOperationException(
 					   "can't remove from \"any groups\"");
 	    maybeDiscard = removeGroupsInt(oldGroups);
@@ -2462,7 +2686,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 
     /**
      * Remove the specified groups from the set of groups to discover, and
-     * return true if any were actually removed.
+     * return true if any were actually removed.  Must be synchronised on registrars.
      */
     private boolean removeGroupsInt(String[] oldGroups) {
 	boolean removed = false;
@@ -2491,7 +2715,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 	/* Match if we're interested in any group, or if we're
 	 * interested in none and there are no possibilities.
          */
-	if (groups == null)  return true;
+	if (all_groups)  return true;
 	for (int i = 0; i < possibilities.length; i++) {
 	    if (groups.contains(possibilities[i]))  return true;
 	}//end loop
@@ -2687,23 +2911,14 @@ public class LookupDiscovery implements DiscoveryManagement,
     }//end maybeDiscardRegistrars
 
     /**
-     * Add a notification task to the pending queue, and start an instance of
-     * the Notifier thread if one isn't already running.
+     * Add a notification task to the pending queue, and wake up the Notifier.
      */
     private void addNotify(ArrayList notifies, Map groupsMap, int eventType) {
 	synchronized (pendingNotifies) {
 	    pendingNotifies.addLast(new NotifyTask(notifies,
                                                    groupsMap,
                                                    eventType));
-	    if (notifierThread == null) {
-                Security.doPrivileged(new PrivilegedAction() {
-		    public Object run() {
-			notifierThread = new Notifier();
-			notifierThread.start();
-			return null;
-		    }//end run
-		});//end doPrivileged
-	    }//endif
+	    pendingNotifies.notify();
 	}//end sync
     }//end addNotify
 
@@ -3050,206 +3265,6 @@ public class LookupDiscovery implements DiscoveryManagement,
             }//endif
         }//end loop
     }//end testArrayForNullElement
-
-    /**
-     * Using the given <code>Configuration</code>, initializes the current
-     * instance of this utility, and initiates the discovery process for
-     * the given set of groups.
-     *
-     * @param groups the set of group names to discover
-     *
-     * @param config an instance of <code>Configuration</code>, used to
-     *               obtain the objects needed to configure this utility
-     *
-     * @throws java.lang.NullPointerException input array contains at least
-     *         one <code>null</code> element or <code>null</code> is input
-     *         for the configuration
-     *
-     * @throws java.io.IOException an exception occurred when initiating
-     *         discovery processing
-     *
-     * @throws net.jini.config.ConfigurationException indicates an exception
-     *         occurred while retrieving an item from the given
-     *         <code>Configuration</code>
-     */
-    private void beginDiscovery(String[] groups, Configuration config)
-                                    throws IOException, ConfigurationException
-    {
-        testArrayForNullElement(groups);
-	checkGroups(groups);
-	if (groups != null) {
-	    this.groups = new HashSet(groups.length * 2);
-	    for (int i = 0; i < groups.length; i++) {
-		this.groups.add(groups[i]);
-	    }//end loop
-	}//endif
-        init(config);
-        if(nicsToUse ==  NICS_USE_NONE)  return;//disable discovery
-	try {
-            Security.doPrivileged(new PrivilegedExceptionAction() {
-		public Object run() throws Exception {
-		    announceeThread = new AnnouncementListener();
-                    announcementTimerThread = new AnnouncementTimerThread();
-		    return null;
-		}//end run
-	    });//end doPrivileged
-	} catch (PrivilegedActionException e) {
-	    throw (IOException)e.getException();
-	}
-	if (this.groups == null || !this.groups.isEmpty()) {
-            requestGroups(this.groups);
-        }//endif
-	announceeThread.start();
-	announcementTimerThread.start();
-    }//end beginDiscovery
-
-    /* Convenience method that encapsulates the retrieval of the configurable
-     * items from the given <code>Configuration</code> object.
-     */
-    private void init(Configuration config) throws IOException,
-                                                   ConfigurationException
-    {
-        if(config == null)  throw new NullPointerException("config is null");
-        /* Lookup service proxy preparer */
-        registrarPreparer = (ProxyPreparer)config.getEntry
-                                                    (COMPONENT_NAME,
-                                                     "registrarPreparer",
-                                                     ProxyPreparer.class,
-                                                     new BasicProxyPreparer());
-	/* constraints */
-	MethodConstraints constraints = (MethodConstraints)config.getEntry
-						    (COMPONENT_NAME,
-						     "discoveryConstraints",
-						     MethodConstraints.class,
-						     null);
-	if (constraints == null) {
-	    constraints = 
-		new BasicMethodConstraints(InvocationConstraints.EMPTY);
-	}
-	multicastRequestConstraints = DiscoveryConstraints.process(
-	    constraints.getConstraints(
-		DiscoveryConstraints.multicastRequestMethod));
-	multicastAnnouncementConstraints = DiscoveryConstraints.process(
-	    constraints.getConstraints(
-		DiscoveryConstraints.multicastAnnouncementMethod));
-	rawUnicastDiscoveryConstraints = 
-	    constraints.getConstraints(
-		DiscoveryConstraints.unicastDiscoveryMethod);
-
-        /* Task manager */
-        try {
-            taskManager = (TaskManager)config.getEntry(COMPONENT_NAME,
-						       "taskManager",
-						       TaskManager.class);
-        } catch(NoSuchEntryException e) { /* use default */
-            taskManager = new TaskManager(MAX_N_TASKS,(15*1000),1.0f);
-        }
-
-        /* Multicast request-related configuration items */
-        multicastRequestMax
-         = ( (Integer)config.getEntry
-                             (COMPONENT_NAME,
-                              "multicastRequestMax",
-                              int.class,
-                              Integer.valueOf(multicastRequestMax) ) ).intValue();
-        multicastRequestInterval
-         = ( (Long)config.getEntry
-                            (COMPONENT_NAME,
-                            "multicastRequestInterval",
-                            long.class,
-                            Long.valueOf(multicastRequestInterval) ) ).longValue();
-        finalMulticastRequestInterval
-         = ( (Long)config.getEntry
-                      (COMPONENT_NAME,
-                       "finalMulticastRequestInterval",
-                       long.class,
-                       Long.valueOf(finalMulticastRequestInterval) ) ).longValue();
-	try {
-	    multicastRequestHost
-	     = (String) Config.getNonNullEntry(config,
-					       COMPONENT_NAME,
-					       "multicastRequestHost",
-					       String.class);
-	} catch (NoSuchEntryException nse) {
-	    multicastRequestHost = getLocalHost();
-	}
-        /* Configuration items related to the network interface(s) */
-        try {
-            nics = (NetworkInterface[])config.getEntry
-                                                   (COMPONENT_NAME,
-                                                    "multicastInterfaces",
-                                                    NetworkInterface[].class);
-            if(nics == null) {
-                nicsToUse = NICS_USE_SYS;
-                logger.config("LookupDiscovery - using system default network "
-                              +"interface for multicast");
-            } else {//(nics != null)
-                if( nics.length == 0 ) {
-                    nicsToUse = NICS_USE_NONE;
-                    logger.config("LookupDiscovery - MULTICAST DISABLED");
-                } else {//(nics.length > 0), use the given specific list
-                    nicsToUse = NICS_USE_LIST;
-                    if( logger.isLoggable(Level.CONFIG) ) {
-                        logger.log(Level.CONFIG,
-                               "LookupDiscovery - multicast network "
-                               +"interface(s): {0}", Arrays.asList(nics) );
-                    }//endif
-                }//endif
-            }//endif
-        } catch(NoSuchEntryException e) {// no config item, use default - all
-	    Enumeration en = NetworkInterface.getNetworkInterfaces();
-	    List nicList = (en != null) ?
-		Collections.list(en) : Collections.EMPTY_LIST;
-            nics = (NetworkInterface[])(nicList.toArray
-                                     (new NetworkInterface[nicList.size()]) );
-            nicsToUse = NICS_USE_ALL;
-            if( logger.isLoggable(Level.CONFIG) ) {
-                logger.log(Level.CONFIG,"LookupDiscovery - multicast network "
-                                        +"interface(s): {0}", nicList);
-            }//endif
-        }
-        nicRetryInterval
-         = ( (Integer)config.getEntry
-                                (COMPONENT_NAME,
-                                 "multicastInterfaceRetryInterval",
-                                 int.class,
-                                 Integer.valueOf(nicRetryInterval) ) ).intValue();
-        /* Multicast announcement-related configuration items */
-        multicastAnnouncementInterval
-         = ( (Long)config.getEntry
-		      (COMPONENT_NAME,
-		       "multicastAnnouncementInterval",
-		       long.class,
-		       Long.valueOf(multicastAnnouncementInterval) ) ).longValue();
-
-	unicastDelayRange = Config.getLongEntry(config,
-				    COMPONENT_NAME,
-				    "unicastDelayRange",
-				    0,
-				    0,
-				    Long.MAX_VALUE);
-	tickets = new ArrayList();
-	if (unicastDelayRange > 0) {
-	    /* Wakeup manager */
-	    try {
-		discoveryWakeupMgr =
-			(WakeupManager)config.getEntry(COMPONENT_NAME,
-						       "wakeupManager",
-						       WakeupManager.class);
-	    } catch(NoSuchEntryException e) { /* use default */
-		discoveryWakeupMgr = new WakeupManager(
-				     new WakeupManager.ThreadDesc(null, true));
-		isDefaultWakeupMgr = true;
-	    }
-	}
-
-	initialMulticastRequestDelayRange = Config.getLongEntry(config,
-			    COMPONENT_NAME,
-			    "initialMulticastRequestDelayRange",
-			    0,
-			    0,
-			    Long.MAX_VALUE);
-    }//end init
 
     /**
      * Decodes received multicast announcement packet. Constraint checking is
