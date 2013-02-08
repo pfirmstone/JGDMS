@@ -2418,6 +2418,8 @@ public class LookupDiscovery implements DiscoveryManagement,
 		return;
 	    }
 	    if (all_groups == true) {
+                all_groups = false;
+                groups.clear();
 		maybeDiscard = true;
 	    }
 	    Set toAdd = new HashSet(newGrps);
