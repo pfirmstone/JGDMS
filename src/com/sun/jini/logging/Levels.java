@@ -49,7 +49,7 @@ public class Levels {
      * assist with debugging problems in systems with multiple components. This
      * level is initialized to <code>600</code>.
      */
-    public static final Level FAILED = createLevel("FAILED", 600, null);
+    public static final Level FAILED = new CustomLevel("FAILED", 600, null);
 
     /**
      * <code>HANDLED</code> is a message level indicating that a facility has
@@ -61,85 +61,18 @@ public class Levels {
      * assist with debugging problems in systems with multiple components. This
      * level is initialized to <code>550</code>.
      */
-    public static final Level HANDLED = createLevel("HANDLED", 550, null);
+    public static final Level HANDLED = new CustomLevel("HANDLED", 550, null);
 
     /** This class cannot be instantiated. */
     private Levels() {
-	throw new AssertionError("This class cannot be instantiated");
+	    throw new AssertionError("This class cannot be instantiated");
     }
 
-    /**
-     * Defines a class that has the same data format as the Level class, to
-     * permit creating the serialized form of a Level instance.
-     */
-    private static final class LevelData implements Serializable {
-	private static final long serialVersionUID = -8176160795706313070L;
-	private final String name;
-	private final int value;
-	private final String resourceBundleName;
-	LevelData(String name, int value, String resourceBundleName) {
-	    this.name = name;
-	    this.value = value;
-	    this.resourceBundleName = resourceBundleName;
-	}
-    }
-
-    /**
-     * Defines an object output stream that allows the data for one class to be
-     * interpreted as the data for another class.  This class is useful in
-     * creating serialization data for a class when access to an appropriate
-     * constructor is not available.
-     */
-    private static final class ClassReplacingObjectOutputStream
-	extends ObjectOutputStream
-    {
-	private final ObjectStreamClass from;
-	private final ObjectStreamClass to;
-
-	ClassReplacingObjectOutputStream(OutputStream out,
-					 Class from,
-					 Class to)
-	    throws IOException
-	{
-	    super(out);
-	    this.from = ObjectStreamClass.lookup(from);
-	    this.to = ObjectStreamClass.lookup(to);
-	}
-
-	protected void writeClassDescriptor(ObjectStreamClass desc)
-	    throws IOException
-	{
-	    if (from.equals(desc)) {
-		desc = to;
+    static class CustomLevel extends Level {
+	    CustomLevel(String name, int value, String resourceBundleName) {
+	        super(name, value, resourceBundleName);
 	    }
-	    super.writeClassDescriptor(desc);
 	}
-    }
 
-    /**
-     * Creates an instance of the Level class.  This method works around the
-     * fact that there is no public constructor for the Level class by
-     * constructing the serialized form for an instance with the specified
-     * field values and deserializing it.
-     */
-    private static Level createLevel(String name,
-				     int value,
-				     String resourceBundleName)
-    {
-	try {
-	    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-	    ObjectOutputStream out =
-		new ClassReplacingObjectOutputStream(
-		    bytes, LevelData.class, Level.class);
-	    out.writeObject(new LevelData(name, value, resourceBundleName));
-	    out.close();
-	    ObjectInputStream in = new ObjectInputStream(
-		new ByteArrayInputStream(bytes.toByteArray()));
-	    Level result = (Level) in.readObject();
-	    in.close();
-	    return result;
-	} catch (Exception e) {
-	    throw new RuntimeException("Unexpected exception", e);
-	}
-    }
+    
 }
