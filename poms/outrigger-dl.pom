@@ -21,6 +21,7 @@
     <groupId>org.apache.river</groupId>
     <artifactId>outrigger-dl</artifactId>
     <version>2.2.1</version>
+    <url>http://river.apache.org</url>
     <description>Outrigger JavaSpace service client download jar</description>
 	
 	<licenses>
@@ -29,6 +30,11 @@
 	        <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
 	    </license>
 	</licenses>
+
+	<organization>
+        <name>The Apache Software Foundation</name>
+        <url>http://www.apache.org/</url>
+    </organization>
 
     <dependencies>
         <dependency>

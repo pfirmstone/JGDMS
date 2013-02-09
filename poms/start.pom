@@ -20,7 +20,11 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.apache.river</groupId>
     <artifactId>start</artifactId>
-    <description>This executable JAR file is the primary entry point for the Service Starter. It acts as both the class path for the container virtual machine (VM) for the Java platform that executes non-activatable services, and as the setup VM for activatable services.</description>
+    <url>http://river.apache.org</url>
+    <description>This executable JAR file is the primary entry point for the Service Starter. 
+    It acts as both the class path for the container virtual machine (VM) for the Java platform 
+    that executes non-activatable services, and as the setup VM for activatable services.
+    </description>
     <version>2.2.1</version>
 
   	<licenses>

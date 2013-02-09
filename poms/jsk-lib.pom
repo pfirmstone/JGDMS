@@ -20,8 +20,9 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.jini</groupId>
     <artifactId>jsk-lib</artifactId>
-    <description>This artifact contains the River utility APIs that are not tied to a specific service implementation.</description>
     <version>2.2.1</version>
+    <url>http://river.apache.org</url>
+    <description>This artifact contains the River utility APIs that are not tied to a specific service implementation.</description>
 
 	<licenses>
 	    <license>
@@ -29,6 +30,11 @@
 	        <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
 	    </license>
 	</licenses>
+
+	<organization>
+        <name>The Apache Software Foundation</name>
+        <url>http://www.apache.org/</url>
+    </organization>
 
     <dependencies>
         <dependency>

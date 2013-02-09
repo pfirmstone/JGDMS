@@ -21,7 +21,10 @@
     <groupId>net.jini</groupId>
     <artifactId>jsk-platform</artifactId>
     <version>2.2.1</version>
-    <description>Configures specific service providers to be used, such as PreferredClassProvider, trust and integrity verifiers, and DiscoveryFormatProvider</description>
+    <url>http://river.apache.org</url>
+    <description>Configures specific service providers to be used, such as 
+    PreferredClassProvider, trust and integrity verifiers, and DiscoveryFormatProvider
+    </description>
 
 	<licenses>
 	    <license>
@@ -29,6 +32,11 @@
 	        <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
 	    </license>
 	</licenses>
+	
+	<organization>
+        <name>The Apache Software Foundation</name>
+        <url>http://www.apache.org/</url>
+    </organization>
 	
 	<dependencies>
         <dependency>
