@@ -73,8 +73,13 @@ public class Levels {
     }
 
     static class CustomLevel extends Level {
+        private static final long serialVersionUID = 1L;
         CustomLevel(String name, int value, String resourceBundleName) {
             super(name, value, resourceBundleName);
+        }
+        
+        private void readObject(ObjectInputStream in){
+            in.defaultReadObject();
         }
     }
 }
