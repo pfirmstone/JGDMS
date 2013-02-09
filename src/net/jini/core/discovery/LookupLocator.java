@@ -32,22 +32,24 @@ import java.net.UnknownHostException;
 import java.rmi.MarshalledObject;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import javax.net.SocketFactory;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.ConstrainableLookupLocator;
 import net.jini.discovery.LookupLocatorDiscovery;
+import org.apache.river.impl.net.UriString;
 
 /**
  * LookupLocator supports unicast discovery, using only version 1 of the
- * unicast discovery protocol.  It's main purpose now is to contain a host name
- * and port number.  
- * It is used as a parameter in LookupLocatorDiscovery constructors.  
+ * unicast discovery protocol, which is deprecated.  
+ * <p>
+ * It's main purpose now is to contain a host name and port number, it is now
+ * immutable, since River 2.2.1, this may break overriding classes.
+ * 
+ * <p>
+ * LookupLocator is used as a parameter in LookupLocatorDiscovery constructors.  
  * LookupLocatorDiscovery has methods to perform Discovery using either 
  * version 1 or 2 with constraints.
  * ConstrainableLookupLocator is a subclass which uses discovery V1 or V2
  * and enables the use of constraints.
- *
- * @author Sun Microsystems, Inc.
  *
  * @since 1.0
  * @see LookupLocatorDiscovery
@@ -70,21 +72,14 @@ public class LookupLocator implements Serializable {
      *
      * @serial
      */
-    protected String host;
+    protected final String host;
     /**
      * The port number on the host at which to perform discovery.
      *
      * @serial
      */
-    protected int port;
-    /**
-     * The socket factory that this <code>LookupLocator</code> uses to
-     * create <code>Socket</code> objects.
-     *
-     * @serial
-     **/
-    protected SocketFactory sf;
-
+    protected final int port;
+    
     /**
      * The timeout after which we give up waiting for a response from
      * the lookup service.
@@ -137,64 +132,9 @@ public class LookupLocator implements Serializable {
      * @throws NullPointerException if <code>url</code> is <code>null</code>
      */
     public LookupLocator(String url) throws MalformedURLException {
-	if (url == null) {
-	    throw new NullPointerException("url is null");
-	}
-	URI uri = null;
-	try {
-	    uri = new URI(url);
-	} catch (URISyntaxException e) {
-	    MalformedURLException mue =
-		new MalformedURLException("URI parsing failure: " + url);
-	    mue.initCause(e);
-	    throw mue;
-	}
-	if (!uri.isAbsolute()) {
-	    throw new MalformedURLException("no scheme specified: " + url);
-	}
-	if (uri.isOpaque()) {
-	    throw new MalformedURLException("not a hierarchical url: " + url);
-	}
-	if (!uri.getScheme().toLowerCase().equals("jini")) {
-	    throw new MalformedURLException(
-		"Invalid URL scheme: " + url);
-	}
-	String uriPath = uri.getPath();
-	if ((uriPath.length() != 0) && (!uriPath.equals("/"))) {
-	    throw new MalformedURLException(
-		"URL path contains path segments: " + url);
-	}
-	if (uri.getQuery() != null) {
-	    throw new MalformedURLException(
-		"invalid character, '?', in URL: " + url);
-	}
-	if (uri.getFragment() != null) {
-	    throw new MalformedURLException(
-		"invalid character, '#', in URL: " + url);
-	}
-	// Make sure that it is a server-based authority, if the authority
-	// component exists	
-	try {
-	    uri = uri.parseServerAuthority();
-	    if (uri.getUserInfo() != null) {
-		throw new MalformedURLException(
-		    "invalid character, '@', in URL host: " + url);
-	    }
-	    if ((host = uri.getHost()) == null) {
-		// authority component does not exist - not a hierarchical URL
-		throw new MalformedURLException(
-		    "Not a hierarchical URL: " + url);
-	    }
-	    port = uri.getPort();
-	    if (port == -1) {
-		port = discoveryPort;
-	    }
-	} catch (URISyntaxException e) {
-	    handle3986Authority(uri);
-	}
-	if ((port <= 0) || (port >= 65536)) {
-	    throw new MalformedURLException("port number out of range: " + url);
-	}
+	URI uri = parseURI(url);
+        host = uri.getHost();
+        port = uri.getPort();
     }
 
     /**
@@ -225,74 +165,70 @@ public class LookupLocator implements Serializable {
      * @throws NullPointerException if <code>host</code> is <code>null</code>
      */
     public LookupLocator(String host, int port) {
-	if (host == null)
-	    throw new NullPointerException("null host");
-	if (port <= 0 || port >= 65536)
-	    throw new IllegalArgumentException("port number out of range");
-	URI uri;
-	try {
-	    // Use URI to validate the host.
-	    // We pass in the port to handle the case where the host is in the
-	    // form of a valid IPv6 address with a port appended to it.
-	    uri = new URI(null, null, host, port, null, null, null);
-	    if (uri.getUserInfo() != null) {
-		throw new IllegalArgumentException(
-		    "invalid character, '@', in host: " + host);
-	    }
-	    this.host = host;
-	    this.port = port;
-	} catch (URISyntaxException e) {
-	    uri = try3986Authority(host, port);
-	    assert ((this.port > 0) && (this.port < 65536));
-	}
-	String uriPath = uri.getPath();
-	if (uriPath.length() != 0) {
-	    throw new IllegalArgumentException(
-		"invalid character, '/', in host: " + host);
-	}
-	if (uri.getQuery() != null) {
-	    throw new IllegalArgumentException(
-		"invalid character, '?', in host: " + host);
-	}
-	if (uri.getFragment() != null) {
-	    throw new IllegalArgumentException(
-		"invalid character, '#', in host: " + host);
-	}
+        if (host == null) throw new NullPointerException("null host");
+	StringBuilder sb = new StringBuilder();
+        sb.append("jini://").append(host);
+        if ( port != -1 ) { //URI compliance -1 is converted to discoveryPort.
+            sb.append(":").append(port);
+        }
+        try {
+            URI uri = parseURI(sb.toString());
+            this.host = uri.getHost();
+            this.port = uri.getPort();
+        } catch (MalformedURLException ex) {
+            throw new IllegalArgumentException("host cannot be parsed", ex);
+        }
     }
-
-    /**
-     * Construct a new <code>LookupLocator</code> object, set to perform unicast
-     * discovery to the input <code>host</code> and <code>port</code> using the socketFactory.
-     * The
-     * <code>host</code>, <code>port</code> and <code>sf</code> fields will be populated with the
-     * <code>host</code>, <code>port</code> and <code>sf</code> arguments.  No host name
-     * resolution is attempted.
-     * <p>The <code>host</code>
-     * argument must meet any one of the following syntactical requirements:
-     * <ul>
-     * <li>A host as required by a <i>server-based naming authority</i> in
-     * section 3.2.2 of <a href="http://www.ietf.org/rfc/rfc2396.txt">
-     * <i>RFC 2396: Uniform Resource Identifiers (URI): Generic Syntax</i></a>
-     * <li>A literal IPv6 address as defined by
-     * <a href="http://www.ietf.org/rfc/rfc2732.txt">
-     * <i>RFC 2732: Format for Literal IPv6 Addresses in URL's</i></a>
-     * <li>A literal IPv6 address as defined by
-     * <a href="http://www.ietf.org/rfc/rfc3513.txt">
-     * <i>RFC 3513: Internet Protocol Version 6 (IPv6) Addressing Architecture
-     * </i></a>
-     * </ul>
-     * 
-     * @param host the name of the host to contact
-     * @param port the number of the port to connect to
-     * @param sf the factory to use for creating the socket
-     * @throws IllegalArgumentException if <code>port</code> is not between
-     * 1 and 65535 (both included) or if <code>host</code> cannot be parsed.
-     * @throws NullPointerException if <code>host</code> is <code>null</code>
-     */
-    public LookupLocator(String host, int port, SocketFactory sf)
-    {
-        this(host,port);
-        this.sf = sf ;
+    
+    private URI parseURI(String url) throws MalformedURLException{
+        if (url == null) {
+	    throw new NullPointerException("url is null");
+	}
+	URI uri = null;
+	try {
+            url = UriString.escapeIllegalCharacters(url);
+	    uri = new URI(url);
+            uri = UriString.normalise(uri);
+	} catch (URISyntaxException e) {
+	    MalformedURLException mue =
+		new MalformedURLException("URI parsing failure: " + url);
+	    mue.initCause(e);
+	    throw mue;
+	}
+	if (!uri.isAbsolute()) throw new MalformedURLException("no scheme specified: " + url);
+	if (uri.isOpaque()) throw new MalformedURLException("not a hierarchical url: " + url);
+	if (!uri.getScheme().toLowerCase().equals("jini")) throw new MalformedURLException("Invalid URL scheme: " + url);
+	
+	String uriPath = uri.getPath();
+	if ((uriPath.length() != 0) && (!uriPath.equals("/"))) {
+	    throw new MalformedURLException(
+		"URL path contains path segments: " + url);
+	}
+	if (uri.getQuery() != null) throw new MalformedURLException("invalid character, '?', in URL: " + url);
+	if (uri.getFragment() != null) throw new MalformedURLException("invalid character, '#', in URL: " + url);
+        if (uri.getUserInfo() != null) throw new MalformedURLException("invalid character, '@', in URL host: " + url);
+        if ((uri.getHost()) == null) {
+            // authority component does not exist - not a hierarchical URL
+            throw new MalformedURLException(
+                "Not a hierarchical URL: " + url);
+        }
+        int port = uri.getPort();
+        if (port == -1) {
+            port = discoveryPort;
+            try {
+                uri = new URI(uri.getScheme(), uri.getRawUserInfo(), uri.getHost(), port, uri.getRawPath(), uri.getRawQuery(), uri.getRawFragment());
+            } catch (URISyntaxException e) {
+                MalformedURLException mue =
+		new MalformedURLException("recreation of URI with discovery port failed");
+                mue.initCause(e);
+                throw mue;
+            }
+        }
+	
+	if ((uri.getPort() <= 0) || (uri.getPort() >= 65536)) {
+	    throw new MalformedURLException("port number out of range: " + url);
+	}
+        return uri;
     }
 
     /**
@@ -371,12 +307,7 @@ public class LookupLocator implements Serializable {
 	} catch (UnknownHostException uhe) {
 	    // Cannot resolve the host name, maybe the socket implementation
 	    // can do it for us.
-	    Socket sock ;
-            if( sf == null ) {
-                sock = new Socket(host, port);
-            } else {
-                sock = sf.createSocket(host, port);
-            }
+	    Socket sock = new Socket(host, port);
 	    return getRegistrarFromSocket(sock, timeout);
 	}
 	IOException ioEx = null;
@@ -384,12 +315,7 @@ public class LookupLocator implements Serializable {
 	ClassNotFoundException cnfEx = null;
 	for (int i = 0; i < addrs.length; i++) {
 	    try {
-                Socket sock ;
-                if( sf == null ) {
-                    sock = new Socket(addrs[i], port);
-                } else {
-                    sock = sf.createSocket(addrs[i], port);
-                }
+                Socket sock = new Socket(addrs[i], port);
 		return getRegistrarFromSocket(sock, timeout);
 	    } catch (ClassNotFoundException ex) {
 		cnfEx = ex;
@@ -454,9 +380,9 @@ public class LookupLocator implements Serializable {
      * <code>"jini"</code>.
      */
     public String toString() {
-	if (port != discoveryPort)
+//	if (port != discoveryPort)
 	    return "jini://" + getHost0(host) + ":" + port + "/";
-	return "jini://" + getHost0(host) + "/";
+//	return "jini://" + getHost0(host) + "/";
     }
 
     /**
@@ -471,8 +397,7 @@ public class LookupLocator implements Serializable {
 	}
 	if (o instanceof LookupLocator) {
 	    LookupLocator oo = (LookupLocator) o;
-	    return port == oo.port && host.equalsIgnoreCase(oo.host) &&
-                    Util.sameClassAndEquals(sf, oo.sf);
+	    return port == oo.port && host.equalsIgnoreCase(oo.host);
 	}
 	return false;
     }
@@ -482,8 +407,7 @@ public class LookupLocator implements Serializable {
      * <code>port</code> field values.
      */
     public int hashCode() {
-	return host.toLowerCase().hashCode() ^ port ^
-	    (sf != null ? sf.hashCode() : 0);
+	return host.toLowerCase().hashCode() ^ port;
     }
     
     // Checks if the host is an RFC 3513 IPv6 literal and converts it into
@@ -497,73 +421,14 @@ public class LookupLocator implements Serializable {
 	}
     }
     
-    private URI try3986Authority(String host, int port)
-    {
-	try {
-	    URI u = new URI("jini://" + host + ":" + port);
-	    handle3986Authority(u);
-	    return u;
-	} catch (URISyntaxException use) {
-	    // has to be an invalid host
-	    IllegalArgumentException iae =
-		new IllegalArgumentException("syntax error in host: " +
-		host);
-	    iae.initCause(use);
-	    throw iae;
-	} catch (MalformedURLException mue) {
-	    IllegalArgumentException iae =
-		new IllegalArgumentException("syntax error in host: " +
-		host);
-	    iae.initCause(mue);
-	    throw iae;
-	}
-    }
-    private void handle3986Authority(URI uri) throws MalformedURLException {
-	assert (!uri.isOpaque());
-	String authority;
-	if ((authority = uri.getAuthority()) == null) {
-	    throw new MalformedURLException("Missing authority: " + uri);
-	}
-	if (authority.indexOf('@') != -1) {
-	    throw new MalformedURLException("invalid character, '@', in host: "
-					    + uri);
-	}
-	parseHostPort(authority, uri);
-    }
-    
-    private void parseHostPort(String authority, URI uri)
-	throws MalformedURLException
-    {
-	int index = authority.lastIndexOf(':');
-	if (index == -1) {
-	    port = discoveryPort;
-	    host = authority;
-	    return;
-	}
-	// Check for any other colons
-	if (authority.indexOf(':') != index) {
-	    throw new MalformedURLException(": not allowed in host name: "
-					    + uri);
-	}
-	String portString = authority.substring(index + 1);
-	int portInt;
-	if (portString.length() == 0) {
-	    throw new MalformedURLException("invalid port in authority: " +
-					    uri);
-	} else {
-	    try {
-		portInt = Integer.parseInt(portString);
-	    } catch (NumberFormatException ne) {
-		MalformedURLException mue = new MalformedURLException(
-		    "invalid port in authority: " + uri);
-		mue.initCause(ne);
-		throw mue;
-	    }
-	}
-	port = portInt;
-	host = authority.substring(0, index);
-	if (host.length() == 0) {
-	    throw new MalformedURLException("zero length host name: " + uri);
-	}
+    /**
+     * Added to allow deserialisation of broken serial compatibility in 2.2.0
+     * @serial
+     * @param oin
+     * @throws IOException
+     * @throws ClassNotFoundException 
+     */
+    private void readObject(ObjectInputStream oin) throws IOException, ClassNotFoundException{
+        oin.defaultReadObject();
     }
 }

@@ -429,7 +429,7 @@ public class UriString {
          */
         String authority = uri.getAuthority();
         String path = uri.getPath();
-        if (path != null || !path.equals("") ){
+        if (path != null && !path.equals("") ){
             if (authority != null){
                 if ( !path.startsWith("/")) path = '/' + path;
             } else {
