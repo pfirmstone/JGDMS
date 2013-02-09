@@ -18,6 +18,8 @@
 
 package com.sun.jini.logging;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.logging.Level;
 
 /**
@@ -78,7 +80,7 @@ public class Levels {
             super(name, value, resourceBundleName);
         }
         
-        private void readObject(ObjectInputStream in){
+        private void readObject(ObjectInputStream in) throws IOException, ClassNotFoundException{
             in.defaultReadObject();
         }
     }
