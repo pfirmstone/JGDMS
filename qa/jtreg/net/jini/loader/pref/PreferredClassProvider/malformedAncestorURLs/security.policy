@@ -13,6 +13,7 @@ grant {
     
     permission java.io.FilePermission "${test.src}", "read";
     permission java.io.FilePermission "${test.src}${/}-", "read";
+    permission java.io.FilePermission "${test.src}${/}..${/}-", "read";
     permission java.io.FilePermission "${test.classes}", "read";
     permission java.io.FilePermission "${test.classes}${/}-", "read";
     permission java.io.FilePermission ".", "read";

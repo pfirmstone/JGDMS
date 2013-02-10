@@ -29,4 +29,7 @@ grant {
 
     // to connect to class server
     permission java.net.SocketPermission "*:1024-", "connect";
+
+    // for NonBlockingHashMap
+    permission java.lang.RuntimePermission "accessDeclaredMembers";
 };

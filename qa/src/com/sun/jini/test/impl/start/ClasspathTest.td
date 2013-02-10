@@ -33,7 +33,7 @@ com.sun.jini.test.impl.start.ClasspathTest2.starterConfiguration=${com.sun.jini.
 com.sun.jini.test.impl.start.ClasspathTest2.host=master
 
 // Shared group overrides
-sharedGroup.classpath=${com.sun.jini.jsk.home}$/lib$/sharedvm.jar$:${com.sun.jini.jsk.home}$/lib$/high-scale-lib.jar$:${com.sun.jini.jsk.home}$/lib$/reference-collections-1.0.1.jar$:<file:lib/qa1-start-testservice-common.jar>
+sharedGroup.classpath=${com.sun.jini.jsk.home}$/lib$/sharedvm.jar$:${com.sun.jini.jsk.home}$/lib$/high-scale-lib.jar$:${com.sun.jini.jsk.home}$/lib$/custard-apple-1.0.2.jar$:<file:lib/qa1-start-testservice-common.jar>
 sharedGroup.codebase=http://${HOST}:${com.sun.jini.jsk.port}/create-dl.jar http://${HOST}:${com.sun.jini.test.port}/qa1-start-testservice-common-dl.jar
 sharedGroup.policy=<url:harness/policy/all.policy>
 include0=start.properties

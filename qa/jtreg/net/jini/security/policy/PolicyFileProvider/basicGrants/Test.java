@@ -145,11 +145,16 @@ public class Test {
 	CodeSource cs =
 	    new CodeSource(new URL(codebase), (Certificate[]) null);
 	PermissionCollection pc = policy.getPermissions(cs);
-	for (int i = 0; i < pass.length; i++) {
-	    if (!pc.implies(pass[i])) {
-		throw new Error(pass[i] + " not implied by " + cs);
-	    }
-	}
+        // This next test has been disabled because ConcurrentPolicyFile
+        // doesn't include Permissions other than AllPermission in the
+        // returned PermissionCollection, this is to avoid performing a 
+        // permission check twice, once in the policy, then again in the
+        // ProtectionDomain.
+//	for (int i = 0; i < pass.length; i++) {
+//	    if (!pc.implies(pass[i])) {
+//		throw new Error(pass[i] + " not implied by " + cs);
+//	    }
+//	}
 	for (int i = 0; i < fail.length; i++) {
 	    if (pc.implies(fail[i])) {
 		throw new Error(fail[i] + " implied by " + cs);
