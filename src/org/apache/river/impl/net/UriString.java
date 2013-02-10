@@ -184,14 +184,14 @@ public class UriString {
         return sb.toString();
     }
     
-    /* Fixes windows file URI path by converting back slashes to forward
+    /** Fixes windows file URI string by converting back slashes to forward
      * slashes and inserting a forward slash before the drive letter if it is
-     * missing.  No modification of case is performed.
+     * missing.  No normalisation or modification of case is performed.
      */
-    public static String fixWindowsURI(String path) {
-        if (path == null) return null;
-        if ( path.startsWith("file:") || path.startsWith("FILE:")){
-            char [] u = path.toCharArray();
+    public static String fixWindowsURI(String uri) {
+        if (uri == null) return null;
+        if ( uri.startsWith("file:") || uri.startsWith("FILE:")){
+            char [] u = uri.toCharArray();
             int l = u.length; 
             StringBuilder sb = new StringBuilder();
             for (int i=0; i<l; i++){
@@ -200,7 +200,7 @@ public class UriString {
                     sb.append('/');
                     continue;
                 }
-                if (i == 5 && path.startsWith(":", 6 )) {
+                if (i == 5 && uri.startsWith(":", 6 )) {
                     // Windows drive letter without leading slashes doesn't comply
                     // with URI spec, fix it here
                     sb.append("/");
@@ -209,14 +209,14 @@ public class UriString {
             }
             return sb.toString();
         }
-        return path;
+        return uri;
     }
     
     /**
-     * Normalises URIs to standard ones, eliminating pathname symbols, in addition
-     * to normalisation compliant with RFC3986 this method, uses the platform specific
-     * canonical file path for "file" scheme URIs and then normalises it using
-     * RFC3986 normalisation rules.
+     * Normalises a URI, eliminating pathname symbols, in addition
+     * to normalisation compliant with RFC3986 this method, uses platform specific
+     * canonical file path for "file" scheme URIs, then normalises using
+     * RFC3986 rules.
      * 
      * This minimises false negatives for URI equals and policy based URI
      * comparison.
@@ -232,12 +232,22 @@ public class UriString {
         if ("file".equals(scheme)) { //$NON-NLS-1$
             if (codebase.getHost() == null || codebase.getHost().isEmpty()) {
                 String path = codebase.getPath();
-
+                String forwardSlash = "/";
                 if (path == null || path.length() == 0) {
                     // codebase is "file:"
                     path = "*";
                 }
-                return normalisation(filePathToURI(new File(path).getAbsolutePath()));
+                // Ensure compatibility with URLClassLoader, when directory
+                // character is dropped by File.
+                boolean directory = false;
+                if (path.endsWith(forwardSlash)) directory = true;
+                path = new File(path).getAbsolutePath();
+                if (directory) {
+                    if (! (path.endsWith(File.pathSeparator))){
+                        path = path + File.pathSeparator;
+                    }
+                }
+                return normalisation(filePathToURI(path));
             } else {
                 // codebase is "file://<smth>"
                 return normalisation(codebase);
@@ -260,7 +270,6 @@ public class UriString {
             path = path.replace(File.separatorChar, '/');
             path = path.toUpperCase(); // Windows path must be CAPITALISED during normalisation.
         }
-//        path = filePathNormalise(path);
         if (!path.startsWith("/")) { //$NON-NLS-1$
             return new URI("file", null, //$NON-NLS-1$
                     new StringBuilder(path.length() + 1).append('/')

@@ -52,13 +52,13 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
 import org.apache.river.impl.net.UriString;
-import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 /**
  * An <code>RMIClassLoader</code> provider that supports preferred
@@ -304,13 +304,13 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     
     static {
         ConcurrentMap<Referrer<List<URI>>,Referrer<URL[]>> intern =
-                new NonBlockingHashMap<Referrer<List<URI>>,Referrer<URL[]>>();
+                new ConcurrentHashMap<Referrer<List<URI>>,Referrer<URL[]>>();
         urlCache = RC.concurrentMap(intern, Ref.TIME, Ref.STRONG, 10000L, 10000L);
         ConcurrentMap<Referrer<String>,Referrer<URI[]>> intern1 =
-                new NonBlockingHashMap<Referrer<String>,Referrer<URI[]>>();
+                new ConcurrentHashMap<Referrer<String>,Referrer<URI[]>>();
         uriCache = RC.concurrentMap(intern1, Ref.TIME, Ref.STRONG, 1000L, 1000L);
                 ConcurrentMap<Referrer<LoaderKey>,Referrer<ClassLoader>> internal =
-                new NonBlockingHashMap<Referrer<LoaderKey>,Referrer<ClassLoader>>();
+                new ConcurrentHashMap<Referrer<LoaderKey>,Referrer<ClassLoader>>();
         loaderTable = RC.concurrentMap(internal, Ref.STRONG, Ref.WEAK_IDENTITY, 200L, 200L);
     }
     
@@ -364,7 +364,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	}
 	this.requireDlPerm = requireDlPerm;
         ConcurrentMap<Referrer<ClassLoader>,Referrer<PermissionCollection>> inter =
-                new NonBlockingHashMap<Referrer<ClassLoader>,Referrer<PermissionCollection>>();
+                new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<PermissionCollection>>();
         classLoaderPerms = RC.concurrentMap(inter, Ref.WEAK_IDENTITY, Ref.STRONG, 200L, 200L);
 	initialized = true;
     }
@@ -1605,6 +1605,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	 * with respect to the parent class loader.
 	 */
 	if (uris == null) {
+            if (logger.isLoggable(Level.FINEST)){
+                logger.log(Level.FINEST, "uri string is null, returning parent ClassLoader: " + parent);
+            }
 	    return parent;
 	}
 
@@ -1622,6 +1625,30 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	 *     return parent;
 	 * }
 	 */
+        
+        if (logger.isLoggable(Level.FINEST)){
+            String uriString = null;
+            String urlString = null;
+            StringBuilder sb = new StringBuilder(120);
+            sb.append("URI[]: ");
+            int l = uris.length;
+            for (int i = 0; i < l; i++){
+                sb.append(uris[i]);
+                sb.append(" ");
+            }
+            uriString = sb.toString();
+            sb.delete(0, sb.length()-1);
+            sb.append("URL[]: ");
+            l = urls.length;
+            for (int i = 0; i <l; i++){
+                sb.append(urls[i]);
+                sb.append(" ");
+            }
+            urlString = sb.toString();
+            logger.log(Level.FINEST, uriString);
+            logger.log(Level.FINEST, urlString);
+            logger.log(Level.FINEST, "ClassLoader: {0}", parent);
+        }
         
         /* Each LoaderKey is unique to a ClassLoader, the LoaderKey contains
          * a weak reference to the parent ClassLoader, the parent ClassLoader
@@ -1664,15 +1691,28 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 
             if (loader == null) {
                 loader = createClassLoader(urls, parent, requireDlPerm);
+                if (logger.isLoggable(Level.FINEST)) {
+                    logger.log(Level.FINEST, "ClassLoader was null creating new PreferredClassLoader{0}", loader);
+                }
                 /* RIVER-265
                  * The next section of code has been moved inside this
                  * block to avoid caching loaders found using
                  * findOriginLoader
                  */
                 ClassLoader existed = loaderTable.putIfAbsent(key, loader);
-                if (existed != null) loader = existed;
+                if (existed != null) {
+                    if (logger.isLoggable(Level.FINEST)){
+                        logger.log(Level.FINEST, "ClassLoader existed, replacing {0} with {1}", new Object[]{loader, existed});
+                    }
+                    loader = existed;
+                }
+                
+            } else if (logger.isLoggable(Level.FINEST)) {
+                logger.log(Level.FINEST, "ClassLoader: {0}", loader);
             }
 
+        } else if (logger.isLoggable(Level.FINEST)){
+            logger.log(Level.FINEST, "ClassLoader found in loader table: {0} with key {1}", new Object[]{loader, key});
         }
         return loader;
     }
@@ -1780,6 +1820,26 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 				  parent == other.get()))
 		&& Arrays.equals(uris, other.uris);
 	}
+        
+        public String toString(){
+            StringBuilder sb = new StringBuilder(120);
+            int l = uris.length;
+            sb.append(getClass());
+            sb.append("\n");
+            sb.append("URI[]: ");
+            for (int i = 0; i < l; i++){
+                
+            }
+            sb.append("\n");
+            if (!nullParent) {
+                sb.append("Parent ClassLoader: ");
+                sb.append(get());
+            } else {
+                sb.append("System parent ClassLoader");
+            }
+            sb.append("\n");
+            return sb.toString();
+        }
     }
 
     private static ClassLoader getClassLoader(final Class c) {

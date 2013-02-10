@@ -1727,7 +1727,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      *  disappears prior to the commencement of the unicast discovery stage.
      */
     private class UnicastDiscoveryTask implements TaskManager.Task {
-	private Object req;
+	private final Object req;
 	private Ticket ticket = null;
 	private boolean delayRun = false;
 	UnicastDiscoveryTask(Object req) {

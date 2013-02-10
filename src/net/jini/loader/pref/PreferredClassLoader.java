@@ -41,7 +41,6 @@ import java.security.PermissionCollection;
 import java.security.Permissions;
 import java.security.ProtectionDomain;
 import java.security.Policy;
-import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
@@ -592,8 +591,9 @@ public class PreferredClassLoader extends URLClassLoader
 	     * available upon the attempt (elsewhere) to obtain the preferred
 	     * list
 	     */
-            URL baseURL = getBaseJarURL(firstURL);
+            URL baseURL = null;
 	    try {
+                baseURL = getBaseJarURL(firstURL);
 		((JarURLConnection) baseURL.openConnection()).getManifest();
 		exists = true;
 	    } catch (IOException e) {
@@ -1035,21 +1035,21 @@ public class PreferredClassLoader extends URLClassLoader
 	}
     }
     
-    protected Class<?> findClass(final String name)
-	 throws ClassNotFoundException
-    {   
-        /* TODO: Override and create our own CodeSource
-         * implementation that contains permissions.perm
-         * After we retrieve the manifest, class bytes and
-         * certificates, create the CodeSource we call
-         * defineClass(String name, byte[]b, int off, int len, CodeSource cs)
-         * 
-         * This will be utilised by a class that overrides 
-         * BasicProxyPreparer.getPermissions()
-         * to retrieve the advisory permissions.
-         */
-        return super.findClass(name);
-    }
+//    protected Class<?> findClass(final String name)
+//	 throws ClassNotFoundException
+//    {   
+//        /* TODO: Override and create our own CodeSource
+//         * implementation that contains permissions.perm
+//         * After we retrieve the manifest, class bytes and
+//         * certificates, create the CodeSource we call
+//         * defineClass(String name, byte[]b, int off, int len, CodeSource cs)
+//         * 
+//         * This will be utilised by a class that overrides 
+//         * BasicProxyPreparer.getPermissions()
+//         * to retrieve the advisory permissions.
+//         */
+//        return super.findClass(name);
+//    }
 
     /**
      * {@inheritDoc}
