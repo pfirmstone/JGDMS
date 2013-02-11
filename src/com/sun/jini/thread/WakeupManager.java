@@ -277,7 +277,7 @@ public class WakeupManager {
      * can be used by subclasses of <code>WakeupManager</code> to
      * create new <code>Ticket</code> instances. 
      */
-    public static class Ticket implements Comparable {
+    public static class Ticket implements Comparable<Ticket> {
 	/** When the task should occur. */
 	public final long when;
 	/** The task object to be executed */
@@ -317,8 +317,8 @@ public class WakeupManager {
 	    return (int)breaker;
 	}
 
-	public int compareTo(Object o) {
-	    final Ticket that = (Ticket)o;	    
+	public int compareTo(Ticket o) {
+	    final Ticket that = o;	    
 	    
 	    final long whenDiff = when - that.when;
 	    if (whenDiff > 0)

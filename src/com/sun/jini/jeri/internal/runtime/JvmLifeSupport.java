@@ -111,12 +111,15 @@ public class JvmLifeSupport {
             int count = keepAliveCount.get();
             if (count == 0){
                 assert keeper != null;
-                AccessController.doPrivileged(new PrivilegedAction() {
-                    public Object run() {
-                        keeper.interrupt();
-                        return null;
-                    }
-                });
+                Thread kept = keeper;
+                if (kept != null){
+                    AccessController.doPrivileged(new PrivilegedAction() {
+                        public Object run() {
+                            keeper.interrupt();
+                            return null;
+                        }
+                    });
+                }
                 keeper = null;
             } else if ( count > 0){
                 if (keeper == null) {

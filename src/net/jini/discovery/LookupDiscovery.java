@@ -28,7 +28,6 @@ import com.sun.jini.discovery.UnicastResponse;
 import com.sun.jini.discovery.internal.MultiIPDiscovery;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.logging.LogUtil;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 import com.sun.jini.thread.WakeupManager.Ticket;
 import java.io.IOException;
@@ -53,6 +52,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Deque;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -60,7 +60,12 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.logging.LogRecord;
@@ -731,13 +736,13 @@ public class LookupDiscovery implements DiscoveryManagement,
     /** Flag indicating whether or not this class is still functional. */
     private volatile boolean terminated = false;
     /** Set of listeners to be sent discovered/discarded/changed events.  Access sync on registrars */
-    private final ArrayList listeners = new ArrayList(1);
+    private final ArrayList<DiscoveryListener> listeners = new ArrayList<DiscoveryListener>(1);
     /** The groups to discover. Empty set -- NO_GROUPS, access synchronised on registrars */
-    private final Set groups;
+    private final Set<String> groups;
     /** If groups passed to constructor are null -- ALL_GROUPS, writes synchronised on registrars */
     private volatile boolean all_groups;
     /** Map from ServiceID to UnicastResponse. */
-    private final Map registrars = new HashMap(11);
+    private final Map<ServiceID,UnicastResponse> registrars = new HashMap<ServiceID,UnicastResponse>(11);
     /** 
      * Set that takes one of the following:
      * <p><ul>
@@ -756,16 +761,17 @@ public class LookupDiscovery implements DiscoveryManagement,
     /** Thread that handles pending notifications. */
     private final Notifier notifierThread;
     /** Notifications to be sent to listeners.  Synchronised access with lock notify */
-    private final LinkedList pendingNotifies = new LinkedList();
+    private final Deque<NotifyTask> pendingNotifies = new LinkedList<NotifyTask>();
     /** Task manager for running UnicastDiscoveryTasks and
      *  DecodeAnnouncementTasks.
      */
-    private final TaskManager taskManager;
+    private final ExecutorService executor;
+    
     /* WakeupManager to delay tasks. */
     private final WakeupManager discoveryWakeupMgr;
     private final boolean isDefaultWakeupMgr;
     /* Outstanding tickets - Access synchronized on pendingDiscoveries */
-    private final List tickets;
+    private final List<Ticket> tickets;
     /** Thread that handles incoming multicast announcements. */
     private final AnnouncementListener announceeThread;
     /** Collection that contains instances of the Requestor Thread class,
@@ -774,7 +780,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      * 
      * Access synchronised.
      */
-    private final Collection requestors = new LinkedList();
+    private final Collection<Thread> requestors = new LinkedList<Thread>();
     /** Thread that manages incoming multicast responses. Runs only when
      *  there are Requestor threads running.
      * 
@@ -791,7 +797,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      * 
      * Access synchronised on registrars.
      */
-    private final HashMap regInfo = new HashMap(11);
+    private final HashMap<ServiceID,AnnouncementInfo> regInfo = new HashMap<ServiceID,AnnouncementInfo>(11);
     /** Thread that monitors multicast announcements from already-discovered
      *  lookup services and, upon determining that those announcements have
      *  stopped, queues a reachability test with the UnicastDiscoveryTask
@@ -878,12 +884,12 @@ public class LookupDiscovery implements DiscoveryManagement,
     /** Data structure containing task data processed by the Notifier Thread */
     private static class NotifyTask {
 	/** The set of listeners to notify */
-	public final ArrayList listeners;
+	public final List<DiscoveryListener> listeners;
 	/** Map of discovered registrars-to-groups in which each is a member */
-	public final Map groupsMap;
+	public final Map<ServiceRegistrar,String[]> groupsMap;
 	/** The type of event to send: DISCOVERED, DISCARDED, CHANGED */
 	public final int eventType;
-	public NotifyTask(ArrayList listeners, Map groupsMap, int eventType) {
+	public NotifyTask(List<DiscoveryListener> listeners, Map<ServiceRegistrar,String[]> groupsMap, int eventType) {
 	    this.listeners = listeners;
 	    this.groupsMap = groupsMap;
 	    this.eventType = eventType;
@@ -916,7 +922,7 @@ public class LookupDiscovery implements DiscoveryManagement,
                             break;
                         }
 		    }//endif
-		    task = (NotifyTask)pendingNotifies.removeFirst();
+		    task = pendingNotifies.removeFirst();
                     if (task == null) continue; // spurious wakeup.
 		}//end sync
                 /* The call to notify() on the registered listeners is
@@ -964,8 +970,7 @@ public class LookupDiscovery implements DiscoveryManagement,
                                                     "discarded",
                                                     "changed"}[task.eventType];
                                 ServiceRegistrar[] regs = e.getRegistrars();
-                                logger.finest(eType+" event  -- "+regs.length
-                                                                +" lookup(s)");
+                                logger.log(Level.FINEST, "{0} event  -- {1} lookup(s)", new Object[]{eType, regs.length});
                                 Map groupsMap = e.getGroups();
                                 for(int i=0;i<regs.length;i++) {
                                     LookupLocator loc = null;
@@ -974,16 +979,13 @@ public class LookupDiscovery implements DiscoveryManagement,
                                     } catch (Throwable ex) { /* ignore */ }
                                     String[] groups = 
                                              (String[])groupsMap.get(regs[i]);
-                                    logger.finest("    "+eType+" locator  = "
-                                                              +loc);
+                                    logger.log(Level.FINEST, "    {0} locator  = {1}", new Object[]{eType, loc});
                                     if(groups.length == 0) {
-                                        logger.finest("    "+eType+" group    "
-                                                            +"= NO_GROUPS");
+                                        logger.log(Level.FINEST,"    {0}"+" group    "
+                                                            +"= NO_GROUPS", eType);
                                     } else {
                                         for(int j=0;j<groups.length;j++) {
-                                            logger.finest("    "+eType
-                                                          +" group["+j+"] = "
-                                                          +groups[j]);
+                                            logger.log(Level.FINEST, "    {0} group[{1}] = {2}", new Object[]{eType, j, groups[j]});
                                         }//end loop
                                     }//endif(groups.length)
                                 }//end loop
@@ -1037,7 +1039,7 @@ public class LookupDiscovery implements DiscoveryManagement,
          * which encountered failure when setting the interface or joining
          * the desired multicast group, and which will be retried periodically.
          */
-        private ArrayList retryNics = null;
+        private ArrayList<NetworkInterface> retryNics = null;
 
 	/** Create a daemon thread */
 	public AnnouncementListener() throws IOException {
@@ -1055,7 +1057,7 @@ public class LookupDiscovery implements DiscoveryManagement,
                             sock.joinGroup(Constants.getAnnouncementAddress());
                         } catch(IOException e) {
                             if(retryNics == null) {
-                                retryNics = new ArrayList(nics.length);
+                                retryNics = new ArrayList<NetworkInterface>(nics.length);
                             }//endif
                             retryNics.add(nics[i]);
                             if( logger.isLoggable(Levels.HANDLED) ) {
@@ -1082,7 +1084,7 @@ public class LookupDiscovery implements DiscoveryManagement,
                             sock.joinGroup(Constants.getAnnouncementAddress());
                         } catch(IOException e) {
                             if(retryNics == null) {
-                                retryNics = new ArrayList(nics.length);
+                                retryNics = new ArrayList<NetworkInterface>(nics.length);
                             }//endif
                             retryNics.add(nics[i]);
                             if( logger.isLoggable(Level.SEVERE) ) {
@@ -1107,7 +1109,7 @@ public class LookupDiscovery implements DiscoveryManagement,
                     try {
                         sock.joinGroup(Constants.getAnnouncementAddress());
                     } catch(IOException e) {
-                        retryNics = new ArrayList(0);
+                        retryNics = new ArrayList<NetworkInterface>(0);
                         if( logger.isLoggable(Level.SEVERE) ) {
                             logger.log(Level.SEVERE, "system default network "
                                        +"interface is bad or not configured "
@@ -1145,10 +1147,11 @@ public class LookupDiscovery implements DiscoveryManagement,
             if( !retryNics.isEmpty() ) {
                 String recoveredStr = "network interface has recovered "
                                       +"from previous failure: {0}";
-                ArrayList tmpList = (ArrayList)retryNics.clone();
+                @SuppressWarnings("unchecked")
+                ArrayList<NetworkInterface> tmpList = (ArrayList<NetworkInterface>) retryNics.clone();
                 retryNics.clear();
                 for(int i=0; i<tmpList.size(); i++) {
-                    NetworkInterface nic =(NetworkInterface)tmpList.get(i);
+                    NetworkInterface nic =tmpList.get(i);
                     try {
                         sock.setNetworkInterface(nic);
                         sock.joinGroup(Constants.getAnnouncementAddress());
@@ -1434,20 +1437,18 @@ public class LookupDiscovery implements DiscoveryManagement,
                         /* can't modify regInfo while iterating over it, 
                          * so clone it
                          */
-                        HashMap regInfoClone = (HashMap)(regInfo.clone());
-                        Set eSet = regInfoClone.entrySet();
-                        for(Iterator itr = eSet.iterator(); itr.hasNext(); ) {
-                            Map.Entry pair   = (Map.Entry)itr.next();
-                            ServiceID srvcID = (ServiceID)pair.getKey();
-                            long tStamp = 
-				((AnnouncementInfo)pair.getValue()).tStamp;
+                        HashMap<ServiceID,AnnouncementInfo> regInfoClone = (HashMap<ServiceID,AnnouncementInfo>) regInfo.clone();
+                        Set<Map.Entry<ServiceID,AnnouncementInfo>> eSet = regInfoClone.entrySet();
+                        for(Iterator<Map.Entry<ServiceID,AnnouncementInfo>> itr = eSet.iterator(); itr.hasNext(); ) {
+                            Map.Entry<ServiceID,AnnouncementInfo> pair   = itr.next();
+                            ServiceID srvcID = pair.getKey();
+                            long tStamp = pair.getValue().gettStamp();
                             long deltaT = curTime - tStamp;
                             if(deltaT > timeThreshold) {
                                 /* announcements stopped, queue reachability
                                  * test and potential discarded event
                                  */
-                                UnicastResponse resp =
-				    (UnicastResponse)registrars.get(srvcID);
+                                UnicastResponse resp = registrars.get(srvcID);
 				Object req = new CheckReachabilityMarker(resp);
                                 synchronized (pendingDiscoveries) {
                                     if(pendingDiscoveries.add(req)) {
@@ -1519,7 +1520,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      * signature verification, and would impede the packet receiving loop if it
      * were performed inline.
      */
-    private class DecodeAnnouncementTask implements TaskManager.Task {
+    private class DecodeAnnouncementTask implements Runnable {
 
 	private final DatagramPacket datagram;
 
@@ -1577,15 +1578,14 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    Object pending = null;
 	    ServiceID srvcID = ann.getServiceID();
 	    synchronized (registrars) {
-		UnicastResponse resp =
-		    (UnicastResponse) registrars.get(srvcID);
+		UnicastResponse resp = registrars.get(srvcID);
 		if (resp != null) {
 		    // already in discovered set, timestamp announcement
-		    AnnouncementInfo aInfo = 
-			(AnnouncementInfo) regInfo.get(srvcID);
-		    aInfo.tStamp = System.currentTimeMillis();
+		    AnnouncementInfo aInfo = regInfo.get(srvcID);
+		    aInfo = new AnnouncementInfo( System.currentTimeMillis(), aInfo.getSeqNum());
+                    regInfo.put(srvcID, aInfo);
 		    long currNum = ann.getSequenceNumber();
-		    if ((newSeqNum(currNum, aInfo.seqNum)) &&
+		    if ((newSeqNum(currNum, aInfo.getSeqNum())) &&
 			(!groupSetsEqual(resp.getGroups(), ann.getGroups()))) {
 			/* Check if the groups have changed. In the case of
 			 * split announcement messages, eventually, group difference
@@ -1615,9 +1615,9 @@ public class LookupDiscovery implements DiscoveryManagement,
 		    synchronized(registrars) {
 			// Since this is a valid announcement, update the
 			// sequence number.
-			AnnouncementInfo aInfo = 
-			    (AnnouncementInfo) regInfo.get(srvcID);
-			aInfo.seqNum = ann.getSequenceNumber();
+			AnnouncementInfo aInfo = regInfo.get(srvcID);
+			aInfo = new AnnouncementInfo( aInfo.gettStamp(), ann.getSequenceNumber());
+                        regInfo.put(srvcID, aInfo);
 		    }
 		}
 		boolean added;
@@ -1662,10 +1662,6 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    } else {
 		return false;
 	    }
-	}
-	/** No ordering */
-	public boolean runAfter(List tasks, int size) {
-	    return false;
 	}
     }
 
@@ -1726,7 +1722,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      *  unicast discoveries) will be missed whenever a lookup service
      *  disappears prior to the commencement of the unicast discovery stage.
      */
-    private class UnicastDiscoveryTask implements TaskManager.Task {
+    private class UnicastDiscoveryTask implements Runnable {
 	private final Object req;
 	private Ticket ticket = null;
 	private boolean delayRun = false;
@@ -1815,7 +1811,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 		    ServiceID srvcID = announcement.getServiceID();
 		    UnicastResponse resp = null;
 		    synchronized (registrars) {
-			resp = (UnicastResponse)registrars.get(srvcID);
+			resp = registrars.get(srvcID);
 		    }
 		    if(resp != null) {
 			maybeSendEvent(resp, announcement.getGroups());
@@ -1884,9 +1880,6 @@ public class LookupDiscovery implements DiscoveryManagement,
          *  @param tasks the tasks to consider.
          *  @param size  elements with index less than size are considered.
          */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class UnicastDiscoveryTask
 
     /**
@@ -2002,16 +1995,24 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    constraints.getConstraints(
 		DiscoveryConstraints.unicastDiscoveryMethod);
 
-        /* Task manager */
-        TaskManager taskManager;
+//        /* Task manager */
+//        TaskManager taskManager;
+//        try {
+//            taskManager = (TaskManager)config.getEntry(COMPONENT_NAME,
+//						       "taskManager",
+//						       TaskManager.class);
+//        } catch(NoSuchEntryException e) { /* use default */
+//            taskManager = new TaskManager(MAX_N_TASKS,(15*1000),1.0f);
+//        }
+        
+        /* ExecutorService */
+        ExecutorService executorServ;
         try {
-            taskManager = (TaskManager)config.getEntry(COMPONENT_NAME,
-						       "taskManager",
-						       TaskManager.class);
-        } catch(NoSuchEntryException e) { /* use default */
-            taskManager = new TaskManager(MAX_N_TASKS,(15*1000),1.0f);
+            executorServ = (ExecutorService) config.getEntry(COMPONENT_NAME, "executorService", ExecutorService.class);
+        } catch (NoSuchEntryException e) { /* use default */
+            executorServ = Executors.newFixedThreadPool(MAX_N_TASKS);
         }
-        this.taskManager = taskManager;
+        this.executor = executorServ;
 
         /* Multicast request-related configuration items */
         multicastRequestMax
@@ -2895,11 +2896,12 @@ public class LookupDiscovery implements DiscoveryManagement,
      *  members of any of the groups to discover, and discard those registrars
      *  that are no longer members of any of those groups.
      */
+    @SuppressWarnings("unchecked")
     private void maybeDiscardRegistrars() {
 	synchronized (registrars) {
-            HashMap groupsMap = new HashMap(registrars.size());
-	    for(Iterator iter=registrars.values().iterator();iter.hasNext(); ){
-		UnicastResponse ent = (UnicastResponse)iter.next();
+            Map<ServiceRegistrar,String[]> groupsMap = new HashMap<ServiceRegistrar,String[]>(registrars.size());
+	    for(Iterator<UnicastResponse> iter=registrars.values().iterator();iter.hasNext(); ){
+		UnicastResponse ent = iter.next();
 		if(!groupsOverlap(ent.getGroups())) { // not interested anymore
                     groupsMap.put(ent.getRegistrar(),ent.getGroups());
                     regInfo.remove(ent.getRegistrar().getServiceID());
@@ -2907,7 +2909,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 		}//endif
 	    }//end loop
             if( !groupsMap.isEmpty() && !listeners.isEmpty() ) {
-		addNotify((ArrayList)listeners.clone(), groupsMap, DISCARDED);
+		addNotify((ArrayList<DiscoveryListener>)listeners.clone(), groupsMap, DISCARDED);
 	    }//endif
 	}//end sync
     }//end maybeDiscardRegistrars
@@ -2915,7 +2917,7 @@ public class LookupDiscovery implements DiscoveryManagement,
     /**
      * Add a notification task to the pending queue, and wake up the Notifier.
      */
-    private void addNotify(ArrayList notifies, Map groupsMap, int eventType) {
+    private void addNotify(List<DiscoveryListener> notifies, Map<ServiceRegistrar,String[]> groupsMap, int eventType) {
 	synchronized (pendingNotifies) {
 	    pendingNotifies.addLast(new NotifyTask(notifies,
                                                    groupsMap,
@@ -2969,12 +2971,12 @@ public class LookupDiscovery implements DiscoveryManagement,
      *  closes all associated sockets.
      */ 
     private void terminateTaskMgr() {
-        synchronized(taskManager) {
-            /* Remove all pending tasks */
-            ArrayList pendingTasks = taskManager.getPending();
-            for(int i=0;i<pendingTasks.size();i++) {
-                taskManager.remove((TaskManager.Task)pendingTasks.get(i));
-            }//end loop
+        executor.shutdownNow();
+        try {
+            executor.awaitTermination(10L, TimeUnit.SECONDS);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
             /* Clear pendingDiscoveries and close all associated sockets */
             synchronized (pendingDiscoveries) {
                 for(Iterator iter = pendingDiscoveries.iterator();
@@ -2989,9 +2991,6 @@ public class LookupDiscovery implements DiscoveryManagement,
                     }//endif
                 }//end loop
             }//end sync
-            /* Interrupt active TaskThreads, prepare the taskManager for GC. */
-            taskManager.terminate();
-        }//end sync(taskManager)
         synchronized(pendingNotifies) {
             pendingNotifies.clear();
         }//end sync
@@ -3051,7 +3050,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    // Other events may have occured to registrars while we were
 	    // making our remote call.
 	    UnicastResponse resp =
-		(UnicastResponse) registrars.get(reg.getServiceID());
+		registrars.get(reg.getServiceID());
 	    if (resp == null) {
 		// The registrar was discarded in the meantime. Oh well.
 		return;
@@ -3147,8 +3146,7 @@ public class LookupDiscovery implements DiscoveryManagement,
      */
     private void sendChanged(ServiceRegistrar reg, String[] curGroups) {
         /* replace old groups with new; prevents repeated changed events */
-        UnicastResponse resp = 
-                   (UnicastResponse)registrars.get(reg.getServiceID());
+        UnicastResponse resp = registrars.get(reg.getServiceID());
 	registrars.put(reg.getServiceID(),
 		       new UnicastResponse(resp.getHost(),
 					   resp.getPort(),
@@ -3242,8 +3240,8 @@ public class LookupDiscovery implements DiscoveryManagement,
      *   @return <code>Map</code> instance containing a single mapping from
      *           a given registrar to its current member groups
      */
-    private Map mapRegToGroups(ServiceRegistrar reg, String[] curGroups) {
-        HashMap groupsMap = new HashMap(1);
+    private Map<ServiceRegistrar,String[]> mapRegToGroups(ServiceRegistrar reg, String[] curGroups) {
+        Map<ServiceRegistrar,String[]> groupsMap = new HashMap<ServiceRegistrar,String[]>(1);
         groupsMap.put(reg,curGroups);
         return groupsMap;
     }//end mapRegToGroups
@@ -3363,11 +3361,11 @@ public class LookupDiscovery implements DiscoveryManagement,
 	    new DatagramPacket[packets.size()]);
     }
     
-    private void restoreContextAddTask(final TaskManager.Task t) {
+    private void restoreContextAddTask(final Runnable t) {
 	AccessController.doPrivileged(
 	    securityContext.wrap(new PrivilegedAction() {
 		public Object run() {
-		    taskManager.add(t);
+                    executor.execute(t);
 		    return null;
 		    }
 		}),
@@ -3384,7 +3382,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 			    (long) (Math.random() * unicastDelayRange),
 			    new Runnable() {
 				public void run() {
-				    taskManager.add(t);
+                                    executor.execute(t);
 				}
 			    }
 			);
@@ -3404,13 +3402,12 @@ public class LookupDiscovery implements DiscoveryManagement,
 	throws IOException, ClassNotFoundException
     {
 	try {
-	    return (UnicastResponse) AccessController.doPrivileged(
-		securityContext.wrap(new PrivilegedExceptionAction() {
-		    public Object run() throws Exception {
+	    return AccessController.doPrivileged(
+		securityContext.wrap(new PrivilegedExceptionAction<UnicastResponse>() {
+		    public UnicastResponse run() throws Exception {
 			return disco.doUnicastDiscovery(
 			    socket, 
-			    unicastDiscoveryConstraints.
-				getUnfulfilledConstraints(),
+			    unicastDiscoveryConstraints.getUnfulfilledConstraints(),
 			    null,
 			    null,
 			    null);
@@ -3462,11 +3459,25 @@ public class LookupDiscovery implements DiscoveryManagement,
      * class as values.
      */
     private static class AnnouncementInfo {
-	private long tStamp;
-	private long seqNum;
+	private final long tStamp;
+	private final long seqNum;
 	private AnnouncementInfo(long tStamp, long seqNum) {
 	    this.tStamp = tStamp;
 	    this.seqNum = seqNum;
 	}
+
+        /**
+         * @return the tStamp
+         */
+        long gettStamp() {
+            return tStamp;
+        }
+
+        /**
+         * @return the seqNum
+         */
+        long getSeqNum() {
+            return seqNum;
+        }
     }
 }//end class LookupDiscovery

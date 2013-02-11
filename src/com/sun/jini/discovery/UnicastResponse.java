@@ -30,13 +30,13 @@ import net.jini.core.lookup.ServiceRegistrar;
 public class UnicastResponse {
 
     /** The lookup service host. */
-    protected String host;
+    private final String host;
     /** The lookup service listen port. */
-    protected int port;
+    private final int port;
     /** The lookup service member groups. */
-    protected String[] groups;
+    private final String[] groups;
     /** The lookup service proxy. */
-    protected ServiceRegistrar registrar;
+    private final ServiceRegistrar registrar;
 
     /**
      * Creates new <code>UnicastResponse</code> instance containing the given

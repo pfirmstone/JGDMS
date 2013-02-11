@@ -31,15 +31,15 @@ import net.jini.core.lookup.ServiceID;
 public class MulticastAnnouncement {
 
     /** The announcement sequence number. */
-    protected long sequenceNumber;
+    private final long sequenceNumber;
     /** The lookup service host. */
-    protected String host;
+    private final String host;
     /** The lookup service listen port. */
-    protected int port;
+    private final int port;
     /** The lookup service member groups. */
-    protected String[] groups;
+    private final String[] groups;
     /** The lookup service ID. */
-    protected ServiceID serviceID;
+    private final ServiceID serviceID;
 
     /**
      * Creates a new <code>MulticastAnnouncement</code> instance containing the
@@ -62,7 +62,7 @@ public class MulticastAnnouncement {
 				 String[] groups,
 				 ServiceID serviceID)
     {
-	groups = (groups != null) ? (String[]) groups.clone() : new String[0];
+	groups = (groups != null) ? groups.clone() : new String[0];
 	if (host == null || 
 	    serviceID == null ||
 	    Arrays.asList(groups).contains(null))
@@ -112,7 +112,7 @@ public class MulticastAnnouncement {
      * @return the member groups of the lookup service
      */
     public String[] getGroups() {
-	return (String[]) groups.clone();
+	return groups.clone();
     }
 
     /**
