@@ -105,9 +105,9 @@ java.util.logging.FileHandler.level = INFO
 
 # For Everything
 sun.rmi.level = CONFIG
-net.jini.level = CONFIG
+net.jini.level = FINE
 org.apache.river.level = CONFIG
-com.sun.jini.level = CONFIG
+com.sun.jini.level = FINE
 
 # For the LogManager
 com.sun.jini.logging.LogManager.level = INFO

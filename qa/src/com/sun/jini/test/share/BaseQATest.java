@@ -1026,6 +1026,7 @@ abstract public class BaseQATest extends QATestEnvironment {
                                " number of currently discovered lookup(s) = "
                                +discoveredCount());
                     }
+                    this.notifyAll();
                 }//end sync(this)
             } else {//(regs == null)
                 logger.log(Level.FINE, " change event received "
@@ -1036,59 +1037,14 @@ abstract public class BaseQATest extends QATestEnvironment {
 
     /* Protected instance variables */
     protected volatile int testType = AUTOMATIC_LOCAL_TEST;
-
-//    protected String implClassname;
-
     protected volatile int maxSecsEventWait  = 10 * 60;
-//    protected int announceInterval  = 2 * 60 * 1000;
-//    protected int originalAnnounceInterval = 0;
-//    protected int minNAnnouncements = 2;
     protected volatile int nIntervalsToWait  = 3;
-
     protected volatile boolean delayLookupStart = false;
-    /* refactored fields */
-    
-//    private int nLookupServices          = 0;
-//    private int nAddLookupServices       = 0;
-//    
-//    private int nServices    = 0;//local/serializable test services
-//    private int nAddServices = 0;//additional local/serializable services
-//
-//
-//    /* Attributes per service */
-//    private int nAttributes    = 0;
-//    private int nAddAttributes = 0;
-//
-////    protected int nSecsLookupDiscovery  = 30;
-//    private int nSecsServiceDiscovery = 30;
-//    private int nSecsJoin             = 30;
-//
-////    protected String remoteHost = "UNKNOWN_HOST";
-//
-//    /* Data structures - lookup services */
-//    private ArrayList initLookupsToStart = new ArrayList(11);
-//    private ArrayList addLookupsToStart  = new ArrayList(11);
-//    private ArrayList allLookupsToStart  = new ArrayList(11);
-//    private ArrayList lookupsStarted     = new ArrayList(11);
-//
-////    protected ArrayList lookupList = new ArrayList(1);
-//    private HashMap genMap = new HashMap(11);
-//    protected int nStarted = 0;
-    /* Data structures - lookup discovery services */
-//    protected ArrayList initLDSToStart = new ArrayList(11);
-//    protected ArrayList addLDSToStart  = new ArrayList(11);
-//    protected ArrayList allLDSToStart  = new ArrayList(11);
-//    protected ArrayList ldsList = new ArrayList(1);
-  
-    
-    /* end refactored fields */
-//    protected Class[] serviceClasses = null;
-    private final List expectedServiceList = new CopyOnWriteArrayList();
-
     protected volatile QAConfig config = null;
     
+    /* Private state */
+    private final List expectedServiceList = new CopyOnWriteArrayList();
     private volatile boolean announcementsStopped = false;
-    
     private volatile LookupServices lookupServices;
     private volatile LookupDiscoveryServices lookupDiscoveryServices;
     private volatile LeaseRenewalServices leaseRenewalServices;
