@@ -1796,11 +1796,11 @@ public class LookupDiscovery implements DiscoveryManagement,
 							       InetAddress addr,
 							       int port)
 			{
-			    logger.log(
+                                logger.log(
 				Levels.HANDLED,
 				"Exception occured during unicast discovery " +
 				addr + ":" + port, e);
-			}
+                            } 
 		    }.getResponse(loc.getHost(),
 				      loc.getPort(),
 				      rawUnicastDiscoveryConstraints);
@@ -1875,11 +1875,6 @@ public class LookupDiscovery implements DiscoveryManagement,
             logger.finest("LookupDiscovery - UnicastDiscoveryTask completed");
 	}//end run
 
-        /** Returns true if current instance must be run after task(s) in
-         *  task manager queue.
-         *  @param tasks the tasks to consider.
-         *  @param size  elements with index less than size are considered.
-         */
     }//end class UnicastDiscoveryTask
 
     /**

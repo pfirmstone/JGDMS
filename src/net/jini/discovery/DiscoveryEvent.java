@@ -17,7 +17,10 @@
  */
 package net.jini.discovery;
 
+import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.util.EventObject;
+import java.util.HashMap;
 import java.util.Map;
 import net.jini.core.lookup.ServiceRegistrar;
 
@@ -44,7 +47,7 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    protected ServiceRegistrar[] regs;
+    private ServiceRegistrar[] regs;
 
     /**
      * Map from the registrars of this event to the groups in which each
@@ -52,7 +55,7 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    protected Map groups;
+    private Map groups;
 
     /**
      * Construct a new <code>DiscoveryEvent</code> object, with the given
@@ -64,7 +67,7 @@ public class DiscoveryEvent extends EventObject {
      */
     public DiscoveryEvent(Object source, ServiceRegistrar[] regs) {
 	super(source);
-	this.regs = regs;
+	this.regs = regs.clone();
 	this.groups = null;
     }
 
@@ -91,7 +94,7 @@ public class DiscoveryEvent extends EventObject {
      * @return the set of registrars to which this event applies.
      */
     public ServiceRegistrar[] getRegistrars() {
-	return regs;
+	return regs.clone();
     }
 
     /**
@@ -114,6 +117,13 @@ public class DiscoveryEvent extends EventObject {
      *          registrar.
      */
     public Map getGroups() {
-        return groups;
+        return groups != null ? new HashMap(groups) : null;
+    }
+    
+    @SuppressWarnings("unchecked")
+    private void readObject(ObjectInputStream oin) throws IOException, ClassNotFoundException{
+        oin.defaultReadObject();
+        regs = regs.clone();
+        if (groups != null) groups = new HashMap(groups);
     }
 }

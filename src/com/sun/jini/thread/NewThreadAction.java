@@ -41,14 +41,14 @@ import java.security.PrivilegedAction;
  *
  * @author	Sun Microsystems, Inc.
  **/
-public final class NewThreadAction implements PrivilegedAction {
+public final class NewThreadAction implements PrivilegedAction<Thread> {
 
     static final String NAME_PREFIX = "(JSK) ";
 
     /** cached reference to the system (root) thread group */
-    static final ThreadGroup systemThreadGroup = (ThreadGroup)
-	AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() {
+    static final ThreadGroup systemThreadGroup =
+	AccessController.doPrivileged(new PrivilegedAction<ThreadGroup>() {
+	    public ThreadGroup run() {
 		ThreadGroup group = Thread.currentThread().getThreadGroup();
 		ThreadGroup parent;
 		while ((parent = group.getParent()) != null) {
@@ -63,9 +63,9 @@ public final class NewThreadAction implements PrivilegedAction {
      * may execute user code, so that the security policy for threads in
      * the system thread group will not apply
      */
-    static final ThreadGroup userThreadGroup = (ThreadGroup)
-	AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() {
+    static final ThreadGroup userThreadGroup = 
+        AccessController.doPrivileged(new PrivilegedAction<ThreadGroup>() {
+               public ThreadGroup run() {
 		return new ThreadGroup(systemThreadGroup,
 				       NAME_PREFIX + "Runtime");
 	    }
@@ -124,7 +124,7 @@ public final class NewThreadAction implements PrivilegedAction {
 	     runnable, name, daemon);
     }
 
-    public Object run() {
+    public Thread run() {
 	SecurityManager sm = System.getSecurityManager();
 	if (sm != null) {
 	    sm.checkPermission(getClassLoaderPermission);

@@ -20,7 +20,12 @@ package com.sun.jini.thread;
 
 import com.sun.jini.action.GetLongAction;
 import java.security.AccessController;
-import java.util.LinkedList;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -70,14 +75,15 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
     /** thread group that this pool's threads execute in */
     private final ThreadGroup threadGroup;
 
-    /** lock guarding all mutable instance state (below) */
-    private final Object lock = new Object();
+    /** Lock used to wake idle threads and synchronize writes to idleThreads */
+    private final Lock lock;
+    private final Condition wakeup;
 
     /** threads definitely available to take new tasks */
-    private int idleThreads = 0;
+    private volatile int idleThreads;
 
     /** queues of tasks to execute */
-    private final LinkedList queue = new LinkedList();
+    private final Queue<Runnable> queue;
 
     /**
      * Creates a new thread group that executes tasks in threads of
@@ -85,20 +91,34 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
      */
     ThreadPool(ThreadGroup threadGroup) {
 	this.threadGroup = threadGroup;
+        idleThreads = 0;
+        queue = new ConcurrentLinkedQueue<Runnable>(); //Non blocking queue.
+        lock = new ReentrantLock();
+        wakeup = lock.newCondition();
     }
 
+    // This method must not block - Executor
     public void execute(Runnable runnable, String name) {
-	Task task = new Task(runnable, name);
-	synchronized (lock) {
-	    if (queue.size() < idleThreads) {
-		queue.addLast(task);
-		lock.notify();
-		return;
-	    }
-	}
-	Thread t = (Thread) AccessController.doPrivileged(
+	Runnable task = new Task(runnable, name);
+        if (idleThreads < 3){ // create a new thread, non blocking approximate
+            Thread t = AccessController.doPrivileged(
 	    new NewThreadAction(threadGroup, new Worker(task), name, true));
 	t.start();
+        } else {
+            boolean accepted = queue.offer(task); //non blocking.
+            if (accepted) { 
+                lock.lock(); // blocking.
+                try {
+                    wakeup.signal(); 
+                } finally {
+                    lock.unlock();
+	    }
+            } else { // Should never happen.
+                Thread t = AccessController.doPrivileged(
+	    new NewThreadAction(threadGroup, new Worker(task), name, true));
+	t.start();
+    }
+        }
     }
 
     public void execute(Runnable command) {
@@ -108,15 +128,35 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
     /**
      * Task simply encapsulates a task's Runnable object with its name.
      */
-    private static class Task {
+    private static class Task implements Runnable{
 
-	final Runnable runnable;
-	final String name;
+	private final Runnable runnable;
+	private final String name;
 
 	Task(Runnable runnable, String name) {
 	    this.runnable = runnable;
 	    this.name = name;
 	}
+        
+        public void run(){
+            try {
+                runnable.run();
+            } catch (Exception t) { // Don't catch Error
+                logger.log(Level.WARNING, "uncaught exception", t);
+                if (t instanceof RuntimeException){
+                    if (t instanceof SecurityException){
+                        // ignore it will be logged.
+                    } else {
+                        // Ignorance of RuntimeException is generally bad, bail out.
+                        throw (RuntimeException) t;
+    }
+                }
+            }
+        }
+
+        public String toString(){
+            return name;
+        }
     }
 
     /**
@@ -125,48 +165,43 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
      */
     private class Worker implements Runnable {
 
-	private Task first;
+	private volatile Runnable first;
 
-	Worker(Task first) {
+	Worker(Runnable first) {
 	    this.first = first;
 	}
 
 	public void run() {
-	    Task task = first;
-	    first = null;
-
-	    while (true) {
-		try {
-		    task.runnable.run();
-		} catch (Throwable t) {
-		    logger.log(Level.WARNING, "uncaught exception", t);
-		}
+	    Runnable task = first;
+	    first = null; // For garbage collection.
+            task.run();
+            Thread thread = Thread.currentThread();
+	    while (!thread.isInterrupted()) {
 		/*
 		 * REMIND: What if the task changed this thread's
 		 * priority? or context class loader?
 		 */
-
-		synchronized (lock) {
-		    if (queue.isEmpty()) {
-			Thread.currentThread().setName(
-			    NewThreadAction.NAME_PREFIX + "Idle");
-			idleThreads++;
+                for ( task = queue.poll(); task != null; task = queue.poll()){
+                    // Keep executing while tasks are available.
+                    thread.setName(NewThreadAction.NAME_PREFIX + task);
+                    task.run();
+                }
+                // queue is empty;
+                thread.setName(NewThreadAction.NAME_PREFIX + "Idle");
+                lock.lock();
 			try {
-			    lock.wait(idleTimeout);
-			} catch (InterruptedException e) {
-			    // ignore interrupts at this level
+                    idleThreads++;
+                    wakeup.await(idleTimeout, TimeUnit.MILLISECONDS);// releases lock and obtains when woken.
+                    // Allow thread to expire if queue empty after waking.
+                    if (queue.peek() == null) thread.interrupt();
+                } catch (InterruptedException ex) {
+                    // Interrupt thread, another thread can pick up tasks.
+                    thread.interrupt();
 			} finally {
 			    idleThreads--;
+                    lock.unlock();
 			}
-			if (queue.isEmpty()) {
-			    break;		// timed out
 			}
 		    }
-		    task = (Task) queue.removeFirst();
-		    Thread.currentThread().setName(
-			NewThreadAction.NAME_PREFIX + task.name);
 		}
-	    };
 	}
-    }
-}
