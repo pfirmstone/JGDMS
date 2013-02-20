@@ -2194,6 +2194,9 @@ public class QAConfig implements Serializable {
 	return getConstrainedLocator(loc);
     }
 
+    private static final CharSequence NXDOMAIN = "NXDOMAIN";
+    private static final CharSequence nxdomain = "nxdomain";
+    
     /**
      * Convert a host name to canonical form. If the name cannot
      * be converted for any reason, the original name is returned.
@@ -2204,7 +2207,10 @@ public class QAConfig implements Serializable {
     private static String getFQHostName(String hostName) {
 	try {
 	    InetAddress hostAddr = InetAddress.getByName(hostName);
-	    hostName = hostAddr.getCanonicalHostName();
+	    String fqHostName = hostAddr.getCanonicalHostName();
+            if (fqHostName.contains(NXDOMAIN)) return hostName;
+            if (fqHostName.contains(nxdomain)) return hostName;
+            return fqHostName;
 	} catch (UnknownHostException ignore) {
             logger.severe("InetAddress threw unknown host exception: " + hostName);
 	}
