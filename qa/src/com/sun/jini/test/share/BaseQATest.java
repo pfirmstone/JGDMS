@@ -1551,7 +1551,9 @@ abstract public class BaseQATest extends QATestEnvironment {
                         String[] groups = (String[])pair.getValue();
                         logger.log(Level.FINE,
                                          "   discoveredMap.locator = "+loc);
-                        if( groups.length <= 0 ) {
+                        if (groups == null) {
+                            logger.log(Level.FINE, "     discoveredMap.groups is null");
+                        } else if( groups.length <= 0 ) {
                             logger.log(Level.FINE,
                                    "     discoveredMap.groups == NO_GROUPS");
                         } else {
