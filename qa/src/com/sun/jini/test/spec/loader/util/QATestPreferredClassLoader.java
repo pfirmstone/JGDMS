@@ -185,8 +185,12 @@ public class QATestPreferredClassLoader extends PreferredClassLoader {
     /**
      * Overrides loadClass(String name, boolean resolve) in the
      * PreferredClassLoader and set {@link #loadClassIsInvoked} flag to true
+     * 
+     * This was synchronized, but since it sets a volatile variable then
+     * calls the superclass which is synchronized anyway, we can safely remove 
+     * it.
      */
-    protected synchronized Class loadClass(String name, boolean resolve)
+    protected Class loadClass(String name, boolean resolve)
             throws ClassNotFoundException {
         loadClassIsInvoked = true;
         return super.loadClass(name, resolve);
@@ -195,8 +199,11 @@ public class QATestPreferredClassLoader extends PreferredClassLoader {
     /**
      * Overrides findClass(String name, boolean resolve) in the
      * PreferredClassLoader and set {@link #findClassIsInvoked} flag to true
+     * 
+     * This method was synchronized, but we experienced ClassLoader 
+     * deadlock on freebsd OpenJDK6, so have removed it to reduce locking. 
      */
-    protected synchronized Class findClass(String name)
+    protected Class findClass(String name)
             throws ClassNotFoundException {
         findClassIsInvoked = true;
         return super.findClass(name);
