@@ -84,6 +84,7 @@ grant codebase "file:${com.sun.jini.qa.harness.harnessJar}" {
     permission java.io.FilePermission "${com.sun.jini.jsk.home}${/}-", "read";
     permission java.io.FilePermission "${com.sun.jini.jsk.home}", "read";
     permission java.lang.RuntimePermission "setIO";
+    permission java.lang.RuntimePermission "getenv.SOUL";
 };
     // THE FOLLOWING ARE REQUIRED IF UTILISING A SECURITY MANAGER FROM COMMAND LINE
     // OR AT START UP.

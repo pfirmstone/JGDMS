@@ -18,12 +18,11 @@
 
 package net.jini.loader.pref;
 
-import com.sun.jini.loader.pref.internal.PreferredResources;
-import java.io.IOException;
-import java.io.InputStream;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FilePermission;
+import java.io.IOException;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
@@ -39,15 +38,17 @@ import java.security.CodeSource;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.Permissions;
-import java.security.ProtectionDomain;
 import java.security.Policy;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
 import java.util.Enumeration;
-import java.util.Set;
 import java.util.HashSet;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
 
@@ -251,10 +252,9 @@ public class PreferredClassLoader extends URLClassLoader
     private final URLStreamHandler jarHandler;
 
     /** PreferredResources for this loader (null if no preferred list) */
-    private PreferredResources preferredResources;
-
-    /** true if preferredResources has been successfully initialized */
-    private boolean preferredResourcesInitialized = false;
+    private final PreferredResources preferredResources;
+    
+    private final IOException exceptionWhileLoadingPreferred;
 
     private static final Permission downloadPermission =
 	new DownloadPermission();
@@ -380,6 +380,61 @@ public class PreferredClassLoader extends URLClassLoader
 	 */
 	permissions = new Permissions();
 	addPermissionsForURLs(urls, permissions, false);
+        /*
+         * If a preferred list exists relative to the first URL of this
+         * loader's path, sets this loader's PreferredResources according
+         * to that preferred list.  If no preferred list exists relative
+         * to the first URL, leaves this loader's PreferredResources null.
+         *
+         * Throws IOException if an I/O exception occurs from which the
+         * existence of a preferred list relative to the first URL cannot
+         * be definitely determined.
+         *
+         * This method must only be invoked while synchronized on this
+         * PreferredClassLoader, and it must not be invoked again after it
+         * has completed successfully.
+         * 
+         * This was called from privileged context when it as part of a method,
+         * but we shouldn't need to do that here, any code that can construct
+         * a ClassLoader has privilege.  Note that InputStream is not subject
+         * to deserialization attacks like ObjectInputStream.
+         * 
+         * Also synchronization is not required as it is called from within
+         * the constructor now, this change was made to remove any possiblity
+         * of deadlock by minimising locking.
+         */
+        IOException except = null;
+        PreferredResources pref = null;
+	if (firstURL != null) {
+            InputStream prefIn = null;
+            try {
+                prefIn = getPreferredInputStream(firstURL);
+                if (prefIn != null) {
+                    try {
+                        pref = new PreferredResources(prefIn);
+                    } finally {
+                        try {
+                            prefIn.close();
+                        } catch (IOException e) {
+                        }
+                    }
+                }
+            } catch (IOException ex) {
+                Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.SEVERE, null, ex);
+                except = ex;
+            } finally {
+                try {
+                    if (prefIn != null){
+                        prefIn.close();
+                    }
+                } catch (IOException ex) {
+                    Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.SEVERE, null, ex);
+                } 
+                
+            }
+	}
+        exceptionWhileLoadingPreferred = except;
+        preferredResources = pref;
     }
 
     /**
@@ -460,38 +515,7 @@ public class PreferredClassLoader extends URLClassLoader
 	    }, acc);
     }
 
-    /**
-     * If a preferred list exists relative to the first URL of this
-     * loader's path, sets this loader's PreferredResources according
-     * to that preferred list.  If no preferred list exists relative
-     * to the first URL, leaves this loader's PreferredResources null.
-     *
-     * Throws IOException if an I/O exception occurs from which the
-     * existence of a preferred list relative to the first URL cannot
-     * be definitely determined.
-     *
-     * This method must only be invoked while synchronized on this
-     * PreferredClassLoader, and it must not be invoked again after it
-     * has completed successfully.
-     **/
-    private void initializePreferredResources() throws IOException {
-	assert Thread.holdsLock(this);
-	assert preferredResources == null;
-
-	if (firstURL != null) {
-	    InputStream prefIn = getPreferredInputStream(firstURL);
-	    if (prefIn != null) {
-		try {
-		    preferredResources = new PreferredResources(prefIn);
-		} finally {
-		    try {
-			prefIn.close();
-		    } catch (IOException e) {
-		    }
-		}
-	    }
-	}
-    }
+    
 
     /**
      * Returns an InputStream from which the preferred list relative
@@ -778,32 +802,33 @@ public class PreferredClassLoader extends URLClassLoader
 					  final boolean isClass)
 	throws IOException
     {
-	try {
-	    return ((Boolean) AccessController.doPrivileged(
-	        new PrivilegedExceptionAction() {
-		    public Object run() throws IOException {
-			boolean b = isPreferredResource0(name, isClass);
-			return Boolean.valueOf(b);
-		    }
-	        }, acc)).booleanValue();
-
-	} catch (PrivilegedActionException e) {
-	    throw (IOException) e.getException();
-	}
+        return isPreferredResource0(name, isClass);
+        // No longer need privilege the preferred list is now downloaded
+        // during construction.
+//	try {
+//	    return ((Boolean) AccessController.doPrivileged(
+//	        new PrivilegedExceptionAction() {
+//		    public Object run() throws IOException {
+//			boolean b = isPreferredResource0(name, isClass);
+//			return Boolean.valueOf(b);
+//		    }
+//	        }, acc)).booleanValue();
+//
+//	} catch (PrivilegedActionException e) {
+//	    throw (IOException) e.getException();
+//	}
     }
 
     /*
      * Perform the work to determine if a resource name is preferred.
+     * 
+     * Synchronized removed to avoid possible ClassLoader deadlock.
      */
-    private synchronized boolean isPreferredResource0(String name,
+    private boolean isPreferredResource0(String name,
 						      boolean isClass)
 	throws IOException
     {
-	if (!preferredResourcesInitialized) {
-	    initializePreferredResources();
-	    preferredResourcesInitialized = true;
-	}
-
+        if (exceptionWhileLoadingPreferred != null) throw exceptionWhileLoadingPreferred;
 	if (preferredResources == null) {
 	    return false;	// no preferred list: nothing is preferred
 	}
@@ -867,25 +892,19 @@ public class PreferredClassLoader extends URLClassLoader
      * Determine if a resource for a given preferred name exists.  If
      * the resource exists record its new state in the
      * preferredResources object.
-     *
-     * This method must only be invoked while synchronized on this
-     * PreferredClassLoader.
      */
     private boolean findResourceUpdateState(String name,
 					    String resourceName)
 	throws IOException
     {
-	assert Thread.holdsLock(this);
-	boolean resourcePreferred = false;
-
 	if (findResource(resourceName) != null) {
-	    /* the resource is know to exist */
+	    /* the resource is known to exist */
 	    preferredResources.setNameState(resourceName,
 	        PreferredResources.NAME_PREFERRED_RESOURCE_EXISTS);
-	    resourcePreferred = true;
+	    return true;
 	}
 
-	return resourcePreferred;
+	return false;
     }
 
     /**

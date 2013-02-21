@@ -33,6 +33,7 @@ import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketTimeoutException;
 import java.text.MessageFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -177,7 +178,7 @@ public class ClassServer extends Thread {
     /** Map from String (JAR root) to JarFile[] (JAR class path) */
     private Map map;
     /** Verbosity flag */
-    private boolean verbose;
+    private volatile boolean verbose;
     /** Stoppable flag */
     private boolean stoppable;
     /** Read permission on dir and all subdirs, for each dir in dirs */
@@ -259,6 +260,7 @@ public class ClassServer extends Thread {
 	this.lifeCycle = lifeCycle;
         server = new ServerSocket();
         server.setReuseAddress(true);
+        server.setSoTimeout(300000); // 5 minutes
         try {
             server.bind(new InetSocketAddress(port));
         } catch( BindException be ) {
@@ -392,19 +394,26 @@ public class ClassServer extends Thread {
 		   new Object[]{Arrays.asList(dirs),
 				Integer.toString(getPort())});
 	try {
-	    while (true) {
-		new Task(server.accept()).start();
+	    while (!isInterrupted()) {
+                try {
+                    new Task(server.accept()).start();
+                } catch (SocketTimeoutException e){
+                    // This happens every 5 minutes, it allows ClassServer to
+                    // be interrupted if necessary.
+                } catch ( SecurityException e){
+                    logger.log(Level.SEVERE, "Permission denied: ", e);
+                    interrupt();
+                }
 	    }
 	} catch (IOException e) {
-	    synchronized (this) {
-		if (verbose) {
-		    e.printStackTrace();
-		}
-		if (!server.isClosed())
-		    logger.log(Level.SEVERE, "accepting connection", e);
-		terminate();
-	    }
-	}
+            if (verbose) {
+                e.printStackTrace();
+            }
+            if (!server.isClosed())
+                logger.log(Level.SEVERE, "accepting connection", e);
+        } finally {
+            terminate();
+        }
     }
 
     /** Close the server socket, causing the thread to terminate. */

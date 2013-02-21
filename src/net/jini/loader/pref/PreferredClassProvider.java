@@ -258,7 +258,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * value of "java.rmi.server.codebase" property, as cached at class
      * initialization time.  It may contain malformed URLs.
      */
-    private static String codebaseProperty = null;
+    private static String codebaseProperty;
     static {
 	String prop = AccessController.doPrivileged(
    new GetPropertyAction("java.rmi.server.codebase"));
@@ -268,22 +268,22 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     }
 
     /** table of "local" class loaders */
-    private static final Map localLoaders =
-	Collections.synchronizedMap(new WeakHashMap());
+    private static final Set<ClassLoader> localLoaders;
     static {
-	AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() {
+        Set<Referrer<ClassLoader>> internal = Collections.newSetFromMap(new ConcurrentHashMap<Referrer<ClassLoader>,Boolean>());
+        localLoaders = RC.set(internal, Ref.WEAK_IDENTITY, 100L);
+	AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
+	    public ClassLoader run() {
 		for (ClassLoader loader = ClassLoader.getSystemClassLoader();
 		     loader != null;
 		     loader = loader.getParent())
 		{
-		    localLoaders.put(loader, null);
+		    localLoaders.add(loader);
 		}
 		return null;
 	    }
 	});
     }
-
     /**
      * table mapping codebase URI path and context class loader pairs
      * to class loader instances.  Entries hold class loaders with weak
@@ -882,7 +882,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * class loader
      */
     private static boolean isLocalLoader(ClassLoader loader) {
-	return (loader == null || localLoaders.containsKey(loader));
+	return (loader == null || localLoaders.contains(loader));
     }
     
     /**

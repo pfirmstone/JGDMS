@@ -75,7 +75,7 @@ public class HeartOfTheMachine
             new HeartOfTheMachine();
         } catch( Throwable t ) {
             //System.out.println("Heart NOT started");
-            Logger.getAnonymousLogger().severe("Heart NOT started");
+            Logger.getLogger("com.sun.jini.qa.harness").severe("Heart NOT started");
         }
     }
 

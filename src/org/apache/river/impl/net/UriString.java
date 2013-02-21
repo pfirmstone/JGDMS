@@ -22,6 +22,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Utility that escapes illegal characters in URI strings according to RFC3986
@@ -32,6 +34,7 @@ import java.util.Map;
  */
 public class UriString {
     
+    private static Logger logger = Logger.getLogger("org.apache.river.impl.net");
     private static final char [] latin = new char[256];
     private static final String [] latinEsc = new String[256];
     
@@ -494,8 +497,13 @@ public class UriString {
             path = sb.toString();
         }
         // TODO: query and fragment normalisation.
-        
-        return new URI(scheme, uri.getRawUserInfo(), host, uri.getPort(), path, uri.getQuery(), uri.getFragment());
+        try {
+            return new URI(scheme, uri.getRawUserInfo(), host, uri.getPort(), path, uri.getQuery(), uri.getFragment());
+        } catch (URISyntaxException e){
+            //Somethings gone horribly wrong!  Normalisation failed.
+            logger.log(Level.SEVERE, "Normalisation failed: {0}", e.getMessage());
+            return uri;
+        }
     }
     
     

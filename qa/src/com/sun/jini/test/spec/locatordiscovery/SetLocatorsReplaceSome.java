@@ -84,10 +84,10 @@ public class SetLocatorsReplaceSome extends Discovered {
             String[] oldGroups   = oldPair.getGroups();
             String oldHost       = oldLoc.getHost();
             int    oldPort       = oldLoc.getPort();
-            String newHost       = new String(oldHost);
+            String newHost       = oldHost;
             int    newPort       = oldPort;
             if( ((i%2) == 0) || changeAll ) {//index is even or changeAll
-                newHost = new String(oldHost+"-new");
+                newHost = "new-" + i; //Completely discard old host name in case it's an IP address.
                 newPort = oldPort+11;
             }//endif
             LookupLocator newLoc = QAConfig.getConstrainedLocator(newHost,newPort);
