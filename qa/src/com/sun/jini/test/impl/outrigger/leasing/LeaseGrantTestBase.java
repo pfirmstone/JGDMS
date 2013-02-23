@@ -45,12 +45,12 @@ public abstract class LeaseGrantTestBase extends TestBase implements Test {
      * If true then the tests expects leases to granted
      * exactly.  If false the grant can be for less than the request
      */
-    private boolean exact = false;
+    private volatile boolean exact = false;
 
     /**
      * The length of time the lease should be asked for
      */
-    protected long durationRequest;
+    protected volatile long durationRequest;
 
     /**
      * The expiration time that would be given for the duration request
@@ -58,32 +58,32 @@ public abstract class LeaseGrantTestBase extends TestBase implements Test {
      * <code>Lease.ANY</code>.
      * @see #resourceRequested
      */
-    protected long expirationRequest;
+    private volatile long expirationRequest;
 
     /**
      * The local time just after the request.  <code>expirationRequest</code>
      * is <code>requestStart + durationRequest</code>.
      * @see #resourceRequested
      */
-    protected long requestStart;
+    private volatile long requestStart;
 
     /**
      * The length of time that leases get cliped to if they are too
      * long. A negative value indicates no cliping is expected
      */
-    protected long clip = -1;
+    private volatile long clip = -1;
 
     /*
      * Acceptable slop interval between when we think lease will
      * expire and when it acctually does.
      */
-    protected long slop = 2000;
+    protected volatile long slop = 2000;
 
     /**
      * Test the passed lease to see if it has been granted for an
      * acceptable length of time
      */
-    protected boolean isAcceptable(Lease underTest) {
+    protected final synchronized boolean isAcceptable(Lease underTest) {
 
         // if we asked for ANY lease, then any duration is cool
         if (durationRequest == Lease.ANY) {
@@ -130,7 +130,7 @@ public abstract class LeaseGrantTestBase extends TestBase implements Test {
      * Return <code>true</code> if the <code>duration</code> is within
      * the allowed slop range relative to the given <code>value</code>.
      */
-    protected boolean withinSlop(long duration, long value) {
+    protected final synchronized boolean withinSlop(long duration, long value) {
         return (duration > value - slop && duration < value + slop);
     }
 
@@ -138,12 +138,12 @@ public abstract class LeaseGrantTestBase extends TestBase implements Test {
      * Log a requested lease and its result, for the given type of lease.
      */
     protected void logRequest(String type, Lease lease) {
-        logger.log(Level.INFO, "Lease " + type + ": " + lease);
-        logger.log(Level.INFO, "\treq:" + expirationRequest);
-        logger.log(Level.INFO, "\tgot:" + lease.getExpiration());
-        logger.log(Level.INFO, "\taprox duration:" + (lease.getExpiration() -
-                requestStart));
-        logger.log(Level.INFO, "\tdrift:" + (lease.getExpiration() - expirationRequest));
+        logger.log(Level.INFO, "Lease {0}: {1}", new Object[]{type, lease});
+        logger.log(Level.INFO, "\treq:{0}", expirationRequest);
+        logger.log(Level.INFO, "\tgot:{0}", lease.getExpiration());
+        logger.log(Level.INFO, "\taprox duration:{0}", (lease.getExpiration() -
+                  requestStart));
+        logger.log(Level.INFO, "\tdrift:{0}", (lease.getExpiration() - expirationRequest));
     }
 
     /**
@@ -153,7 +153,7 @@ public abstract class LeaseGrantTestBase extends TestBase implements Test {
      * @see #requestStart
      * @see #expirationRequest
      */
-    protected void resourceRequested() {
+    protected final synchronized void resourceRequested() {
         requestStart = System.currentTimeMillis();
         expirationRequest = requestStart + durationRequest;
 
@@ -219,10 +219,10 @@ public abstract class LeaseGrantTestBase extends TestBase implements Test {
         }
 
         // Log out test options.
-        logger.log(Level.INFO, "exact = " + exact);
-        logger.log(Level.INFO, "clip = " + clip);
-        logger.log(Level.INFO, "slop = " + slop);
-        logger.log(Level.INFO, "durationRequest = " + durationRequest);
+        logger.log(Level.INFO, "exact = {0}", exact);
+        logger.log(Level.INFO, "clip = {0}", clip);
+        logger.log(Level.INFO, "slop = {0}", slop);
+        logger.log(Level.INFO, "durationRequest = {0}", durationRequest);
     }
 
     /**

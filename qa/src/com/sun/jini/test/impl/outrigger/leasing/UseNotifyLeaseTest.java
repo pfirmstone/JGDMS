@@ -35,16 +35,17 @@ import com.sun.jini.qa.harness.TestException;
 // Shared classes
 import com.sun.jini.test.share.TestBase;
 import com.sun.jini.test.share.UninterestingEntry;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Tests binding between leases and notifications in JavaSpaces
  */
 public class UseNotifyLeaseTest extends LeaseUsesTestBase {
     final private Entry aEntry = new UninterestingEntry();
-    private LeasedSpaceListener listener;
-    private JavaSpace space;
-    private long callbackWait;
-    private boolean verbose;
+    private volatile LeasedSpaceListener listener;
+    private volatile JavaSpace space;
+    private volatile long callbackWait;
+    private volatile boolean verbose;
 
     /**
      * Parse our args
@@ -79,6 +80,8 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
         try {
             listener = new LeasedSpaceListener(getConfig().getConfiguration());
             space = (JavaSpace) services[0];
+            JavaSpace space = this.space;
+            LeasedSpaceListener listener = this.listener;
             EventRegistration reg = space.notify(aEntry, null, listener,
                     durationRequest, null);
 	    reg = (EventRegistration)
@@ -94,14 +97,16 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
         }
         return lease;
     }
-    private int count = 0;
+    private final AtomicInteger count = new AtomicInteger();
 
     protected boolean isAvailable() throws TestException {
         boolean bReturn = false;
 
         try {
-	    logger.log(Level.FINEST, "Writing entry " + ++count);
-            synchronized (listener) {
+	    logger.log(Level.FINEST, "Writing entry {0}", count.getAndIncrement());
+            LeasedSpaceListener listener = this.listener;
+            JavaSpace space = this.space;
+            synchronized (listener) { // Can't synchronize on volatile field.
                 listener.received = false;
 
                 /*
@@ -110,12 +115,9 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
                  * listener.received transtion from false->true
                  */
                 addOutriggerLease(space.write(aEntry, null, Lease.ANY), false);
-		logger.log(Level.FINEST, 
-			   "Waiting for listener to be called at "
-			   + (new java.util.Date()));
+		logger.log(Level.FINEST, "Waiting for listener to be called at {0}", (new java.util.Date()));
                 listener.wait(callbackWait);
-		logger.log(Level.FINEST, 
-			   "Wait done at " + (new java.util.Date()) + ", received = " + listener.received);
+		logger.log(Level.FINEST, "Wait done at {0}, received = {1}", new Object[]{new java.util.Date(), listener.received});
                 bReturn = listener.received;
             }
         } catch (Exception e) {
