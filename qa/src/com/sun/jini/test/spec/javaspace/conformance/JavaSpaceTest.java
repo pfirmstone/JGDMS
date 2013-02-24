@@ -1,6 +1,19 @@
 /*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ * 
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ * 
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
  */
 package com.sun.jini.test.spec.javaspace.conformance;
 
@@ -11,7 +24,8 @@ import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import java.rmi.RMISecurityManager;
 import java.rmi.RemoteException;
-import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.logging.Level;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.core.entry.Entry;
@@ -29,37 +43,37 @@ import net.jini.space.JavaSpace;
  */
 public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
     /** Holds the value which is used for read/take check operations. */
-    protected long checkTime = 0;
+    protected volatile long checkTime = 0;
 
     public JavaSpaceTest() {
         super();
     }
     /** Value to check operations which require instant result. */
-    protected long instantTime = 0;
+    protected volatile long instantTime = 0;
     /**
      * Holds the value which is used instead of Lease.FOREVER one
      * to avoid infinite lease times.
      */
-    protected long leaseForeverTime = 0;
+    protected volatile long leaseForeverTime = 0;
     /** Holds TransactionManager instance for transaction's testing. */
-    protected TransactionManager mgr = null;
+    protected volatile TransactionManager mgr = null;
     /** The name of current package to read current settings. */
     protected final String pkgName = "com.sun.jini.test.spec." + "javaspace.conformance";
     /** Holds JavaSpace instance of tested space. */
-    protected JavaSpace space;
+    protected volatile JavaSpace space;
     /** The name of service for which these tests are written. */
     protected final String spaceName = "net.jini.space.JavaSpace";
     /** First timeout for testing in ms. */
-    protected long timeout1 = 0;
+    protected volatile long timeout1 = 0;
     /**
      * Second timeout for testing in ms.
      * Must be greater then ({@link #timeout1} + 5000)
      */
-    protected long timeout2 = 0;
+    protected volatile long timeout2 = 0;
     /** Holds transactions instances. */
-    protected ArrayList txns = new ArrayList();
+    private final LinkedList<Transaction> txns = new LinkedList<Transaction>();
     /** value to wait for notifications time in ms. */
-    protected long waitingNotificationsToComeTime = 0;
+    protected volatile long waitingNotificationsToComeTime = 0;
 
     /**
      * Checks whether space is empty or not outside all transactions.
@@ -88,7 +102,7 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
      */
     public boolean checkSpace(JavaSpace space, Transaction txn) throws TestException {
         try {
-            Entry result = (Entry) space.readIfExists(null, txn, JavaSpace.NO_WAIT);
+            Entry result = space.readIfExists(null, txn, JavaSpace.NO_WAIT);
             if (result != null) {
                 return false;
             }
@@ -125,7 +139,7 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
                 space.takeIfExists(null, txn, JavaSpace.NO_WAIT);
             }
         } catch (Exception ex) {
-            throw new TestException("Exception has been caught while" + " cleaning the space: " + ex.getMessage());
+            throw new TestException("Exception has been caught while cleaning the space: " + ex.getMessage());
         }
     }
 
@@ -146,34 +160,6 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
             }
             printSpaceInfo();
             js = (JavaSpace) getManager().startService(spaceName); // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
-            // prepared
         } catch (Exception e) {
             throw new TestException("Exception has been caught while trying to start space:", e);
         }
@@ -204,7 +190,7 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
         try {
             trc = TransactionFactory.create(mgr, lTime);
             if (trc == null) {
-                throw new TestException("Null transaction" + " has been obtained.");
+                throw new TestException("Null transaction has been obtained.");
             }
             txns.add(trc.transaction);
             return trc.transaction;
@@ -228,34 +214,6 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
             String txnMgrName = getConfig().getStringConfigVal(pkgName + ".txnManager", TransactionManager.class.getName());
             printTxnMgrInfo(txnMgrName);
             mgr = (TransactionManager) getManager().startService(txnMgrName); //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
-            //prepared
         } catch (Exception e) {
             throw new TestException("Exception has been caught while" + "trying to start Transaction Manager.", e);
         }
@@ -271,7 +229,7 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
      * @param text Text to be written to the log.
      */
     public void logDebugText(String text) {
-        logger.fine("" + ": " + text);
+        logger.log(Level.FINE,": {0}", text);
     }
 
     protected Lease prepareLease(Lease l) throws ConfigurationException, RemoteException {
@@ -400,8 +358,10 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
     public void txnAbort(Transaction txn) throws TestException {
         try {
             if (txn != null) {
+                synchronized (txns) {
+                    txns.remove(txns.indexOf(txn));
+                }
                 txn.abort();
-                txns.remove(txns.indexOf(txn));
             }
         } catch (Exception e) {
             throw new TestException("Exception has been caught while transaction aborting:", e);
@@ -419,8 +379,10 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
     public void txnCommit(Transaction txn) throws TestException {
         try {
             if (txn != null) {
-                txn.commit();
-                txns.remove(txns.indexOf(txn));
+                synchronized (txns){
+                    txn.commit(); // If commit fails CannotCommitException thrown and it isn't removed.
+                    txns.remove(txn);
+                }
             }
         } catch (Exception e) {
             throw new TestException("Exception has been caught while transaction committing:", e);
@@ -432,8 +394,13 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
      */
     public void txnsAbort() {
         try {
-            while (!txns.isEmpty()) {
-                txnAbort((Transaction) txns.get(0));
+            Transaction trans;
+            while (true) {
+                synchronized (txns) {
+                    trans = txns.poll();
+                }
+                if (trans != null) txnAbort(trans);
+                else break;
             }
         } catch (Exception e) {
         }
