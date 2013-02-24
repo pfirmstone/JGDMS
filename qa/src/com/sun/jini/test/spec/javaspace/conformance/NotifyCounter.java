@@ -51,18 +51,18 @@ public class NotifyCounter
 {
 
     /** Template for which this class counts events */
-    protected Entry template;
+    protected final Entry template;
 
     /** Time for which this listener will count events */
-    protected long leaseTime;
+    protected volatile long leaseTime;
 
     /** number of events */
-    protected long maxEvNum;
+    private volatile long maxEvNum;
 
     /** the proxy */
-    private Object proxy;
+    private final Object proxy;
 
-    private static Configuration configuration;
+    private volatile static Configuration configuration;
 
     public static void setConfiguration(Configuration configuration) {
 	NotifyCounter.configuration = configuration;
@@ -122,11 +122,12 @@ public class NotifyCounter
     }
 
     /**
-     * Method which counts events.
+     * Method which counts events.  Synchronized to ensure earlier event number
+     * doesn't inadvertently overwrite larger value.
      *
      * @param ev RemoteEvent received.
      */
-    public void notify(RemoteEvent ev) {
+    public synchronized void notify(RemoteEvent ev) {
         maxEvNum = Math.max(ev.getSequenceNumber(), maxEvNum);
     }
 

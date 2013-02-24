@@ -37,10 +37,7 @@ import com.sun.jini.test.spec.javaspace.conformance.NotifyCounter;
 public class SnapshotNotifyCounter extends NotifyCounter {
 
     /** Snapshot of template */
-    private Entry snapshot;
-
-    /** Space in which we will create snapshot */
-    private JavaSpace space;
+    private final Entry snapshot;
 
     /**
      * Constructor with no arguments, set template to null, and lease time to 0.
