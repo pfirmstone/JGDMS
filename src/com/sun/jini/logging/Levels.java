@@ -81,10 +81,10 @@ public class Levels {
         private final String localizedLevelName;
 
         LevelData(String name, int value, String resourceBundleName) {
-        this.name = name;
-        this.value = value;
-        this.resourceBundleName = resourceBundleName;
-        this.localizedLevelName = resourceBundleName == null ? name : null;
+            this.name = name;
+            this.value = value;
+            this.resourceBundleName = resourceBundleName;
+            this.localizedLevelName = resourceBundleName == null ? name : null;
         }
     }
 
