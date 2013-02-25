@@ -18,39 +18,40 @@
 
 package com.sun.jini.start;
 
+import au.net.zeus.collection.RC;
+import au.net.zeus.collection.Ref;
+import au.net.zeus.collection.Referrer;
 import java.lang.reflect.Method;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.AllPermission;
 import java.security.CodeSource;
 import java.security.Permission;
-import java.security.Permissions;
 import java.security.PermissionCollection;
+import java.security.Permissions;
+import java.security.Policy;
 import java.security.Principal;
 import java.security.PrivilegedAction;
 import java.security.PrivilegedExceptionAction;
-import java.security.Policy;
 import java.security.ProtectionDomain;
 import java.security.Security;
 import java.security.SecurityPermission;
+import java.util.Collection;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import net.jini.security.SecurityContext;
-import org.apache.river.api.security.ScalableNestedPolicy;
 import net.jini.security.policy.DynamicPolicy;
 import net.jini.security.policy.PolicyInitializationException;
 import net.jini.security.policy.SecurityContextSource;
-import org.apache.river.api.security.PermissionGrant;
-import au.net.zeus.collection.RC;
-import au.net.zeus.collection.Ref;
-import au.net.zeus.collection.Referrer;
-import java.util.Collection;
-import java.util.LinkedList;
 import org.apache.river.api.security.AbstractPolicy;
+import org.apache.river.api.security.PermissionGrant;
+import org.apache.river.api.security.ScalableNestedPolicy;
 
 /**
  * Security policy provider which supports associating security sub-policies
@@ -87,9 +88,9 @@ public class AggregatePolicyProvider
     private static final String defaultMainPolicyClass =
 	"net.jini.security.policy.DynamicPolicyProvider";
 
-    private static final ConcurrentMap<Class,Boolean> trustGetCCL
+    private static final ConcurrentMap<Class<? extends Thread>,Boolean> trustGetCCL
     = RC.concurrentMap(
-            new ConcurrentHashMap<Referrer<Class>,Referrer<Boolean>>(), 
+            new ConcurrentHashMap<Referrer<Class<? extends Thread>>,Referrer<Boolean>>(), 
             Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 0L);
     private static final ProtectionDomain myDomain 
         = AccessController.doPrivileged(
@@ -107,7 +108,9 @@ public class AggregatePolicyProvider
             RC.concurrentMap(
             new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<Policy>>(),
             Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 0L);
-    private final Lock lock = new ReentrantLock();
+    private final ReadWriteLock rwl = new ReentrantReadWriteLock();
+    private final Lock lock = rwl.writeLock();
+    private final Lock readLock = rwl.readLock(); // stop access to subPolicyChildClassLoaderCache while write in progress.
     private volatile Policy mainPolicy; // write protected by lock
 
     /**
@@ -241,14 +244,6 @@ public class AggregatePolicyProvider
         c.add(extractGrantFromPolicy(p,domain));
         return c;
     }
-    
-//    public Collection<PermissionGrant> getPermissionGrants(boolean recursive) {
-//        Policy p = getCurrentSubPolicy();
-//        if (p instanceof ScalableNestedPolicy){
-//            return ((ScalableNestedPolicy)p).getPermissionGrants(recursive);
-//        }
-//        throw new UnsupportedOperationException("sub policy doesn't implement ScalableNestedPolicy");
-//    }
 
     /**
      * Changes sub-policy association with given class loader.  If
@@ -419,8 +414,13 @@ public class AggregatePolicyProvider
         boolean trust = trustGetContextClassLoader(t);
         ClassLoader ccl = trust ? getContextClassLoader() : null;
         if ( ccl == null ) return mainPolicy;
-        Policy policy = subPolicyChildClassLoaderCache.get(ccl);  // just a cache.
-        if ( policy != null ) return policy;
+        readLock.lock();
+        try {
+            Policy policy = subPolicyChildClassLoaderCache.get(ccl);  // just a cache.
+            if ( policy != null ) return policy;
+        } finally {
+            readLock.unlock();
+        }
         return lookupSubPolicy(ccl);
     }
 
@@ -467,7 +467,7 @@ public class AggregatePolicyProvider
      * Thread.getContextClassLoader(), false otherwise.
      */
     private static boolean trustGetContextClassLoader(Thread t) {
-	Class cl = t.getClass();
+	Class<? extends Thread> cl = t.getClass();
 	if (cl == Thread.class) {
 	    return true;
 	}
