@@ -207,7 +207,7 @@ public abstract class PermissionGrant {
      * @return
      */
     public final Collection<Permission> getPermissions(){
-        if (decorated() != null) return decorated().getPermissions();
+        if (decorated != null) return decorated().getPermissions();
         return perms;
         }
 
