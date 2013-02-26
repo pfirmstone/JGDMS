@@ -165,7 +165,6 @@ public abstract class PermissionGrant {
      * @return true - if PermissionGrant contains AllPermission.
      */
     public final boolean isPrivileged(){
-        if (decorated != null) return decorated().isPrivileged();
         return privileged;
     }
 
