@@ -116,6 +116,7 @@ public abstract class PermissionGrant {
             boolean privileged = false;
             int l = perm.length;
             for (int i = 0; i < l; i++){
+                perm[i].getActions(); //Ensure any action fields are populated.
                 perms.add(perm[i]);
                 if (perm[i] instanceof AllPermission) privileged = true;
             }
