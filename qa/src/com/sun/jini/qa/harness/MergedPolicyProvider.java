@@ -88,16 +88,16 @@ public class MergedPolicyProvider extends AbstractPolicy implements ScalableNest
 	}
 	// no-arg semantics for 'default policy' necessary for correct behavior 
 	// of PolicyFileProvider.refresh
-        Collection<Policy> policies = new ArrayList<Policy>();
+        Collection<Policy> policyCol = new ArrayList<Policy>();
 	try {
 	    if (p1 != null) {
-		policies.add(new ConcurrentPolicyFile());
+		policyCol.add(new ConcurrentPolicyFile());
 	    }
 	    if (p2 != null) {
 		StringTokenizer tok = new StringTokenizer(p2, ", ");
 		while (tok.hasMoreTokens()) {
 		    String policyFile = tok.nextToken();
-		    policies.add(new PolicyFileProvider(policyFile));
+		    policyCol.add(new PolicyFileProvider(policyFile));
 		}
 	    }
 	} catch (SecurityException e) {
@@ -108,7 +108,7 @@ public class MergedPolicyProvider extends AbstractPolicy implements ScalableNest
 	    throw new PolicyInitializationException(
 		"unable to construct base policy", e);
 	}
-        this.policies = Collections.unmodifiableCollection(policies);
+        this.policies = Collections.unmodifiableCollection(policyCol);
     }
 
     /**
@@ -146,17 +146,6 @@ public class MergedPolicyProvider extends AbstractPolicy implements ScalableNest
         NavigableSet<Permission> perms = new TreeSet<Permission>(comparator);
         processGrants(grants, null, true, perms);
         return convert(perms, 32, 0.75F, 1, 8);
-//        PermissionCollection pc = new ConcurrentPermissions();
-//        Iterator<Policy> it = policies.iterator();
-//        while (it.hasNext()){
-//            Policy policy = it.next();
-//            PermissionCollection col = policy.getPermissions(domain);
-//            Enumeration<Permission> e = col.elements();
-//            while(e.hasMoreElements()){
-//                pc.add(e.nextElement());
-//            }
-//        }
-//        return pc;
     }
 
     /**
@@ -168,9 +157,9 @@ public class MergedPolicyProvider extends AbstractPolicy implements ScalableNest
      * @return true if the permission is granted
      */
     public boolean implies(ProtectionDomain domain, Permission permission) {
-	Iterator it = policies.iterator();
+	Iterator<Policy> it = policies.iterator();
 	while (it.hasNext()) {
-	    Policy p = (Policy) it.next();
+	    Policy p = it.next();
 	    if (p.implies(domain, permission)) {
 		return true;
 	    }
@@ -184,9 +173,9 @@ public class MergedPolicyProvider extends AbstractPolicy implements ScalableNest
      */
     public void refresh() {
 	System.out.println("In REFRESH");
-	Iterator it = policies.iterator();
+	Iterator<Policy> it = policies.iterator();
 	while (it.hasNext()) {
-	    Policy p = (Policy) it.next();
+	    Policy p = it.next();
 	    System.out.println("CALLING refresh on " + p);
 	    p.refresh();
 	}
@@ -212,22 +201,5 @@ public class MergedPolicyProvider extends AbstractPolicy implements ScalableNest
         }
         return perms;
     }
-    
-//    public Collection<PermissionGrant> getPermissionGrants(boolean descend) {
-//        if (policies.isEmpty()) throw new IllegalStateException("No policies in provider");
-//        Collection<PermissionGrant> perms = null;
-//        Iterator<Policy> it = policies.iterator();
-//        while (it.hasNext()){
-//            Policy p = it.next();
-//            if (p instanceof ScalableNestedPolicy){
-//                Collection<PermissionGrant> g = ((ScalableNestedPolicy)p).getPermissionGrants(descend);
-//                if (perms == null) {
-//                    perms = g;
-//                    continue;
-//                }
-//                perms.addAll(g);
-//            }
-//        }
-//        return perms;
-//    }
+
 }
