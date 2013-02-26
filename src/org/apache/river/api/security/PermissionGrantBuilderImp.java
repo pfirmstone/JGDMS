@@ -228,7 +228,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
 
 
     // This is a singleton so we don't need to implement equals or hashCode.
-    private static class NullPermissionGrant extends PermissionGrant implements Serializable {
+    static class NullPermissionGrant extends PermissionGrant implements Serializable {
         private static final long serialVersionUID = 1L;
 
         public boolean implies(ProtectionDomain pd) {

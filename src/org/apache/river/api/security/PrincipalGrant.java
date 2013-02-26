@@ -91,10 +91,10 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
        if (o == null) return false;
        if (o == this) return true;
        if (o.hashCode() != this.hashCode()) return false;
+       if (!super.equals(o)) return false;
        if (o instanceof PrincipalGrant ){
            PrincipalGrant p = (PrincipalGrant) o;
-           if (pals.equals(p.pals) 
-                   && getPermissions().equals(p.getPermissions())) return true;
+           if (pals.equals(p.pals)) return true;
        }
        return false;
     }

@@ -100,6 +100,8 @@ public class AggregatePolicyProvider
                  }
              });
 
+    // As tempting as it might be, do not allow multiple reads to WeakHashMap,
+    // it is not multi read thread safe.  If multi read is required, use RC instead.
     private final Map<ClassLoader,Policy> subPolicies = new WeakHashMap<ClassLoader,Policy>();// protected by lock
     // The cache is used to avoid repeat security checks, the subPolicies map
     // cannot be used to cache child ClassLoaders because their policy could
@@ -414,7 +416,7 @@ public class AggregatePolicyProvider
         boolean trust = trustGetContextClassLoader(t);
         ClassLoader ccl = trust ? getContextClassLoader() : null;
         if ( ccl == null ) return mainPolicy;
-        readLock.lock();
+        readLock.lock(); // read lock is better than getting write locked at lookupSubPolicy
         try {
             Policy policy = subPolicyChildClassLoaderCache.get(ccl);  // just a cache.
             if ( policy != null ) return policy;

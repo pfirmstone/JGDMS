@@ -26,10 +26,13 @@ import java.security.Principal;
 import java.security.ProtectionDomain;
 import java.util.Collection;
 import java.security.Policy;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.Set;
-import java.util.TreeSet;
+import java.util.concurrent.ConcurrentSkipListSet;
 import net.jini.security.GrantPermission;
+import org.apache.river.api.security.PermissionGrantBuilderImp.NullPermissionGrant;
 
 /**
  * PermissionGrant implementations are expected to be immutable, non blocking,
@@ -79,16 +82,27 @@ public abstract class PermissionGrant {
      * 
      * Child classes are prevented from modifying the contained immutable Permissions.
      */
+    private static final PermissionGrant nullGrant = new NullPermissionGrant();
     private static final Guard PD_GUARD = new RuntimePermission("getProtectionDomain");
     private static final Guard CL_GUARD = new RuntimePermission("getClassLoader");
     private final Set<Permission> perms;
     private final boolean privileged;
     private final PermissionGrant decorated;
+    private final int hash;
     
-    public PermissionGrant(){
+    /**
+     * Public constructor to enable serialization support?  No a serialization
+     * builder is required.
+     */
+    PermissionGrant(){
         perms = Collections.emptySet();
         privileged = false;
         decorated = null;
+        int hashcode = 7;
+        hashcode = 97 * hashcode + (this.perms != null ? this.perms.hashCode() : 0);
+        hashcode = 97 * hashcode + (this.privileged ? 1 : 0);
+        hashcode = 97 * hashcode + (this.decorated != null ? this.decorated.hashCode() : 0);
+        this.hash = hashcode;
     }
     
     PermissionGrant( Permission[] perm ){
@@ -98,7 +112,7 @@ public abstract class PermissionGrant {
             privileged = false;
         }else{
             // PermissionComparator is used to avoid broken hashCode and equals
-	    Set<Permission> perms = new TreeSet<Permission>(new PermissionComparator());
+	    Set<Permission> perms = new ConcurrentSkipListSet<Permission>(new PermissionComparator());
             boolean privileged = false;
             int l = perm.length;
             for (int i = 0; i < l; i++){
@@ -108,6 +122,11 @@ public abstract class PermissionGrant {
 	    this.perms = Collections.unmodifiableSet(perms);
             this.privileged = privileged;
         }
+        int hashcode = 7;
+        hashcode = 97 * hashcode + (this.perms != null ? this.perms.hashCode() : 0);
+        hashcode = 97 * hashcode + (this.privileged ? 1 : 0);
+        hashcode = 97 * hashcode + (this.decorated != null ? this.decorated.hashCode() : 0);
+        this.hash = hashcode;
     }
     
     protected PermissionGrant(PermissionGrant decorated){
@@ -115,12 +134,28 @@ public abstract class PermissionGrant {
         CL_GUARD.checkGuard(null);
         this.decorated = decorated;
         perms = Collections.emptySet();
-        privileged = false;
+        privileged = decorated.isPrivileged();
+        hash = decorated.hashCode();
+    }
+
+    @Override
+    public int hashCode() {
+        return hash;
+    }
+    
+    public boolean equals(Object o){
+        if ( !( o instanceof PermissionGrant)) return false;
+        PermissionGrant that = (PermissionGrant) o;
+        if (this.privileged != that.privileged) return false;
+        if (decorated != null){
+            return decorated.equals(that.decorated);
+        }
+        return perms.equals(that.perms);
     }
     
     protected final PermissionGrant decorated(){
         // REMIND: Consider null object pattern.
-        return decorated;
+        return decorated != null ? decorated : nullGrant;
     }
     
     /**
@@ -173,7 +208,7 @@ public abstract class PermissionGrant {
     public final Collection<Permission> getPermissions(){
         if (decorated() != null) return decorated().getPermissions();
         return perms;
-    }
+        }
 
     /**
      * Returns true if this PermissionGrant defines no Permissions, or if
