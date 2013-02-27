@@ -47,7 +47,6 @@ public class DistributedObject implements Distributed {
         this.method = method;
     }
 
-    @Override
     public SerialFactory substitute() {
         Class[] signature = new Class[1];
         Object[] parameters = new Object[1];
