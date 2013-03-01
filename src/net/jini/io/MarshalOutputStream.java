@@ -22,7 +22,10 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import java.rmi.server.RMIClassLoader;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Collection;
+import org.apache.river.api.io.DistributedObjectOutputStream;
 
 /**
  * An extension of <code>ObjectOutputStream</code> that implements the
@@ -54,7 +57,7 @@ import java.util.Collection;
  * @since 2.0
  **/
 public class MarshalOutputStream
-    extends ObjectOutputStream
+    extends DistributedObjectOutputStream
     implements ObjectStreamContext
 {
     /** context for ObjectStreamContext implementation */
@@ -95,6 +98,16 @@ public class MarshalOutputStream
 	    throw new NullPointerException();
 	}
 	this.context = context;
+        
+        AccessController.doPrivileged(new PrivilegedAction<Object>(){
+
+            @Override
+            public Object run() {
+                enableReplaceObject(true);
+                return null;
+            }
+            
+        });
     }
 
     /**

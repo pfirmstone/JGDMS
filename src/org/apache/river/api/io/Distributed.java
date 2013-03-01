@@ -16,8 +16,6 @@
  */
 package org.apache.river.api.io;
 
-import java.io.Serializable;
-
 /**
  * Distributed objects are immutable value objects with final fields that may
  * be freely replicated.
@@ -30,15 +28,12 @@ import java.io.Serializable;
  * purposes.
  * <p>
  * Distributed objects have no version, instead SerialFactory contains all 
- * information required to distribute and recreate any Distributed Object.
+ * information required to distribute and recreate any Distributed Object using
+ * reflection.
  * <p>
- * Distributed object all have a common serial form, defined by SerialFactory.
+ * Distributed objects are value objects from a domain driven design perspective.
  * <p>
- * Distributed objects are value objects in domain driven design.
- * <p>
- * Remote objects are entity or service objects in domain driven design context.
- * <p>
- * Although final is not enforced, all fields must be final and safe
+ * Although final is not enforced, all fields must be final, safe
  * construction must be honored, distributed objects will be exposed to multiple
  * threads on multiple nodes, without synchronization or transactions.
  * <p>
@@ -48,5 +43,15 @@ import java.io.Serializable;
  * @author Peter Firmstone.
  */
 public interface Distributed {
+    
+    /**
+     * Substitutes an Object in an ObjectOutput with a SerialFactory,
+     * ObjectInput uses SerialFactory to reconstruct the Object at the 
+     * remote end using reflection to call a constructor, static method or
+     * object method.
+     * 
+     * @return SerialFactory for object instantiation using reflection to call
+     * a constructor, static method or object method.
+     */
     SerialFactory substitute();
 }

@@ -25,11 +25,14 @@ import java.io.ObjectInputStream;
 import java.io.ObjectStreamClass;
 import java.net.MalformedURLException;
 import java.rmi.server.RMIClassLoader;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import net.jini.loader.ClassLoading;
 import net.jini.security.Security;
+import org.apache.river.api.io.DistributedObjectInputStream;
 
 /**
  * An extension of <code>ObjectInputStream</code> that implements the
@@ -83,7 +86,7 @@ import net.jini.security.Security;
  * @since 2.0
  **/
 public class MarshalInputStream
-    extends ObjectInputStream
+    extends DistributedObjectInputStream
     implements ObjectStreamContext
 {
     /**
@@ -199,6 +202,16 @@ public class MarshalInputStream
 	this.verifyCodebaseIntegrity = verifyCodebaseIntegrity;
 	this.verifierLoader = verifierLoader;
 	this.context = context;
+        AccessController.doPrivileged(new PrivilegedAction<Object>(){
+
+            @Override
+            public Object run() {
+                enableResolveObject(true);
+                return null;
+            }
+            
+        });
+        
     }
 
     /**

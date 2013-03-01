@@ -16,11 +16,16 @@
  */
 package org.apache.river.api.io;
 
+import java.io.ObjectOutput;
 import java.security.BasicPermission;
 
 /**
- *
+ * This Permission allows an object to be Distributed by an implementation of
+ * ObjectOutput
+ * 
  * @author peter
+ * @see SerialFactory
+ * @see ObjectOutput
  */
 public class DistributePermission  extends BasicPermission{
     private static final long serialVersionUID = 1L;

@@ -43,11 +43,6 @@ public class DistributedObjectInputStream extends ObjectInputStream {
      */
     protected DistributedObjectInputStream(InputStream in) throws IOException{
         super(in);
-        try {
-            super.enableResolveObject(true);
-        } catch (SecurityException e){
-            // Ignore, will be called from privileged context if create method used.
-        }
     }
     
     private void enableResolveObject(){
