@@ -39,25 +39,45 @@ public class DistributedObjectOutputStreamTest {
      */
     @Test
     public void testCreate() throws Exception {
-        System.out.println("create");
+        System.out.println("create: test constructor, static method and object method");
         DistributedObject expResult = new DistributedObject("Testing");
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         ObjectOutputStream outst = DistributedObjectOutputStream.create(out);
         outst.writeObject(expResult);
-        ObjectInputStream in = new DistributedObjectInputStream(new ByteArrayInputStream(out.toByteArray()));
+        ObjectInputStream in = DistributedObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
         Object result = in.readObject();
         assertEquals(expResult.toString(), result.toString());
         out = new ByteArrayOutputStream();
         outst = DistributedObjectOutputStream.create(out);
         expResult = new DistributedObject("Testing", 1);
         outst.writeObject(expResult);
-        in = new DistributedObjectInputStream(new ByteArrayInputStream(out.toByteArray()));
+        in = DistributedObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
         result = in.readObject();
         assertEquals(expResult.toString(), result.toString());
         expResult = new DistributedObject("Testing", 2);
         outst.writeObject(expResult);
-        in = new DistributedObjectInputStream(new ByteArrayInputStream(out.toByteArray()));
+        in = DistributedObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
         result = in.readObject();
         assertEquals(expResult.toString(), result.toString());
+    }
+    
+    @Test
+    public void testPrimitives() throws Exception {
+        System.out.println("create: test constructor, static method and object method");
+        DistributedObject expResult = new DistributedObject(Boolean.TRUE);
+        ByteArrayOutputStream out = new ByteArrayOutputStream();
+        ObjectOutputStream outst = DistributedObjectOutputStream.create(out);
+        outst.writeObject(expResult);
+        ObjectInputStream in = DistributedObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
+        Object result = in.readObject();
+        assertEquals(expResult.toString(), result.toString());
+        out = new ByteArrayOutputStream();
+        outst = DistributedObjectOutputStream.create(out);
+        expResult = new DistributedObject(true);
+        outst.writeObject(expResult);
+        in = DistributedObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
+        result = in.readObject();
+        assertEquals(expResult.toString(), result.toString());
+        
     }
 }
