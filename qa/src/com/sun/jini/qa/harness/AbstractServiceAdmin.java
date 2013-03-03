@@ -20,6 +20,8 @@ package com.sun.jini.qa.harness;
 import java.io.File;
 import java.io.IOException;
 import java.net.MalformedURLException;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.List;
@@ -39,6 +41,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.ConstrainableLookupLocator;
 import net.jini.lookup.DiscoveryAdmin;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.impl.net.UriString;
 
 /**
  * An abstract class supporting admins which use strings to identify
@@ -319,10 +322,16 @@ public abstract class AbstractServiceAdmin implements Admin {
      *         if codebase integrity is required and a problem occurs
      *         converting the URL
      */
-    protected String getServiceCodebase() throws TestException {
+    protected final String getServiceCodebase() throws TestException {
 	codebase = getMandatoryParameter("codebase");
 	codebase = fixCodebase(codebase);
 	return  codebase;
+    }
+    
+    private String normaliseCodebase(String cb) throws URISyntaxException{
+        String result = UriString.escapeIllegalCharacters(cb);
+        result = UriString.normalisation(new URI(result)).toString();
+        return result;
     }
 
     /**

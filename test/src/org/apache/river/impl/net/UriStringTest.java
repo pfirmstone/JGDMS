@@ -95,6 +95,28 @@ public class UriStringTest {
         assertEquals(expResult.toString(), result.toString());
     }
     
+    @Test
+    public void testNormalisation2() throws URISyntaxException {
+        System.out.println("URI Normalisation Test 2");
+        URI url = new URI("http://Bryan-Thompson-MacBook-Air.local:9082/qa1-start-testservice1-dl.jar");
+        URI expResult = new URI("http://bryan-thompson-macbook-air.local:9082/qa1-start-testservice1-dl.jar");
+        URI result = UriString.normalisation(url);
+        assertEquals(expResult.toString(), result.toString());
+    }
+    
+    @Test
+    public void testNormalisation3() throws URISyntaxException {
+        System.out.println("URI Normalisation Test 3");
+        URI url = new URI("http://Bryan-Thompson-MacBook-Air.local:9082/qa1-start-testservice1-dl.jar");
+        String host = url.getHost();
+        String expHost = "Bryan-Thompson-MacBook-Air.local";
+        assertEquals(expHost, host);
+        url = UriString.normalisation(url);
+        host = url.getHost();
+        expHost = "bryan-thompson-macbook-air.local";
+        assertEquals(expHost, host);
+    }
+    
 //    @Test
 //    public void testFixWindowsURI() {
 //        System.out.println("Test fix Windows file URI string");

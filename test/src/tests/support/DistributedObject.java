@@ -18,7 +18,7 @@ package tests.support;
 
 import java.io.Serializable;
 import org.apache.river.api.io.Distributed;
-import org.apache.river.api.io.SerialFactory;
+import org.apache.river.api.io.SerialReflectionFactory;
 
 /**
  *
@@ -69,33 +69,33 @@ public class DistributedObject implements Distributed {
         this.method = method;
     }
 
-    public SerialFactory substitute() {
+    public SerialReflectionFactory substitute() {
         Class[] signature = new Class[1];
         Object[] parameters = new Object[1];
         parameters[0] = testString;
         switch (method){
             case 0: signature[0] = String.class;
-                    return new SerialFactory(this.getClass(), null, signature, parameters );
+                    return new SerialReflectionFactory(this.getClass(), null, signature, parameters );
         
             case 1 :
                     signature[0] = String.class;
-                    return new SerialFactory(this.getClass(), "create", signature, parameters);
+                    return new SerialReflectionFactory(this.getClass(), "create", signature, parameters);
         
             case 2:
                     Builder builder = new Builder().setString(testString);
-                    return new SerialFactory(builder, "build", null, null);
+                    return new SerialReflectionFactory(builder, "build", null, null);
             case 3:
                     signature[0] = Boolean.class;
                     parameters[0] = Boolean.valueOf(testString);
-                    return new SerialFactory(this.getClass(), null, signature, parameters);
+                    return new SerialReflectionFactory(this.getClass(), null, signature, parameters);
             case 4:
                     signature[0] = Character.class;
                     parameters[0] = Character.valueOf(testString.charAt(0));
-                    return new SerialFactory(this.getClass(), null, signature, parameters);
+                    return new SerialReflectionFactory(this.getClass(), null, signature, parameters);
             case 6:
                     signature[0] = Boolean.TYPE;
                     parameters[0] = Boolean.valueOf(testString);
-                    return new SerialFactory(this.getClass(), null, signature, parameters);
+                    return new SerialReflectionFactory(this.getClass(), null, signature, parameters);
             default:
                     return null;
         }
