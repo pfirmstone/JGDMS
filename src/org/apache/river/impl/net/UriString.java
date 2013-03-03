@@ -403,24 +403,24 @@ public class UriString {
                     escIndex = i;
                     continue;
                 } 
-                if (escIndex > 0 && i > escIndex && i < escIndex + 3 ){
-                    if (index(numeric, hos[i]) > 0) {
+                if (escIndex > -1 && i > escIndex && i < escIndex + 3 ){
+                    if (index(numeric, hos[i]) > -1) {
                         sb.append(hos[i]);
                         continue;
                     }
-                    if (index(upalpha, hos[i]) > 0){
+                    if (index(upalpha, hos[i]) > -1){
                         sb.append(hos[i]);
                         continue;
                     }
                     int n = index(lowalpha, hos[i]);
-                    if (n > 0){
+                    if (n > -1){
                         sb.append(upalpha[n]);
                         continue;
                     }
                     throw new URISyntaxException(host, "host contains escaped sequence that has an illegal character at index " + i);
                 }
                 int n = index(upalpha, hos[i]);
-                if (n > 0) {
+                if (n > -1) {
                     sb.append(lowalpha[n]);
                     continue;
                 }
@@ -474,17 +474,17 @@ public class UriString {
                     escIndex = i;
                     continue;
                 } 
-                if (escIndex > 0 && i > escIndex && i < escIndex + 3 ){
-                    if (index(numeric, pth[i]) > 0) {
+                if (escIndex > -1 && i > escIndex && i < escIndex + 3 ){
+                    if (index(numeric, pth[i]) > -1) {
                         sb.append(pth[i]);
                         continue;
                     }
-                    if (index(upalpha, pth[i]) > 0){
+                    if (index(upalpha, pth[i]) > -1){
                         sb.append(pth[i]);
                         continue;
                     }
                     int n = index(lowalpha, pth[i]);
-                    if (n > 0){
+                    if (n > -1){
                         sb.append(upalpha[n]);
                         continue;
                     }

@@ -27,7 +27,7 @@ package org.apache.river.api.io;
  * but must always share a common public interface or superclass for referential
  * purposes.
  * <p>
- * Distributed objects have no version, instead SerialFactory contains all 
+ * Distributed objects have no version, instead SerialReflectionFactory contains all 
  * information required to distribute and recreate any Distributed Object using
  * reflection.
  * <p>
@@ -45,13 +45,13 @@ package org.apache.river.api.io;
 public interface Distributed {
     
     /**
-     * Substitutes an Object in an ObjectOutput with a SerialFactory,
-     * ObjectInput uses SerialFactory to reconstruct the Object at the 
+     * Substitutes an Object in an ObjectOutput with a SerialReflectionFactory,
+     * ObjectInput uses SerialReflectionFactory to reconstruct the Object at the 
      * remote end using reflection to call a constructor, static method or
      * object method.
      * 
-     * @return SerialFactory for object instantiation using reflection to call
-     * a constructor, static method or object method.
+     * @return SerialReflectionFactory for object remote instantiation using
+     * reflection to call a constructor, static method or object method.
      */
-    SerialFactory substitute();
+    SerialReflectionFactory substitute();
 }

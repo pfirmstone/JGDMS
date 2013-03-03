@@ -27,8 +27,8 @@ import java.lang.reflect.Method;
 import java.security.Guard;
 
 /**
- * Distributed form, required for reflective calls to instantiate remotely, 
- * using constructor, static method or Object method.
+ * Distributed form, required for reflective calls to instantiate objects remotely, 
+ * using a constructor, static method or an Object method.
  * 
  * This object must be Thread confined, it is not thread safe.
  * 
@@ -38,7 +38,7 @@ import java.security.Guard;
  * @see Distributed
  * @see DistributePermission
  */
-public final class SerialFactory implements Externalizable {
+public final class SerialReflectionFactory implements Externalizable {
     private static final long serialVersionUID = 1L;
     /* Guard private state */
     private static final Guard distributable = new DistributePermission();
@@ -70,42 +70,37 @@ public final class SerialFactory implements Externalizable {
     private final boolean constructed; // default value is false.
     
     /**
-     * Public method provided for serialization framework.
+     * Public method provided for java serialization framework.
      */
-    public SerialFactory(){
+    public SerialReflectionFactory(){
         constructed = false;
     }
     
     /**
      * Reflection is used at the remote end, with information provided to
-     * SerialFactory, to call a constructor, static method
-     * or object method after de-serialization by DistributedObjectInputStream.
+     * SerialReflectionFactory, to call a constructor, static method
+     * or an object method after de-serialization by DistributedObjectInputStream.
      * <p>
-     * Information given to SerialFactory is guarded by DistributePermission.
+     * Information given to SerialReflectionFactory is guarded by DistributePermission.
      * <p>
-     * Instantiation of Distributed object at remote ends proceeds as follows:
+     * Instantiation of a Distributed object at a remote endpoint proceeds as follows:
      * <ul><li>
      * If factoryClassOrObject is a Class and methodName is null, a constructor
      * of that Class is called reflectively with parameterTypes and parameters.
      * </li><li>
      * If factoryClassOrObject is a Class and methodName is defined, a static
-     * method with the defined name is called reflectively on that Class with
+     * method with that name is called reflectively on that Class with
      * parameterTypes and parameters.
      * </li><li>
      * If factoryClassOrObject is an Object and methodName is defined, a method
-     * with the defined name is called reflectively on that Object with
+     * with that name is called reflectively on that Object with
      * parameterTypes and parameters.
      * </li></ul>
      * <p>
      * Tip: Object versions of primitive values and String parameters 
-     * are relatively fast as are primitive array parameters.
-     * Object versions of primitive parameters are externalized
-     * as primitives, arrays of Object's are treated as object parameters.
-     * <p>
-     * If you really need ultimate serialization performance, consider using a
-     * constructor that accepts a single parameter byte[] array.  
-     * Remember to compress your bytes, this will minimize the size of the 
-     * byte stream.
+     * are relatively fast as are primitive arrays.
+     * Object versions of primitive parameters are writen to DataOutput
+     * as primitives.
      * <p>
      * 
      * @param factoryClassOrObject will be used for constructor, factory static method,
@@ -115,7 +110,7 @@ public final class SerialFactory implements Externalizable {
      * @param parameters array of Objects to be passed to constructor, or null.
      * @see DistributePermission
      */
-    public SerialFactory(Object factoryClassOrObject, String methodName, Class[] parameterTypes, Object [] parameters){
+    public SerialReflectionFactory(Object factoryClassOrObject, String methodName, Class[] parameterTypes, Object [] parameters){
         classOrObject = factoryClassOrObject;
         method = methodName;
         this.parameterTypes = parameterTypes;
@@ -260,7 +255,6 @@ public final class SerialFactory implements Externalizable {
         
     }
     
-    @Override
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
         if (constructed) throw new IllegalStateException("Object already constructed");
         /* Don't defensively copy arrays, the object is used immediately after

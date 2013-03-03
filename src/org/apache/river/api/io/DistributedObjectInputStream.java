@@ -50,7 +50,7 @@ public class DistributedObjectInputStream extends ObjectInputStream {
     }
     
     protected final Object resolveObject(Object o) throws IOException{
-        if (o instanceof SerialFactory) return ((SerialFactory)o).create();
+        if (o instanceof SerialReflectionFactory) return ((SerialReflectionFactory)o).create();
         return o;
     }
     
