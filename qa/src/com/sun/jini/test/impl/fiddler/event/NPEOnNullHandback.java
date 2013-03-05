@@ -76,7 +76,7 @@ public class NPEOnNullHandback extends AbstractBaseTest {
      */
     public void run() throws Exception {
         logger.log(Level.FINER, "run()");
-        String[] groups = getGroupsToDiscover(useOnlyGroupDiscovery);
+        String[] groups = getGroupsToDiscover(getUseOnlyGroupDiscovery());
         LookupLocator[] noLocs = new LookupLocator[0];
 	logger.log(Level.FINER, "lookup discovery service "
 		   +"registration_-1 with NULL handback --");

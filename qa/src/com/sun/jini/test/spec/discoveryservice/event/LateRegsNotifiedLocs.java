@@ -67,8 +67,8 @@ public class LateRegsNotifiedLocs extends LateRegsNotifiedGroups {
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
         logger.log(Level.FINE, "setup()");
-        groupsToDiscover = getGroupsToDiscover(useOnlyLocDiscovery);
-        locsToDiscover = getLocatorsToDiscover(useOnlyLocDiscovery);
+        groupsToDiscover = getGroupsToDiscover(getUseOnlyLocDiscovery());
+        locsToDiscover = getLocatorsToDiscover(getUseOnlyLocDiscovery());
         return this;
     }//end construct
 

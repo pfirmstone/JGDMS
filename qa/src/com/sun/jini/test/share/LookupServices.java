@@ -22,26 +22,33 @@ import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.BaseQATest.LocatorGroupsPair;
 import com.sun.jini.test.share.BaseQATest.LookupListener;
+import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest.LDSEventListener;
+import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest.RegistrationInfo;
+import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest;
+import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest.DiscoveryStruct;
+import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest.RegGroupsPair;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
-import java.util.ConcurrentModificationException;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.admin.Administrable;
 import net.jini.core.discovery.LookupLocator;
+import net.jini.core.event.RemoteEventListener;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.DiscoveryManagement;
+import net.jini.discovery.LookupDiscoveryRegistration;
 import net.jini.lookup.DiscoveryAdmin;
 
 /**
@@ -64,7 +71,6 @@ public class LookupServices {
     private final int testType;
     private final boolean debugsync;
     
-    private volatile int maxSecsEventWait = 600;
     private final int originalAnnounceInterval;
     private final int announceInterval;
     private final int minNAnnouncements;
@@ -98,7 +104,7 @@ public class LookupServices {
 
     private final List<ServiceRegistrar> lookupList = new ArrayList<ServiceRegistrar>(1);//synchronize on lookupList
     private final ConcurrentMap<Object, String[]> genMap = new ConcurrentHashMap<Object, String[]>(11);
-
+    private final ConcurrentMap<Object,RemoteEventListener> registrationMap = new ConcurrentHashMap<Object,RemoteEventListener>(11);;
     /* Need to keep track of member groups by the index of the corresponding
      * lookup service so those groups can be mapped to the correct member
      * groups configuration item. 
@@ -113,10 +119,16 @@ public class LookupServices {
      * is started, the registrar and its locator/groups pair are added to this
      * map.
      */
-    private ConcurrentMap<ServiceRegistrar,LocatorGroupsPair> regsToLocGroupsMap = 
+    private final ConcurrentMap<ServiceRegistrar,LocatorGroupsPair> regsToLocGroupsMap = 
             new ConcurrentHashMap<ServiceRegistrar,LocatorGroupsPair>(11);
+    
+    /* relocate to LookupServices from discovery services AbstractBaseTest */
+    private final List<DiscoveryStruct> useGroupAndLocDiscovery0 = new CopyOnWriteArrayList<DiscoveryStruct>();
+    private final List<DiscoveryStruct> useGroupAndLocDiscovery1 = new CopyOnWriteArrayList<DiscoveryStruct>();
+    private final List<DiscoveryStruct> useOnlyGroupDiscovery    = new CopyOnWriteArrayList<DiscoveryStruct>();
+    private final List<DiscoveryStruct> useOnlyLocDiscovery      = new CopyOnWriteArrayList<DiscoveryStruct>();
 
-    LookupServices(QAConfig config, AdminManager manager, int fastTimeout) throws TestException{
+    public LookupServices(QAConfig config, AdminManager manager, int fastTimeout) throws TestException{
         this.config = config;
         this.manager = manager;
         debugsync = config.getBooleanConfigVal("qautil.debug.sync",false);
@@ -371,7 +383,7 @@ public class LookupServices {
      *  has already begun execution.
      * @throws Exception 
      */
-    void startInitLookups() throws Exception {
+    public void startInitLookups() throws Exception {
         if(nLookupServices > 0) {
             /* Skip over remote lookups to the indices of the local lookups */
             int n0 = nRemoteLookupServices + nAddRemoteLookupServices;
@@ -421,7 +433,7 @@ public class LookupServices {
      * @throws Exception 
      * @throws TestException
      */
-    void startAddLookups() throws Exception {
+    public void startAddLookups() throws Exception {
         if(nAddLookupServices > 0) {
             /* Skip over remote lookups and lookups already started to the
              * indices of the additional local lookups
@@ -586,7 +598,55 @@ public class LookupServices {
 
         LocatorsUtil.displayLocator(lookupLocator,
                                     "  locator",Level.FINE);
-        logger.log(Level.FINE, "   memberGroup(s) = {0}", GroupsUtil.toCommaSeparatedStr(memberGroups));
+        String displayGroups = GroupsUtil.toCommaSeparatedStr(memberGroups);
+        if(displayGroups.equals("")) displayGroups = "NO_GROUPS";
+        logger.log(Level.FINE, "   memberGroup(s) = {0}", displayGroups);
+        /* Because the lookup discovery service can perform both group and
+         * locator discovery, some tests will focus only on group 
+         * discovery, some only on locator discovery, and some on both
+         * group and locator discovery. To provide these tests with
+         * a variety of options for the groups and/or locators to discover,
+         * a number of data structures are populated below which the
+         * tests can use to configure the lookup discovery service for
+         * discovery. In some cases, only the member groups from above
+         * are stored, in other cases only the locators are stored, and
+         * in still other cases, a mix of groups and locators are stored.
+         * The case where the groups and locators are mixed is intended
+         * to provide tests that verify the lookup discovery service's 
+         * ability to handle both group and locator discovery with a
+         * set that can be used to configure the lookup discovery service
+         * to discover some registrars through only group discovery,
+         * some registrars through only locator discovery, and some
+         * registrars through both group and locator discovery.
+         */
+        if( (indx%3) == 0 ) {// add both groups and locs
+            useGroupAndLocDiscovery0.add
+            (new DiscoveryStruct(memberGroups,lookupLocator,
+                                 new RegGroupsPair(lookupProxy,memberGroups)));
+            useGroupAndLocDiscovery1.add
+            (new DiscoveryStruct(memberGroups,(LookupLocator) null,
+                                 new RegGroupsPair(lookupProxy,memberGroups)));
+        } else if( (indx%3) == 1 ) {// add only the groups
+            useGroupAndLocDiscovery0.add
+            (new DiscoveryStruct(memberGroups,(LookupLocator) null,
+                                 new RegGroupsPair(lookupProxy,memberGroups)));
+            useGroupAndLocDiscovery1.add(new DiscoveryStruct
+                                (memberGroups,null,
+                                 new RegGroupsPair(lookupProxy,memberGroups)));
+        } else if( (indx%3) == 2 ) {// add only the locators
+            useGroupAndLocDiscovery0.add
+            (new DiscoveryStruct((String[]) null,lookupLocator,
+                                 new RegGroupsPair(lookupProxy,memberGroups)));
+            useGroupAndLocDiscovery1.add(new DiscoveryStruct
+                                (memberGroups,lookupLocator,
+                                 new RegGroupsPair(lookupProxy,memberGroups)));
+        }//endif
+        useOnlyGroupDiscovery.add
+            (new DiscoveryStruct(memberGroups,(LookupLocator) null,
+                                 new RegGroupsPair(lookupProxy,memberGroups)));
+        useOnlyLocDiscovery.add
+            (new DiscoveryStruct((String[]) null,lookupLocator,
+                                 new RegGroupsPair(lookupProxy,memberGroups)));
 	return serviceHost;
     }
     
@@ -960,6 +1020,716 @@ public class LookupServices {
         return locGroupsList;
     }//end replaceMemberGroups
 
+   
+    /** Common code, used by discovery service test classes, 
+     *  invoked by the run() method. This will method will replace the
+     *  member groups of each lookup service started during construct. How
+     *  those groups are replaced is dependent on the values of the input
+     *  parameters. 
+     * 
+     *  Each group component of the replaceMap parameter will be replaced
+     *  with the new groups whenever the lookpup service proxy whose
+     *  groups are being replaced is also a key of the replaceMap.
+     *
+     *  If the replaceGroups parameter is non-null, that set of groups
+     *  will be used to replace the groups of each lookup service; otherwise
+     *  the set used to replace the goups will be constructed based on the
+     *  the current group names.
+     *
+     *  If the alternate parameter is true, then when replacing the
+     *  groups of any lookup service, only every other element of that
+     *  set will be replaced with a new group name.
+     *
+     *  The discardType parameter is used to determine which map to populate
+     *  with the expected discard data that is used to verify the assertion.
+     */
+    public void replaceGroups(Object curGen,
+                                 int genIndx,
+                                 String[] replaceGroups,
+                                 boolean alternate,
+                                 int discardType)
+    {
+        try {
+            ServiceRegistrar lookupProxy = null;
+            if( curGen instanceof DiscoveryProtocolSimulator ) {
+                DiscoveryProtocolSimulator generator 
+                                         = (DiscoveryProtocolSimulator)curGen;
+                lookupProxy = generator.getLookupProxy();
+            } else {
+                lookupProxy = (ServiceRegistrar)curGen;
+            }//endif
+            String[] curGroups = lookupProxy.getGroups();
+            String[] newGroups =  new String[] {"Group_"
+                                                +lookupProxy.getServiceID()};
+            if(replaceGroups != null) {
+                newGroups = replaceGroups;
+            } else {
+                if((curGroups != null) && (curGroups.length > 0)) {
+                    if(alternate) {
+                        int len = curGroups.length;
+                        newGroups = new String[len];
+                        for(int j=0;j<=(len/2);j++) {
+                            int k = 2*j;
+                            if(k >= len) break;
+                            newGroups[k] = new String(curGroups[k]+"_new");
+                            if( (k+1) >= len ) break;
+                            newGroups[k+1]= new String(curGroups[k+1]);
+                        }//end loop
+                    } else { //don't alternate
+                        newGroups = new String[] {curGroups[0]+"_new"};
+                    }//endif (alternate)
+                }//endif (curGroups!=null)
+            }//endif
+            if( (newGroups != null) && (newGroups.length <= 0) ) {
+                logger.log(Level.FINE, "   newGroups = NO_GROUPS");
+            } else {
+                GroupsUtil.displayGroupSet(newGroups,
+                                           "   newGroups",Level.FINE);
+            }//endif
+	    Iterator iter = registrationMap.values().iterator();
+            for(int j=0;iter.hasNext();j++) {
+                LDSEventListener listener = (LDSEventListener)iter.next();
+                RegistrationInfo regInfo  = listener.getRegInfo();
+                if(regInfo.getExpectedDiscoveredMap().containsKey(lookupProxy)) {
+                    regInfo.getExpectedDiscoveredMap().put(lookupProxy,newGroups);
+                }//endif
+                Map expectedDiscardedMap = getExpectedDiscardedMap
+                                                        (regInfo,discardType);
+                if(expectedDiscardedMap.containsKey(lookupProxy)) {
+                    if(discardType != AbstractBaseTest.PASSIVE_DISCARDED) {
+                        expectedDiscardedMap.put(lookupProxy,newGroups);
+                    } else {//(discardType == PASSIVE_DISCARDED)
+                        /* If announcements were stopped, but the groups are
+                         * replaced to generate an event, then the LDM will
+                         * send discarded events for those lookups that are
+                         * being discovered by only group discovery by ALL
+                         * the registrations; and the LDS will then send
+                         * discarded events that reflect the OLD groups, not
+                         * the NEW groups being set here. On the other hand,
+                         * for a given lookup service whose announcements have
+                         * been stopped, if at least one registration is 
+                         * interested in discovering that lookup by locator
+                         * as well as by group, then the LDM will send a
+                         * changed event, but the LDS will send a discarded
+                         * event reflecting the NEW groups to each registration
+                         * that is not also interested in the lookup by
+                         * locator. The LDS does because the new groups are
+                         * not of interest to those registrations. Thus, test
+                         * for this situation and change the expected discarded
+                         * groups for a registration only if that registration
+                         * also wishes to discover the lookup by its locator.
+                         */
+                        try {
+                            if( discoverByLocAnyReg(lookupProxy) ) {
+                                expectedDiscardedMap.put(lookupProxy,
+                                                         newGroups);
+                            }//endif
+                        } catch(Exception e1) { /*skip this lookupProxy*/ }
+                    }//endif
+                }//endif
+            }//end loop(iter)
+            setLookupMemberGroups(lookupProxy,newGroups);
+        } catch(RemoteException e) {
+            logger.log(Level.FINE, "failed to replace member groups "
+                              +"for lookup service "+genIndx);
+            e.printStackTrace();
+        } catch(TestException e) {
+            logger.log(Level.FINE, "failed to replace member groups "
+                              +"for lookup service "+genIndx);
+            e.printStackTrace();
+        }
+    }//end replaceGroups
+
+    public void replaceGroups(String[] replaceGroups,
+                                 boolean alternate,
+                                 int discardType)
+    {
+        if(genMap.size() > 0) {
+            logger.log(Level.FINE, "replacing member groups for each lookup service ...");
+	    Iterator iter = genMap.keySet().iterator();
+
+            for(int i=0;iter.hasNext();i++) {
+                replaceGroups(iter.next(),i,replaceGroups,
+                              alternate,discardType);
+            }//end loop
+        }//endif
+    }//end replaceGroups
+
+    protected void replaceWithNoGroups(int discardType) {
+        replaceGroups(DiscoveryGroupManagement.NO_GROUPS, false, discardType);
+    }//end replaceWithNoGroups
+
+    protected void changeGroups(int discardType) {
+        replaceGroups(null,true, discardType); // alternates new groups
+    }//end changeGroups
+
+    protected void replaceGroups(int discardType) {
+        replaceGroups(null,false, discardType); // basic replacement
+    }//end replaceGroups
+
+    protected Map getExpectedDiscardedMap(RegistrationInfo regInfo, 
+                                          int              discardType)
+    {
+        switch(discardType) {
+            case AbstractBaseTest.ACTIVE_DISCARDED:
+                return regInfo.getExpectedActiveDiscardedMap();
+            case AbstractBaseTest.COMM_DISCARDED:
+                return regInfo.getExpectedCommDiscardedMap();
+            case AbstractBaseTest.NO_INTEREST_DISCARDED:
+                return regInfo.getExpectedNoInterestDiscardedMap();
+            case AbstractBaseTest.PASSIVE_DISCARDED:
+                return regInfo.getExpectedPassiveDiscardedMap();
+        }//end switch
+        return regInfo.getExpectedActiveDiscardedMap();
+    }//end getExpectedDiscardedMap
+    
+    /** Convenience method that determines whether the locator of the
+     *  given registrar is a locator-of-interest to any of the current 
+     *  client registrations. If at least one such registration wishes
+     *  to discover the given registration by locator, then this method
+     *  returns true; otherwise, it returns false.
+     *
+     *  @throws jave.rmi.RemoteException upon failing to retrieve the locator
+     *          of the given registrar.
+     */
+    protected boolean discoverByLocAnyReg(ServiceRegistrar lookupProxy)
+                                                         throws RemoteException
+    {
+        LookupLocator loc = QAConfig.getConstrainedLocator(lookupProxy.getLocator());
+        /* If at least one of the registrations in the registrationMap is
+         * configured to discover the given lookup service by locator, then
+         * return true; otherwise return false.
+         */
+	Iterator iter = registrationMap.values().iterator();
+        for(int i=0;iter.hasNext();i++) {
+            LDSEventListener listener = (LDSEventListener)iter.next();
+            RegistrationInfo regInfo  = listener.getRegInfo();
+            for(int j=0;j<regInfo.getLocatorsToDiscover().length;j++) {
+                if( locsEqual(loc,regInfo.getLocatorsToDiscover()[j]) ) return true;
+            }//end loop(j)
+        }//end loop(iter)
+        return false;
+    }//end discoverByLocAnyReg
+    
+    /**
+     * Administratively replaces the current set of groups in which the lookup
+     * service (referenced by the <code>proxy</code> parameter) is a member
+     * with a new set of member groups represented by the group names 
+     * contained in the <code>groups</code> parameter.
+     *
+     * @param proxy   instance of the proxy to the lookup service whose
+     *                current member groups are to be replaced
+     * @param groups  String array whose elements are the names of the 
+     *                member groups with which to replace the current
+     *                member groups of the lookup service. If 
+     *                <code>null</code> is input, no attempt will be
+     *                made to replace the lookup service's current
+     *                set of member groups. 
+     *
+     * @return <code>true</code> if the lookup service's set of member
+     *         groups was successfully replaced; <code>false</code> otherwise.
+     * 
+     * @throws java.rmi.RemoteException typically, this exception occurs when
+     *         there is a communication failure between the proxy and the
+     *         service's backend. When this exception does occur, the
+     *         set of groups to which the lookup service is a member may or
+     *         may not have been successfully replaced.
+     * 
+     * @see net.jini.admin.Administrable
+     * @see net.jini.admin.Administrable#getAdmin
+     * @see net.jini.lookup.DiscoveryAdmin
+     * @see net.jini.lookup.DiscoveryAdmin#setMemberGroups
+     */
+    protected boolean setLookupMemberGroups(ServiceRegistrar proxy,
+                                                String[] groups)
+                                                        throws RemoteException, TestException
+    {
+        if( (proxy == null) || (groups == null) ) return false;
+        /* First, test that the lookup service implements both of the
+         * appropriate administration interfaces
+         */
+        DiscoveryAdmin discoveryAdmin = null;
+        if( !(proxy instanceof Administrable) ) return false;
+        Object admin = ((Administrable)proxy).getAdmin();
+//	try {
+            admin = config.prepare("test.reggieAdminPreparer", admin);
+//	} catch (TestException e) {
+//	    throw new RemoteException("Preparation error", e);
+//	}
+        if( !(admin instanceof DiscoveryAdmin) ) return false;
+        discoveryAdmin = (DiscoveryAdmin)admin;
+        /* Set the member groups for the lookup service */
+        discoveryAdmin.setMemberGroups(groups);
+        return true;
+    }//end setLookupMemberGroups
+  
+        /** Determines if the given locators are equivalent.
+     *
+     *  This method is a convenience method that is called instead of calling
+     *  only the <code>equals</code> method on <code>LookupLocator</code>.
+     *  This is necessary because the <code>equals</code> method on
+     *  <code>LookupLocator</code> performs a simple <code>String</code>
+     *  compare of the host names referenced by the locators being compared.
+     *  Such a comparison can result in a "false negative" when the hostname
+     *  associated with one locator is a fully-qualified hostname
+     *  (ex. "myhost.subdomain.mycompany.com"), but the hostname of the
+     *  locator with which the first locator is being compared is only the
+     *  unqualified hostname (ex. "myhost"). In this case, both host names
+     *  are legal and functionally equivalent, but the <code>equals</code>
+     *  method on <code>LookupLocator</code> will interpret them as unequal.
+     *
+     *  To address the problem described above, this method will do the 
+     *  following when attempting to determine whether the given locators
+     *  are equivalent:
+     *
+     *    1. Apply <code>LookupLocator</code>.<code>equals</code> to determine
+     *       if the given locators are actually 'equal'.
+     *    2. If <code>LookupLocator</code>.<code>equals</code> method returns
+     *       <code>false</code>, then retrieve and compare the port and
+     *       <code>InetAddress</code> of each element to the respective 
+     *       ports and <code>InetAddress</code>s of the given locators.
+     * 
+     * @return <code>true</code> if the given set of locators contains the
+     *         given locator; <code>false</code> otherwise.
+     */
+    public static boolean locsEqual(LookupLocator loc0, LookupLocator loc1) {
+        if( loc0.equals(loc1) ) return true;
+        if( loc0.getPort() != loc1.getPort() ) return false;
+        try {
+            InetAddress addr0 = InetAddress.getByName(loc0.getHost());
+            InetAddress addr1 = InetAddress.getByName(loc1.getHost());
+            if( addr0.equals(addr1) ) return true;
+        } catch(Exception e) {
+            logger.log(Level.WARNING, "problem retrieving address by name", e);
+            return false;
+        }
+        return false;
+    }//end locsEqual
+    
+    /** Common code, shared by this class and its sub-classes. For each
+     *  current registration with the lookup discovery service, this method
+     *  augments that registration's desired groups with the given set of
+     *  groups.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void addGroupsAllRegs(String[] groups) throws RemoteException {
+        Set eSet = registrationMap.entrySet();
+        Iterator iter = eSet.iterator();
+        for(int i=0;iter.hasNext();i++) {
+            addGroupsOneReg( groups, (Map.Entry)iter.next() );
+        }//end loop
+        if( groups == DiscoveryGroupManagement.ALL_GROUPS ) {
+            logger.log(Level.FINE, "   FAILURE -- tried to add ALL_GROUPS");
+        } else if( groups.length <= 0 ) {
+            logger.log(Level.FINE, "   NO-OP -- tried to add NO_GROUPS");
+        } else {
+            GroupsUtil.displayGroupSet(groups,
+                                       "   all regs -- group",Level.FINE);
+        }//endif
+    }//end addGroupsAllRegs
+       /** Common code, shared by this class and its sub-classes. For the given
+     *  <code>Map.Entry</code> ordered pair, in which a current registration
+     *  with the lookup discovery service is the first element of the pair,
+     *  and that registration's corresponding listener is the second element
+     *  of the pair, this method augments that registration's desired groups
+     *  with the given set of groups.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void addGroupsOneReg(String[]  groups,
+                                   Map.Entry regListenerPair)
+                                                       throws RemoteException
+    {
+        LookupDiscoveryRegistration reg
+                 = (LookupDiscoveryRegistration)regListenerPair.getKey();
+        RegistrationInfo regInfo  
+                 = ((LDSEventListener)regListenerPair.getValue()).getRegInfo();
+        String[] groupsToDiscover = groups;
+        if(   (regInfo.getGroupsToDiscover() != DiscoveryGroupManagement.ALL_GROUPS)
+            &&(groups != DiscoveryGroupManagement.ALL_GROUPS) )
+       {
+            int curLen = (regInfo.getGroupsToDiscover()).length;
+            int newLen = groups.length;
+            groupsToDiscover = new String[curLen + newLen];
+            for(int i=0;i<curLen;i++) {
+                groupsToDiscover[i] = new String(regInfo.getGroupsToDiscover()[i]);
+            }//end loop
+            for(int i=curLen;i<(curLen+newLen);i++) {
+                groupsToDiscover[i] = new String(groups[i-curLen]);
+            }//end loop
+            synchronized(regInfo) {
+                /* update the expected state for this regInfo information */
+                regInfo.setLookupsToDiscover(groupsToDiscover,
+                                             new LookupLocator[0]);
+            }//end sync(regInfo)
+        }//endif
+        /* Add to the groups the lds should discover for this registration */
+        reg.addGroups(groups);
+    }//end addGroupsOneReg
+    
+   /** Common code, shared by this class and its sub-classes. For each
+     *  current registration with the lookup discovery service, this method
+     *  replaces that registration's desired groups with the given set of
+     *  groups.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void setGroupsAllRegs(String[] groups) throws RemoteException {
+        Set eSet = getRegistrationMap().entrySet();
+        Iterator iter = eSet.iterator();
+        for(int i=0;iter.hasNext();i++) {
+            setGroupsOneReg( groups, (Map.Entry)iter.next() );
+        }//end loop
+        if( groups == DiscoveryGroupManagement.ALL_GROUPS ) {
+            logger.log(Level.FINE, "   all regs -- groups set to ALL_GROUPS");
+        } else if( groups.length <= 0 ) {
+            logger.log(Level.FINE, "   all regs -- groups set to NO_GROUPS");
+        } else {
+            GroupsUtil.displayGroupSet(groups,
+                                       "   all regs -- group",Level.FINE);
+        }//endif
+    }//end setGroupsAllRegs
+
+    /** Common code, shared by this class and its sub-classes. For the given
+     *  <code>Map.Entry</code> ordered pair, in which a current registration
+     *  with the lookup discovery service is the first element of the pair,
+     *  and that registration's corresponding listener is the second element
+     *  of the pair, this method replaces that registration's desired groups
+     *  with the given set of groups.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void setGroupsOneReg(String[]  groups,
+                                   Map.Entry regListenerPair)
+                                                       throws RemoteException
+    {
+        LookupDiscoveryRegistration reg
+                 = (LookupDiscoveryRegistration)regListenerPair.getKey();
+        RegistrationInfo regInfo  
+                 = ((LDSEventListener)regListenerPair.getValue()).getRegInfo();
+        synchronized(regInfo) {
+            /* update the expected state for this regInfo information */
+            regInfo.setLookupsToDiscover(groups,new LookupLocator[0]);
+        }//end sync(regInfo)
+        /* Change the groups the lds should discover for this registration */
+        reg.setGroups(groups);
+    }//end setGroupsOneReg
+
+    /** Common code, shared by this class and its sub-classes. For each
+     *  current registration with the lookup discovery service, this method
+     *  removes the given set of groups from that registration's desired
+     *  groups.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void removeGroupsAllRegs(String[] groups) throws RemoteException{
+        Iterator iter = (registrationMap.entrySet()).iterator();
+        for(int i=0;iter.hasNext();i++) {
+            removeGroupsOneReg( groups, (Map.Entry)iter.next() );
+        }//end loop
+        if( groups == DiscoveryGroupManagement.ALL_GROUPS ) {
+            logger.log(Level.FINE, "   FAILURE -- tried to remove ALL_GROUPS");
+        } else if( groups.length <= 0 ) {
+            logger.log(Level.FINE, "   NO-OP -- tried to remove NO_GROUPS");
+        } else {
+            GroupsUtil.displayGroupSet(groups,
+                              "   all regs removing -- group",Level.FINE);
+        }//endif
+    }//end removeGroupsAllRegs
+    
+    /** Common code, shared by this class and its sub-classes. For the given
+     *  <code>Map.Entry</code> ordered pair, in which a current registration
+     *  with the lookup discovery service is the first element of the pair,
+     *  and that registration's corresponding listener is the second element
+     *  of the pair, this method removes the given set of groups from that
+     *  registration's desired groups.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void removeGroupsOneReg(String[]  groups,
+                                      Map.Entry regListenerPair)
+                                                       throws RemoteException
+    {
+        LookupDiscoveryRegistration reg
+                 = (LookupDiscoveryRegistration)regListenerPair.getKey();
+        RegistrationInfo regInfo  
+                 = ((LDSEventListener)regListenerPair.getValue()).getRegInfo();
+
+        String[] curGroupsToDiscover = regInfo.getGroupsToDiscover();
+        String[] groupsToRemove = groups;
+        String[] newGroupsToDiscover = DiscoveryGroupManagement.NO_GROUPS;
+
+        if(    (curGroupsToDiscover != DiscoveryGroupManagement.ALL_GROUPS)
+            && (groupsToRemove      != DiscoveryGroupManagement.ALL_GROUPS) )
+        {
+            int curLen = curGroupsToDiscover.length;
+            int remLen = groupsToRemove.length;
+            ArrayList newList = new ArrayList(curLen+remLen);
+            iLoop:
+            for(int i=0;i<curLen;i++) {
+                for(int j=0;j<remLen;j++) {
+                    if(curGroupsToDiscover[i].equals(groupsToRemove[j])) {
+                        continue iLoop;
+                    }//endif
+                }//endloop(j)
+                newList.add(curGroupsToDiscover[i]);
+            }//end loop(i)
+            newGroupsToDiscover
+                   = (String[])(newList.toArray(new String[newList.size()]));
+            synchronized(regInfo) {
+                /* update the expected state for this regInfo information */
+                regInfo.setLookupsToDiscover(newGroupsToDiscover,
+                                             new LookupLocator[0]);
+            }//end sync(regInfo)
+        }//endif
+        /* remove the groups the lds should discover from this registration */
+        reg.removeGroups(groups);
+    }//end removeGroupsOneReg
+
+    /** Convenience method that allows sub-classes of this class to request,
+     *  for the registrations referenced in the given regMap, the removal
+     *  of the given set of groups from each registration.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void removeGroupsRegMap(Map regMap, String[] groups)
+                                                       throws RemoteException
+    {
+        Set eSet = regMap.entrySet();
+        Iterator iter = eSet.iterator();
+        for(int i=0;iter.hasNext();i++) {
+            Map.Entry regListenerPair = (Map.Entry)iter.next();
+            removeGroupsOneReg( groups, regListenerPair );
+            if( groups.length <= 0 ) {
+                logger.log(Level.FINE, "   NO-OP -- tried to remove NO_GROUPS");
+            } else {
+                RegistrationInfo regInfo  
+                 = ((LDSEventListener)regListenerPair.getValue()).getRegInfo();
+                GroupsUtil.displayGroupSet( groups,
+                                               "   registration_"
+                                               +regInfo.getHandback()
+                                               +" removing -- group",
+                                               Level.FINE);
+            }//endif
+        }//end loop
+    }//end removeGroupsRegMap
+
+    
+    /** Common code, shared by this class and its sub-classes. For each
+     *  current registration with the lookup discovery service, this method
+     *  augments that registration's desired locators with the given set of
+     *  locators.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void addLocatorsAllRegs(LookupLocator[] locators)
+                                                      throws RemoteException
+    {
+        Set eSet = registrationMap.entrySet();
+        Iterator iter = eSet.iterator();
+        for(int i=0;iter.hasNext();i++) {
+            addLocatorsOneReg( locators, (Map.Entry)iter.next() );
+        }//end loop
+        if( locators.length <= 0 ) {
+            logger.log(Level.FINE, "   NO-OP -- tried to add NO_LOCATORS");
+        } else {
+            LocatorsUtil.displayLocatorSet(locators,
+                                      "   all regs -- locator",Level.FINE);
+        }//endif
+    }//end addLocatorsAllRegs
+
+    /** Common code, shared by this class and its sub-classes. For the given
+     *  <code>Map.Entry</code> ordered pair, in which a current registration
+     *  with the lookup discovery service is the first element of the pair,
+     *  and that registration's corresponding listener is the second element
+     *  of the pair, this method augments that registration's desired locators
+     *  with the given set of locators.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void addLocatorsOneReg(LookupLocator[] locators,
+                                     Map.Entry       regListenerPair)
+                                                       throws RemoteException
+    {
+        LookupDiscoveryRegistration reg
+                 = (LookupDiscoveryRegistration)regListenerPair.getKey();
+        RegistrationInfo regInfo  
+                 = ((LDSEventListener)regListenerPair.getValue()).getRegInfo();
+        LookupLocator[] locatorsToDiscover = locators;
+
+        if(locators != null) {
+            int curLen = (regInfo.getLocatorsToDiscover()).length;
+            int newLen = locators.length;
+            locatorsToDiscover = new LookupLocator[curLen + newLen];
+            for(int i=0;i<curLen;i++) {
+                locatorsToDiscover[i] = regInfo.getLocatorsToDiscover()[i];
+            }//end loop
+            for(int i=curLen;i<(curLen+newLen);i++) {
+                locatorsToDiscover[i] = locators[i-curLen];
+            }//end loop
+        }//endif
+        synchronized(regInfo) {
+            /* update the expected state for this regInfo information */
+            regInfo.setLookupsToDiscover(DiscoveryGroupManagement.NO_GROUPS,
+                                         locatorsToDiscover);
+        }//end sync(regInfo)
+        /* Add to the locators the lds should discover for this registration */
+        reg.addLocators(locators);
+    }//end addLocatorsOneReg
+
+    /** Common code, shared by this class and its sub-classes. For each
+     *  current registration with the lookup discovery service, this method
+     *  replaces that registration's desired locators with the given set of
+     *  locators.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void setLocatorsAllRegs(LookupLocator[] locators)
+                                                      throws RemoteException
+    {
+        Set eSet = registrationMap.entrySet();
+        Iterator iter = eSet.iterator();
+        for(int i=0;iter.hasNext();i++) {
+            setLocatorsOneReg( locators, (Map.Entry)iter.next() );
+        }//end loop
+        if( locators.length == 0 ) {
+            logger.log(Level.FINE, "   all regs -- locators set to NO_LOCATORS");
+        } else {
+            LocatorsUtil.displayLocatorSet(locators,
+                                      "   all regs -- locator",Level.FINE);
+        }//endif
+    }//end setLocatorsAllRegs
+
+    /** Common code, shared by this class and its sub-classes. For the given
+     *  <code>Map.Entry</code> ordered pair, in which a current registration
+     *  with the lookup discovery service is the first element of the pair,
+     *  and that registration's corresponding listener is the second element
+     *  of the pair, this method replaces that registration's desired locators
+     *  with the given set of locators.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void setLocatorsOneReg(LookupLocator[]  locators,
+                                     Map.Entry regListenerPair)
+                                                       throws RemoteException
+    {
+        LookupDiscoveryRegistration reg
+                 = (LookupDiscoveryRegistration)regListenerPair.getKey();
+        RegistrationInfo regInfo  
+                 = ((LDSEventListener)regListenerPair.getValue()).getRegInfo();
+        synchronized(regInfo) {
+            /* update the expected state for this regInfo information */
+            regInfo.setLookupsToDiscover(DiscoveryGroupManagement.NO_GROUPS,
+                                         locators);
+        }//end sync(regInfo)
+        /* Change the locators the lds should discover for this registration */
+        reg.setLocators(locators);
+    }//end setLocatorsOneReg
+    
+    /** Common code, shared by this class and its sub-classes. For each
+     *  current registration with the lookup discovery service, this method
+     *  removes the given set of locators from that registration's desired
+     *  locators.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void removeLocatorsAllRegs(LookupLocator[] locators)
+                                                       throws RemoteException
+    {
+        Iterator iter = (registrationMap.entrySet()).iterator();
+        for(int i=0;iter.hasNext();i++) {
+            removeLocatorsOneReg( locators, (Map.Entry)iter.next() );
+        }//end loop
+        if( locators == null ) {
+            logger.log(Level.FINE, "   FAILURE -- tried to remove null");
+        } else if( locators.length == 0 ) {
+            logger.log(Level.FINE, "   NO-OP -- tried to remove NO_LOCATORS");
+        } else {
+            LocatorsUtil.displayLocatorSet(locators,
+                            "   all regs removing -- locator",Level.FINE);
+        }//endif
+    }//end removeLocatorsAllRegs
+
+    /** Common code, shared by this class and its sub-classes. For the given
+     *  <code>Map.Entry</code> ordered pair, in which a current registration
+     *  with the lookup discovery service is the first element of the pair,
+     *  and that registration's corresponding listener is the second element
+     *  of the pair, this method removes the given set of locators from that
+     *  registration's desired locators.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void removeLocatorsOneReg(LookupLocator[]  locators,
+                                        Map.Entry regListenerPair)
+                                                       throws RemoteException
+    {
+        LookupDiscoveryRegistration reg
+                 = (LookupDiscoveryRegistration)regListenerPair.getKey();
+        RegistrationInfo regInfo  
+                 = ((LDSEventListener)regListenerPair.getValue()).getRegInfo();
+
+        LookupLocator[] curLocatorsToDiscover = regInfo.getLocatorsToDiscover();
+        LookupLocator[] locatorsToRemove = locators;
+        LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
+
+        if( (curLocatorsToDiscover != null) && (locatorsToRemove != null) ) {
+            int curLen = curLocatorsToDiscover.length;
+            int remLen = locatorsToRemove.length;
+            ArrayList newList = new ArrayList(curLen+remLen);
+            iLoop:
+            for(int i=0;i<curLen;i++) {
+                for(int j=0;j<remLen;j++) {
+                    if( locsEqual
+                             (curLocatorsToDiscover[i],locatorsToRemove[j]) )
+                    {
+                        continue iLoop;
+                    }//endif
+                }//endloop(j)
+                newList.add(curLocatorsToDiscover[i]);
+            }//end loop(i)
+            newLocatorsToDiscover = (LookupLocator[])(newList.toArray
+                                         (new LookupLocator[newList.size()]));
+            synchronized(regInfo) {
+                /* update the expected state for this regInfo information */
+                regInfo.setLookupsToDiscover
+                                          (DiscoveryGroupManagement.NO_GROUPS,
+                                           newLocatorsToDiscover);
+            }//end sync(regInfo)
+        }//endif
+        /* remove the locators the lds should discover for this registration */
+        reg.removeLocators(locators);
+    }//end removeLocatorsOneReg
+
+    /** Convenience method that allows sub-classes of this class to request,
+     *  for the registrations referenced in the given regMap, the removal
+     *  of the given set of locators from each registration.
+     *  
+     *  @throws jave.rmi.RemoteException
+     */
+    public void removeLocatorsRegMap(Map regMap,
+                                        LookupLocator[] locators)
+                                                       throws RemoteException
+    {
+        Set eSet = regMap.entrySet();
+        Iterator iter = eSet.iterator();
+        for(int i=0;iter.hasNext();i++) {
+            Map.Entry regListenerPair = (Map.Entry)iter.next();
+            removeLocatorsOneReg( locators, regListenerPair );
+            if( locators.length == 0 ) {
+                logger.log(Level.FINE, "   NO-OP -- tried to remove NO_LOCATORS");
+            } else {
+                RegistrationInfo regInfo  
+                 = ((LDSEventListener)regListenerPair.getValue()).getRegInfo();
+                LocatorsUtil.displayLocatorSet( locators,
+                                               "   registration_"
+                                               +regInfo.getHandback()
+                                               +" removing -- locator",
+                                               Level.FINE);
+            }//endif
+        }//end loop
+    }//end removeLocatorsRegMap
+    
     /** Convenience method that returns a shallow copy of the
      *  <code>lookupList</code> <code>ArrayList</code> that contains the
      *  proxies to the lookup services that have been started so far.
@@ -1131,48 +1901,6 @@ public class LookupServices {
     }//end pingAndDiscard
 
     /**
-     * @return the testType
-     */
-    public int getTestType() {
-        return testType;
-    }
-
-    /**
-     * @return the debugsync
-     */
-    public boolean isDebugsync() {
-        return debugsync;
-    }
-
-    /**
-     * @return the maxSecsEventWait
-     */
-    public int getMaxSecsEventWait() {
-        return maxSecsEventWait;
-    }
-
-    /**
-     * @return the announceInterval
-     */
-    public int getAnnounceInterval() {
-        return announceInterval;
-    }
-
-    /**
-     * @return the minNAnnouncements
-     */
-    public int getMinNAnnouncements() {
-        return minNAnnouncements;
-    }
-
-    /**
-     * @return the nIntervalsToWait
-     */
-    public int getnIntervalsToWait() {
-        return nIntervalsToWait;
-    }
-
-    /**
      * @return the nLookupServices
      */
     public int getnLookupServices() {
@@ -1198,13 +1926,6 @@ public class LookupServices {
      */
     public int getnAddRemoteLookupServices() {
         return nAddRemoteLookupServices;
-    }
-
-    /**
-     * @return the nSecsLookupDiscovery
-     */
-    public int getnSecsLookupDiscovery() {
-        return nSecsLookupDiscovery;
     }
 
     /**
@@ -1339,6 +2060,68 @@ public class LookupServices {
      */
     public Thread staggeredStartThread(int index){
         return new StaggeredStartThread(index);
+    }
+
+    /**
+     * @return the announceInterval
+     */
+    public int getAnnounceInterval() {
+        return announceInterval;
+    }
+
+    /**
+     * @return the registrationMap
+     */
+    public ConcurrentMap<Object,RemoteEventListener> getRegistrationMap() {
+        return registrationMap;
+    }
+
+    /**
+     * @return the minNAnnouncements
+     */
+    public int getMinNAnnouncements() {
+        return minNAnnouncements;
+    }
+
+    /**
+     * @return the nIntervalsToWait
+     */
+    public int getnIntervalsToWait() {
+        return nIntervalsToWait;
+    }
+
+    /**
+     * @return the useGroupAndLocDiscovery0
+     */
+    public List<DiscoveryStruct> getUseGroupAndLocDiscovery0() {
+        return useGroupAndLocDiscovery0;
+    }
+
+    /**
+     * @return the useGroupAndLocDiscovery1
+     */
+    public List<DiscoveryStruct> getUseGroupAndLocDiscovery1() {
+        return useGroupAndLocDiscovery1;
+    }
+
+    /**
+     * @return the useOnlyGroupDiscovery
+     */
+    public List<DiscoveryStruct> getUseOnlyGroupDiscovery() {
+        return useOnlyGroupDiscovery;
+    }
+
+    /**
+     * @return the useOnlyLocDiscovery
+     */
+    public List<DiscoveryStruct> getUseOnlyLocDiscovery() {
+        return useOnlyLocDiscovery;
+    }
+
+    public boolean lookupListContains(ServiceRegistrar s){
+        synchronized (lookupList){
+            return lookupList.contains(s);
+        }
     }
     
     /** Thread in which a number of lookup services are started after various

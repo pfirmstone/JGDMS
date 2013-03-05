@@ -74,10 +74,9 @@ import java.util.Set;
  */
 public class RemoveGroupsSome extends AbstractBaseTest {
 
-    protected String[] groupsToRemove = new String[] {"LDSGroup0_A"};
-    protected Map groupsMap = new HashMap(1);
-    protected HashMap regInfoMap = registrationMap;
-    protected HashSet proxiesRemoved = new HashSet(11);
+    protected volatile String[] groupsToRemove = new String[] {"LDSGroup0_A"};
+    protected volatile Map groupsMap = new HashMap(1);
+    protected final HashSet proxiesRemoved = new HashSet(11);
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
@@ -87,10 +86,9 @@ public class RemoveGroupsSome extends AbstractBaseTest {
      */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
-        useDiscoveryList = useGroupAndLocDiscovery0;
+        useDiscoveryList = getUseGroupAndLocDiscovery0();
         groupsMap        = getPassiveCommDiscardMap(useDiscoveryList);
         discardType      = ACTIVE_DISCARDED;
-        regInfoMap       = registrationMap;
         return this;
     }//end construct
 
@@ -133,7 +131,7 @@ public class RemoveGroupsSome extends AbstractBaseTest {
      */
     void setGroupsToRemove(Map groupsMap) {
         ArrayList groupsList = new ArrayList();
-        Iterator iter = genMap.keySet().iterator();
+        Iterator iter = getGenMap().keySet().iterator();
         for(int i=0;iter.hasNext();i++) {
             DiscoveryProtocolSimulator curGen = 
                                        (DiscoveryProtocolSimulator)iter.next();
@@ -155,7 +153,7 @@ public class RemoveGroupsSome extends AbstractBaseTest {
      *  method on each registration.
      */
     void removeGroupsDo(String[] groupsToRemove) throws Exception {
-        Set eSet = regInfoMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int j=0;iter.hasNext();j++) {
             Map.Entry pair = (Map.Entry)iter.next();
@@ -164,7 +162,7 @@ public class RemoveGroupsSome extends AbstractBaseTest {
 
             LDSEventListener regListener = (LDSEventListener)pair.getValue();
             RegistrationInfo regInfo = regListener.getRegInfo();
-            int rID = regInfo.handback;
+            int rID = regInfo.getHandback();
 	    logger.log(Level.FINE, 
 		       "  registration_"+rID
 		       +" -- request removal of groups");
@@ -181,7 +179,7 @@ public class RemoveGroupsSome extends AbstractBaseTest {
 
     void setExpectedDiscardedMap(RegistrationInfo regInfo) {
         Map gMap = getPassiveCommDiscardMap
-                              ( getGroupListToUseByIndex(regInfo.handback) );
+                              ( getGroupListToUseByIndex(regInfo.getHandback()) );
         Map expectedMap = getExpectedDiscardedMap(regInfo,discardType);
         Set kSet = expectedMap.keySet();
         Iterator iter = kSet.iterator();

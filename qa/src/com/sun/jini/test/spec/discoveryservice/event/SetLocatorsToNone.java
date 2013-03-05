@@ -84,15 +84,14 @@ public class SetLocatorsToNone extends AbstractBaseTest {
 
     protected static Logger logger = 
                             Logger.getLogger("com.sun.jini.qa.harness.test");
-    protected LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
-    protected HashMap regInfoMap = registrationMap;
+    protected volatile LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
 
     /** Retrieves additional configuration values. */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
 //      debugFlag = true;
 //      displayOn = true;
-        useDiscoveryList = useOnlyLocDiscovery;
+        useDiscoveryList = getUseOnlyLocDiscovery();
         discardType      = ACTIVE_DISCARDED;
         return this;
     }//end construct
@@ -118,7 +117,7 @@ public class SetLocatorsToNone extends AbstractBaseTest {
 
     /** Invokes the setLocators() method on each registration. */
     void setLocatorsDo(LookupLocator[] newLocators) throws Exception {
-        Set eSet = regInfoMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int j=0;iter.hasNext();j++) {
             Map.Entry pair = (Map.Entry)iter.next();
@@ -127,7 +126,7 @@ public class SetLocatorsToNone extends AbstractBaseTest {
 
             LDSEventListener regListener = (LDSEventListener)pair.getValue();
             RegistrationInfo regInfo = regListener.getRegInfo();
-            int rID = regInfo.handback;
+            int rID = regInfo.getHandback();
 	    logger.log(Level.FINE, 
 		       "  registration_"+rID
 		       +" -- request discovery of new locators");
@@ -155,7 +154,7 @@ public class SetLocatorsToNone extends AbstractBaseTest {
         for(int j=0;iter.hasNext();j++) {
             ServiceRegistrar lookupProxy = (ServiceRegistrar)iter.next();
             if(    !locMap.containsKey(lookupProxy)
-                || ((regInfo.locatorsToDiscover).length == 0) )
+                || ((regInfo.getLocatorsToDiscover()).length == 0) )
             {
                 iter.remove();
 	    }//endif

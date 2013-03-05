@@ -83,14 +83,13 @@ public class AddLocatorsFullyQualified extends AbstractBaseTest {
     protected LookupLocator[] locsStarted;
     protected LookupLocator[] locsToAdd;
     protected LookupLocator[] expectedLocs;
-    protected HashMap regInfoMap = registrationMap;
 
     /** Retrieves additional configuration values. */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
 //      debugFlag = true;
 //      displayOn = true;
-        useDiscoveryList = useOnlyLocDiscovery;
+        useDiscoveryList = getUseOnlyLocDiscovery();
         locsStarted = getLocatorsToDiscover(useDiscoveryList);
         locsToAdd   = new LookupLocator[locsStarted.length];
         String domain = ( config.getStringConfigVal("com.sun.jini.jsk.domain",

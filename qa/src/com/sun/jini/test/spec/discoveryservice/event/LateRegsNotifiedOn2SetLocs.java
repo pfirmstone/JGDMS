@@ -69,7 +69,7 @@ public class LateRegsNotifiedOn2SetLocs extends AbstractBaseTest {
         super.construct(config);
         logger.log(Level.FINE, "setup()");
         LookupLocator[] allLocsToDiscover = getLocatorsToDiscover
-                                                       (useOnlyLocDiscovery);
+                                                       (getUseOnlyLocDiscovery());
         int len = allLocsToDiscover.length;
         int len0 = ( (len > 1) ? (len/2) : len);
         int len1 = ( (len > 1) ? (len-len0) : len);
@@ -79,6 +79,7 @@ public class LateRegsNotifiedOn2SetLocs extends AbstractBaseTest {
             locs0[i] = allLocsToDiscover[i];
         }//end loop
         if(len1 == len) {
+            if (len == 0) return this;
             locs1[0] = allLocsToDiscover[0];
         } else {
             for(int i=len0;i<len;i++) {
@@ -147,8 +148,8 @@ public class LateRegsNotifiedOn2SetLocs extends AbstractBaseTest {
         logger.log(Level.FINE, "wait periods "
                           +"complete ... request "+nAddRegistrations
                           +" additional registration(s)");
-
-        HashMap regMap0 = (HashMap)registrationMap.clone();
+        // registration map was originally cloned.
+        Map regMap0 = new HashMap(getRegistrationMap());
 
         /* create second set of registrations */
         int totalRegs = nRegistrations+nAddRegistrations;
@@ -159,7 +160,7 @@ public class LateRegsNotifiedOn2SetLocs extends AbstractBaseTest {
         /* for 2nd reg, set 1st set of locators to discover */
         logger.log(Level.FINE, "set 1st locator set on "
                           +"additional registration(s)");
-        Set eSet = registrationMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int i=0;iter.hasNext();i++) {
             /* Skip registrations from the initial set of registrations */

@@ -148,19 +148,16 @@ public class RemoveLocatorsFullyQualified extends AbstractBaseTest {
 
     protected static Logger logger = 
                             Logger.getLogger("com.sun.jini.qa.harness.test");
-    protected LookupLocator[] unqualifiedLocs;
-    protected LookupLocator[] qualifiedLocs;
-
-    protected ServiceRegistrar[] lookupsStarted = new ServiceRegistrar[0];
-
-    protected HashMap regInfoMap = registrationMap;
+    protected volatile LookupLocator[] unqualifiedLocs;
+    protected volatile LookupLocator[] qualifiedLocs;
+    protected volatile ServiceRegistrar[] lookupsStarted = new ServiceRegistrar[0];
 
     /** Retrieves additional configuration values. */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
 //      debugFlag = true;
 //      displayOn = true;
-        useDiscoveryList = useOnlyLocDiscovery;
+        useDiscoveryList = getUseOnlyLocDiscovery();
         discardType      = ACTIVE_DISCARDED;
 
         lookupsStarted = getRegsToDiscover(useDiscoveryList);
@@ -269,7 +266,7 @@ public class RemoveLocatorsFullyQualified extends AbstractBaseTest {
      */
     void addLocatorsDo(LookupLocator[] locators)   throws Exception
     {
-        Set eSet = regInfoMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int j=0;iter.hasNext();j++) {
             Map.Entry pair = (Map.Entry)iter.next();
@@ -286,7 +283,7 @@ public class RemoveLocatorsFullyQualified extends AbstractBaseTest {
      *  the given locators from the set of locators that should be discovered.
      */
     void removeLocatorsDo(LookupLocator[] locators) throws Exception {
-        Set eSet = regInfoMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int j=0;iter.hasNext();j++) {
             Map.Entry pair = (Map.Entry)iter.next();
@@ -323,18 +320,18 @@ public class RemoveLocatorsFullyQualified extends AbstractBaseTest {
             String[] groups = lookupsStarted[i].getGroups();
             if( !lookupsDiscovered.contains(lookupsStarted[i]) ) {
                 synchronized(regInfo) {
-                    regInfo.expectedDiscoveredMap.put
+                    regInfo.getExpectedDiscoveredMap().put
                                                ( lookupsStarted[i],groups );
                 }//end sync
             } else {
                 synchronized(regInfo) {
-                    regInfo.discoveredMap.put( lookupsStarted[i], groups );
+                    regInfo.getDiscoveredMap().put( lookupsStarted[i], groups );
                 }//end sync               
             }//endif
         }//end loop
         synchronized(regInfo) {
-             if(regInfo.expectedDiscoveredMap.size() == 0) {
-                 regInfo.discoveredMap.clear();//expect no more discovery
+             if(regInfo.getExpectedDiscoveredMap().size() == 0) {
+                 regInfo.getDiscoveredMap().clear();//expect no more discovery
              }//endif
         }//end sync               
     }//end setExpectedDiscoveredMap
@@ -350,8 +347,8 @@ public class RemoveLocatorsFullyQualified extends AbstractBaseTest {
                                                               throws Exception
     {
         synchronized(regInfo) {
-             if(regInfo.expectedDiscoveredMap.size() == 0) {
-                 regInfo.discoveredMap.clear();
+             if(regInfo.getExpectedDiscoveredMap().size() == 0) {
+                 regInfo.getDiscoveredMap().clear();
              }//endif
         }//end sync               
         HashSet lookupsDiscovered = 
@@ -360,7 +357,7 @@ public class RemoveLocatorsFullyQualified extends AbstractBaseTest {
             String[] groups = lookupsStarted[i].getGroups();
             if( lookupsDiscovered.contains(lookupsStarted[i]) ) {
                 synchronized(regInfo) {
-                    regInfo.discoveredMap.put( lookupsStarted[i], groups );
+                    regInfo.getDiscoveredMap().put( lookupsStarted[i], groups );
                 }//end sync               
             }//endif
         }//end loop
@@ -419,7 +416,7 @@ public class RemoveLocatorsFullyQualified extends AbstractBaseTest {
                                   +" - # of matching locs = "+nLocMatches);
             if(nLocMatches == 1) {//then removal should result in discard event
                 synchronized(regInfo) {
-                    regInfo.expectedActiveDiscardedMap.put
+                    regInfo.getExpectedActiveDiscardedMap().put
                                          ( lookupsDiscovered[i],
                                            lookupsDiscovered[i].getGroups() );
                 }//end sync

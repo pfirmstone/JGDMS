@@ -76,10 +76,9 @@ import java.util.Set;
  */
 public class SetGroupsReplaceSome extends AbstractBaseTest {
 
-    protected String[] newGroupsToDiscover = new String[] {"SetGroups_newSet"};
-    protected Map groupsMap = new HashMap(1);
-    protected HashMap regInfoMap = registrationMap;
-    protected HashSet proxiesReplaced = new HashSet(11);
+    protected volatile String[] newGroupsToDiscover = new String[] {"SetGroups_newSet"};
+    protected volatile Map groupsMap = new HashMap(1);
+    protected final HashSet proxiesReplaced = new HashSet(11);
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
@@ -89,10 +88,9 @@ public class SetGroupsReplaceSome extends AbstractBaseTest {
      */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
-        useDiscoveryList = useGroupAndLocDiscovery0;
+        useDiscoveryList = getUseGroupAndLocDiscovery0();
         groupsMap        = getPassiveCommDiscardMap(useDiscoveryList);
         discardType      = ACTIVE_DISCARDED;
-        regInfoMap       = registrationMap;
         return this;
     }//end construct
 
@@ -131,7 +129,7 @@ public class SetGroupsReplaceSome extends AbstractBaseTest {
      */
     void setNewGroups(Map groupsMap) {
         ArrayList groupsList = new ArrayList();
-        Iterator iter = genMap.keySet().iterator();
+        Iterator iter = getGenMap().keySet().iterator();
         for(int i=0;iter.hasNext();i++) {
             DiscoveryProtocolSimulator curGen = 
                                        (DiscoveryProtocolSimulator)iter.next();
@@ -157,7 +155,7 @@ public class SetGroupsReplaceSome extends AbstractBaseTest {
      *  method on each registration.
      */
     void setGroupsDo(String[] newGroups) throws Exception {
-        Set eSet = regInfoMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int j=0;iter.hasNext();j++) {
             Map.Entry pair = (Map.Entry)iter.next();
@@ -166,7 +164,7 @@ public class SetGroupsReplaceSome extends AbstractBaseTest {
 
             LDSEventListener regListener = (LDSEventListener)pair.getValue();
             RegistrationInfo regInfo = regListener.getRegInfo();
-            int rID = regInfo.handback;
+            int rID = regInfo.getHandback();
 	    logger.log(Level.FINE, 
 		       "registration_"+rID
 		       +" -- request discovery of new groups");
@@ -183,7 +181,7 @@ public class SetGroupsReplaceSome extends AbstractBaseTest {
 
     void setExpectedDiscardedMap(RegistrationInfo regInfo) {
         Map gMap = getPassiveCommDiscardMap
-                              ( getGroupListToUseByIndex(regInfo.handback) );
+                              ( getGroupListToUseByIndex(regInfo.getHandback()) );
         Map expectedMap = getExpectedDiscardedMap(regInfo,discardType);
         Set kSet = expectedMap.keySet();
         Iterator iter = kSet.iterator();
@@ -191,8 +189,8 @@ public class SetGroupsReplaceSome extends AbstractBaseTest {
             ServiceRegistrar lookupProxy = (ServiceRegistrar)iter.next();
             if(    !gMap.containsKey(lookupProxy)
                 || !proxiesReplaced.contains(lookupProxy)
-                || (    (regInfo.groupsToDiscover!=null)
-                     && (regInfo.groupsToDiscover).length == 0) )
+                || (    (regInfo.getGroupsToDiscover()!=null)
+                     && (regInfo.getGroupsToDiscover()).length == 0) )
             {
                 iter.remove();
 	    }//endif

@@ -85,7 +85,7 @@ public class DiscoveredAll extends AbstractBaseTest {
             if(i == (nRegistrations-1)) {
                 groupsToDiscover = DiscoveryGroupManagement.ALL_GROUPS;
                 locatorsToDiscover = getLocatorsToDiscover
-                                                  (useOnlyGroupDiscovery);
+                                                  (getUseOnlyGroupDiscovery());
 	    } else {
                 groupsToDiscover = getGroupsToDiscoverByIndex(i);
                 locatorsToDiscover = getLocatorsToDiscoverByIndex(i);

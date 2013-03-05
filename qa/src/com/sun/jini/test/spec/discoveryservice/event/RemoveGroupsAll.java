@@ -60,7 +60,7 @@ public class RemoveGroupsAll extends RemoveGroupsSome {
      */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
-        groupsMap = getPassiveCommDiscardMap(useOnlyGroupDiscovery);
+        groupsMap = getPassiveCommDiscardMap(getUseOnlyGroupDiscovery());
         return this;
     }//end construct
 

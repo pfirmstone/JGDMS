@@ -116,7 +116,7 @@ public class LateRegsNotifiedOnAddLocs extends LateRegsNotifiedOn2SetLocs {
         logger.log(Level.FINE, "discovery wait period "
                           +"complete");
 
-        HashMap regMap0 = (HashMap)registrationMap.clone();
+        Map regMap0 = new HashMap(getRegistrationMap());
 
         /* add to locators to discover for the 1st set of registrations */
         logger.log(Level.FINE, "add to locators on initial "
@@ -146,7 +146,7 @@ public class LateRegsNotifiedOnAddLocs extends LateRegsNotifiedOn2SetLocs {
         /* add to locators to discover for the 2nd set of registrations */
         logger.log(Level.FINE, "wait period complete ... "
                          +"add to locators on additional registration(s)");
-        Set eSet = registrationMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int i=0;iter.hasNext();i++) {
             /* Reset & skip registrations from the initial set */

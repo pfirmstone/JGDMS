@@ -69,7 +69,7 @@ import java.util.Iterator;
  */
 public class MulticastMonitorTerminate extends AbstractBaseTest {
 
-    protected boolean terminate = true;
+    protected volatile boolean terminate = true;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
@@ -81,10 +81,10 @@ public class MulticastMonitorTerminate extends AbstractBaseTest {
         super.construct(config);
         logger.log(Level.FINE, 
                         "number of announcements to wait for    -- "
-                        +minNAnnouncements);
+                        +getMinNAnnouncements());
         logger.log(Level.FINE, 
                         "number of intervals to wait through    -- "
-                        +nIntervalsToWait);
+                        +getnIntervalsToWait());
         if(terminate) {
             logger.log(Level.FINE, 
                         "stop announcements and destroy lookups -- "
@@ -139,7 +139,7 @@ public class MulticastMonitorTerminate extends AbstractBaseTest {
      *  @throws com.sun.jini.qa.harness.TestException
      */
     void stopAnnouncements() throws TestException, IOException {
-        Iterator iter = genMap.keySet().iterator();
+        Iterator iter = getGenMap().keySet().iterator();
         for(int i=0;iter.hasNext();i++) {
             logger.log(Level.FINE, "stop multicast announcements "
                               +"from lookup service "+i+" ...");
@@ -160,10 +160,10 @@ public class MulticastMonitorTerminate extends AbstractBaseTest {
                 logger.log(Level.FINE, "lookup "+i
                                   +" - waiting ... announcements so far -- "
                                   +curGen.getNAnnouncementsSent());
-                for(int j=0; ((j<nIntervalsToWait)
-                    &&(curGen.getNAnnouncementsSent()< minNAnnouncements));j++)
+                for(int j=0; ((j<getnIntervalsToWait())
+                    &&(curGen.getNAnnouncementsSent()< getMinNAnnouncements()));j++)
                 {
-                    DiscoveryServiceUtil.delayMS(announceInterval);
+                    DiscoveryServiceUtil.delayMS(getAnnounceInterval());
                     logger.log(Level.FINE, "lookup "+i
                                   +" - waiting ... announcements so far -- "
                                   +curGen.getNAnnouncementsSent());
@@ -175,14 +175,14 @@ public class MulticastMonitorTerminate extends AbstractBaseTest {
                 curGen.stopAnnouncements();
             } else {//non-simulated LUS
                 logger.log(Level.FINE, "lookup "+i+" - waiting "
-                                  +(nIntervalsToWait*announceInterval/1000)
-                                  +" seconds for "+minNAnnouncements
+                                  +(getnIntervalsToWait()*getAnnounceInterval()/1000)
+                                  +" seconds for "+getMinNAnnouncements()
                                   +" announcements ... ");
-                for(int j=0;j<nIntervalsToWait;j++) {
-                    DiscoveryServiceUtil.delayMS(announceInterval);
+                for(int j=0;j<getnIntervalsToWait();j++) {
+                    DiscoveryServiceUtil.delayMS(getAnnounceInterval());
                     logger.log(Level.FINE, "lookup "+i
                                       +" - still waiting for "
-                                      +minNAnnouncements+" announcements ...");
+                                      +getMinNAnnouncements()+" announcements ...");
                 }//end loop
                 logger.log(Level.FINE, "lookup "+i+" - wait complete");
                 /* cannot stop the announcements without destroying */

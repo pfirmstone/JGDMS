@@ -77,8 +77,8 @@ public class LateRegsNotifiedGroups extends AbstractBaseTest {
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
         logger.log(Level.FINE, "setup()");
-        groupsToDiscover = getGroupsToDiscover(useOnlyGroupDiscovery);
-        locsToDiscover = getLocatorsToDiscover(useOnlyGroupDiscovery);
+        groupsToDiscover = getGroupsToDiscover(getUseOnlyGroupDiscovery());
+        locsToDiscover = getLocatorsToDiscover(getUseOnlyGroupDiscovery());
         return this;
     }//end construct
 

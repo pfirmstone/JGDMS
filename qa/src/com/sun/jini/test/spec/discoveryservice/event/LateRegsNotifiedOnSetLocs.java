@@ -87,7 +87,7 @@ public class LateRegsNotifiedOnSetLocs extends AbstractBaseTest {
         String[]        noGroups = DiscoveryGroupManagement.NO_GROUPS;
         LookupLocator[] noLocs   = new LookupLocator[0];
         LookupLocator[] locsToDiscover = getLocatorsToDiscover
-                                                         (useOnlyLocDiscovery);
+                                                         (getUseOnlyLocDiscovery());
         /* create the 1st set of registrations */
         for(int i=0;i<nRegistrations;i++) {
             logger.log(Level.FINE, "lookup discovery service registration_"+i+" --");
@@ -108,7 +108,7 @@ public class LateRegsNotifiedOnSetLocs extends AbstractBaseTest {
                           +"complete ... request "+nAddRegistrations
                           +" additional registration(s)");
 
-        HashMap regMap0 = (HashMap)registrationMap.clone();
+        Map regMap0 = new HashMap(getRegistrationMap());
 
         /* create 2nd set of registrations */
         int totalRegs = nRegistrations+nAddRegistrations;
@@ -119,7 +119,7 @@ public class LateRegsNotifiedOnSetLocs extends AbstractBaseTest {
         /* set the locators to discover for the 2nd set of registrations */
         logger.log(Level.FINE, "set locators on additional "
                           +"registration(s)");
-        Set eSet = registrationMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int i=0;iter.hasNext();i++) {
             /* Skip registrations from the initial set of registrations */

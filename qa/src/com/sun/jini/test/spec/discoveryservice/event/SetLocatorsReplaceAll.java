@@ -76,10 +76,9 @@ import java.util.Set;
  */
 public class SetLocatorsReplaceAll extends SetLocatorsReplaceSome {
 
-    protected LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
-    protected Map locatorsMap = new HashMap(1);
-    protected HashMap regInfoMap = registrationMap;
-    protected HashSet proxiesReplaced = new HashSet(11);
+    protected volatile LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
+    protected volatile Map locatorsMap = new HashMap(1);
+    protected volatile HashSet proxiesReplaced = new HashSet(11);
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
@@ -89,7 +88,7 @@ public class SetLocatorsReplaceAll extends SetLocatorsReplaceSome {
      */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
-        locatorsMap = getModLocatorsDiscardMap(useOnlyLocDiscovery);
+        locatorsMap = getModLocatorsDiscardMap(getUseOnlyLocDiscovery());
         return this;
     }//end construct
 

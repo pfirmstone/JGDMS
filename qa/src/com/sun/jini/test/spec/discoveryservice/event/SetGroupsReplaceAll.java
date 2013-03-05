@@ -60,7 +60,7 @@ public class SetGroupsReplaceAll extends SetGroupsReplaceSome {
      */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
-        groupsMap = getPassiveCommDiscardMap(useOnlyGroupDiscovery);
+        groupsMap = getPassiveCommDiscardMap(getUseOnlyGroupDiscovery());
         return this;
     }//end construct
 

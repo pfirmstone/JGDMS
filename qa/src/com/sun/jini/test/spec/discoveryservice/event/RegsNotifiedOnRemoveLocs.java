@@ -122,7 +122,7 @@ public class RegsNotifiedOnRemoveLocs extends LateRegsNotifiedOn2SetLocs {
         logger.log(Level.FINE, "run()");
         String[]        noGroups = DiscoveryGroupManagement.NO_GROUPS;
         LookupLocator[] totalLocators = getLocatorsToDiscover
-                                                        (useOnlyLocDiscovery);
+                                                        (getUseOnlyLocDiscovery());
         /* create first set of registrations */
         for(int i=0;i<nRegistrations;i++) {
             logger.log(Level.FINE, 
@@ -130,7 +130,7 @@ public class RegsNotifiedOnRemoveLocs extends LateRegsNotifiedOn2SetLocs {
             doRegistration(noGroups,totalLocators,i,leaseDuration);
         }//end loop
 
-        HashMap regMap0 = (HashMap)registrationMap.clone();
+        Map regMap0 = new HashMap(getRegistrationMap());
 
         /* create 2nd set of registrations */
         int totalRegs = nRegistrations+nAddRegistrations;
@@ -139,10 +139,10 @@ public class RegsNotifiedOnRemoveLocs extends LateRegsNotifiedOn2SetLocs {
                       "lookup discovery service registration_"+i+" --");
             doRegistration(noGroups,totalLocators,i,leaseDuration);
         }//end loop
-        nRegistrations = registrationMap.size();
+        nRegistrations = getRegistrationMap().size();
         /* Construct a map containing the second set of registrations */
         HashMap regMap1 = new HashMap(1);
-        Set eSet = registrationMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int i=0;iter.hasNext();i++) {
             /* Skip registrations from the first set of registrations */

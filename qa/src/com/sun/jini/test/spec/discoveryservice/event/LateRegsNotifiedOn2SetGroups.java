@@ -55,8 +55,8 @@ import com.sun.jini.qa.harness.Test;
  */
 public class LateRegsNotifiedOn2SetGroups extends AbstractBaseTest {
 
-    protected String[] groups0;
-    protected String[] groups1;
+    protected volatile String[] groups0;
+    protected volatile String[] groups1;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test. Populates the sets of group names that are passed
@@ -69,7 +69,7 @@ public class LateRegsNotifiedOn2SetGroups extends AbstractBaseTest {
         super.construct(config);
         logger.log(Level.FINE, "setup()");
         String[] allGroupsToDiscover = getGroupsToDiscover
-                                                      (useOnlyGroupDiscovery);
+                                                      (getUseOnlyGroupDiscovery());
         int len = allGroupsToDiscover.length;
         int len0 = ( (len > 1) ? (len/2) : len);
         int len1 = ( (len > 1) ? (len-len0) : len);
@@ -79,6 +79,7 @@ public class LateRegsNotifiedOn2SetGroups extends AbstractBaseTest {
             groups0[i] = allGroupsToDiscover[i];
         }//end loop
         if(len1 == len) {
+            if (len == 0) return this;
             groups1[0] = allGroupsToDiscover[0];
         } else {
             for(int i=len0;i<len;i++) {
@@ -121,7 +122,7 @@ public class LateRegsNotifiedOn2SetGroups extends AbstractBaseTest {
      */
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");
-        LookupLocator[] noLocs = getLocatorsToDiscover(useOnlyGroupDiscovery);
+        LookupLocator[] noLocs = getLocatorsToDiscover(getUseOnlyGroupDiscovery());
         /* create the first set of registrations */
         for(int i=0;i<nRegistrations;i++) {
             logger.log(Level.FINE, "lookup discovery service registration_"+i+" --");
@@ -150,8 +151,8 @@ public class LateRegsNotifiedOn2SetGroups extends AbstractBaseTest {
         logger.log(Level.FINE, "wait periods "
                           +"complete ... request "+nAddRegistrations
                           +" additional registration(s)");
-
-        HashMap regMap0 = (HashMap)registrationMap.clone();
+        //Originally registration map was cloned.
+        Map regMap0 = new HashMap(getRegistrationMap());
 
         /* create second set of registrations */
         int totalRegs = nRegistrations+nAddRegistrations;
@@ -165,7 +166,7 @@ public class LateRegsNotifiedOn2SetGroups extends AbstractBaseTest {
         /* for 2nd reg, set 1st set of groups to discover */
         logger.log(Level.FINE, "set 1st group set on "
                           +"additional registration(s)");
-        Set eSet = registrationMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int i=0;iter.hasNext();i++) {
             /* Skip registrations from the initial set of registrations */

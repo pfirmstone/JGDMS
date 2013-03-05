@@ -80,17 +80,16 @@ public class SetLocatorsFullyQualified extends AbstractBaseTest {
 
     protected static Logger logger = 
                             Logger.getLogger("com.sun.jini.qa.harness.test");
-    protected LookupLocator[] locsStarted;
-    protected LookupLocator[] locsToSet;
-    protected LookupLocator[] expectedLocs;
-    protected HashMap regInfoMap = registrationMap;
+    protected volatile LookupLocator[] locsStarted;
+    protected volatile LookupLocator[] locsToSet;
+    protected volatile LookupLocator[] expectedLocs;
 
     /** Retrieves additional configuration values. */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
 //      debugFlag = true;
 //      displayOn = true;
-        useDiscoveryList = useOnlyLocDiscovery;
+        useDiscoveryList = getUseOnlyLocDiscovery();
         locsStarted = getLocatorsToDiscover(useDiscoveryList);
         locsToSet   = new LookupLocator[locsStarted.length];
         String domain = ( config.getStringConfigVal("com.sun.jini.jsk.domain",

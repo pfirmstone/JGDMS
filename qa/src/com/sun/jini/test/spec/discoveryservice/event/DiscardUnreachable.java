@@ -73,7 +73,6 @@ import java.util.Set;
  */
 public class DiscardUnreachable extends AbstractBaseTest {
 
-    protected HashMap regInfoMap = registrationMap;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
@@ -84,7 +83,6 @@ public class DiscardUnreachable extends AbstractBaseTest {
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
         discardType = ACTIVE_DISCARDED;
-        regInfoMap = registrationMap;
         return this;
     }//end construct
 
@@ -122,14 +120,14 @@ public class DiscardUnreachable extends AbstractBaseTest {
         logger.log(Level.FINE, "waiting "+(t/1000)+" seconds "
                           +"for shutdown completion ...");
         DiscoveryServiceUtil.delayMS(10000);//wait for shutdown completion
-        pingAndDiscard(proxies,regInfoMap);
+        pingAndDiscard(proxies,getRegistrationMap());
         waitForDiscard(discardType);
     }//end run
 
     /** Retrieves the proxy to each lookup service started */
     ServiceRegistrar[] getLookupProxies() {
-        ServiceRegistrar[] proxies = new ServiceRegistrar[genMap.size()];
-	Iterator iter = genMap.keySet().iterator();
+        ServiceRegistrar[] proxies = new ServiceRegistrar[getGenMap().size()];
+	Iterator iter = getGenMap().keySet().iterator();
         for(int i=0;iter.hasNext();i++) {
             proxies[i] =
                     ((DiscoveryProtocolSimulator)iter.next()).getLookupProxy();
@@ -144,7 +142,7 @@ public class DiscardUnreachable extends AbstractBaseTest {
      */
     void terminateAllLookups() throws TestException, IOException {
         logger.log(Level.FINE, "destroying each lookup service ...");
-        Iterator iter = genMap.keySet().iterator();
+        Iterator iter = getGenMap().keySet().iterator();
         for(int i=0;iter.hasNext();i++) {
             Object curObj = iter.next();
             ServiceRegistrar regProxy = null;
@@ -186,7 +184,7 @@ public class DiscardUnreachable extends AbstractBaseTest {
                     LDSEventListener regListener =
                                              (LDSEventListener)pair.getValue();
                     RegistrationInfo regInfo = regListener.getRegInfo();
-                    int rID = regInfo.handback;
+                    int rID = regInfo.getHandback();
 		    logger.log(Level.FINE, "  registration_"+rID
 			       +" -- discarding lookup service "+i);
 		    ldsReg.discard(proxies[i]);

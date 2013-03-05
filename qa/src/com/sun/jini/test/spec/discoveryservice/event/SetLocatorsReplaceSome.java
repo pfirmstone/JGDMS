@@ -78,10 +78,9 @@ import java.util.Set;
  */
 public class SetLocatorsReplaceSome extends AbstractBaseTest {
 
-    protected LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
-    protected Map locatorsMap = new HashMap(1);
-    protected HashMap regInfoMap = registrationMap;
-    protected HashSet proxiesReplaced = new HashSet(11);
+    protected volatile LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
+    protected volatile Map locatorsMap = new HashMap(1);
+    protected final HashSet proxiesReplaced = new HashSet(11);
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
@@ -91,10 +90,9 @@ public class SetLocatorsReplaceSome extends AbstractBaseTest {
      */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
-        useDiscoveryList = useGroupAndLocDiscovery0;
+        useDiscoveryList = getUseGroupAndLocDiscovery0();
         locatorsMap      = getModLocatorsDiscardMap(useDiscoveryList);
         discardType      = ACTIVE_DISCARDED; // want groups and locators
-        regInfoMap       = registrationMap;
         return this;
     }//end construct
 
@@ -134,7 +132,7 @@ public class SetLocatorsReplaceSome extends AbstractBaseTest {
     void setNewLocators(Map locatorsMap) {
         ArrayList locatorsList = new ArrayList();
         int portBase = 5000;
-        Iterator iter = genMap.keySet().iterator();
+        Iterator iter = getGenMap().keySet().iterator();
         for(int i=0;iter.hasNext();i++) {
             DiscoveryProtocolSimulator curGen = 
                                        (DiscoveryProtocolSimulator)iter.next();
@@ -156,7 +154,7 @@ public class SetLocatorsReplaceSome extends AbstractBaseTest {
      *  method on each registration.
      */
     void setLocatorsDo(LookupLocator[] newLocators) throws Exception {
-        Set eSet = regInfoMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int j=0;iter.hasNext();j++) {
             Map.Entry pair = (Map.Entry)iter.next();
@@ -165,7 +163,7 @@ public class SetLocatorsReplaceSome extends AbstractBaseTest {
 
             LDSEventListener regListener = (LDSEventListener)pair.getValue();
             RegistrationInfo regInfo = regListener.getRegInfo();
-            int rID = regInfo.handback;
+            int rID = regInfo.getHandback();
 	    logger.log(Level.FINE, 
 		       "  registration_"+rID
 		       +" -- request discovery of new locators");
@@ -183,7 +181,7 @@ public class SetLocatorsReplaceSome extends AbstractBaseTest {
 
     void setExpectedDiscardedMap(RegistrationInfo regInfo) {
         Map locMap = getModLocatorsDiscardMap
-                              ( getLocatorListToUseByIndex(regInfo.handback) );
+                              ( getLocatorListToUseByIndex(regInfo.getHandback()) );
         Map expectedMap = getExpectedDiscardedMap(regInfo,discardType);
         Set kSet = expectedMap.keySet();
         Iterator iter = kSet.iterator();
@@ -191,7 +189,7 @@ public class SetLocatorsReplaceSome extends AbstractBaseTest {
             ServiceRegistrar lookupProxy = (ServiceRegistrar)iter.next();
             if(    !locMap.containsKey(lookupProxy)
                 || !proxiesReplaced.contains(lookupProxy)
-                || ((regInfo.locatorsToDiscover).length == 0) )
+                || ((regInfo.getLocatorsToDiscover()).length == 0) )
             {
                 iter.remove();
 	    }//endif

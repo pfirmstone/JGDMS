@@ -117,8 +117,8 @@ public class RegsNotifiedOnRemoveGroups extends LateRegsNotifiedOn2SetGroups {
      */
     public void run() throws Exception {
         logger.log(Level.FINE, "run()");
-        String[] totalGroups = getGroupsToDiscover(useOnlyGroupDiscovery);
-        LookupLocator[] noLocs = getLocatorsToDiscover(useOnlyGroupDiscovery);
+        String[] totalGroups = getGroupsToDiscover(getUseOnlyGroupDiscovery());
+        LookupLocator[] noLocs = getLocatorsToDiscover(getUseOnlyGroupDiscovery());
         /* create first set of registrations */
         for(int i=0;i<nRegistrations;i++) {
             logger.log(Level.FINE, 
@@ -126,7 +126,7 @@ public class RegsNotifiedOnRemoveGroups extends LateRegsNotifiedOn2SetGroups {
             doRegistration(totalGroups,noLocs,i,leaseDuration);
         }//end loop
 
-        HashMap regMap0 = (HashMap)registrationMap.clone();
+        Map regMap0 = new HashMap(getRegistrationMap());
 
         /* create 2nd set of registrations */
         int totalRegs = nRegistrations+nAddRegistrations;
@@ -135,10 +135,10 @@ public class RegsNotifiedOnRemoveGroups extends LateRegsNotifiedOn2SetGroups {
                       "lookup discovery service registration_"+i+" --");
             doRegistration(totalGroups,noLocs,i,leaseDuration);
         }//end loop
-        nRegistrations = registrationMap.size();
+        nRegistrations = getRegistrationMap().size();
         /* Construct a map containing the second set of registrations */
         HashMap regMap1 = new HashMap(1);
-        Set eSet = registrationMap.entrySet();
+        Set eSet = getRegistrationMap().entrySet();
         Iterator iter = eSet.iterator();
         for(int i=0;iter.hasNext();i++) {
             /* Skip registrations from the first set of registrations */
