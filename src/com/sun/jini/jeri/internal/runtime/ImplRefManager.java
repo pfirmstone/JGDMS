@@ -160,10 +160,10 @@ final class ImplRefManager {
 	private boolean removed = false;
 
 	/** targets for all exports of referenced impl; guarded by "this" */
-	private final Set targets = new HashSet(1);
+	private final Set<Target> targets = new HashSet<Target>(1);
 
 	/** targets that have pinned this reference; guarded by "this"  */
-	private final Set pinningTargets = new HashSet(1);
+	private final Set<Target> pinningTargets = new HashSet<Target>(1);
 
 	/** strong reference to impl, when pinned; guarded by "this" */
 	private Remote strongRef = null;
@@ -265,20 +265,20 @@ final class ImplRefManager {
 	    assert targets.contains(target);
 	    if (strongRef instanceof Unreferenced) {
 		final Unreferenced obj = (Unreferenced) strongRef;
-		final Thread t = (Thread) AccessController.doPrivileged(
-		    new NewThreadAction(new Runnable() {
-			public void run() {
-			    SecurityContext securityContext =
-				target.getSecurityContext();
-			    AccessController.doPrivileged(securityContext.wrap(
-				new PrivilegedAction() {
-				    public Object run() {
-					obj.unreferenced();
-					return null;
-				    }
-				}), securityContext.getAccessControlContext());
-			}
-		    }, "Unreferenced", false, true));
+		final Thread t = AccessController.doPrivileged(
+           new NewThreadAction(new Runnable() {
+               public void run() {
+                   SecurityContext securityContext =
+                       target.getSecurityContext();
+                   AccessController.doPrivileged(securityContext.wrap(
+                       new PrivilegedAction() {
+                           public Object run() {
+                               obj.unreferenced();
+                               return null;
+                           }
+                       }), securityContext.getAccessControlContext());
+               }
+           }, "Unreferenced", false, true));
 		AccessController.doPrivileged(new PrivilegedAction() {
 		    public Object run() {
 			t.setContextClassLoader(
@@ -431,7 +431,7 @@ final class ImplRefManager {
 		    break;	// pass away if interrupted
 		}
 
-		Set collectedTargets;
+		Set<Target> collectedTargets;
 		synchronized (lock) {
 		    /*
 		     * Prevent interrupts and clear interrupted state
@@ -447,10 +447,13 @@ final class ImplRefManager {
 		    if (implRef == null) {
 			continue; // may have been removed via unexport
 		    }
-		    assert !implRef.removed;
+		    
 		    synchronized (implRef) {
+                        assert !implRef.removed; // originally checked outside of sync, changed 6th March 2013
 			assert !implRef.isPinned();
-			collectedTargets = implRef.targets;
+                        // Copy the Targets! Originally access was unsynchronized.
+			collectedTargets = new HashSet<Target>(implRef.targets.size());
+                        collectedTargets.addAll(implRef.targets);
 			implRef.remove();
 
 			if (logger.isLoggable(Level.FINEST)) {
@@ -464,8 +467,11 @@ final class ImplRefManager {
 		}
 
 		// notify targets without holding any locks
-		for (Iterator i = collectedTargets.iterator(); i.hasNext();) {
-		    ((Target) i.next()).collect();
+                // Why?  This is bad, is it to avoid deadlock?
+                // We should at least copy first while synchronized.
+                // Changed 6th March 2013
+		for (Iterator<Target> i = collectedTargets.iterator(); i.hasNext();) {
+		    i.next().collect();
 		}
 
 	    } while (true);
