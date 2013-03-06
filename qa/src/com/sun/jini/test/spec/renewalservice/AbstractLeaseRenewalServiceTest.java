@@ -46,6 +46,8 @@ import com.sun.jini.qa.harness.QATestEnvironment;
 
 // net.jini
 import com.sun.jini.qa.harness.Test;
+import java.util.Collections;
+import java.util.List;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.export.Exporter;
@@ -59,12 +61,12 @@ public abstract class AbstractLeaseRenewalServiceTest extends QATestEnvironment 
     /**
      * The test configuration object
      */
-    protected Configuration testConfiguration;
+    protected volatile Configuration testConfiguration;
 
     /**
      * Holds instances to LRS proxy objects returned from StartService.
      */
-    private ArrayList lrsServices = new ArrayList();
+    private final List<LeaseRenewalService> lrsServices = Collections.synchronizedList(new ArrayList<LeaseRenewalService>());
 
     /**
      * the name of service for which these test are written
@@ -74,7 +76,7 @@ public abstract class AbstractLeaseRenewalServiceTest extends QATestEnvironment 
     /**
      * utility class that implements convenience methods 
      */
-    protected LeaseRenewalServiceTestUtil rstUtil;
+    protected volatile LeaseRenewalServiceTestUtil rstUtil;
 
     /**
      * Sets up the testing environment.
@@ -111,7 +113,7 @@ public abstract class AbstractLeaseRenewalServiceTest extends QATestEnvironment 
        // start each service as requested
        for (int i = 0; i < numLRS; i++) {
 	   logger.log(Level.FINE, "Starting LRS service #" + i);
-	   lrsServices.add(getManager().startService(serviceName));
+	   lrsServices.add((LeaseRenewalService) getManager().startService(serviceName));
        }
        return this;
     }
@@ -143,7 +145,7 @@ public abstract class AbstractLeaseRenewalServiceTest extends QATestEnvironment 
 	    throw new IllegalArgumentException("Argument index is < 0.");
 	}
 	
-	return (LeaseRenewalService) lrsServices.get(index);
+	return lrsServices.get(index);
     }
 
     /**

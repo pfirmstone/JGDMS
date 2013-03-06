@@ -47,17 +47,17 @@ public class DurationExpirationTest extends AbstractLeaseRenewalServiceTest {
     /**
      * Provides leases for this test. 
      */
-    private TestLeaseProvider leaseProvider = null;
+    private volatile TestLeaseProvider leaseProvider = null;
 
     /**
      * The "land lord" for the leases. Defines lease method behavior.
      */
-    private BasicLeaseOwner leaseOwner = null;
+    private volatile BasicLeaseOwner leaseOwner = null;
 
     /**
      * The maximum time granted for a lease by a renew operation. 
      */
-    private long renewGrant = 0;
+    private volatile long renewGrant = 0;
 
     /**
      * The default value renewGrant 
@@ -67,7 +67,7 @@ public class DurationExpirationTest extends AbstractLeaseRenewalServiceTest {
     /**
      *  The LeaseRenewalManager used for LRS impls that grant only short leases
      */
-    private LeaseRenewalManager lrm = null;
+    private volatile LeaseRenewalManager lrm = null;
 
     /**
      * Sets up the testing environment.
