@@ -91,7 +91,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
     final private long id;
 
     /** What state we think the transaction is in */
-    private int	state;
+    private volatile int state;
 
     /** 
      * The transaction manager associated with the transaction 
@@ -106,7 +106,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
     private ServerTransaction tr;
     
     /** The id the transaction manager assigned to this transaction */
-    private long  trId;
+    private volatile long  trId;
 
     /** 
      * The list of <code>Transactable</code> participating in 
@@ -430,12 +430,14 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
     public ServerTransaction getTransaction(ProxyPreparer preparer)
 	throws IOException, ClassNotFoundException
     {
-	if (tr == null) {
-	    final TransactionManager mgr = 
-		(TransactionManager)trm.get(preparer);
-	    tr = new ServerTransaction(mgr, trId);
-	}
-	return tr;
+        synchronized (this){
+            if (tr == null) {
+                final TransactionManager mgr = 
+                    (TransactionManager)trm.get(preparer);
+                tr = new ServerTransaction(mgr, trId);
+            }
+            return tr;
+        }
     }
 
     /**
@@ -444,7 +446,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
      * @throws IllegalStateException if this <code>Txn</code>
      *         is still broken.
      */
-    TransactionManager getManager() {
+    synchronized TransactionManager getManager() {
 	if (tr == null)
 	    throw new IllegalStateException("Txn is still broken");
 	return tr.mgr;
@@ -490,8 +492,10 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 	 * because it is always ACTIVE when we write, and always
 	 * needs to be PREPARED when we read it back.
 	 */
-	out.writeObject(trm);
-	out.writeLong(trId);
+        synchronized (this){
+            out.writeObject(trm);
+            out.writeLong(trId);
+        }
     }
 
     // inherit doc comment
@@ -501,8 +505,10 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
 	/* Only transactions that got prepared and not committed or
 	 * aborted get recovered
 	 */
-	state    = PREPARED;
-	trm      = (StorableReference)in.readObject();
-	trId     = in.readLong();
+        synchronized (this){
+            state    = PREPARED;
+            trm      = (StorableReference)in.readObject();
+            trId     = in.readLong();
+        }
     }
 }

@@ -30,7 +30,7 @@ package com.sun.jini.outrigger;
  */
 abstract class SingletonQueryWatcher extends QueryWatcher {
     /** Set to true when this query is resolved */
-    private boolean resolved = false;
+    private volatile boolean resolved = false;
 
     /** If resolved and an entry was found the entry to return */
     private EntryHandle handle;

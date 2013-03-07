@@ -41,21 +41,21 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * The current expiration time of the registration
      * Protected, but only for use by subclasses.
      */
-    long expiration;
+    volatile long expiration;
 
     /** 
      * The UUID that identifies this registration 
      * Only for use by subclasses.
      * Should not be changed.
      */
-    Uuid cookie;
+    volatile Uuid cookie;
 
     /**
      * The handback associated with this registration.
      * Only for use by subclasses.
      * Should not be changed.
      */
-    MarshalledObject handback;
+    volatile MarshalledObject handback;
 
     /**
      * <code>true</code> if client is interested
@@ -64,14 +64,14 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * Only for use by subclasses.
      * Should not be changed.
      */
-    boolean visibilityOnly;
+    volatile boolean visibilityOnly;
 
     /** 
      * The event ID associated with this registration
      * Protected, but only for use by subclasses.
      * Should not be changed.
      */
-    long eventID;
+    volatile long eventID;
 
     /** 
      * The current sequence number. 
@@ -82,7 +82,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * The <code>TemplateHandle</code>s associated with this
      * watcher.
      */
-    private Set owners = new java.util.HashSet();
+    private Set<TemplateHandle> owners = new java.util.HashSet<TemplateHandle>();
 
     /**
      * The OutriggerServerImpl we are part of.
@@ -282,7 +282,8 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      *         <code>doIt</code> is <code>false</code>.
      */
     private boolean doRemove(long now, boolean doIt) {
-	final Set owners;
+	final Set<TemplateHandle> owners;
+        OutriggerServerImpl serv;
 	synchronized (this) {
 	    if (this.owners == null)
 		return false; // already removed
@@ -291,19 +292,19 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 	    if (!doIt && (now < expiration))
 		return false; // don't remove, not our time
 
-	    owners = this.owners;
+	    owners = this.owners; // Don't need to clone
+            this.owners = null; // now it's null, it doesn't need sync anymore.
 	    expiration = Long.MIN_VALUE; //Make sure no one tries to renew us
-	    this.owners = null;
+            serv = server;
 	}
 
-	cleanup(server, !doIt);
-
-	for (Iterator i=owners.iterator(); i.hasNext(); ) {
-	    final TemplateHandle h = (TemplateHandle)i.next();
-	    h.removeTransitionWatcher(this);
-	}
-
-	server.removeEventRegistration(this);	    	
+	cleanup(serv, !doIt);
+        for (Iterator<TemplateHandle> i=owners.iterator(); i.hasNext(); ) {
+            final TemplateHandle h = i.next();
+            h.removeTransitionWatcher(this);
+        }
+        
+	serv.removeEventRegistration(this);	    	
 	return true; // we did the deed
     }
 

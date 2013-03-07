@@ -118,15 +118,16 @@ class StorableReference implements Externalizable {
 	synchronized (this) {
 	    if (bytes == null)
 		bytes = new MarshalledObject(obj);
+            out.writeObject(bytes);
 	}
-
-	out.writeObject(bytes);
     }
 
     // inherit doc comment
     public void readExternal(ObjectInput in)
 	throws IOException, ClassNotFoundException 
     {
-	bytes = (MarshalledObject)in.readObject();
+        synchronized (this){
+            bytes = (MarshalledObject)in.readObject();
+        }
     }
 }

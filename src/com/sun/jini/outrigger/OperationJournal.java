@@ -61,7 +61,7 @@ class OperationJournal extends Thread {
     private JournalNode lastProcessed;
 
     /** If <code>true</code> stop thread */
-    private boolean dead = false;
+    private volatile boolean dead = false;
 
     /** The last ordinal value used */
     private long lastOrdinalUsed = 1;
@@ -314,7 +314,7 @@ class OperationJournal extends Thread {
      * @throws NullPointerException if <code>transition</code> is
      *         <code>null</code>.
      */
-    synchronized void recordTransition(EntryTransition transition) {
+    void recordTransition(EntryTransition transition) {
 	if (transition == null)
 	    throw new NullPointerException("transition must be non-null");
 
@@ -329,7 +329,7 @@ class OperationJournal extends Thread {
      * @throws NullPointerException if <code>watcher</code> is 
      *         <code>null</code>.     
      */
-    synchronized void markCaughtUp(IfExistsWatcher watcher) {
+    void markCaughtUp(IfExistsWatcher watcher) {
 	post(new JournalNode(new CaughtUpMarker(watcher)));
     }
 
@@ -347,10 +347,12 @@ class OperationJournal extends Thread {
      * Post a <code>JournalNode</code> 
      * @param node The node to post.
      */
-    private void post(JournalNode node) {
-	tail.next = node;
-	tail = node;
-	notifyAll();
+    private synchronized void post(JournalNode node) {
+        synchronized (tail){
+            tail.next = node;
+        }
+        tail = node;
+        notifyAll();
     }
 
     /**
@@ -414,6 +416,8 @@ class OperationJournal extends Thread {
 	while (!dead) {
 	    try {
 		// Wait until there is something to process
+                final Object payload;
+                long ordinal;
 		synchronized (this) {
 		    JournalNode n = lastProcessed.getNext();
 		    while (n == null && !dead) {
@@ -425,10 +429,12 @@ class OperationJournal extends Thread {
 			return;
 
 		    lastProcessed = n;
+                    // Process based on payload
+                    payload = lastProcessed.payload;
+                    ordinal = lastProcessed.ordinal;
 		}
 
-		// Process based on payload
-		final Object payload = lastProcessed.payload;
+		
 
 		if (payload == null) {
 		    throw new 
@@ -436,7 +442,7 @@ class OperationJournal extends Thread {
 		} else if (payload instanceof EntryTransition) {
 		    final EntryTransition t = (EntryTransition)payload;
 		    final SortedSet set = 
-			watchers.allMatches(t, lastProcessed.ordinal);
+			watchers.allMatches(t, ordinal);
 		    final long now = System.currentTimeMillis();
 
 		    for (Iterator i=set.iterator(); i.hasNext() && !dead; ) {

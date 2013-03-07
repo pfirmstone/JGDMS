@@ -120,7 +120,11 @@ class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
     RemoteEventListener getListener(ProxyPreparer preparer) 
 	throws ClassNotFoundException, IOException
     {
-	return (RemoteEventListener)listener.get(preparer);
+        StorableReference listen;
+        synchronized (this){
+            listen = listener;
+        }
+	return (RemoteEventListener)listen.get(preparer);
     }
 
     /**
@@ -133,22 +137,24 @@ class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
      *        <code>removeIfExpired</code> and false otherwise. 
      */
     void cleanup(OutriggerServerImpl server, boolean expired) {
-	if (expired)
-	    server.scheduleCancelOp(cookie);
-	else 
-	    server.cancelOp(cookie, false);
+        if (expired)
+            server.scheduleCancelOp(cookie);
+        else 
+            server.cancelOp(cookie, false);
     }
 
         /**  
      * Store the persistent fields 
      */
     public void store(ObjectOutputStream out) throws IOException {
-	cookie.write(out);
-	out.writeLong(expiration);
-	out.writeLong(eventID);
-	out.writeBoolean(visibilityOnly);
-	out.writeObject(handback);
-	out.writeObject(listener);
+        synchronized (this){
+            cookie.write(out);
+            out.writeLong(expiration);
+            out.writeLong(eventID);
+            out.writeBoolean(visibilityOnly);
+            out.writeObject(handback);
+            out.writeObject(listener);
+        }
     }
 
     /**
@@ -157,15 +163,17 @@ class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
     public void restore(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException 
     {
-	cookie = UuidFactory.read(in);
-	expiration = in.readLong();
-	eventID = in.readLong();
-	visibilityOnly = in.readBoolean();
-	handback = (MarshalledObject)in.readObject();	
-	listener = (StorableReference)in.readObject();
-	if (listener == null)
-	    throw new StreamCorruptedException(
-		"Stream corrupted, should not be null");
+        synchronized (this){
+            cookie = UuidFactory.read(in);
+            expiration = in.readLong();
+            eventID = in.readLong();
+            visibilityOnly = in.readBoolean();
+            handback = (MarshalledObject)in.readObject();	
+            listener = (StorableReference)in.readObject();
+            if (listener == null)
+                throw new StreamCorruptedException(
+                    "Stream corrupted, should not be null");
+        }
     }
 }
 

@@ -240,7 +240,7 @@ import org.apache.river.impl.net.UriString;
             path = path.replace(File.separatorChar, '/');
             path = path.toUpperCase();
         }
-        if (!path.startsWith("/")) { //$NON-NLS-1$
+        if ( path != null && !path.startsWith("/")) { //$NON-NLS-1$
             return new URI("file", null, //$NON-NLS-1$
                     new StringBuilder(path.length() + 1).append('/')
                             .append(path).toString(), null, null);

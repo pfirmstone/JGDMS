@@ -226,15 +226,17 @@ public final class ActivatableInvocationHandler
      * does not implement RemoteMethodControl.
      */
     private boolean hasConsistentConstraints() {
-	if (uproxy instanceof RemoteMethodControl) {
-	    MethodConstraints uproxyConstraints =
-		((RemoteMethodControl) uproxy).getConstraints();
-	    return (clientConstraints == null ?
-		    uproxyConstraints == null :
-		    clientConstraints.equals(uproxyConstraints));
-	} else {
-	    return true;
-	}
+        synchronized (this){
+            if (uproxy instanceof RemoteMethodControl) {
+                MethodConstraints uproxyConstraints =
+                    ((RemoteMethodControl) uproxy).getConstraints();
+                return (clientConstraints == null ?
+                        uproxyConstraints == null :
+                        clientConstraints.equals(uproxyConstraints));
+            } else {
+                return true;
+            }
+        }
     }
     
     /**
@@ -1080,7 +1082,10 @@ public final class ActivatableInvocationHandler
 		throw new ActivateFailedException("unexpected activation id");
 	    }
 	    
-	    Remote newUproxy = handler.uproxy;
+	    Remote newUproxy = null;
+            synchronized (handler){
+                newUproxy = handler.uproxy;
+            }
 	    if (newUproxy == null) {
 		throw new ActivateFailedException("null underlying proxy");
 	    } else if (newUproxy instanceof RemoteMethodControl) {

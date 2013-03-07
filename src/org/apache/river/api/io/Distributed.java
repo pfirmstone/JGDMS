@@ -20,7 +20,9 @@ package org.apache.river.api.io;
  * Distributed objects are immutable value objects with final fields that may
  * be freely replicated.
  * Distributed objects are not serialized, instead they are only created using a 
- * public constructor, public static factory method or builder object.
+ * public constructor, public static factory method or builder object making them
+ * more suitable for security, validating class invariants and concurrent code
+ * that relies on immutability.
  * <p>
  * Distributed objects are free to evolve and may have completely different 
  * classes or be completely unequal after distribution to separate nodes, 
@@ -29,12 +31,16 @@ package org.apache.river.api.io;
  * <p>
  * Distributed objects have no version, instead SerialReflectionFactory contains all 
  * information required to distribute and recreate any Distributed Object using
- * reflection.
+ * reflection.  For this reason, Distributed objects cannot be used as Entry
+ * objects, which is dependant on published serial form.  It may be possible
+ * in a later release to use Distributed objects as fields in Entry objects, this
+ * is not supported presently.
  * <p>
  * Distributed objects are value objects from a domain driven design perspective.
  * <p>
  * Although final is not enforced, all fields must be final, safe
- * construction must be honored, distributed objects will be exposed to multiple
+ * construction must be honored  the this reference must not be allowed to 
+ * escape during construction, distributed objects will be exposed to multiple
  * threads on multiple nodes, without synchronization or transactions.
  * <p>
  * Do not use Distributed if you don't intend to honor this contract, use

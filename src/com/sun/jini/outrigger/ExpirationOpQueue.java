@@ -28,7 +28,7 @@ import net.jini.id.Uuid;
  */
 class ExpirationOpQueue extends Thread {
     /** <code>true</code> if we should stop */
-    private boolean dead;
+    private volatile boolean dead;
 
     /** The queue of expirations to log */
     private final LinkedList queue = new LinkedList();

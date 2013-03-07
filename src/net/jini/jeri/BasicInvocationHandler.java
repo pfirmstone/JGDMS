@@ -643,10 +643,10 @@ public class BasicInvocationHandler
 	}
 
 	OutboundRequestIterator iter = oe.newCall(constraints);
-	if (!iter.hasNext()) {
-	    throw new ConnectIOException("iterator produced no requests",
-		new IOException("iterator produced no requests"));
-	}
+            if (!iter.hasNext()) {
+                throw new ConnectIOException("iterator produced no requests",
+                    new IOException("iterator produced no requests"));
+            }
 
 	Failure failure = null;
 	do {

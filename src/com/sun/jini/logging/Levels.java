@@ -20,6 +20,7 @@ package com.sun.jini.logging;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.EOFException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
@@ -28,6 +29,7 @@ import java.io.ObjectStreamException;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
 * Defines additional {@link Level} values. <p>
@@ -128,25 +130,31 @@ public class Levels {
     * See River-416 for details, the serial form of Levels was broken in Java 1.6.0_41.
     */
     private static Level createLevel(String name, int value, String resourceBundleName) {
+        Level result = null;
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             ObjectOutputStream out = new ClassReplacingObjectOutputStream(bytes, LevelData.class, Level.class);
             out.writeObject(new LevelData(name, value, resourceBundleName));
             out.close();
             ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()));
-            Level result = (Level) in.readObject();
+            result = (Level) in.readObject();
             in.close();
             // If this suceeds, Level.readResolve has added the new Level to its internal List.
+            
+        } catch (ClassNotFoundException ex) {
+            // Ignore :)
+        } catch (IOException e) {
+            // Ignore :)
+        } finally {
+            if (result == null){
+                final Level withoutName = Level.parse(Integer.valueOf(value).toString());
+                result =  new Level(name, value, resourceBundleName) {
+                    Object writeReplace() throws ObjectStreamException {
+                        return withoutName;
+                    }
+                };
+            }
             return result;
-        } catch (Exception e) {
-            final Level withoutName = Level.parse(Integer.valueOf(value).toString());
-            Level l =  new Level(name, value, resourceBundleName) {
-                Object writeReplace() throws ObjectStreamException {
-                    return withoutName;
-                }
-            };
-            return l;
         }
-        
     }
 }

@@ -55,7 +55,7 @@ class TakeMultipleWatcher extends QueryWatcher implements Transactable {
     private final Txn txn;
 
     /** Set to true when this query is resolved */
-    private boolean resolved = false;
+    private volatile boolean resolved = false;
 
     /** 
      * If resolved and an exception needs to be thrown the exception

@@ -333,8 +333,7 @@ abstract class AbstractDgcClient {
 	 * This method must ONLY be invoked while synchronized on this
 	 * EndpointEntry.
 	 */
-	private void removeRefEntry(RefEntry refEntry) {
-	    assert Thread.holdsLock(this);
+	private synchronized void removeRefEntry(RefEntry refEntry) {
 	    assert !removed;
 	    assert refTable.containsKey(refEntry.getObjectID());
 

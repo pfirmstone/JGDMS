@@ -318,8 +318,8 @@ class SslServerEndpointImpl extends Utilities {
 	    if (sslSocketFactory == null) {
 		sslInit();
 	    }
+            return sslSocketFactory;
 	}
-	return sslSocketFactory;
     }
 
     /** Returns the ServerAuthManager, calling sslInit if needed. */
@@ -328,8 +328,8 @@ class SslServerEndpointImpl extends Utilities {
 	    if (authManager == null) {
 		sslInit();
 	    }
-	}
 	return authManager;
+	}
     }
 
     /** Returns a hash code value for this object. */

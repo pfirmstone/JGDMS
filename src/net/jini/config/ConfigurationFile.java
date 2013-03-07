@@ -746,8 +746,8 @@ public class ConfigurationFile extends AbstractConfiguration {
 		    }
 		    evaluated = true;
 		}
+                return value;
 	    }
-	    return value;
 	}
     }
 

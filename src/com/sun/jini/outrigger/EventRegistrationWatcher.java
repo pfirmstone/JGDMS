@@ -39,7 +39,7 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      * The current expiration time of the registration
      * Protected, but only for use by subclasses.
      */
-    long expiration;
+    volatile long expiration;
 
     /** 
      * The UUID that identifies this registration 
@@ -210,11 +210,12 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
 	if (h == null) 
 	    throw 
 		new NullPointerException("TemplateHandle must be non-null");
+        synchronized (this){
+            if (owner != null)
+                throw new AssertionError("Can only call addTemplateHandle once");
 
-	if (owner != null)
-	    throw new AssertionError("Can only call addTemplateHandle once");
-
-	owner = h;
+            owner = h;
+        }
 	return true;
     }
 

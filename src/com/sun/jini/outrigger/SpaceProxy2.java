@@ -294,9 +294,15 @@ class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 	if (entry == null)
 	    throw new NullPointerException("Cannot write null Entry");
 	long[] leaseData = space.write(repFor(entry), txn, lease);
-	if (leaseData == null || leaseData.length != 3)
-	    throw new AssertionError("space.write returned malformed data" + 
-				     leaseData);
+	if (leaseData == null || leaseData.length != 3){
+            StringBuilder sb = new StringBuilder(180);
+            sb.append("space.write returned malformed data \n");
+            int l = leaseData.length;
+            for (int i =0; i < l; i++){
+                sb.append(leaseData[i]).append("\n");
+            }
+	    throw new AssertionError(sb);
+        }
 	return newLease(UuidFactory.create(leaseData[1], leaseData[2]),
 			leaseData[0]);
     }
