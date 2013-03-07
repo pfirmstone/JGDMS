@@ -290,6 +290,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         ServiceRegistrar lus = (ldm.getRegistrars())[0];
         /* default maximum lease duration from the lookup service */
         int idSeed  = SERVICE_BASE_VALUE + 9999;
+        // deliberate, not a bug.
         long lowBits = (1000+idSeed) >> 32;
         long leastSignificantBits = SERVICE_ID_VARIANT | lowBits;
         ServiceID testID =
@@ -312,6 +313,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         /* test service ids */
         for(int i=0;i<srvcID.length;i++) {
             idSeed  = SERVICE_BASE_VALUE + i;
+            // deliberate not a bug.
             lowBits = (1000+idSeed) >> 32;
             leastSignificantBits = SERVICE_ID_VARIANT | lowBits;
             srvcID[i] =

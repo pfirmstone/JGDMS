@@ -50,8 +50,7 @@ public class TestParticipantImpl
 {
     private String name;
     private BitSet behavior; 
-    private Integer lock;
-    private Integer lock2;
+    private final Object lock2;
     private long crashcount;
     private ServerTransaction str;
     private static final long TENSECONDS = 1000 * 10;
@@ -65,8 +64,7 @@ public class TestParticipantImpl
 
     public TestParticipantImpl(String name) throws RemoteException {
 	this.name  = name;
-	lock       = new Integer(0);
-	lock2      = new Integer(1);
+	lock2      = new Object();
 	crashcount = System.currentTimeMillis();
 	behavior   = new BitSet(OPERATION_COUNT);
 	Configuration c = QAConfig.getConfig().getConfiguration();

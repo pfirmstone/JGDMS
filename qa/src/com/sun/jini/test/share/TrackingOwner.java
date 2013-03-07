@@ -196,11 +196,16 @@ abstract public class TrackingOwner extends LeaseOwner {
 	} finally {
 	    // If after all this rslt is non null we have to notify 
 	    // notifyOnFailure
-	    if (rslt != null && notifyOnFailure != null) {
+            boolean notify = false;
+            synchronized (this){
+                notify = rslt != null && notifyOnFailure != null;
+            }
+	    if (notify) {
 		synchronized (notifyOnFailure) {
 		    notifyOnFailure.notifyAll();
 		} 
 	    }
+            
 	}
     }
 

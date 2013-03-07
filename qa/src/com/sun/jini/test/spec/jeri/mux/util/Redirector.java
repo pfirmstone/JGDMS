@@ -41,7 +41,7 @@ public class Redirector implements Runnable {
     private int localPort;
     private ArrayList server = new ArrayList();
     private ArrayList client = new ArrayList();
-    private ServerSocket ss = null;
+    private volatile ServerSocket ss = null;
     private boolean stop = false;
     private boolean clientDone = false;
     private boolean serverDone = false;

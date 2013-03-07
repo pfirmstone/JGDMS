@@ -46,18 +46,14 @@ public class MultipleAccessTest extends TransactionTestBase {
     private final static int NUM_WORKERS = 4;
     private final static int NUM_ENTRIES = 20;
 
-    // an entry to be written
-    private SimpleEntry wentry;
-    private SimpleEntry template;
-
     /*
      * Vars to detect that Peeker/Worker failed.
      * Has been added during porting.
      */
-    private boolean peekerFailed = false;
-    private boolean workerFailed = false;
-    private String peekerFailMsg = "";
-    private String workerFailMsg = "";
+    private volatile boolean peekerFailed = false;
+    private volatile boolean workerFailed = false;
+    private volatile String peekerFailMsg = "";
+    private volatile String workerFailMsg = "";
 
     public void run() throws Exception {
         simpleSetup();
@@ -165,10 +161,10 @@ public class MultipleAccessTest extends TransactionTestBase {
 
 
     class Peeker extends Thread {
-        private JavaSpace space;
-        private TransactionTestBase parent;
+        private final JavaSpace space;
+        private final TransactionTestBase parent;
         private int readCount = 0;
-	private boolean shouldStop = false;
+	private volatile boolean shouldStop = false;
 
         public Peeker(JavaSpace space, TransactionTestBase parent) {
             this.space = space;
@@ -191,7 +187,9 @@ public class MultipleAccessTest extends TransactionTestBase {
                     }
 
                     if (entry != null) {
-                        readCount++;
+                        synchronized (this){
+                            readCount++;
+                        }
                     }
 
                     try {
@@ -210,28 +208,30 @@ public class MultipleAccessTest extends TransactionTestBase {
 	/**
 	  * Stops the thread.
 	  */
-	public synchronized void exit() {
+	public void exit() {
 	    shouldStop = true;
 	}
 
         public int getReadCount() {
-            parent.pass("[Peeker]: read " + readCount + " entries");
-            return readCount;
+            synchronized (this){
+                parent.pass("[Peeker]: read " + readCount + " entries");
+                return readCount;
+            }
         }
     }
 
 
     class Worker extends Thread {
-        private JavaSpace space;
-        private Transaction txn;
-        private int fromStage, toStage;
-        private int writeCount = 0;
-        private int expectedEntries;
-        private TransactionTestBase parent;
+        private final JavaSpace space;
+        private final Transaction txn;
+        private final int fromStage, toStage;
+        private volatile int writeCount = 0;
+        private final int expectedEntries;
+        private final TransactionTestBase parent;
         private final int MAX_WAIT = 80000; // 8sec.
         private final int WAIT_UNIT = 400; // 400 msec.
-        private boolean completed = false;
-        private Object lock = new Object();
+        private volatile boolean completed = false;
+        private final Object lock = new Object();
 
         public Worker(JavaSpace space, Transaction txn, int fromStage,
                 int toStage, int expectedEntries, TransactionTestBase parent) {
@@ -300,13 +300,12 @@ public class MultipleAccessTest extends TransactionTestBase {
                         }
                         parent.pass("[Worker" + fromStage + "]: wrote an entry"
                                 + " (" + entry + ")");
-
-                        if (++writeCount >= expectedEntries) {
-                            synchronized(lock) {
+                        synchronized(lock) {
+                            if (++writeCount >= expectedEntries) {
                                 completed = true;
                                 lock.notifyAll();
+                                break; // ends thread
                             }
-                            break; // ends thread
                         }
                     }
                 }

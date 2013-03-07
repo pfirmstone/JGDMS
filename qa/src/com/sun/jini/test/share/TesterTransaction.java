@@ -44,8 +44,8 @@ public class TesterTransaction implements TransactionConstants {
     public final Long idObj;
     private TransactionParticipant part; // our participant
     private long crashCnt; // its crash count
-    private int state; // our state;
-    private int getStateFailCnt; // # of times to fail
+    private volatile int state; // our state;
+    private volatile int getStateFailCnt; // # of times to fail
 
     /**
      * The <code>ServerTransaction</code> for us.
@@ -113,11 +113,13 @@ public class TesterTransaction implements TransactionConstants {
      * Return the current state of this transaction.
      */
     public int getState() throws RemoteException {
-        if (getStateFailCnt > 0) {
-            getStateFailCnt--;
-            throw new RemoteException("getState forced to fail");
+        synchronized (this){
+            if (getStateFailCnt > 0) {
+                getStateFailCnt--;
+                throw new RemoteException("getState forced to fail");
+            }
+            return state;
         }
-        return state;
     }
 
     /**
@@ -148,28 +150,30 @@ public class TesterTransaction implements TransactionConstants {
      */
     public void join(TransactionParticipant newPart, long newCrashCnt)
             throws CannotJoinException, CrashCountException {
-        if (state != ACTIVE) {
-            throw new CannotJoinException("State is "
-                    + TxnConstants.getName(state));
-        }
+        synchronized (this){
+            if (state != ACTIVE) {
+                throw new CannotJoinException("State is "
+                        + TxnConstants.getName(state));
+            }
 
-        if (part == null) {
-            part = newPart;
-            crashCnt = newCrashCnt;
+            if (part == null) {
+                part = newPart;
+                crashCnt = newCrashCnt;
+                return;
+            }
+
+            if (!part.equals(newPart)) {
+                throw new CannotJoinException("Only one participant allowed");
+            }
+
+            if (newCrashCnt != crashCnt) {
+                throw new CrashCountException("crash counts unequal: old = "
+                        + crashCnt + ", new = " + newCrashCnt);
+            }
+
+            // so it's the same participant with the same crash count: cool
             return;
         }
-
-        if (!part.equals(newPart)) {
-            throw new CannotJoinException("Only one participant allowed");
-        }
-
-        if (newCrashCnt != crashCnt) {
-            throw new CrashCountException("crash counts unequal: old = "
-                    + crashCnt + ", new = " + newCrashCnt);
-        }
-
-        // so it's the same participant with the same crash count: cool
-        return;
     }
 
     /**
@@ -177,8 +181,10 @@ public class TesterTransaction implements TransactionConstants {
      * <code>com.sun.jini.qa.harness.TestException</code> if there it is not.
      */
     public void assertParticipants(int count) throws TestException {
-        int actual = (part == null ? 0 : 1);
-
+        int actual = 0;
+        synchronized (this){
+            actual = (part == null ? 0 : 1);
+        }
         if (count != actual) {
             throw new TestException("participant count should be " + count
                     + ", is " + actual);

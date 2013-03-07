@@ -69,15 +69,15 @@ public class ForeverOwner extends TrackingOwner {
 	if (extension == desiredRenewal) {
 	    return true;
 	}
- 
-	final long requestedExpiration = now + extension;
-	if (requestedExpiration < 0)
-	    // They asked for at least FOREVER
-	    return true;
+        synchronized (this){
+            final long requestedExpiration = now + extension;
+            if (requestedExpiration < 0)
+                // They asked for at least FOREVER
+                return true;
 
-	if ((Long.MAX_VALUE - requestedExpiration) < slop)
-	    return true;
-
+            if ((Long.MAX_VALUE - requestedExpiration) < slop)
+                return true;
+        }
 	setRsltIfNeeded("Forever Owner:LRS asked for " + extension + 
 			" when it should have asked for " + desiredRenewal);
 	return false;

@@ -99,17 +99,17 @@ public class DataMessage implements Message {
     }
 
     //inherit javadoc
-    public Object getPayload() {
+    public synchronized Object getPayload() {
         return payload;
     }
 
     //inherit javadoc
-    public byte[] getRawMessage() {
+    public synchronized byte[] getRawMessage() {
         return received;
     }
 
     //inherit javadoc
-    public String toString() {
+    public synchronized String toString() {
         return (received!=null) ? Util.convert(
             new byte[]{received[0],received[1],received[2],received[3]}) :
             Util.convert(reference);
@@ -120,7 +120,7 @@ public class DataMessage implements Message {
      *
      * @return true if the <b>open</b> flag is set, false otherwise
      */
-    public boolean isOpen() {
+    public synchronized boolean isOpen() {
         return (received!=null) ? (received[0] & 0x10) == 0x10
             : (reference[0] & 0x10) == 0x10;
     }
@@ -130,7 +130,7 @@ public class DataMessage implements Message {
      *
      * @return The message that was operated on
      */
-    public DataMessage setOpen() {
+    public synchronized DataMessage setOpen() {
         reference[0] = (byte) (reference[0] | 0x10);
         return this;
     }
@@ -140,7 +140,7 @@ public class DataMessage implements Message {
      *
      * @return true if the <b>close</b> flag is set, false otherwise
      */
-    public boolean isClose() {
+    public synchronized boolean isClose() {
         return (received!=null) ? (received[0] & 0x08) == 0x08
             : (reference[0] & 0x08) == 0x08;
     }
@@ -150,7 +150,7 @@ public class DataMessage implements Message {
      *
      * @return The message that was operated on
      */
-    public DataMessage setClose() {
+    public synchronized DataMessage setClose() {
         reference[0] = (byte) (reference[0] | 0x08);
         return this;
     }
@@ -160,7 +160,7 @@ public class DataMessage implements Message {
      *
      * @return true if the <b>eof</b> flag is set, false otherwise
      */
-    public boolean isEof() {
+    public synchronized boolean isEof() {
         return (received!=null) ? (received[0] & 0x04) == 0x04
             : (reference[0] & 0x04) == 0x04;
     }
@@ -170,7 +170,7 @@ public class DataMessage implements Message {
      *
      * @return The message that was operated on
      */
-    public DataMessage setEof() {
+    public synchronized DataMessage setEof() {
         reference[0] = (byte) (reference[0] | 0x04);
         return this;
     }
@@ -181,7 +181,7 @@ public class DataMessage implements Message {
      *
      * @return true if the <b>ackRequired</b> flag is set, false otherwise
      */
-    public boolean isAckRequired() {
+    public synchronized boolean isAckRequired() {
         return (received!=null) ? (received[0] & 0x02) == 0x02
             : (reference[0] & 0x02) == 0x02;
     }
@@ -191,7 +191,7 @@ public class DataMessage implements Message {
      *
      * @return The message that was operated on
      */
-    public DataMessage setAckRequired() {
+    public synchronized DataMessage setAckRequired() {
         reference[0] = (byte) (reference[0] | 0x02);
         return this;
     }
@@ -202,7 +202,7 @@ public class DataMessage implements Message {
      *
      * @return The session ID for this message
      */
-    public int getsessionId() {
+    public synchronized int getsessionId() {
         return (received!=null) ? received[1] : reference[1];
     }
 
@@ -211,7 +211,7 @@ public class DataMessage implements Message {
      *
      * @return The object that was operated on
      */
-    public DataMessage setSessionID(byte sessionID) {
+    public synchronized DataMessage setSessionID(byte sessionID) {
         reference[1] = sessionID;
         return this;
     }
@@ -223,7 +223,7 @@ public class DataMessage implements Message {
      * @param o An object that represents the payload of the message
      * @return The object that was operated on
      */
-    public DataMessage setPayload(Object o) {
+    public synchronized DataMessage setPayload(Object o) {
         payload = (byte[]) o;
         return this;
     }
@@ -236,7 +236,7 @@ public class DataMessage implements Message {
      * @param length The length that this message will report
      * @return The object that was just operated on
      */
-    public DataMessage setSize(short length) {
+    public synchronized DataMessage setSize(short length) {
         reference[2] = (byte) ((length >>> 8) & 0x00ff);
         reference[3] = (byte) (length & 0x00ff);;
         return this;
@@ -247,7 +247,7 @@ public class DataMessage implements Message {
      *
      * @return The size of the message
      */
-    public int getSize() {
+    public synchronized int getSize() {
         return (received!=null) ? (received[2]<<8) + received[3]
             : (reference[2]<<8) + reference[3];
     }
@@ -261,8 +261,10 @@ public class DataMessage implements Message {
      * @return The object that was operated on
      */
     public DataMessage suppressFormatCheck() {
-        supressFormatCheck = true;
-        return this;
+        synchronized (this){
+            supressFormatCheck = true;
+            return this;
+        }
     }
 
     /**
@@ -271,7 +273,7 @@ public class DataMessage implements Message {
      *
      * @param The message to check
      */
-    private void check(byte[] message) throws ProtocolException {
+    private synchronized  void check(byte[] message) throws ProtocolException {
         //check that the flags and message type are as expected
         if ((received[0]|reference[0])!=reference[0]) {
             byte[] tmp = new byte[reference.length];
@@ -300,9 +302,11 @@ public class DataMessage implements Message {
      * Constructs the Data message to send over the output stream
      */
     private byte[] construct() {
-        byte[] message = new byte[reference.length + payload.length];
-        System.arraycopy(reference,0,message,0,reference.length);
-        System.arraycopy(payload,0,message,reference.length,payload.length);
-        return message;
+        synchronized (this){
+            byte[] message = new byte[reference.length + payload.length];
+            System.arraycopy(reference,0,message,0,reference.length);
+            System.arraycopy(payload,0,message,reference.length,payload.length);
+            return message;
+        }
     }
 }

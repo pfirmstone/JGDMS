@@ -286,7 +286,9 @@ public class FailingOwner extends LeaseOwner {
      * 
      */
     public Throwable getLastThrowable() {
-	return toThrow[lastIndex];
+        synchronized (this){
+            return toThrow[lastIndex];
+        }
     }
 
 }

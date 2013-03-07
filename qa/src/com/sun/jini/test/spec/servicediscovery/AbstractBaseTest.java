@@ -739,7 +739,7 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
             int srvcVal = idSeed;
             int attrVal = srvcVal;
             if(reRegister) srvcVal = srvcVal+9;//makes proxies not equal
-
+            // not a bug, bit shifted outside of range deliberately.
             long lowBits = (1000+idSeed) >> 32;
             long leastSignificantBits = SERVICE_ID_VARIANT | lowBits;
             ServiceID srvcID =

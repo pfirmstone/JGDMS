@@ -338,7 +338,7 @@ public class TestGeneratorImpl
 	    expiration = newExpiration;
 	}
 
-        public long getExpiration() {
+        public synchronized long getExpiration() {
 	    return expiration;
 	}
 

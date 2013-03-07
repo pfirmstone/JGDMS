@@ -566,7 +566,7 @@ public class EventTest extends QATestEnvironment implements Test {
 	private final Throwable toThrow;
 
 	/** Have we recived the expected event */
-	private boolean recived = false;
+	private volatile boolean recived = false;
 
 	/** Our desired expiration */ 
 	final private long desiredExpiration;

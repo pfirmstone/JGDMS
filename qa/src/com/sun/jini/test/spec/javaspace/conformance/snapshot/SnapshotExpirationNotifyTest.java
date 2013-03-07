@@ -17,6 +17,7 @@
  */
 package com.sun.jini.test.spec.javaspace.conformance.snapshot;
 
+import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
 import java.util.logging.Level;
 
@@ -46,6 +47,13 @@ import com.sun.jini.test.spec.javaspace.conformance.TransactionTest;
  * @author Mikhail A. Markov
  */
 public class SnapshotExpirationNotifyTest extends TransactionTest {
+    
+    public Test construct(QAConfig config) throws Exception {
+        super.construct(config);
+        timeout1 = getConfig().getLongConfigVal(pkgName + ".timeout1", 9990);
+        timeout2 = getConfig().getLongConfigVal(pkgName + ".timeout2", 19990);
+        return this;
+    }
 
     /**
      * This method asserts, that the request specified by a

@@ -105,6 +105,13 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
         public TestService(int i) {
             this.i = i;
         }//end constructor
+
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            hash = 67 * hash + this.i;
+            return hash;
+        }
         public boolean equals(Object obj) {
             try {
                 if ( this == obj ) {
@@ -526,7 +533,7 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
         for(int i=0;i<getnSecsJoin();i++) {
             synchronized(srvcToNEvents) {
                 if(srvcToNEvents.size() > 0) {
-                    Integer objN = (Integer)srvcToNEvents.get(testService);
+                    Integer objN = srvcToNEvents.get(testService);
                     if(objN != null) {
                         nEventsRcvd = objN.intValue();
                         if(    (nEventsExpected > 0)

@@ -209,14 +209,17 @@ public class OneExpireOneNotTest extends QATestEnvironment implements Test {
 	// Inherit java doc from super type
 	protected boolean isValidExtension(long extension) {
 	    // Check to make sure the set has not expired
-	    if (now - slop > renewalSetLease.getExpiration()) {
-		// The set has expired, this renewal should not
-		// be happending
-		setRsltIfNeeded("Expire Owner:LRS asked for a renewal " +
-				"after renewal set expiration!");
-		return false;
-	    }
-	    
+            boolean t = false;
+            synchronized (this){
+                t = now - slop > renewalSetLease.getExpiration();
+            }
+            if (t) {
+                // The set has expired, this renewal should not
+                // be happending
+                setRsltIfNeeded("Expire Owner:LRS asked for a renewal " +
+                                "after renewal set expiration!");
+                return false;
+            }
 	    return super.isValidExtension(extension);
 	}
 	
