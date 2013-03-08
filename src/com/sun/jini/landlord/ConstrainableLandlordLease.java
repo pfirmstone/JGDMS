@@ -236,8 +236,10 @@ final public class ConstrainableLandlordLease extends LandlordLease
 
     // doc inherited from super
     public RemoteMethodControl setConstraints(MethodConstraints constraints) {
-	return new ConstrainableLandlordLease(cookie(), landlord(), 
-	    landlordUuid(), expiration, constraints);
+        synchronized (this){
+            return new ConstrainableLandlordLease(cookie(), landlord(), 
+                landlordUuid(), expiration, constraints);
+        }
     }
 
     // doc inherited from super

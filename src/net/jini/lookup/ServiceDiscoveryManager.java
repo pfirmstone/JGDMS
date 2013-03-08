@@ -2462,7 +2462,7 @@ public class ServiceDiscoveryManager {
     /* Contains all of the discovered lookup services (ServiceRegistrar). */
     private final ArrayList proxyRegSet = new ArrayList(1);
     /* Contains all of the DiscoveryListener's employed in lookup discovery. */
-    private final ArrayList listeners = new ArrayList(1);
+    private final ArrayList<DiscoveryListener> listeners = new ArrayList<DiscoveryListener>(1);
     /* Random number generator for use in lookup. */
     private final Random random = new Random();
     /* Contains all of the instances of LookupCache that are requested. */
@@ -2530,7 +2530,7 @@ public class ServiceDiscoveryManager {
 	public void discarded(DiscoveryEvent e) {
 	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
 	    ArrayList notifies;
-	    ArrayList drops = new ArrayList(1);
+	    ArrayList<ProxyReg> drops = new ArrayList<ProxyReg>(1);
 	    synchronized(proxyRegSet) {
 		for(int i=0; i<proxys.length; i++) {
 		    ProxyReg reg = findReg(proxys[i]);
@@ -2538,19 +2538,23 @@ public class ServiceDiscoveryManager {
 			proxyRegSet.remove(proxyRegSet.indexOf(reg));
 			drops.add(reg);
 		    } else {
-			throw new RuntimeException("discard error");
+                        //River-337
+                        logger.severe("discard error, proxy was null");
+			//throw new RuntimeException("discard error");
                     }//endif
 		}//end loop
 	    }//end sync(proxyRegSet)
-	    Iterator iter = drops.iterator();
+	    Iterator<ProxyReg> iter = drops.iterator();
 	    while(iter.hasNext()) {
-		dropProxy((ProxyReg)iter.next());
+		dropProxy(iter.next());
             }//end loop
-	    synchronized(listeners) {
-		if(listeners.isEmpty()) return;
-		notifies = (ArrayList)listeners.clone();
-	    }//end sync(listeners)
-	    listenerDropped(drops, notifies);
+            if (!drops.isEmpty()){
+                synchronized(listeners) {
+                    if(listeners.isEmpty()) return;
+                    notifies = (ArrayList)listeners.clone();
+                }//end sync(listeners)
+                listenerDropped(drops, notifies);
+            }
 	}//end DiscMgrListener.discarded
 
     }//end class ServiceDiscoveryManager.DiscMgrListener

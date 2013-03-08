@@ -167,7 +167,9 @@ public class LandlordLease extends AbstractLease implements ReferentUuid {
 
     /** Set the expiration. */
     void setExpiration(long expiration) {
-	this.expiration = expiration;
+        synchronized (this){
+            this.expiration = expiration;
+        }
     }
 
     // inherit doc comment

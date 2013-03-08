@@ -168,7 +168,9 @@ public class InProgress {
      * Set the debug mode on or off.
      */
     public void debug(boolean debugOn) {
-	debug = debugOn;
+        synchronized (this){
+            debug = debugOn;
+        }
     }
 
     /**

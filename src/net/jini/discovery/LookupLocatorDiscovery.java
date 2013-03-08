@@ -436,26 +436,32 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
          *  available for quite some time (if ever).
 	 */
 	public void calcNextTryTime() {
-	    nextTryTime = System.currentTimeMillis() + sleepTime[tryIndx];
-	    if(tryIndx < sleepTime.length-1)  tryIndx++;
+            synchronized (this){
+                nextTryTime = System.currentTimeMillis() + sleepTime[tryIndx];
+                if(tryIndx < sleepTime.length-1)  tryIndx++;
+            }
 	}//end calcNextTryTime
 
         /** This method gets called only from the public discard() method.
          *  The purpose of this method is to delay the next discovery attempt.
 	 */
 	public void delayNextTryTime()  {
-	    discarded = true;
-	    tryIndx = 2;
+            synchronized (this){
+                discarded = true;
+                tryIndx = 2;
+            }
 	}
 
         /** Initiates unicast discovery of the lookup service referenced 
          *  in this class.
          */
 	public boolean tryGetProxy() {
-	    if (proxy != null ) {
-		throw new IllegalArgumentException
-                                 ("LookupLocator has been discovered already");
-	    }
+            synchronized(this){
+                if (proxy != null ) {
+                    throw new IllegalArgumentException
+                                     ("LookupLocator has been discovered already");
+                }
+            }
 	    InvocationConstraints ic = InvocationConstraints.EMPTY;
 	    if (l instanceof RemoteMethodControl) {
 		MethodConstraints mc =

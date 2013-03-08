@@ -1507,7 +1507,7 @@ public class JoinManager {
      */
     private long renewalDuration = Lease.FOREVER;
     /** Flag that indicates if this join manager has been terminated. */
-    private boolean bTerminated = false;
+    private volatile boolean bTerminated = false;
     /* Preparer for the proxies to the lookup services that are discovered
      * and used by this utility.
      */

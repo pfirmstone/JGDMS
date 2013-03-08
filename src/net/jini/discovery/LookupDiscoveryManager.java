@@ -386,18 +386,25 @@ public class LookupDiscoveryManager implements DiscoveryManagement,
          *  from the <code>LookupLocatorDiscovery</code>.
          */
 	public void discard() {
+            LookupDiscovery lookD = null;
+            LookupLocatorDiscovery locateD = null;
+            ServiceRegistrar regProxy = null;
 	    synchronized(this) {
 		bDiscarded = true;
+                regProxy = proxy;
+                if((from & FROM_GROUP) != 0) {
+                    lookD = lookupDisc;
+                } 
+                if((from & FROM_LOCATOR) != 0) {
+                    locateD = locatorDisc;
+                }//endif
 	    }//end sync
             /* Give group discovery priority to avoid race condition. When
              * appropriate, locator discard will eventually occur as a result
              * of the first group discard.
              */
-	    if((from & FROM_GROUP) != 0) {
-                lookupDisc.discard(proxy);
-	    } else if((from & FROM_LOCATOR) != 0) {
-                locatorDisc.discard(proxy);
-            }//endif
+            if (lookD != null) lookD.discard(regProxy);
+            if (locateD != null) locateD.discard(regProxy);
 	}//end discard
 
         /** Accessor method that returns the value of the <code>boolean</code>

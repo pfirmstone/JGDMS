@@ -166,8 +166,7 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
      * not own the lock the result is undefined and could result in an
      * exception.
      */
-    public long retryTime() {
-	assert Thread.holdsLock(this): "thread does not hold lock";
+    public synchronized long retryTime() {
 	int index = (attempt < delays.length ? attempt : delays.length - 1); 
 	return delays[index] + System.currentTimeMillis();
     }
