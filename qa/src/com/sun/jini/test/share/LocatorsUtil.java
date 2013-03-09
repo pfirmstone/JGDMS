@@ -204,7 +204,7 @@ public class LocatorsUtil {
                         logger.log(level, "locatorSet2["+j+"] = " +locator2);
                         logger.log(level, "");
                     }//endif
-                    if( locator2.equals(locator1) ) {
+                    if( locator2 != null && locator2.equals(locator1) ) {
                         hashSet2.remove(locator2);
                         break;
                     }
