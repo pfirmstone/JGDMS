@@ -137,7 +137,9 @@ abstract class Mux {
     final Map sessions = new HashMap(5);
 
     private int expectedPingCookie = -1;
-    private long startTimeout = 15000; // milliseconds
+    
+    /** unguarded instance state */
+    private volatile long startTimeout = 15000; // milliseconds
 
     /**
      * Constructs a new Mux instance for a connection accessible through
