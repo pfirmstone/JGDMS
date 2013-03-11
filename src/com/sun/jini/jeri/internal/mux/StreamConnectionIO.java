@@ -67,8 +67,10 @@ final class StreamConnectionIO extends ConnectionIO {
     /**
      * queue of buffers of data to be sent over connection, interspersed
      * with IOFuture objects that need to be notified in sequence
+     * 
+     * Synchronised on super.mux.muxLock;
      */
-    private LinkedList sendQueue = new LinkedList();
+    private final LinkedList sendQueue;
 
     /** buffer for reading incoming data from connection */
     private final ByteBuffer inputBuffer =
@@ -86,6 +88,7 @@ final class StreamConnectionIO extends ConnectionIO {
 
 	outChannel = newChannel(out);
 	inChannel = newChannel(in);
+        sendQueue = new LinkedList();
     }
 
     /**
@@ -178,9 +181,9 @@ final class StreamConnectionIO extends ConnectionIO {
 				       "down and nothing more to send");
 			    break;
 			}
-
-			localQueue = sendQueue;
-			sendQueue = new LinkedList();
+                        /* Clone an unshared copy and clear the queue while synchronized */
+			localQueue = (LinkedList) sendQueue.clone();
+			sendQueue.clear();
 		    }
 
 		    boolean needToFlush = false;

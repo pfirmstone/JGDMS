@@ -322,18 +322,57 @@ public abstract class AbstractServiceAdmin implements Admin {
      *         if codebase integrity is required and a problem occurs
      *         converting the URL
      */
-    protected final String getServiceCodebase() throws TestException {
+    protected final String getServiceCodebase() throws TestException, URISyntaxException {
 	codebase = getMandatoryParameter("codebase");
 	codebase = fixCodebase(codebase);
+        codebase = uriToCodebaseString(pathToURIs(codebase));
 	return  codebase;
     }
     
-    private String normaliseCodebase(String cb) throws URISyntaxException{
-        String result = UriString.escapeIllegalCharacters(cb);
-        result = UriString.normalisation(new URI(result)).toString();
-        return result;
+    /**
+     * Convert a string containing a space-separated list of URL Strings into a
+     * corresponding array of URI objects, throwing a MalformedURLException
+     * if any of the URLs are invalid.  This method returns null if the
+     * specified string is null.
+     *
+     * @param path the string path to be converted to an array of urls
+     * @return the string path converted to an array of URLs, or null
+     * @throws MalformedURLException if the string path of urls contains a
+     *         mal-formed url which can not be converted into a url object.
+     */
+    private static URI[] pathToURIs(String path) throws URISyntaxException {
+	if (path == null) {
+	    return null;
+	}
+        URI[] urls = null;
+	StringTokenizer st = new StringTokenizer(path);	// divide by spaces
+	urls = new URI[st.countTokens()];
+	for (int i = 0; st.hasMoreTokens(); i++) {
+            String uri = st.nextToken();
+            uri = UriString.fixWindowsURI(uri);
+            urls[i] = UriString.normalise(new URI(UriString.escapeIllegalCharacters(uri)));
+	}
+	return urls;
     }
 
+    /**
+     * Convert URI[] to a space delimited code base string.
+     * @param uri
+     * @return Code base String.
+     */
+    private static String uriToCodebaseString(URI[] uri){
+        if (uri == null) throw new NullPointerException("uri was null");
+        StringBuilder sb = new StringBuilder(200);
+        int l = uri.length;
+        for (int i = 0; i < l; i++){
+            if (uri[i] != null){
+                sb.append(uri[i]);
+                if ( i != l - 1) sb.append(" ");
+            }
+        }
+        return sb.toString();
+    }
+    
     /**
      * Return the codebase originally returned by the 
      * <code>getServiceCodebase</code> method.
