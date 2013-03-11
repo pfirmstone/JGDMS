@@ -322,16 +322,21 @@ public abstract class AbstractServiceAdmin implements Admin {
      *         if codebase integrity is required and a problem occurs
      *         converting the URL
      */
-    protected final String getServiceCodebase() throws TestException, URISyntaxException {
+    protected final String getServiceCodebase() throws TestException {
 	codebase = getMandatoryParameter("codebase");
-	codebase = fixCodebase(codebase);
-        codebase = uriToCodebaseString(pathToURIs(codebase));
+	String cb = fixCodebase(codebase);
+        try {
+            codebase = uriToCodebaseString(pathToURIs(cb));
+        } catch (URISyntaxException e){
+            logger.log(Level.FINE,"Codebase not URI compliant: "+ cb, e);
+            codebase = cb;
+        }
 	return  codebase;
     }
     
     /**
      * Convert a string containing a space-separated list of URL Strings into a
-     * corresponding array of URI objects, throwing a MalformedURLException
+     * corresponding array of URI objects, throwing a URIsyntaxException
      * if any of the URLs are invalid.  This method returns null if the
      * specified string is null.
      *
