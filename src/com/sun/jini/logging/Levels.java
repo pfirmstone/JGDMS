@@ -24,17 +24,19 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.ObjectOutputStream;
 import java.io.ObjectStreamClass;
+import java.io.ObjectStreamField;
 import java.io.OutputStream;
 import java.io.Serializable;
 import java.util.logging.Level;
 
 /**
  * Defines additional {@link Level} values. <p>
- * <p/>
+ *
  * See the {@link LogManager} class for one way to use the <code>FAILED</code>
  * and <code>HANDLED</code> logging levels in standard logging configuration
  * files.
  *
+ * 
  * @since 2.0
  */
 public class Levels {
@@ -42,7 +44,7 @@ public class Levels {
     /**
      * <code>FAILED</code> is a message level indicating that a facility has
      * experienced a failure that it will reflect to its caller. <p>
-     * <p/>
+     *
      * <code>FAILED</code> messages are intended to provide users with
      * information about failures produced by internal components in order to
      * assist with debugging problems in systems with multiple components. This
@@ -54,7 +56,7 @@ public class Levels {
      * <code>HANDLED</code> is a message level indicating that a facility has
      * detected a failure that it will take steps to handle without reflecting
      * the failure to its caller. <p>
-     * <p/>
+     *
      * <code>HANDLED</code> messages are intended to provide users with
      * information about failures detected by internal components in order to
      * assist with debugging problems in systems with multiple components. This
@@ -62,11 +64,9 @@ public class Levels {
      */
     public static final Level HANDLED = createLevel("HANDLED", 550, null);
 
-    /**
-     * This class cannot be instantiated.
-     */
+    /** This class cannot be instantiated. */
     private Levels() {
-        throw new AssertionError("This class cannot be instantiated");
+	throw new AssertionError("This class cannot be instantiated");
     }
 
     /**
@@ -74,18 +74,51 @@ public class Levels {
      * permit creating the serialized form of a Level instance.
      */
     private static final class LevelData implements Serializable {
-        private static final long serialVersionUID = -8176160795706313070L;
-        private final String name;
-        private final int value;
-        private final String resourceBundleName;
-        private final String localizedLevelName;
+	/** Fields from {@link Level} that needs to be serialized. */
+	private static final ObjectStreamField[] serialPersistentFields =
+	    ObjectStreamClass.lookup(Level.class).getFields();
+	private static final long serialVersionUID = -8176160795706313070L;
+	private transient final String name;
+	private transient final int value;
+	private transient final String resourceBundleName;
 
-        LevelData(String name, int value, String resourceBundleName) {
-            this.name = name;
-            this.value = value;
-            this.resourceBundleName = resourceBundleName;
-            this.localizedLevelName = resourceBundleName == null ? name : null;
-        }
+	LevelData(String name, int value, String resourceBundleName) {
+	    this.name = name;
+	    this.value = value;
+	    this.resourceBundleName = resourceBundleName;
+	}
+
+	/**
+	 * Controls the writing of the actual fields to mimic those available
+	 * in {@link Level}.
+	 */
+	private void writeObject(java.io.ObjectOutputStream out)
+	    throws IOException
+	{
+	    ObjectOutputStream.PutField putFields = out.putFields();
+
+	    for (int i = 0 ; i < serialPersistentFields.length ; i++) {
+		ObjectStreamField field = serialPersistentFields[i];
+
+		if (field.getName().equals("name")) {
+		    putFields.put(field.getName(), name);
+		}
+		else if (field.getName().equals("resourceBundleName")) {
+		    putFields.put(field.getName(), resourceBundleName);
+		}
+		else if (field.getName().equals("value")) {
+		    putFields.put(field.getName(), value);
+		}
+
+		// if a field name is unknown it looks like the Level class
+		// evolved, but we are in no position to provide a meaningful
+		// value, so therefore don't provide a value as the putField
+		// object already has the default values set for all fields as
+		// returned by serialPersistentFields
+	    }
+
+	    out.writeFields();
+	}
     }
 
     /**
@@ -94,22 +127,30 @@ public class Levels {
      * creating serialization data for a class when access to an appropriate
      * constructor is not available.
      */
-    private static final class ClassReplacingObjectOutputStream extends ObjectOutputStream {
-        private final ObjectStreamClass from;
-        private final ObjectStreamClass to;
+    private static final class ClassReplacingObjectOutputStream
+	extends ObjectOutputStream
+    {
+	private final ObjectStreamClass from;
+	private final ObjectStreamClass to;
 
-        ClassReplacingObjectOutputStream(OutputStream out, Class from, Class to) throws IOException {
-            super(out);
-            this.from = ObjectStreamClass.lookup(from);
-            this.to = ObjectStreamClass.lookup(to);
-        }
+	ClassReplacingObjectOutputStream(OutputStream out,
+					 Class from,
+					 Class to)
+	    throws IOException
+	{
+	    super(out);
+	    this.from = ObjectStreamClass.lookup(from);
+	    this.to = ObjectStreamClass.lookup(to);
+	}
 
-        protected void writeClassDescriptor(ObjectStreamClass desc) throws IOException {
-            if (from.equals(desc)) {
-                desc = to;
-            }
-            super.writeClassDescriptor(desc);
-        }
+	protected void writeClassDescriptor(ObjectStreamClass desc)
+	    throws IOException
+	{
+	    if (from.equals(desc)) {
+		desc = to;
+	    }
+	    super.writeClassDescriptor(desc);
+	}
     }
 
     /**
@@ -118,18 +159,24 @@ public class Levels {
      * constructing the serialized form for an instance with the specified
      * field values and deserializing it.
      */
-    private static Level createLevel(String name, int value, String resourceBundleName) {
-        try {
-            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-            ObjectOutputStream out = new ClassReplacingObjectOutputStream(bytes, LevelData.class, Level.class);
-            out.writeObject(new LevelData(name, value, resourceBundleName));
-            out.close();
-            ObjectInputStream in = new ObjectInputStream(new ByteArrayInputStream(bytes.toByteArray()));
-            Level result = (Level) in.readObject();
-            in.close();
-            return result;
-        } catch (Exception e) {
-            throw new RuntimeException("Unexpected exception", e);
-        }
+    private static Level createLevel(String name,
+				     int value,
+				     String resourceBundleName)
+    {
+	try {
+	    ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+	    ObjectOutputStream out =
+		new ClassReplacingObjectOutputStream(
+		    bytes, LevelData.class, Level.class);
+	    out.writeObject(new LevelData(name, value, resourceBundleName));
+	    out.close();
+	    ObjectInputStream in = new ObjectInputStream(
+		new ByteArrayInputStream(bytes.toByteArray()));
+	    Level result = (Level) in.readObject();
+	    in.close();
+	    return result;
+	} catch (Exception e) {
+	    throw new RuntimeException("Unexpected exception", e);
+	}
     }
 }
