@@ -50,14 +50,12 @@ specifics for services, utilities, and tools.
 
 	<li><a href="api/com/sun/jini/outrigger/package-summary.html">
         Outrigger</a> - a JavaSpaces service implementation.
-        
-        <li><a href="http://www.rio-project.org">Rio</a> - 
 
 	<li><a href="api/com/sun/jini/phoenix/package-summary.html">
 	Phoenix</a> - a configurable Java RMI activation system daemon
 
 	<li><a href="api/com/sun/jini/reggie/package-summary.html">
-	Reggie</a> - a River lookup service
+	Reggie</a> - a Jini lookup service
 
 
 <p>
@@ -95,7 +93,17 @@ specifics for services, utilities, and tools.
 </ul><a name="infrastructure"></a>
 <H2>Infrastructure</H2>
 <ul>
-    
+<li><a href="api/org/apache/river/api/security/package-summary.html">Apache River's
+        Security Extensions</a>
+<li><a href="api/org/apache/river/api/io/package-summary.html">Distributed objects</a>
+    - an extension of the Serialization protocol, Distributed objects are themselves
+    not Serialized, instead only instructions for recreating an object remotely 
+    using reflection are marshalled.  This allows Distributed objects to utilised
+    public api methods for construction, avoid publishing their internal state 
+    and to be immutable and safely constructed with invariants checked or 
+    defensively copied using final fields.
+<li><a href="api/org/apache/river/api/lookup/package-summary.html">A next 
+        generation lookup service API.</a>
 <p>
 </ul><a name="tools"></a>
 <H2>Tools</H2>

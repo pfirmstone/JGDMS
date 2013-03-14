@@ -24,21 +24,20 @@ import java.util.Properties;
 import org.apache.river.api.security.PermissionGrant;
 
 /**
- * Based on the Apache Harmony interface of the same name, although not compatible.
+ * Parser of policy syntax.
+ * 
+ * @see PermissionGrant
+ * @see URL
+ * @see Properties
+ * @see ConcurrentPolicyFile
  * 
  * @author Peter Firmstone
  */
 public interface PolicyParser {
 
     /**
-     * This is the main business method. It manages loading process as follows:
-     * the associated scanner is used to parse the stream to a set of
-     * {@link org.apache.river.imp.security.policy.util.DefaultPolicyScanner.GrantEntry composite tokens},
-     * then this set is iterated and each token is translated to a PermissionGrant.
-     * Semantically invalid tokens are ignored, the same as void PolicyEntries.
-     * <br>
-     * A policy file may refer to some KeyStore(s), and in this case the first
-     * valid reference is initialized and used in processing tokens.
+     * Parses a given location, making use of system properties as necessary and
+     * returns a collection of <code>PermissionGrant</code>'s
      *
      * @param location an URL of a policy file to be loaded
      * @param system system properties, used for property expansion

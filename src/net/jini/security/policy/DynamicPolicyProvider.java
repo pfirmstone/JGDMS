@@ -40,6 +40,7 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.NavigableSet;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
@@ -68,7 +69,7 @@ import org.apache.river.api.security.RevocablePolicy;
  * cost however, that of increased memory usage.</p>
  * 
  * <p>Due to the Java 2 Security system's static design, a Policy Provider
- * can only augment the policy files utilised, a Policy can only relax security
+ * can only augment policy files; a Policy can only relax security
  * by granting additional permissions, this implementation adds an experimental 
  * feature for revoking permissions, however there are some caveats:</p>
  * 
@@ -120,7 +121,7 @@ import org.apache.river.api.security.RevocablePolicy;
  * all other Permission's using dynamic grants. 
  *
  * </p><p>
- * To make the best utilisation of this Policy provider, set the System property:
+ * The underlying policy provider may be set using the System property:
  * </p>,<p>
  * net.jini.security.policy.PolicyFileProvider.basePolicyClass = 
  * org.apache.river.security.concurrent.ConcurrentPolicyFile
@@ -357,9 +358,12 @@ Put the policy providers and all referenced classes in the bootstrap class loade
     @Override
     public boolean implies(ProtectionDomain domain, Permission permission) {
         if (domain == policyDomain) return policyPermissions.implies(permission);
-        if (basePolicyIsDynamic || basePolicyIsRemote){
-            if (basePolicy.implies(domain, permission)) return true;
-        }
+        // There's not much point to this check anymore, besides, it could allow 
+        // a less privileged domain in an underlying policy to be checked
+        // prior to a privileged domain in this policy.
+//        if (basePolicyIsDynamic || basePolicyIsRemote){
+//            if (basePolicy.implies(domain, permission)) return true;
+//        }
 	if (permission == null) throw new NullPointerException("permission not allowed to be null");
         /* If com.sun.security.provider.PolicyFile:
          * Do not call implies on the base Policy, if
@@ -407,15 +411,22 @@ Put the policy providers and all referenced classes in the bootstrap class loade
                 }
             }
         }else{
-            Collection<PermissionGrant> grants = ((ScalableNestedPolicy) basePolicy).getPermissionGrants(domain);
-            processGrants(grants, permClass, true, permissions);
-            if (permissions.contains(ALL_PERMISSION)) return true;
+            List<PermissionGrant> grants = ((ScalableNestedPolicy) basePolicy).getPermissionGrants(domain);
+            if ( !grants.isEmpty() && grants.get(0).isPrivileged()) return true;
+            processGrants(grants, permClass, false, permissions);
         }
         Iterator<PermissionGrant> grants = dynamicPolicyGrants.iterator();
+        // Check the privileged case first.
         while (grants.hasNext()){
             PermissionGrant g = grants.next();
-            if (g.implies(domain)){
+            if (g.isPrivileged() && g.implies(domain)) return true;
+        }
+        grants = dynamicPolicyGrants.iterator();
+        while (grants.hasNext()){
+            PermissionGrant g = grants.next();
+            if (!g.isPrivileged() && g.implies(domain)){
                 Collection<Permission> perms = g.getPermissions();
+                // But we only want to add relevant Permissions.
                 Iterator<Permission> it = perms.iterator();
                 while (it.hasNext()){
                     Permission p = it.next();
@@ -532,17 +543,34 @@ Put the policy providers and all referenced classes in the bootstrap class loade
         return perms;
     }
 
-    public Collection<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
-        Collection<PermissionGrant> grants = null;
+    public List<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
+        List<PermissionGrant> grants = null;
         if (basePolicy instanceof ScalableNestedPolicy){
             grants = ((ScalableNestedPolicy)basePolicy).getPermissionGrants(domain);
+            if ( !grants.isEmpty() && grants.get(0).isPrivileged()) return grants;
         } else {
             grants = new LinkedList<PermissionGrant>();
-            grants.add(extractGrantFromPolicy(basePolicy, domain));
+            PermissionGrant pg = extractGrantFromPolicy(basePolicy, domain);
+            grants.add(pg);
+            if (pg.isPrivileged()) return grants;
         }
         Iterator<PermissionGrant> it = dynamicPolicyGrants.iterator();
         while (it.hasNext()){
-            grants.add(it.next());
+            PermissionGrant pg = it.next();
+            /* Check privileged first */
+            if (pg.isPrivileged() && pg.implies(domain)){
+                grants.clear();
+                grants.add(pg);
+                return grants;
+            }
+        }
+        it = dynamicPolicyGrants.iterator();
+        while (it.hasNext()){
+            PermissionGrant pg = it.next();
+            /* Then check less privileged domains*/
+            if ( !pg.isPrivileged() && pg.implies(domain)){
+                grants.add(pg);
+            }
         }
         return grants;
     }

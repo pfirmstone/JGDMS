@@ -181,14 +181,15 @@ public class MergedPolicyProvider extends AbstractPolicy implements ScalableNest
 	}
     }
 
-    public Collection<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
+    public List<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
         if (policies.isEmpty()) throw new IllegalStateException("No policies in provider");
-        Collection<PermissionGrant> perms = null;
+        List<PermissionGrant> perms = null;
         Iterator<Policy> it = policies.iterator();
         while (it.hasNext()){
             Policy p = it.next();
             if (p instanceof ScalableNestedPolicy){
-                Collection<PermissionGrant> g = ((ScalableNestedPolicy)p).getPermissionGrants(domain);
+                List<PermissionGrant> g = ((ScalableNestedPolicy)p).getPermissionGrants(domain);
+                if ( !g.isEmpty() && g.get(0).isPrivileged()) return g;
                 if (perms == null) {
                     perms = g;
                 } else {
@@ -196,7 +197,13 @@ public class MergedPolicyProvider extends AbstractPolicy implements ScalableNest
                 }
             } else {
                 if (perms == null ) perms = new LinkedList<PermissionGrant>();
-                perms.add(extractGrantFromPolicy(p, domain));
+                PermissionGrant pg = extractGrantFromPolicy(p, domain);
+                if (pg.isPrivileged()){
+                    perms.clear();
+                    perms.add(pg);
+                    return perms;
+                }
+                perms.add(pg);
             }
         }
         return perms;

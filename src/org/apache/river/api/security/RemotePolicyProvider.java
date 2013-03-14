@@ -30,10 +30,8 @@ import java.security.Policy;
 import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.UnresolvedPermission;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -45,11 +43,12 @@ import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.GrantPermission;
+import org.apache.river.api.common.Beta;
 
 /**
- *
  * @author Peter Firmstone
  */
+@Beta
 public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy,
         ScalableNestedPolicy{
     
@@ -84,7 +83,7 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
     private final boolean loggable;
     
     /**
-     * Creates a new <code>DynamicPolicyProvider</code> instance that wraps
+     * Creates a new <code>RemotePolicyProvider</code> instance that wraps
      * around the given non-<code>null</code> base policy object.
      *
      * @param   basePolicy base policy object containing information about
@@ -298,8 +297,8 @@ public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy
     }
 
     @Override
-    public Collection<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
-        Collection<PermissionGrant> grants = null;
+    public List<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
+        List<PermissionGrant> grants = null;
         if (basePolicy instanceof ScalableNestedPolicy){
             grants = ((ScalableNestedPolicy) basePolicy).getPermissionGrants(domain);
         } else {

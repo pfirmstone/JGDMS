@@ -20,6 +20,7 @@ import java.io.Externalizable;
 import java.io.IOException;
 import java.io.ObjectInput;
 import java.io.ObjectOutput;
+import java.io.Serializable;
 import java.io.StreamCorruptedException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
@@ -34,22 +35,30 @@ import java.security.Guard;
  * 
  * Internal state is guarded, arrays are not defensively coped.
  * 
+ * This is compatible with Version 2 of the Java Serialization Protocol.
+ * 
  * @author Peter Firmstone.
  * @see Distributed
  * @see DistributePermission
+ * @see Serializable
+ * @see Externalizable
  */
 public final class SerialReflectionFactory implements Externalizable {
     private static final long serialVersionUID = 1L;
     /* Guard private state */
     private static final Guard distributable = new DistributePermission();
     
-    /* Minimal protocol to write primitives directly to stream.
+    /* Minimal protocol to write primitives directly to stream, only for parameters.
      * Strings are written as Objects, since they are a special case, identical
-     * strings are sent by reference not duplicates writes to stream.
-     * Class is also a special case, it also is not duplicated in streams.
+     * strings are sent by reference to the first and not duplicated.
+     * Class is also a special case, it too is not duplicated.
      * 
-     * Only primitives are written separately, the following indicates the 
-     * next parameter type in the stream.
+     * Primitives are written separately to objects, the first value written 
+     * to ObjectOutput is the length of the parameter array, each parameter is
+     * proceeded by a byte header indicating its type.  For null values, only the
+     * byte header is written to stream.
+     * 
+     * This protocol is fixed and cannot be changed after release.
      */
     private static final byte BOOLEAN = 0;
     private static final byte BYTE = 1;
@@ -61,7 +70,6 @@ public final class SerialReflectionFactory implements Externalizable {
     private static final byte DOUBLE = 7;
     private static final byte OBJECT = 8;
     private static final byte NULL = 9;
-    
     
     private Object classOrObject;
     private String method;
@@ -101,6 +109,9 @@ public final class SerialReflectionFactory implements Externalizable {
      * are relatively fast as are primitive arrays.
      * Object versions of primitive parameters are writen to DataOutput
      * as primitives.
+     * <p>
+     * Constructor parameters must either be Serializable, Externalizable or
+     * Distributed objects.
      * <p>
      * 
      * @param factoryClassOrObject will be used for constructor, factory static method,
@@ -157,6 +168,7 @@ public final class SerialReflectionFactory implements Externalizable {
         } 
     }
     
+    // Inherit documentation
     public void writeExternal(ObjectOutput out) throws IOException {
         distributable.checkGuard(null);
         out.writeObject(classOrObject);
@@ -197,6 +209,7 @@ public final class SerialReflectionFactory implements Externalizable {
         if (o instanceof Character){
             out.writeByte(CHAR);
             out.writeChar(((Character)o).charValue());
+            return;
         }
         if (o instanceof Short){
             out.writeByte(SHORT);
@@ -232,34 +245,49 @@ public final class SerialReflectionFactory implements Externalizable {
     private Object readObject(ObjectInput in) throws IOException, ClassNotFoundException{
         byte b = in.readByte();
         switch(b){
-            case 0: boolean bool = in.readBoolean();
-                    return Boolean.valueOf(bool);
-            case 1: byte bite = in.readByte();
-                    return Byte.valueOf(bite);
-            case 2: char ch = in.readChar();
-                    return Character.valueOf(ch);
-            case 3: short sh = in.readShort();
-                    return Short.valueOf(sh);
-            case 4: int i = in.readInt();
-                    return Integer.valueOf(i);
-            case 5: long l = in.readLong();
-                    return Long.valueOf(l);
-            case 6: float f = in.readFloat();
-                    return Float.valueOf(f);
-            case 7: double d = in.readDouble();
-                    return Double.valueOf(d);
-            case 8: return in.readObject();
-            case 9: return null;
-            default: throw new StreamCorruptedException("out of range byte read from stream");
+            case BOOLEAN:   boolean bool = in.readBoolean();
+                            return Boolean.valueOf(bool);
+                
+            case BYTE:      byte bite = in.readByte();
+                            return Byte.valueOf(bite);
+                
+            case CHAR:      char ch = in.readChar();
+                            return Character.valueOf(ch);
+                
+            case SHORT:     short sh = in.readShort();
+                            return Short.valueOf(sh);
+                
+            case INT:       int i = in.readInt();
+                            return Integer.valueOf(i);
+                
+            case LONG:      long l = in.readLong();
+                            return Long.valueOf(l);
+                
+            case FLOAT:     float f = in.readFloat();
+                            return Float.valueOf(f);
+                
+            case DOUBLE:    double d = in.readDouble();
+                            return Double.valueOf(d);
+                
+            case OBJECT:    return in.readObject();
+                
+            case NULL:      return null;
+                
+            default:        throw new StreamCorruptedException("out of range byte read from stream");
         }
         
     }
     
+    // Inherit documentation.
     public void readExternal(ObjectInput in) throws IOException, ClassNotFoundException {
+        /* If created during deserialisation, we needn't be defensive, this
+         * will never be shared with other threads and will be replaced by
+         * a fully constructed thread safe immutable object. */
         if (constructed) throw new IllegalStateException("Object already constructed");
         /* Don't defensively copy arrays, the object is used immediately after
          * deserialization to construct the Distributed Object, the fields are
-         * not accessed again, it is up to creator methods to preserve invariants.
+         * not accessed again, it is up to creator methods themselves to 
+         * preserve invariants.
          */
         classOrObject = in.readObject();
         method = (String) in.readObject();

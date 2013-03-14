@@ -104,10 +104,10 @@ java.util.logging.FileHandler.level = INFO
 #  FINEST (lowest value) 
 
 # For Everything
-sun.rmi.level = FINE
-net.jini.level = FINE
-org.apache.river.level = FINE
-com.sun.jini.level = FINE
+sun.rmi.level = INFO
+net.jini.level = INFO
+org.apache.river.level = INFO
+com.sun.jini.level = INFO
 
 # For the LogManager
 com.sun.jini.logging.LogManager.level = INFO

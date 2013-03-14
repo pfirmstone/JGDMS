@@ -1989,17 +1989,7 @@ public class LookupDiscovery implements DiscoveryManagement,
 	rawUnicastDiscoveryConstraints = 
 	    constraints.getConstraints(
 		DiscoveryConstraints.unicastDiscoveryMethod);
-
-//        /* Task manager */
-//        TaskManager taskManager;
-//        try {
-//            taskManager = (TaskManager)config.getEntry(COMPONENT_NAME,
-//						       "taskManager",
-//						       TaskManager.class);
-//        } catch(NoSuchEntryException e) { /* use default */
-//            taskManager = new TaskManager(MAX_N_TASKS,(15*1000),1.0f);
-//        }
-        
+  
         /* ExecutorService */
         ExecutorService executorServ;
         try {
@@ -2135,7 +2125,7 @@ public class LookupDiscovery implements DiscoveryManagement,
             return;
         } 
         
-        /* Start threads */
+        /* threads */
         
 	try {
             announcementTimerThread  = Security.doPrivileged(new PrivilegedExceptionAction<AnnouncementTimerThread>() {
@@ -2160,11 +2150,27 @@ public class LookupDiscovery implements DiscoveryManagement,
 	}
 	if (!all_groups || !this.groups.isEmpty()) {
             requestGroups(this.groups);
-        }//endif
-	announceeThread.start();
-	announcementTimerThread.start();
-        notifierThread.start();
+        }//end if
     }//end constructor
+    
+    /* sync on registars */
+    private boolean started = false;
+    
+    /**
+     * In previous releases threads were started in the constructor, however
+     * this violates safe construction according to the JMM.
+     * 
+     * @since 2.2.1
+     */
+    public void start(){
+        synchronized (registrars){
+            if (started) return;
+            announceeThread.start();
+            announcementTimerThread.start();
+            notifierThread.start();
+            started = true;
+        }
+    }
 
     /**
      * Register a listener as interested in receiving DiscoveryEvent
@@ -2191,6 +2197,7 @@ public class LookupDiscovery implements DiscoveryManagement,
             if (terminated) {
                 throw new IllegalStateException("discovery terminated");
             }
+            if (!started) start();
 	    if (listeners.indexOf(l) >= 0) return; //already have this listener
 	    listeners.add(l);
 	    if (registrars.isEmpty()) return;//nothing to send the new listener

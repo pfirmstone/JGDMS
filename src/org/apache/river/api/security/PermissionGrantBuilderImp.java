@@ -54,19 +54,21 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     private static final long serialVersionUID = 1L;
     private static final PermissionGrant nullGrant = new NullPermissionGrant();
     
-    // Serial Form
+   
+    /*@serial */
     private URI[] uri;
-    private CodeSource cs;
-    private CodeSource[] csources;
+    /*@serial */
     private Certificate[] certs;
+    /*@serial */
     private Principal[] principals;
+    /*@serial */
     private Permission[] permissions;
+    /*@serial */
     private int context;
-    private boolean hasMultipleCodeSources;
+    /*@serial */
     private boolean hasDomain;
     
     // Transient Fields
-    private transient Collection<CodeSource> multipleCodeSources;
     private transient Collection<URI> uris;
     private transient WeakReference<ProtectionDomain> domain;
     
@@ -82,16 +84,12 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     public final PermissionGrantBuilder reset() {
         uri = null;
         if (uris != null) uris.clear();
-        cs = null;
         certs = null;
         domain = null;
         hasDomain = false;
         principals = null;
         permissions = null;
         context = -1;
-        multipleCodeSources = null;
-        csources = null;
-        hasMultipleCodeSources = false;
         return this;
     }
     
@@ -110,24 +108,6 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     public PermissionGrantBuilder uri(java.net.URI uri) {
         if (this.uris == null) this.uris = new ArrayList<URI>(6);
         this.uris.add(uri);
-        return this;
-    }
-
-    public PermissionGrantBuilder codeSource(CodeSource cs) {
-        if (hasMultipleCodeSources){
-            multipleCodeSources.add(cs);
-        } else {
-            this.cs = cs;
-        }
-        return this;
-    }
-    
-        @Override
-    public PermissionGrantBuilder multipleCodeSources() {
-        hasMultipleCodeSources = true;
-        multipleCodeSources = new HashSet<CodeSource>();
-        csources = null;
-        cs = null;
         return this;
     }
     
@@ -175,13 +155,6 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
                 if (uris != null && !uris.isEmpty() ) uri = uris.toArray(new URI[uris.size()]);
                 if (uri == null ) uri = new URI[0];
                 return new URIGrant(uri, certs, principals, permissions);              
-            case CODESOURCE:
-                if (hasMultipleCodeSources) {
-                    if (multipleCodeSources != null) csources = 
-                            multipleCodeSources.toArray(new CodeSource[multipleCodeSources.size()]);
-                    return new CodeSourceSetGrant(csources, principals, permissions);
-                }
-                return new CodeSourceGrant(cs, principals, permissions);
             case CODESOURCE_CERTS:
                 return new CertificateGrant(certs, principals, permissions);
             case PROTECTIONDOMAIN: //Dynamic grant
@@ -207,11 +180,6 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     }
     
     private void writeObject(ObjectOutputStream out) throws IOException{
-        if (hasMultipleCodeSources) {
-            if (csources == null && multipleCodeSources != null) csources = 
-                    multipleCodeSources.toArray(new CodeSource[multipleCodeSources.size()]);
-            cs = null;
-        }
         if (uris != null && !uris.isEmpty()) uri = uris.toArray(new URI[uris.size()]);
         out.defaultWriteObject();
     }

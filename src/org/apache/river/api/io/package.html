@@ -1,0 +1,63 @@
+<!--
+ ! Licensed to the Apache Software Foundation (ASF) under one
+ ! or more contributor license agreements.  See the NOTICE file
+ ! distributed with this work for additional information
+ ! regarding copyright ownership. The ASF licenses this file
+ ! to you under the Apache License, Version 2.0 (the
+ ! "License"); you may not use this file except in compliance
+ ! with the License. You may obtain a copy of the License at
+ ! 
+ !      http://www.apache.org/licenses/LICENSE-2.0
+ ! 
+ ! Unless required by applicable law or agreed to in writing, software
+ ! distributed under the License is distributed on an "AS IS" BASIS,
+ ! WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ ! See the License for the specific language governing permissions and
+ ! limitations under the License.
+ !-->
+
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html>
+<head>
+
+</head>
+<body bgcolor="white">
+
+Provides I/O interfaces and utility classes.
+
+<h2><code>Distributed</code></h2>
+
+<p>The interface {@link org.apache.river.api.io.Distributed} may be
+implemented by an object that is required to be immutable and thread safe
+immediately after un-marshalling, <code>Distributed</code> object's do not
+implement {@link java.io.Serializable}, their fields may be private and they 
+are created by a single reflective invocation of a public constructor, static
+method or <code>Serializable</code> object's builder method.
+
+<h2><code>DistributedObjectOutputStream</code> and <code>DistributedObjectInputStream</code></h2>
+
+<p>The classes {@link net.jini.io.MarshalOutputStream} and {@link
+net.jini.io.MarshalInputStream} extend the Distributed object serialization stream
+classes {@link org.apache.river.api.io.DistributedObjectOutputStream} and {@link
+org.apache.river.api.io.DistributeObjectInputStream} that implement replacement of
+{@link org.apache.river.api.io.Distributed} objects with 
+{@link org.apache.river.api.io.SerialReflectionFactory} during marshalling and
+substitution of <code>SerialReflectionFactory</code> with an object created by
+<code>SerialReflectionFactory</code>upon unmarshalling.
+
+<h2><code>SerialReflectionFactory</code></h2>
+
+<p>A {@link org.apache.river.api.io.SerialReflectionFactory} contains Externalized 
+instructions for creating an Object using reflection upon unmarshalling.
+
+<h2><code>DistributePermission</code></h2>
+
+<p>A {@link org.apache.river.api.io.DistributePermission} guards the 
+    {@link java.io.Externalizable#writeExternal} method of 
+    <code>SerialReflectionFactory</code>, preventing unauthorised marshalling.
+
+@since 2.2.1
+@version 2.2.1
+
+</body>
+</html>

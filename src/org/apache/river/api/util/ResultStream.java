@@ -38,6 +38,8 @@ public interface ResultStream<T> {
     /**
      * Close the result stream, this allows the implementer to close any
      * resources prior to deleting reference.
+     * 
+     * At an arbitrary future date, this interface will extend Closeable in Java 8.
      */
     public void close() throws IOException;
 }

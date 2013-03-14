@@ -38,6 +38,7 @@ import java.security.Security;
 import java.security.SecurityPermission;
 import java.util.Collection;
 import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
@@ -237,12 +238,12 @@ public class AggregatePolicyProvider
 	getCurrentSubPolicy().refresh();
     }
 
-    public Collection<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
+    public List<PermissionGrant> getPermissionGrants(ProtectionDomain domain) {
         Policy p = getCurrentSubPolicy();
         if (p instanceof ScalableNestedPolicy){
             return ((ScalableNestedPolicy)p).getPermissionGrants(domain);
         } 
-        Collection<PermissionGrant> c = new LinkedList<PermissionGrant>();
+        List<PermissionGrant> c = new LinkedList<PermissionGrant>();
         c.add(extractGrantFromPolicy(p,domain));
         return c;
     }

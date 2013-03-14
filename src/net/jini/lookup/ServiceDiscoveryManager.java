@@ -606,8 +606,8 @@ public class ServiceDiscoveryManager {
 
     /** Class for implementing register/lookup/notify/dropProxy/discard tasks*/
     private static abstract class CacheTask implements TaskManager.Task {
-        protected ProxyReg reg;
-        protected long thisTaskSeqN;
+        protected final ProxyReg reg;
+        protected volatile long thisTaskSeqN;
         public CacheTask(ProxyReg reg, long seqN) {
             this.reg = reg;
             this.thisTaskSeqN = seqN;
@@ -644,7 +644,7 @@ public class ServiceDiscoveryManager {
      *  lookup service.
      */
     private static abstract class ServiceIdTask extends CacheTask {
-        protected ServiceID thisTaskSid;
+        protected final ServiceID thisTaskSid;
         ServiceIdTask(ServiceID srvcId, ProxyReg reg, long seqN) {
             super(reg, seqN);
             this.thisTaskSid = srvcId;
@@ -832,7 +832,7 @@ public class ServiceDiscoveryManager {
 
     /** The Listener class for the LeaseRenewalManager. */
     private final class LeaseListenerImpl implements LeaseListener {
-	private ServiceRegistrar proxy;
+	private final ServiceRegistrar proxy;
 	public LeaseListenerImpl(ServiceRegistrar proxy) {
 	    this.proxy = proxy;
 	}
@@ -948,7 +948,7 @@ public class ServiceDiscoveryManager {
 
 	/** This class requests a "snapshot" of the given registrar's state.*/
         private final class LookupTask extends CacheTask {
-	    private EventReg eReg;
+	    private final EventReg eReg;
             public LookupTask(ProxyReg reg, long seqN, EventReg eReg) {
                 super(reg, seqN);
 		this.eReg = eReg;
@@ -1117,9 +1117,9 @@ public class ServiceDiscoveryManager {
          *  events.
          */
         private final class NotifyEventTask extends ServiceIdTask {
-	    private ServiceID sid;
-	    private ServiceItem item;
-	    private int transition;
+	    private final ServiceID sid;
+	    private final ServiceItem item;
+	    private final int transition;
 	    public NotifyEventTask(ProxyReg reg,
 				   ServiceID sid,
 				   ServiceItem item,
@@ -1382,8 +1382,8 @@ public class ServiceDiscoveryManager {
          *           send NO removed event
          */
         private final class NewOldServiceTask extends ServiceIdTask {
-            private ServiceItem srvcItem;
-            private boolean matchMatchEvent;
+            private final ServiceItem srvcItem;
+            private final boolean matchMatchEvent;
             public NewOldServiceTask(ProxyReg reg,
                                      ServiceItem item,
                                      boolean matchMatchEvent,
@@ -1461,7 +1461,7 @@ public class ServiceDiscoveryManager {
          *  service.
          */
         private final class UnmapProxyTask extends ServiceIdTask {
-            private ServiceItemReg itemReg;
+            private final ServiceItemReg itemReg;
             public UnmapProxyTask(ProxyReg       reg,
                                   ServiceItemReg itemReg,
                                   ServiceID      srvcId,
@@ -1519,7 +1519,7 @@ public class ServiceDiscoveryManager {
 	/* Filter current cache instance should use for secondary matching */
 	private ServiceItemFilter filter = null;
 	/* Desired lease duration to request from lookups' event mechanisms */
-	private long leaseDuration;
+	private final long leaseDuration;
 	/* Log the time when the cache gets created. This value is used to
          * calculate the time when the cache should expire.
 	 */

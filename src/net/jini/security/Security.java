@@ -1198,7 +1198,8 @@ public final class Security {
     
         private DistributedSubjectCombiner(Subject subject){
             super(subject);
-            if (subject == null) throw new NullPointerException("subject cannot be null");
+            // Don't throw exception in constructor, check subject before calling constructor.
+//            if (subject == null) throw new NullPointerException("subject cannot be null");
             this.subject = subject;
         }
         
@@ -1252,6 +1253,10 @@ public final class Security {
         private final static CodeSource nullCS = new CodeSource(null, (Certificate[]) null);
         private final Subject subject;
         
+        /** 
+         * Visibility of Subject and it's principal set is guaranteed by final 
+         * reference and safe construction of this object. 
+         */
         private SubjectProtectionDomain(Subject subject){
             super(nullCS, new Permissions(), null, (Principal[]) subject.getPrincipals().toArray());
             this.subject = subject;

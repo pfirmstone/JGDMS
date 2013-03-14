@@ -50,20 +50,7 @@ public abstract class PermissionGrantBuilder {
      * the ClassLoader
      */ 
     public static final int CLASSLOADER = 0;
-    /**
-     * The PermissionGrant generated will apply to all classes loaded from
-     * the CodeSource.  This has been provided for strict compatibility
-     * with the standard Java Policy, where a DNS lookup may be performed
-     * to determine if CodeSource.implies(CodeSource).  In addition, to
-     * resolve a File URL, it will require disk access.
-     * 
-     * This is very bad for Policy performance, it's use is discouraged,
-     * so much so, it may removed.
-     * 
-     * @deprecated use URI instead.
-     */
-    @Deprecated
-    public static final int CODESOURCE = 1;
+  
     /**
      * The PermissionGrant generated will apply to all classes belonging to
      * the ProtectionDomain.  This is actually a simplification for the 
@@ -92,14 +79,21 @@ public abstract class PermissionGrantBuilder {
     
     /**
      * The PermissionGrant generated will apply to the ProtectionDomain or
-     * CodeSource who's URL is implied by the given URI.  This behaves 
-     * similarly to CodeSource.implies(CodeSource), except no DNS lookup is
-     * performed, nor file system access to verify the file exists.
+     * CodeSource who's URL is implied by the given URI.  The outcome of
+     * URI comparison is identical to {@link CodeSource.implies(CodeSource)}, 
+     * except for item 3.4; host names are normalized according to RFC3986
+     * and compared.
      * 
      * The DNS lookup is avoided for security and performance reasons,
      * DNS is not authenticated and therefore cannot be trusted.  Doing so,
      * could allow an attacker to use DNS Cache poisoning to escalate
      * Permission, by imitating a URL with greater privileges.
+     * 
+     * CodeSource URL are converted to URI and normalized according
+     * to {@link http://www.ietf.org/rfc/rfc3986.txt} RFC3986 before being 
+     * compared.
+     * 
+     * @see java.security.CodeSource#implies
      */
     public static final int URI = 5;
     
@@ -109,7 +103,8 @@ public abstract class PermissionGrantBuilder {
     
     /**
      * resets the state for reuse, identical to a newly created 
-     * PermissionGrantBuilder.
+     * PermissionGrantBuilder, this step must be performed to avoid unintentional
+     * grants to previously added URI.
      */
     public abstract PermissionGrantBuilder reset();
    
@@ -122,17 +117,14 @@ public abstract class PermissionGrantBuilder {
      * @throws IllegalStateException 
      */
     public abstract PermissionGrantBuilder context(int context) throws IllegalStateException;
+    
     /**
-     * Sets the CodeSource that will receive the PermissionGrant
-     * @param cs
-     * @return PermissionGrantBuilder
-     * @deprecated use uri instead.
+     * The URI will be added to the PermissionGrant, multiple may be specified by
+     * calling multiple times.
+     * 
+     * @param uri
+     * @return 
      */
-    @Deprecated
-    public abstract PermissionGrantBuilder codeSource(CodeSource cs);
-    
-    public abstract PermissionGrantBuilder multipleCodeSources();
-    
     public abstract PermissionGrantBuilder uri(URI uri);
     /**
      * Extracts ProtectionDomain
@@ -160,7 +152,7 @@ public abstract class PermissionGrantBuilder {
      */
     public abstract PermissionGrantBuilder principals(Principal[] pals);
     /**
-     * Sets the Permission's that will be granted.
+     * Specifies Permission's to be granted.
      * @param perm
      * @return 
      */

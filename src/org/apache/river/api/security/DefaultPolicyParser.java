@@ -189,13 +189,6 @@ class DefaultPolicyParser implements PolicyParser {
     PermissionGrant resolveGrant(DefaultPolicyScanner.GrantEntry ge,
             KeyStore ks, Properties system, boolean resolve) throws Exception {
         if ( ge == null ) return null;
-        /*
-         * Do we return multiple grants or do we allow a codebase array 
-         * in a permission grant?
-         * 
-         * ANSWER: No we just make a CodeSourceSetGrant, that contains multiple
-         * CodeSource.
-         */
         List<URI> codebases = new ArrayList<URI>(8);
         Certificate[] signers = null;
         Set<Principal> principals = new HashSet<Principal>();

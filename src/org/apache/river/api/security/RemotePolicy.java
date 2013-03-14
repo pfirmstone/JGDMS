@@ -86,8 +86,6 @@ import net.jini.security.policy.UmbrellaGrantPermission;
  * @see GrantPermission
  * @see UmbrellaGrantPermission
  * @see PolicyParser
- * @see DefaultPolicyParser
- * @see DefaultPolicyScanner
  * @see PolicyPermission
  */
 public interface RemotePolicy {

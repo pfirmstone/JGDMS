@@ -205,6 +205,7 @@ public abstract class AbstractPolicy extends Policy {
             while (grants.hasNext()) {
                 PermissionGrant g = grants.next();
                 if (stopIfAll && g.isPrivileged()) {
+                    setToAddPerms.clear();
                     setToAddPerms.add(ALL_PERMISSION);
                     return;
                 }

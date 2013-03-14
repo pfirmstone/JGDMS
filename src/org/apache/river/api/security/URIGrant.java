@@ -64,7 +64,7 @@ class URIGrant extends CertificateGrant {
         }
         location = Collections.unmodifiableCollection(uris);
         int hash = 3;
-        hash = 67 * hash + (this.location != null ? location.hashCode() : 0);
+        hash = 67 * hash + location.hashCode();
         hash = 67 * hash + (super.hashCode());
         hashCode = hash;
     }

@@ -22,6 +22,7 @@
 
 package org.apache.river.api.security;
 
+import java.net.URI;
 import tests.support.FakePrincipal;
 import java.net.URL;
 import java.security.cert.Certificate;
@@ -72,9 +73,9 @@ public class ConcurrentPolicyFileTest extends TestCase {
         Permission sp = new SecurityPermission("sdf");
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
         PermissionGrant[] pe = new PermissionGrant[] { 
-            pgb.codeSource(null).principals(null)
+            pgb.uri(null).principals(null)
                .permissions(new Permission[] { sp })
-               .context(PermissionGrantBuilder.CODESOURCE)
+               .context(PermissionGrantBuilder.URI)
                .build()
         };
         TestParser tp = new TestParser(pe);
@@ -108,21 +109,23 @@ public class ConcurrentPolicyFileTest extends TestCase {
      */
     public void testGetPermissions_CodeSource() throws Exception {
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
-        pgb.context(PermissionGrantBuilder.CODESOURCE);
+        pgb.context(PermissionGrantBuilder.URI);
         CodeSource cs = new CodeSource(null, (Certificate[])null);
         CodeSource cs2 = new CodeSource(new URL("http://a.b.c"),
             (Certificate[])null);
         Permission sp1 = new SecurityPermission("aaa");
         Permission sp2 = new SecurityPermission("bbb");
         Permission sp3 = new SecurityPermission("ccc");
-        PermissionGrant pe1 = pgb.codeSource(cs)
+        PermissionGrant pe1 = pgb.uri(null)
                 .permissions(new Permission[] { sp1 })
                 .build();
-        PermissionGrant pe2 = pgb.codeSource(cs2)
+        pgb.reset().context(PermissionGrantBuilder.URI);
+        PermissionGrant pe2 = pgb.uri(new URI("http://a.b.c"))
                 .principals(new Principal[0])
                 .permissions(new Permission[] { sp2 })
                 .build();
-        PermissionGrant pe3 = pgb.codeSource(cs)
+        pgb.reset().context(PermissionGrantBuilder.URI);
+        PermissionGrant pe3 = pgb.uri(null)
                 .principals( new Principal[] {new FakePrincipal("qqq") })
                 .permissions(new Permission[] { sp3 })
                         .build();
@@ -147,7 +150,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
      */
     public void testGetPermissions_ProtectionDomain() throws Exception {
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
-        pgb.context(PermissionGrantBuilder.CODESOURCE);
+        pgb.context(PermissionGrantBuilder.URI);
         Permission sp1 = new SecurityPermission("aaa");
         Permission sp2 = new SecurityPermission("bbb");
         Permission sp3 = new SecurityPermission("ccc");
@@ -162,20 +165,20 @@ public class ConcurrentPolicyFileTest extends TestCase {
         ProtectionDomain pd2 = new ProtectionDomain(cs2, pcZ, null,
             new Principal[] { new FakePrincipal("qqq") });
         
-        PermissionGrant pe1 = pgb.codeSource(cs)
+        PermissionGrant pe1 = pgb.uri(null)
                 .permissions(new Permission[] { sp1 })
                 .build();
-        PermissionGrant pe2 = pgb.codeSource(cs2)
+        PermissionGrant pe2 = pgb.uri(cs2.getLocation().toURI())
                 .principals(new Principal[] { new UnresolvedPrincipal(
                 UnresolvedPrincipal.WILDCARD, UnresolvedPrincipal.WILDCARD) })
                 .permissions(new Permission[] { sp2 })
                 .build();
-        PermissionGrant pe3 = pgb.codeSource(cs)
+        PermissionGrant pe3 = pgb.uri(null)
                 .principals(new Principal[] { new UnresolvedPrincipal(
                 FakePrincipal.class.getName(), "qqq") })
                 .permissions(new Permission[] { sp3 })
                 .build();
-        PermissionGrant pe4 = pgb.codeSource(cs2)
+        PermissionGrant pe4 = pgb.uri(cs2.getLocation().toURI())
                 .principals(new Principal[] { new UnresolvedPrincipal(
                 FakePrincipal.class.getName(), "ttt") })
                 .permissions(new Permission[] { sp4 })

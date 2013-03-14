@@ -139,7 +139,7 @@ abstract class Mux {
     private int expectedPingCookie = -1;
     
     /** unguarded instance state */
-    private volatile long startTimeout = 30000; // milliseconds
+    private volatile long startTimeout = 15000; // milliseconds
 
     /**
      * Constructs a new Mux instance for a connection accessible through

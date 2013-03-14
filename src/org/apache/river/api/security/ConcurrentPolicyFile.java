@@ -59,14 +59,14 @@ import net.jini.security.policy.PolicyInitializationException;
 
 /**
  * <p>
- * Concurrent Policy implementation based on policy configuration files,
+ * Concurrent Policy implementation based on policy configuration URL's,
  * it is intended to provide concurrent implies() for greatly improved
  * throughput.  Caching limits scalability and consumes shared memory,
  * so no cache exists.
  * </p><p>
  * By default all River Policy implementations now utilise ConcurrentPolicyFile.
  * </p>
- * This
+ * The default PolicyParser
  * implementation recognises text files, consisting of clauses with the
  * following syntax:
  * 
@@ -165,6 +165,13 @@ import net.jini.security.policy.PolicyInitializationException;
  * string, where <i>DN </i> is a certificate's subject distinguished name.
  * </dl>
  * <br>
+ * If there is sufficient interest, we can implement a DENY clause, 
+ * in this case DENY cannot apply to GRANT clauses that contain
+ * {@link java.security.AllPermission}, the domains to which a DENY clause
+ * would apply will be a less privileged domain.  For example a user could be
+ * granted SocketPermission("*", "connect"), while a DENY clause might
+ * list specific SocketPermission domains that are disallowed, where a DENY 
+ * clause has precedence over all GRANT clause Permissions except for AllPermission.
  * <br>
  * This implementation is thread-safe and scalable.
  * @author Peter Firmstone.
@@ -215,7 +222,10 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     }
 
     /**
-     * Extension constructor for plugging-in a custom parser.
+     * Constructor to allow for custom policy providers, for example a database
+     * policy provider, can make administration simpler than traditional
+     * policy files.
+     * 
      * @param dpr
      * @param comp Comparator to compare permissions. 
      */
@@ -265,23 +275,23 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
         NavigableSet<Permission> perms = new TreeSet<Permission>(comparator);
         PermissionGrant [] grantRefCopy = grantArray;
         int l = grantRefCopy.length;
-        for ( int j =0; j < l; j++ ){
+        /* Check only privileged grants first, this allows privileged domains
+         * to avoid infinite recursion when they implement PermissionGrant
+         * and perform privileged actions during an implies call.
+         * 
+         * It also ensures privileged checks are are fast.
+         */ 
+        for ( int j = 0; j < l; j++){
             PermissionGrant ge = grantRefCopy[j];
-            if (ge.implies(pd)){
-                if (ge.isPrivileged()){// Don't stuff around finish early if you can.
+            if (ge.isPrivileged()){
+                if (ge.implies(pd)){
                     PermissionCollection pc = new Permissions();
-                    pc.add(new AllPermission());
+                    pc.add(ALL_PERMISSION);
                     return pc;
-                }
-                Collection<Permission> c = ge.getPermissions();
-                Iterator<Permission> i = c.iterator();
-                while (i.hasNext()){
-                    Permission p = i.next();
-                    perms.add(p);
                 }
             }
         }
-        // Don't forget to merge the static Permissions.
+        /* Merge  static Permissions and check for AllPermission */
         PermissionCollection staticPC = null;
         if (pd != null) {
             staticPC = pd.getPermissions();
@@ -297,7 +307,22 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
                     perms.add(p);
                 }
             }
+        }       
+        /* Now find less privileged cases */
+        for ( int j =0; j < l; j++ ){
+            PermissionGrant ge = grantRefCopy[j];
+            if (!ge.isPrivileged()){
+                if (ge.implies(pd)){
+                    Collection<Permission> c = ge.getPermissions();
+                    Iterator<Permission> i = c.iterator();
+                    while (i.hasNext()){
+                        Permission p = i.next();
+                        perms.add(p);
+                    }
+                }
+            }
         }
+        
         return convert(perms);
     }
 
@@ -317,8 +342,9 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     public PermissionCollection getPermissions(CodeSource cs) {
         if (cs == null) throw new NullPointerException("CodeSource cannot be null");
         // for ProtectionDomain AllPermission optimisation.
+        /* Infinite recursion is not an issue for CodeSource */
         PermissionGrant [] grantRefCopy = grantArray;
-        int l = grantRefCopy.length;
+        int l = grantRefCopy.length;        
         for ( int j =0; j < l; j++ ){
             PermissionGrant ge = grantRefCopy[j];
             if (ge.implies(cs, null)){ // No Principal's
@@ -344,22 +370,17 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
         NavigableSet<Permission> perms = new TreeSet<Permission>(comparator);
         PermissionGrant [] grantRefCopy = grantArray;
         int l = grantRefCopy.length;
-        for ( int j =0; j < l; j++ ){
+        /* Check for privileged grants first to avoid recursion when 
+         * privileged domains become involved in policy decisions */
+        for (int j = 0; j < l; j++){
             PermissionGrant ge = grantRefCopy[j];
-            if (ge.implies(domain)){
-                if (ge.isPrivileged()) return true; // Don't stuff around finish early if you can.
-                Collection<Permission> c = ge.getPermissions();
-                Iterator<Permission> i = c.iterator();
-                while (i.hasNext()){
-                    Permission p = i.next();
-                    // Don't make it larger than necessary.
-                    if (klass.isInstance(permission) || permission instanceof UnresolvedPermission){
-                        perms.add(p);
-                    }
+            if (ge.isPrivileged()){
+                if (ge.implies(domain)){
+                    return true;
                 }
             }
         }
-        // Don't forget to merge the static Permissions.
+        /* Merge the static Permissions, check for Privileged */
         PermissionCollection staticPC = null;
         if (domain != null) {
             staticPC =domain.getPermissions();
@@ -369,13 +390,30 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
                     Permission p = e.nextElement();
                     // return early if possible.
                     if (p instanceof AllPermission ) return true;
-                    // Don't make it larger than necessary, but don't worry about duplicates either.
+                    // Only add relevant permissions to minimise size.
                     if (klass.isInstance(permission) || permission instanceof UnresolvedPermission){
                         perms.add(p);
                     }
                 }
             }
         }
+        /* Check less privileged grants */
+        for ( int j =0; j < l; j++ ){
+            PermissionGrant ge = grantRefCopy[j];
+            if (!ge.isPrivileged()){
+                if (ge.implies(domain)){
+                    Collection<Permission> c = ge.getPermissions();
+                    Iterator<Permission> i = c.iterator();
+                    while (i.hasNext()){
+                        Permission p = i.next();
+                        // Only add relevant permissions to minimise size.
+                        if (klass.isInstance(permission) || permission instanceof UnresolvedPermission){
+                            perms.add(p);
+                        }
+                    }
+                }
+            }
+        }      
         return convert(perms).implies(permission);
     }
 
@@ -439,16 +477,21 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
         }
     }
 
-    public Collection<PermissionGrant> getPermissionGrants(ProtectionDomain pd) {
+    public List<PermissionGrant> getPermissionGrants(ProtectionDomain pd) {
         PermissionGrant [] grants = grantArray; // copy volatile reference target.
         int l = grants.length;
         List<PermissionGrant> applicable = new LinkedList<PermissionGrant>();
-        for (int i =0; i < l; i++){
-            if (grants[i].implies(pd)){
-                applicable.add(grants[i]);
+        /* First check for privileged grants */
+        for (int i = 0; i < l; i++){
+            if (grants[i].isPrivileged()){
+                if (grants[i].implies(pd)){
+                    applicable.add(grants[i]);
+                    return applicable;
+                }
+                
             }
         }
-        // Merge any static permissions.
+        /* Merge static permissions and check for privileged */
         PermissionCollection pc = pd != null ? pd.getPermissions() : null;
         if (pc != null){
             PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
@@ -457,17 +500,24 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
             Collection<Permission> perms = new LinkedList<Permission>();
             Enumeration<Permission> en = pc.elements();
             while (en.hasMoreElements()){
-                perms.add(en.nextElement());
+                Permission p = en.nextElement();
+                perms.add(p);
             }
             pgb.permissions(perms.toArray(new Permission[perms.size()]));
-            applicable.add(pgb.build());
-                        }
+            PermissionGrant pg = pgb.build();
+            applicable.add(pg);
+            // Return now if privileged, to avoid infinite recursion.
+            if (pg.isPrivileged()) return applicable;
+        }
+        /* Gather less privileged grants */
+        for (int i =0; i < l; i++){
+            if (!grants[i].isPrivileged()){
+                if (grants[i].implies(pd)){
+                    applicable.add(grants[i]);
+                }
+            }
+        }
+        
         return applicable;
     }
-    
-//    public Collection<PermissionGrant> getPermissionGrants(boolean recursive) {
-//        PermissionGrant [] grants = grantArray; // copy volatile reference target.
-//        return new LinkedList<PermissionGrant>(Arrays.asList(grants));
-//    }
-
 }

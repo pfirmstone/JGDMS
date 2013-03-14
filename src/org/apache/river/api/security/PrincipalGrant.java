@@ -78,7 +78,7 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
                 Class c = p.getClass();
                 String name = p.getName();
                 String actions = p.getActions();
-                hash = 97 * hash + (c != null ? c.hashCode() : 0);
+                hash = 97 * hash + c.hashCode();
                 hash = 97 * hash + (name != null ? name.hashCode() : 0);
                 hash = 97 * hash + (actions != null ? actions.hashCode() : 0);
             }
@@ -151,7 +151,7 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
                  * a PrincipalGrant is immutable and therefore shouldn't change.
                  * Group represents a mutable component which can change the
                  * result of implies.  A PrincipalGrant, should
-                 * have the same behaviour on all calls to implies.
+                 * have the same behaviour on all calls to implies, ie: be idempotent.
                  * 
                  * The reason for this choice at this time; there is
                  * no way a Policy can be aware the PrincipalGrant
@@ -226,47 +226,9 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
     Principal[] getPrincipals(final ProtectionDomain pd){
         if (pd instanceof SubjectDomain){
             final Set<Principal> principals = ((SubjectDomain) pd).getSubject().getPrincipals();
-            // Synchronisation would prevent modification during array creation,
-            // but it also prevents multi read,
-            // lets use an iterator, catch ConcurrentModificationException 
-            // (which should seldom happen) sleep momentarily and try again.
-            Principal[] result = null;
-            Iterator<Principal> it = null;
-            // This minimal synchronization ensures that array size will
-            // be correct if ConcurrentModificationException is not thrown.
-            synchronized (principals){
-                result = new Principal[principals.size()];
-                it = principals.iterator();
-            }
-            boolean retry = true;
-            while (retry){
-                try {
-                    int i = 0;
-                    while (it.hasNext()){
-                        result[i] = it.next();
-                        i++;
-                    }
-                    return result;
-                } catch ( ConcurrentModificationException e){
-                    try {
-                        // sleep for modifications to finish = back off.
-                        Thread.currentThread().sleep(20L);
-                        synchronized(principals){  // try again
-                            result = new Principal[principals.size()];
-                            it = principals.iterator();
-                        }
-                    } catch (InterruptedException ex) {
-                        // ProtectionDomain.getPrincipals() instead.
-                        retry = false;
-                        Thread.currentThread().interrupt(); // restore interrupt.
-                    }
-                } catch ( ArrayIndexOutOfBoundsException e) {
-                    retry = false;
-                    // ProtectionDomain.getPrincipals() instead.
-                    System.err.println("ArrayIndexOutOfBoundsException occured during iteration of Subject Principals");
-                    e.printStackTrace(System.err);
-                }
-            }
+            // principals is a synchronized Set, always up to date.
+            // Contention should be minimal even if Subject run on many threads.
+            return (Principal[]) principals.toArray();
         }
         return pd.getPrincipals();
     }
