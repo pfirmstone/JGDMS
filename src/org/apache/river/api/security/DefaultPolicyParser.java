@@ -146,7 +146,6 @@ class DefaultPolicyParser implements PolicyParser {
                 if ( e instanceof SecurityException ) throw (SecurityException) e;
                 System.err.println("Problem parsing policy: "+ location 
                         + "\n" + e);
-                e.printStackTrace(System.err);
             }
         }
         
