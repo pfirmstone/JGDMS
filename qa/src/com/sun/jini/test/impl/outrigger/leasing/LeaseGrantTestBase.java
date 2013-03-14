@@ -201,7 +201,7 @@ public abstract class LeaseGrantTestBase extends TestBase implements Test {
         super.parse();
         exact = getConfig().getBooleanConfigVal("com.sun.jini.test.share.exact", false);
         clip  = getConfig().getLongConfigVal("com.sun.jini.test.share.clip", -1);
-        slop  = getConfig().getLongConfigVal("com.sun.jini.test.share.slop", 10000);
+        slop  = getConfig().getLongConfigVal("com.sun.jini.test.share.slop", 1000);
         final String durStr = getConfig().getStringConfigVal("com.sun.jini.test.share.duration", null);
 
         if (durStr == null) {

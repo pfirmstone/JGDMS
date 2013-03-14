@@ -5,5 +5,5 @@ include0=../outrigger.properties
 com.sun.jini.test.share.exact=true
 com.sun.jini.test.share.cancel=true
 com.sun.jini.test.share.renew=2
-com.sun.jini.test.share.cancel_slop=10000
-com.sun.jini.test.share.slop=30000
+com.sun.jini.test.share.cancel_slop=1000
+com.sun.jini.test.share.slop=3000
