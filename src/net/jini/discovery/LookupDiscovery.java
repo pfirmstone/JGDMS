@@ -2122,6 +2122,7 @@ public class LookupDiscovery implements DiscoveryManagement,
             announcementTimerThread = null;
             announceeThread = null;
             notifierThread = null;
+            started = true;
             return;
         } 
         
@@ -2159,6 +2160,9 @@ public class LookupDiscovery implements DiscoveryManagement,
     /**
      * In previous releases threads were started in the constructor, however
      * this violates safe construction according to the JMM.
+     * <p>
+     * Threads will be started automatically when a <code>DiscoveryListener</code>
+     * is added, if start hasn't been called.
      * 
      * @since 2.2.1
      */

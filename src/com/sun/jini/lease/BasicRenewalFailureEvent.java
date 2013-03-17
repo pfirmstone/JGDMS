@@ -46,14 +46,14 @@ public class BasicRenewalFailureEvent extends RenewalFailureEvent {
      *
      * @serial
      */
-    private MarshalledInstance marshalledThrowable;
+    private final MarshalledInstance marshalledThrowable;
 
     /**
      * Lease, in marshalled form, returned by <code>getLease</code> method.
      *
      * @serial 
      */
-    private MarshalledInstance marshalledLease;
+    private final MarshalledInstance marshalledLease;
 
     /**
      * Transient cache of lease returned by <code>getLease</code> method.  

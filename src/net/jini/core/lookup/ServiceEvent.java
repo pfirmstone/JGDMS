@@ -113,7 +113,7 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
 	        sBuffer.append("UNKNOWN_TRANSITION:").append(
 	            transition);
 	}
-	sBuffer.append(", source=").append(source).append(
+	sBuffer.append(", source=").append(getSource()).append(
 	    ", eventID=").append(getID()).append(
 	    ", seqNum=").append(getSequenceNumber()).append(
 	    ", handback=").append(getRegistrationObject());

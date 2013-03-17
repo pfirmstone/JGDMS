@@ -82,10 +82,10 @@ public abstract class AvailabilityEvent extends RemoteEvent {
     {
 	in.defaultReadObject();
 
-	if (source == null)
+	if (getSource() == null)
 	    throw new InvalidObjectException("null source reference");
 
-	if (!(source instanceof JavaSpace)) 
+	if (!(getSource() instanceof JavaSpace)) 
 	    throw new InvalidObjectException("source is not a JavaSpace");
     }
 

@@ -672,7 +672,7 @@ public class NonActivatableServiceDescriptor
                 constructor);
             constructor.setAccessible(true);
             impl = constructor.newInstance(argParms);
-            
+            if (impl instanceof Starter) ((Starter) impl).start();
             logger.log(Level.FINEST,
                 "Obtained implementation instance: {0}", impl);
             if (impl instanceof ServiceProxyAccessor) {

@@ -51,19 +51,19 @@ public abstract class MatchTestCore extends TestBase implements Test {
      * Not valid until <code>construct()</code> is called.
      * @see MatchTestBase#construct
      */
-    protected boolean useIfExists = false;
+    protected volatile boolean useIfExists = false;
 
     /**
      * The space under test
      */
-    protected JavaSpace space;
+    protected volatile JavaSpace space;
 
     /**
      * Time in milliseconds to wait for a read or take.
      * Not valid until <code>construct()</code> is called.
      */
-    protected long queryTimeOut; // 10 seconds
-    private long tryShutdown;
+    protected volatile long queryTimeOut; // 10 seconds
+    private volatile long tryShutdown;
 
     /**
      * Convince method for doing a read on the JavaSpace, uses the

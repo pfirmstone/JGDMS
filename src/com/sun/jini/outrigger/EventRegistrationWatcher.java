@@ -318,31 +318,33 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
 		    // We need to send an event!
 		    seqNum = currentSeqNum;
 		}
+	    
+
+                // cancel is a synchronized method with the same lock.
+                if (doneFor) {
+                    cancel();
+                    return;
+                }
+
+                /* The only way to get here is through a path that sets
+                 * seqNum to the non-initial values
+                 */
+                assert seqNum != -1;
+
+
+
+                // success!, update lastSeqNumDelivered, but don't go backward
+	    
+		if (seqNum > lastSeqNumDelivered)
+		    lastSeqNumDelivered = seqNum;
 	    }
-
-	    // Now that we are outside the lock kill our watcher if doneFor.
-	    if (doneFor) {
-		cancel();
-		return;
-	    }
-
-	    /* The only way to get here is through a path that sets
-	     * seqNum to the non-initial values
-	     */
-	    assert seqNum != -1;
-
-	    /* If we are here then we need to send an event (probably
+            
+             /* If we are here then we need to send an event (probably
 	     * someone could have sent our event between the time
 	     * we released the lock and now).
 	     */
 	    getListener(preparer).notify(
 		new RemoteEvent(source, eventID, seqNum, handback));
-
-	    // success!, update lastSeqNumDelivered, but don't go backward
-	    synchronized (EventRegistrationWatcher.this) {
-		if (seqNum > lastSeqNumDelivered)
-		    lastSeqNumDelivered = seqNum;
-	    }
 	}
 	
 	

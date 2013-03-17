@@ -36,20 +36,20 @@ class RegistrarEvent extends ServiceEvent {
     private static final long serialVersionUID = 2L;
 
     /**
-     * The new state of the item, or null if the item has been
+     * The new state of the serviceItem, or null if the serviceItem has been
      * deleted from the lookup service.  This is either a ServiceItem
      * or an Item (to be converted to a ServiceItem when unmarshalled).
      *
      * @serial
      */
-    protected Object item;
+    private Object serviceItem;
     /**
-     * The service ID of the item that triggered the event.  This field is used
+     * The service ID of the serviceItem that triggered the event.  This field is used
      * instead of the inherited serviceID field (which is set to null) and is
      * written directly as a 128-bit value in order to avoid potential codebase
      * annotation loss (see bug 4745728).
      */
-    protected transient ServiceID servID;
+    private transient ServiceID servID;
 
     /**
      * Simple constructor.
@@ -58,9 +58,9 @@ class RegistrarEvent extends ServiceEvent {
      * @param eventID the registration eventID
      * @param seqNo the sequence number of this event
      * @param handback the client handback
-     * @param serviceID the serviceID of the item that triggered the event
+     * @param serviceID the serviceID of the serviceItem that triggered the event
      * @param transition the transition that triggered the event
-     * @param item the new state of the item, or null if deleted
+     * @param serviceItem the new state of the serviceItem, or null if deleted
      */
     public RegistrarEvent(Object source,
 			  long eventID,
@@ -71,16 +71,16 @@ class RegistrarEvent extends ServiceEvent {
 			  Item item)
     {
 	super(source, eventID, seqNo, handback, null, transition);
-	this.item = item;
+	this.serviceItem = item;
 	servID = serviceID;
     }
 
     /**
-     * Returns the new state of the item, or null if the item was deleted
+     * Returns the new state of the serviceItem, or null if the serviceItem was deleted
      * from the lookup service.
      */
     public ServiceItem getServiceItem() {
-	return (ServiceItem)item;
+	return (ServiceItem)serviceItem;
     }
 
     // javadoc inherited from ServiceEvent
@@ -90,7 +90,7 @@ class RegistrarEvent extends ServiceEvent {
 
     /**
      * Writes the default serializable field value for this instance, followed
-     * by the item's service ID encoded as specified by the
+     * by the serviceItem's service ID encoded as specified by the
      * ServiceID.writeBytes method.
      */
     private void writeObject(ObjectOutputStream out) throws IOException {
@@ -100,8 +100,8 @@ class RegistrarEvent extends ServiceEvent {
 
     /**
      * Reads the default serializable field value for this instance, followed
-     * by the item's service ID encoded as specified by the
-     * ServiceID.writeBytes method.  If the value of the item field is an Item
+     * by the serviceItem's service ID encoded as specified by the
+     * ServiceID.writeBytes method.  If the value of the serviceItem field is an Item
      * instance, converts it to a ServiceItem.
      */
     private void readObject(ObjectInputStream in)
@@ -109,7 +109,7 @@ class RegistrarEvent extends ServiceEvent {
     {
 	in.defaultReadObject();
 	servID = new ServiceID(in);
-	if (item instanceof Item)
-	    item = ((Item)item).get();
+	if (serviceItem instanceof Item)
+	    serviceItem = ((Item)serviceItem).get();
     }
 }

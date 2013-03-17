@@ -285,6 +285,7 @@ public class ServiceStarter {
 	    try {
    	        if (desc != null) {
 		    result = desc.create(config);
+                    if (result instanceof Starter) ((Starter) result).start();
 	        } 
 	    } catch (Exception e) {
 	        problem = e;

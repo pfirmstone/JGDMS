@@ -84,6 +84,7 @@ public abstract class TransactionTestBase extends TestBase implements Test {
         try {
             ((Administrable) services[serviceIndex]).getAdmin();
         } catch (Throwable e) {
+            e.printStackTrace(System.err);
             throw new TestException("Could not pre-activate service"
                     + " under test", e);
         }

@@ -47,6 +47,7 @@ import net.jini.config.ConfigurationException;
 import net.jini.id.Uuid;
 
 import com.sun.jini.start.LifeCycle;
+import com.sun.jini.start.Starter;
 
 /**
  * For various reasons there is code that we would like
@@ -60,7 +61,7 @@ import com.sun.jini.start.LifeCycle;
  * @since 2.0
  */
 class OutriggerServerWrapper 
-    implements OutriggerServer, ServerProxyTrust, ProxyAccessor
+    implements OutriggerServer, ServerProxyTrust, ProxyAccessor, Starter
 {
     /** The object being delegated to */     
     private final OutriggerServerImpl delegate;
@@ -483,5 +484,9 @@ class OutriggerServerWrapper
     public TrustVerifier getProxyVerifier() throws RemoteException {
 	gate();
 	return delegate.getProxyVerifier();
+    }
+
+    public void start() throws Exception {
+        ((Starter) delegate).start();
     }
 }

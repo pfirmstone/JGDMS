@@ -356,14 +356,14 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 		if (getExpiration() < now) {
 		    doneFor = true; // Our registration has expired, remove it
 		}
-	    }
+	    
 
-	    // Now that we are outside the lock kill our watcher if doneFor.
-	    if (doneFor) {
-		cancel();
-		return;
-	    }
-
+                // Now that we are outside the lock kill our watcher if doneFor.
+                if (doneFor) {
+                    cancel();
+                    return;
+                }
+            }
 	    getListener(preparer).notify(
 		new OutriggerAvailabilityEvent(source, eventID, ourSeqNumber, 
 					       handback, isVisible, rep));

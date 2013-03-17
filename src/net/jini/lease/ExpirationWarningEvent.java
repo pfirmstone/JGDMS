@@ -72,6 +72,6 @@ public class ExpirationWarningEvent extends RemoteEvent {
      * @return the lease associated with the source of this event
      */
     public Lease getRenewalSetLease() {
-	return ((LeaseRenewalSet) source).getRenewalSetLease();
+	return ((LeaseRenewalSet) getSource()).getRenewalSetLease();
     }
 }

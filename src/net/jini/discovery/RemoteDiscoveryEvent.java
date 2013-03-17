@@ -536,7 +536,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
     {
         s.defaultReadObject();
         /* Verify source */
-        if(source == null) {
+        if(getSource() == null) {
             throw new InvalidObjectException("RemoteDiscoveryEvent.readObject "
                                             +"failure - source field is null");
         }//endif

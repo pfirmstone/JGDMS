@@ -28,6 +28,7 @@ import com.sun.jini.landlord.LocalLandlord;
 import com.sun.jini.landlord.LeaseFactory;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.start.LifeCycle;
+import com.sun.jini.start.Starter;
 
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -88,6 +89,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -142,7 +145,7 @@ import javax.security.auth.login.LoginException;
  */
 public class OutriggerServerImpl 
     implements OutriggerServer, TimeConstants, LocalLandlord, Recover,
-	       ServerProxyTrust 
+	       ServerProxyTrust, Starter
 {	
     /**
      * Component name we use to find items in the configuration and loggers.
@@ -214,47 +217,47 @@ public class OutriggerServerImpl
      * List of <code>com.sun.jini.outrigger.EntryHolder</code>s for 
      * each specific type.
      */
-    private EntryHolderSet	contents;
+    private final EntryHolderSet contents;
 
     /**
      * A list of known subclasses of each class of entry.
      */
-    private final TypeTree	types = new TypeTree();
+    private final TypeTree types = new TypeTree();
 
     /**
      * A list of hashes to check against class types.
      */
-    private final HashMap	typeHashes = new HashMap();
+    private final HashMap<String,Long> typeHashes = new HashMap<String,Long>();
 
     /**
      * Templates for which someone has registered interest
      */
-    private TransitionWatchers	templates;
+    private final TransitionWatchers templates;
 
     /**
      * A map from event registration cookies to 
      * <code>EventRegistrationRecord</code> instances
      */
-    final private Map eventRegistrations =
-	Collections.synchronizedMap(new java.util.HashMap());
+    final private Map<Uuid,LeasedResource> eventRegistrations =
+	Collections.synchronizedMap(new java.util.HashMap<Uuid,LeasedResource>());
 
     /**
      * A map from contents result cookies to <code>ContentsQuery</code> objects.
      */
-    final private Map contentsQueries = 
-	Collections.synchronizedMap(new java.util.HashMap());
+    final private Map<Uuid,LeasedResource> contentsQueries = 
+	Collections.synchronizedMap(new java.util.HashMap<Uuid,LeasedResource>());
 
     /**
      * The transactions recovered after restart. This table
-     * is discarded after recovery
+     * is cleared after recovery
      */
-    private Map 		recoveredTxns;
+    private final Map<Long,Txn> recoveredTxns = new ConcurrentHashMap<Long,Txn>();
 
     /**
      * The transactions in which this space is a participant.
      * Includes broken <code>Txn</code>s.
      */
-    private TxnTable            txnTable;
+    private final TxnTable txnTable;
 
     /**
      * The crash count.  This must be different each boot that forgets
@@ -267,7 +270,7 @@ public class OutriggerServerImpl
      *
      * @serial
      */
-    private TemplateReaper templateReaperThread;
+    private final TemplateReaper templateReaperThread;
 
     /**
      * The reaper thread for removed entries. 
@@ -277,39 +280,39 @@ public class OutriggerServerImpl
      *
      * @serial
      */
-    private EntryReaper	entryReaperThread;
+    private final EntryReaper entryReaperThread;
 
     /**
      * The reaper thread for expired contents queries
      *
      * @serial
      */
-    private ContentsQueryReaper contentsQueryReaperThread;
+    private final ContentsQueryReaper contentsQueryReaperThread;
 
     /**
      * Object that recored operations on entries and makes sure they
      * get seen by the watchers in <code>templates</code>.
      */
-    private OperationJournal operationJournal;
+    private final OperationJournal operationJournal;
 
     /**
      * The notification object
      *
      * @serial
      */
-    private Notifier  	      notifier;
+    private volatile Notifier notifier;
 
     /** 
      * Object that queues up lease expirations for future logging.
      * Only allocated if we have a store, otherwise left
      * <code>null</code>
      */
-    private ExpirationOpQueue expirationOpQueue;
+    private final ExpirationOpQueue expirationOpQueue;
 
     /**
      * The monitor for ongoing transactions.
      */
-    private TxnMonitor txnMonitor;
+    private final TxnMonitor txnMonitor;
 
     /**
      * The wrapper that intercepts incoming remote calls for locking
@@ -324,14 +327,14 @@ public class OutriggerServerImpl
     /**
      * Object we used to export ourselves.
      */
-    private Exporter exporter;
+    private final Exporter exporter;
 
     /**
      * The remote ref (e.g. stub or dynamic proxy) for this
      * server.
      * @serial
      */
-    private OutriggerServer ourRemoteRef;
+    private final OutriggerServer ourRemoteRef;
 
     /**
      * The <code>Uuid</code> for this service. Used in the 
@@ -339,28 +342,28 @@ public class OutriggerServerImpl
      * implement reference equality. We also derive our
      * <code>ServiceID</code> from it.
      */
-    private Uuid topUuid = null;
+    private volatile Uuid topUuid = null;
 
     /**
      * The proxy for this space.
      *
      * @serial
      */
-    private SpaceProxy2 spaceProxy;
+    private volatile SpaceProxy2 spaceProxy;
 
     /**
      * The admin proxy for this space.
      *
      * @serial
      */
-    private AdminProxy adminProxy;
+    private volatile AdminProxy adminProxy;
 
     /**
      * The participant proxy for this space
      *
      * @serial
      */
-    private ParticipantProxy participantProxy;
+    private volatile ParticipantProxy participantProxy;
 
     /**
      * Holds the basis/lower bound for all sequence numbers issued.
@@ -379,32 +382,32 @@ public class OutriggerServerImpl
      * [See the JavaSpaces Service Specification for detail on "fully
      *  ordered".]
      */
-    private long sessionId = 0;
+    private final AtomicLong sessionId = new AtomicLong();
 
     /**
      * Policy used to create and renew leases on entries
      */
-    private LeasePeriodPolicy entryLeasePolicy; 
+    private final LeasePeriodPolicy entryLeasePolicy; 
 
     /**
      * Policy used to create and renew leases on event registrations
      */
-    private LeasePeriodPolicy eventLeasePolicy;
+    private final LeasePeriodPolicy eventLeasePolicy;
 
     /**
      * Policy used to create and renew leases on event contents queries
      */
-    private LeasePeriodPolicy contentsLeasePolicy;
+    private final LeasePeriodPolicy contentsLeasePolicy;
 
     /**
      * Factory we use to create leases
      */
-    private LeaseFactory leaseFactory;
+    private volatile LeaseFactory leaseFactory;
 
     /**
      * @serial
      */
-    private JoinStateManager joinStateManager = new JoinStateManager();
+    private final JoinStateManager joinStateManager = new JoinStateManager();
 
     /** 
      * Our IDs 64 bits secure random numbers, this is 
@@ -413,26 +416,26 @@ public class OutriggerServerImpl
     private static final SecureRandom idGen = new SecureRandom();
 
     /** Our activation ID, <code>null</code> if we are not activatable */
-    private ActivationID activationID;
+    private final ActivationID activationID;
 
     /** 
      * A prepared reference to the activation system, <code>null</code> if
      * we are not activatable.
      */
-    private ActivationSystem activationSystem;
+    private final ActivationSystem activationSystem;
 
       
     /**
      * Store - The reference to the persistent store, if any.
      */
-    private Store	store; 
+    private volatile Store store; 
 
     /**
      * Log object to record state and operation information. The
      * store provides this object. Will be <code>null</code> if
      * this is a transient server instance.
      */
-    private LogOps	log;
+    private volatile LogOps log = null;
 
     /** The map of <code>Uuid</code> to active iterations */
     private final Map iterations = 
@@ -442,42 +445,52 @@ public class OutriggerServerImpl
     private final LoginContext loginContext;
 
     /** <code>ProxyPreparer</code> for transaction managers */
-    private ProxyPreparer transactionManagerPreparer;
+    private final ProxyPreparer transactionManagerPreparer;
 
     /** <code>ProxyPreparer</code> for event listeners */
-    private ProxyPreparer listenerPreparer;
+    private final ProxyPreparer listenerPreparer;
 
     /** 
      * <code>ProxyPreparer</code> for transaction managers 
      * that get recovered from the store. <code>null</code> if
      * this is not a persistent space.
      */
-    private ProxyPreparer recoveredTransactionManagerPreparer;
+    private final ProxyPreparer recoveredTransactionManagerPreparer;
 
     /** 
      * <code>ProxyPreparer</code> for event listeners
      * that get recovered from the store. <code>null</code> if
      * this is not a persistent space.
      */
-    private ProxyPreparer recoveredListenerPreparer;
+    private final ProxyPreparer recoveredListenerPreparer;
 
     /** Max number of entries to return in a next call */
-    private int nextLimit;
+    private final int nextLimit;
 
     /** Max number of entries to return in a take multiple call */
-    private int takeLimit;
+    private final int takeLimit;
 
     /**
      * When destroying the space, how long to wait for a clean
      * unexport (which allows the destroy call to return) before
      * giving up calling <code>unexport(true)</code>
      */
-    private long maxUnexportDelay;
+    private final long maxUnexportDelay;
 
     /**
      * Length of time to sleep between unexport attempts
      */
-    private long unexportRetryDelay;
+    private final long unexportRetryDelay;
+    
+    // Synchronized access with thisl
+    private boolean started = false;
+    /** Temporary start state Object variables set to null after start */
+    private Configuration config;
+    private Thread starter;
+    private Throwable thrown;
+    private Exception except;
+    private boolean persistent;
+    private long maxServerQueryTimeout;
 
     /**
      * Create a new <code>OutriggerServerImpl</code> server (possibly a
@@ -507,34 +520,34 @@ public class OutriggerServerImpl
      *         in the configuration is non-null and throws 
      *         an exception when login is attempted.  
      */
-    OutriggerServerImpl(ActivationID activationID, LifeCycle lifeCycle,
+    OutriggerServerImpl(final ActivationID activationID, LifeCycle lifeCycle,
 			String[] configArgs, final boolean persistent,
-			OutriggerServerWrapper wrapper) 
+			final OutriggerServerWrapper wrapper) 
 	throws IOException, ConfigurationException, LoginException,
 	       ActivationException
     {	
 	this.lifeCycle = lifeCycle;
-	this.activationID = activationID;
 	this.serverGate = wrapper;
-
+        this.persistent = persistent;
+        InitHolder h = null;
+        LoginContext loginContext = null;
 	try {
 	    final Configuration config = 
 		ConfigurationProvider.getInstance(configArgs,
 						  getClass().getClassLoader());
-
+            this.config = config;
 	    loginContext = (LoginContext) config.getEntry(
 		COMPONENT_NAME, "loginContext", LoginContext.class, null);
 	    if (loginContext == null) {
-		init(config, persistent);
+		h = init(config, persistent, activationID, wrapper);
 	    } else {
 		loginContext.login();
 		try {
-		    Subject.doAsPrivileged(
+		    h = Subject.doAsPrivileged(
 			loginContext.getSubject(),
-			new PrivilegedExceptionAction() {
-			    public Object run() throws Exception {
-				init(config, persistent);
-				return null;
+			new PrivilegedExceptionAction<InitHolder>() {
+			    public InitHolder run() throws Exception {
+				return init(config, persistent, activationID, wrapper);
 			    }
 			},
 			null);
@@ -544,21 +557,251 @@ public class OutriggerServerImpl
 	    }
 	} catch (IOException e) {
 	    unwindConstructor(e);
-	    throw e;
+	    except = e;
 	} catch (ConfigurationException e) {
 	    unwindConstructor(e);
-	    throw e;
+	    except = e;
 	} catch (LoginException e) {
 	    unwindConstructor(e);
-	    throw e;	    
+	    except = e;	    
 	} catch (RuntimeException e) {
 	    unwindConstructor(e);
-	    throw e;
+	    except = e;
 	} catch (Throwable e) {
 	    unwindConstructor(e);
-	    throw (Error)e;
+            thrown = e;
 	}
-	lifecycleLogger.log(Level.INFO, "Outrigger server started: {0}", this);
+        if (thrown == null && except == null) {
+            lifecycleLogger.log(Level.INFO, "Outrigger server started: {0}", this);
+            this.loginContext = loginContext;
+            this.activationID = h.activationID;
+            txnMonitor = h.txnMonitor;
+            activationSystem = h.activationSystem;
+            transactionManagerPreparer = h.transactionManagerPreparer;
+            listenerPreparer = h.listenerPreparer;
+            exporter = h.exporter;
+            ourRemoteRef = h.ourRemoteRef;
+            contents = h.contents;
+            templates = h.templates;
+            operationJournal = h.operationJournal;
+            expirationOpQueue = h.expirationOpQueue;
+            recoveredTransactionManagerPreparer = h.recoveredTransactionManagerPreparer;
+            recoveredListenerPreparer = h.recoveredListenerPreparer;
+            txnTable = h.txnTable;
+            leaseFactory = h.leaseFactory;
+            entryLeasePolicy = h.entryLeasePolicy;
+            eventLeasePolicy = h.eventLeasePolicy;
+            contentsLeasePolicy = h.contentsLeasePolicy;
+            nextLimit = h.nextLimit;
+            takeLimit = h.takeLimit;
+            maxUnexportDelay = h.maxUnexportDelay;
+            unexportRetryDelay = h.unexportRetryDelay;
+            notifier = h.notifier; 
+            templateReaperThread = h.templateReaperThread;
+            entryReaperThread = h.entryReaperThread;
+            contentsQueryReaperThread = h.contentsQueryReaperThread;
+            starter = h.starter;
+            maxServerQueryTimeout = h.maxServerQueryTimeout;
+        } else {
+            lifecycleLogger.log(Level.SEVERE, "Failed to construct Outrigger server", except == null ? thrown : except);
+            this.loginContext = null;
+            this.activationID = null;
+            txnMonitor = null;
+            activationSystem = null;
+            transactionManagerPreparer = null;
+            listenerPreparer = null;
+            exporter = null;
+            ourRemoteRef = null;
+            contents = null;
+            templates = null;
+            operationJournal = null;
+            expirationOpQueue = null;
+            recoveredTransactionManagerPreparer = null;
+            recoveredListenerPreparer = null;
+            txnTable = null;
+            leaseFactory = null;
+            entryLeasePolicy = null;
+            eventLeasePolicy = null;
+            contentsLeasePolicy = null;
+            nextLimit = 0;
+            takeLimit = 0;
+            maxUnexportDelay = 0;
+            unexportRetryDelay = 0;
+            notifier = null; 
+            templateReaperThread = null;
+            entryReaperThread = null;
+            contentsQueryReaperThread = null;
+            starter = null;
+            maxServerQueryTimeout = 0;
+        }
+    }
+    
+    public void start() throws Exception {
+        // Threads are created with login context if it exists, but started in
+        // privileged context.
+        synchronized (this){
+            if (started) return;
+            started = true;
+        }
+        if (thrown != null) throw (Error) thrown;
+        if (except != null) throw except;
+        try {
+            // This takes a while the first time, so let's get it going
+            starter.start();
+
+            // Get store from configuration
+            if (persistent) {
+                store = (Store)Config.getNonNullEntry(config,
+                                                      COMPONENT_NAME,
+                                                      "store", Store.class);
+                expirationOpQueue.start();
+            }
+            // If we have a store, recover the log
+            if (store != null) {
+                log = store.setupStore(this);
+
+                // Record this boot
+                //
+                log.bootOp(System.currentTimeMillis(), getSessionId());
+                recoverTxns();
+            } else if (activationID != null || persistent) {
+                /* else we don't have a store, if we need one complain
+                 * will be logged by constructor
+                 */
+                throw new ConfigurationException("Must provide for a " +
+                    "store for component " + COMPONENT_NAME + ", by providing " +
+                    "valid values for the store or " +
+                    PERSISTENCE_DIR_CONFIG_ENTRY + " entries if creating " +
+                    " a persistent space");
+            }
+
+            /* Now that we have recovered any store we have, create a 
+             * Uuid if there was not one in the store.
+             */
+            if (topUuid == null) {
+                topUuid = UuidFactory.generate();
+                if (log != null)
+                    log.uuidOp(topUuid);
+            }		
+
+            if (ourRemoteRef instanceof RemoteMethodControl) {
+                spaceProxy = new ConstrainableSpaceProxy2(ourRemoteRef, topUuid,
+                    maxServerQueryTimeout, null);
+                adminProxy = 
+                    new ConstrainableAdminProxy(ourRemoteRef, topUuid, null);
+                participantProxy =
+                    new ConstrainableParticipantProxy(ourRemoteRef, topUuid, null);
+            } else {
+                spaceProxy = new SpaceProxy2(ourRemoteRef, topUuid, 
+                                             maxServerQueryTimeout);
+                adminProxy = new AdminProxy(ourRemoteRef, topUuid);
+                participantProxy = new ParticipantProxy(ourRemoteRef, topUuid);
+            }
+
+            leaseFactory = new LeaseFactory(ourRemoteRef, topUuid);
+
+            /* Kick off independent threads. */
+
+            // start the JoinStateManager
+            joinStateManager.startManager(config, log, spaceProxy,
+                new ServiceID(topUuid.getMostSignificantBits(),
+                              topUuid.getLeastSignificantBits()),
+                attributesFor());
+            // Notifier uses TaskManager, which doesn't start threads until given tasks.
+            notifier = new Notifier(spaceProxy, recoveredListenerPreparer, config);
+            operationJournal.start();
+            templateReaperThread.start(); 
+            entryReaperThread.start(); 
+            contentsQueryReaperThread.start();
+        } catch (Exception e) {
+            // Clean up and rethrow.
+            lifecycleLogger.log(Level.SEVERE, "Failed to start Outrigger server", e);
+            // If we created a JoinStateManager,
+            
+            try {
+                joinStateManager.destroy();
+            } catch (Throwable t) {
+                // Ignore and go on
+            }
+            
+            if (expirationOpQueue != null)
+                expirationOpQueue.terminate();
+
+            if (txnMonitor != null) {
+                try {
+                    txnMonitor.destroy();
+                } catch (Throwable t) {
+                    // Ignore and go on
+                }
+            }
+
+            // Interrupt and join independent threads
+            if (notifier != null) {
+                try {
+                    notifier.terminate();
+                } catch (Throwable t) {
+                    // Ignore and go on
+                }
+            }
+
+            if (operationJournal != null) {
+                try {
+                    operationJournal.terminate();
+                } catch (Throwable t) {
+                    // Ignore and go on
+                }	       
+            }
+
+            unwindReaper(templateReaperThread);
+            unwindReaper(entryReaperThread);
+            unwindReaper(contentsQueryReaperThread);
+
+            // Close (but do not destroy) the store
+            if (store != null) {
+                try {
+                    store.close();
+                } catch (Throwable t) {
+                    // Ignore and go on
+                }
+            }
+            throw e;
+        } finally {
+            config = null;
+            starter = null;
+            except = null;
+            thrown = null;
+        }
+    }
+
+    private static class InitHolder {
+        ActivationID activationID;
+        TxnMonitor txnMonitor;
+        ActivationSystem activationSystem;
+        ProxyPreparer transactionManagerPreparer;
+        ProxyPreparer listenerPreparer;
+        Exporter exporter;
+        OutriggerServer ourRemoteRef;
+        EntryHolderSet contents;
+        TransitionWatchers templates;
+        OperationJournal operationJournal;
+        ExpirationOpQueue expirationOpQueue;
+        ProxyPreparer recoveredTransactionManagerPreparer;
+	ProxyPreparer recoveredListenerPreparer;
+        TxnTable txnTable;
+        LeaseFactory leaseFactory;
+        LeasePeriodPolicy entryLeasePolicy;
+        LeasePeriodPolicy eventLeasePolicy;
+        LeasePeriodPolicy contentsLeasePolicy;
+        int nextLimit;
+        int takeLimit;
+        long maxUnexportDelay;
+        long unexportRetryDelay;
+        Notifier notifier; 
+        TemplateReaper templateReaperThread;
+        EntryReaper entryReaperThread;
+        ContentsQueryReaper contentsQueryReaperThread;
+        Thread starter;
+        long maxServerQueryTimeout;
     }
 
     /**
@@ -580,238 +823,180 @@ public class OutriggerServerImpl
      *         <code>data</code>.
      * @throws ConfigurationException if the <code>Configuration</code> is 
      * malformed.  */
-    private void init(Configuration config, boolean persistent) 
+    private InitHolder init(Configuration config, 
+                        boolean persistent, 
+                        ActivationID activationID,
+                        OutriggerServerWrapper serverGate) 
     	throws IOException, ConfigurationException, ActivationException
     {
-	txnMonitor = new TxnMonitor(this, config);
+        InitHolder h = new InitHolder();
+        try {
+            h.txnMonitor = new TxnMonitor(this, config);
+            /* Get the activation related preparers we need */
 
-	/* Get the activation related preparers we need */
+            // Default do nothing preparer
+            final ProxyPreparer defaultPreparer = 
+                new net.jini.security.BasicProxyPreparer();
 
-	// Default do nothing preparer
-	final ProxyPreparer defaultPreparer = 
-	    new net.jini.security.BasicProxyPreparer();
+            if (activationID != null) {
+                final ProxyPreparer aidPreparer = 
+                    (ProxyPreparer)Config.getNonNullEntry(config,
+                        COMPONENT_NAME, "activationIdPreparer",
+                        ProxyPreparer.class, defaultPreparer);
 
-	if (activationID != null) {
-	    final ProxyPreparer aidPreparer = 
-		(ProxyPreparer)Config.getNonNullEntry(config,
-		    COMPONENT_NAME, "activationIdPreparer",
-		    ProxyPreparer.class, defaultPreparer);
-                
-	    final ProxyPreparer aSysPreparer =
-		(ProxyPreparer)Config.getNonNullEntry(config,
-		     COMPONENT_NAME, "activationSystemPreparer",
-		     ProxyPreparer.class, defaultPreparer);
+                final ProxyPreparer aSysPreparer =
+                    (ProxyPreparer)Config.getNonNullEntry(config,
+                         COMPONENT_NAME, "activationSystemPreparer",
+                         ProxyPreparer.class, defaultPreparer);
 
-	    activationID = 
-		(ActivationID)aidPreparer.prepareProxy(activationID);
-	    activationSystem =
-		(ActivationSystem)aSysPreparer.prepareProxy(
-		    ActivationGroup.getSystem());
-	}
+                h.activationID = 
+                    (ActivationID)aidPreparer.prepareProxy(h.activationID);
+                h.activationSystem =
+                    (ActivationSystem)aSysPreparer.prepareProxy(
+                        ActivationGroup.getSystem());
+            }
 
 
-	// The preparers that all outrigger's need
-	transactionManagerPreparer = 
-	    (ProxyPreparer)Config.getNonNullEntry(config, 
-		COMPONENT_NAME, "transactionManagerPreparer",
-		ProxyPreparer.class, defaultPreparer);
-
-	listenerPreparer = 
-	    (ProxyPreparer)Config.getNonNullEntry(config, 
-		COMPONENT_NAME, "listenerPreparer",
-		ProxyPreparer.class, defaultPreparer);
-
-	/* Export the server. */
-
-	// Get the exporter
-
-	/* What we use for the default (or in the default activatable case
-	 * what we make the underlying exporter).
-	 */
-	final Exporter basicExporter = 
-	    new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
-				  new BasicILFactory(), false, true);
-	if (activationID == null) {
-	    exporter = (Exporter)Config.getNonNullEntry(config,
-		COMPONENT_NAME,	"serverExporter", Exporter.class,
-		basicExporter);
-	} else {
-	    exporter = (Exporter)Config.getNonNullEntry(config, 
-		COMPONENT_NAME,	"serverExporter", Exporter.class,
-		new ActivationExporter(activationID, basicExporter),
-		activationID);
-	}
-
-	ourRemoteRef = (OutriggerServer)exporter.export(serverGate);
-
-	// Create our top level proxy
-	final long maxServerQueryTimeout =
-	    Config.getLongEntry(config, COMPONENT_NAME, 
-		"maxServerQueryTimeout", Long.MAX_VALUE, 1, Long.MAX_VALUE);
-
-	/* Initialize various fields that will be filled in during
-	 * log recovery.
-	 */
-	contents = new EntryHolderSet(this);
-	templates = new TransitionWatchers(this);
-	
-	// This takes a while the first time, so let's get it going
-	new Thread() {
-	    public void run() {
-		OutriggerServerImpl.nextID();
-	    }
-	}.start();
-
-	// Use this (trivially) in log recovery
-	operationJournal = new OperationJournal(templates);
-
-	// Needs to be null so logging is not performed
-	// while store (if any) does recovery.
-	log = null;
-
-	// Get store from configuration
-
-	if (persistent) {
-	    store = (Store)Config.getNonNullEntry(config,
-						  COMPONENT_NAME,
-						  "store", Store.class);
-
-	    /* If we have a store we need a ExpirationOpQueue and the
-	     * preparers for recovered proxies.
-	     */
-	    expirationOpQueue = new ExpirationOpQueue(this);
-	    expirationOpQueue.setDaemon(true);
-	    expirationOpQueue.start();
-
-	    recoveredTransactionManagerPreparer = 
-		(ProxyPreparer)Config.getNonNullEntry(config, 
-		    COMPONENT_NAME, "recoveredTransactionManagerPreparer", 
-		    ProxyPreparer.class, defaultPreparer);
-
-	    recoveredListenerPreparer = 
-		(ProxyPreparer)Config.getNonNullEntry(config, 
-		    COMPONENT_NAME, "recoveredListenerPreparer", 
+            // The preparers that all outrigger's need
+            h.transactionManagerPreparer = 
+                (ProxyPreparer)Config.getNonNullEntry(config, 
+                    COMPONENT_NAME, "transactionManagerPreparer",
                     ProxyPreparer.class, defaultPreparer);
-	}
 
-	/* Now that we have a recoveredTransactionManagerPreparer
-	 * (if we need one) create the TxnTable
-	 */
-	txnTable = new TxnTable(recoveredTransactionManagerPreparer);
+            h.listenerPreparer = 
+                (ProxyPreparer)Config.getNonNullEntry(config, 
+                    COMPONENT_NAME, "listenerPreparer",
+                    ProxyPreparer.class, defaultPreparer);
 
-	// If we have a store, recover the log
-	if (store != null) {
-	    log = store.setupStore(this);
-	    
-	    // Record this boot
-	    //
-	    log.bootOp(System.currentTimeMillis(), getSessionId());
-	    recoverTxns();
-	} else if (activationID != null || persistent) {
-	    /* else we don't have a store, if we need one complain
-	     * will be logged by constructor
-	     */
-	    throw new ConfigurationException("Must provide for a " +
-	        "store for component " + COMPONENT_NAME + ", by providing " +
-		"valid values for the store or " +
-	        PERSISTENCE_DIR_CONFIG_ENTRY + " entries if creating " +
-		" a persistent space");
-	}
+            /* Export the server. */
 
-	/* Now that we have recovered any store we have, create a 
-	 * Uuid if there was not one in the store.
-	 */
-	if (topUuid == null) {
-	    topUuid = UuidFactory.generate();
-	    if (log != null)
-		log.uuidOp(topUuid);
-	}		
+            // Get the exporter
 
-	if (ourRemoteRef instanceof RemoteMethodControl) {
-	    spaceProxy = new ConstrainableSpaceProxy2(ourRemoteRef, topUuid,
-		maxServerQueryTimeout, null);
-	    adminProxy = 
-		new ConstrainableAdminProxy(ourRemoteRef, topUuid, null);
-	    participantProxy =
-		new ConstrainableParticipantProxy(ourRemoteRef, topUuid, null);
-	} else {
-	    spaceProxy = new SpaceProxy2(ourRemoteRef, topUuid, 
-					 maxServerQueryTimeout);
-	    adminProxy = new AdminProxy(ourRemoteRef, topUuid);
-	    participantProxy = new ParticipantProxy(ourRemoteRef, topUuid);
-	}
+            /* What we use for the default (or in the default activatable case
+             * what we make the underlying exporter).
+             */
+            final Exporter basicExporter = 
+                new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
+                                      new BasicILFactory(), false, true);
+            if (activationID == null) {
+                h.exporter = (Exporter)Config.getNonNullEntry(config,
+                    COMPONENT_NAME,	"serverExporter", Exporter.class,
+                    basicExporter);
+            } else {
+                h.exporter = (Exporter)Config.getNonNullEntry(config, 
+                    COMPONENT_NAME,	"serverExporter", Exporter.class,
+                    new ActivationExporter(activationID, basicExporter),
+                    activationID);
+            }
 
-	leaseFactory = new LeaseFactory(ourRemoteRef, topUuid);
+            h.ourRemoteRef = (OutriggerServer)h.exporter.export(serverGate);
 
-	/* Initialize any non-persistent state we have
-	 */
+            // Create our top level proxy
+            h.maxServerQueryTimeout =
+                Config.getLongEntry(config, COMPONENT_NAME, 
+                    "maxServerQueryTimeout", Long.MAX_VALUE, 1, Long.MAX_VALUE);
 
-	// Create lease policy objects
-	entryLeasePolicy = (LeasePeriodPolicy)Config.getNonNullEntry(
-	    config, COMPONENT_NAME, "entryLeasePeriodPolicy",
-            LeasePeriodPolicy.class, 
-	    new FixedLeasePeriodPolicy(Long.MAX_VALUE, 1 * DAYS));
+            /* Initialize various fields that will be filled in during
+             * log recovery.
+             */
+            h.contents = new EntryHolderSet(this);
+            h.templates = new TransitionWatchers(this);
 
-	eventLeasePolicy = (LeasePeriodPolicy)Config.getNonNullEntry(
-	    config, COMPONENT_NAME, "eventLeasePeriodPolicy",
-	    LeasePeriodPolicy.class, 
-	    new FixedLeasePeriodPolicy(1 * HOURS, 1 * HOURS));
+            // This takes a while the first time, so let's get it going
+            h.starter = new Thread() {
+                public void run() {
+                    OutriggerServerImpl.nextID();
+                }
+            };
 
-	contentsLeasePolicy = (LeasePeriodPolicy)Config.getNonNullEntry(
-	    config, COMPONENT_NAME, "contentsLeasePeriodPolicy",
-	    LeasePeriodPolicy.class, 
-	    new FixedLeasePeriodPolicy(1 * HOURS, 1 * HOURS));
 
-	nextLimit = Config.getIntEntry(config, COMPONENT_NAME, 
-            "iteratorBatchSize", 100, 1, Integer.MAX_VALUE);
+            // Use this (trivially) in log recovery
+            h.operationJournal = new OperationJournal(h.templates);
+            h.operationJournal.setDaemon(true);
 
-	takeLimit = Config.getIntEntry(config, COMPONENT_NAME, 
-            "takeMultipleLimit", 100, 1, Integer.MAX_VALUE);
 
-	maxUnexportDelay = Config.getLongEntry(config, COMPONENT_NAME, 
-	    "maxUnexportDelay", 2 * MINUTES, 0, Long.MAX_VALUE);
+            if (persistent){
+                /* If we have a store we need a ExpirationOpQueue and the
+                 * preparers for recovered proxies.
+                 */
+                h.expirationOpQueue = new ExpirationOpQueue(this);
+                h.expirationOpQueue.setDaemon(true);
+                h.recoveredTransactionManagerPreparer = 
+                    (ProxyPreparer)Config.getNonNullEntry(config, 
+                        COMPONENT_NAME, "recoveredTransactionManagerPreparer", 
+                        ProxyPreparer.class, defaultPreparer);
 
-	unexportRetryDelay = Config.getLongEntry(config, COMPONENT_NAME, 
-	    "unexportRetryDelay", SECONDS, 1, Long.MAX_VALUE);
+                h.recoveredListenerPreparer = 
+                    (ProxyPreparer)Config.getNonNullEntry(config, 
+                        COMPONENT_NAME, "recoveredListenerPreparer", 
+                        ProxyPreparer.class, defaultPreparer);
+            }
+            /* Now that we have a recoveredTransactionManagerPreparer
+             * (if we need one) create the TxnTable
+             */
+            h.txnTable = new TxnTable(h.recoveredTransactionManagerPreparer);
 
-	/* Kick off independent threads.
-	 */
+            /* Initialize any non-persistent state we have */
 
-	// start the JoinStateManager
-	joinStateManager.startManager(config, log, spaceProxy,
-	    new ServiceID(topUuid.getMostSignificantBits(),
-			  topUuid.getLeastSignificantBits()),
-	    attributesFor());
+            // Create lease policy objects
+            h.entryLeasePolicy = (LeasePeriodPolicy)Config.getNonNullEntry(
+                config, COMPONENT_NAME, "entryLeasePeriodPolicy",
+                LeasePeriodPolicy.class, 
+                new FixedLeasePeriodPolicy(Long.MAX_VALUE, 1 * DAYS));
 
-	operationJournal.setDaemon(true);
-	operationJournal.start();
+            h.eventLeasePolicy = (LeasePeriodPolicy)Config.getNonNullEntry(
+                config, COMPONENT_NAME, "eventLeasePeriodPolicy",
+                LeasePeriodPolicy.class, 
+                new FixedLeasePeriodPolicy(1 * HOURS, 1 * HOURS));
 
-	notifier = 
-	    new Notifier(spaceProxy, recoveredListenerPreparer, config);
- 
-	final long reapingInterval = 
-	    Config.getLongEntry(config, COMPONENT_NAME,	"reapingInterval", 
-				10000, 1, Long.MAX_VALUE);
+            h.contentsLeasePolicy = (LeasePeriodPolicy)Config.getNonNullEntry(
+                config, COMPONENT_NAME, "contentsLeasePeriodPolicy",
+                LeasePeriodPolicy.class, 
+                new FixedLeasePeriodPolicy(1 * HOURS, 1 * HOURS));
 
-	final int reapingPriority = 
-	    Config.getIntEntry(config, COMPONENT_NAME,"reapingPriority", 
-		Thread.NORM_PRIORITY, Thread.MIN_PRIORITY, 
-		Thread.MAX_PRIORITY);
-                
-	templateReaperThread = new TemplateReaper(reapingInterval);
-	templateReaperThread.setPriority(reapingPriority);
-	templateReaperThread.setDaemon(true);
-	templateReaperThread.start(); 
+            h.nextLimit = Config.getIntEntry(config, COMPONENT_NAME, 
+                "iteratorBatchSize", 100, 1, Integer.MAX_VALUE);
 
-	entryReaperThread = new EntryReaper(reapingInterval);
-	entryReaperThread.setPriority(reapingPriority);
-	entryReaperThread.setDaemon(true);
-	entryReaperThread.start(); 
+            h.takeLimit = Config.getIntEntry(config, COMPONENT_NAME, 
+                "takeMultipleLimit", 100, 1, Integer.MAX_VALUE);
 
-	contentsQueryReaperThread = new ContentsQueryReaper(reapingInterval);
-	contentsQueryReaperThread.setPriority(reapingPriority);
-	contentsQueryReaperThread.setDaemon(true);
-	contentsQueryReaperThread.start();
+            h.maxUnexportDelay = Config.getLongEntry(config, COMPONENT_NAME, 
+                "maxUnexportDelay", 2 * MINUTES, 0, Long.MAX_VALUE);
+
+            h.unexportRetryDelay = Config.getLongEntry(config, COMPONENT_NAME, 
+                "unexportRetryDelay", SECONDS, 1, Long.MAX_VALUE);
+
+
+            // Create threads but don't start.
+            final long reapingInterval = 
+                Config.getLongEntry(config, COMPONENT_NAME,	"reapingInterval", 
+                                    10000, 1, Long.MAX_VALUE);
+
+            final int reapingPriority = 
+                Config.getIntEntry(config, COMPONENT_NAME,"reapingPriority", 
+                    Thread.NORM_PRIORITY, Thread.MIN_PRIORITY, 
+                    Thread.MAX_PRIORITY);
+
+            h.templateReaperThread = new TemplateReaper(reapingInterval);
+            h.templateReaperThread.setPriority(reapingPriority);
+            h.templateReaperThread.setDaemon(true);
+            h.entryReaperThread = new EntryReaper(reapingInterval);
+            h.entryReaperThread.setPriority(reapingPriority);
+            h.entryReaperThread.setDaemon(true);
+            h.contentsQueryReaperThread = new ContentsQueryReaper(reapingInterval);
+            h.contentsQueryReaperThread.setPriority(reapingPriority);
+            h.contentsQueryReaperThread.setDaemon(true);
+            return h;
+        } catch (IOException e) {
+            unwindExporter(h.ourRemoteRef, h.exporter);
+            throw e;
+        } catch (ConfigurationException e){
+            unwindExporter(h.ourRemoteRef, h.exporter);
+            throw e;
+        } catch (ActivationException e){
+            unwindExporter(h.ourRemoteRef, h.exporter);
+            throw e;
+        }
     }
 
     /**
@@ -827,64 +1012,18 @@ public class OutriggerServerImpl
 
 	lifecycleLogger.log(Level.SEVERE, 
 	    "exception encountered while (re)starting server", cause);
-
-	// If we created a JoinStateManager,
-	try {
-	    joinStateManager.destroy();
-	} catch (Throwable t) {
-	    // Ignore and go on
-	}
-
-	// If we exported, unexport, use force=true since no calls we
-	// care about should be in progress.
-	if (ourRemoteRef != null) {
-	    try {
-		exporter.unexport(true);
-	    } catch (Throwable t) {
-		// Ignore and go on
-	    }
-	}
-
-	if (expirationOpQueue != null)
-	    expirationOpQueue.terminate();
-
-	if (txnMonitor != null) {
-	    try {
-		txnMonitor.destroy();
-	    } catch (Throwable t) {
-		// Ignore and go on
-	    }
-	}
-
-	// Interrupt and join independent threads
-	if (notifier != null) {
-	    try {
-		notifier.terminate();
-	    } catch (Throwable t) {
-		// Ignore and go on
-	    }
-	}
-
-	if (operationJournal != null) {
-	    try {
-		operationJournal.terminate();
-	    } catch (Throwable t) {
-		// Ignore and go on
-	    }	       
-	}
-
-	unwindReaper(templateReaperThread);
-	unwindReaper(entryReaperThread);
-	unwindReaper(contentsQueryReaperThread);
-
-	// Close (but do not destroy) the store
-	if (store != null) {
-	    try {
-		store.close();
-	    } catch (Throwable t) {
-		// Ignore and go on
-	    }
-	}
+    }
+    
+    private void unwindExporter(OutriggerServer os, Exporter e){
+        // If we exported, unexport, use force=true since no calls we
+            // care about should be in progress.
+            if (os != null) {
+                try {
+                    e.unexport(true);
+                } catch (Throwable t) {
+                    // Ignore and go on
+                }
+            }
     }
 
     /** Kill the given reaper as quickly and quietly */
@@ -907,7 +1046,7 @@ public class OutriggerServerImpl
      */
     private void recoverTxns() {
 
-	if (recoveredTxns == null)
+	if (recoveredTxns.isEmpty())
 	    return;
 
 	// Only PREPARED transactions are recovered. Since the txn
@@ -924,11 +1063,11 @@ public class OutriggerServerImpl
 	// Monitor all of the pending transactions
 	//
 	monitor(values);
-	recoveredTxns = null;		// done with this list
+	recoveredTxns.clear();		// done with this list
     }
 
     long getSessionId() {
-	return sessionId;
+	return sessionId.get();
     }
 
     /**
@@ -3319,9 +3458,9 @@ public class OutriggerServerImpl
      * @see LogOps#bootOp
      */  
     public void recoverSessionId(long sessionId) {
-	long    bumpValue = Integer.MAX_VALUE;
+            long    bumpValue = Integer.MAX_VALUE;
 
-	this.sessionId = sessionId + bumpValue;
+            this.sessionId.addAndGet(bumpValue);
     }    
 
     public void recoverJoinState(StoredObject state) throws Exception {
@@ -3357,10 +3496,6 @@ public class OutriggerServerImpl
     {
 	Txn txn = new Txn(txnId.longValue());
 	transaction.restore(txn);
-
-	if (recoveredTxns == null)
-	    recoveredTxns = new HashMap();
-
 	recoveredTxns.put(txnId, txn);
     }
 
@@ -3369,7 +3504,7 @@ public class OutriggerServerImpl
 	    return null;
 
 	Txn txn;
-	if((recoveredTxns == null) || 
+	if((recoveredTxns.isEmpty()) || 
 	   ((txn = (Txn)recoveredTxns.get(txnId)) == null))
 	    throw new InternalSpaceException("recover of write/take with " +
 					     "unknown txnId" );
