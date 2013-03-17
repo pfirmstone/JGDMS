@@ -57,7 +57,7 @@ public class NotifyCounter
     protected volatile long leaseTime;
 
     /** number of events */
-    private volatile long maxEvNum;
+    private long maxEvNum;
 
     /** the proxy */
     private final Object proxy;
@@ -136,7 +136,7 @@ public class NotifyCounter
      *
      * @return Current event's number.
      */
-    public long getEventsNum(EventRegistration reg) {
+    public synchronized long getEventsNum(EventRegistration reg) {
         return (maxEvNum - reg.getSequenceNumber());
     }
 
