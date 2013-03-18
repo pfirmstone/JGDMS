@@ -49,8 +49,8 @@ public class LeasedSpaceListener
     implements RemoteEventListener, ServerProxyTrust, Serializable
 {
     private static Logger logger = Logger.getLogger("com.sun.jini.qa.harness");
-    public boolean received = false;
-    private Object proxy;
+    private boolean received = false;
+    private final Object proxy;
 
     public LeasedSpaceListener(Configuration c) throws RemoteException {
 	try {
@@ -80,5 +80,19 @@ public class LeasedSpaceListener
 	logger.log(Level.FINEST, "notify called at " + (new java.util.Date()));
         received = true;
         this.notifyAll();
+    }
+
+    /**
+     * @return the received
+     */
+    public synchronized boolean isReceived() {
+        return received;
+    }
+
+    /**
+     * @param received the received to set
+     */
+    public synchronized void setReceived(boolean received) {
+        this.received = received;
     }
 }

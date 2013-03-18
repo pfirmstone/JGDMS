@@ -44,8 +44,8 @@ import com.sun.jini.test.share.UninterestingEntry;
  */
 public class UseTxnMgrSpaceLeaseTest extends LeaseUsesTestBase {
     final private Entry aEntry = new UninterestingEntry();
-    private Transaction resource;
-    private JavaSpace space;
+    private volatile Transaction resource;
+    private volatile JavaSpace space;
 
     protected Lease acquireResource() throws TestException {
         specifyServices(new Class[] {

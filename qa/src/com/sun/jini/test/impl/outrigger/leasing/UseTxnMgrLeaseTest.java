@@ -47,7 +47,7 @@ import com.sun.jini.test.share.UninterestingEntry;
  */
 public class UseTxnMgrLeaseTest extends LeaseUsesTestBase {
     final private Entry aEntry = new UninterestingEntry();
-    private ServerTransaction resource;
+    private volatile ServerTransaction resource;
 
     protected Lease acquireResource() throws TestException {
         specifyServices(new Class[] {

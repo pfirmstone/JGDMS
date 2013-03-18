@@ -39,7 +39,7 @@ import com.sun.jini.test.share.UninterestingEntry;
  * Tests binding between leases and entry in JavaSpaces.
  */
 public class UserSpaceLeaseTest extends LeaseUsesTestBase {
-    private Entry resource;
+    private volatile Entry resource;
 
     protected Lease acquireResource() throws TestException {
         specifyServices(new Class[] {

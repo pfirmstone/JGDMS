@@ -2237,7 +2237,7 @@ public class OutriggerServerImpl
 	 * is scanning the list, it may arrive after getMatch has
 	 * passed that point in the list.  By capturing the last
 	 * current element operationJournal and searching forward from
-	 * their after we do the first traversal we can make sure that 
+	 * there after we do the first traversal, we can make sure that 
 	 * we get any entries the initial search missed
 	 */
 	final OperationJournal.TransitionIterator transitionIterator =

@@ -100,7 +100,7 @@ class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
     /**
      * Maximum time any sub-query should be allowed to run for.
      */
-    private transient long maxServerQueryTimeout;
+    private transient volatile long maxServerQueryTimeout;
     
 
     /**

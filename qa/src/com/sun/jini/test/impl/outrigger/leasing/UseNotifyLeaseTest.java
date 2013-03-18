@@ -100,14 +100,12 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
     private final AtomicInteger count = new AtomicInteger();
 
     protected boolean isAvailable() throws TestException {
-        boolean bReturn = false;
-
         try {
 	    logger.log(Level.FINEST, "Writing entry {0}", count.getAndIncrement());
             LeasedSpaceListener listener = this.listener;
             JavaSpace space = this.space;
             synchronized (listener) { // Can't synchronize on volatile field.
-                listener.received = false;
+                listener.setReceived(false);
 
                 /*
                  * Important to have the write inside the
@@ -115,14 +113,21 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
                  * listener.received transtion from false->true
                  */
                 addOutriggerLease(space.write(aEntry, null, Lease.ANY), false);
-		logger.log(Level.FINEST, "Waiting for listener to be called at {0}", (new java.util.Date()));
-                listener.wait(callbackWait);
-		logger.log(Level.FINEST, "Wait done at {0}, received = {1}", new Object[]{new java.util.Date(), listener.received});
-                bReturn = listener.received;
+                /* Check for spurious wakeup */
+                long startTime = System.currentTimeMillis();
+                long finishTime = startTime + callbackWait;
+                while (System.currentTimeMillis() < finishTime) {
+                    logger.log(Level.FINEST, "Waiting for listener to be called at {0}", (new java.util.Date()));
+                    listener.wait(callbackWait);
+                    if (listener.isReceived()){
+                        logger.log(Level.FINEST, "Wait done at {0}, received = {1}", new Object[]{new java.util.Date(), listener.isReceived()});
+                        return true;
+                    }
+                }
             }
         } catch (Exception e) {
             throw new TestException("Testing for availability", e);
         }
-        return bReturn;
+        return false;
     }
 }
