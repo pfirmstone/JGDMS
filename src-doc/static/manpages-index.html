@@ -94,11 +94,12 @@ specifics for services, utilities, and tools.
 <H2>Infrastructure</H2>
 <ul>
 <li><a href="api/org/apache/river/api/security/package-summary.html">Apache River's
-        Security Extensions</a>
+        Security Extensions</a> - A scalable SecurityManager and ConcurrentPolicyFile
+        solve long standing performance issues in distributed environments.
 <li><a href="api/org/apache/river/api/io/package-summary.html">Distributed objects</a>
     - an extension of the Serialization protocol, Distributed objects are themselves
     not Serialized, instead only instructions for recreating an object remotely 
-    using reflection are marshalled.  This allows Distributed objects to utilised
+    using reflection are Marshalled.  This allows Distributed objects to utilised
     public api methods for construction, avoid publishing their internal state 
     and to be immutable and safely constructed with invariants checked or 
     defensively copied using final fields.

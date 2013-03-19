@@ -242,13 +242,13 @@ public class Unexport_BehaviorTest extends AbstractTestBase {
     class Unexporter extends Thread {
 
         /** JrmpExporter which unexport method will be invoked */
-        JrmpExporter jExp;
+        final JrmpExporter jExp;
 
         /** Value of parameter for unexport method invocation */
-        boolean val;
+        final boolean val;
 
         /** Result of unexport method invocation */
-        boolean res;
+        volatile boolean res;
 
         /**
          * Constructor which initialize fields of the class.

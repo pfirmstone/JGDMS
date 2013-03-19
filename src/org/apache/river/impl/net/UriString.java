@@ -146,6 +146,8 @@ public class UriString {
      * encoded, since they are legal and in case the string already
      * contains escaped characters.  The percent character must be encoded
      * manually prior to calling this method.
+     * <p>
+     * No normalisation or platform specific changes are performed.
      * 
      * @param str
      * @return
@@ -218,9 +220,9 @@ public class UriString {
     /**
      * Normalises a URI, eliminating pathname symbols, in addition
      * to normalisation compliant with RFC3986 this method, uses platform specific
-     * canonical file path for "file" scheme URIs, then normalises using
-     * RFC3986 rules.
-     * 
+     * canonical file path for "file" scheme URIs, followed by normalisation using
+     * RFC3986 rules by calling {@link UriString#normalisation(java.net.URI)}.
+     * <p>
      * This minimises false negatives for URI equals and policy based URI
      * comparison.
      * 
@@ -283,7 +285,12 @@ public class UriString {
     
     /**
      * Normalisation of URI for comparison in compliance with RFC 3986 Section 6,
-     * without regard for platform specific dependencies.
+     * without regard for platform specific dependencies for, scheme, host and path
+     * components.
+     * 
+     * This method does not perform escaping of illegal characters, instead characters
+     * that shouldn't be escaped are un-escaped and case and formats are 
+     * changed to conform with RFC3986 where applicable.
      * 
      * @param uri  to be normalised.
      * @return URI in normalised from for comparison.
@@ -498,14 +505,14 @@ public class UriString {
         }
         // TODO: query and fragment normalisation.
         try {
-            return new URI(scheme, uri.getRawUserInfo(), host, uri.getPort(), path, uri.getQuery(), uri.getFragment());
+            return new URI(scheme, uri.getUserInfo(), host, uri.getPort(), path, uri.getQuery(), uri.getFragment());
         } catch (URISyntaxException e){
             //Somethings gone horribly wrong!  Normalisation failed.
             logger.log(Level.SEVERE, "Normalisation failed: {0}", e.getMessage());
             return uri;
         }
     }
-    
+        
     
     private static void processLatin(){
         /*  Complete list of Unicode Latin possible to represent with percentage encoding.*/

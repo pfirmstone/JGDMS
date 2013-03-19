@@ -92,7 +92,8 @@ public class UriStringTest {
         URI url = new URI("HTTP://river.apache.ORG/foo%7ebar/file%3clib");
         URI expResult = new URI("http://river.apache.org/foo~bar/file%3Clib");
         URI result = UriString.normalisation(url);
-        assertEquals(expResult.toString(), result.toString());
+        assertEquals(expResult, result);
+        assertEquals(result.toString(), "http://river.apache.org/foo~bar/file%3Clib");
     }
     
     @Test
