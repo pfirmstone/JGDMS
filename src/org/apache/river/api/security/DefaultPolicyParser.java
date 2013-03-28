@@ -22,6 +22,7 @@
 
 package org.apache.river.api.security;
 
+import org.apache.river.impl.Messages;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import org.apache.river.impl.net.UriString;

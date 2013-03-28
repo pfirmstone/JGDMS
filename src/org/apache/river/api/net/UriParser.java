@@ -14,33 +14,23 @@
  *  See the License for the specific language governing permissions and
  *  limitations under the License.
  */
-
-package org.apache.river.impl.net;
+package org.apache.river.api.net;
 
 import java.io.File;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.StringTokenizer;
+import org.apache.river.impl.Messages;
 
 /**
- * Utility that escapes illegal characters in URI strings according to RFC3986
- * January 2005 as well as converting MS Windows file absolute path strings to URI compliant 
- * syntax.
- * 
- * @author Peter Firmstone.
+ *
+ * @author peter
  */
-public class UriString {
+final class UriParser {
     
-    private static Logger logger = Logger.getLogger("org.apache.river.impl.net");
     private static final char [] latin = new char[256];
     private static final String [] latinEsc = new String[256];
-    
-    // prevents instantiation.
-    private UriString(){};
-    
     private final static Map<String, Character> unreserved = new HashMap<String, Character>(66); // To be unescaped during normalisation.
     
     /* 2.1.  Percent-Encoding
@@ -104,24 +94,26 @@ public class UriString {
     
     private static void processUnreserved(){
         int l = lowalpha.length;
-        for (int i = 0; i < l; i++){
-            int n = index(latin, lowalpha[i]);
-            unreserved.put(String.valueOf(latinEsc[i]), Character.valueOf(lowalpha[i]));
+        for (int i = 0, n = 97; i < l; i++, n++){
+            unreserved.put(String.valueOf(latinEsc[n]), Character.valueOf(lowalpha[i]));
         }
         l = upalpha.length;
-        for (int i = 0; i < l; i++){
-            int n = index(latin, upalpha[i]);
-            unreserved.put(String.valueOf(latinEsc[i]), Character.valueOf(upalpha[i]));
+        for (int i = 0, n = 65; i < l; i++, n++){
+            unreserved.put(String.valueOf(latinEsc[n]), Character.valueOf(upalpha[i]));
         }
         l = numeric.length;
-        for (int i = 0; i < l; i++){
-            int n = index(latin, numeric[i]);
-            unreserved.put(String.valueOf(latinEsc[i]), Character.valueOf(numeric[i]));
+        for (int i = 0, n = 48; i < l; i++, n++){
+            unreserved.put(String.valueOf(latinEsc[n]), Character.valueOf(numeric[i]));
         }
         l = unres_punct.length;
         for (int i = 0; i < l; i++){
             int n = index(latin, unres_punct[i]);
-            unreserved.put(String.valueOf(latinEsc[i]), Character.valueOf(unres_punct[i]));
+            unreserved.put(String.valueOf(latinEsc[n]), Character.valueOf(unres_punct[i]));
+        }
+        l = schemeEx.length;
+        for (int i = 0; i < l; i++){
+            int n = index(latin, schemeEx[i]);
+            unreserved.put(String.valueOf(latinEsc[n]), Character.valueOf(schemeEx[i]));
         }
     } 
     
@@ -216,303 +208,6 @@ public class UriString {
         }
         return uri;
     }
-    
-    /**
-     * Normalises a URI, eliminating pathname symbols, in addition
-     * to normalisation compliant with RFC3986 this method, uses platform specific
-     * canonical file path for "file" scheme URIs, followed by normalisation using
-     * RFC3986 rules by calling {@link UriString#normalisation(java.net.URI)}.
-     * <p>
-     * This minimises false negatives for URI equals and policy based URI
-     * comparison.
-     * 
-     * @param codebase - the original URI.
-     * @return - the normalised URI.
-     * @throws URISyntaxException  
-     */
-    public static URI normalise(URI codebase) throws URISyntaxException {
-        if (codebase == null) return null;
-        String scheme = codebase.getScheme();
-        if (scheme != null) scheme = scheme.toLowerCase();
-        if ("file".equals(scheme)) { //$NON-NLS-1$
-            if (codebase.getHost() == null || codebase.getHost().isEmpty()) {
-                String path = codebase.getPath();
-                String forwardSlash = "/";
-                if (path == null || path.length() == 0) {
-                    // codebase is "file:"
-                    path = "*";
-                }
-                // Ensure compatibility with URLClassLoader, when directory
-                // character is dropped by File.
-                boolean directory = false;
-                if (path.endsWith(forwardSlash)) directory = true;
-                path = new File(path).getAbsolutePath();
-                if (directory) {
-                    if (! (path.endsWith(File.pathSeparator))){
-                        path = path + File.pathSeparator;
-                    }
-                }
-                return normalisation(filePathToURI(path));
-            } else {
-                // codebase is "file://<smth>"
-                return normalisation(codebase);
-            }
-        }
-        return normalisation(codebase);
-    }
-
-    /**
-     * Converts a file path to URI without accessing file system
-     * (like {File#toURI()} does).
-     * 
-     * @param path -
-     *            file path.
-     * @return - the resulting URI.
-     * @throw URISyntaxException
-     */
-    private static URI filePathToURI(String path) throws URISyntaxException {
-        if (File.separatorChar == '\\') {
-            path = path.replace(File.separatorChar, '/');
-            path = path.toUpperCase(); // Windows path must be CAPITALISED during normalisation.
-        }
-        if (!path.startsWith("/")) { //$NON-NLS-1$
-            return new URI("file", null, //$NON-NLS-1$
-                    new StringBuilder(path.length() + 1).append('/')
-                            .append(path).toString(), null, null);
-        }
-        return new URI("file", null, path, null, null); //$NON-NLS-1$
-    }
-    
-    /**
-     * Normalisation of URI for comparison in compliance with RFC 3986 Section 6,
-     * without regard for platform specific dependencies for, scheme, host and path
-     * components.
-     * 
-     * This method does not perform escaping of illegal characters, instead characters
-     * that shouldn't be escaped are un-escaped and case and formats are 
-     * changed to conform with RFC3986 where applicable.
-     * 
-     * @param uri  to be normalised.
-     * @return URI in normalised from for comparison.
-     * @throws URISyntaxException  
-     */
-    public static URI normalisation(URI uri) throws URISyntaxException {
-        if (uri == null) return null;
-        // Use URI normailze to remove path dot segments etc.
-        uri = uri.normalize();
-        String scheme = uri.getScheme();
-        char [] esc = new char[3]; // container for escape character string.
-        /* Section 3.1 Scheme
-         * Each URI begins with a scheme name that refers to a specification for
-         * assigning identifiers within that scheme.  As such, the URI syntax is
-         * a federated and extensible naming system wherein each scheme's
-         * specification may further restrict the syntax and semantics of
-         * identifiers using that scheme.
-         * 
-         * Scheme names consist of a sequence of characters beginning with a
-         * letter and followed by any combination of letters, digits, plus
-         * ("+"), period ("."), or hyphen ("-").  Although schemes are case-
-         * insensitive, the canonical form is lowercase and documents that
-         * specify schemes must do so with lowercase letters.  An implementation
-         * should accept uppercase letters as equivalent to lowercase in scheme
-         * names (e.g., allow "HTTP" as well as "http") for the sake of
-         * robustness but should only produce lowercase scheme names for
-         * consistency.
-         * 
-         *   scheme      = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
-         * 
-         * Individual schemes are not specified by this document.  The process
-         * for registration of new URI schemes is defined separately by [BCP35].
-         * The scheme registry maintains the mapping between scheme names and
-         * their specifications.  Advice for designers of new URI schemes can be
-         * found in [RFC2718].  URI scheme specifications must define their own
-         * syntax so that all strings matching their scheme-specific syntax will
-         * also match the <absolute-URI> grammar, as described in Section 4.3.
-         * 
-         * When presented with a URI that violates one or more scheme-specific
-         * restrictions, the scheme-specific resolution process should flag the
-         * reference as an error rather than ignore the unused parts; doing so
-         * reduces the number of equivalent URIs and helps detect abuses of the
-         * generic syntax, which might indicate that the URI has been
-         * constructed to mislead the user (Section 7.6).
-         * 
-         */
-        if (scheme != null){
-            scheme = scheme.toLowerCase();
-            char [] scm = scheme.toCharArray();
-            int l = scm.length;
-            for (int i = 0; i < l; i++){
-                if (index(lowalpha, scm[i]) < 0 &&
-                        index(numeric, scm[i]) < 0 &&
-                        index(schemeEx, scm[i]) < 0){
-                    throw new URISyntaxException(scheme, "Scheme contains illegal character at index " + i);
-                }
-            }
-        }
-        /* Section 3.2.2.  Host
-         * 
-         * The host subcomponent of authority is identified by an IP literal
-         * encapsulated within square brackets, an IPv4 address in dotted-
-         * decimal form, or a registered name.  The host subcomponent is case-
-         * insensitive.  The presence of a host subcomponent within a URI does
-         * not imply that the scheme requires access to the given host on the
-         * Internet.  In many cases, the host syntax is used only for the sake
-         * of reusing the existing registration process created and deployed for
-         * DNS, thus obtaining a globally unique name without the cost of
-         * deploying another registry.  However, such use comes with its own
-         * costs: domain name ownership may change over time for reasons not
-         * anticipated by the URI producer.  In other cases, the data within the
-         * host component identifies a registered name that has nothing to do
-         * with an Internet host.  We use the name "host" for the ABNF rule
-         * because that is its most common purpose, not its only purpose.
-         * 
-         *    host        = IP-literal / IPv4address / reg-name
-         * 
-         * The syntax rule for host is ambiguous because it does not completely
-         * distinguish between an IPv4address and a reg-name.  In order to
-         * disambiguate the syntax, we apply the "first-match-wins" algorithm:
-         * If host matches the rule for IPv4address, then it should be
-         * considered an IPv4 address literal and not a reg-name.  Although host
-         * is case-insensitive, producers and normalizers should use lowercase
-         * for registered names and hexadecimal addresses for the sake of
-         * uniformity, while only using uppercase letters for percent-encodings.
-         * 
-         * A host identified by an Internet Protocol literal address, version 6
-         * [RFC3513] or later, is distinguished by enclosing the IP literal
-         * within square brackets ("[" and "]").  This is the only place where
-         * square bracket characters are allowed in the URI syntax.
-         */
-        String host = uri.getHost();
-        if (host != null){
-            
-            char [] hos = host.toCharArray();
-            int l = hos.length;
-            StringBuilder sb = new StringBuilder(l + 12);
-            int escIndex = -1;
-            for (int i = 0; i < l; i++){
-                /* First check if escape is an unreserved character, if so
-                 * decode it, otherwise, change escape sequence to upper case.
-                 */
-                if (hos[i] == escape){
-                    // Although java.net.URI prohibits escape characters in
-                    // host, it may change in future if updated for compliance.
-                    esc[0] = hos[i];
-                    esc[1] = hos[i+1];
-                    esc[2] = hos[i+2];
-                    String e = new String(esc).toUpperCase();
-                    Character c = unreserved.get(e);
-                    if (c != null){
-                        sb.append(c);
-                        i = i+2;
-                        continue;
-                    }
-                    sb.append(hos[i]);
-                    escIndex = i;
-                    continue;
-                } 
-                if (escIndex > -1 && i > escIndex && i < escIndex + 3 ){
-                    if (index(numeric, hos[i]) > -1) {
-                        sb.append(hos[i]);
-                        continue;
-                    }
-                    if (index(upalpha, hos[i]) > -1){
-                        sb.append(hos[i]);
-                        continue;
-                    }
-                    int n = index(lowalpha, hos[i]);
-                    if (n > -1){
-                        sb.append(upalpha[n]);
-                        continue;
-                    }
-                    throw new URISyntaxException(host, "host contains escaped sequence that has an illegal character at index " + i);
-                }
-                int n = index(upalpha, hos[i]);
-                if (n > -1) {
-                    sb.append(lowalpha[n]);
-                    continue;
-                }
-                // Since this is normalisation of an existing URI, lets assume
-                // character is legal.
-                sb.append(hos[i]);
-            }
-            host = sb.toString();
-        }
-        /* Section 3.3.  Path
-         * 
-         * If a URI contains an authority component, then the path component
-         * must either be empty or begin with a slash ("/") character.  If a URI
-         * does not contain an authority component, then the path cannot begin
-         * with two slash characters ("//").  In addition, a URI reference
-         * (Section 4.1) may be a relative-path reference, in which case the
-         * first path segment cannot contain a colon (":") character.
-         */
-        String authority = uri.getAuthority();
-        String path = uri.getPath();
-        if (path != null && !path.equals("") ){
-            if (authority != null){
-                if ( !path.startsWith("/")) path = '/' + path;
-            } else {
-                if ( path.startsWith("//") && !path.startsWith("///")) 
-                    throw new URISyntaxException(path, "Path cannot start with two slash characters becuause Authority component is null");
-            }
-            // REMIND: Check for relative path and make sure the first path segment doesn't contain ":"
-            char [] pth = path.toCharArray();
-            int l = pth.length;
-            StringBuilder sb = new StringBuilder(l);
-            int escIndex = -1;
-            for (int i = 0; i < l; i++){
-                /* First check if escape is an unreserved character, if so
-                 * decode it, otherwise, change escape sequence to upper case.
-                 */
-                if (pth[i] == escape){
-                    // Although java.net.URI prohibits escape characters in
-                    // host, it may change in future if updated for compliance.
-                    esc[0] = pth[i];
-                    esc[1] = pth[i+1];
-                    esc[2] = pth[i+2];
-                    String e = new String(esc).toUpperCase();
-                    Character c = unreserved.get(e);
-                    if (c != null){
-                        sb.append(c);
-                        i = i+2;
-                        continue;
-                    }
-                    sb.append(pth[i]);
-                    escIndex = i;
-                    continue;
-                } 
-                if (escIndex > -1 && i > escIndex && i < escIndex + 3 ){
-                    if (index(numeric, pth[i]) > -1) {
-                        sb.append(pth[i]);
-                        continue;
-                    }
-                    if (index(upalpha, pth[i]) > -1){
-                        sb.append(pth[i]);
-                        continue;
-                    }
-                    int n = index(lowalpha, pth[i]);
-                    if (n > -1){
-                        sb.append(upalpha[n]);
-                        continue;
-                    }
-                    throw new URISyntaxException(path, "path contains escaped sequence that has an illegal character at index " + i);
-                }
-                // Since this is normalisation of an existing URI, lets assume
-                // character is legal.
-                sb.append(pth[i]);
-            }
-            path = sb.toString();
-        }
-        // TODO: query and fragment normalisation.
-        try {
-            return new URI(scheme, uri.getUserInfo(), host, uri.getPort(), path, uri.getQuery(), uri.getFragment());
-        } catch (URISyntaxException e){
-            //Somethings gone horribly wrong!  Normalisation failed.
-            logger.log(Level.SEVERE, "Normalisation failed: {0}", e.getMessage());
-            return uri;
-        }
-    }
-        
     
     private static void processLatin(){
         /*  Complete list of Unicode Latin possible to represent with percentage encoding.*/
@@ -1290,5 +985,476 @@ public class UriString {
         latin[255] = '\u00FF';
         latinEsc[255] = "%FF";
     }
-}
+    
+    String string;
+    String scheme;
+    String schemespecificpart;
+    String authority;
+    String userinfo;
+    String host;
+    int port = -1;
+    String path;
+    String query;
+    String fragment;
+    boolean opaque;
+    boolean absolute;
+    boolean serverAuthority = false;
+    int hash = -1;
 
+    void parseURI(String uri, boolean forceServer) throws URISyntaxException {
+        char fSlash = '/';
+        StringBuilder temp = new StringBuilder(uri);
+        // assign uri string to the input value per spec
+        string = uri;
+        int index;
+        int index1;
+        int index2;
+        int index3;
+        // parse into Fragment, Scheme, and SchemeSpecificPart
+        // then parse SchemeSpecificPart if necessary
+        // Fragment
+        index = temp.indexOf("#");
+        if (index != -1) {
+            // remove the fragment from the end
+            fragment = temp.substring(index + 1);
+            validateFragment(uri, fragment, index + 1);
+            //                temp = temp.substring(0, index);
+            temp.delete(index, temp.length());
+        }
+        // Scheme and SchemeSpecificPart
+        index = index1 = temp.indexOf(":");
+        index2 = temp.indexOf("/");
+        index3 = temp.indexOf("?");
+        // if a '/' or '?' occurs before the first ':' the uri has no
+        // specified scheme, and is therefore not absolute
+        if (index != -1 && (index2 >= index || index2 == -1) && (index3 >= index || index3 == -1)) {
+            // the characters up to the first ':' comprise the scheme
+            absolute = true;
+            scheme = temp.substring(0, index);
+            if (scheme.length() == 0) {
+                throw new URISyntaxException(uri, Messages.getString("luni.83"), index);
+            }
+            validateScheme(uri, scheme, 0);
+            schemespecificpart = temp.substring(index + 1);
+            if (schemespecificpart.length() == 0) {
+                throw new URISyntaxException(uri, Messages.getString("luni.84"), index + 1);
+            }
+        } else {
+            absolute = false;
+            schemespecificpart = temp.toString();
+        }
+        if (scheme == null || schemespecificpart.length() > 0 && schemespecificpart.charAt(0) == fSlash) {
+            opaque = false;
+            // the URI is hierarchical
+            // Query
+            temp.delete(0, temp.length());
+            temp.append(schemespecificpart);
+            index = temp.indexOf("?");
+            if (index != -1) {
+                query = temp.substring(index + 1);
+                temp.delete(index, temp.length());
+                validateQuery(uri, query, index2 + 1 + index);
+            }
+            // Authority and Path
+            if (temp.length() >= 2 && temp.charAt(0) == fSlash && temp.charAt(1) == fSlash) {
+                //$NON-NLS-1$
+                index = temp.indexOf("/", 2);
+                if (index != -1) {
+                    authority = temp.substring(2, index);
+                    path = temp.substring(index);
+                } else {
+                    authority = temp.substring(2);
+                    if (authority.length() == 0 && query == null && fragment == null) {
+                        throw new URISyntaxException(uri, Messages.getString("luni.9F"), uri.length()); //$NON-NLS-1$
+                    }
+                    path = ""; //$NON-NLS-1$
+                    // nothing left, so path is empty (not null, path should
+                    // never be null)
+                }
+                if (authority.length() == 0) {
+                    authority = null;
+                } else {
+                    validateAuthority(uri, authority, index1 + 3);
+                }
+            } else {
+                // no authority specified
+                path = temp.toString();
+            }
+            int pathIndex = 0;
+            if (index2 > -1) {
+                pathIndex += index2;
+            }
+            if (index > -1) {
+                pathIndex += index;
+            }
+            validatePath(uri, path, pathIndex);
+        } else {
+            // if not hierarchical, URI is opaque
+            opaque = true;
+            validateSsp(uri, schemespecificpart, index2 + 2 + index);
+        }
+        parseAuthority(forceServer);
+    }
+
+    private void validateScheme(String uri, String scheme, int index) throws URISyntaxException {
+        // first char needs to be an alpha char
+        char ch = scheme.charAt(0);
+        if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z'))) {
+            throw new URISyntaxException(uri, Messages.getString("luni.85"), 0); //$NON-NLS-1$
+        }
+        try {
+            URIEncoderDecoder.validateSimple(scheme, "+-."); //$NON-NLS-1$
+        } catch (URISyntaxException e) {
+            throw new URISyntaxException(uri, Messages.getString("luni.85"), index + e.getIndex());
+        }
+    }
+
+    private void validateSsp(String uri, String ssp, int index) throws URISyntaxException {
+        try {
+            URIEncoderDecoder.validate(ssp, Uri.allLegal);
+        } catch (URISyntaxException e) {
+            throw new URISyntaxException(uri, Messages.getString("luni.86", e.getReason()), index + e.getIndex());
+        }
+    }
+
+    private void validateAuthority(String uri, String authority, int index) throws URISyntaxException {
+        try {
+            URIEncoderDecoder.validate(authority, "@[]" + Uri.someLegal); //$NON-NLS-1$
+        } catch (URISyntaxException e) {
+            throw new URISyntaxException(uri, Messages.getString("luni.87", e.getReason()), index + e.getIndex());
+        }
+    }
+
+    private void validatePath(String uri, String path, int index) throws URISyntaxException {
+        try {
+            URIEncoderDecoder.validate(path, "/@" + Uri.someLegal); //$NON-NLS-1$
+        } catch (URISyntaxException e) {
+            throw new URISyntaxException(uri, Messages.getString("luni.88", e.getReason()), index + e.getIndex());
+        }
+    }
+
+    private void validateQuery(String uri, String query, int index) throws URISyntaxException {
+        try {
+            URIEncoderDecoder.validate(query, Uri.queryLegal);
+        } catch (URISyntaxException e) {
+            throw new URISyntaxException(uri, Messages.getString("luni.89", e.getReason()), index + e.getIndex());
+        }
+    }
+
+    private void validateFragment(String uri, String fragment, int index) throws URISyntaxException {
+        try {
+            URIEncoderDecoder.validate(fragment, Uri.allLegal);
+        } catch (URISyntaxException e) {
+            throw new URISyntaxException(uri, Messages.getString("luni.8A", e.getReason()), index + e.getIndex());
+        }
+    }
+
+    /**
+     * determine the host, port and userinfo if the authority parses
+     * successfully to a server based authority
+     *
+     * behaviour in error cases: if forceServer is true, throw
+     * URISyntaxException with the proper diagnostic messages. if
+     * forceServer is false assume this is a registry based uri, and just
+     * return leaving the host, port and userinfo fields undefined.
+     *
+     * and there are some error cases where URISyntaxException is thrown
+     * regardless of the forceServer parameter e.g. malformed ipv6 address
+     */
+    void parseAuthority(boolean forceServer) throws URISyntaxException {
+        if (authority == null) {
+            return;
+        }
+        String temp;
+        String tempUserinfo = null;
+        String tempHost = null;
+        int index;
+        int hostindex = 0;
+        int tempPort = -1;
+        temp = authority;
+        index = temp.indexOf('@');
+        if (index != -1) {
+            // remove user info
+            tempUserinfo = temp.substring(0, index);
+            validateUserinfo(authority, tempUserinfo, 0);
+            temp = temp.substring(index + 1); // host[:port] is left
+            hostindex = index + 1;
+        }
+        index = temp.lastIndexOf(':');
+        int endindex = temp.indexOf(']');
+        if (index != -1 && endindex < index) {
+            // determine port and host
+            tempHost = temp.substring(0, index);
+            if (index < (temp.length() - 1)) {
+                // port part is not empty
+                try {
+                    tempPort = Integer.parseInt(temp.substring(index + 1));
+                    if (tempPort < 0) {
+                        if (forceServer) {
+                            throw new URISyntaxException(authority, Messages.getString("luni.8B"), hostindex + index + 1); //$NON-NLS-1$
+                        }
+                        return;
+                    }
+                } catch (NumberFormatException e) {
+                    if (forceServer) {
+                        throw new URISyntaxException(authority, Messages.getString("luni.8B"), hostindex + index + 1); //$NON-NLS-1$
+                    }
+                    return;
+                }
+            }
+        } else {
+            tempHost = temp;
+        }
+        if (tempHost.equals("")) {
+            //$NON-NLS-1$
+            if (forceServer) {
+                throw new URISyntaxException(authority, Messages.getString("luni.A0"), hostindex); //$NON-NLS-1$
+            }
+            return;
+        }
+        if (!isValidHost(forceServer, tempHost)) {
+            return;
+        }
+        // this is a server based uri,
+        // fill in the userinfo, host and port fields
+        userinfo = tempUserinfo;
+        host = tempHost;
+        port = tempPort;
+        serverAuthority = true;
+    }
+
+    private void validateUserinfo(String uri, String userinfo, int index) throws URISyntaxException {
+        for (int i = 0; i < userinfo.length(); i++) {
+            char ch = userinfo.charAt(i);
+            if (ch == ']' || ch == '[') {
+                throw new URISyntaxException(uri, Messages.getString("luni.8C"), index + i);
+            }
+        }
+    }
+
+    /**
+     * distinguish between IPv4, IPv6, domain name and validate it based on
+     * its type
+     */
+    private boolean isValidHost(boolean forceServer, String host) throws URISyntaxException {
+        if (host.charAt(0) == '[') {
+            // ipv6 address
+            if (host.charAt(host.length() - 1) != ']') {
+                throw new URISyntaxException(host, Messages.getString("luni.8D"), 0); //$NON-NLS-1$
+            }
+            if (!isValidIP6Address(host)) {
+                throw new URISyntaxException(host, Messages.getString("luni.8E")); //$NON-NLS-1$
+            }
+            return true;
+        }
+        // '[' and ']' can only be the first char and last char
+        // of the host name
+        if (host.indexOf('[') != -1 || host.indexOf(']') != -1) {
+            throw new URISyntaxException(host, Messages.getString("luni.8F"), 0); //$NON-NLS-1$
+        }
+        int index = host.lastIndexOf('.');
+        if (index < 0 || index == host.length() - 1 || !Character.isDigit(host.charAt(index + 1))) {
+            // domain name
+            if (isValidDomainName(host)) {
+                return true;
+            }
+            if (forceServer) {
+                throw new URISyntaxException(host, Messages.getString("luni.8F"), 0); //$NON-NLS-1$
+            }
+            return false;
+        }
+        // IPv4 address
+        if (isValidIPv4Address(host)) {
+            return true;
+        }
+        if (forceServer) {
+            throw new URISyntaxException(host, Messages.getString("luni.90"), 0); //$NON-NLS-1$
+        }
+        return false;
+    }
+
+    private boolean isValidDomainName(String host) {
+        try {
+            URIEncoderDecoder.validateSimple(host, "-."); //$NON-NLS-1$
+        } catch (URISyntaxException e) {
+            return false;
+        }
+        String label = null;
+        StringTokenizer st = new StringTokenizer(host, "."); //$NON-NLS-1$
+        while (st.hasMoreTokens()) {
+            label = st.nextToken();
+            if (label.startsWith("-") || label.endsWith("-")) {
+                //$NON-NLS-1$ //$NON-NLS-2$
+                return false;
+            }
+        }
+        if (!label.equals(host)) {
+            char ch = label.charAt(0);
+            if (ch >= '0' && ch <= '9') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isValidIPv4Address(String host) {
+        int index;
+        int index2;
+        try {
+            int num;
+            index = host.indexOf('.');
+            num = Integer.parseInt(host.substring(0, index));
+            if (num < 0 || num > 255) {
+                return false;
+            }
+            index2 = host.indexOf('.', index + 1);
+            num = Integer.parseInt(host.substring(index + 1, index2));
+            if (num < 0 || num > 255) {
+                return false;
+            }
+            index = host.indexOf('.', index2 + 1);
+            num = Integer.parseInt(host.substring(index2 + 1, index));
+            if (num < 0 || num > 255) {
+                return false;
+            }
+            num = Integer.parseInt(host.substring(index + 1));
+            if (num < 0 || num > 255) {
+                return false;
+            }
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isValidIP6Address(String ipAddress) {
+        int length = ipAddress.length();
+        boolean doubleColon = false;
+        int numberOfColons = 0;
+        int numberOfPeriods = 0;
+        String word = ""; //$NON-NLS-1$
+        char c = 0;
+        char prevChar = 0;
+        int offset = 0; // offset for [] ip addresses
+        if (length < 2) {
+            return false;
+        }
+        for (int i = 0; i < length; i++) {
+            prevChar = c;
+            c = ipAddress.charAt(i);
+            switch (c) {
+            // case for an open bracket [x:x:x:...x]
+                case '[':
+                    if (i != 0) {
+                        return false; // must be first character
+                    }
+                    if (ipAddress.charAt(length - 1) != ']') {
+                        return false; // must have a close ]
+                    }
+                    if ((ipAddress.charAt(1) == ':') && (ipAddress.charAt(2) != ':')) {
+                        return false;
+                    }
+                    offset = 1;
+                    if (length < 4) {
+                        return false;
+                    }
+                    break;
+            // case for a closed bracket at end of IP [x:x:x:...x]
+                case ']':
+                    if (i != length - 1) {
+                        return false; // must be last character
+                    }
+                    if (ipAddress.charAt(0) != '[') {
+                        return false; // must have a open [
+                    }
+                    break;
+            // case for the last 32-bits represented as IPv4
+            // x:x:x:x:x:x:d.d.d.d
+                case '.':
+                    numberOfPeriods++;
+                    if (numberOfPeriods > 3) {
+                        return false;
+                    }
+                    if (!isValidIP4Word(word)) {
+                        return false;
+                    }
+                    if (numberOfColons != 6 && !doubleColon) {
+                        return false;
+                    }
+                    // a special case ::1:2:3:4:5:d.d.d.d allows 7 colons
+                    // with
+                    // an IPv4 ending, otherwise 7 :'s is bad
+                    if (numberOfColons == 7 && ipAddress.charAt(0 + offset) != ':' && ipAddress.charAt(1 + offset) != ':') {
+                        return false;
+                    }
+                    word = ""; //$NON-NLS-1$
+                    break;
+                case ':':
+                    numberOfColons++;
+                    if (numberOfColons > 7) {
+                        return false;
+                    }
+                    if (numberOfPeriods > 0) {
+                        return false;
+                    }
+                    if (prevChar == ':') {
+                        if (doubleColon) {
+                            return false;
+                        }
+                        doubleColon = true;
+                    }
+                    word = ""; //$NON-NLS-1$
+                    break;
+                default:
+                    if (word.length() > 3) {
+                        return false;
+                    }
+                    if (!isValidHexChar(c)) {
+                        return false;
+                    }
+                    word += c;
+            }
+        }
+        // Check if we have an IPv4 ending
+        if (numberOfPeriods > 0) {
+            if (numberOfPeriods != 3 || !isValidIP4Word(word)) {
+                return false;
+            }
+        } else {
+            // If we're at then end and we haven't had 7 colons then there
+            // is a problem unless we encountered a doubleColon
+            if (numberOfColons != 7 && !doubleColon) {
+                return false;
+            }
+            // If we have an empty word at the end, it means we ended in
+            // either a : or a .
+            // If we did not end in :: then this is invalid
+            if (word == "" && ipAddress.charAt(length - 1 - offset) != ':' && ipAddress.charAt(length - 2 - offset) != ':') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private boolean isValidIP4Word(String word) {
+        char c;
+        if (word.length() < 1 || word.length() > 3) {
+            return false;
+        }
+        for (int i = 0; i < word.length(); i++) {
+            c = word.charAt(i);
+            if (!(c >= '0' && c <= '9')) {
+                return false;
+            }
+        }
+        if (Integer.parseInt(word) > 255) {
+            return false;
+        }
+        return true;
+    }
+
+    private boolean isValidHexChar(char c) {
+        return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+    }
+    
+}

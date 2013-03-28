@@ -21,7 +21,7 @@
  * if this tool runs again. Better make changes in the template file.
  */
 
-package org.apache.river.api.security;
+package org.apache.river.impl;
 
 
 import java.security.AccessController;
@@ -46,7 +46,7 @@ import java.util.ResourceBundle;
  * should a reasonable human-readable (english) string.
  * 
  */
-class Messages {
+public class Messages {
 
     // ResourceBundle holding the system messages.
     static final private ResourceBundle bundle ;
@@ -56,7 +56,7 @@ class Messages {
         ResourceBundle rb = null;
         try {
             rb = setLocale(Locale.getDefault(),
-                    "org.apache.river.api.security.messages"); //$NON-NLS-1$
+                    "org.apache.river.impl.messages"); //$NON-NLS-1$
         } catch (Throwable e) {
             System.err.println(e);
         }

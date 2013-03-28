@@ -18,6 +18,7 @@
 
 package org.apache.river.api.security;
 
+import org.apache.river.impl.Messages;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
