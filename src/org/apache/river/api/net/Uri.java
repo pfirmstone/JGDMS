@@ -17,44 +17,277 @@
 
 package org.apache.river.api.net;
 
+import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.river.impl.Messages;
 
 
 /**
  * This class represents an immutable instance of a URI as defined by RFC 3986.
  * 
- * This class behaves similarly to java.net.URI and is a drop in replacement, 
- * however all instances are normalised during construction, to comply with
- * RFC 3986.
+ * This class replaces java.net.URI functionality.
  * 
- * Normalisation of java.net.URI was limited to the path, the scheme
- * and host are also normalised in accordance with RFC 3986.
+ * Unlike java.net.URI this class is not Serializable and hashCode and 
+ * equality is governed by strict RFC3986 normalisation. In addition "other"
+ * characters allowed in java.net.URI as specified by javadoc, not specifically 
+ * allowed by RFC3986 are illegal and must be escaped.  This strict adherence
+ * is essential to eliminate false negative or positive matches.
  * 
- * It also has some additional useful static methods that deal with common
- * scenario's.
+ * In addition to RFC3896 normalisation, on OS platforms with a \ file separator
+ * the path is converted to UPPER CASE for comparison for file: schema, during
+ * equals and hashCode calls.
  * 
- * Unlike java.net.URI this class is not Serializable.
- * 
+ * IPv6 and IPvFuture host addresses must be enclosed in square brackets as per 
+ * RFC3986.
  */
 public final class Uri implements Comparable<Uri> {
 
-    private static final long serialVersionUID = -6052424284110960213l;
-
+    /* Class Implementation */
+    
+    /* Legacy java.net.URI RFC 2396 syntax*/
     static final String unreserved = "_-!.~\'()*"; //$NON-NLS-1$
-
     static final String punct = ",;:$&+="; //$NON-NLS-1$
-
     static final String reserved = punct + "?/[]@"; //$NON-NLS-1$
-
+    // String someLegal = unreserved + punct;
+    // String queryLegal = unreserved + reserved + "\\\""; //$NON-NLS-1$
+    // String allLegal = unreserved + reserved;
+    
     static final String someLegal = unreserved + punct;
-
+    
     static final String queryLegal = unreserved + reserved + "\\\""; //$NON-NLS-1$
     
-    static final String allLegal = unreserved + reserved;
+//    static final String allLegal = unreserved + reserved;
+    
+    /* RFC 3986 */
+//    private static final char [] latin = new char[256];
+//    private static final String [] latinEsc = new String[256];
+    
+    /* 2.1.  Percent-Encoding
+     * 
+     * A percent-encoding mechanism is used to represent a data octet in a
+     * component when that octet's corresponding character is outside the
+     * allowed set or is being used as a delimiter of, or within, the
+     * component.  A percent-encoded octet is encoded as a character
+     * triplet, consisting of the percent character "%" followed by the two
+     * hexadecimal digits representing that octet's numeric value.  For
+     * example, "%20" is the percent-encoding for the binary octet
+     * "00100000" (ABNF: %x20), which in US-ASCII corresponds to the space
+     * character (SP).  Section 2.4 describes when percent-encoding and
+     * decoding is applied.
+     * 
+     *    pct-encoded = "%" HEXDIG HEXDIG
+     * 
+     * The uppercase hexadecimal digits 'A' through 'F' are equivalent to
+     * the lowercase digits 'a' through 'f', respectively.  If two URIs
+     * differ only in the case of hexadecimal digits used in percent-encoded
+     * octets, they are equivalent.  For consistency, URI producers and
+     * normalizers should use uppercase hexadecimal digits for all percent-
+     * encodings.
+     */
+    // Any character that is not part of the reserved and unreserved sets must
+    // be encoded.
+    // Section 2.1 Percent encoding must be converted to upper case during normalisation.
+    private static final char escape = '%';
+     /* RFC3986 obsoletes RFC2396 and RFC2732
+     * 
+     * reserved    = gen-delims / sub-delims
+     * 
+     * gen-delims  = ":" / "/" / "?" / "#" / "[" / "]" / "@"
+     * 
+     * sub-delims  = "!" / "$" / "&" / "'" / "(" / ")"
+     *               / "*" / "+" / "," / ";" / "="
+     */
+    // Section 2.2 Reserved set is protected from normalisation.
+//    private static final char [] gen_delims = {':', '/', '?', '#', '[', ']', '@'};
+//    private static final char [] sub_delims = {'!', '$', '&', '\'', '(', ')', '*',
+//                                                            '+', ',', ';', '='};
+    /*
+     * For consistency, percent-encoded octets in the ranges of ALPHA
+     * (%41-%5A and %61-%7A), DIGIT (%30-%39), hyphen (%2D), period (%2E),
+     * underscore (%5F), or tilde (%7E) should not be created by URI
+     * producers and, when found in a URI, should be decoded to their
+     * corresponding unreserved characters by URI normalizers.
+     */
+    // Section 2.3 Unreserved characters (Allowed) must be decoded during normalisation if % encoded.
+//    private static final char [] lowalpha = "abcdefghijklmnopqrstuvwxyz".toCharArray();
+//    private static final char [] upalpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".toCharArray();
+//    private static final char [] numeric = "0123456789".toCharArray();
+//    private static final char [] unres_punct =  {'-' , '.' , '_' , '~'};
+    
+    // Section 3.1 Scheme
+//    private static final char [] schemeEx = "+-.".toCharArray(); // + ALPHA and numeric.
+    
+    // To be unescaped during normalisation, unmodifiable and safely published.
+//    final static Map<String, Character> unReserved; 
+//    final static Map<String, Character> schemeUnreserved;
+    
+    /* Explicit legal String fields follow, ALPHA and DIGIT are implicitly legal */
+    
+    /* All characters that are legal URI syntax */
+    static final String allLegalUnescaped = ":/?#[]@!$&'()*+,;=-._~";
+    static final String allLegal = "%:/?#[]@!$&'()*+,;=-._~";
+    /*
+     *  Syntax Summary
+     * 
+     *  URI         = scheme ":" hier-part [ "?" query ] [ "#" fragment ]
+     * 
+     *  hier-part   = "//" authority path-abempty
+     *              / path-absolute
+     *              / path-rootless
+     *              / path-empty
+     *
+     *  scheme      = ALPHA *( ALPHA / DIGIT / "+" / "-" / "." )
+     */
+    static final String schemeLegal = "+-.";
+    /* 
+     *  authority   = [ userinfo "@" ] host [ ":" port ]
+     *  userinfo    = *( unreserved / pct-encoded / sub-delims / ":" )
+     */ 
+    static final String userinfoLegal = "-._~!$&'()*+,;=:";
+    static final String authorityLegal = userinfoLegal + "@[]";
+    /*  host        = IP-literal / IPv4address / reg-name
+     *  IP-literal = "[" ( IPv6address / IPvFuture  ) "]"
+     *  IPvFuture  = "v" 1*HEXDIG "." 1*( unreserved / sub-delims / ":" )
+     */ 
+    static final String iPvFuture = "-._~!$&'()*+,;=:";
+    /*  IPv6address =                            6( h16 ":" ) ls32
+     *              /                       "::" 5( h16 ":" ) ls32
+     *              / [               h16 ] "::" 4( h16 ":" ) ls32
+     *              / [ *1( h16 ":" ) h16 ] "::" 3( h16 ":" ) ls32
+     *              / [ *2( h16 ":" ) h16 ] "::" 2( h16 ":" ) ls32
+     *              / [ *3( h16 ":" ) h16 ] "::"    h16 ":"   ls32
+     *              / [ *4( h16 ":" ) h16 ] "::"              ls32
+     *              / [ *5( h16 ":" ) h16 ] "::"              h16
+     *              / [ *6( h16 ":" ) h16 ] "::"
+     * 
+     *  ls32        = ( h16 ":" h16 ) / IPv4address
+     *              ; least-significant 32 bits of address
+     * 
+     *  h16         = 1*4HEXDIG
+     *              ; 16 bits of address represented in hexadecimal
+     * 
+     *  IPv4address = dec-octet "." dec-octet "." dec-octet "." dec-octet
+     * 
+     *  dec-octet   = DIGIT                 ; 0-9
+     *              / %x31-39 DIGIT         ; 10-99
+     *              / "1" 2DIGIT            ; 100-199
+     *              / "2" %x30-34 DIGIT     ; 200-249
+     *              / "25" %x30-35          ; 250-255
+     *  reg-name    = *( unreserved / pct-encoded / sub-delims )
+     */
+    static final String hostRegNameLegal = "-._~!$&'()*+,;=";
+    /*  port        = *DIGIT
+     * 
+     *  path        = path-abempty    ; begins with "/" or is empty
+     *              / path-absolute   ; begins with "/" but not "//"
+     *              / path-noscheme   ; begins with a non-colon segment
+     *              / path-rootless   ; begins with a segment
+     *              / path-empty      ; zero characters
+     * 
+     *  path-abempty  = *( "/" segment )
+     *  path-absolute = "/" [ segment-nz *( "/" segment ) ]
+     *  path-noscheme = segment-nz-nc *( "/" segment )
+     *  path-rootless = segment-nz *( "/" segment )
+     *  path-empty    = 0<pchar>
+     *  
+     *  segment       = *pchar
+     *  segment-nz    = 1*pchar
+     *  segment-nz-nc = 1*( unreserved / pct-encoded / sub-delims / "@" ) ; non-zero-length segment without any colon ":"
+     * 
+     *  pchar         = unreserved / pct-encoded / sub-delims / ":" / "@"
+     */ 
+    static final String pcharLegal = "-._~!$&'()*+,;=:@";
+    static final String segmentNzNcLegal = "-._~!$&'()*+,;=@";
+    static final String segmentLegal = pcharLegal;
+    static final String pathLegal = segmentLegal + "/";
+            
+    /*  query       = *( pchar / "/" / "?" )
+     * 
+     *  fragment    = *( pchar / "/" / "?" )
+     */
+    static final String queryFragLegal = pcharLegal + "/?";
+  
+    /** Fixes windows file URI string by converting back slashes to forward
+     * slashes and inserting a forward slash before the drive letter if it is
+     * missing.  No normalisation or modification of case is performed.
+     */
+    public static String fixWindowsURI(String uri) {
+        if (uri == null) return null;
+        if ( uri.startsWith("file:") || uri.startsWith("FILE:")){
+            char [] u = uri.toCharArray();
+            int l = u.length; 
+            StringBuilder sb = new StringBuilder();
+            for (int i=0; i<l; i++){
+                // Ensure we use forward slashes
+                if (u[i] == File.separatorChar) {
+                    sb.append('/');
+                    continue;
+                }
+                if (i == 5 && uri.startsWith(":", 6 )) {
+                    // Windows drive letter without leading slashes doesn't comply
+                    // with URI spec, fix it here
+                    sb.append("/");
+                }
+                sb.append(u[i]);
+            }
+            return sb.toString();
+        }
+        return uri;
+    }
+    
+    public static URI uriToURI(Uri uri){
+        return URI.create(uri.toString());
+    }
+    
+    public static Uri urlToUri(URL url) throws URISyntaxException{
+        return Uri.parseAndCreate(url.toString());
+    }
+    
+    public static File uriToFile(Uri uri){
+        return new File(uriToURI(uri));
+    }
+   
+    public static Uri fileToUri(File file) throws URISyntaxException{
+        String path = file.getAbsolutePath();
+        if (File.separatorChar == '\\') {
+            path = path.replace(File.separatorChar, '/');
+        }
+        return new Uri("file", null, path, null, null); //$NON-NLS-1$
+    }
+    
+    public static Uri filePathToUri(String path) throws URISyntaxException{
+        String forwardSlash = "/";
+        if (path == null || path.length() == 0) {
+            // codebase is "file:"
+            path = "*";
+        }
+        // Ensure compatibility with URLClassLoader, when directory
+        // character is dropped by File.
+        boolean directory = false;
+        if (path.endsWith(forwardSlash)) directory = true;
+        path = new File(path).getAbsolutePath();
+        if (directory) {
+            if (!(path.endsWith(File.separator))){
+                path = path + File.separator;
+            }
+        }
+        if (File.separatorChar == '\\') {
+            path = path.replace(File.separatorChar, '/');
+        }
+        return new Uri("file", null, path, null, null); //$NON-NLS-1$
+    }
+    
+    /* Begin Object Implementation */
 
     private final String string;
     private final String scheme;
@@ -71,6 +304,7 @@ public final class Uri implements Comparable<Uri> {
     private final boolean serverAuthority;
     private final String hashString;
     private final int hash;
+    private final boolean fileSchemeCaseInsensitiveOS;
   
     /**
      * 
@@ -102,7 +336,8 @@ public final class Uri implements Comparable<Uri> {
             boolean opaque,
             boolean absolute,
             boolean serverAuthority,
-            int hash)
+            int hash, 
+            boolean fileSchemeCaseInsensitiveOS)
     {
         super();
         this.scheme = scheme;
@@ -152,7 +387,7 @@ public final class Uri implements Comparable<Uri> {
         }
         this.hashString = getHashString();
         this.hash = hash == -1 ? hashString.hashCode(): hash;
-        
+        this.fileSchemeCaseInsensitiveOS = fileSchemeCaseInsensitiveOS;
     }
     
     /**
@@ -176,23 +411,31 @@ public final class Uri implements Comparable<Uri> {
         p.opaque,
         p.absolute,
         p.serverAuthority,
-        p.hash);
+        p.hash, 
+        p.fileSchemeCaseInsensitiveOS);
     }
     
     /**
      * Creates a new URI instance according to the given string {@code uri}.
      *
+     * The URI must strictly conform to RFC3986, it doesn't support extended
+     * characters sets like java.net.URI, instead all non ASCII characters
+     * must be escaped.
+     * 
+     * Any encoded unreserved characters are decoded.
+     * 
      * @param uri
      *            the textual URI representation to be parsed into a URI object.
      * @throws URISyntaxException
      *             if the given string {@code uri} doesn't fit to the
-     *             specification RFC2396 or could not be parsed correctly.
+     *             specification RF3986 or could not be parsed correctly.
      */
     public Uri(String uri) throws URISyntaxException {
         this(constructor1(uri));
     }
     
     private static UriParser constructor1(String uri) throws URISyntaxException {
+        uri = URIEncoderDecoder.decodeUnreserved(uri);
         UriParser p = new UriParser();
         p.parseURI(uri, false);
         return p;
@@ -227,12 +470,12 @@ public final class Uri implements Comparable<Uri> {
         }
         if (ssp != null) {
             // QUOTE ILLEGAL CHARACTERS
-            uri.append(quoteComponent(ssp, allLegal));
+            uri.append(quoteComponent(ssp, allLegalUnescaped));
         }
         if (frag != null) {
             uri.append('#');
             // QUOTE ILLEGAL CHARACTERS
-            uri.append(quoteComponent(frag, allLegal));
+            uri.append(quoteComponent(frag, Uri.queryFragLegal));
         }
 
         UriParser p = new UriParser();
@@ -299,7 +542,7 @@ public final class Uri implements Comparable<Uri> {
 
         if (userinfo != null) {
             // QUOTE ILLEGAL CHARACTERS in userinfo
-            uri.append(quoteComponent(userinfo, someLegal));
+            uri.append(quoteComponent(userinfo, Uri.userinfoLegal));
             uri.append('@');
         }
 
@@ -320,19 +563,19 @@ public final class Uri implements Comparable<Uri> {
 
         if (path != null) {
             // QUOTE ILLEGAL CHARS
-            uri.append(quoteComponent(path, "/@" + someLegal)); //$NON-NLS-1$
+            uri.append(quoteComponent(path, "/@" + Uri.pathLegal)); //$NON-NLS-1$
         }
 
         if (query != null) {
             uri.append('?');
             // QUOTE ILLEGAL CHARS
-            uri.append(quoteComponent(query, allLegal));
+            uri.append(quoteComponent(query, Uri.queryFragLegal));
         }
 
         if (fragment != null) {
             // QUOTE ILLEGAL CHARS
             uri.append('#');
-            uri.append(quoteComponent(fragment, allLegal));
+            uri.append(quoteComponent(fragment, Uri.queryFragLegal));
         }
 
         UriParser p = new UriParser();
@@ -406,22 +649,22 @@ public final class Uri implements Comparable<Uri> {
         if (authority != null) {
             uri.append("//"); //$NON-NLS-1$
             // QUOTE ILLEGAL CHARS
-            uri.append(quoteComponent(authority, "@[]" + someLegal)); //$NON-NLS-1$
+            uri.append(quoteComponent(authority, "@[]" + Uri.authorityLegal)); //$NON-NLS-1$
         }
 
         if (path != null) {
             // QUOTE ILLEGAL CHARS
-            uri.append(quoteComponent(path, "/@" + someLegal)); //$NON-NLS-1$
+            uri.append(quoteComponent(path, "/@" + Uri.pathLegal)); //$NON-NLS-1$
         }
         if (query != null) {
             // QUOTE ILLEGAL CHARS
             uri.append('?');
-            uri.append(quoteComponent(query, allLegal));
+            uri.append(quoteComponent(query, Uri.queryFragLegal));
         }
         if (fragment != null) {
             // QUOTE ILLEGAL CHARS
             uri.append('#');
-            uri.append(quoteComponent(fragment, allLegal));
+            uri.append(quoteComponent(fragment, Uri.queryFragLegal));
         }
 
         UriParser p = new UriParser();
@@ -534,7 +777,12 @@ public final class Uri implements Comparable<Uri> {
 
             // authorities are the same
             // compare paths
-            ret = path.compareTo(uri.path);
+            
+            if (fileSchemeCaseInsensitiveOS){
+                ret = path.toUpperCase(Locale.ENGLISH).compareTo(uri.path.toUpperCase(Locale.ENGLISH));
+            } else {
+                ret = path.compareTo(uri.path);
+            }
             if (ret != 0) {
                 return ret;
             }
@@ -592,15 +840,16 @@ public final class Uri implements Comparable<Uri> {
     
     /**
      * The parameter string doesn't contain any existing escape sequences, any
-     * escape character % found is encoded as %25.
+     * escape character % found is encoded as %25. Illegal characters are 
+     * escaped if possible.
      * 
      * The Uri is normalised according to RFC3986.
      * 
      * @param unescapedString
      * @return 
      */
-    public static Uri escapeAndCreate(String unescapedString){
-        throw new UnsupportedOperationException("not supported");
+    public static Uri escapeAndCreate(String unescapedString) throws URISyntaxException{
+        return new Uri(quoteComponent(unescapedString, allLegalUnescaped));
     }
     
     /**
@@ -611,33 +860,16 @@ public final class Uri implements Comparable<Uri> {
      * @param nonCompliantEscapedString 
      * @return 
      */
-    public static Uri parseAndCreate(String nonCompliantEscapedString){
-        throw new UnsupportedOperationException("not supported");
+    public static Uri parseAndCreate(String nonCompliantEscapedString) throws URISyntaxException{
+        return new Uri(quoteComponent(nonCompliantEscapedString, allLegal));
     }
     
-    // No point cloning an immutable object.
-//    public Uri clone() {
-//        return new Uri( string,
-//                        scheme,
-//                        schemespecificpart,
-//                        authority,
-//                        userinfo,
-//                        host,
-//                        port,
-//                        path,
-//                        query,
-//                        fragment,
-//                        opaque,
-//                        absolute,
-//                        serverAuthority,
-//                        hash);
-//    }
 
     /*
      * Takes a string that may contain hex sequences like %F1 or %2b and
      * converts the hex values following the '%' to lowercase
      */
-    private String convertHexToLowerCase(String s) {
+    private String convertHexToUpperCase(String s) {
         StringBuilder result = new StringBuilder(""); //$NON-NLS-1$
         if (s.indexOf('%') == -1) {
             return s;
@@ -646,7 +878,7 @@ public final class Uri implements Comparable<Uri> {
         int index = 0, previndex = 0;
         while ((index = s.indexOf('%', previndex)) != -1) {
             result.append(s.substring(previndex, index + 1));
-            result.append(s.substring(index + 1, index + 3).toLowerCase());
+            result.append(s.substring(index + 1, index + 3).toUpperCase(Locale.ENGLISH));
             index += 3;
             previndex = index;
         }
@@ -659,29 +891,33 @@ public final class Uri implements Comparable<Uri> {
      * occur in pairs as above
      */
     private boolean equalsHexCaseInsensitive(String first, String second) {
-        if (first.indexOf('%') != second.indexOf('%')) {
-            return first.equals(second);
-        }
-
-        int index = 0, previndex = 0;
-        while ((index = first.indexOf('%', previndex)) != -1
-                && second.indexOf('%', previndex) == index) {
-            boolean match = first.substring(previndex, index).equals(
-                    second.substring(previndex, index));
-            if (!match) {
-                return false;
-            }
-
-            match = first.substring(index + 1, index + 3).equalsIgnoreCase(
-                    second.substring(index + 1, index + 3));
-            if (!match) {
-                return false;
-            }
-
-            index += 3;
-            previndex = index;
-        }
-        return first.substring(previndex).equals(second.substring(previndex));
+        //Hex will always be upper case.
+        if (first != null) return first.equals(second); 
+        if (second != null) return false;
+        return true;
+//        if (first.indexOf('%') != second.indexOf('%')) {
+//            return first.equals(second);
+//        }
+//
+//        int index = 0, previndex = 0;
+//        while ((index = first.indexOf('%', previndex)) != -1
+//                && second.indexOf('%', previndex) == index) {
+//            boolean match = first.substring(previndex, index).equals(
+//                    second.substring(previndex, index));
+//            if (!match) {
+//                return false;
+//            }
+//
+//            match = first.substring(index + 1, index + 3).equalsIgnoreCase(
+//                    second.substring(index + 1, index + 3));
+//            if (!match) {
+//                return false;
+//            }
+//
+//            index += 3;
+//            previndex = index;
+//        }
+//        return first.substring(previndex).equals(second.substring(previndex));
     }
 
     /**
@@ -723,7 +959,13 @@ public final class Uri implements Comparable<Uri> {
             return equalsHexCaseInsensitive(uri.schemespecificpart,
                     schemespecificpart);
         } else if (!uri.opaque && !opaque) {
-            if (!equalsHexCaseInsensitive(path, uri.path)) {
+            if ( !(path != null && (path.equals(uri.path) 
+                    || fileSchemeCaseInsensitiveOS
+                    // Upper case comparison required for Windows & VMS.
+                    && path.toUpperCase(Locale.ENGLISH).equals(
+                    uri.path.toUpperCase(Locale.ENGLISH)
+                    )))) 
+            {
                 return false;
             }
 
@@ -972,7 +1214,8 @@ public final class Uri implements Comparable<Uri> {
                         opaque,
                         absolute,
                         serverAuthority,
-                        hash);
+                        hash, 
+                        fileSchemeCaseInsensitiveOS);
     }
 
 
@@ -1147,7 +1390,8 @@ public final class Uri implements Comparable<Uri> {
                         false,
                         false,
                         false,
-                        -1);
+                        -1, 
+                fileSchemeCaseInsensitiveOS);
     }
 
     /**
@@ -1183,7 +1427,8 @@ public final class Uri implements Comparable<Uri> {
                         opaque,
                         absolute,
                         serverAuthority,
-                        hash);
+                        hash,
+                    fileSchemeCaseInsensitiveOS);
             // no need to re-calculate the scheme specific part,
             // since fragment is not part of scheme specific part.
            
@@ -1206,7 +1451,8 @@ public final class Uri implements Comparable<Uri> {
                         relative.opaque,
                         absolute,
                         relative.serverAuthority,
-                        relative.hash);
+                        relative.hash, 
+                    fileSchemeCaseInsensitiveOS);
         } else {
             // since relative URI has no authority,
             // the resolved URI is very similar to this URI,
@@ -1230,7 +1476,8 @@ public final class Uri implements Comparable<Uri> {
                         opaque,
                         absolute,
                         serverAuthority,
-                        hash);
+                        hash, 
+                    fileSchemeCaseInsensitiveOS);
         }
     }
 
@@ -1329,7 +1576,7 @@ public final class Uri implements Comparable<Uri> {
     /*
      * Form a string from the components of this URI, similarly to the
      * toString() method. But this method converts scheme and host to lowercase,
-     * and converts escaped octets to lowercase.
+     * and converts escaped octets to uppercase.
      * 
      * Should convert octets to uppercase and follow platform specific 
      * normalization rules for file: uri.
@@ -1359,7 +1606,11 @@ public final class Uri implements Comparable<Uri> {
             }
 
             if (path != null) {
-                result.append(path);
+                if (fileSchemeCaseInsensitiveOS){
+                    result.append(path.toUpperCase(Locale.ENGLISH));
+                } else {
+                    result.append(path);
+                }
             }
 
             if (query != null) {
@@ -1373,7 +1624,7 @@ public final class Uri implements Comparable<Uri> {
             result.append(fragment);
         }
 
-        return convertHexToLowerCase(result.toString());
+        return convertHexToUpperCase(result.toString());
     }
 
     /**

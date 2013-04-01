@@ -58,6 +58,7 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
+import org.apache.river.api.net.Uri;
 import org.apache.river.impl.net.UriString;
 
 /**
@@ -147,10 +148,10 @@ import org.apache.river.impl.net.UriString;
  * it as a list of URLs separated by spaces.  It is recommended that
  * URLs be compliant with RFC3986 Syntax.  Prior to parsing, any file path 
  * separators converted to '/' and any illegal characters are percentage escaped,
- * <code>URI(String)<code> is used to parse each URL and then normalised
+ * {@link Uri} is used to parse each URL
  * in compliance with RFC3986, in addition file URL paths are
  * converted to upper case for case insensitive file systems. The array of 
- * RFC3986 normalised URIs along with the current threads context ClassLoader
+ * RFC3986 normalised Uris along with the current threads context ClassLoader
  * is used to locate the correct ClassLoader.  After normalisation is complete,
  * each URL is parsed with the <code>URL(String)</code> constructor; this could 
  * result in a {@link MalformedURLException}.  This path of URLs is the
@@ -163,11 +164,11 @@ import org.apache.river.impl.net.UriString;
  * context class loader.  Otherwise, for each non-<code>null</code>
  * loader starting with the current thread's context class loader and
  * continuing with each successive parent class loader, if the
- * codebase URI RFC3986 normalised path is equal to the loader's annotation
- * URI RFC3986 normalised path, then the codebase loader is that loader.  
+ * codebase Uri RFC3986 normalised path is equal to the loader's annotation
+ * Uri RFC3986 normalised path, then the codebase loader is that loader.  
  * If no such matching loader is found, then the codebase loader is the loader 
  * in this <code>PreferredClassProvider</code>'s internal table with the
- * codebase URI RFC3986 normalised path as the key's path of URLs and the current
+ * codebase Uri RFC3986 normalised path as the key's path of URLs and the current
  * thread's context class loader as the key's parent class loader.  If
  * no such entry exists in the table, then one is created by invoking
  * {@link #createClassLoader createClassLoader} with the codebase URL
@@ -285,7 +286,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	});
     }
     /**
-     * table mapping codebase URI path and context class loader pairs
+     * table mapping codebase Uri path and context class loader pairs
      * to class loader instances.  Entries hold class loaders with weak
      * references, so this table does not prevent loaders from being
      * garbage collected.  This has been changed to a static table, since
@@ -298,16 +299,16 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * URL cache is time based, we need this to be as fast as possible,
      * every remote class to be loaded is annotated.  Tuning may be required.
      */
-    private final static ConcurrentMap<List<URI>,URL[]> urlCache;
-    private final static ConcurrentMap<String,URI[]> uriCache;
+    private final static ConcurrentMap<List<Uri>,URL[]> urlCache;
+    private final static ConcurrentMap<String,Uri[]> uriCache;
     
     
     static {
-        ConcurrentMap<Referrer<List<URI>>,Referrer<URL[]>> intern =
-                new ConcurrentHashMap<Referrer<List<URI>>,Referrer<URL[]>>();
+        ConcurrentMap<Referrer<List<Uri>>,Referrer<URL[]>> intern =
+                new ConcurrentHashMap<Referrer<List<Uri>>,Referrer<URL[]>>();
         urlCache = RC.concurrentMap(intern, Ref.TIME, Ref.STRONG, 10000L, 10000L);
-        ConcurrentMap<Referrer<String>,Referrer<URI[]>> intern1 =
-                new ConcurrentHashMap<Referrer<String>,Referrer<URI[]>>();
+        ConcurrentMap<Referrer<String>,Referrer<Uri[]>> intern1 =
+                new ConcurrentHashMap<Referrer<String>,Referrer<Uri[]>>();
         uriCache = RC.concurrentMap(intern1, Ref.TIME, Ref.STRONG, 1000L, 1000L);
                 ConcurrentMap<Referrer<LoaderKey>,Referrer<ClassLoader>> internal =
                 new ConcurrentHashMap<Referrer<LoaderKey>,Referrer<ClassLoader>>();
@@ -391,7 +392,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * no permissions are checked, because the caller could have used
      * an empty codebase to achieve the same effect anyway.
      */
-    private void checkLoader(ClassLoader loader, ClassLoader parent, URI[] uris,
+    private void checkLoader(ClassLoader loader, ClassLoader parent, Uri[] uris,
 			     URL[] urls)
     {
 	SecurityManager sm = System.getSecurityManager();
@@ -516,7 +517,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	}
         
         // throws MalformedURLException
-    	URI[] codebaseURIs = pathToURIs(codebase);	// may be null
+    	Uri[] codebaseURIs = pathToURIs(codebase);	// may be null
         URL[] codebaseURLs = asURL(codebaseURIs); // throws MalformedURLException
 
 	/*
@@ -832,9 +833,9 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	     */
 	    annotation = ((ClassAnnotation) loader).getClassAnnotation();
 
-	} else if (loader instanceof URLClassLoader) {
+	} else if (loader instanceof java.net.URLClassLoader) {
 	    try {
-		URL[] urls = ((URLClassLoader) loader).getURLs();
+		URL[] urls = ((java.net.URLClassLoader) loader).getURLs();
 		if (urls != null) {
 		    if (check) {
 			SecurityManager sm = System.getSecurityManager();
@@ -924,7 +925,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     {
 	checkInitialized();
         // throws MalformedURLException
-    	URI[] codebaseURIs = pathToURIs(codebase);	// may be null
+    	Uri[] codebaseURIs = pathToURIs(codebase);	// may be null
         URL[] codebaseURLs = asURL(codebaseURIs); // throws MalformedURLException
 
 	ClassLoader contextLoader = getRMIContextClassLoader();
@@ -1098,7 +1099,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 		});
 	}
         // throws MalformedURLException containing URISyntaxException message
-    	URI[] codebaseURIs = pathToURIs(codebase);	// may be null
+    	Uri[] codebaseURIs = pathToURIs(codebase);	// may be null
         URL[] codebaseURLs = asURL(codebaseURIs);
 
 	/*
@@ -1355,7 +1356,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * for the specified class loader, or null if the annotation
      * string is null.
      **/
-    private URI[] getLoaderAnnotationURIs(ClassLoader loader)
+    private Uri[] getLoaderAnnotationURIs(ClassLoader loader)
 	throws MalformedURLException
     {
 	return pathToURIs(getLoaderAnnotation(loader, false));
@@ -1365,7 +1366,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * Returns true if the specified path of URLs is equal to the
      * annotation URLs of the specified loader, and false otherwise.
      **/
-    private boolean urlsMatchLoaderAnnotation(URI[] urls, ClassLoader loader) {
+    private boolean urlsMatchLoaderAnnotation(Uri[] urls, ClassLoader loader) {
 	try {
 	    return Arrays.equals(urls, getLoaderAnnotationURIs(loader));
 	} catch (MalformedURLException e) {
@@ -1425,7 +1426,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 
     /**
      * Convert a string containing a space-separated list of URL Strings into a
-     * corresponding array of URI objects, throwing a MalformedURLException
+     * corresponding array of Uri objects, throwing a MalformedURLException
      * if any of the URLs are invalid.  This method returns null if the
      * specified string is null.
      *
@@ -1434,34 +1435,34 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * @throws MalformedURLException if the string path of urls contains a
      *         mal-formed url which can not be converted into a url object.
      */
-    private static URI[] pathToURIs(String path) throws MalformedURLException {
+    private static Uri[] pathToURIs(String path) throws MalformedURLException {
 	if (path == null) {
 	    return null;
 	}
-        URI[] urls = uriCache.get(path); // Cache of previously converted strings.
+        Uri[] urls = uriCache.get(path); // Cache of previously converted strings.
         if (urls != null) return urls;
 	StringTokenizer st = new StringTokenizer(path);	// divide by spaces
-	urls = new URI[st.countTokens()];
+	urls = new Uri[st.countTokens()];
 	for (int i = 0; st.hasMoreTokens(); i++) {
             try {
                 String uri = st.nextToken();
-                uri = UriString.fixWindowsURI(uri);
-                urls[i] = UriString.normalise(new URI(UriString.escapeIllegalCharacters(uri)));
+                uri = Uri.fixWindowsURI(uri);
+                urls[i] = Uri.parseAndCreate(uri);
             } catch (URISyntaxException ex) {
                 throw new MalformedURLException("URL's must be RFC 3986 Compliant: " 
                         + ex.getMessage());
             }
 	}
-        URI [] existed = uriCache.putIfAbsent(path, urls);
+        Uri [] existed = uriCache.putIfAbsent(path, urls);
         if (existed != null) urls = existed;
 	return urls;
     }
     
-    /** Converts URI[] to URL[].
+    /** Converts Uri[] to URL[].
      */
-    private URL[] asURL(URI[] uris) throws MalformedURLException{
+    private URL[] asURL(Uri[] uris) throws MalformedURLException{
         if (uris == null) return null;
-        List<URI> uriList = Arrays.asList(uris);
+        List<Uri> uriList = Arrays.asList(uris);
         URL [] result = urlCache.get(uriList);
         if ( result != null) return result;
         try {
@@ -1546,7 +1547,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * loader for a loader that has an export path which matches the
      * parameter path.
      */
-    private ClassLoader findOriginLoader(final URI[] pathURLs,
+    private ClassLoader findOriginLoader(final Uri[] pathURLs,
 					 final ClassLoader parent)
     {
 	return AccessController.doPrivileged(
@@ -1558,12 +1559,12 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
         );
     }
 
-    private ClassLoader findOriginLoader0(URI[] pathURLs, ClassLoader parent) {
+    private ClassLoader findOriginLoader0(Uri[] pathURLs, ClassLoader parent) {
 	for (ClassLoader ancestor = parent;
 	     ancestor != null;
 	     ancestor = ancestor.getParent())
 	{
-	    URI[] ancestorURLs;
+	    Uri[] ancestorURLs;
 	    try {
 		ancestorURLs = getLoaderAnnotationURIs(ancestor);
 	    } catch (MalformedURLException e) {
@@ -1596,7 +1597,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * and the given parent class loader.  A new class loader instance
      * will be created and returned if no match is found.
      */
-    private ClassLoader lookupLoader(final URI[] uris, URL[] urls,
+    private ClassLoader lookupLoader(final Uri[] uris, URL[] urls,
 				     final ClassLoader parent) throws MalformedURLException
     {
 	/*
@@ -1630,7 +1631,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
             String uriString = null;
             String urlString = null;
             StringBuilder sb = new StringBuilder(120);
-            sb.append("URI[]: ");
+            sb.append("Uri[]: ");
             int l = uris.length;
             for (int i = 0; i < l; i++){
                 sb.append(uris[i]);
@@ -1764,7 +1765,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     }
 
     /**
-     * Loader table key: a codebase URI path and a weak reference to
+     * Loader table key: a codebase Uri path and a weak reference to
      * a parent class loader (possibly null).  The weak reference is
      * registered with "refQueue" so that the entry can be removed
      * after the loader has become unreachable.
@@ -1772,29 +1773,29 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * LoaderKey used to be a combination of URL path and weak reference to a
      * parent class loader.
      * 
-     * It was updated to utilise URI for the following reasons:
+     * It was updated to utilise Uri for the following reasons:
      * 
-     * 1. Modern environments have dynamically assigned IP addresses, URI can provide a
+     * 1. Modern environments have dynamically assigned IP addresses, Uri can provide a
      *    level of indirection for Dynamic DNS and Dynamic IP.
      * 2. Virtual hosting is broken with URL.
-     * 4. Testing revealed that all Jini specification tests pass with URI.  
+     * 4. Testing revealed that all Jini specification tests pass with Uri.  
      *    Although this doesn't eliminate the possibility of breakage in user code, 
      *    it does provide a level of confidence that indicates the benefits
      *    outweigh any disadvantages.  Illegal characters are escaped prior
      *    to parsing; to maximise compatibility and minimise deployment issues.
      * 5. Sun bug ID 4434494 states: 
-     *      However, to address URI parsing in general, we introduced a new
+     *      However, to address URL parsing in general, we introduced a new
      *      class called URI in Merlin (jdk1.4). People are encouraged to use 
-     *      URI for parsing and URI comparison, and leave URL class for 
-     *      accessing the URI itself, getting at the protocol handler, 
+     *      URI for parsing and Uri comparison, and leave URL class for 
+     *      accessing the URL itself, getting at the protocol handler, 
      *      interacting with the protocol etc.
      **/
     private static class LoaderKey extends WeakReference<ClassLoader> {
-	private final URI[] uris;
+	private final Uri[] uris;
 	private final boolean nullParent;
 	private final int hashValue;
 
-	public LoaderKey(URI[] urls, ClassLoader parent, ReferenceQueue<ClassLoader> refQueue) {
+	public LoaderKey(Uri[] urls, ClassLoader parent, ReferenceQueue<ClassLoader> refQueue) {
 	    super(parent, refQueue);
 	    nullParent = (parent == null);
             uris = urls;
@@ -1826,7 +1827,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
             int l = uris.length;
             sb.append(getClass());
             sb.append("\n");
-            sb.append("URI[]: ");
+            sb.append("Uri[]: ");
             for (int i = 0; i < l; i++){
                 
             }

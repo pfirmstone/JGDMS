@@ -1,3 +1,5 @@
+#Test fails randomly due to network socket not releasing fast enough on Linux.
+com.sun.jini.qa.harness.verifier=com.sun.jini.qa.harness.SkipTestVerifier
 testClass=Unexport_BehaviorTest
 testCategories=jrmp,jrmp_spec
 jrmp.util.constructorType=2

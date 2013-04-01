@@ -21,7 +21,7 @@ package org.apache.river.api.util;
 /**
  * Interface definition of the facade pattern.
  * @author Peter Firmstone.
- * @since 2.2.0
+ * @since 2.3.0
  */
 public interface Facade<T> {
     /**

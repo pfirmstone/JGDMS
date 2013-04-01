@@ -211,7 +211,7 @@ public abstract class PermissionGrantBuilder {
      * @param uri - RFC3986 compliant URI or null.
      * @return 
      */
-    public abstract PermissionGrantBuilder uri(URI uri);
+    public abstract PermissionGrantBuilder uri(String path);
     /**
      * Extracts ProtectionDomain
      * from the Class for use in the PermissionGrantBuilder.  The ClassLoader

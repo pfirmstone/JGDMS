@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.net.Uri;
 
 /**
  * PermissionGrantBuilderImp represents the serialized form of all
@@ -56,7 +57,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     
    
     /*@serial */
-    private URI[] uri;
+    private String[] uri;
     /*@serial */
     private Certificate[] certs;
     /*@serial */
@@ -69,7 +70,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     private boolean hasDomain;
     
     // Transient Fields
-    private transient Collection<URI> uris;
+    private transient Collection<String> uris;
     private transient WeakReference<ProtectionDomain> domain;
     
     PermissionGrantBuilderImp() {
@@ -105,9 +106,9 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     }
     
         @Override
-    public PermissionGrantBuilder uri(java.net.URI uri) {
-        if (this.uris == null) this.uris = new ArrayList<URI>(6);
-        this.uris.add(uri);
+    public PermissionGrantBuilder uri(String path) {
+        if (this.uris == null) this.uris = new ArrayList<String>(6);
+        this.uris.add(path);
         return this;
     }
     
@@ -152,8 +153,8 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
                 // are treated special.
                 return new ClassLoaderGrant(domain, principals, permissions );
             case URI:
-                if (uris != null && !uris.isEmpty() ) uri = uris.toArray(new URI[uris.size()]);
-                if (uri == null ) uri = new URI[0];
+                if (uris != null && !uris.isEmpty() ) uri = uris.toArray(new String[uris.size()]);
+                if (uri == null ) uri = new String[0];
                 return new URIGrant(uri, certs, principals, permissions);              
             case CODESOURCE_CERTS:
                 return new CertificateGrant(certs, principals, permissions);
@@ -180,7 +181,7 @@ class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
     }
     
     private void writeObject(ObjectOutputStream out) throws IOException{
-        if (uris != null && !uris.isEmpty()) uri = uris.toArray(new URI[uris.size()]);
+        if (uris != null && !uris.isEmpty()) uri = uris.toArray(new String[uris.size()]);
         out.defaultWriteObject();
     }
     

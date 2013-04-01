@@ -28,7 +28,6 @@ import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.SocketPermission;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.net.URLStreamHandlerFactory;
@@ -51,6 +50,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
+import org.apache.river.api.net.URLClassLoader;
 
 /**
  * A class loader that supports preferred classes.

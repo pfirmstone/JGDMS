@@ -1,3 +1,5 @@
+#Test fails randomly, temporarily suspended pending release 2.3.0
+com.sun.jini.qa.harness.verifier=com.sun.jini.qa.harness.SkipTestVerifier
 testClass=SnapshotExpirationNotifyTest
 testCategories=javaspace,javaspace_spec,javaspace_conformance,snapshot
 include0=../javaspace.properties

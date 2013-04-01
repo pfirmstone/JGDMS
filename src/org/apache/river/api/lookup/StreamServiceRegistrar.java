@@ -76,7 +76,7 @@ public interface StreamServiceRegistrar extends ServiceRegistrar{
      * @see ResultStream
      * @see ServiceResultStreamFilter
      * @see ResultStreamUnmarshaller
-     * @since 2.2.0
+     * @since 2.3.0
      */
     ResultStream lookup(ServiceTemplate tmpl, Class[] entryClasses,
             int maxBatchSize, int limit)  throws IOException;

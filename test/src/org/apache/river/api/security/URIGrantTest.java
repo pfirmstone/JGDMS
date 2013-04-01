@@ -28,6 +28,7 @@ import java.security.Permission;
 import java.security.Principal;
 import java.net.URI;
 import junit.framework.Assert;
+import org.apache.river.api.net.Uri;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;
@@ -55,9 +56,9 @@ public class URIGrantTest {
     
     @Before
     public void setUp() throws URISyntaxException, MalformedURLException {
-        URI [] u = new URI[2];
-        u[0] = new URI("file:/foo/*");
-        u[1] = new URI("file:/C:/FOO/*");
+        String [] u = new String[2];
+        u[0] = "file:/foo/*";
+        u[1] = "file:/C:/FOO/*";
         instance = new URIGrant(u, new Certificate[0], new Principal[0], new Permission[0]);
         pd = new ProtectionDomain( new CodeSource(new URL("file:/foo/bar"), (Certificate []) null), null);
     }
@@ -69,16 +70,16 @@ public class URIGrantTest {
     @Test
     public void testImplies() throws URISyntaxException {
         System.out.println("Test implies");
-        URI grant = new URI("file:///foo/*");
-        URI otherGrant = new URI("file:/foo/*");
-        URI implied = new URI("file:/foo/bar");
-        URI alsoImplied = new URI("file:///foo/bar");
+        Uri grant = Uri.parseAndCreate("file:///foo/*");
+        Uri otherGrant = Uri.parseAndCreate("file:/foo/*");
+        Uri implied = Uri.parseAndCreate("file:/foo/bar");
+        Uri alsoImplied = Uri.parseAndCreate("file:///foo/bar");
         Assert.assertTrue(instance.implies(grant, implied));
         Assert.assertTrue(instance.implies(grant,alsoImplied));
         Assert.assertTrue(instance.implies(otherGrant, implied));
         Assert.assertTrue(instance.implies(otherGrant, alsoImplied));
-        grant = new URI("file:/C:/USERS/PETER/DOCUMENTS/NETBEANSPROJECTS/PETERCONCURRENTPOLICY/QA/-");
-        implied = new URI("file:/C:/USERS/PETER/DOCUMENTS/NETBEANSPROJECTS/PETERCONCURRENTPOLICY/QA/LIB/JINIHARNESS.JAR");
+        grant = Uri.parseAndCreate("file:/C:/USERS/PETER/DOCUMENTS/NETBEANSPROJECTS/PETERCONCURRENTPOLICY/QA/-");
+        implied = Uri.parseAndCreate("file:/C:/USERS/PETER/DOCUMENTS/NETBEANSPROJECTS/PETERCONCURRENTPOLICY/QA/LIB/JINIHARNESS.JAR");
         System.out.println(grant);
         System.out.println(implied);
         boolean result = instance.implies(grant, implied);

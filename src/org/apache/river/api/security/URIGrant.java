@@ -36,6 +36,7 @@ import java.util.Collections;
 import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.net.Uri;
 import org.apache.river.impl.net.UriString;
 
 /**
@@ -44,20 +45,21 @@ import org.apache.river.impl.net.UriString;
  */
 class URIGrant extends CertificateGrant {
     private static final long serialVersionUID = 1L;
-    private final Collection<URI> location;
+    private final Collection<Uri> location;
     private final int hashCode;
     
     @SuppressWarnings("unchecked")
-    URIGrant(URI[] uri, Certificate[] certs, Principal[] pals, Permission[] perm){
+    URIGrant(String[] uri, Certificate[] certs, Principal[] pals, Permission[] perm){
         super( certs, pals, perm);
         int l = uri.length;
-        Collection<URI> uris = new ArrayList<URI>(l);
+        Collection<Uri> uris = new ArrayList<Uri>(l);
         for ( int i = 0; i < l ; i++ ){
             try {
-                // REMIND: Do we need to move all normalisation into the URIGrant and
+                // Do we need to move all normalisation into the URIGrant and
                 // store the normalised and original forms separately? File uri are platform
                 // dependant and someone may want to make a grant applicable many different platforms.
-                uris.add(uri[i] != null ? UriString.normalise(uri[i]) : null);
+                // Uri resolves this issue - fixed 31st Mar 2013
+                uris.add(uri[i] != null ? Uri.parseAndCreate(uri[i]) : null);
             } catch (URISyntaxException ex) {
                 ex.printStackTrace(System.err);
             }
@@ -103,7 +105,7 @@ class URIGrant extends CertificateGrant {
     public boolean implies(ClassLoader cl, Principal[] p){
 	if ( !implies(p)) return false;
 	if ( location.isEmpty() ) return true;
-        Iterator<URI> it = location.iterator();
+        Iterator<Uri> it = location.iterator();
         while (it.hasNext()){
             if (it.next() == null) return true;
         }
@@ -125,13 +127,13 @@ class URIGrant extends CertificateGrant {
         if (codeSource == null)  return false; // Null CodeSource is not implied.
         if (location.isEmpty()) return true; // But CodeSource with null URL is implied, if this location is empty.
         int l = location.size();
-        URI[] uris = location.toArray(new URI[l]);
+        Uri[] uris = location.toArray(new Uri[l]);
         for (int i = 0; i<l ; i++ ){
             if (uris[i] == null) return true;
         }
         URL url = codeSource.getLocation();
         if (url == null ) return false;
-        URI implied = null;
+        Uri implied = null;
         try {
             implied = AccessController.doPrivileged(new NormaliseURLAction(url));
         } catch (PrivilegedActionException ex) {
@@ -210,7 +212,7 @@ class URIGrant extends CertificateGrant {
      * @return {@code true} if the argument code source is implied by this
      *         {@code CodeSource}, otherwise {@code false}.
      */
-    final boolean implies(URI grant, URI implied) { // package private for junit
+    final boolean implies(Uri grant, Uri implied) { // package private for junit
         //
         // Here, javadoc:N refers to the appropriate item in the API spec for 
         // the CodeSource.implies()
@@ -414,9 +416,9 @@ class URIGrant extends CertificateGrant {
     @Override
     public PermissionGrantBuilder getBuilderTemplate() {
         PermissionGrantBuilder pgb = super.getBuilderTemplate();
-        Iterator<URI> it = location.iterator();
+        Iterator<Uri> it = location.iterator();
         while (it.hasNext()){
-            pgb.uri(it.next());
+            pgb.uri(it.next().toString());
         }
         pgb.context(PermissionGrantBuilder.URI);
         return pgb;
@@ -433,7 +435,7 @@ class URIGrant extends CertificateGrant {
         throw new InvalidObjectException("PermissionGrantBuilder required");
     }
     
-    private static class NormaliseURLAction implements PrivilegedExceptionAction<URI> {
+    private static class NormaliseURLAction implements PrivilegedExceptionAction<Uri> {
         private final URL codesource;
         
         NormaliseURLAction(URL codebase){
@@ -441,8 +443,8 @@ class URIGrant extends CertificateGrant {
         }
 
         @Override
-        public URI run() throws Exception {
-            return PolicyUtils.normalizeURL(codesource);
+        public Uri run() throws Exception {
+            return Uri.urlToUri(codesource);
         }
     
     }

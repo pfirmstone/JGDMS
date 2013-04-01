@@ -120,7 +120,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
                 .permissions(new Permission[] { sp1 })
                 .build();
         pgb.reset().context(PermissionGrantBuilder.URI);
-        PermissionGrant pe2 = pgb.uri(new URI("http://a.b.c"))
+        PermissionGrant pe2 = pgb.uri("http://a.b.c")
                 .principals(new Principal[0])
                 .permissions(new Permission[] { sp2 })
                 .build();
@@ -168,7 +168,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
         PermissionGrant pe1 = pgb.uri(null)
                 .permissions(new Permission[] { sp1 })
                 .build();
-        PermissionGrant pe2 = pgb.uri(cs2.getLocation().toURI())
+        PermissionGrant pe2 = pgb.uri(cs2.getLocation().toString())
                 .principals(new Principal[] { new UnresolvedPrincipal(
                 UnresolvedPrincipal.WILDCARD, UnresolvedPrincipal.WILDCARD) })
                 .permissions(new Permission[] { sp2 })
@@ -178,7 +178,7 @@ public class ConcurrentPolicyFileTest extends TestCase {
                 FakePrincipal.class.getName(), "qqq") })
                 .permissions(new Permission[] { sp3 })
                 .build();
-        PermissionGrant pe4 = pgb.uri(cs2.getLocation().toURI())
+        PermissionGrant pe4 = pgb.uri(cs2.getLocation().toString())
                 .principals(new Principal[] { new UnresolvedPrincipal(
                 FakePrincipal.class.getName(), "ttt") })
                 .permissions(new Permission[] { sp4 })

@@ -111,12 +111,7 @@ public class DefaultPolicyParserTest extends TestCase {
        permissions.add(perm2);
        permissions.add(perm3);
        PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
-       URI uri = null;
-        try {
-            uri = new URI("file:/opt/src/river/trunk/lib/group.jar");
-        } catch (URISyntaxException ex) {
-            System.err.println(ex);
-        }
+       String uri = "file:/opt/src/river/trunk/lib/group.jar";
        grant = pgb
                .uri(uri)
                .permissions(permissions.toArray(new Permission[4]))

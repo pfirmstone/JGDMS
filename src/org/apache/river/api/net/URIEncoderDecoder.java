@@ -22,7 +22,13 @@ import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.TreeMap;
+import java.util.TreeSet;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.apache.river.impl.Messages;
 
 
@@ -37,6 +43,33 @@ class URIEncoderDecoder {
     static final String digits = "0123456789ABCDEF"; //$NON-NLS-1$
 
     static final String encoding = "UTF8"; //$NON-NLS-1$
+    
+    // Map of escaped unreserved characters defined in RFC3986
+    private static final Map<String,Character> legalEscaped;
+    
+    static {
+        legalEscaped = new HashMap<String,Character>();
+        char [] legals = "abcdefghijklmnopqrstuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~".toCharArray();
+        StringBuilder buf = new StringBuilder();
+        int l = legals.length;
+        for (int i = 0; i< l; i++){
+            char ch = legals[i];
+            byte[] bytes = new byte[0];
+            try {
+                bytes = new String(new char[] { ch }).getBytes(encoding);
+            } catch (UnsupportedEncodingException ex) {
+                Logger.getLogger(URIEncoderDecoder.class.getName()).log(Level.SEVERE, null, ex);
+                continue;
+            }
+            for (int j = 0; j < bytes.length; j++) {
+                buf.append('%');
+                buf.append(digits.charAt((bytes[j] & 0xf0) >> 4));
+                buf.append(digits.charAt(bytes[j] & 0xf));
+            }
+            legalEscaped.put(buf.toString(), Character.valueOf(ch));
+            buf.delete(0, buf.length());
+        }
+    }
     
     
     
@@ -76,9 +109,11 @@ class URIEncoderDecoder {
                 continue;
             }
             if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
-                    || (ch >= '0' && ch <= '9') || legal.indexOf(ch) > -1 || (ch > 127
-                    && !Character.isSpaceChar(ch) && !Character
-                    .isISOControl(ch)))) {
+                    || (ch >= '0' && ch <= '9') || legal.indexOf(ch) > -1 
+//                    || (ch > 127
+//                    && !Character.isSpaceChar(ch) && !Character
+//                    .isISOControl(ch))
+                    )) {
                 throw new URISyntaxException(s, Messages.getString("luni.7F"), i); //$NON-NLS-1$
             }
             i++;
@@ -121,12 +156,13 @@ class URIEncoderDecoder {
         StringBuilder buf = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
             char ch = s.charAt(i);
-            if ((ch >= 'a' && ch <= 'z')
+            if ( (ch >= 'a' && ch <= 'z')
                     || (ch >= 'A' && ch <= 'Z')
                     || (ch >= '0' && ch <= '9')
                     || legal.indexOf(ch) > -1
-                    || (ch > 127 && !Character.isSpaceChar(ch) && !Character
-                            .isISOControl(ch))) {
+//                    || (ch > 127 && !Character.isSpaceChar(ch) && !Character
+//                            .isISOControl(ch))
+                    ) {
                 buf.append(ch);
             } else {
                 byte[] bytes = new String(new char[] { ch }).getBytes(encoding);
@@ -219,6 +255,46 @@ class URIEncoderDecoder {
         return result.toString();
     }
     
+    static String decodeUnreserved(String s) throws URISyntaxException {
+        StringBuilder result = new StringBuilder();
+        StringBuilder pct_encoded = new StringBuilder(12);
+        int l = s.length();
+        for (int i = 0; i < l;) {
+            char c = s.charAt(i);
+            if (c == '%') {
+                    do {
+                        if (i + 2 >= l) {
+                            throw new URISyntaxException(s, Messages.getString("luni.80", i), i);
+                        }
+                        char c1 = s.charAt(i+1);
+                        char c2 = s.charAt(i+2);
+                        if (!isValidHexChar(c1) || !isValidHexChar(c2)) {
+                            throw new URISyntaxException(s, Messages.getString(
+                                "luni.81", s.substring(i, i + 3), //$NON-NLS-1$
+                                String.valueOf(i)), i);
+                        }
+                        pct_encoded.append('%').append(c1).append(c2);
+                        i += 3;
+                    } while (i < l && s.charAt(i) == '%');
+                    String encoded = pct_encoded.toString().toUpperCase(Locale.ENGLISH);
+                    Character ch = legalEscaped.get(encoded);
+                    if ( ch != null ){
+                        result.append(ch.charValue());
+                    } else {
+                        // Ensure all pct-encoded strings are uppercase.
+                        result.append(encoded);
+                    }
+                    pct_encoded.delete(0, pct_encoded.length());
+                    continue;
+            }
+            result.append(c);
+            i++;
+        }
+        return result.toString();
+    }
     
+    private static boolean isValidHexChar(char c) {
+        return (c >= '0' && c <= '9') || (c >= 'A' && c <= 'F') || (c >= 'a' && c <= 'f');
+    }
 
 }

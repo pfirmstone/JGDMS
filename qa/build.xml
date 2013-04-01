@@ -217,7 +217,7 @@
                 reportdir="${jtreg.dir}/JTreport" workdir="${jtreg.dir}/JTwork"
                 jdk="${jdk.home}">
             <arg value="-cpa:${jtlib.tmp}/jsk-policy.jar${path.separator}${jtlib.tmp}/jsk-lib.jar${path.separator}${jtlib.tmp}/jsk-platform.jar${path.separator}${jtlib.tmp}/jsk-resources.jar${path.separator}${jtlib.tmp}/phoenix-init.jar${path.separator}${jtlib.tmp}/tools.jar${path.separator}${jtlib.tmp}/classserver.jar${path.separator}${jtlib.tmp}/custard-apple-1.0.2.jar${path.separator}${jtlib.tmp}/high-scale-lib.jar"/>
-            <arg value="-timeout:8"/>
+            <arg value="-timeout:16"/>
             <!--<arg value="-Djsk.home=${river.home}"/>-->
             <arg value="-Djtlib.tmp=${jtlib.tmp}"/>
             <arg value="-Dscratch.dir=${jtreg.dir}/JTwork/scratch"/>

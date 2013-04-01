@@ -858,6 +858,9 @@
 		     index="false"
 		     manifest="${src.manifest.dir}/jsk-platform.mf">
             <fileset dir="${build.classes.dir}"  includesfile="${jsk-platform.deps}"/>
+            <fileset dir="${src.dir}">
+                <include name="org/apache/river/impl/messages.properties"/>
+            </fileset>
         </jar>
         <preferredlistgen>
             <arg line="-jar"/>
@@ -904,6 +907,7 @@
             <arg value="net.jini.security.policy.DynamicPolicyProvider"/>
             <arg value="net.jini.security.policy.PolicyFileProvider"/>
             <arg value="org.apache.river.api.security.ConcurrentPolicyFile"/>
+            <arg value="org.apache.river.api.net.URLClassLoader"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="-in org.apache.river"/>
@@ -912,7 +916,7 @@
 		     index="false">
             <fileset dir="${build.classes.dir}"  includesfile="${jsk-policy.deps}"/>
             <fileset dir="${src.dir}">
-                <include name="org/apache/river/api/security/messages.properties"/>
+                <include name="org/apache/river/impl/messages.properties"/>
             </fileset>
         </jar>
     </target>

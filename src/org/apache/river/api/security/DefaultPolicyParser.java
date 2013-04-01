@@ -189,7 +189,7 @@ class DefaultPolicyParser implements PolicyParser {
     PermissionGrant resolveGrant(DefaultPolicyScanner.GrantEntry ge,
             KeyStore ks, Properties system, boolean resolve) throws Exception {
         if ( ge == null ) return null;
-        List<URI> codebases = new ArrayList<URI>(8);
+        List<String> codebases = new ArrayList<String>(8);
         Certificate[] signers = null;
         Set<Principal> principals = new HashSet<Principal>();
         Set<Permission> permissions = new HashSet<Permission>();
@@ -249,7 +249,7 @@ class DefaultPolicyParser implements PolicyParser {
             }
         }
         PermissionGrantBuilder pgb = PermissionGrantBuilder.newBuilder();
-        Iterator<URI> iter = codebases.iterator();
+        Iterator<String> iter = codebases.iterator();
         while (iter.hasNext()){
             pgb.uri(iter.next());
         }
@@ -261,13 +261,11 @@ class DefaultPolicyParser implements PolicyParser {
             .build();
     }
     
-    URI getURI(String uriString) throws MalformedURLException, URISyntaxException{
+    String getURI(String uriString) throws MalformedURLException, URISyntaxException{
         // We do this to support windows, this is to ensure that path
         // capitalisation is correct and illegal strings are escaped correctly.
         if (uriString == null) return null;
-        uriString = UriString.fixWindowsURI(uriString);
-        uriString = UriString.escapeIllegalCharacters(uriString);
-        return new URI(uriString);
+        return UriString.fixWindowsURI(uriString);
     }
     
     Segment segment(String s, Properties p) throws ExpansionFailedException{

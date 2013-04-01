@@ -248,8 +248,8 @@ public class UriString {
                 if (path.endsWith(forwardSlash)) directory = true;
                 path = new File(path).getAbsolutePath();
                 if (directory) {
-                    if (! (path.endsWith(File.pathSeparator))){
-                        path = path + File.pathSeparator;
+                    if (! (path.endsWith(File.separator))){
+                        path = path + File.separator;
                     }
                 }
                 return normalisation(filePathToURI(path));
