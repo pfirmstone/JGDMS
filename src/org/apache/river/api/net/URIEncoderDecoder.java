@@ -227,12 +227,13 @@ class URIEncoderDecoder {
 
         StringBuilder result = new StringBuilder();
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        for (int i = 0; i < s.length();) {
+        int l = s.length();
+        for (int i = 0; i < l;) {
             char c = s.charAt(i);
             if (c == '%') {
                 out.reset();
                 do {
-                    if (i + 2 >= s.length()) {
+                    if (i + 2 >= l) {
                         throw new IllegalArgumentException(Messages.getString(
                                 "luni.80", i)); //$NON-NLS-1$
                     }
@@ -245,7 +246,7 @@ class URIEncoderDecoder {
                     }
                     out.write((byte) ((d1 << 4) + d2));
                     i += 3;
-                } while (i < s.length() && s.charAt(i) == '%');
+                } while (i < l && s.charAt(i) == '%');
                 result.append(out.toString(encoding));
                 continue;
             }
