@@ -91,7 +91,7 @@ function confirm_continue {
 	[[ 'n' = $CONTINUE || 'N' = $CONTINUE ]] && echo $QUIT_MSG
 }
 
-VERSION=2.2.0
+VERSION=2.2.1
 
 echo "Rolling River Release $VERSION"
 
