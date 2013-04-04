@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
 import java.util.LinkedHashSet;
+import java.util.logging.Logger;
 
 
 /**
@@ -120,6 +121,9 @@ import java.util.LinkedHashSet;
  */
 
 public final class Service {
+
+	private static final Logger log=
+		Logger.getLogger(Service.class.getName());
 
     private static final String prefix = "META-INF/services/";
 
@@ -271,6 +275,9 @@ public final class Service {
 	    try {
 		Class c = Class.forName(cn, true, loader);
 		if (!service.isAssignableFrom(c)) {
+			log.severe("service classloader is "
+					  + service.getClass().getClassLoader()
+					  + ", provider loader is " + loader);
 		    fail(service, "Provider " + cn + " is of incorrect type");
 		}
 		return c.newInstance();
