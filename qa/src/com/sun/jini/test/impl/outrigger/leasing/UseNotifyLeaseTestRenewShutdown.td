@@ -1,5 +1,5 @@
 #Test fails randomly, temporarily suspended pending release 2.3.0
-com.sun.jini.qa.harness.verifier=com.sun.jini.qa.harness.SkipTestVerifier
+#com.sun.jini.qa.harness.verifier=com.sun.jini.qa.harness.SkipTestVerifier
 testClass=UseNotifyLeaseTest
 testCategories=javaspace,javaspace_impl,javaspace_impl_leasing
 include0=../outrigger.properties

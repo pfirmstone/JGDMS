@@ -142,7 +142,7 @@ class URIGrant extends CertificateGrant {
             return false;
         }
         for (int i = 0; i<l ; i++){
-            if (implies(uris[i], implied)) return true;
+            if (uris[i].implies(implied)) return true;
         }
         return false;
     }

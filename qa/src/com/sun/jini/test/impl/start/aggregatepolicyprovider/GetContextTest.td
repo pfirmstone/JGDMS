@@ -1,5 +1,5 @@
 testClass=GetContextTest
-testCategories=start,start_impl
+testCategories=start,start_impl,policyprovider
 #testClasspath=<harnessJar>$:${com.sun.jini.qa.home}$/lib$/qa1-start-tests.jar$:${com.sun.jini.qa.home}$/lib$/$qajinidep$:${com.sun.jini.jsk.home}$/lib$/jsk-platform.jar
 
 testClasspath=${altClasspath}$:${com.sun.jini.qa.home}/lib/qa1-start-tests.jar

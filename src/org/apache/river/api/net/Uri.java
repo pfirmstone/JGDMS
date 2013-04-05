@@ -250,7 +250,7 @@ public final class Uri implements Comparable<Uri> {
     }
     
     public static Uri urlToUri(URL url) throws URISyntaxException{
-        return Uri.parseAndCreate(url.toString());
+        return Uri.parseAndCreate(fixWindowsURI(url.toString()));
     }
     
     public static File uriToFile(Uri uri){
@@ -262,7 +262,8 @@ public final class Uri implements Comparable<Uri> {
         if (File.separatorChar == '\\') {
             path = path.replace(File.separatorChar, '/');
         }
-        return new Uri("file", null, path, null, null); //$NON-NLS-1$
+        path = fixWindowsURI("file:" + path);
+        return Uri.escapeAndCreate(path); //$NON-NLS-1$
     }
     
     public static Uri filePathToUri(String path) throws URISyntaxException{
@@ -284,7 +285,8 @@ public final class Uri implements Comparable<Uri> {
         if (File.separatorChar == '\\') {
             path = path.replace(File.separatorChar, '/');
         }
-        return new Uri("file", null, path, null, null); //$NON-NLS-1$
+        path = fixWindowsURI("file:" + path);
+        return Uri.escapeAndCreate(path); //$NON-NLS-1$
     }
     
     /* Begin Object Implementation */
@@ -935,6 +937,7 @@ public final class Uri implements Comparable<Uri> {
         if (!(o instanceof Uri)) {
             return false;
         }
+        if (hash != o.hashCode()) return false;
         Uri uri = (Uri) o;
 
         if (uri.fragment == null && fragment != null || uri.fragment != null
@@ -1015,6 +1018,269 @@ public final class Uri implements Comparable<Uri> {
             // one is opaque, the other hierarchical
             return false;
         }
+    }
+    
+    /** 
+     * Indicates whether the specified Uri is implied by this {@link
+     * Uri}. Returns {@code true} if all of the following conditions are
+     * {@code true}, otherwise {@code false}:
+     * <p>
+     * <ul>
+     * <li>this scheme is not {@code null}
+     * <li>this scheme is equal to {@code implied}'s scheme.
+     * <li>if this host is not {@code null}, the
+     * following conditions are checked
+     * <ul>
+     * <li>{@code cs}'s host is not {@code null}
+     * <li>the wildcard or partial wildcard of this {@code Uri}'s
+     * host matches {@code implied}'s host.
+     * </ul>
+     * <li>if this {@code Uri}'s port != -1 the port of {@code
+     * implied}'s location is equal to this {@code Uri}'s port
+     * <li>this {@code Uri}'s path matches {@code implied}'s path
+     * whereas special wildcard matching applies as described below.
+     * </ul>
+     * Matching rules for path:
+     * <ul>
+     * <li>if this {@code Uri}'s path ends with {@code "/-"},
+     * then {@code implied}'s path must start with {@code Uri}'s path
+     * (exclusive the trailing '-')
+     * <li>if this {@code Uri}'s path ends with {@code "/*"},
+     * then {@code implied}'s path must start with {@code Uri}'s path
+     * (exclusive the trailing '*') and must not have any further '/'
+     * <li>if this {@code Uri}'s path ends with {@code "/"},
+     * then {@code implied}'s path must start with {@code Uri}'s path
+     * <li>if this {@code Uri}'s path does not end with {@code
+     * "/"}, then {@code implied}'s path must start with {@code Uri}'s
+     * path with the '/' appended to it.
+     * </ul>
+     * Examples for Uri that imply the Uri
+     * "http://harmony.apache.org/milestones/M9/apache-harmony.jar":
+     *
+     * <pre>
+     * http:
+     * http://&#42;/milestones/M9/*
+     * http://*.apache.org/milestones/M9/*
+     * http://harmony.apache.org/milestones/-
+     * http://harmony.apache.org/milestones/M9/apache-harmony.jar
+     * </pre>
+     *
+     * @param implied
+     *            the Uri to check.
+     * @return {@code true} if the argument is implied by this
+     *         {@code Uri}, otherwise {@code false}.
+     */
+    public boolean implies(Uri implied) { // package private for junit
+        //.This section of code was copied from Apache Harmony's CodeSource
+        // SVN Revision 929252
+        //
+        // Here, javadoc:N refers to the appropriate item in the API spec for 
+        // the CodeSource.implies()
+        // The info was taken from the 1.5 final API spec
+
+        // javadoc:1
+//        if (cs == null) {
+//            return false;
+//        }
+
+        /* Certificates can safely be ignored, they're checked by CertificateGrant */
+        
+        // javadoc:2
+        // with a comment: the javadoc says only about certificates and does 
+        // not explicitly mention CodeSigners' certs.
+        // It seems more convenient to use getCerts() to get the real 
+        // certificates - with a certificates got form the signers
+//        Certificate[] thizCerts = getCertificatesNoClone();
+//        if (thizCerts != null) {
+//            Certificate[] thatCerts = cs.getCertificatesNoClone();
+//            if (thatCerts == null
+//                    || !PolicyUtils.matchSubset(thizCerts, thatCerts)) {
+//                return false;
+//            }
+//        }
+
+        // javadoc:3
+        
+            
+            //javadoc:3.1
+//            URL otherURL = cs.getLocation();
+//            if ( otherURL == null) {
+//                return false;
+//            }
+//            URI otherURI;
+//            try {
+//                otherURI = otherURL.toURI();
+//            } catch (URISyntaxException ex) {
+//                return false;
+//            }
+            //javadoc:3.2
+            if (hash == implied.hash){
+                if (this.equals(implied)) {
+                    return true;
+                }
+            }
+            //javadoc:3.3
+            if ( scheme != null){
+                if (!scheme.equalsIgnoreCase(implied.scheme)) {
+                    return false;
+                }
+            }
+            //javadoc:3.4
+            if (host != null) {
+                if (implied.host == null) {
+                    return false;
+                }
+
+                // 1. According to the spec, an empty string will be considered 
+                // as "localhost" in the SocketPermission
+                // 2. 'file://' URLs will have an empty getHost()
+                // so, let's make a special processing of localhost-s, I do 
+                // believe this'll improve performance of file:// code sources 
+
+                //
+                // Don't have to evaluate both the boolean-s each time.
+                // It's better to evaluate them directly under if() statement.
+                // 
+                // boolean thisIsLocalHost = thisHost.length() == 0 || "localhost".equals(thisHost);
+                // boolean thatIsLocalHost = thatHost.length() == 0 || "localhost".equals(thatHost);
+                // 
+                // if( !(thisIsLocalHost && thatIsLocalHost) &&
+                // !thisHost.equals(thatHost)) {
+
+                if (!((host.length() == 0 || "localhost".equals(host)) && (implied.host //$NON-NLS-1$
+                        .length() == 0 || "localhost".equals(implied.host))) //$NON-NLS-1$
+                        && !host.equals(implied.host)) {
+                    
+                    // Do wildcard matching here to replace SocketPermission functionality.
+                    // This section was copied from Apache Harmony SocketPermission
+                    boolean hostNameMatches = false;
+                    boolean isPartialWild = (host.charAt(0) == '*');
+                    if (isPartialWild) {
+                        boolean isWild = (host.length() == 1);
+                        if (isWild) {
+                            hostNameMatches = true;
+                        } else {
+                            // Check if thisHost matches the end of thatHost after the wildcard
+                            int length = host.length() - 1;
+                            hostNameMatches = implied.host.regionMatches(implied.host.length() - length,
+                                    host, 1, length);
+                        }
+                    }
+                    if (!hostNameMatches) return false; // else continue.
+                    
+                    /* Don't want to try resolving URIGrant, it either has a
+                     * matching host or it doesn't.
+                     * 
+                     * The following section is for resolving hosts, it is
+                     * not relevant here, but has been preserved for information
+                     * purposes only.
+                     * 
+                     * Not only is it expensive to perform DNS resolution, hence
+                     * the creation of URIGrant, but a CodeSource.implies
+                     * may also require another SocketPermission which may 
+                     * cause the policy to get stuck in an endless loop, since it
+                     * doesn't perform the implies in priviledged mode, it might
+                     * also allow an attacker to substitute one codebase for
+                     * another using a dns cache poisioning attack.  In any case
+                     * the DNS cannot be assumed trustworthy enough to supply
+                     * the policy with information at this level. The implications
+                     * are greater than the threat posed by SocketPermission
+                     * which simply allows a network connection, as this may
+                     * apply to any Permission, even AllPermission.
+                     * 
+                     * Typically the URI of the codebase will be a match for
+                     * the codebase annotation string that is stored as a URL
+                     * in CodeSource, then converted to a URI for comparison.
+                     */
+
+                    // Obvious, but very slow way....
+                    // 
+                    // SocketPermission thisPerm = new SocketPermission(
+                    //          this.location.getHost(), "resolve");
+                    // SocketPermission thatPerm = new SocketPermission(
+                    //          cs.location.getHost(), "resolve");
+                    // if (!thisPerm.implies(thatPerm)) { 
+                    //      return false;
+                    // }
+                    //
+                    // let's cache it: 
+
+//                    if (this.sp == null) {
+//                        this.sp = new SocketPermission(thisHost, "resolve"); //$NON-NLS-1$
+//                    }
+//
+//                    if (cs.sp == null) {
+//                        cs.sp = new SocketPermission(thatHost, "resolve"); //$NON-NLS-1$
+//                    } 
+//
+//                    if (!this.sp.implies(cs.sp)) {
+//                        return false;
+//                    }
+                    
+                } // if( ! this.location.getHost().equals(cs.location.getHost())
+            } // if (this.location.getHost() != null)
+
+            //javadoc:3.5
+            if (port != -1) {
+                if (port != implied.port) {
+                    return false;
+                }
+            }
+
+            //javadoc:3.6
+            // compatbility with URL.getFile
+            String thisFile;
+            String thatFile;
+            if (fileSchemeCaseInsensitiveOS){
+                thisFile = path == null ? null: path.toUpperCase(Locale.ENGLISH);
+                thatFile = implied.path == null ? null: implied.path.toUpperCase(Locale.ENGLISH);
+            } else {
+                thisFile = path;
+                thatFile = implied.path;
+            }
+            if (thatFile == null || thisFile == null) return false;
+            if (thisFile.endsWith("/-")) { //javadoc:3.6."/-" //$NON-NLS-1$
+                if (!thatFile.startsWith(thisFile.substring(0, thisFile
+                        .length() - 2))) {
+                    return false;
+                }
+            } else if (thisFile.endsWith("/*")) { //javadoc:3.6."/*" //$NON-NLS-1$
+                if (!thatFile.startsWith(thisFile.substring(0, thisFile
+                        .length() - 2))) {
+                    return false;
+                }
+                // no further separators(s) allowed
+                if (thatFile.indexOf("/", thisFile.length() - 1) != -1) { //$NON-NLS-1$
+                    return false;
+                }
+            } else {
+                // javadoc:3.6."/"
+                if (!thisFile.equals(thatFile)) {
+                    if (!thisFile.endsWith("/")) { //$NON-NLS-1$
+                        if (!thatFile.equals(thisFile + "/")) { //$NON-NLS-1$
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+            }
+            
+            // Fragment and path are ignored.
+            //javadoc:3.7
+            // A URL Anchor is a URI Fragment.
+//            if (thiss.getFragment() != null) {
+//                if (!thiss.getFragment().equals(implied.getFragment())) {
+//                    return false;
+//                }
+//            }
+            // ok, every check was made, and they all were successful. 
+            // it's ok to return true.
+        
+
+        // javadoc: a note about CodeSource with null location and null Certs 
+        // is applicable here 
+        return true;
     }
 
     /**

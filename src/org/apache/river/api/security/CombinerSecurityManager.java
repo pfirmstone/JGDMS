@@ -451,7 +451,7 @@ extends SecurityManager implements CachingSecurityManager {
             }
             try {
                 // We can change either call to add a timeout.
-                latch.await(); // Throws InterruptedException
+                if (!latch.await(180L, TimeUnit.SECONDS)) return false; // Throws InterruptedException
                 it = resultList.iterator();
                 try {
                     while (it.hasNext()){
@@ -521,26 +521,31 @@ extends SecurityManager implements CachingSecurityManager {
         }
 
         public Boolean call() throws Exception {
-            // Required for AggregatePolicyProvider.
-            Boolean result = AccessController.doPrivileged( 
-                securityContext != null ?
-                    securityContext.wrap(
-                        new PrivilegedAction<Boolean>(){
-                            public Boolean run() {
-                                boolean result = checkPermission(pd, p);
-                                return Boolean.valueOf(result);
+            try {
+                // Required for AggregatePolicyProvider.
+                Boolean result = AccessController.doPrivileged( 
+                    securityContext != null ?
+                        securityContext.wrap(
+                            new PrivilegedAction<Boolean>(){
+                                public Boolean run() {
+                                    boolean result = checkPermission(pd, p);
+                                    return Boolean.valueOf(result);
+                                }
                             }
+                        ) 
+                    :new PrivilegedAction<Boolean>(){
+                        public Boolean run() {
+                            boolean result = checkPermission(pd, p);
+                            return Boolean.valueOf(result);
                         }
-                    ) 
-                :new PrivilegedAction<Boolean>(){
-                    public Boolean run() {
-                        boolean result = checkPermission(pd, p);
-                        return Boolean.valueOf(result);
-                    }
-                }  
-            );
-            latch.countDown();
-            return result;
+                    }  
+                );
+                return result;
+            } finally {
+                // In case we exit with a runtime exception, ensure threads
+                // aren't left waiting.
+                latch.countDown();
+            }
         }
         
     }

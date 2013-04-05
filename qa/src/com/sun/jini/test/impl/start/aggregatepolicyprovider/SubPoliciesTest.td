@@ -1,5 +1,5 @@
 testClass=SubPoliciesTest
-testCategories=start,start_impl
+testCategories=start,start_impl,policyprovider
 #testClasspath=${com.sun.jini.qa.home}$/lib$/harness.jar$:${com.sun.jini.qa.home}$/lib$/qa1-start-tests.jar$:${com.sun.jini.qa.home}$/lib$/$qajinidep$:${com.sun.jini.jsk.home}$/lib$/jsk-platform.jar
 
 testClasspath=${altClasspath}$:<file:lib/qa1-start-tests.jar>
