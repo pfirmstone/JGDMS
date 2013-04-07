@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Vector;
+import net.jini.core.lease.UnknownLeaseException;
 
 import net.jini.core.transaction.CannotAbortException;
 import net.jini.core.transaction.CannotCommitException;
@@ -124,7 +125,7 @@ class TxnManagerTransaction
     /**
      * @serial
      */
-    private List parts = new Vector();
+    private final List parts = new Vector();
 
     /**
      * @serial
@@ -208,7 +209,7 @@ class TxnManagerTransaction
     *
     * @serial
     */
-    private Object leaseLock = new Object();
+    private final Object leaseLock = new Object();
 
 
    /**
@@ -221,7 +222,7 @@ class TxnManagerTransaction
     *
     * @serial
     */
-    private Object jobLock = new Object();
+    private final Object jobLock = new Object();
 
 
    /**
@@ -234,7 +235,7 @@ class TxnManagerTransaction
     *
     * @serial
     */
-    private Object stateLock = new Object();
+    private final Object stateLock = new Object();
 
 
     /** Logger for operation related messages */
@@ -523,6 +524,20 @@ class TxnManagerTransaction
 	}
     }
 
+    /**
+     * Atomic check that state is ACTIVE.
+     * @return ACTIVE if lease hasn't expired.
+     * @throws TransactionException otherwise.
+     */
+    public int checkStateActive() throws TransactionException {
+        synchronized (stateLock){
+            int state = getState();
+            if ((state == ACTIVE && getExpiration()==0) || (state != ACTIVE)) {
+                    throw new TransactionException("unknown transaction");
+            }
+            return state;
+        }
+    }
 
     /**
      * Commits the transaction.

@@ -220,6 +220,33 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     public ConcurrentPolicyFile() throws PolicyInitializationException {
         this(new DefaultPolicyParser(), new PermissionComparator());
     }
+    
+    /** All exceptions are thrown by this method during construction,
+     * to avoid a finalizer attack from an overriding class attempting
+     * to avoid the construction guard, catching the exception then calling
+     * refresh from the finalizer to instantiate a complete policy.
+     * 
+     * This method is called during construction prior to the implicit
+     * super() call to Object and prior to any final fields being assigned.
+     */
+    private static PermissionGrant [] check(PolicyParser parser) throws PolicyInitializationException{
+        guard.checkGuard(null);
+        try {
+            // Bug 4911907, do we need to do anything more?
+            // The permissions for this domain must be retrieved before
+            // construction is complete and this policy takes over.
+            return initialize(parser); // Instantiates myPermissions.
+        } catch (SecurityException e){
+            throw e;
+        } catch (Exception e){
+            throw new PolicyInitializationException("PolicyInitialization failed", e);
+        }
+    }
+    
+    protected ConcurrentPolicyFile(PolicyParser dpr, Comparator<Permission> comp) 
+            throws PolicyInitializationException {
+        this (dpr, comp, check(dpr));
+    }
 
     /**
      * Constructor to allow for custom policy providers, for example a database
@@ -229,24 +256,18 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
      * @param dpr
      * @param comp Comparator to compare permissions. 
      */
-    protected ConcurrentPolicyFile(PolicyParser dpr, Comparator<Permission> comp) throws PolicyInitializationException {
-        guard.checkGuard(null);
-        parser = dpr;
-        comparator = comp;
+    private ConcurrentPolicyFile(   PolicyParser dpr, 
+                                    Comparator<Permission> comp, 
+                                    PermissionGrant [] grants) 
+            throws PolicyInitializationException {
         /*
          * The bootstrap policy makes implies decisions until this constructor
-         * has returned.  We don't need to lock.
+         * has returned.
          */
-        try {
-            // Bug 4911907, do we need to do anything more?
-            // The permissions for this domain must be retrieved before
-            // construction is complete and this policy takes over.
-            initialize(); // Instantiates myPermissions.
-        } catch (SecurityException e){
-            throw e;
-        } catch (Exception e){
-            throw new PolicyInitializationException("PolicyInitialization failed", e);
-        }
+        parser = dpr;
+        comparator = comp;
+        grantArray = grants;
+        myPermissions = getP(myDomain);
     }
     
     private PermissionCollection convert(NavigableSet<Permission> permissions){
@@ -272,6 +293,10 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
      */
     @Override
     public PermissionCollection getPermissions(ProtectionDomain pd) {
+        return getP(pd);
+    }
+    
+    private PermissionCollection getP(ProtectionDomain pd) {
         NavigableSet<Permission> perms = new TreeSet<Permission>(comparator);
         PermissionGrant [] grantRefCopy = grantArray;
         int l = grantRefCopy.length;
@@ -427,13 +452,13 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
     @Override
     public void refresh() {
         try {
-            initialize();
+            grantArray = initialize(parser);
         } catch (Exception ex) {
             System.err.println(ex);
         }
     }
     
-    private void initialize() throws Exception{
+    private static PermissionGrant [] initialize(final PolicyParser parser) throws Exception{
         try {
             Collection<PermissionGrant> fresh = AccessController.doPrivileged( 
                 new PrivilegedExceptionAction<Collection<PermissionGrant>>(){
@@ -468,8 +493,7 @@ public class ConcurrentPolicyFile extends Policy implements ScalableNestedPolicy
                 }
             );
             // Volatile reference, publish after mutation complete.
-            grantArray = fresh.toArray(new PermissionGrant[fresh.size()]);
-            myPermissions = getPermissions(myDomain);
+            return fresh.toArray(new PermissionGrant[fresh.size()]);
         }catch (PrivilegedActionException e){
             Throwable t = e.getCause();
             if ( t instanceof Exception ) throw (Exception) t;

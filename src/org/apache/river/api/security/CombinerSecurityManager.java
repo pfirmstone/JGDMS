@@ -94,7 +94,21 @@ extends SecurityManager implements CachingSecurityManager {
     private final ThreadLocal<SecurityContext> threadContext;
     private final ThreadLocal<Boolean> inTrustedCodeRecursiveCall;
     
+    private static boolean check(){
+        SecurityManager sm = System.getSecurityManager();
+ 	    if (sm != null) {
+ 		sm.checkPermission(new RuntimePermission("createSecurityManager"));
+  	    }
+        return true;
+    } 
+    
     public CombinerSecurityManager(){
+        // Ensure we guard against finalizer attack by checking permission
+        // before implicit super() Object constructor is called.
+        this(check());
+    }
+    
+    private CombinerSecurityManager(boolean check){
         super();
         // Get context before this becomes a SecurityManager.
         // super() checked the permission to create a SecurityManager.

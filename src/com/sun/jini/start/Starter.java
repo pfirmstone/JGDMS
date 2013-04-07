@@ -30,7 +30,7 @@ public interface Starter {
      * 
      * In addition to starting threads after construction, it also allows
      * services to avoid throwing an exception during construction to avoid
-     * finalise attacks.
+     * finalizer attacks.
      * 
      * @throws Exception if there's a problem with construction or startup.
      */

@@ -35,6 +35,7 @@ import com.sun.jini.mahalo.log.LogRecovery;
 import com.sun.jini.mahalo.log.MultiLogManager;
 import com.sun.jini.mahalo.log.MultiLogManagerAdmin;
 import com.sun.jini.start.LifeCycle;
+import com.sun.jini.start.Starter;
 import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadyState;
 import com.sun.jini.thread.TaskManager;
@@ -42,6 +43,7 @@ import com.sun.jini.thread.WakeupManager;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.ObjectStreamException;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.rmi.activation.Activatable;
@@ -49,6 +51,8 @@ import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.SecureRandom;
@@ -67,6 +71,7 @@ import javax.security.auth.login.LoginException;
 
 import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
+import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
@@ -97,6 +102,8 @@ import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import net.jini.security.Security;
+import net.jini.security.SecurityContext;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
 
@@ -109,7 +116,7 @@ import net.jini.security.TrustVerifier;
 class TxnManagerImpl /*extends RemoteServer*/
     implements TxnManager, LeaseExpirationMgr.Expirer,
 	       LogRecovery, TxnSettler, com.sun.jini.constants.TimeConstants,
-               LocalLandlord, ServerProxyTrust, ProxyAccessor
+               LocalLandlord, ServerProxyTrust, ProxyAccessor, Starter
 {
     /** Logger for (successful) service startup message */
     static final Logger startupLogger = 
@@ -142,133 +149,95 @@ class TxnManagerImpl /*extends RemoteServer*/
     static final Logger persistenceLogger = 
         Logger.getLogger(TxnManager.MAHALO + ".persistence");
 
-    /**
-     * @serial
+    /* At some point earlier in the development, it appears this object
+     * was Serializable, or was declared so, such that it replaced itself
+     * with a proxy stub.  This is a test to ensure serialization doesn't
+     * occur.
      */
-    private LogManager logmgr;
-
-    /* Default tuning parameters for thread pool */
+    
+    private void writeObject(java.io.ObjectOutputStream out)
+     throws IOException {
+        throw new IOException("Serialization not supported");
+    }
+    private void readObject(java.io.ObjectInputStream in)
+     throws IOException, ClassNotFoundException {
+        throw new IOException("Serialization not supported");
+    }
+    private void readObjectNoData() 
+     throws ObjectStreamException{
+        throw new ObjectStreamException("Serialization not supported"){
+            private static final long serialVersionUID = 1L;
+        };
+    }
+ 
+    
+    private volatile LogManager logmgr;
     /* Retrieve values from properties.          */
-
-    private transient int settlerthreads = 150;
-    private transient long settlertimeout = 1000 * 15;
-    private transient float settlerload = 1.0f;
-
-
-    private transient int taskthreads = 50;
-    private transient long tasktimeout = 1000 * 15;
-    private transient float taskload = 1.0f;
-
-
     /* Its important here to schedule SettlerTasks on a */
     /* different TaskManager from what is given to      */
     /* TxnManagerTransaction objects.  Tasks on a given */
     /* TaskManager which create Tasks cannot be on the  */
     /* same TaskManager as their child Tasks.		*/
-
-    private transient TaskManager settlerpool;
+    private final TaskManager settlerpool;
     /** wakeup manager for <code>SettlerTask</code> */
-    private WakeupManager settlerWakeupMgr;
-
-    private transient TaskManager taskpool;
+    private final WakeupManager settlerWakeupMgr;
+    private final TaskManager taskpool;
     /** wakeup manager for <code>ParticipantTask</code> */
-    private WakeupManager taskWakeupMgr;
-
-    /*
-     * Map of transaction ids are their associated, internal 
-     * transaction representations 
-     */
-    private transient Map       txns;
-
-    private transient Vector		unsettledtxns;
-    private transient InterruptedStatusThread settleThread;
-
-    /**
-     * @serial
-     */
-    private String persistenceDirectory = null;
-
-    /**
-     * @serial
-     */
-    private ActivationID activationID;
-    
+    private final WakeupManager taskWakeupMgr;
+    /* Map of transaction ids are their associated, internal 
+     * transaction representations */
+    private final Map<Long,TxnManagerTransaction> txns;
+    private final Vector<Long> unsettledtxns = new Vector<Long>();
+    private final InterruptedStatusThread settleThread;
+    private final String persistenceDirectory;
+    private final ActivationID activationID;
     /** Whether the activation ID has been prepared */
-    private boolean activationPrepared;
-
+    private final boolean activationPrepared;
     /** The activation system, prepared */
-    private ActivationSystem activationSystem;
-
+    private final ActivationSystem activationSystem;
     /** Proxy preparer for listeners */
-    private ProxyPreparer participantPreparer;
-
+    private volatile ProxyPreparer participantPreparer;
     /** The exporter for exporting and unexporting */
-    protected Exporter exporter;
-
+    protected final Exporter exporter;
     /** The login context, for logging out */
-    protected LoginContext loginContext;
-
+    protected volatile LoginContext loginContext;
     /** The generator for our IDs. */
-    private static transient SecureRandom idGen = new SecureRandom();
-
+    private static final SecureRandom idGen = new SecureRandom();
     /** The buffer for generating IDs. */
-    private static transient final byte[] idGenBuf = new byte[8];
-
-
-    /** 
-     * <code>LeaseExpirationMgr</code> used by our <code>LeasePolicy</code>.
-     */
-    private LeaseExpirationMgr expMgr;
-
-    /**
-     * @serial
-     */
-    private /*final*/ LeasePeriodPolicy txnLeasePeriodPolicy = null;
-    
+    private static final byte[] idGenBuf = new byte[8];
+    /**<code>LeaseExpirationMgr</code> used by our <code>LeasePolicy</code>.*/
+    private volatile LeaseExpirationMgr expMgr;
+    private final LeasePeriodPolicy txnLeasePeriodPolicy;
     /** <code>LandLordLeaseFactory</code> we use to create leases */
-    private LeaseFactory leaseFactory = null;
-
-    /**
-     * @serial
-     */
-    private JoinStateManager joinStateManager;
-
-    /**
-     * The <code>Uuid</code> for this service. Used in the
+    private volatile LeaseFactory leaseFactory = null;
+    private final JoinStateManager joinStateManager;
+    /* The <code>Uuid</code> for this service. Used in the
      * <code>TxnMgrProxy</code> and <code>TxnMgrAdminProxy</code> to
      * implement reference equality. We also derive our
-     * <code>ServiceID</code> from it.
-     */
-    private Uuid topUuid = null;
-
-    /** The outter proxy of this server */
-    private TxnMgrProxy txnMgrProxy;		
-
+     * <code>ServiceID</code> from it.  */
+    private final Uuid topUuid;
+    /** The outer proxy of this server */
+    private volatile TxnMgrProxy txnMgrProxy;	
     /** The admin proxy of this server */
-    private TxnMgrAdminProxy txnMgrAdminProxy;		
-
-    /**
-     * Cache of our inner proxy.
-     */
-    private TxnManager serverStub = null;
-
-    /**
-     * Cache of our <code>LifeCycle</code> object
-     */
-    private LifeCycle lifeCycle = null;
-    
-    /** 
-     * Object used to prevent access to this service during the service's
-     *  initialization or shutdown processing.
-     */
+    private volatile TxnMgrAdminProxy txnMgrAdminProxy;	
+    /** Cache of our inner proxy. */
+    private volatile TxnManager serverStub = null;
+    /** Cache of our <code>LifeCycle</code> object */
+    private volatile LifeCycle lifeCycle = null;
+    /* Object used to prevent access to this service during the service's
+     *  initialization or shutdown processing. */
     private final ReadyState readyState = new ReadyState();
-
-    /**
-     * <code>boolean</code> flag used to determine persistence support.
+    /* <code>boolean</code> flag used to determine persistence support.
      * Defaulted to true, and overridden in the constructor overload that takes
-     * a <code>boolean</code> argument.
-     */
-    private boolean persistent = true;
+     * a <code>boolean</code> argument. */
+    private final boolean persistent;
+    // The following three fields are only required by start, called by the
+    // constructor thread and set to null after starting.
+    private Configuration config;
+    private AccessControlContext context;
+    private Throwable thrown;
+    // sync on this.
+    private boolean startOnce = false;
 
     /**
      * Constructs a non-activatable transaction manager.
@@ -278,26 +247,9 @@ class TxnManagerImpl /*extends RemoteServer*/
      * @param lc <code>LifeCycle</code> reference used for callback
      */
     TxnManagerImpl(String[] args, LifeCycle lc, boolean persistent)
-	throws Exception
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-            operationsLogger.entering(
-		TxnManagerImpl.class.getName(), "TxnManagerImpl",
-	        new Object[] {
-		    Arrays.asList(args), lc, Boolean.valueOf(persistent)});
-	}
+        this(args, null, persistent, new Object[] {Arrays.asList(args), lc, Boolean.valueOf(persistent)});
 	lifeCycle = lc; 
-	this.persistent = persistent;
-	try {
-            init(args);
-	} catch (Throwable e) {
-            cleanup();
-            initFailed(e); 
-	}
-        if (operationsLogger.isLoggable(Level.FINER)) {
-            operationsLogger.exiting(
-		TxnManagerImpl.class.getName(), "TxnManagerImpl");
-	}
     }
     /**
      * Constructs an activatable transaction manager.
@@ -307,368 +259,272 @@ class TxnManagerImpl /*extends RemoteServer*/
      * @param data state data needed to re-activate a transaction manager.
      */
     TxnManagerImpl(ActivationID activationID, MarshalledObject data)
-	throws Exception
+	throws IOException, ClassNotFoundException
+    {
+        // data.get IOException and ClassNotFoundException are safe from 
+        // finalizer attack, because it happens
+        // before implicit call to super() Object.
+        this((String[])data.get(), activationID, true, new Object[] {activationID, data} );
+    }
+    
+
+    
+    private TxnManagerImpl(String[] configArgs, final ActivationID activID, final boolean persistant, Object [] logMessage) 
     {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
-		TxnManagerImpl.class.getName(), "TxnManagerImpl",
-	        new Object[] {activationID, data} );
+		TxnManagerImpl.class.getName(), "TxnManagerImpl",logMessage );
 	}
-	this.activationID = activationID;
+        this.persistent = persistant;
+        TxnManagerImplInitializer init = null;
         try {
-            // Initialize state
-            init((String[])data.get());
+            
+            /** initialisation common to both activatable and transient instances. */
+            if (operationsLogger.isLoggable(Level.FINER)) {
+                operationsLogger.entering(TxnManagerImpl.class.getName(), "init",
+                    (Object[])configArgs );
+            }
+            config =
+                ConfigurationProvider.getInstance(
+                    configArgs, getClass().getClassLoader());
+            loginContext = (LoginContext) config.getEntry(
+                TxnManager.MAHALO, "loginContext", LoginContext.class, null);
+            if (loginContext != null) {
+                // Setup with login context.
+                if (operationsLogger.isLoggable(Level.FINER)) {
+                    operationsLogger.entering(TxnManagerImpl.class.getName(), 
+                        "doInitWithLogin",
+                        new Object[] { config, loginContext } );
+                }
+                loginContext.login();
+
+                try {
+                    init = Subject.doAsPrivileged(
+                        loginContext.getSubject(),
+                        new PrivilegedExceptionAction<TxnManagerImplInitializer>() {
+                            public TxnManagerImplInitializer run() throws Exception {
+                                return new TxnManagerImplInitializer(
+                                    config, 
+                                    persistant, 
+                                    activID, 
+                                    new InterruptedStatusThread("settleThread") {
+                                        public void run() {
+                                            try {
+                                                settleTxns();
+                                            } catch (InterruptedException ie) {
+                                                if (transactionsLogger.isLoggable(Level.FINEST)) {
+                                                    transactionsLogger.log(Level.FINEST,
+                                                        "settleThread interrupted -- exiting");
+                                                }
+                                                return;
+                                            }
+                                        };
+                                    }
+                                );
+                            }
+                        },
+                        null);
+                } catch (PrivilegedActionException e) {
+                    //TODO - move to end of initFailed() so that shutdown still occurs under login 	
+                    try {
+                        loginContext.logout();
+                    } catch (LoginException le) {
+                        if( initLogger.isLoggable(Levels.HANDLED) ) {
+                            initLogger.log(Levels.HANDLED, "Trouble logging out", le);
+                        }
+                    }
+                    throw e.getException();
+                }
+                if (operationsLogger.isLoggable(Level.FINER)) {
+                    operationsLogger.exiting(TxnManagerImpl.class.getName(), 
+                        "doInitWithLogin");
+                }
+            } else {
+                // Setup without login context.
+                init =
+                new TxnManagerImplInitializer(
+                    config, 
+                    persistent, 
+                    activID, 
+                    new InterruptedStatusThread("settleThread") {
+                        public void run() {
+                            try {
+                                settleTxns();
+                            } catch (InterruptedException ie) {
+                                if (transactionsLogger.isLoggable(Level.FINEST)) {
+                                    transactionsLogger.log(Level.FINEST,
+                                        "settleThread interrupted -- exiting");
+                                }
+                                return;
+                            }
+                        };
+                    }
+                );
+            }
+            if (operationsLogger.isLoggable(Level.FINER)) {
+                operationsLogger.exiting(
+                    TxnManagerImpl.class.getName(), "init");
+            }
+            
         } catch (Throwable e) {
-            cleanup();
-	    initFailed(e); 
+            thrown = e;
+        } finally {
+            if (init != null){
+                // Assign init fields
+                txns = init.txns;
+                /* Retrieve values from properties.          */
+                activationSystem = init.activationSystem;
+                activationID = activID;
+                activationPrepared = init.activationPrepared;
+                exporter = init.exporter;
+                participantPreparer = init.participantPreparer;
+                txnLeasePeriodPolicy = init.txnLeasePeriodPolicy;
+                persistenceDirectory = init.persistenceDirectory;
+                joinStateManager = init.joinStateManager;
+                settlerpool = init.settlerpool;
+                settlerWakeupMgr = init.settlerWakeupMgr;
+                taskpool = init.taskpool;
+                taskWakeupMgr = init.taskWakeupMgr;
+                topUuid = init.topUuid;
+                context = init.context;
+                settleThread = init.settleThread;
+            } else {
+                // Assign init fields
+                txns = Collections.emptyMap();
+                /* Retrieve values from properties.          */
+                activationSystem = null;
+                activationID = activID;
+                activationPrepared = false;
+                exporter = null;
+                participantPreparer = null;
+                txnLeasePeriodPolicy = null;
+                persistenceDirectory = null;
+                joinStateManager = null;
+                settlerpool = null;
+                settlerWakeupMgr = null;
+                taskpool = null;
+                taskWakeupMgr = null;
+                topUuid = null;
+                context = null;
+                settleThread = null; // Thread hasn't been started let it get collected by gc.
+            }
         }
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(
 		TxnManagerImpl.class.getName(), "TxnManagerImpl");
 	}
     }
-    
-    /** Initialization common to both activatable and transient instances. */
-    private void init(String[] configArgs)
-        throws Exception
-    {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-            operationsLogger.entering(TxnManagerImpl.class.getName(), "init",
-	        (Object[])configArgs );
-	}
-        final Configuration config =
-            ConfigurationProvider.getInstance(
-		configArgs, getClass().getClassLoader());
-        loginContext = (LoginContext) config.getEntry(
-            TxnManager.MAHALO, "loginContext", LoginContext.class, null);
-        if (loginContext != null) {
-            doInitWithLogin(config, loginContext);
-        } else {
-            doInit(config);
+
+    public void start() throws Exception {
+        synchronized (this){
+            if (startOnce) return;
+            startOnce = true;
         }
-        if (operationsLogger.isLoggable(Level.FINER)) {
-            operationsLogger.exiting(
-		TxnManagerImpl.class.getName(), "init");
-	}
-    }
-    
-    private void doInitWithLogin(final Configuration config,
-        LoginContext loginContext) throws Exception
-    {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-            operationsLogger.entering(TxnManagerImpl.class.getName(), 
-	        "doInitWithLogin",
-	        new Object[] { config, loginContext } );
-	}
-        loginContext.login();
         try {
-            Subject.doAsPrivileged(
-                loginContext.getSubject(),
-                new PrivilegedExceptionAction() {
-                    public Object run() throws Exception {
-                        doInit(config);
-                        return null;
+            if (thrown != null) throw thrown;
+            AccessController.doPrivileged(new PrivilegedExceptionAction(){
+
+                @Override
+                public Object run() throws Exception {
+                    if(initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Exporting server");
                     }
-                },
-                null);
-        } catch (PrivilegedActionException e) {
-//TODO - move to end of initFailed() so that shutdown still occurs under login 	
-            try {
-                loginContext.logout();
-            } catch (LoginException le) {
-                if( initLogger.isLoggable(Levels.HANDLED) ) {
-		    initLogger.log(Levels.HANDLED, "Trouble logging out", le);
-		}
-            }
-            throw e.getException();
-        }
-        if (operationsLogger.isLoggable(Level.FINER)) {
-            operationsLogger.exiting(TxnManagerImpl.class.getName(), 
-	        "doInitWithLogin");
-	}
+                    serverStub = (TxnManager)exporter.export(TxnManagerImpl.this);
+                    if(initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Server stub: {0}", serverStub);
+                    }
+                    // Create the proxy that will be registered in the lookup service
+                    txnMgrProxy = 
+                        TxnMgrProxy.create(serverStub, topUuid);
+                    if(initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Service proxy is: {0}", 
+                            txnMgrProxy);		
+                    }
+                    // Create the admin proxy for this service
+                    txnMgrAdminProxy = 
+                        TxnMgrAdminProxy.create(serverStub, topUuid);
+                    if(initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Service admin proxy is: {0}", 
+                            txnMgrAdminProxy);		
+                    }
+                    // Create leaseFactory
+                    leaseFactory = new LeaseFactory(serverStub, topUuid);
+                    expMgr = new LeaseExpirationMgr(TxnManagerImpl.this);
+                    if(initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Setting up log manager");
+                    }
+                    if (persistent) {
+                        logmgr = new MultiLogManager(TxnManagerImpl.this, persistenceDirectory);
+                    } else {
+                        logmgr = new MultiLogManager();
+                    }
 
-    }
-
-    private void doInit(Configuration config) throws Exception {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-            operationsLogger.entering(
-		TxnManagerImpl.class.getName(), "doInit", config);
-	}
-        // Get activatable settings, if activated
-        if (activationID != null) {
-            ProxyPreparer activationSystemPreparer =
-                (ProxyPreparer) Config.getNonNullEntry(config,
-                    TxnManager.MAHALO, "activationSystemPreparer",
-                    ProxyPreparer.class, new BasicProxyPreparer());
-            if(initLogger.isLoggable(Level.CONFIG)) {
-		initLogger.log(Level.CONFIG, "activationSystemPreparer: {0}", 
-	            activationSystemPreparer);		
-	    }
-            activationSystem =
-                (ActivationSystem) activationSystemPreparer.prepareProxy(
-                    ActivationGroup.getSystem());
-            if(initLogger.isLoggable(Level.CONFIG)) {
-		initLogger.log(Level.CONFIG, "Prepared activation system is: {0}",
-                    activationSystem);
-            }
-            ProxyPreparer activationIdPreparer =
-                (ProxyPreparer) Config.getNonNullEntry(config,
-                    TxnManager.MAHALO, "activationIdPreparer",
-                    ProxyPreparer.class, new BasicProxyPreparer());
-            if(initLogger.isLoggable(Level.CONFIG)) {
-		initLogger.log(Level.CONFIG, "activationIdPreparer: {0}", 
-	            activationIdPreparer);		
-            }
-	    activationID = (ActivationID) activationIdPreparer.prepareProxy(
-                activationID);
-            if(initLogger.isLoggable(Level.CONFIG)) {
-		initLogger.log(Level.CONFIG, "Prepared activationID is: {0}",
-                    activationID);
-            }
-	    activationPrepared = true;
-            exporter = (Exporter)Config.getNonNullEntry(config,
-	        TxnManager.MAHALO, "serverExporter", Exporter.class,
-                new ActivationExporter(
-		    activationID,
-                    new BasicJeriExporter(
-			TcpServerEndpoint.getInstance(0), 
-			new BasicILFactory(), false, true)),
-		    activationID);
-            if(initLogger.isLoggable(Level.CONFIG)) {
-		initLogger.log(Level.CONFIG, 
-	            "Activatable service exporter is: {0}", exporter);
-	    }
-        } else {
-            exporter = (Exporter) Config.getNonNullEntry(config,
-                TxnManager.MAHALO, "serverExporter", Exporter.class,
-                new BasicJeriExporter( 
-		    TcpServerEndpoint.getInstance(0), 
-		    new BasicILFactory(), false, true));
-            if(initLogger.isLoggable(Level.CONFIG)) {
-		initLogger.log(Level.CONFIG, 
-	            "Non-activatable service exporter is: {0}", exporter);
-            }
-	}
-	
-	ProxyPreparer recoveredParticipantPreparer = 
-	    (ProxyPreparer)Config.getNonNullEntry(config,
-                TxnManager.MAHALO, "recoveredParticipantPreparer", 
-		ProxyPreparer.class, new BasicProxyPreparer());
-        if(initLogger.isLoggable(Level.CONFIG)) {
-	    initLogger.log(Level.CONFIG, "Recovered participant preparer is: {0}",
-                recoveredParticipantPreparer);
-        }
-	participantPreparer = (ProxyPreparer)Config.getNonNullEntry(config,
-            TxnManager.MAHALO, "participantPreparer", ProxyPreparer.class,
-            new BasicProxyPreparer());
-        if(initLogger.isLoggable(Level.CONFIG)) {
-	    initLogger.log(Level.CONFIG, "Participant preparer is: {0}",
-                participantPreparer);
-        }
-	// Create lease policy -- used by recovery logic, below??
-        txnLeasePeriodPolicy = (LeasePeriodPolicy)Config.getNonNullEntry(
-            config, TxnManager.MAHALO, "leasePeriodPolicy", 
-	    LeasePeriodPolicy.class,
-            new FixedLeasePeriodPolicy(3 * HOURS, 1 * HOURS));
-        if(initLogger.isLoggable(Level.CONFIG)) {
-	    initLogger.log(Level.CONFIG, "leasePeriodPolicy is: {0}",
-                txnLeasePeriodPolicy);
-	}    
-	
-	if (persistent) {
-            persistenceDirectory =
-                (String)Config.getNonNullEntry(config,
-                    TxnManager.MAHALO, "persistenceDirectory", String.class);
-            if(initLogger.isLoggable(Level.CONFIG)) {
-	        initLogger.log(Level.CONFIG, "Persistence directory is: {0}",
-                    persistenceDirectory);
-            }
-	} else { // just for insurance
-	    persistenceDirectory = null;
-	}
-	
-	if(initLogger.isLoggable(Level.FINEST)) {
-	    initLogger.log(Level.FINEST, "Creating JoinStateManager");
-        }
-	// Note: null persistenceDirectory means no persistence
-	joinStateManager = new JoinStateManager(persistenceDirectory);
-	if(initLogger.isLoggable(Level.FINEST)) {
-	    initLogger.log(Level.FINEST, "Recovering join state ...");
-	}
-	joinStateManager.recover();
-	
-	// ServiceUuid will be null first time up.
-	if (joinStateManager.getServiceUuid() == null) {
-	    if(initLogger.isLoggable(Level.FINEST)) {
-	        initLogger.log(Level.FINEST, "Generating service Uuid");
-	    }
-	    topUuid = UuidFactory.generate();
-	    // Actual snapshot deferred until JSM is started, below
-	    joinStateManager.setServiceUuid(topUuid);
-	} else { // get recovered value for serviceUuid
-	    if(initLogger.isLoggable(Level.FINEST)) {
-	        initLogger.log(Level.FINEST, "Recovering service Uuid");
-	    }
-	    topUuid = joinStateManager.getServiceUuid();
-	}
-        if(initLogger.isLoggable(Level.FINEST)) {
-	    initLogger.log(Level.FINEST, "Uuid is: {0}", topUuid);
-	}
-	
-	if (persistent) {
-            // Check persistence path for validity, and create if necessary
-            com.sun.jini.system.FileSystem.ensureDir(persistenceDirectory);
-	}
-	
-	if(initLogger.isLoggable(Level.FINEST)) {
-	    initLogger.log(Level.FINEST, "Exporting server");
-	}
-	serverStub = (TxnManager)exporter.export(this);
-        if(initLogger.isLoggable(Level.FINEST)) {
-	    initLogger.log(Level.FINEST, "Server stub: {0}", serverStub);
-	}
-	// Create the proxy that will be registered in the lookup service
-        txnMgrProxy = 
-	    TxnMgrProxy.create(serverStub, topUuid);
-        if(initLogger.isLoggable(Level.FINEST)) {
-	    initLogger.log(Level.FINEST, "Service proxy is: {0}", 
-	        txnMgrProxy);		
-        }
-	// Create the admin proxy for this service
-        txnMgrAdminProxy = 
-	    TxnMgrAdminProxy.create(serverStub, topUuid);
-        if(initLogger.isLoggable(Level.FINEST)) {
-	    initLogger.log(Level.FINEST, "Service admin proxy is: {0}", 
-	        txnMgrAdminProxy);		
-	}
-	if(initLogger.isLoggable(Level.FINEST)) {
-	    initLogger.log(Level.FINEST, "Setting up data structures");
-        }
-	txns = Collections.synchronizedMap(new HashMap());
-        
-        // Used by log recovery logic			
-        settlerWakeupMgr =
-            new WakeupManager(new WakeupManager.ThreadDesc(null, true));
-	taskWakeupMgr =
-            new WakeupManager(new WakeupManager.ThreadDesc(null, true));
-	
-        settlerpool =
-            (TaskManager) Config.getNonNullEntry(
-                config, TxnManager.MAHALO, "settlerPool", TaskManager.class,
-                new TaskManager(settlerthreads, settlertimeout,
-                                settlerload));
-        taskpool =
-            (TaskManager) Config.getNonNullEntry(
-                config, TxnManager.MAHALO, "taskPool", TaskManager.class,
-                new TaskManager(taskthreads, tasktimeout,
-                                taskload));  
-        
-        unsettledtxns = new Vector();
-	
-        // Create leaseFactory
-        leaseFactory = new LeaseFactory(serverStub, topUuid);
-	
-        // Create LeaseExpirationMgr
-        expMgr = new LeaseExpirationMgr(this);
-
-	if(initLogger.isLoggable(Level.FINEST)) {
-	    initLogger.log(Level.FINEST, "Setting up log manager");
-        }
-	if (persistent) {
- 	    logmgr = new MultiLogManager(this, persistenceDirectory);
-	} else {
- 	    logmgr = new MultiLogManager();
-	}
-
-        try {
- 	    if(initLogger.isLoggable(Level.FINEST)) {
-	        initLogger.log(Level.FINEST, "Recovering state");
-            }
-	    logmgr.recover();
-	    
-	    synchronized(txns) {
-		    // Restore transient state of recovered transactions
-		    Iterator iter = txns.values().iterator();
-            TxnManagerTransaction txn;
-            while(iter.hasNext()) {
-	        txn = (TxnManagerTransaction)iter.next();
-                if(initLogger.isLoggable(Level.FINEST)) {
-		            initLogger.log(Level.FINEST, 
-			        "Restoring transient state for txn id: {0}", 
-		                Long.valueOf(((ServerTransaction)txn.getTransaction()).id));		
-				}
-				try {
-				    txn.restoreTransientState(recoveredParticipantPreparer);
-				} catch (RemoteException re) {
-		                    if (persistenceLogger.isLoggable(Level.WARNING)) {
-		                        persistenceLogger.log(Level.WARNING,
-				            "Cannot restore the TransactionParticipant", re);
-		                    }
-//TODO - what should happen when participant preparation fails?		
-				}
-            }
-	    }
-  
-	    if(initLogger.isLoggable(Level.FINEST)) {
-	        initLogger.log(Level.FINEST, "Settling incomplete transactions");
-	    }
-            settleThread = new InterruptedStatusThread("settleThread") {
-                public void run() {
                     try {
-		        settleTxns();
-		    } catch (InterruptedException ie) {
-                        if (transactionsLogger.isLoggable(Level.FINEST)) {
-                            transactionsLogger.log(Level.FINEST,
-                                "settleThread interrupted -- exiting");
+                        logmgr.recover();
+                        if(initLogger.isLoggable(Level.FINEST)) {
+                            initLogger.log(Level.FINEST, "Settling incomplete transactions");
                         }
-		        return;
-		    }
-                };
-            };
-            settleThread.start();
-        } catch (LogException le) {
-            RemoteException re =  
-	        new RemoteException("Problem recovering state");
-	    initLogger.throwing(TxnManagerImpl.class.getName(), "doInit", re);
-	    throw re;
-        }
 
-	/*
-	 * With SecureRandom, the first ID requires generation of a
-	 * secure seed, which can take several seconds.  We do it here
-	 * so it doesn't affect the first call's time.  (I tried doing
-	 * this in a separate thread so some of the startup would occur
-	 * during the roundtrip back the client, but it didn't help
-	 * much and this is simpler.)
-	 */
-	nextID();
-	
-	
-	/*
-	 * Create the object that manages and persists our join state
-	 */
-	if(initLogger.isLoggable(Level.FINEST)) {
-	    initLogger.log(Level.FINEST, "Starting JoinStateManager");
+                        settleThread.start();
+                    } catch (LogException le) {
+                        RemoteException re =  
+                            new RemoteException("Problem recovering state");
+                        initLogger.throwing(TxnManagerImpl.class.getName(), "doInit", re);
+                        throw re;
+                    }
+
+                    /*
+                     * With SecureRandom, the first ID requires generation of a
+                     * secure seed, which can take several seconds.  We do it here
+                     * so it doesn't affect the first call's time.  (I tried doing
+                     * this in a separate thread so some of the startup would occur
+                     * during the roundtrip back the client, but it didn't help
+                     * much and this is simpler.)
+                     */
+                    nextID();
+
+
+                    /*
+                     * Create the object that manages and persists our join state
+                     */
+                    if(initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Starting JoinStateManager");
+                    }
+                    // Starting causes snapshot to occur
+                    joinStateManager.startManager(config, txnMgrProxy, 
+                        new ServiceID(topUuid.getMostSignificantBits(),
+                                topUuid.getLeastSignificantBits()),
+                        attributesFor());
+
+                    if (startupLogger.isLoggable(Level.INFO)) {
+                        startupLogger.log
+                               (Level.INFO, "Mahalo started: {0}", this);
+                    }
+                    readyState.ready();
+
+                    if (operationsLogger.isLoggable(Level.FINER)) {
+                        operationsLogger.exiting(
+                            TxnManagerImpl.class.getName(), "doInit");
+                    }
+                    return null;
+                }
+
+            }, context);
+        } catch (Throwable e) {
+            if (e instanceof PrivilegedActionException){
+                e = e.getCause();
+            }
+            cleanup();
+	    initFailed(e); 
+        } finally {
+            // Clear references.
+            config = null;
+            context = null;
+            thrown = null;
         }
-	// Starting causes snapshot to occur
-	joinStateManager.startManager(config, txnMgrProxy, 
-	    new ServiceID(topUuid.getMostSignificantBits(),
-                    topUuid.getLeastSignificantBits()),
-            attributesFor());
-	    
-        if (startupLogger.isLoggable(Level.INFO)) {
-            startupLogger.log
-                   (Level.INFO, "Mahalo started: {0}", this);
-        }
-        readyState.ready();
-	
-        if (operationsLogger.isLoggable(Level.FINER)) {
-            operationsLogger.exiting(
-		TxnManagerImpl.class.getName(), "doInit");
-	}
+        
     }
-
-
+    
     //TransactionManager interface method
 
     public TransactionManager.Created create(long lease)
@@ -1207,32 +1063,19 @@ class TxnManagerImpl /*extends RemoteServer*/
 	if (txntr == null)
 	    throw new UnknownLeaseException();
 
-	int state = txntr.getState();
-
-//TODO - need better locking here. getState and expiration need to be checked atomically	
- 
-        if ((state == ACTIVE && txntr.getExpiration()==0) || (state != ACTIVE)) {
-			throw new UnknownLeaseException("unknown transaction");
+        
+        try {
+            // getState and expiration checked atomically
+            txntr.checkStateActive(); // Throws UnknownLeaseException if state not ACTIVE.
+            // State is still active, make it expire.
+            txntr.setExpiration(0);	// Mark as done
+            abort(((Long)tid).longValue(), false);
+        } catch (TransactionException e) {
+            throw new
+                UnknownLeaseException("When canceling abort threw:" +
+            e.getClass().getName() + ":" + e.getLocalizedMessage());
         }
-
-		if (state == ACTIVE) {
-
-		try {
-		
-			synchronized (txntr) {	    								
-				if(txntr.getExpiration() == 0) {
-					throw new TimeoutExpiredException("Transaction already expired", true);
-				}
-				txntr.setExpiration(0);	// Mark as done
-			}
-
-	        abort(((Long)tid).longValue(), false);
-	    } catch (TransactionException e) {
-	        throw new
-		    UnknownLeaseException("When canceling abort threw:" +
-	        e.getClass().getName() + ":" + e.getLocalizedMessage());
-	    }
-	}
+	
 	
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(
@@ -1825,7 +1668,7 @@ class TxnManagerImpl /*extends RemoteServer*/
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "cleanup");
 	}
-//TODO - add custom logic	
+        //TODO - add custom logic	
         if (serverStub != null) { // implies that exporter != null
 	    try {
                 if(initLogger.isLoggable(Level.FINEST)) {
