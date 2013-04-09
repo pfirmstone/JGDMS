@@ -27,7 +27,15 @@ import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest.RegistrationInfo
 import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest;
 import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest.DiscoveryStruct;
 import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest.RegGroupsPair;
+import java.io.IOException;
 import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketAddress;
+import java.net.SocketException;
+import java.net.SocketOptions;
+import java.net.SocketTimeoutException;
 import java.net.UnknownHostException;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
@@ -660,12 +668,47 @@ public class LookupServices {
      * @return true if port in use. 
      */
     private boolean portInUse(int port) {
+        if (port == 0) return false; // Ephemeral
         for(int i=0;i<lookupsStarted.size();i++) {
             LocatorGroupsPair pair = lookupsStarted.get(i);
             int curPort = (pair.getLocator()).getPort();
             if(port == curPort) return true;
         }//end loop
-        return false;
+        // Open a client ephemeral socket and attempt to connect to
+        // port on localhost to see if someone's listening.
+        Socket sock = null;
+        try {
+            sock = new Socket();
+            if (sock instanceof SocketOptions){
+                // Socket terminates with a RST rather than a FIN, so there's no TIME_WAIT
+                try {
+                    ((SocketOptions) sock).setOption(SocketOptions.SO_LINGER, Integer.valueOf(0));
+                } catch (SocketException se) {
+                    // Ignore, not supported.
+                    logger.log( Level.FINEST, "SocketOptions set SO_LINGER threw an Exception", se);
+                }
+            }
+            SocketAddress add = new InetSocketAddress(port);
+            sock.connect(add, 3000); // Try to connect for up to three seconds 
+            // We were able to connect to a socket listening on localhost
+            return true;
+        } catch (SocketTimeoutException e){
+            // There might be a stale process assume in use.
+            logger.log( Level.FINEST, "Socket timed out while trying to connect", e);
+            return true;
+        } catch (IOException e){
+            // There was nothing listening on the socket so it's probably free.
+            // or it timed out.
+            return false;
+        } finally {
+            if (sock != null){
+                try {
+                    sock.close();
+                } catch (IOException ex){
+                    logger.log( Level.FINEST, "Socket threw exception while attempting to close", ex);
+                }// Ignore
+            }
+        }
     }//end portInUse
     
     private void refreshLookupLocatorListsAt(int index){
