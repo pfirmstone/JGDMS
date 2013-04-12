@@ -363,7 +363,7 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
     /** Thread that handles pending notifications. */
     private Notifier notifierThread;
     /** Notifications to be sent to listeners. */
-    private LinkedList pendingNotifies = new LinkedList();
+    private final LinkedList pendingNotifies = new LinkedList();
     /** Stores DiscoveryListeners **/
     private final ArrayList listeners = new ArrayList(1);
     /** Flag indicating whether or not this class is still functional. */

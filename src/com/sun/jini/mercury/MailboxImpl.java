@@ -37,6 +37,7 @@ import com.sun.jini.reliableLog.ReliableLog;
 import com.sun.jini.reliableLog.LogException;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.start.LifeCycle;
+import com.sun.jini.start.Starter;
 import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadersWriter.ConcurrentLockException;
@@ -153,7 +154,7 @@ See recoverSnapshot() for exact details of what gets retrieved.
 */
 
 class MailboxImpl implements MailboxBackEnd, TimeConstants, 
-    ServerProxyTrust, ProxyAccessor
+    ServerProxyTrust, ProxyAccessor, Starter
  
 {
 
@@ -200,7 +201,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     static final Logger operationsLogger =
         Logger.getLogger(MERCURY + ".operations");
 
-    private static final String mailboxSourceClass = 
+    static final String mailboxSourceClass = 
 	MailboxImpl.class.getName();
 
     private static final String notifierSourceClass = 
@@ -260,32 +261,28 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     /** ServiceInfo version value */
     private static final String VERSION = 
 	com.sun.jini.constants.VersionConstants.SERVER_VERSION;
+    /** Log format version */
+    private static final int LOG_VERSION = 2;
 
     /** The inner proxy of this server */
-    private /*final*/ MailboxBackEnd serverStub;
-    
+    private /*final*/ volatile MailboxBackEnd serverStub;
     /** The outter proxy of this server */
-    private /*final*/ MailboxProxy mailboxProxy;
-
+    private /*final*/ volatile MailboxProxy mailboxProxy;
     /** The admin proxy of this server */
-    private /*final*/ MailboxAdminProxy mailboxAdminProxy;
-
+    private /*final*/ volatile MailboxAdminProxy mailboxAdminProxy;
     /** Concurrent object (lock) to control read and write access */
     private final ReadersWriter concurrentObj = new ReadersWriter();
-
     /** Map from <code>Uuid</code> to <code>ServiceRegistration</code> */
     // HashMap is unsynchronized, but we are performing external
     // synchronization via the <code>concurrentObj</code> field. 
-    private HashMap regByID = new HashMap(); 
-
+    private final HashMap<Uuid,ServiceRegistration> regByID; 
     /**
      * Identity map of <tt>ServiceRegistration</tt>, ordered by lease 
      * expiration. This is a parallel data structure to <code>regByID</code>.
      */
     // TreeMap is unsynchronized, but we are performing external
     // synchronization via the <code>concurrentObj</code> field. 
-    private final TreeMap regByExpiration = new TreeMap();
-
+    private final TreeMap<ServiceRegistration,ServiceRegistration> regByExpiration;
     /** 
      * List of <tt>ServiceRegistration</tt>s that have event 
      * delivery enabled, but don't have any event delivery tasks 
@@ -294,8 +291,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     // Using an ArrayList for random access performance. 
     // ArrayList is unsynchronized, but we are performing external
     // synchronization via the <code>concurrentObj</code> field. 
-    private List pendingReg = new ArrayList();
-
+    private final List<Uuid> pendingReg;
     /**
      * Map of <tt>ServiceRegistration</tt>s that have event 
      * delivery enabled and have event delivery tasks currently 
@@ -303,70 +299,47 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      */
     // HashMap is unsynchronized, but we are performing external
     // synchronization via the <code>concurrentObj</code> field. 
-    private Map activeReg = new HashMap();
-
+    private final Map<Uuid,NotifyTask> activeReg;
     /** Reliable log to hold registration state information */
     // Note that event state is kept separately
-    private ReliableLog log;
-
-    /** Log format version */
-    private static final int LOG_VERSION = 2;
-
+    private final ReliableLog log;
     /** Flag indicating whether system is in a state of recovery */
-    private boolean inRecovery;
-
+    private volatile boolean inRecovery;
     /** Current number of records in the Log File since the last snapshot */
     private int logFileSize = 0;
-
     /** Log File must contain this many records before a snapshot is allowed */
 // TODO (FCS)- allow this to be a user configurable parameter
     private int logToSnapshotThreshold = 50;
-
     /** Object on which the snapshot-taking thread will synchronize */
     private final Object snapshotNotifier = new Object();
-
     /** Snapshot-taking thread */
-    private Thread snapshotter = null;
-
+    private final Thread snapshotter;
     /** The login context, for logging out */
-    protected LoginContext loginContext;
-
+    protected final LoginContext loginContext;
     /** Name of persistence directory */
-    private String persistenceDirectory = null;
-
+    private final String persistenceDirectory;
     /** Proxy preparer for listeners */
-    private ProxyPreparer listenerPreparer;
-
+    private final ProxyPreparer listenerPreparer;
     /** The exporter for exporting and unexporting */
-    protected Exporter exporter;
-    
+    protected final Exporter exporter;
    /** ServiceID returned from the lookup registration process */
-    private Uuid serviceID = null;
-
+    private volatile Uuid serviceID;
     /** Our activation ID */
-    private ActivationID activationID = null;
-
+    private final ActivationID activationID;
     /** Whether the activation ID has been prepared */
-    private boolean activationPrepared;
-
+    private final boolean activationPrepared;
     /** The activation system, prepared */
-    private ActivationSystem activationSystem;
-    
+    private final ActivationSystem activationSystem;
     /** <code>EventLogIterator</code> generator */
-    private final EventLogFactory eventLogFactory = new EventLogFactory();
-
+    private final EventLogFactory eventLogFactory;
     /** <code>LeasePeriodPolicy</code> for this service */
-    private LeasePeriodPolicy leasePolicy = null; 
-    
+    private final LeasePeriodPolicy leasePolicy; 
     /** <code>LandLordLeaseFactory</code> we use to create leases */
-    private LeaseFactory leaseFactory = null;
-
+    private volatile LeaseFactory leaseFactory;
     /** LocalLandlord to use with LandlordUtil calls */
-    private LocalLandlordAdaptor localLandlord = new LocalLandlordAdaptor();
-
+    private final LocalLandlordAdaptor localLandlord = new LocalLandlordAdaptor();
     /** Manager for joining lookup services */
     private JoinManager joiner = null;
-
     /** 
      * DiscoveryManager for joining lookup services. 
      * This can always be obtained from the JoinManager, so
@@ -375,90 +348,78 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private DiscoveryManagement lookupDiscMgr = null;
 
     /** The attributes to use when joining lookup services */
-    private Entry[] baseLookupAttrs = new Entry[] { 
+    private final Entry[] baseLookupAttrs = new Entry[] { 
 	    new ServiceInfo(PRODUCT, MANUFACTURER, VENDOR, VERSION, "", ""),
             new BasicServiceType("Event Mailbox")
     };
     private Entry[] lookupAttrs = new Entry[] {};
-
     /** 
      * The lookup groups we should join. 
      * Default is to join no groups. 
      */
     private String[] lookupGroups = LookupDiscovery.NO_GROUPS;
-
     /** 
      * The lookup locators we should join 
      * Default is to join with no locators. 
      */
     private LookupLocator[] lookupLocators = new LookupLocator[0];
-
     /* Preparer for initial and new lookup locators this service should
      * discover and join.
      */
     private static ProxyPreparer locatorToJoinPreparer;
-    
     /* Preparer for lookup locators this service should discover and join
      * that were previously prepared and which were recovered from this
      * service's persisted state.
      */
     private static ProxyPreparer recoveredLocatorToJoinPreparer;
-    
    /** Event delivery thread */
-    private Notifier notifier = null;
-
+    private final Thread notifier;
     /** Object for coordinating actions with the notification thread */
     private final Object eventNotifier = new Object();
-
     /** Registration expirer thread */
-    private ExpirationThread expirer = null;
-
+    private final Thread expirer;
     /** Earliest expiration time of any registration */
     private long minRegExpiration = Long.MAX_VALUE;
-
     /** Object for coordinating actions with the expire thread */
     private final Object expirationNotifier = new Object();
- 
     /** Object for coordinating the destroy process */
     private final Object destroyLock = new Object();
- 
     /** 
      * Flag that denotes whether or not destroy has already been called.
      * The variable is guarded by <code>destroyLock</code>.
      */
-    private boolean destroySucceeded = false;
-
+    private volatile boolean destroySucceeded = false;
     /**
      * When destroying the space, how long to wait for a clean
      * unexport (which allows the destroy call to return) before
      * giving up calling <code>unexport(true)</code>
      */
-    private long maxUnexportDelay;
-
-    /**
-     * Length of time to sleep between unexport attempts
-     */
-    private long unexportRetryDelay;
-    
+    private final long maxUnexportDelay;
+    /** Length of time to sleep between unexport attempts */
+    private final long unexportRetryDelay;
     /** 
      * Object used to prevent access to this service during the service's
      *  initialization or shutdown processing.
      */
     private final ReadyState readyState = new ReadyState();
-    
     /**
      * <code>LifeCycle</code> object used to notify starter framework
      * that this object's implementation reference, if any, should not
      * be held onto any longer. This is only used in the non-activatable case.
      */
-    private LifeCycle lifeCycle = null;
-
+    private volatile LifeCycle lifeCycle;
     /**
      * <code>boolean</code> flag used to determine persistence support.
      * Defaulted to true, and overridden in the constructor overload that takes
      * a <code>boolean</code> argument.
      */
-    private boolean persistent = true;
+    private final boolean persistent;
+    
+     // The following two fields are only required by start, called by the
+    // constructor thread and set to null after starting.
+    private Configuration config;
+    private Throwable thrown;
+    private volatile boolean started = false;
     
     ///////////////////////
     // Activation Methods
@@ -513,23 +474,24 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     MailboxImpl(ActivationID activationID, MarshalledObject data) 
 	throws Exception
     {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
-	        "MailboxImpl", 
-		new Object[] {activationID, data});
-	}
-	this.activationID = activationID;
-	try {
-	    // Initialize state
-	    init((String[])data.get());
-	} catch (Throwable e) {
-	    cleanup();
-	    initFailed(e);
-	}	  
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
-	        "MailboxImpl");
-	}
+        this((String[])data.get(), activationID, true, new Object[] {activationID, data} );
+//        if (operationsLogger.isLoggable(Level.FINER)) {
+//	    operationsLogger.entering(mailboxSourceClass, 
+//	        "MailboxImpl", 
+//		new Object[] {activationID, data});
+//	}
+//	this.activationID = activationID;
+//	try {
+//	    // Initialize state
+//	    init((String[])data.get());
+//	} catch (Throwable e) {
+//	    cleanup();
+//	    initFailed(e);
+//	}	  
+//        if (operationsLogger.isLoggable(Level.FINER)) {
+//	    operationsLogger.exiting(mailboxSourceClass, 
+//	        "MailboxImpl");
+//	}
     }
     
     /////////////////////////
@@ -540,415 +502,703 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * instances. 
      * State information is still logged to persistent storage.
      * This method is only intended for debugging purposes at this time.
-     *
+     *  
      */
     // @param log directory where persistent state is maintained
     MailboxImpl(String[] configArgs, LifeCycle lc, boolean persistent) 
 	throws Exception
     {
+        this(configArgs, null, persistent, new Object[] {Arrays.asList(configArgs), lc, Boolean.valueOf(persistent)});
+	lifeCycle = lc; 
+//        if (operationsLogger.isLoggable(Level.FINER)) {
+//	    operationsLogger.entering(mailboxSourceClass, 
+//	        "MailboxImpl", 
+//		new Object[] { configArgs, lc, Boolean.valueOf(persistent)});
+//	}
+//	try {
+//	    lifeCycle = lc;
+//	    this.persistent = persistent;
+//            init(configArgs);
+//	} catch (Throwable e) {
+//	    cleanup();
+//	    initFailed(e);
+//	}	  
+//        if (operationsLogger.isLoggable(Level.FINER)) {
+//	    operationsLogger.exiting(mailboxSourceClass, 
+//	        "MailboxImpl");
+//	}
+    }
+    
+    private MailboxImpl(String[] configArgs, final ActivationID activID, final boolean persistant, Object [] logMessage){
         if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
-	        "MailboxImpl", 
-		new Object[] { configArgs, lc, Boolean.valueOf(persistent)});
+            operationsLogger.entering(
+		MailboxImpl.class.getName(), "MailboxImpl",logMessage );
 	}
-	try {
-	    lifeCycle = lc;
-	    this.persistent = persistent;
-            init(configArgs);
-	} catch (Throwable e) {
-	    cleanup();
-	    initFailed(e);
-	}	  
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
-	        "MailboxImpl");
-	}
+        this.persistent = persistant;
+        MailboxImplInit init = null;
+        final Configuration config;
+        LoginContext loginContext = null;
+        try {
+           if (operationsLogger.isLoggable(Level.FINER)) {
+                operationsLogger.entering(mailboxSourceClass, 
+                    "init", (Object[])configArgs);
+           }
+           config =
+                ConfigurationProvider.getInstance(
+                    configArgs, getClass().getClassLoader());
+            loginContext = (LoginContext) config.getEntry(
+                MERCURY, "loginContext", LoginContext.class, null);
+            if (loginContext != null) {
+//                doInitWithLogin(config, loginContext);
+                /* */
+                if (operationsLogger.isLoggable(Level.FINER)) {
+                    operationsLogger.entering(mailboxSourceClass, 
+                        "doInitWithLogin", new Object[] { config, loginContext});
+                }
+                loginContext.login();
+                try {
+                    init = Subject.doAsPrivileged(
+                        loginContext.getSubject(),
+                        new PrivilegedExceptionAction<MailboxImplInit>() {
+                            public MailboxImplInit run() throws Exception {
+//                                doInit(config);
+                                // Create these threads here so they inherit
+                                // current context.
+                                return new MailboxImplInit(config,
+                                        persistant, 
+                                        activID, 
+                                        baseLookupAttrs, 
+                                        new LocalLogHandler(),
+                                        persistant ? new SnapshotThread(): null,
+                                        new Notifier(config),
+                                        new ExpirationThread()
+                                        );
+                            }
+                        },
+                        null);
+                } catch (PrivilegedActionException e) {
+                    try {
+                        loginContext.logout();
+                    } catch (LoginException le) {
+        //TODO - Move to end of cleanup()
+                        if (initLogger.isLoggable(Levels.HANDLED)) {
+                            initLogger.log(Levels.HANDLED, "Trouble logging out", le);
+                        }
+                    }
+                    throw e.getException();
+                }
+                if (operationsLogger.isLoggable(Level.FINER)) {
+                    operationsLogger.exiting(mailboxSourceClass, 
+                        "doInitWithLogin");
+                }
+                /* */
+            } else {
+//                doInit(config);
+                init = new MailboxImplInit(config, 
+                        persistant, 
+                        activID, 
+                        baseLookupAttrs, 
+                        new LocalLogHandler(),
+                        persistant ? new SnapshotThread(): null,
+                        new Notifier(config),
+                        new ExpirationThread()
+                        );
+                
+            }
+            if (operationsLogger.isLoggable(Level.FINER)) {
+                operationsLogger.exiting(mailboxSourceClass, 
+                    "init");
+            }
+        } catch (Throwable t){
+            thrown = t;
+        } finally {
+            if (init != null){
+                activationID = init.activationID;
+                activationSystem = init.activationSystem;
+                activationPrepared = init.activationPrepared;
+                exporter = init.exporter;
+                listenerPreparer = init.listenerPreparer;
+                locatorToJoinPreparer = init.locatorToJoinPreparer;
+                leasePolicy = init.leasePolicy;
+                persistenceDirectory = init.persistenceDirectory;
+                recoveredLocatorToJoinPreparer = init.recoveredLocatorToJoinPreparer;
+                logToSnapshotThreshold = init.logToSnapshotThreshold;
+                log = init.log;
+                serviceID = init.serviceID;
+                lookupGroups = init.lookupGroups;
+                lookupLocators = init.lookupLocators;
+                lookupAttrs = init.lookupAttrs;
+                maxUnexportDelay = init.maxUnexportDelay;
+                unexportRetryDelay = init.unexportRetryDelay;
+                lookupDiscMgr = init.lookupDiscMgr;
+                regByExpiration = init.regByExpiration;
+                regByID = init.regByID;
+                activeReg = init.activeReg;
+                /** <code>EventLogIterator</code> generator */
+                eventLogFactory = init.eventLogFactory;
+                pendingReg = init.pendingReg;
+                snapshotter = init.snapshotter;
+                notifier = init.notifier;
+                expirer = init.expirer;
+                this.config = init.config;
+                this.loginContext = loginContext;
+                
+            } else {
+                activationID = activID;
+                activationSystem = null;
+                activationPrepared = false;
+                exporter = null;
+                listenerPreparer = null;
+                locatorToJoinPreparer = null;
+                leasePolicy = null;
+                persistenceDirectory = null;
+                recoveredLocatorToJoinPreparer = null;
+                logToSnapshotThreshold = 0;
+                log = null;
+                serviceID = null;
+                lookupGroups = null;
+                lookupLocators = null;
+                lookupAttrs = null;
+                maxUnexportDelay = 0;
+                unexportRetryDelay = 0;
+                lookupDiscMgr = null;
+                regByExpiration = null;
+                regByID = null;
+                activeReg = null;
+                /** <code>EventLogIterator</code> generator */
+                eventLogFactory = null;
+                pendingReg = null;
+                snapshotter = null;
+                notifier = null;
+                expirer = null;
+                this.config = null;
+                this.loginContext = loginContext;
+            }
+            // Assign fields.
+        }
+        
     }
 
-    /** Initialization common to both activatable and transient instances. */
-    private void init(String[] configArgs) 
-	throws Exception
-    {
-       if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
-	        "init", (Object[])configArgs);
-       }
-       final Configuration config =
-            ConfigurationProvider.getInstance(
-	        configArgs, getClass().getClassLoader());
-        loginContext = (LoginContext) config.getEntry(
-            MERCURY, "loginContext", LoginContext.class, null);
-        if (loginContext != null) {
-            doInitWithLogin(config, loginContext);
-        } else {
-            doInit(config);
-	}
-	if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
-	        "init");
-	}
-    }
+//    /** Initialization common to both activatable and transient instances. */
+//    private void init(String[] configArgs) 
+//	throws Exception
+//    {
+//       if (operationsLogger.isLoggable(Level.FINER)) {
+//	    operationsLogger.entering(mailboxSourceClass, 
+//	        "init", (Object[])configArgs);
+//       }
+//       final Configuration config =
+//            ConfigurationProvider.getInstance(
+//	        configArgs, getClass().getClassLoader());
+//        loginContext = (LoginContext) config.getEntry(
+//            MERCURY, "loginContext", LoginContext.class, null);
+//        if (loginContext != null) {
+//            doInitWithLogin(config, loginContext);
+//        } else {
+//            doInit(config);
+//	}
+//	if (operationsLogger.isLoggable(Level.FINER)) {
+//	    operationsLogger.exiting(mailboxSourceClass, 
+//	        "init");
+//	}
+//    }
     
     /** 
      * Method that attempts to login before delegating the
      * rest of the initialization process to <code>doInit</code>
      */
-    private void doInitWithLogin(final Configuration config, 
-        LoginContext loginContext) throws Exception 
-    {
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
-	        "doInitWithLogin", new Object[] { config, loginContext});
-	}
-        loginContext.login();
-	try {
-            Subject.doAsPrivileged(
-                loginContext.getSubject(),
-                new PrivilegedExceptionAction() {
-                    public Object run() throws Exception {
-                        doInit(config);
-                        return null;
-                    }
-                },
-                null);
-	} catch (PrivilegedActionException e) {
-	    try {
-	        loginContext.logout();
-	    } catch (LoginException le) {
-//TODO - Move to end of cleanup()
-		if (initLogger.isLoggable(Levels.HANDLED)) {
-	            initLogger.log(Levels.HANDLED, "Trouble logging out", le);
-		}
-	    }
-	    throw e.getException();
+//    private void doInitWithLogin(final Configuration config, 
+//        LoginContext loginContext) throws Exception 
+//    {
+//        if (operationsLogger.isLoggable(Level.FINER)) {
+//	    operationsLogger.entering(mailboxSourceClass, 
+//	        "doInitWithLogin", new Object[] { config, loginContext});
+//	}
+//        loginContext.login();
+//	try {
+//            Subject.doAsPrivileged(
+//                loginContext.getSubject(),
+//                new PrivilegedExceptionAction() {
+//                    public Object run() throws Exception {
+//                        doInit(config);
+//                        return null;
+//                    }
+//                },
+//                null);
+//	} catch (PrivilegedActionException e) {
+//	    try {
+//	        loginContext.logout();
+//	    } catch (LoginException le) {
+////TODO - Move to end of cleanup()
+//		if (initLogger.isLoggable(Levels.HANDLED)) {
+//	            initLogger.log(Levels.HANDLED, "Trouble logging out", le);
+//		}
+//	    }
+//	    throw e.getException();
+//        }
+//        if (operationsLogger.isLoggable(Level.FINER)) {
+//	    operationsLogger.exiting(mailboxSourceClass, 
+//	        "doInitWithLogin");
+//	}
+//    }
+    
+//    /** Initialization common to both activatable and transient instances. */
+//    private void doInit(Configuration config) throws Exception { 
+//
+//        if (operationsLogger.isLoggable(Level.FINER)) {
+//	    operationsLogger.entering(mailboxSourceClass, 
+//	        "doInit", config);
+//	}
+////TODO - defer "big" default object to catch block around getNonNullEntry()
+//    
+//        // Get activation specific configuration items, if activated
+//	if (activationID != null) {
+//            ProxyPreparer activationSystemPreparer =
+//                (ProxyPreparer) Config.getNonNullEntry(config,
+//	            MERCURY, "activationSystemPreparer", 
+//		    ProxyPreparer.class, new BasicProxyPreparer());
+//            if (initLogger.isLoggable(Level.CONFIG)) {
+//                initLogger.log(Level.CONFIG, "activationSystemPreparer: {0}", 
+//	        activationSystemPreparer);
+//	    }		
+//            activationSystem =
+//                (ActivationSystem) activationSystemPreparer.prepareProxy(
+//                    ActivationGroup.getSystem());
+//            if (initLogger.isLoggable(Level.FINEST)) {
+//                initLogger.log(Level.FINEST, "Prepared activation system is: {0}", 
+//	        activationSystem);
+//	    }		
+//            ProxyPreparer activationIdPreparer = 
+//	        (ProxyPreparer)  Config.getNonNullEntry(config,
+//	            MERCURY, "activationIdPreparer", 
+//		    ProxyPreparer.class, new BasicProxyPreparer());
+//            if (initLogger.isLoggable(Level.CONFIG)) {
+//                initLogger.log(Level.CONFIG, "activationIdPreparer: {0}", 
+//	        activationIdPreparer);
+//	    }		
+//            activationID = (ActivationID) activationIdPreparer.prepareProxy(
+//                activationID);
+//            if (initLogger.isLoggable(Level.FINEST)) {
+//                initLogger.log(Level.FINEST, "Prepared activationID is: {0}", 
+//	        activationID);
+//	    }		
+//            activationPrepared = true;
+//	
+//            exporter = (Exporter)Config.getNonNullEntry(config,
+//	        MERCURY, "serverExporter", Exporter.class,
+//		new ActivationExporter(
+//		    activationID, 
+//		    new BasicJeriExporter(
+//		        TcpServerEndpoint.getInstance(0), 
+//			new BasicILFactory(), false, true)),
+//		activationID);
+//            if (initLogger.isLoggable(Level.CONFIG)) {
+//                initLogger.log(Level.CONFIG, "Activatable service exporter is: {0}", 
+//	        exporter);
+//	    }		
+//	} else { //Get non-activatable configuration items
+//            exporter = (Exporter) Config.getNonNullEntry(config,
+//                MERCURY, "serverExporter", Exporter.class, 
+//		new BasicJeriExporter(
+//		    TcpServerEndpoint.getInstance(0), 
+//		    new BasicILFactory(), false, true));
+//            if (initLogger.isLoggable(Level.CONFIG)) {
+//                initLogger.log(Level.CONFIG, 
+//		"Non-activatable service exporter is: {0}", exporter);		
+//	    }
+//	}
+//
+//        listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(
+//	    config, MERCURY, "listenerPreparer", ProxyPreparer.class,
+//            new BasicProxyPreparer());
+//        if (initLogger.isLoggable(Level.CONFIG)) {
+//            initLogger.log(Level.CONFIG, "Listener preparer is: {0}", 
+//	    listenerPreparer);	
+//	}
+//	
+//        /* Get the proxy preparers for the lookup locators to join */
+//        locatorToJoinPreparer = (ProxyPreparer)Config.getNonNullEntry
+//             (config, MERCURY, "locatorToJoinPreparer",
+//              ProxyPreparer.class, new BasicProxyPreparer());
+//        if (initLogger.isLoggable(Level.CONFIG)) {
+//            initLogger.log(Level.CONFIG, "Locator preparer is: {0}", 
+//	    locatorToJoinPreparer);
+//	}	
+//	
+//        // Create lease policy -- used by recovery logic, below
+//        leasePolicy = (LeasePeriodPolicy) Config.getNonNullEntry(config,
+//	    MERCURY, "leasePeriodPolicy", LeasePeriodPolicy.class,
+//            new FixedLeasePeriodPolicy(3 * HOURS, 1 * HOURS));
+//        if (initLogger.isLoggable(Level.CONFIG)) {
+//            initLogger.log(Level.CONFIG, "LeasePeriodPolicy is: {0}", 
+//	    leasePolicy);
+//	}	
+//	    
+//	// Note: referenced by recovery logic in rebuildTransientState()	
+//        ProxyPreparer recoveredListenerPreparer = null;
+//        if (persistent) {
+//	    persistenceDirectory = 
+//	        (String)Config.getNonNullEntry(
+//                    config, MERCURY, "persistenceDirectory", String.class);
+//            if (initLogger.isLoggable(Level.CONFIG)) {
+//                initLogger.log(Level.CONFIG, "Persistence directory is: {0}", 
+//	        persistenceDirectory);
+//	    }	
+//	    // Note: referenced by recovery logic in rebuildTransientState()	
+//            recoveredListenerPreparer = 
+//	        (ProxyPreparer) Config.getNonNullEntry(
+//	        config, MERCURY, "recoveredListenerPreparer", ProxyPreparer.class,
+//                new BasicProxyPreparer());
+//            if (initLogger.isLoggable(Level.CONFIG)) {
+//                initLogger.log(Level.CONFIG, "Recovered listener preparer is: {0}", 
+//	        recoveredListenerPreparer);	
+//	    }
+//	    // Note: referenced by recovery logic, below	
+//            recoveredLocatorToJoinPreparer = (ProxyPreparer)Config.getNonNullEntry
+//                 (config, MERCURY, "recoveredLocatorToJoinPreparer",
+//                  ProxyPreparer.class, new BasicProxyPreparer());
+//            if (initLogger.isLoggable(Level.CONFIG)) {
+//                initLogger.log(Level.CONFIG, "Recovered locator preparer is: {0}", 
+//	        recoveredLocatorToJoinPreparer);
+//	    }	
+//
+//	    logToSnapshotThreshold = Config.getIntEntry(config,
+//                MERCURY, "logToSnapshotThreshold", 50, 0, Integer.MAX_VALUE);
+//	    
+////            log = new ReliableLog(persistenceDirectory, new LocalLogHandler());
+//
+//	    if (initLogger.isLoggable(Level.FINEST)) {
+//                initLogger.log(Level.FINEST, "Recovering persistent state");
+//	    }
+//            inRecovery = true;
+//            log.recover();
+//            inRecovery = false;
+//	}
+//
+//	if (serviceID == null) { // First time up, get initial values
+//	    if (initLogger.isLoggable(Level.FINEST)) {
+//                initLogger.log(Level.FINEST, "Getting initial values.");
+//	    }
+//	    serviceID = UuidFactory.generate();
+//	    if (initLogger.isLoggable(Level.FINEST)) {
+//                initLogger.log(Level.FINEST, "ServiceID: {0}", serviceID);
+//	    }
+//	    // Can be null for ALL_GROUPS
+//            lookupGroups = (String[])config.getEntry(MERCURY, 
+//	        "initialLookupGroups", String[].class, 
+//		new String[] { "" }); //default to public group
+//	    if (initLogger.isLoggable(Level.CONFIG)) {
+//                initLogger.log(Level.CONFIG, "Initial groups:");
+//	        dumpGroups(lookupGroups, initLogger, Level.CONFIG);
+//	    }
+//	    /*
+//	     * Note: Configuration provided locators are assumed to be 
+//	     * prepared already.
+//	     */
+//            lookupLocators = (LookupLocator[]) Config.getNonNullEntry(config,
+//	        MERCURY, "initialLookupLocators", LookupLocator[].class, 
+//		new LookupLocator[0]);
+//	    if (initLogger.isLoggable(Level.CONFIG)) {
+//                initLogger.log(Level.CONFIG, "Initial locators:");
+//	        dumpLocators(lookupLocators, initLogger, Level.CONFIG);
+//	    }
+//
+//            final Entry[] initialAttrs = 
+//	        (Entry[])Config.getNonNullEntry(config,
+//	            MERCURY, "initialLookupAttributes" ,
+//		    Entry[].class, new Entry[0]);
+//	    if (initLogger.isLoggable(Level.CONFIG)) {
+//                initLogger.log(Level.CONFIG, "Initial lookup attributes:");
+//	        dumpAttrs(initialAttrs, initLogger, Level.CONFIG);
+//	    }
+//            if (initialAttrs.length == 0) {
+//                lookupAttrs = baseLookupAttrs;
+//            } else {
+//                lookupAttrs = 
+//		    new Entry[initialAttrs.length + baseLookupAttrs.length];
+//                int i=0;
+//                for (int j=0; j<baseLookupAttrs.length; j++, i++)
+//                    lookupAttrs[i] = baseLookupAttrs[j];
+//                for (int j=0; j<initialAttrs.length; j++, i++)
+//                    lookupAttrs[i] = initialAttrs[j];
+//            }
+//	    if (initLogger.isLoggable(Level.FINEST)) {
+//                initLogger.log(Level.FINEST, 
+//		    "Combined lookup attributes:"); 
+//	        dumpAttrs(lookupAttrs, initLogger, Level.FINEST);
+//	    }
+//        } else { // recovered logic
+//	    if (initLogger.isLoggable(Level.FINEST)) {
+//                initLogger.log(Level.FINEST, "Preparing recovered locators:"); 
+//	        dumpLocators(lookupLocators, initLogger, Level.FINEST);
+//	    }
+//            prepareExistingLocators(
+//	        recoveredLocatorToJoinPreparer, lookupLocators);
+////TODO - Add recovered state debug: groups, locators, etc.
+//	}
+//	
+//        if (persistent) {
+//	    // Take snapshot of current state.
+//	    if (initLogger.isLoggable(Level.FINEST)) {
+//                initLogger.log(Level.FINEST, "Taking snapshot.");
+//	    }
+//            log.snapshot();
+//
+//            // Reconstruct any transient state, if necessary.
+//            rebuildTransientState(recoveredListenerPreparer);
+//	    
+//            /*  ----  ----- */
+//	    // Start snapshot thread belongs in start method
+////	    snapshotter = new SnapshotThread();
+//            snapshotter.start();
+//	}
+//        
+//	maxUnexportDelay = Config.getLongEntry(config, MERCURY, 
+//	    "maxUnexportDelay", 2 * MINUTES, 0, Long.MAX_VALUE);
+//
+//	unexportRetryDelay = Config.getLongEntry(config, MERCURY, 
+//	    "unexportRetryDelay", SECONDS, 1, Long.MAX_VALUE);
+//        
+//        /*  ---  The following will go into start method --- */
+//
+//        // Start threads
+////	notifier = new Notifier(config);
+//        notifier.start();
+////	expirer = new ExpirationThread();
+//        expirer.start();
+//
+//	// Export server instance and get its reference
+//	serverStub = (MailboxBackEnd)exporter.export(this);
+//        if (initLogger.isLoggable(Level.FINEST)) {
+//            initLogger.log(Level.FINEST, "Service stub is: {0}", 
+//	    serverStub);	
+//	}	
+//
+//        // Create the proxy that will be registered in the lookup service
+//        mailboxProxy = 
+//	    MailboxProxy.create(serverStub, serviceID);
+//        if (initLogger.isLoggable(Level.FINEST)) {
+//            initLogger.log(Level.FINEST, "Service proxy is: {0}", 
+//	    mailboxProxy);
+//	}		
+//
+//        // Create the admin proxy for this service
+//        mailboxAdminProxy = 
+//	    MailboxAdminProxy.create(serverStub, serviceID);
+//        if (initLogger.isLoggable(Level.FINEST)) {
+//            initLogger.log(Level.FINEST, "Service admin proxy is: {0}", 
+//	    mailboxAdminProxy);		
+//	}
+//
+//	// Create leaseFactory
+//	leaseFactory = new LeaseFactory(serverStub, serviceID);
+//
+//        // Get shorthand reference to the discovery manager
+//	try {
+//            lookupDiscMgr  = 
+//                (DiscoveryManagement)Config.getNonNullEntry(config,
+//	            MERCURY, "discoveryManager",
+//                    DiscoveryManagement.class);
+//            if(lookupDiscMgr instanceof DiscoveryGroupManagement) {
+//                 // Verify proper initial state ---> NO_GROUPS
+//                String[] groups =
+//                    ((DiscoveryGroupManagement)lookupDiscMgr).getGroups();
+//                if( (groups == DiscoveryGroupManagement.ALL_GROUPS) ||
+//                    (groups.length != 0) )
+//                {
+//                    throw new ConfigurationException(
+//                        "discoveryManager entry must be configured " +
+//		        " with no groups.");
+//                }//endif
+//	    } else {
+//               throw new ConfigurationException(
+//                    "discoveryManager entry must implement " +
+//                    "DiscoveryGroupManagement");
+//            }
+//	    
+//            if(lookupDiscMgr instanceof DiscoveryLocatorManagement) {
+//                LookupLocator[] locs =
+//                        ((DiscoveryLocatorManagement)lookupDiscMgr).getLocators();
+//                if( (locs != null) && (locs.length != 0) ) {
+//                    throw new ConfigurationException(
+//                        "discoveryManager entry must be configured " +
+//		        "with no locators");
+//                }//endif
+//	    } else {
+//                throw new ConfigurationException(
+//                    "discoveryManager entry must implement " +
+//                    "DiscoveryLocatorManagement");
+//            }  
+//	    
+//	    ((DiscoveryGroupManagement)lookupDiscMgr).setGroups(lookupGroups);
+//	    ((DiscoveryLocatorManagement)lookupDiscMgr).setLocators(lookupLocators);
+//	} catch (NoSuchEntryException e) {
+//	    lookupDiscMgr  =
+//		new LookupDiscoveryManager(lookupGroups, lookupLocators,
+//                    null, config);
+//	}
+//        if (initLogger.isLoggable(Level.FINEST)) {
+//            initLogger.log(Level.FINEST, "Discovery manager is: {0}", 
+//	    lookupDiscMgr);
+//	}		
+//
+//        ServiceID lookupID = new ServiceID(
+//	    serviceID.getMostSignificantBits(),
+//	    serviceID.getLeastSignificantBits());
+//
+//	if (initLogger.isLoggable(Level.FINEST)) {
+//            initLogger.log(Level.FINEST, "Creating JoinManager.");
+//	}
+//	joiner = new JoinManager(
+//	    mailboxProxy,                // service object
+//	    lookupAttrs,               // service attributes
+//	    lookupID,                 // Service ID
+//	    lookupDiscMgr,             // DiscoveryManagement ref - default
+//	    null,                      // LeaseRenewalManager reference
+//	    config); 
+//	                      
+//        if (operationsLogger.isLoggable(Level.FINER)) {
+//	    operationsLogger.exiting(mailboxSourceClass, 
+//	        "doInit");
+//	}
+//        readyState.ready();
+//
+//	if (startupLogger.isLoggable(Level.INFO)) {
+//            startupLogger.log
+//                   (Level.INFO, "Mercury started: {0}", this);
+//        }
+//
+//    } // End doInit()
+//    
+    public void start() throws Exception {
+        if (started) return;
+        concurrentObj.writeLock();
+        started = true; // mutual exclusion
+        try {
+            if (thrown != null) throw thrown;
+            if (persistent){
+                // Start snapshot thread belongs in start method
+    //	    snapshotter = new SnapshotThread();
+                snapshotter.start();
+            }
+
+            /*  ---  The following will go into start method --- */
+
+            // Start threads
+    //	notifier = new Notifier(config);
+            notifier.start();
+    //	expirer = new ExpirationThread();
+            expirer.start();
+
+            // Export server instance and get its reference
+            serverStub = (MailboxBackEnd)exporter.export(this);
+            if (initLogger.isLoggable(Level.FINEST)) {
+                initLogger.log(Level.FINEST, "Service stub is: {0}", 
+                serverStub);	
+            }	
+
+            // Create the proxy that will be registered in the lookup service
+            mailboxProxy = 
+                MailboxProxy.create(serverStub, serviceID);
+            if (initLogger.isLoggable(Level.FINEST)) {
+                initLogger.log(Level.FINEST, "Service proxy is: {0}", 
+                mailboxProxy);
+            }		
+
+            // Create the admin proxy for this service
+            mailboxAdminProxy = 
+                MailboxAdminProxy.create(serverStub, serviceID);
+            if (initLogger.isLoggable(Level.FINEST)) {
+                initLogger.log(Level.FINEST, "Service admin proxy is: {0}", 
+                mailboxAdminProxy);		
+            }
+
+            // Create leaseFactory
+            leaseFactory = new LeaseFactory(serverStub, serviceID);
+
+            // Get shorthand reference to the discovery manager
+            try {
+                lookupDiscMgr  = 
+                    (DiscoveryManagement)Config.getNonNullEntry(config,
+                        MERCURY, "discoveryManager",
+                        DiscoveryManagement.class);
+                if(lookupDiscMgr instanceof DiscoveryGroupManagement) {
+                     // Verify proper initial state ---> NO_GROUPS
+                    String[] groups =
+                        ((DiscoveryGroupManagement)lookupDiscMgr).getGroups();
+                    if( (groups == DiscoveryGroupManagement.ALL_GROUPS) ||
+                        (groups.length != 0) )
+                    {
+                        throw new ConfigurationException(
+                            "discoveryManager entry must be configured " +
+                            " with no groups.");
+                    }//endif
+                } else {
+                   throw new ConfigurationException(
+                        "discoveryManager entry must implement " +
+                        "DiscoveryGroupManagement");
+                }
+
+                if(lookupDiscMgr instanceof DiscoveryLocatorManagement) {
+                    LookupLocator[] locs =
+                            ((DiscoveryLocatorManagement)lookupDiscMgr).getLocators();
+                    if( (locs != null) && (locs.length != 0) ) {
+                        throw new ConfigurationException(
+                            "discoveryManager entry must be configured " +
+                            "with no locators");
+                    }//endif
+                } else {
+                    throw new ConfigurationException(
+                        "discoveryManager entry must implement " +
+                        "DiscoveryLocatorManagement");
+                }  
+
+                ((DiscoveryGroupManagement)lookupDiscMgr).setGroups(lookupGroups);
+                ((DiscoveryLocatorManagement)lookupDiscMgr).setLocators(lookupLocators);
+            } catch (NoSuchEntryException e) {
+                lookupDiscMgr  =
+                    new LookupDiscoveryManager(lookupGroups, lookupLocators,
+                        null, config);
+            }
+            if (initLogger.isLoggable(Level.FINEST)) {
+                initLogger.log(Level.FINEST, "Discovery manager is: {0}", 
+                lookupDiscMgr);
+            }		
+
+            ServiceID lookupID = new ServiceID(
+                serviceID.getMostSignificantBits(),
+                serviceID.getLeastSignificantBits());
+
+            if (initLogger.isLoggable(Level.FINEST)) {
+                initLogger.log(Level.FINEST, "Creating JoinManager.");
+            }
+            joiner = new JoinManager(
+                mailboxProxy,                // service object
+                lookupAttrs,               // service attributes
+                lookupID,                 // Service ID
+                lookupDiscMgr,             // DiscoveryManagement ref - default
+                null,                      // LeaseRenewalManager reference
+                config); 
+
+            if (operationsLogger.isLoggable(Level.FINER)) {
+                operationsLogger.exiting(mailboxSourceClass, 
+                    "doInit");
+            }
+            readyState.ready();
+
+            if (startupLogger.isLoggable(Level.INFO)) {
+                startupLogger.log
+                       (Level.INFO, "Mercury started: {0}", this);
+            }
+        } catch (Throwable t){
+            cleanup();
+	    initFailed(t);
+        } finally {
+            config = null;
+            thrown = null;
+            concurrentObj.writeUnlock();
         }
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
-	        "doInitWithLogin");
-	}
     }
-    
-    /** Initialization common to both activatable and transient instances. */
-    private void doInit(Configuration config) throws Exception { 
-
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.entering(mailboxSourceClass, 
-	        "doInit", config);
-	}
-//TODO - defer "big" default object to catch block around getNonNullEntry()
-    
-        // Get activation specific configuration items, if activated
-	if (activationID != null) {
-            ProxyPreparer activationSystemPreparer =
-                (ProxyPreparer) Config.getNonNullEntry(config,
-	            MERCURY, "activationSystemPreparer", 
-		    ProxyPreparer.class, new BasicProxyPreparer());
-            if (initLogger.isLoggable(Level.CONFIG)) {
-                initLogger.log(Level.CONFIG, "activationSystemPreparer: {0}", 
-	        activationSystemPreparer);
-	    }		
-            activationSystem =
-                (ActivationSystem) activationSystemPreparer.prepareProxy(
-                    ActivationGroup.getSystem());
-            if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Prepared activation system is: {0}", 
-	        activationSystem);
-	    }		
-            ProxyPreparer activationIdPreparer = 
-	        (ProxyPreparer)  Config.getNonNullEntry(config,
-	            MERCURY, "activationIdPreparer", 
-		    ProxyPreparer.class, new BasicProxyPreparer());
-            if (initLogger.isLoggable(Level.CONFIG)) {
-                initLogger.log(Level.CONFIG, "activationIdPreparer: {0}", 
-	        activationIdPreparer);
-	    }		
-            activationID = (ActivationID) activationIdPreparer.prepareProxy(
-                activationID);
-            if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Prepared activationID is: {0}", 
-	        activationID);
-	    }		
-            activationPrepared = true;
-	
-            exporter = (Exporter)Config.getNonNullEntry(config,
-	        MERCURY, "serverExporter", Exporter.class,
-		new ActivationExporter(
-		    activationID, 
-		    new BasicJeriExporter(
-		        TcpServerEndpoint.getInstance(0), 
-			new BasicILFactory(), false, true)),
-		activationID);
-            if (initLogger.isLoggable(Level.CONFIG)) {
-                initLogger.log(Level.CONFIG, "Activatable service exporter is: {0}", 
-	        exporter);
-	    }		
-	} else { //Get non-activatable configuration items
-            exporter = (Exporter) Config.getNonNullEntry(config,
-                MERCURY, "serverExporter", Exporter.class, 
-		new BasicJeriExporter(
-		    TcpServerEndpoint.getInstance(0), 
-		    new BasicILFactory(), false, true));
-            if (initLogger.isLoggable(Level.CONFIG)) {
-                initLogger.log(Level.CONFIG, 
-		"Non-activatable service exporter is: {0}", exporter);		
-	    }
-	}
-
-        listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(
-	    config, MERCURY, "listenerPreparer", ProxyPreparer.class,
-            new BasicProxyPreparer());
-        if (initLogger.isLoggable(Level.CONFIG)) {
-            initLogger.log(Level.CONFIG, "Listener preparer is: {0}", 
-	    listenerPreparer);	
-	}
-	
-        /* Get the proxy preparers for the lookup locators to join */
-        locatorToJoinPreparer = (ProxyPreparer)Config.getNonNullEntry
-             (config, MERCURY, "locatorToJoinPreparer",
-              ProxyPreparer.class, new BasicProxyPreparer());
-        if (initLogger.isLoggable(Level.CONFIG)) {
-            initLogger.log(Level.CONFIG, "Locator preparer is: {0}", 
-	    locatorToJoinPreparer);
-	}	
-	
-        // Create lease policy -- used by recovery logic, below
-        leasePolicy = (LeasePeriodPolicy) Config.getNonNullEntry(config,
-	    MERCURY, "leasePeriodPolicy", LeasePeriodPolicy.class,
-            new FixedLeasePeriodPolicy(3 * HOURS, 1 * HOURS));
-        if (initLogger.isLoggable(Level.CONFIG)) {
-            initLogger.log(Level.CONFIG, "LeasePeriodPolicy is: {0}", 
-	    leasePolicy);
-	}	
-	    
-	// Note: referenced by recovery logic in rebuildTransientState()	
-        ProxyPreparer recoveredListenerPreparer = null;
-        if (persistent) {
-	    persistenceDirectory = 
-	        (String)Config.getNonNullEntry(
-                    config, MERCURY, "persistenceDirectory", String.class);
-            if (initLogger.isLoggable(Level.CONFIG)) {
-                initLogger.log(Level.CONFIG, "Persistence directory is: {0}", 
-	        persistenceDirectory);
-	    }	
-	    // Note: referenced by recovery logic in rebuildTransientState()	
-            recoveredListenerPreparer = 
-	        (ProxyPreparer) Config.getNonNullEntry(
-	        config, MERCURY, "recoveredListenerPreparer", ProxyPreparer.class,
-                new BasicProxyPreparer());
-            if (initLogger.isLoggable(Level.CONFIG)) {
-                initLogger.log(Level.CONFIG, "Recovered listener preparer is: {0}", 
-	        recoveredListenerPreparer);	
-	    }
-	    // Note: referenced by recovery logic, below	
-            recoveredLocatorToJoinPreparer = (ProxyPreparer)Config.getNonNullEntry
-                 (config, MERCURY, "recoveredLocatorToJoinPreparer",
-                  ProxyPreparer.class, new BasicProxyPreparer());
-            if (initLogger.isLoggable(Level.CONFIG)) {
-                initLogger.log(Level.CONFIG, "Recovered locator preparer is: {0}", 
-	        recoveredLocatorToJoinPreparer);
-	    }	
-
-	    logToSnapshotThreshold = Config.getIntEntry(config,
-                MERCURY, "logToSnapshotThreshold", 50, 0, Integer.MAX_VALUE);
-	    
-            log = new ReliableLog(persistenceDirectory, new LocalLogHandler());
-
-	    if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Recovering persistent state");
-	    }
-            inRecovery = true;
-            log.recover();
-            inRecovery = false;
-	}
-
-	if (serviceID == null) { // First time up, get initial values
-	    if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Getting initial values.");
-	    }
-	    serviceID = UuidFactory.generate();
-	    if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "ServiceID: {0}", serviceID);
-	    }
-	    // Can be null for ALL_GROUPS
-            lookupGroups = (String[])config.getEntry(MERCURY, 
-	        "initialLookupGroups", String[].class, 
-		new String[] { "" }); //default to public group
-	    if (initLogger.isLoggable(Level.CONFIG)) {
-                initLogger.log(Level.CONFIG, "Initial groups:");
-	        dumpGroups(lookupGroups, initLogger, Level.CONFIG);
-	    }
-	    /*
-	     * Note: Configuration provided locators are assumed to be 
-	     * prepared already.
-	     */
-            lookupLocators = (LookupLocator[]) Config.getNonNullEntry(config,
-	        MERCURY, "initialLookupLocators", LookupLocator[].class, 
-		new LookupLocator[0]);
-	    if (initLogger.isLoggable(Level.CONFIG)) {
-                initLogger.log(Level.CONFIG, "Initial locators:");
-	        dumpLocators(lookupLocators, initLogger, Level.CONFIG);
-	    }
-
-            final Entry[] initialAttrs = 
-	        (Entry[])Config.getNonNullEntry(config,
-	            MERCURY, "initialLookupAttributes" ,
-		    Entry[].class, new Entry[0]);
-	    if (initLogger.isLoggable(Level.CONFIG)) {
-                initLogger.log(Level.CONFIG, "Initial lookup attributes:");
-	        dumpAttrs(initialAttrs, initLogger, Level.CONFIG);
-	    }
-            if (initialAttrs.length == 0) {
-                lookupAttrs = baseLookupAttrs;
-            } else {
-                lookupAttrs = 
-		    new Entry[initialAttrs.length + baseLookupAttrs.length];
-                int i=0;
-                for (int j=0; j<baseLookupAttrs.length; j++, i++)
-                    lookupAttrs[i] = baseLookupAttrs[j];
-                for (int j=0; j<initialAttrs.length; j++, i++)
-                    lookupAttrs[i] = initialAttrs[j];
-            }
-	    if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, 
-		    "Combined lookup attributes:"); 
-	        dumpAttrs(lookupAttrs, initLogger, Level.FINEST);
-	    }
-        } else { // recovered logic
-	    if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Preparing recovered locators:"); 
-	        dumpLocators(lookupLocators, initLogger, Level.FINEST);
-	    }
-            prepareExistingLocators(
-	        recoveredLocatorToJoinPreparer, lookupLocators);
-//TODO - Add recovered state debug: groups, locators, etc.
-	}
-	
-        if (persistent) {
-	    // Take snapshot of current state.
-	    if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Taking snapshot.");
-	    }
-            log.snapshot();
-
-            // Reconstruct any transient state, if necessary.
-            rebuildTransientState(recoveredListenerPreparer);
-	    
-	    // Start snapshot thread
-	    snapshotter = new SnapshotThread();
-	}
-        
-	maxUnexportDelay = Config.getLongEntry(config, MERCURY, 
-	    "maxUnexportDelay", 2 * MINUTES, 0, Long.MAX_VALUE);
-
-	unexportRetryDelay = Config.getLongEntry(config, MERCURY, 
-	    "unexportRetryDelay", SECONDS, 1, Long.MAX_VALUE);
-
-        // Start threads
-	notifier = new Notifier(config);
-	expirer = new ExpirationThread();
-
-	// Export server instance and get its reference
-	serverStub = (MailboxBackEnd)exporter.export(this);
-        if (initLogger.isLoggable(Level.FINEST)) {
-            initLogger.log(Level.FINEST, "Service stub is: {0}", 
-	    serverStub);	
-	}	
-
-        // Create the proxy that will be registered in the lookup service
-        mailboxProxy = 
-	    MailboxProxy.create(serverStub, serviceID);
-        if (initLogger.isLoggable(Level.FINEST)) {
-            initLogger.log(Level.FINEST, "Service proxy is: {0}", 
-	    mailboxProxy);
-	}		
-
-        // Create the admin proxy for this service
-        mailboxAdminProxy = 
-	    MailboxAdminProxy.create(serverStub, serviceID);
-        if (initLogger.isLoggable(Level.FINEST)) {
-            initLogger.log(Level.FINEST, "Service admin proxy is: {0}", 
-	    mailboxAdminProxy);		
-	}
-
-	// Create leaseFactory
-	leaseFactory = new LeaseFactory(serverStub, serviceID);
-
-        // Get shorthand reference to the discovery manager
-	try {
-            lookupDiscMgr  = 
-                (DiscoveryManagement)Config.getNonNullEntry(config,
-	            MERCURY, "discoveryManager",
-                    DiscoveryManagement.class);
-            if(lookupDiscMgr instanceof DiscoveryGroupManagement) {
-                 // Verify proper initial state ---> NO_GROUPS
-                String[] groups =
-                    ((DiscoveryGroupManagement)lookupDiscMgr).getGroups();
-                if( (groups == DiscoveryGroupManagement.ALL_GROUPS) ||
-                    (groups.length != 0) )
-                {
-                    throw new ConfigurationException(
-                        "discoveryManager entry must be configured " +
-		        " with no groups.");
-                }//endif
-	    } else {
-               throw new ConfigurationException(
-                    "discoveryManager entry must implement " +
-                    "DiscoveryGroupManagement");
-            }
-	    
-            if(lookupDiscMgr instanceof DiscoveryLocatorManagement) {
-                LookupLocator[] locs =
-                        ((DiscoveryLocatorManagement)lookupDiscMgr).getLocators();
-                if( (locs != null) && (locs.length != 0) ) {
-                    throw new ConfigurationException(
-                        "discoveryManager entry must be configured " +
-		        "with no locators");
-                }//endif
-	    } else {
-                throw new ConfigurationException(
-                    "discoveryManager entry must implement " +
-                    "DiscoveryLocatorManagement");
-            }  
-	    
-	    ((DiscoveryGroupManagement)lookupDiscMgr).setGroups(lookupGroups);
-	    ((DiscoveryLocatorManagement)lookupDiscMgr).setLocators(lookupLocators);
-	} catch (NoSuchEntryException e) {
-	    lookupDiscMgr  =
-		new LookupDiscoveryManager(lookupGroups, lookupLocators,
-                    null, config);
-	}
-        if (initLogger.isLoggable(Level.FINEST)) {
-            initLogger.log(Level.FINEST, "Discovery manager is: {0}", 
-	    lookupDiscMgr);
-	}		
-
-        ServiceID lookupID = new ServiceID(
-	    serviceID.getMostSignificantBits(),
-	    serviceID.getLeastSignificantBits());
-
-	if (initLogger.isLoggable(Level.FINEST)) {
-            initLogger.log(Level.FINEST, "Creating JoinManager.");
-	}
-	joiner = new JoinManager(
-	    mailboxProxy,                // service object
-	    lookupAttrs,               // service attributes
-	    lookupID,                 // Service ID
-	    lookupDiscMgr,             // DiscoveryManagement ref - default
-	    null,                      // LeaseRenewalManager reference
-	    config); 
-	                      
-        if (operationsLogger.isLoggable(Level.FINER)) {
-	    operationsLogger.exiting(mailboxSourceClass, 
-	        "doInit");
-	}
-        readyState.ready();
-
-	if (startupLogger.isLoggable(Level.INFO)) {
-            startupLogger.log
-                   (Level.INFO, "Mercury started: {0}", this);
-        }
-
-    } // End doInit()
 
     // Rebuilds internal data structures after a restart.
     private void rebuildTransientState(ProxyPreparer recoveredListenerPreparer) {
@@ -1835,7 +2085,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      * Utility method that returns the associated File object
      * for the given Uuid's persistence directory 
      */
-    private static File getEventLogPath(String parent, Uuid uuid) {
+    static File getEventLogPath(String parent, Uuid uuid) {
         return new File(parent, uuid.toString());
     }
 
@@ -2638,7 +2888,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
          * <code>TaskManager</code> that will be handling the 
 	 * notification tasks 
          */
-        private TaskManager	taskManager;	
+        private final TaskManager	taskManager;	
 
         /** wakeup manager for <code>NotifyTask</code> */
         private final WakeupManager wakeupMgr =
@@ -2648,7 +2898,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
          * Random number generator that will be used for implementing
          * a simple load balancing scheme. Seed it with the current time.
          */
-        private Random rand = new Random(System.currentTimeMillis());
+        private final Random rand = new Random(System.currentTimeMillis());
     
         /** Time to wait between notification checks */
         private final static long	PAUSE_TIME = 5000; // 5 seconds
@@ -2662,7 +2912,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        MERCURY, "notificationsTaskManager",
 	        TaskManager.class, new TaskManager());
 //TODO - defer TaskManager() creation to catch block of getEntry()
-    	    start();
+    	    //start();
         }
     
         /**
@@ -3516,7 +3766,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 expirationLogger.log(Level.FINEST,
 		    "ExpirationThread started ...");
             }
-            start();
+            //start();
 	}
 
 	/** 
@@ -4498,7 +4748,9 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         MarshalledObject[] marshalledAttrs
                                     = (MarshalledObject[])stream.readObject();
 	lookupAttrs = unmarshalAttributes(marshalledAttrs);
-	regByID = (HashMap)stream.readObject();
+	HashMap<Uuid, ServiceRegistration> regByID = (HashMap<Uuid, ServiceRegistration>)stream.readObject();
+        this.regByID.clear();
+        this.regByID.putAll(regByID);
 	if (recoveryLogger.isLoggable(Level.FINEST)) {
             recoveryLogger.log(Level.FINEST, 
                 "serviceID: {0}", serviceID);
@@ -4679,7 +4931,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	public SnapshotThread() {
 	    super("SnapshotThread");
 	    setDaemon(true);
-	    start();
+//	    start();
 	}
 
 	public void run() {
@@ -4739,7 +4991,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
 
     /** Utility method for displaying lookup group attributes */
-    private static void dumpGroups(String[] grps, Logger logger, Level level) {
+    static void dumpGroups(String[] grps, Logger logger, Level level) {
         if (logger.isLoggable(level)) {
             if (grps == null)
                 logger.log(level, "<ALL_GROUPS>");
@@ -4760,7 +5012,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     }
 
     /** Utility method for displaying lookup locator attributes */
-    private static void dumpLocators(LookupLocator[] locs, Logger logger, Level level) {
+    static void dumpLocators(LookupLocator[] locs, Logger logger, Level level) {
         if (logger.isLoggable(level)) {
 	    if (locs == null)
 	        logger.log(level, "<null>");
@@ -4774,7 +5026,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     }
 
     /** Utility method for displaying lookup service attributes */
-    private static void dumpAttrs(Entry[] attrs, Logger logger, Level level) {
+    static void dumpAttrs(Entry[] attrs, Logger logger, Level level) {
         if (logger.isLoggable(level)) {
 	    if (attrs == null)
 	        logger.log(level, "<null>");
@@ -4851,7 +5103,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	}
     } 
 
-    private static LookupLocator[] prepareExistingLocators(
+    static LookupLocator[] prepareExistingLocators(
         ProxyPreparer preparer, LookupLocator[] lookupLocators) 
     {
         if (operationsLogger.isLoggable(Level.FINER)) {
@@ -4906,7 +5158,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     /**
      * Utility method that check for valid resource
      */
-    private static boolean ensureCurrent(LeasedResource resource) {
+    static boolean ensureCurrent(LeasedResource resource) {
         return resource.getExpiration() > System.currentTimeMillis();
     }
 }//end class MailboxImpl
