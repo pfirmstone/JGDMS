@@ -74,41 +74,41 @@ class JoinStateManager extends LogHandler {
     private static final Logger persistenceLogger = TxnManagerImpl.persistenceLogger;
 
     /** <code>ProxyPreparer</code> for <code>LookupLocators</code> */
-    private ProxyPreparer lookupLocatorPreparer;
+    private volatile ProxyPreparer lookupLocatorPreparer;
 
     /**
      * Object used to find lookups. Has to implement DiscoveryManagement
      * and DiscoveryLocatorManagement as well as DiscoveryGroupManagement.
      */
-    private DiscoveryManagement dm;
+    private volatile DiscoveryManagement dm;
 
     /**
      * <code>JoinManager</code> that is handling the details of binding
      * into Jini lookup services.
      */
-    private JoinManager  mgr;
+    private volatile JoinManager  mgr;
 
     /**
      * The object coordinating our persistent state.
      */
-    private ReliableLog log;
+    private volatile ReliableLog log;
 
     /**
      * The join state, this data needs to be persisted between restarts
      */
-    private Entry[]		attributes;
-    private LookupLocator[]	locators;
-    private String[]		groups;
+    private volatile Entry[]		attributes;
+    private volatile LookupLocator[]	locators;
+    private volatile String[]		groups;
 
     /** Service's internal <code>Uuid</code> which needs to be persisted */
-    private Uuid		serviceUuid;
+    private volatile Uuid		serviceUuid;
     
     /**
      * Conceptually, true if this is the first time this
      * service has come up, implemented as if there was
      * no previous state then this is the first time.
      */
-    private boolean initial = true;
+    private volatile boolean initial = true;
     
     /**
      * Simple constructor.

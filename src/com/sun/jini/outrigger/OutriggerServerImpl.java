@@ -647,6 +647,7 @@ public class OutriggerServerImpl
         if (except != null) throw except;
         try {
             // This takes a while the first time, so let's get it going
+            txnMonitor.start();
             starter.start();
 
             // Get store from configuration

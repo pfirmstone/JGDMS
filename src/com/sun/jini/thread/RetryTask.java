@@ -64,7 +64,7 @@ import com.sun.jini.constants.TimeConstants;
 import com.sun.jini.thread.WakeupManager.Ticket;
 
 public abstract class RetryTask implements TaskManager.Task, TimeConstants {
-    private TaskManager	  manager;	// the TaskManager for this task
+    private final TaskManager	  manager;	// the TaskManager for this task
     private RetryTime	  retry;	// the retry object for this task
     private boolean	  cancelled;	// have we been cancelled?
     private boolean	  complete;	// have we completed successfully?
@@ -72,7 +72,7 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
     private long	  startTime;	// the time when we were created or 
                                         //   last reset
     private int		  attempt;	// the current attempt number
-    private WakeupManager wakeup;       // WakeupManager for retry scheduling
+    private final WakeupManager wakeup;       // WakeupManager for retry scheduling
 
     /**
      * Default delay backoff times.  These are converted from
@@ -91,7 +91,7 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
     };
 
     /** Logger for this class */
-    private static final Logger logger = 
+    protected static final Logger logger = 
 	Logger.getLogger("com.sun.jini.thread.RetryTask");
 
     /**
@@ -128,7 +128,14 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
 		return;			// do nothing
 	}
 
-	boolean success = tryOnce();
+	boolean success = false;
+        try {
+            success = tryOnce();
+        } catch (Throwable t){
+            t.printStackTrace(System.err);
+            if (t instanceof Error) throw (Error) t;
+            if (t instanceof RuntimeException) throw (RuntimeException) t;
+        }
 
 	synchronized (this) {
 	    if (!success) {		// if at first we don't succeed ...

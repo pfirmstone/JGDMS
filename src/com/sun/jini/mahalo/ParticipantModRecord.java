@@ -38,12 +38,12 @@ class ParticipantModRecord implements TxnLogRecord {
     /**
      * @serial
      */
-    private ParticipantHandle part;
+    private final ParticipantHandle part;
 
     /**
      * @serial
      */
-    private int result;
+    private final int result;
 
     ParticipantModRecord(ParticipantHandle part, int result) {
 	if (part == null)

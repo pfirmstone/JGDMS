@@ -80,11 +80,11 @@ public class AsynchAbortOnCommitTest extends TxnManagerTest {
             while (true) {
                 state = str.mgr.getState(str.id);
 
-                if (DEBUG) {
-                    int st = state;
-                    logger.log(Level.INFO, "state = "
-                            + com.sun.jini.constants.TxnConstants.getName(st));
-                }
+//                if (DEBUG) {
+//                    int st = state;
+//                    logger.log(Level.FINEST, "state = "
+//                            + com.sun.jini.constants.TxnConstants.getName(st));
+//                }
 
                 if (state == COMMITTED) {
                     break;

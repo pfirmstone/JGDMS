@@ -44,8 +44,8 @@ import com.sun.jini.test.share.TestParticipantImpl;
  */
 public class PrepareAndCommitExceptionTest2 extends TxnManagerTest {
 
-      class Clearer implements Runnable {
-         TestParticipant part;
+      static class Clearer implements Runnable {
+         final TestParticipant part;
          Clearer(TestParticipant part) {
              this.part = part;
          }
@@ -94,7 +94,7 @@ public class PrepareAndCommitExceptionTest2 extends TxnManagerTest {
         t.start();
         logger.log(Level.INFO, "Committing transaction");                        
         try {
-            cr.transaction.commit(60000);
+            cr.transaction.commit(60000); 
             throw new TestException("ServerException not thrown");
         } catch (ServerException se) {
             logger.log(Level.INFO, "Caught expected exception: " + se);                                    

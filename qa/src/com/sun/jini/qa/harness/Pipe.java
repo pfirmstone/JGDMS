@@ -42,25 +42,25 @@ class Pipe implements Runnable {
     private final static String SEPARATOR = "\n";
 
     /** most recent input bytes for comparison with lineSeparator.*/
-    private byte[] lastBytes = new byte[SEPARATOR.length()];
+    private final byte[] lastBytes = new byte[SEPARATOR.length()];
     
     /** output line buffer */
-    private ByteArrayOutputStream bufOut = new ByteArrayOutputStream();;
+    private final ByteArrayOutputStream bufOut = new ByteArrayOutputStream();;
 
     /** the input stream */
-    private InputStream in;
+    private final InputStream in;
 
     /** the output PrintStream */
-    private PrintStream stream;
+    private volatile PrintStream stream;
 
     /** the input data filter */
-    private Filter filter;
+    private final Filter filter;
 
     /** the output stream annotator */
-    private Annotator annotator;
+    private final Annotator annotator;
 
     /** the thread to process the data */
-    private Thread outThread;
+    private final Thread outThread;
     
     /**
      * Create a new Pipe object and start the thread to handle the data.
@@ -83,7 +83,11 @@ class Pipe implements Runnable {
 	this.annotator = a;
 	outThread = new Thread(this, name);
 	outThread.setDaemon(true);
-	outThread.start();
+	//outThread.start();
+    }
+    
+    void start(){
+        outThread.start();
     }
 
     /**

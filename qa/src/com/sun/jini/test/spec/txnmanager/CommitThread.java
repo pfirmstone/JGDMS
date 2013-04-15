@@ -21,15 +21,16 @@ import java.rmi.RemoteException;
 
 
 class CommitThread extends Thread {
-    long timeOut;
-    Transaction tr;
+    final long timeOut;
+    final Transaction tr;
 
     public CommitThread(Transaction tr) {
         this.tr = tr;
+        timeOut = 0;
     }
 
     public CommitThread(Transaction tr, long timeOut) {
-        this(tr);
+        this.tr = tr;
 
         if (timeOut < 0) {
             throw new IllegalArgumentException("timeout must be non-negative");

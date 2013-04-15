@@ -38,6 +38,8 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
@@ -64,7 +66,7 @@ class TxnManagerImplInitializer {
     int taskthreads = 50;
     long tasktimeout = 1000 * 15;
     float taskload = 1.0F;
-    Map<Long, TxnManagerTransaction> txns = Collections.synchronizedMap(new HashMap<Long, TxnManagerTransaction>());
+    ConcurrentMap<Long, TxnManagerTransaction> txns = new ConcurrentHashMap<Long, TxnManagerTransaction>();
     /* Retrieve values from properties.          */
     ActivationSystem activationSystem = null;
     boolean activationPrepared = false;

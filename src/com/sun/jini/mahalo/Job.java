@@ -19,9 +19,16 @@ package com.sun.jini.mahalo;
 
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,15 +40,16 @@ import java.util.logging.Logger;
  * @author Sun Microsystems, Inc.
  *
  */
-public abstract class Job {
-    private TaskManager pool;
-    private WakeupManager wm;
-    private int pending = -1;
-    Object[] results;
-    int[] attempts;
-    private Map tasks = new HashMap();  //used to maintain account
+abstract class Job {
+    private final TaskManager pool;
+    private final WakeupManager wm;
+    private final AtomicInteger pend;
+    final ConcurrentMap<Integer,Object> results;
+    volatile AtomicIntegerArray attempts = null;
+    private final ConcurrentMap<Object,Integer> tasks;  //used to maintain account
 					//of the tasks for which
 					//the job is responsible
+                                        // sync on tasks.
 
     static final Logger logger = TxnManagerImpl.participantLogger;
     
@@ -55,6 +63,9 @@ public abstract class Job {
     public Job(TaskManager pool, WakeupManager wm) {
         this.wm = wm;
 	this.pool = pool;
+        pend = new AtomicInteger(-1);
+        results = new ConcurrentHashMap<Integer,Object>();
+        tasks = new ConcurrentHashMap<Object,Integer>();
     }
 
 
@@ -68,30 +79,26 @@ public abstract class Job {
     boolean performWork(TaskManager.Task who, Object param)
         throws JobException
     {
-	Integer tmp = null;
-	
-	synchronized (tasks) {
-	    tmp = (Integer)tasks.get(who);
-	}
-
-	if (tmp == null)
-	    throw new UnknownTaskException();
-
+	Integer tmp = tasks.get(who);
+	if (tmp == null) throw new UnknownTaskException("Task didn't belong to this job");
 	int rank = tmp.intValue();
+        attempts.incrementAndGet(rank);
 
-	synchronized (attempts) {
-	    attempts[rank]++;
-	}
-
-	Object result = doWork(who, param);
-	if (result == null)
-	    return false;
+	Object r = doWork(who, param);
+        
+	if (r == null) return false;
 
 	try {
-	    reportDone(who, result);
+	    reportDone(who, r);
 	} catch (UnknownTaskException e) {
+            logger.log(Level.FINER, "trouble reporting job completion", e);
+            e.printStackTrace(System.err);
 	} catch (PartialResultException e) {
+            logger.log(Level.FINER, "trouble reporting job completion", e);
+            e.printStackTrace(System.err);
 	} catch (JobException e) {
+            logger.log(Level.FINER, "trouble reporting job completion", e);
+            e.printStackTrace(System.err);
 	}
 
 	return true;
@@ -106,20 +113,10 @@ public abstract class Job {
      *		  is inquired
      */
     int attempt(TaskManager.Task who) throws JobException {
-	Integer tmp = null;
-
-	synchronized(tasks) {
-	    tmp = (Integer)tasks.get(who);
-	}
-
-	if (tmp == null)
-	    throw new UnknownTaskException();
-
+	Integer tmp = tasks.get(who);
+	if (tmp == null) throw new UnknownTaskException();
 	int rank = tmp.intValue();
-
-	synchronized(attempts)  {
-	    return attempts[rank];
-	}
+        return attempts.get(rank);
     }
 
 
@@ -150,56 +147,52 @@ public abstract class Job {
      */
     public void scheduleTasks() {
 	TaskManager.Task[] tmp = createTasks();
-
+        int length = tmp.length;
 	if (tmp != null) {
             if (logger.isLoggable(Level.FINEST)) {
                 logger.log(Level.FINEST,
                     "Job:scheduleTasks with {0} tasks",
-                    Integer.valueOf(tmp.length));
+                    Integer.valueOf(length));
             }
-
-	    results = new Object[tmp.length];
-	    attempts = new int[tmp.length];
-	    setPending(tmp.length);
-
-	    for (int i = 0; i < tmp.length; i++) {
+ 
+            results.clear();
+            attempts = new AtomicIntegerArray(length);
+            setPending(length);
+            
+            for (int i = 0; i < length; i++) {
 
 		//Record the position if each
 		//task for later use when assembling
 		//the partial results
+                tasks.put(tmp[i],Integer.valueOf(i));
+                attempts.set(i,0);
+                pool.add(tmp[i]);
+                if (logger.isLoggable(Level.FINEST)) {
+                    logger.log(Level.FINEST,
+                        "Job:scheduleTasks added {0} to thread pool",
+                        tmp[i]);
+                }
+            }
 
-		synchronized(tasks) {
-		    tasks.put(tmp[i],Integer.valueOf(i));
-		    pool.add(tmp[i]);
-                    if (logger.isLoggable(Level.FINEST)) {
-                        logger.log(Level.FINEST,
-                            "Job:scheduleTasks added {0} to thread pool",
-                            tmp[i]);
-                    }
-		    attempts[i] = 0;
-		}
-	    }
-	}
+        }
     }
 
 
-    private synchronized void awaitPending(long waitFor) {
-	if (pending < 0)
-	    return;
-
-	if (pending == 0)
-	    return;
+    private void awaitPending(long waitFor) {
+        if (pend.get() < 1) return; // 0 or -1
 
 	try {
             if (logger.isLoggable(Level.FINEST)) {
                 logger.log(Level.FINEST,
                     "Job:awaitPending waiting for {0} items",
-                    Integer.valueOf(pending));
+                    Integer.valueOf(pend.get()));
             }
 
 	    if (waitFor == Long.MAX_VALUE) {
-		while (pending > 0) {
-		    wait();
+		while (pend.get() > 0) {
+                    synchronized (this){
+                        wait();
+                    }
                     if (logger.isLoggable(Level.FINEST)) {
                         logger.log(Level.FINEST,
                             "Job:awaitPending awoken");
@@ -213,30 +206,35 @@ public abstract class Job {
 		long start = System.currentTimeMillis();
 		long curr = start;
 
-		while ((pending > 0) && ((curr - start) < waitFor)) {
-                    wait(waitFor - (curr - start));
+		while ((pend.get() > 0) && ((curr - start) < waitFor)) {
+                    synchronized (this){
+                        wait(waitFor - (curr - start));
+                    }
 		    curr = System.currentTimeMillis();
 		}
 	    }
         } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
         }
     }
 
-    private synchronized void setPending(int num) {
-        pending = num;
+    private void setPending(int num) {
+        pend.set(num);
 
-	if (pending <= 0) {
+	if (pend.get() <= 0) {
             if (logger.isLoggable(Level.FINEST)) {
                 logger.log(Level.FINEST,
                     "Job:setPending notifying, pending = {0}",
-		    Integer.valueOf(pending));
+		    Integer.valueOf(pend.get()));
             }
-	    notifyAll();
+            synchronized (this){
+                notifyAll();
+            }
 	}
     }
 
-    private synchronized void decrementPending() {
-	pending--;
+    private void decrementPending() {
+        int pending = pend.decrementAndGet();
 
 	if (pending <= 0) {
             if (logger.isLoggable(Level.FINEST)) {
@@ -244,7 +242,9 @@ public abstract class Job {
                     "Job:decrementPending notifying, pending = {0}",
 		    Integer.valueOf(pending));
             }
-	    notifyAll();
+            synchronized (this){
+                notifyAll();
+            }
 	}
     }
 
@@ -274,34 +274,23 @@ public abstract class Job {
     private void reportDone(TaskManager.Task who, Object param)
 	throws JobException
     {
-	if (param == null)
-	    throw new NullPointerException("param must be non-null");
+	if (param == null) throw new NullPointerException("param must be non-null");
+	if (who == null) throw new NullPointerException("task must be non-null");
 
-	if (who == null)
-	    throw new NullPointerException("task must be non-null");
-
-	Integer position = null;
-	
-	synchronized(tasks) {
-	    position = (Integer) tasks.get(who);
-	}
-
-	if (position == null) 
-	    throw new UnknownTaskException();
-
-	synchronized(results) {
-	    if (results[position.intValue()] == null) {
-                if (logger.isLoggable(Level.FINEST)) {
-                    logger.log(Level.FINEST,
-                        "Job:reportDone who = {0}, param = {1}",
-		        new Object[] { who, param});
-                }
-	        results[position.intValue()] = param;
-	        decrementPending();
-	    } else {
-	        throw new PartialResultException("result already set");
-	    }
-	}
+	Integer position = tasks.get(who);
+	if (position == null) throw new UnknownTaskException();
+        
+        Object exists = results.putIfAbsent(position, param);
+        if (exists == null){
+            if (logger.isLoggable(Level.FINEST)) {
+                logger.log(Level.FINEST,
+                    "Job:reportDone who = {0}, param = {1}",
+                    new Object[] { who, param});
+            }
+            decrementPending();
+        } else {
+            throw new PartialResultException("result already set");
+        }
     }
 
 
@@ -321,16 +310,10 @@ public abstract class Job {
 	//these cases, the Job is not done.
 
 	awaitPending(waitFor);
-
-	synchronized(this) {
-	    if (pending == 0)
-		return true;
-
-	    if (pending < 0)
-		throw new JobNotStartedException("No jobs started");
-
-	    return false;
-	} 
+        int pending = pend.get();
+        if (pending == 0) return true;
+        if (pending < 0) throw new JobNotStartedException("No jobs started");
+        return false;
     }
 
 
@@ -348,20 +331,19 @@ public abstract class Job {
      */
     public void stop() {
 	Set s = tasks.keySet();
-	Object[] vals = s.toArray();
+        Object[] vals = s.toArray();
+        tasks.clear();
 
 	//Remove and interrupt all tasks
-
-	for (int i = 0; i < vals.length; i++) {
+        int l = vals.length;
+	for (int i = 0; i < l; i++) {
 	    TaskManager.Task t = (TaskManager.Task) vals[i];
 	    pool.remove(t);
 	}
 
 	//Erase record of tasks, results and the
 	//counting mechanism
-
-	tasks = new HashMap();
-	setPending(-1);
-	results = null;
+        setPending(-1);
+        results.clear();
     }
 }

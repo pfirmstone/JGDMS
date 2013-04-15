@@ -493,7 +493,7 @@ public class WakeupManager {
      * Assumes the caller holds the lock on contents.
      */
     private void checkHead() {
-	assert Thread.holdsLock(contents);
+        synchronized (contents){
 	final Ticket oldHead = head;
 
 	if (contents.isEmpty())
@@ -506,6 +506,7 @@ public class WakeupManager {
 	// New first event (including possibly no events), run
 	// needs to wake up and change its sleep time.
 	contents.notifyAll();
+    }
     }
 
     /**
@@ -642,6 +643,7 @@ public class WakeupManager {
 		    try {
 			ticketToRun.task.run();
 		    } catch (Throwable e) {
+                        if (e instanceof Error) throw (Error) e;
 			try {
 			    logger.log(Level.WARNING, "Runnable.run exception", e);
 			} catch (Throwable t) {
@@ -653,6 +655,9 @@ public class WakeupManager {
 		    try {
 			ticketToRun.desc.thread(ticketToRun.task).start();
 		    } catch (Throwable t) {
+                        t.printStackTrace(System.out);
+                        if (t instanceof Error) throw (Error) t;
+                        if (t instanceof RuntimeException) throw (RuntimeException) t;
 			try {
 			    logger.log(Level.WARNING, 
 				       "task thread creation exception", t);

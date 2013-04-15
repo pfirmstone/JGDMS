@@ -19,6 +19,8 @@
 package com.sun.jini.test.share;
 
 import com.sun.jini.mahalo.*;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.core.transaction.*;
 import net.jini.core.transaction.server.*;
 
@@ -48,15 +50,16 @@ public class TestParticipantImpl
 	       TransactionParticipant, TestParticipant, ProxyAccessor,
 	       ServerProxyTrust
 {
-    private String name;
-    private BitSet behavior; 
+    private final String name;
+    private final BitSet behavior; 
     private final Object lock2;
-    private long crashcount;
-    private ServerTransaction str;
+    private volatile long crashcount; // atomic increment with lock2
+    private volatile ServerTransaction str;
     private static final long TENSECONDS = 1000 * 10;
     private static final long THIRTYSECONDS = TENSECONDS *3;
-    private static final boolean DEBUG = true;
-    private TransactionParticipant proxy;
+    private static final boolean DEBUG = false;// Change to true for detailed transaction information
+    private volatile TransactionParticipant proxy = null;
+    private Exporter exporter;
 
     public TestParticipantImpl() throws RemoteException {
 	this(DEFAULT_NAME);
@@ -68,7 +71,7 @@ public class TestParticipantImpl
 	crashcount = System.currentTimeMillis();
 	behavior   = new BitSet(OPERATION_COUNT);
 	Configuration c = QAConfig.getConfig().getConfiguration();
-	Exporter exporter = QAConfig.getDefaultExporter();
+	exporter = QAConfig.getDefaultExporter();
 	if (c instanceof com.sun.jini.qa.harness.QAConfiguration) {
 	    try {
 		exporter = (Exporter) c.getEntry("test",
@@ -78,15 +81,28 @@ public class TestParticipantImpl
 		throw new RemoteException("Configuration Error", e);
 	    }
 	}
-	proxy = (TransactionParticipant)exporter.export(this);
+        // Can't export here without this escaping.
     }
 
     public Object getProxy() {
+        if (proxy != null){
 	return proxy;
+        } else {
+            synchronized (lock2){
+                if (proxy != null) return proxy; // Don't export it twice.
+                try {
+                    proxy = (TransactionParticipant)exporter.export(this);
+                    exporter = null;
+                } catch (ExportException ex) {
+                    // Nothing we can do
+    }
+            }
+        }
+        return proxy; // May be null
     }
 
     public TrustVerifier getProxyVerifier() {
-	return new BasicProxyTrustVerifier(proxy);
+	return new BasicProxyTrustVerifier(getProxy());
     }
 
     private boolean checkBit(int bit) {
@@ -136,7 +152,7 @@ public class TestParticipantImpl
 		System.out.println(name + ": joining");
 	    }
 
-	    str.join(proxy, crashcount);
+	    str.join((TransactionParticipant) getProxy(), crashcount);
 	    if(checkBit(OP_TIMEOUT_JOIN)) {
 		if(checkBit(OP_TIMEOUT_VERYLONG)) {
 		    doTimeout(THIRTYSECONDS);
@@ -157,7 +173,7 @@ public class TestParticipantImpl
 		System.out.println(name + ": joining again");
 	    }
 
-	    str.join(proxy, crashcount);
+	    str.join((TransactionParticipant) getProxy(), crashcount);
 
 	    if(checkBit(OP_TIMEOUT_JOIN)) {
 		if(checkBit(OP_TIMEOUT_VERYLONG)) {

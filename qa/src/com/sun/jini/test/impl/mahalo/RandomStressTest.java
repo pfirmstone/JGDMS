@@ -68,11 +68,11 @@ public class RandomStressTest extends TxnManagerTest {
     private long sleep_time = SLEEP_TIME;
 
     // Another values.
-    private TransactionManager mgr = null;
+    private volatile TransactionManager mgr = null;
     private TaskManager threadpool = null;
-    private WakeupManager wakeupManager = null;
-    private Random random;
-    private long seed = 0;
+    private volatile WakeupManager wakeupManager = null;
+    private volatile Random random;
+    private volatile long seed = 0;
 
     public Test construct(QAConfig sysConfig) throws Exception {
         super.construct(sysConfig);

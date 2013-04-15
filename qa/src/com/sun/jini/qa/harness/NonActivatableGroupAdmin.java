@@ -163,6 +163,7 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 			       System.out,
 			       null, //filter
 			       new NonActGrpAnnotator("NonActGrp-out: "));
+            outPipe.start();
 	    ObjectInputStream proxyStream = 
 		new ObjectInputStream(process.getErrorStream());
 	    proxy = (NonActivatableGroup)

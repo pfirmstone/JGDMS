@@ -39,10 +39,10 @@ import net.jini.core.transaction.server.TransactionManager;
  */
 
 public class SettlerTask extends RetryTask implements TransactionConstants {
-    private long tid;
-    private int attempt;
-    private int maxtries = Integer.MAX_VALUE;
-    private TransactionManager txnmgr;
+    private final long tid;
+    private int attempt; // sync on this.
+    private final int maxtries = Integer.MAX_VALUE;
+    private final TransactionManager txnmgr;
 
     /** Logger for operations related messages */
     private static final Logger operationsLogger = 
@@ -89,10 +89,12 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
 	        "tryOnce");
 	}
         try {
+            synchronized (this){
 	    if (attempt >= maxtries)
 		return true;
 
 	    attempt++;
+            }
 
 	    if (transactionsLogger.isLoggable(Level.FINEST)) {
                 transactionsLogger.log(Level.FINEST,

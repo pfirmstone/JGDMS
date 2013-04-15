@@ -42,15 +42,19 @@ public abstract class TxnManagerTest extends TestBase
 {
     protected static final boolean DEBUG = true;
 
-    TransactionManager[] mgrs = new TransactionManager[1];
+    final TransactionManager[] mgrs = new TransactionManager[1];
 
     public TransactionManager manager() throws RemoteException {
+        synchronized (mgrs){
 	return (TransactionManager) mgrs[0];
+    }
     }
 
     protected void startTxnMgr() throws TestException {
 	specifyServices(new Class[] {TransactionManager.class}); 
+        synchronized (mgrs){
 	mgrs[0]= (TransactionManager)services[0]; // prepared by specifyServices
+    }
     }
 
     public Test construct(QAConfig config) throws Exception {

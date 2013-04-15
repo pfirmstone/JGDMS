@@ -22,6 +22,7 @@ import com.sun.jini.mahalo.log.ClientLog;
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 import java.rmi.RemoteException;
+import java.util.Iterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.transaction.Transaction;
@@ -43,11 +44,11 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * @see net.jini.core.transaction.Transaction
  * @see net.jini.core.transaction.server.TransactionParticipant
  */
-public class PrepareJob extends Job implements TransactionConstants {
-    ServerTransaction tr;
-    ClientLog log;
-    ParticipantHandle[] handles;
-    int maxtries = 5;
+class PrepareJob extends Job implements TransactionConstants {
+    final ServerTransaction tr;
+    final ClientLog log;
+    final ParticipantHandle[] handles;
+    final int maxtries = 5;
     /** Logger for operations related messages */
     private static final Logger operationsLogger =
        TxnManagerImpl.operationsLogger;
@@ -239,9 +240,10 @@ public class PrepareJob extends Job implements TransactionConstants {
      * inform participants to vote.
      */
     TaskManager.Task[] createTasks() {
-	TaskManager.Task[] tmp = new TaskManager.Task[handles.length];
+        int length = handles.length;
+	TaskManager.Task[] tmp = new TaskManager.Task[length];
 
-	for (int i = 0; i < handles.length; i++) {
+	for (int i = 0; i < length; i++) {
 	    tmp[i] = 
 	        new ParticipantTask(getPool(), getMgr(), this, handles[i]);
 	}
@@ -273,10 +275,11 @@ public class PrepareJob extends Job implements TransactionConstants {
 	int prepstate = NOTCHANGED;
 	int tmp = 0;
 
-	checkresults:
-	for (int i = 0; i < results.length; i++) {
-	    tmp = ((Integer)results[i]).intValue();
-
+        
+        Iterator i = results.values().iterator();
+        checkresults:
+        while (i.hasNext()){
+                tmp = ((Integer) i.next()).intValue();
 	    switch(tmp) {
 	      case NOTCHANGED:
 		//Does not affect the prepstate
@@ -288,7 +291,7 @@ public class PrepareJob extends Job implements TransactionConstants {
 		//aborts the whole transaction.
 
 		prepstate = ABORTED;
-		break checkresults;
+                break checkresults;
 
 	      case PREPARED:
 		//changes the state to PREPARED only
@@ -298,11 +301,13 @@ public class PrepareJob extends Job implements TransactionConstants {
 		break;
 	    }
 	}
-	Integer result = Integer.valueOf(prepstate);
+        
+        
+	Integer r = Integer.valueOf(prepstate);
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(PrepareJob.class.getName(),
-                "computeResult", result);
+                "computeResult", r);
 	}
-	return result;
+	return r;
     }
 }

@@ -135,17 +135,17 @@ class TxnManagerTransaction
     /**
      * @serial
      */
-    private int trstate;
+    private int trstate; //sync on stateLock
 
     /**
      * @serial
      */
-    private long expires;		//expiration time
+    private long expires;		//expiration time sync on leaseLock
 
     /**
      * @serial
      */
-    private LogManager logmgr;
+    private final LogManager logmgr;
 
 
    /**
@@ -180,27 +180,27 @@ class TxnManagerTransaction
     *
     * @serial
     */
-    private TaskManager threadpool;
+    private final TaskManager threadpool;
 
     /**
      * @serial
      */
-    private WakeupManager wm;
+    private final WakeupManager wm;
 
     /**
      * @serial
      */
-    private TxnSettler settler;
+    private final TxnSettler settler;
 
     /**
      * @serial
      */
-    private Job job;
+    private Job job; // sync with jobLock
 
     /**
      * @serial
      */
-    private Uuid uuid;
+    private final Uuid uuid;
 
    /**
     * Interlock for the expiration time since
@@ -524,12 +524,21 @@ class TxnManagerTransaction
 	}
     }
 
+    public int atomicCheckExpirationIfActive() throws TransactionException {
+        synchronized (stateLock){
+            int state = getState();
+            if (state == ACTIVE && !(getExpiration() > System.currentTimeMillis())) 
+                throw new TransactionException("unknown transaction");
+            return state;
+        }
+    }
+
     /**
      * Atomic check that state is ACTIVE.
      * @return ACTIVE if lease hasn't expired.
      * @throws TransactionException otherwise.
      */
-    public int checkStateActive() throws TransactionException {
+    public int atomicCheckStateActive() throws TransactionException {
         synchronized (stateLock){
             int state = getState();
             if ((state == ACTIVE && getExpiration()==0) || (state != ACTIVE)) {
@@ -839,12 +848,14 @@ class TxnManagerTransaction
 								"ABORTED");
 		  }
 
-                  if (getState() != COMMITTED)
+                  if (getState() != COMMITTED){
+                      synchronized (jobLock){
                         throw new
                             InternalManagerException("TxnManagerTransaction: " +
                                     "commit: " + job + " got bad state: " +
                                     TxnConstants.getName(result.intValue()));
-
+                      }
+                  }
 
 		now = System.currentTimeMillis();
 		transpired = now - starttime;
@@ -887,9 +898,11 @@ class TxnManagerTransaction
 		    break;
 
 	      default:
-                throw new InternalManagerException("TxnManagerTransaction: " +
-	    			    "commit: " + job + " got bad state: " +
-				    TxnConstants.getName(result.intValue()));
+                  synchronized (jobLock){
+                    throw new InternalManagerException("TxnManagerTransaction: " +
+                                        "commit: " + job + " got bad state: " +
+                                        TxnConstants.getName(result.intValue()));
+                  }
 	    }
 
 	    //We don't care about the result from
@@ -1029,7 +1042,9 @@ class TxnManagerTransaction
 	    } catch (JobNotStartedException jnse) {
 		//error
 	    } catch (JobException je) {
-	        settler.noteUnsettledTxn(str.id);
+                synchronized (jobLock){
+                    settler.noteUnsettledTxn(str.id);
+                }
 		throw new TimeoutExpiredException("timeout expired", false);
 	    }
 

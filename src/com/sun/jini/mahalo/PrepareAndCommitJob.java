@@ -44,11 +44,11 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * @see net.jini.core.transaction.Transaction
  * @see net.jini.core.transaction.server.TransactionParticipant
  */
-public class PrepareAndCommitJob extends Job implements TransactionConstants {
-    ServerTransaction tr;
-    ClientLog log;
-    ParticipantHandle handle;
-    int maxtries = 5;
+class PrepareAndCommitJob extends Job implements TransactionConstants {
+    final ServerTransaction tr;
+    final ClientLog log;
+    final ParticipantHandle handle;
+    final int maxtries = 5;
     
     /*
      * Field that holds the last received remote exception, if any.
@@ -288,9 +288,8 @@ public class PrepareAndCommitJob extends Job implements TransactionConstants {
 					   " jobs were not created");
 	}
 
-	int prepstate = NOTCHANGED;
-
-	prepstate = ((Integer)results[0]).intValue();
+	int prepstate = ((Integer) results.get(Integer.valueOf(0))).intValue();
+        
 
         Integer result = Integer.valueOf(prepstate);
         if (operationsLogger.isLoggable(Level.FINER)) {

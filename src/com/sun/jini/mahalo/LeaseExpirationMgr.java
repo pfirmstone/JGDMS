@@ -57,9 +57,9 @@ class LeaseExpirationMgr implements LeaseManager, WeakTable.KeyGCHandler {
 
 
     // Map of resources to tickets
-    private WeakTable		ticketMap = new WeakTable(this); 
-    private Expirer		landlord;
-    private WakeupManager expirationQueue
+    private final WeakTable		ticketMap = new WeakTable(this); 
+    private final Expirer		landlord;
+    private final WakeupManager expirationQueue
         = new WakeupManager(new WakeupManager.ThreadDesc(null, true));
 
     /**

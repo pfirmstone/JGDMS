@@ -1051,8 +1051,10 @@ class MasterHarness {
 	TestResultFilter f = new TestResultFilter();
         outPipe = 
 	    new Pipe("test-out", proc.getInputStream(), stream, null, null);
+        outPipe.start();
 	errPipe = 
 	    new Pipe("test-err", proc.getErrorStream(), stream, f, null);
+        errPipe.start();
 	return f;
     }
 

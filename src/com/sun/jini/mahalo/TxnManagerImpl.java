@@ -62,6 +62,7 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -149,29 +150,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     static final Logger persistenceLogger = 
         Logger.getLogger(TxnManager.MAHALO + ".persistence");
 
-    /* At some point earlier in the development, it appears this object
-     * was Serializable, or was declared so, such that it replaced itself
-     * with a proxy stub.  This is a test to ensure serialization doesn't
-     * occur.
-     */
-    
-    private void writeObject(java.io.ObjectOutputStream out)
-     throws IOException {
-        throw new IOException("Serialization not supported");
-    }
-    private void readObject(java.io.ObjectInputStream in)
-     throws IOException, ClassNotFoundException {
-        throw new IOException("Serialization not supported");
-    }
-    private void readObjectNoData() 
-     throws ObjectStreamException{
-        throw new ObjectStreamException("Serialization not supported"){
-            private static final long serialVersionUID = 1L;
-        };
-    }
- 
-    
-    private volatile LogManager logmgr;
+    private volatile LogManager logmgr = null;
     /* Retrieve values from properties.          */
     /* Its important here to schedule SettlerTasks on a */
     /* different TaskManager from what is given to      */
@@ -186,7 +165,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     private final WakeupManager taskWakeupMgr;
     /* Map of transaction ids are their associated, internal 
      * transaction representations */
-    private final Map<Long,TxnManagerTransaction> txns;
+    private final ConcurrentMap<Long,TxnManagerTransaction> txns;
     private final Vector<Long> unsettledtxns = new Vector<Long>();
     private final InterruptedStatusThread settleThread;
     private final String persistenceDirectory;
@@ -196,17 +175,17 @@ class TxnManagerImpl /*extends RemoteServer*/
     /** The activation system, prepared */
     private final ActivationSystem activationSystem;
     /** Proxy preparer for listeners */
-    private volatile ProxyPreparer participantPreparer;
+    private volatile ProxyPreparer participantPreparer = null;
     /** The exporter for exporting and unexporting */
     protected final Exporter exporter;
     /** The login context, for logging out */
-    protected volatile LoginContext loginContext;
+    protected volatile LoginContext loginContext = null;
     /** The generator for our IDs. */
     private static final SecureRandom idGen = new SecureRandom();
     /** The buffer for generating IDs. */
     private static final byte[] idGenBuf = new byte[8];
     /**<code>LeaseExpirationMgr</code> used by our <code>LeasePolicy</code>.*/
-    private volatile LeaseExpirationMgr expMgr;
+    private volatile LeaseExpirationMgr expMgr = null;
     private final LeasePeriodPolicy txnLeasePeriodPolicy;
     /** <code>LandLordLeaseFactory</code> we use to create leases */
     private volatile LeaseFactory leaseFactory = null;
@@ -217,9 +196,9 @@ class TxnManagerImpl /*extends RemoteServer*/
      * <code>ServiceID</code> from it.  */
     private final Uuid topUuid;
     /** The outer proxy of this server */
-    private volatile TxnMgrProxy txnMgrProxy;	
+    private volatile TxnMgrProxy txnMgrProxy = null;	
     /** The admin proxy of this server */
-    private volatile TxnMgrAdminProxy txnMgrAdminProxy;	
+    private volatile TxnMgrAdminProxy txnMgrAdminProxy = null;	
     /** Cache of our inner proxy. */
     private volatile TxnManager serverStub = null;
     /** Cache of our <code>LifeCycle</code> object */
@@ -390,7 +369,7 @@ class TxnManagerImpl /*extends RemoteServer*/
                 settleThread = init.settleThread;
             } else {
                 // Assign init fields
-                txns = Collections.emptyMap();
+                txns = null;
                 /* Retrieve values from properties.          */
                 activationSystem = null;
                 activationID = activID;
@@ -627,8 +606,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	        "prepared participant: {0}", preparedTarget);
 	}
 
-        TxnManagerTransaction txntr =
-		(TxnManagerTransaction) txns.get(Long.valueOf(id));
+        TxnManagerTransaction txntr = txns.get(Long.valueOf(id));
 
 	if (txntr == null)
 	    throw new UnknownTransactionException("unknown transaction");
@@ -645,6 +623,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     public int getState(long id)
         throws UnknownTransactionException
     {
+        
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(
 		TxnManagerImpl.class.getName(), "getState", 
@@ -652,9 +631,8 @@ class TxnManagerImpl /*extends RemoteServer*/
 	}
         readyState.check();
 
-        TxnManagerTransaction txntr =
-	        (TxnManagerTransaction) txns.get(Long.valueOf(id));
-
+        TxnManagerTransaction txntr = null;
+                txntr = txns.get(Long.valueOf(id));
 	if (txntr == null)
 	    throw new UnknownTransactionException("unknown transaction");
         /* Expiration checks are only meaningful for active transactions. */
@@ -669,16 +647,17 @@ class TxnManagerImpl /*extends RemoteServer*/
 	 * a false result.
 	 */
 //TODO - need better locking here. getState and expiration need to be checked atomically	
-        int state = txntr.getState();
-        if (state == ACTIVE && !ensureCurrent(txntr)) 
-	    throw new UnknownTransactionException("unknown transaction");
-	    
+        try{
+            int state = txntr.atomicCheckExpirationIfActive();
 	if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(
 		TxnManagerImpl.class.getName(), "getState", 
 	        Integer.valueOf(state));
 	}
 	return state;
+        } catch (TransactionException ex) {
+            throw new UnknownTransactionException("unknown transaction");
+    }
     }
 
 
@@ -812,8 +791,13 @@ class TxnManagerImpl /*extends RemoteServer*/
 	} else {	
 	    throw new UnknownTransactionException("No such transaction ["+id+"]");
 	}
-
-	txntr.abort(waitFor);
+        try {
+            txntr.abort(waitFor);
+        } catch (Throwable t){
+            t.printStackTrace(System.err);
+            if (t instanceof Error) throw (Error) t;
+            if (t instanceof RuntimeException) throw (RuntimeException) t;
+        }
 	txns.remove(Long.valueOf(id));
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
@@ -901,12 +885,14 @@ class TxnManagerImpl /*extends RemoteServer*/
                     transactionsLogger.log(Level.FINEST,
                         "Settler waiting");
 	        }
-		wait();
-
-	        if (transactionsLogger.isLoggable(Level.FINEST)) {
-                    transactionsLogger.log(Level.FINEST,
-                        "Settler notified");
-	        }
+                // Don't wait forever, in case we're not notified, break out
+                // early and check condition.
+		wait(10000L); 
+                // Due to spurious wakeup and break out after ten seconds, the following log message is inaccurate.
+//	        if (transactionsLogger.isLoggable(Level.FINEST)) {
+//                    transactionsLogger.log(Level.FINEST,
+//                        "Settler notified");
+//	        }
 		continue;
 	    }
 
@@ -1018,6 +1004,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
 	// synchronize on the resource so there is not a race condition
 	// between renew and expiration
+        /* TODO check if synchronization correct */
 	Result r;
 	synchronized (txntr) {
 //TODO - check for ACTIVE too?
@@ -1066,7 +1053,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         
         try {
             // getState and expiration checked atomically
-            txntr.checkStateActive(); // Throws UnknownLeaseException if state not ACTIVE.
+            txntr.atomicCheckStateActive(); // throws TransactionException if state not ACTIVE.
             // State is still active, make it expire.
             txntr.setExpiration(0);	// Mark as done
             abort(((Long)tid).longValue(), false);

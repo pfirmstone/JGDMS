@@ -192,7 +192,9 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
             if (trc == null) {
                 throw new TestException("Null transaction has been obtained.");
             }
+            synchronized (txns){
             txns.add(trc.transaction);
+            }
             return trc.transaction;
         } catch (Exception e) {
             throw new TestException("Could not create transaction.", e);

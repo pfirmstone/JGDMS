@@ -33,7 +33,7 @@ class AbortRecord implements TxnLogRecord  {
     /**
      * @serial
      */
-    private ParticipantHandle[] parts;
+    private final ParticipantHandle[] parts;
 
     static final long serialVersionUID = -8121722031382234695L;
 

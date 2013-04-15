@@ -39,7 +39,7 @@ import java.util.Vector;
  */
 class TypeTree {
     /** For each type, a vector of known subtypes */
-    private Hashtable subclasses = new Hashtable();
+    private final Hashtable<String,Vector> subclasses = new Hashtable<String,Vector>();
 
     /**
      * A generator used to randomize the order of iterator returns
@@ -57,7 +57,9 @@ class TypeTree {
      * Return the vector of subclasses for the given class.
      */
     private Vector classVector(String whichClass) {
+        synchronized (subclasses){
 	return (Vector) subclasses.get(whichClass);
+    }
     }
 
     /**

@@ -39,7 +39,7 @@ class CommitRecord implements TxnLogRecord {
     /**
      * @serial
      */
-    ParticipantHandle[] parts; //Note: Use an array of ParticipantHandles;
+    final ParticipantHandle[] parts; //Note: Use an array of ParticipantHandles;
 			       //      We want a list of things.  By using
 			       //      an array, we can use the type system
 			       //      to guarantee that each thing is a

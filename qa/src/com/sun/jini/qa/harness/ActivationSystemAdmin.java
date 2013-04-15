@@ -254,11 +254,13 @@ public class ActivationSystemAdmin
 			       System.out,
 			       null, 
 			       new ActSysAnnotator("ActSys-out: "));
+            outPipe.start();
 	    errPipe = new Pipe("activation system-err", 
 			       actProcess.getErrorStream(),
 			       System.out,
 			       null,
 			       new ActSysAnnotator("ActSys-err: "));
+            errPipe.start();
 	} catch (IOException e) {
 	    throw new TestException("ActivationSystemAdmin: Failed to exec "
 				  + "the activation system", e);

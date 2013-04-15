@@ -38,17 +38,17 @@ class ParticipantHandle implements Serializable, TransactionConstants {
     /**
      * Cached reference to prepared participant.
      */
-    private transient TransactionParticipant preparedPart;
+    private volatile transient TransactionParticipant preparedPart;
 
     /**
      * @serial
      */
-    private StorableObject storedpart;
+    private final StorableObject storedpart;
 
     /**
      * @serial
      */
-    private long crashcount = 0;
+    private volatile long crashcount = 0;
 
     /**
      * @serial
@@ -70,6 +70,7 @@ class ParticipantHandle implements Serializable, TransactionConstants {
         if (preparedPart == null) 
 	    throw new NullPointerException(
 	        "TransactionParticipant argument cannot be null");
+        StorableObject storedpart = null;
 	try {
 	    storedpart = new StorableObject(preparedPart);
 	    this.preparedPart = preparedPart;
@@ -80,6 +81,7 @@ class ParticipantHandle implements Serializable, TransactionConstants {
 		    "Cannot store the TransactionParticipant", re);
 	    }
 	}
+        this.storedpart = storedpart;
 	this.prepstate = ACTIVE;
     }
 

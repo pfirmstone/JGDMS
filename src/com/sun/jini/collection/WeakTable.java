@@ -52,16 +52,16 @@ import java.util.HashMap;
  */
 public class WeakTable {
     /** The map of known objects.  */
-    private HashMap		table = new HashMap();
+    private final HashMap table;
 
     /** The queue of cleared SpaceProxy objects. */
-    private ReferenceQueue	refQueue = new ReferenceQueue();
+    private final ReferenceQueue refQueue;
 
     /** Print debug messages to this stream if not <code>null</code>. */
     private static PrintStream		DEBUG = null;
 
     /** Object to call back when keys are collected */
-    private KeyGCHandler handler = null;
+    private final KeyGCHandler handler;
 
     /**
      * Create a new WeakTable object to maintain the maps.
@@ -72,6 +72,7 @@ public class WeakTable {
 
 	table = new HashMap();
 	refQueue = new ReferenceQueue();
+        handler = null;
     }
 
     /**
@@ -79,7 +80,11 @@ public class WeakTable {
      * back the designated object when keys are collected.
      */
     public WeakTable(KeyGCHandler handler) {
-	this();
+        if (DEBUG != null)
+	    DEBUG.println("Creating WeakTable");
+
+	table = new HashMap();
+	refQueue = new ReferenceQueue();
 	this.handler = handler;
     }
 

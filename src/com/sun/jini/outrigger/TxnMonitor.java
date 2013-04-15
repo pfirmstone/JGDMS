@@ -51,8 +51,8 @@ class TxnMonitor implements Runnable {
      * @see #pending
      */
     private static class ToMonitor {
-	QueryWatcher	query;         // query governing interest in txns
-	Collection	txns;	       // the transactions to monitor
+	final QueryWatcher	query;         // query governing interest in txns
+	final Collection	txns;	       // the transactions to monitor
 
 	ToMonitor(QueryWatcher query, Collection txns) {
 	    this.query = query;
@@ -71,7 +71,7 @@ class TxnMonitor implements Runnable {
      * @see OutriggerServerImpl#getMatch 
      */
     // @see #ToMonitor
-    private LinkedList pending = new LinkedList();
+    private final LinkedList pending = new LinkedList();
 
     /** wakeup manager for <code>TxnMonitorTask</code>s */
     private final WakeupManager wakeupMgr = 
@@ -80,20 +80,22 @@ class TxnMonitor implements Runnable {
     /**
      * The manager for <code>TxnMonitorTask</code> objects.
      */
-    private TaskManager taskManager;
+    private final TaskManager taskManager;
 
     /**
      * The space we belong to.  Needed for aborts.
      */
-    private OutriggerServerImpl	space;
+    private final OutriggerServerImpl	space;
 
     /**
      * The thread running us.
      */
-    private Thread ourThread;
+    private final Thread ourThread;
 
     /** Set when we are told to stop */
-    private boolean die = false;
+    private volatile boolean die = false;
+
+    private volatile boolean started = false;
 
     /** Logger for logging transaction related information */
     private static final Logger logger = 
@@ -115,7 +117,14 @@ class TxnMonitor implements Runnable {
 
         ourThread = new Thread(this, "TxnMonitor");
 	ourThread.setDaemon(true);
+//        ourThread.start();
+    }
+    
+    public void start(){
+        synchronized (this){
         ourThread.start();
+            started = true;
+    }
     }
 
     public void destroy() {
@@ -128,7 +137,7 @@ class TxnMonitor implements Runnable {
 	}
 
         try {
-	    ourThread.join();
+	    if (started) ourThread.join();
 	} catch(InterruptedException ie) {
 	    // ignore
 	}

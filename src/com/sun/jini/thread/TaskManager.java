@@ -22,6 +22,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -77,13 +78,13 @@ public class TaskManager {
 	Logger.getLogger("com.sun.jini.thread.TaskManager");
 
     /** Active and pending tasks */
-    protected final ArrayList tasks = new ArrayList();
+    protected final ArrayList tasks = new ArrayList(); //sync on this
     /** Index of the first pending task; all earlier tasks are active */
-    protected int firstPending = 0;
+    protected int firstPending = 0;//sync on this
     /** Read-only view of tasks */
-    protected final List roTasks = Collections.unmodifiableList(tasks);
+    protected final List roTasks = Collections.unmodifiableList(tasks); // sync on this
     /** Active threads */
-    protected final List threads = new ArrayList();
+    protected final List threads = new ArrayList(); //sync on this
     /** Maximum number of threads allowed */
     protected final int maxThreads;
     /** Idle time before a thread should exit */
@@ -91,7 +92,7 @@ public class TaskManager {
     /** Threshold for creating new threads */
     protected final float loadFactor;
     /** True if manager has been terminated */
-    protected boolean terminated = false;
+    protected boolean terminated = false; //sync on this
 
     /**
      * Create a task manager with maxThreads = 10, timeout = 15 seconds,
@@ -256,7 +257,7 @@ public class TaskManager {
 
     /** Return all pending tasks.  A new list is returned each time. */
     public synchronized ArrayList getPending() {
-	ArrayList tc = (ArrayList)tasks.clone();
+	ArrayList tc = new ArrayList(tasks);
 	for (int i = firstPending; --i >= 0; ) {
 	    tc.remove(0);
 	}
@@ -271,7 +272,7 @@ public class TaskManager {
     private class TaskThread extends Thread {
 
 	/** The task being run, if any */
-	public Task task = null;
+	public Task task = null; // sync access on TaskManager.this
 
 	public TaskThread() {
 	    super("task");
@@ -303,6 +304,7 @@ public class TaskManager {
 
 	public void run() {
 	    while (true) {
+                Task tsk = null;
 		synchronized (TaskManager.this) {
 		    if (terminated)
 			return;
@@ -327,10 +329,12 @@ public class TaskManager {
 			    return;
 			}
 		    }
+                    tsk = task;  
 		}
 		try {
-		    task.run();
+		    tsk.run();
 		} catch (Throwable t) {
+                    if (t instanceof Error) throw (Error) t;
 		    try {
 			logger.log(Level.WARNING, "Task.run exception", t);
 		    } catch (Throwable tt) {

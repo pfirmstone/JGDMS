@@ -19,6 +19,7 @@
 package com.sun.jini.mahalo;
 
 import java.io.IOException;
+import java.io.ObjectInputStream;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 
@@ -39,8 +40,8 @@ public class StorableObject implements java.io.Serializable {
     /**
      * @serial
      */
-    private MarshalledObject	bytes;	// the serialized bytes
-    private transient Object	obj;	// the cached object reference
+    private final MarshalledObject	bytes;	// the serialized bytes
+    private volatile transient Object	obj;	// the cached object reference
 
     private static final boolean DEBUG = false;
     private static final long serialVersionUID = -3793675220968988873L;
@@ -50,16 +51,25 @@ public class StorableObject implements java.io.Serializable {
      * in a <code>MarshalledObject</code>.
      */
     public StorableObject(Object obj) throws RemoteException {
+	this(obj, toMO(obj));
+    }
+    
+    private static MarshalledObject toMO(Object obj) throws RemoteException{
 	try {
-	    bytes = new MarshalledObject(obj);
-	    this.obj = obj;
-	} catch (RemoteException e) {
+            return new MarshalledObject(obj);
+        } catch (RemoteException e){
 	    throw e;
-	} catch (IOException e) {
+        } catch (IOException e){
 	    fatalError("can't encode object", e);
 	}
+        return null; //Unreachable.
     }
 
+    private StorableObject (Object obj, MarshalledObject mo){
+        bytes = mo;
+        this.obj = obj;
+    }
+    
     /**
      * Return the <code>hashCode</code> of the <code>MarshalledObject</code>.
      */
@@ -102,6 +112,12 @@ public class StorableObject implements java.io.Serializable {
 	fatalError("how did we get here?", null);
 	return null;	// not reached, but compiler doesn't know
     }
+
+    private void readObject(ObjectInputStream s)
+                                   throws IOException, ClassNotFoundException
+        {
+            s.defaultReadObject(); // Just in case we change serial form later.
+        }
 
     /**
      * Unrecoverable error happened -- show it and give up the ghost.

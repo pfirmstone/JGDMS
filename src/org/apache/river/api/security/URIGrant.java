@@ -135,12 +135,17 @@ class URIGrant extends CertificateGrant {
         if (url == null ) return false;
         Uri implied = null;
         try {
-            implied = AccessController.doPrivileged(new NormaliseURLAction(url));
-        } catch (PrivilegedActionException ex) {
-            Exception cause = ex.getException();
-            cause.printStackTrace(System.err);
-            return false;
+            implied = Uri.urlToUri(url);
+        } catch (URISyntaxException ex) {
+            Logger.getLogger(URIGrant.class.getName()).log(Level.SEVERE, null, ex);
         }
+//        try {
+//            implied = AccessController.doPrivileged(new NormaliseURLAction(url));
+//        } catch (PrivilegedActionException ex) {
+//            Exception cause = ex.getException();
+//            cause.printStackTrace(System.err);
+//            return false;
+//        }
         for (int i = 0; i<l ; i++){
             if (uris[i].implies(implied)) return true;
         }

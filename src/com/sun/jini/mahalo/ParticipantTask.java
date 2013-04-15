@@ -17,6 +17,7 @@
  */
 package com.sun.jini.mahalo;
 
+import com.sun.jini.logging.Levels;
 import com.sun.jini.thread.RetryTask;
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
@@ -34,9 +35,9 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * @see TransactionParticipant
  * @see TaskManager
  */
-public class ParticipantTask extends RetryTask {
-    ParticipantHandle handle;
-    Job myjob;
+class ParticipantTask extends RetryTask {
+    final ParticipantHandle handle;
+    final Job myjob;
     private static final Logger operationsLogger = 
         TxnManagerImpl.operationsLogger;
 	
@@ -81,9 +82,11 @@ public class ParticipantTask extends RetryTask {
 	} catch (UnknownTaskException ute) {
 	    //If task doesn't belong to the
 	    //Job, then stop doing work.
+            logger.log(Level.FINE, "Task didn't belong to job",ute);
+            ute.printStackTrace(System.err);
 	    result = true;
 	} catch (JobException je) {
-	    je.printStackTrace();
+	    je.printStackTrace(System.err);
 	}
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(ParticipantTask.class.getName(), 

@@ -563,10 +563,11 @@ public class JoinManager {
     private class ProxyRegTask extends RetryTask {
         private final long[] sleepTime = { 5*1000, 10*1000, 15*1000,
                                           20*1000, 25*1000, 30*1000 };
-        protected int tryIndx  = 0;
-        protected int nRetries = 0;
-        protected ProxyReg proxyReg;
-        protected int seqN;
+        // volatile fields only mutated while synchronized on proxyReg.taskList
+        private volatile int tryIndx  = 0;
+        private volatile int nRetries = 0;
+        private final ProxyReg proxyReg;
+        private volatile int seqN;
 
         /** Basic constructor; simply stores the input parameters */
         ProxyRegTask(ProxyReg proxyReg, int seqN) {
@@ -611,10 +612,11 @@ public class JoinManager {
                         if( !proxyReg.taskList.isEmpty() ) {
                             proxyReg.taskList.remove(0);
                         }//endif
-                    }//end sync
                     /* reset the retry info for the next task in the list */
                     tryIndx  = 0;
                     nRetries = 0;
+                    }//end sync
+                    
                 } catch (Exception e) {
                     return stopTrying(e);
                 }
@@ -627,8 +629,10 @@ public class JoinManager {
          */
         public long retryTime() {
 	    long nextTryTime = System.currentTimeMillis() + sleepTime[tryIndx];
+            synchronized (proxyReg.taskList){
 	    if(tryIndx < sleepTime.length-1)  tryIndx++;//don't go past end
             nRetries++;
+            }
             return nextTryTime;
         }//end retryTime
 
@@ -737,7 +741,7 @@ public class JoinManager {
     private abstract class JoinTask {
 
         /** Data structure referencing the task's associated lookup service */
-        protected ProxyReg proxyReg;
+        protected final ProxyReg proxyReg;
 
         /** Basic constructor; simply stores the input parameters */
         JoinTask(ProxyReg proxyReg) {
@@ -758,7 +762,7 @@ public class JoinManager {
          *  must not change during the registration process performed in
          *  this this task.
          */
-        Entry[] regAttrs;
+        final Entry[] regAttrs;
 
         /** Constructor that associates this task with the lookup service
          *  referenced in the given <code>ProxyReg</code> parameter.
@@ -889,9 +893,10 @@ public class JoinManager {
          */
         public void run() {
             logger.finest("JoinManager --> DiscardProxyTask started");
-            if( (proxyReg != null) && (proxyReg.serviceLease != null) ) {
+            Lease svcLease = proxyReg != null ? proxyReg.serviceLease : null;
+            if( svcLease != null ) {
                 try {
-                    proxyReg.serviceLease.cancel();
+                    svcLease.cancel();
                 } catch (Exception e) { /*ignore*/ }
             }//endif
             logger.finest("JoinManager - DiscardProxyTask completed");
@@ -1140,31 +1145,34 @@ public class JoinManager {
         /** The <code>ProxyRegTask</code> that instantiated this
          *  <code>ProxyReg</code>.
          */
-        public ProxyRegTask proxyRegTask;
+        volatile ProxyRegTask proxyRegTask;
         /** The <i>prepared</i> proxy to the lookup service referenced by
          *  this class, and with which this join manager's service will be
          *  registered.
          */
-	public ServiceRegistrar proxy;
+	final ServiceRegistrar proxy;
         /** The <i>prepared</i> registration proxy returned by this class'
          *  associated lookup service when this join manager registers its
          *  associated service.
+         * 
+         * Access to reference synchronized on joinSet, but not referent
+         * as it has foreign remote methods.
          */
-	public ServiceRegistration srvcRegistration = null;
+	ServiceRegistration srvcRegistration = null;
         /* The <i>prepared</i> proxy to the lease on the registration of this
          * join manager's service with the this class' associated lookup
          * service.
          */
-	public Lease serviceLease = null;
+	volatile Lease serviceLease = null;
         /** The set of sub-tasks that are to be executed in order for the
          *  lookup service associated with the current instance of this class.
          */
-        public List taskList = new ArrayList(1);
+        final List taskList = new ArrayList(1);
         /** The instance of <code>DiscLeaseListener</code> that is registered
          *  with the lease renewal manager that handles the lease of this join
          *  manger's service.
          */
-	private DiscLeaseListener dListener = new DiscLeaseListener();
+	private final DiscLeaseListener dListener = new DiscLeaseListener();
 
         /** Constructor that associates this class with the lookup service
          *  referenced in the given <code>ProxyReg</code> parameter.
@@ -1236,19 +1244,19 @@ public class JoinManager {
                 throw e; //rethrow the exception since proxy may be unusable
             }
             /* Retrieve and prepare the proxy to the service lease */
-            serviceLease = tmpSrvcRegistration.getLease();
+            Lease svcLease = tmpSrvcRegistration.getLease();
             try {
-                serviceLease = 
-                       (Lease)serviceLeasePreparer.prepareProxy(serviceLease);
+                this.serviceLease = 
+                       (Lease)serviceLeasePreparer.prepareProxy(svcLease);
                 logger.finest("JoinManager - service lease proxy prepared");
             } catch(Exception e) {
 		LogUtil.logThrow(logger, Level.WARNING, ProxyReg.class,
 		    	"register", "JoinManager - failure during " +
 		    	"preparation of service lease proxy: {0}",
-		    	new Object[] { serviceLease }, e);
+		    	new Object[] { svcLease }, e);
                 throw e; //rethrow the exception since proxy may be unusable
             }
-            leaseRenewalMgr.renewUntil(serviceLease, Lease.FOREVER,
+            leaseRenewalMgr.renewUntil(svcLease, Lease.FOREVER,
                                        renewalDuration, dListener);
             ServiceID tmpID = null;
             synchronized(joinSet) {
@@ -1272,7 +1280,11 @@ public class JoinManager {
          *  addition to that service's current set of attributes.
          */
         public void addAttributes(Entry[] attSet) throws Exception {
-            srvcRegistration.addAttributes(attSet);
+            ServiceRegistration sr;
+            synchronized (joinSet){
+                sr = srvcRegistration;
+            }
+            sr.addAttributes(attSet);
 	}//end ProxyReg.addAttributes
 
         /** With respect to the lookup service referenced in this class
@@ -1285,7 +1297,11 @@ public class JoinManager {
         public void modifyAttributes(Entry[] templ, Entry[] attSet)
                                                              throws Exception
         {
-            srvcRegistration.modifyAttributes(templ, attSet);
+            ServiceRegistration sr;
+            synchronized (joinSet){
+               sr = srvcRegistration;
+            }
+            sr.modifyAttributes(templ, attSet);
 	}//end ProxyReg.modifyAttributes		    
 
         /** With respect to the lookup service referenced in this class
@@ -1294,7 +1310,11 @@ public class JoinManager {
          *  set of attributes.
          */
         public void setAttributes(Entry[] attSet) throws Exception {
-            srvcRegistration.setAttributes(attSet);
+            ServiceRegistration sr;
+            synchronized (joinSet){
+               sr = srvcRegistration;
+            }
+            sr.setAttributes(attSet);
 	}//end ProxyReg.setAttributes
 
         /** Convenience method that encapsulates appropriate behavior when
@@ -1432,7 +1452,7 @@ public class JoinManager {
      *  which each task is associated). This field contains the value of
      *  the sequence number assigned to the most recently created task.
      */
-    private int taskSeqN = 0;
+    private int taskSeqN = 0; // access sync on taskList
     /** Task manager for the various tasks executed by this join manager.
      *  On the first attempt to execute any task is managed by this
      *  <code>TaskManager</code> so that the number of concurrent threads
@@ -1442,9 +1462,9 @@ public class JoinManager {
      *  "backoff strategy") - the re-execution of each failed task in this
      *  <code>TaskManager</code>.
      */
-    private TaskManager taskMgr;
+    private final TaskManager taskMgr;
     /** Maximum number of times a failed task is allowed to be re-executed. */
-    private int maxNRetries = 6;
+    private final int maxNRetries;
     /** Wakeup manager for the various tasks executed by this join manager.
      *  After an initial failure of any task executed by this join manager,
      *  the failed task is managed by this <code>WakeupManager</code>; which
@@ -1456,22 +1476,22 @@ public class JoinManager {
      *  join manager is requested, all tasks scheduled for retry by this
      *  wakeup manager can be cancelled.
      */
-    private WakeupManager wakeupMgr;
+    private final WakeupManager wakeupMgr;
     /** Contains the reference to the service that is to be registered with
      *  all of the desired lookup services referenced by <code>discMgr</code>.
      */
-    private ServiceItem serviceItem;
+    private final ServiceItem serviceItem;
     /** Contains the attributes with which to associate the service in each
      *  of the lookup services with which this join manager registers the
      *  service.
      */
-    private Entry[] lookupAttr = null;
+    private Entry[] lookupAttr = null; // access sync on joinSet
     /** Contains the listener -- instantiated by the entity that constructs
      *  this join manager -- that will receive an event containing the
      *  service ID assigned to this join manager's service by one of the
      *  lookup services with which that service is registered.
      */
-    private ServiceIDListener callback;
+    private final ServiceIDListener callback;
     /** Contains elements of type <code>ProxyReg</code> where each element
      *  references a proxy to one of the lookup services with which this
      *  join manager's service is registered.
@@ -1480,22 +1500,22 @@ public class JoinManager {
     /** Contains the discovery manager that discovers the lookup services
      *  with which this join manager will register its associated service.
      */
-    private DiscoveryManagement discMgr = null;
+    private final DiscoveryManagement discMgr;
     /** Contains the discovery listener registered by this join manager with
      *  the discovery manager so that this join manager is notified whenever
      *  one of the desired lookup services is discovered or discarded.
      */
-    private DiscMgrListener discMgrListener = new DiscMgrListener();
+    private final DiscMgrListener discMgrListener ;
     /** Flag that indicate whether the discovery manager employed by this
      *  join manager was created by this join manager itself, or by the
      *  entity that constructed this join manager.
      */
-    private boolean bCreateDiscMgr = false;
+    private final boolean bCreateDiscMgr;
     /** Contains the lease renewal manager that renews all of the leases
      *  this join manager's service holds with each lookup service with which
      *  it has been registered.
      */
-    private LeaseRenewalManager leaseRenewalMgr = null;
+    private final LeaseRenewalManager leaseRenewalMgr;
     /** The value to use as the <code>renewDuration</code> parameter
      *  when invoking the lease renewal manager's <code>renewUntil</code>
      *  method to add a service lease to manage. This value represents,
@@ -1505,22 +1525,22 @@ public class JoinManager {
      *  is up, and lease expirations will occur sooner when the service
      *  goes down.
      */
-    private long renewalDuration = Lease.FOREVER;
+    private final long renewalDuration;
     /** Flag that indicates if this join manager has been terminated. */
-    private volatile boolean bTerminated = false;
+    private boolean bTerminated = false; // All access sync on this.
     /* Preparer for the proxies to the lookup services that are discovered
      * and used by this utility.
      */
-    private ProxyPreparer registrarPreparer;
+    private final ProxyPreparer registrarPreparer;
     /* Preparer for the proxies to the registrations returned to this utility
      * upon registering the service with each discovered lookup service.
      */
-    private ProxyPreparer registrationPreparer;
+    private final ProxyPreparer registrationPreparer;
     /* Preparer for the proxies to the leases returned to this utility through
      * the registrations with each discovered lookup service with which this
      * utility has registered the service.
      */
-    private ProxyPreparer serviceLeasePreparer;
+    private final ProxyPreparer serviceLeasePreparer;
 
     /** 
      * Constructs an instance of this class that will register the given
@@ -1619,11 +1639,8 @@ public class JoinManager {
 			DiscoveryManagement discoveryMgr,
 			LeaseRenewalManager leaseMgr)    throws IOException
     {
-        discMgr = discoveryMgr;
-        try {
-           createJoinManager(null, serviceProxy, attrSets, callback, leaseMgr,
-                             EmptyConfiguration.INSTANCE);
-        } catch(ConfigurationException e) { /* swallow this exception */ }
+           this(serviceProxy, attrSets, null, callback, 
+                 getConf(EmptyConfiguration.INSTANCE, leaseMgr, discoveryMgr, serviceProxy));
     }//end constructor
 
     /** 
@@ -1737,9 +1754,10 @@ public class JoinManager {
                         Configuration config)
                                     throws IOException, ConfigurationException
     {
-        discMgr = discoveryMgr;
-        createJoinManager(null, serviceProxy, attrSets,
-                          callback, leaseMgr, config);
+        
+        this(serviceProxy, attrSets, null, callback, 
+            getConfig(config, leaseMgr, discoveryMgr, serviceProxy)
+        );
     }//end constructor
 
     /** 
@@ -1797,12 +1815,9 @@ public class JoinManager {
 			DiscoveryManagement discoveryMgr,
 			LeaseRenewalManager leaseMgr)    throws IOException
     {
-        discMgr = discoveryMgr;
-        try {
-           createJoinManager(serviceID, serviceProxy, attrSets,
-                             (ServiceIDListener)null, leaseMgr,
-                             EmptyConfiguration.INSTANCE);
-        } catch(ConfigurationException e) { /* swallow this exception */ }
+       this(serviceProxy, attrSets, serviceID, null, 
+             getConf(EmptyConfiguration.INSTANCE, leaseMgr, discoveryMgr, serviceProxy)
+       );
     }//end constructor
 
     /** 
@@ -1877,9 +1892,9 @@ public class JoinManager {
                         Configuration config)
                                     throws IOException, ConfigurationException
     {
-        discMgr = discoveryMgr;
-        createJoinManager(serviceID, serviceProxy, attrSets,
-                          (ServiceIDListener)null, leaseMgr, config);
+        this(serviceProxy, attrSets, serviceID, null, 
+             getConfig(config, leaseMgr, discoveryMgr, serviceProxy)
+       );
     }//end constructor
 
     /** 
@@ -2464,44 +2479,113 @@ public class JoinManager {
         replaceRegistrationDo(serviceProxy, attrSets, true);
     }//end replaceRegistration
 
-    /** Convenience method invoked by the constructors of this class that
-     *  uses the given <code>Configuration</code> to initialize the current
-     *  instance of this utility, and initiates all join processing for
-     *  the given parameters. This method handles the various configurations
-     *  allowed by the different constructors.
+    private static class Conf{
+        ProxyPreparer registrarPreparer;
+        ProxyPreparer registrationPreparer;
+        ProxyPreparer serviceLeasePreparer;
+        TaskManager taskManager;
+        WakeupManager wakeupManager;
+        Integer maxNretrys;
+        LeaseRenewalManager leaseRenewalManager;
+        Long renewalDuration;
+        DiscoveryManagement discoveryMgr;
+        boolean bcreateDisco;
+        
+        Conf (  ProxyPreparer registrarPreparer,
+                ProxyPreparer registrationPreparer,
+                ProxyPreparer serviceLeasePreparer,
+                TaskManager taskManager,
+                WakeupManager wakeupManager,
+                Integer maxNretrys,
+                LeaseRenewalManager leaseRenewalManager,
+                Long renewalDuration,
+                DiscoveryManagement discoveryMgr,
+                boolean bcreateDisco)
+        {
+            this.registrarPreparer = registrarPreparer;
+            this.registrationPreparer = registrationPreparer;
+            this.serviceLeasePreparer = serviceLeasePreparer;
+            this.taskManager = taskManager;
+            this.wakeupManager = wakeupManager;
+            this.maxNretrys = maxNretrys;
+            this.leaseRenewalManager = leaseRenewalManager;
+            this.renewalDuration = renewalDuration;
+            this.discoveryMgr = discoveryMgr;
+            this.bcreateDisco = bcreateDisco;
+        }
+    }
+    
+    /**
+     * This method is for constructors that use an empty configuration.
+     * 
+     * @param config
+     * @param leaseMgr
+     * @param discoveryMgr
+     * @param serviceProxy
+     * @return
+     * @throws IOException
+     * @throws NullPointerException
+     * @throws IllegalArgumentException 
      */
-    private void createJoinManager(ServiceID serviceID, 
-                                   Object serviceProxy,
-                                   Entry[] attrSets, 
-                                   ServiceIDListener callback,
+    private static Conf getConf(    Configuration config,
                                    LeaseRenewalManager leaseMgr,
-                                   Configuration config) 
-                                    throws IOException, ConfigurationException
+                                    DiscoveryManagement discoveryMgr,
+                                    Object serviceProxy) 
+            throws IOException, NullPointerException, IllegalArgumentException {
+        try {
+            return getConfig(config, leaseMgr, discoveryMgr, serviceProxy);
+        } catch (ConfigurationException e){
+            throw new IOException("Configuration problem during construction", e);
+        }
+    }
+    
+    /**
+     * Gets the configuration and throws any exceptions.
+     * 
+     * This static method guards against finalizer attacks and allows fields
+     * to be final.
+     * 
+     * @param config
+     * @param leaseMgr
+     * @param discoveryMgr
+     * @param serviceProxy
+     * @return
+     * @throws IOException
+     * @throws ConfigurationException
+     * @throws NullPointerException
+     * @throws IllegalArgumentException 
+     */
+    private static Conf getConfig(  Configuration config,
+                                    LeaseRenewalManager leaseMgr, 
+                                    DiscoveryManagement discoveryMgr,
+                                    Object serviceProxy) 
+            throws IOException, ConfigurationException, NullPointerException,
+            IllegalArgumentException 
     {
 	if(!(serviceProxy instanceof java.io.Serializable)) {
             throw new IllegalArgumentException
                                        ("serviceProxy must be Serializable");
 	}//endif
-
         /* Retrieve configuration items if applicable */
         if(config == null)  throw new NullPointerException("config is null");
         /* Proxy preparers */
-        registrarPreparer = (ProxyPreparer)config.getEntry
+        ProxyPreparer registrarPreparer = (ProxyPreparer)config.getEntry
                                                    (COMPONENT_NAME,
                                                     "registrarPreparer",
                                                     ProxyPreparer.class,
                                                     new BasicProxyPreparer());
-        registrationPreparer = (ProxyPreparer)config.getEntry
+        ProxyPreparer registrationPreparer = (ProxyPreparer)config.getEntry
                                                    (COMPONENT_NAME,
                                                     "registrationPreparer",
                                                     ProxyPreparer.class,
                                                     new BasicProxyPreparer());
-        serviceLeasePreparer = (ProxyPreparer)config.getEntry
+        ProxyPreparer serviceLeasePreparer = (ProxyPreparer)config.getEntry
                                                    (COMPONENT_NAME,
                                                     "serviceLeasePreparer",
                                                     ProxyPreparer.class,
                                                     new BasicProxyPreparer());
         /* Task manager */
+        TaskManager taskMgr;
         try {
             taskMgr = (TaskManager)config.getEntry(COMPONENT_NAME,
                                                    "taskManager",
@@ -2510,6 +2594,7 @@ public class JoinManager {
             taskMgr = new TaskManager(MAX_N_TASKS,(15*1000),1.0f);
         }
         /* Wakeup manager */
+        WakeupManager wakeupMgr;
         try {
             wakeupMgr = (WakeupManager)config.getEntry(COMPONENT_NAME,
                                                        "wakeupManager",
@@ -2519,57 +2604,84 @@ public class JoinManager {
                                     (new WakeupManager.ThreadDesc(null,true));
         }
         /* Max number of times to re-schedule tasks in thru wakeup manager */
-        maxNRetries = ((Integer)config.getEntry
+        Integer maxNRetries = ((Integer)config.getEntry
                                         (COMPONENT_NAME,
                                          "wakeupRetries",
                                          int.class,
-                                         Integer.valueOf(maxNRetries))).intValue();
-        if(attrSets == null) {
-            lookupAttr = new Entry[0];
-        } else {
-            attrSets = (Entry[])attrSets.clone();
-            LookupAttributes.check(attrSets,false);//null elements NOT ok
-            lookupAttr = attrSets;
-        }//endif
-	serviceItem = new ServiceItem(serviceID, serviceProxy, lookupAttr);
+                                         Integer.valueOf(6))).intValue();
         /* Lease renewal manager */
-        leaseRenewalMgr = leaseMgr;
-	if(leaseRenewalMgr == null) {
+	if(leaseMgr == null) {
             try {
-                leaseRenewalMgr = (LeaseRenewalManager)config.getEntry
+                leaseMgr = (LeaseRenewalManager)config.getEntry
                                                   (COMPONENT_NAME,
                                                    "leaseManager",
                                                    LeaseRenewalManager.class);
             } catch(NoSuchEntryException e) { /* use default */
-                leaseRenewalMgr = new LeaseRenewalManager(config);
+                leaseMgr = new LeaseRenewalManager(config);
             }
         }//endif
-        renewalDuration = ((Long)config.getEntry
+        Long renewalDuration = ((Long)config.getEntry
                                       (COMPONENT_NAME,
                                        "maxLeaseDuration",
                                        long.class,
-                                       Long.valueOf(renewalDuration))).longValue();
+                                       Long.valueOf(Lease.FOREVER))).longValue();
         if( (renewalDuration == 0) || (renewalDuration < Lease.ANY) ) {
             throw new ConfigurationException("invalid configuration entry: "
                                              +"renewalDuration ("
                                              +renewalDuration+") must be "
                                              +"positive or Lease.ANY");
         }//endif
-	this.callback = callback;
         /* Discovery manager */
-	if(discMgr == null) {
+        boolean bCreateDiscMgr = false;
+	if(discoveryMgr == null) {
 	    bCreateDiscMgr = true;
             try {
-                discMgr = (DiscoveryManagement)config.getEntry
+                discoveryMgr = (DiscoveryManagement)config.getEntry
                                                  (COMPONENT_NAME,
                                                   "discoveryManager",
                                                   DiscoveryManagement.class);
             } catch(NoSuchEntryException e) { /* use default */
-                discMgr = new LookupDiscoveryManager
+                discoveryMgr = new LookupDiscoveryManager
                                      (new String[] {""}, null, null, config);
             }
 	}//endif
-	discMgr.addDiscoveryListener(discMgrListener);
+        return new Conf(registrarPreparer, registrationPreparer, serviceLeasePreparer,
+                taskMgr, wakeupMgr, maxNRetries, leaseMgr, renewalDuration,
+                discoveryMgr, bCreateDiscMgr);
+    }
+    
+    /** Convenience method invoked by the constructors of this class that
+     *  uses the given <code>Configuration</code> to initialize the current
+     *  instance of this utility, and initiates all join processing for
+     *  the given parameters. This method handles the various configurations
+     *  allowed by the different constructors.
+     */
+    private JoinManager(Object serviceProxy,
+                                   Entry[] attrSets, ServiceID serviceID, 
+                                   ServiceIDListener callback, Conf conf)
+    {
+	registrarPreparer = conf.registrarPreparer;
+        registrationPreparer = conf.registrationPreparer;
+        serviceLeasePreparer = conf.serviceLeasePreparer;
+        taskMgr = conf.taskManager;
+        wakeupMgr = conf.wakeupManager;
+        maxNRetries = conf.maxNretrys;
+        leaseRenewalMgr = conf.leaseRenewalManager;
+        renewalDuration = conf.renewalDuration;
+        bCreateDiscMgr = conf.bcreateDisco;
+        DiscMgrListener discMgrListen = new DiscMgrListener();
+        if(attrSets == null) {
+            lookupAttr = new Entry[0];
+        } else {
+            attrSets = attrSets.clone();
+            LookupAttributes.check(attrSets,false);//null elements NOT ok
+            lookupAttr = attrSets;
+        }//endif
+	serviceItem = new ServiceItem(serviceID, serviceProxy, lookupAttr);
+	this.callback = callback;
+	conf.discoveryMgr.addDiscoveryListener(discMgrListen);
+        discMgr = conf.discoveryMgr;
+        discMgrListener = discMgrListen;
     }//end createJoinManager
 
     /** For the given lookup service proxy, searches the <code>joinSet</code>
@@ -2623,9 +2735,10 @@ public class JoinManager {
                 }//end loop
                 /* Interrupt all active tasks, prepare taskMgr for GC. */
                 taskMgr.terminate();
-                taskMgr = null;
+        // Too lazy to put out the trash.
+//                taskMgr = null;
             }//end sync(taskMgr)
-            wakeupMgr = null;
+//            wakeupMgr = null;
         }//end sync(wakeupMgr)
     }//end terminateTaskMgr
 

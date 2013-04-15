@@ -29,6 +29,7 @@ import java.rmi.UnknownHostException;
 import java.rmi.ConnectIOException;
 import java.rmi.AccessException;
 import java.rmi.ConnectException;
+import java.util.Iterator;
  
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -53,11 +54,11 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * @see net.jini.core.transaction.server.TransactionParticipant
  *
  */
-public class AbortJob extends Job implements TransactionConstants {
-    ServerTransaction tr;
-    ClientLog log;
-    ParticipantHandle[] handles;
-    int maxtries = 5;
+class AbortJob extends Job implements TransactionConstants {
+    final ServerTransaction tr;
+    final ClientLog log;
+    final ParticipantHandle[] handles;
+    final int maxtries = 5;
     static final Logger logger = TxnManagerImpl.participantLogger;
     
     /**
@@ -272,13 +273,14 @@ public class AbortJob extends Job implements TransactionConstants {
 	int tmp = 0;
 	int count = 0;
 
-	checkresults:
-	for (int i = 0; i < results.length; i++) {
-	    tmp = ((Integer)results[i]).intValue();
-
-	    if (tmp == ABORTED)
-		count++;
-	}
+        Iterator i = results.values().iterator();
+        while (i.hasNext()){
+            Object res = i.next();
+            if (res instanceof Integer){
+                tmp = ((Integer)res).intValue();
+                if (tmp == ABORTED) count++;
+            }
+        }
 
         if (logger.isLoggable(Level.FINEST)) {
             logger.log(Level.FINEST,

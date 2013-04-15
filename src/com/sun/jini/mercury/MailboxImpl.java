@@ -419,7 +419,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     // constructor thread and set to null after starting.
     private Configuration config;
     private Throwable thrown;
-    private volatile boolean started = false;
+    private boolean started = false;
     
     ///////////////////////
     // Activation Methods
@@ -1071,8 +1071,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 //    } // End doInit()
 //    
     public void start() throws Exception {
-        if (started) return;
         concurrentObj.writeLock();
+        if (started) return;
         started = true; // mutual exclusion
         try {
             if (thrown != null) throw thrown;

@@ -36,7 +36,7 @@ class StorableEventWatcher extends EventRegistrationWatcher
     implements StorableResource
 {
     /** The listener that should be notified of matches */
-    private StorableReference listener;
+    private volatile StorableReference listener;
 
     /**
      * Used during log recovery to create a mostly empty
@@ -115,7 +115,7 @@ class StorableEventWatcher extends EventRegistrationWatcher
      * @param expired <code>true</code> if being called from 
      *        <code>removeIfExpired</code> and false otherwise. 
      */
-    void cleanup(TemplateHandle owner, boolean expired) {
+    synchronized void cleanup(TemplateHandle owner, boolean expired) {
 	if (expired)
 	    owner.getServer().scheduleCancelOp(cookie);
 	else 
@@ -126,7 +126,7 @@ class StorableEventWatcher extends EventRegistrationWatcher
     /**  
      * Store the persistent fields 
      */
-    public void store(ObjectOutputStream out) throws IOException {
+    public synchronized void store(ObjectOutputStream out) throws IOException {
 	cookie.write(out);
 	out.writeLong(expiration);
 	out.writeLong(eventID);
@@ -137,7 +137,7 @@ class StorableEventWatcher extends EventRegistrationWatcher
     /**
      * Restore the persistent fields
      */
-    public void restore(ObjectInputStream in) 
+    public synchronized void restore(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException 
     {
 	cookie = UuidFactory.read(in);

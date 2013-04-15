@@ -195,6 +195,7 @@ class SlaveHarness {
 				      System.out,
 				      null,
 				      null);
+                slave.pipe.start();
 		return;
 	    } catch (ConnectException ignore) {
 	    } catch (IOException e) {
@@ -633,11 +634,11 @@ class SlaveHarness {
 		 proc.getInputStream(),
 		 System.out, 
 		 null,
-		 null);
+		 null).start();
 	new Pipe("slaveharness-err", 
 		 proc.getErrorStream(),
 		 System.out,
 		 null,
-		 null);
+		 null).start();
     }
 }

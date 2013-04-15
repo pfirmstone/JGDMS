@@ -54,9 +54,9 @@ import java.util.logging.Logger;
  */
 class Resolver implements Serializable {
 
-    private static Logger logger = Logger.getLogger("com.sun.jini.qa.harness");
-    private QAConfig config;
-    private HashMap tokenMap = new HashMap();
+    private final static Logger logger = Logger.getLogger("com.sun.jini.qa.harness");
+    private final QAConfig config;
+    private final HashMap tokenMap = new HashMap();
 
     /** 
      * Construct an instance of a <code>Resolver</code>.

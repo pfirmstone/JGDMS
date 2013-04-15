@@ -240,7 +240,7 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      * @return The unique identifier associated with this
      * watcher.
      */
-    public Uuid getCookie() {
+    public synchronized Uuid getCookie() {
 	return cookie;
     }
 
