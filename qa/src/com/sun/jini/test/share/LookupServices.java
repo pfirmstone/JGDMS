@@ -20,6 +20,7 @@ package com.sun.jini.test.share;
 import com.sun.jini.qa.harness.AdminManager;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.test.services.lookupsimulator.LookupSimulatorProxyInterface;
 import com.sun.jini.test.share.BaseQATest.LocatorGroupsPair;
 import com.sun.jini.test.share.BaseQATest.LookupListener;
 import com.sun.jini.test.spec.discoveryservice.AbstractBaseTest.LDSEventListener;
@@ -539,7 +540,8 @@ public class LookupServices {
                                   +"sync on lookupList --> granted");
                 /* Use either a random or an explicit locator port */
                 generator = new DiscoveryProtocolSimulator
-                                               (config,memberGroups, manager, port);
+                                               (config,memberGroups, port, (LookupSimulatorProxyInterface) manager.startLookupService());
+                generator.start();
                 genMap.put( generator, memberGroups );
                 lookupProxy = generator.getLookupProxy();
                 lookupList.add( lookupProxy );

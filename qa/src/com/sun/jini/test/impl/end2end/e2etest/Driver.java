@@ -227,6 +227,8 @@ public class Driver implements LegacyTest {
 
     /**
      * Utility class to read output from a process.
+     * This class is stateless, this is the only case where it's safe to start
+     * a Thread from inside the constructor.
      */
     public static class ProcessReader {
         public ProcessReader(final InputStream input, final PrintWriter out) {

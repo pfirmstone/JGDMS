@@ -206,7 +206,7 @@ public class ClassServer extends Thread {
 		       boolean verbose)
 	throws IOException
     {
-	init(port, dirlist, trees, verbose, false, null);
+	this(port, dirlist, trees, verbose, false, null);
     }
 
     /**
@@ -231,13 +231,53 @@ public class ClassServer extends Thread {
 		       boolean stoppable)
 	throws IOException
     {
-	init(port, dirlist, trees, verbose, stoppable, null);
+	this(port, dirlist, trees, verbose, stoppable, null);
+    }
+    
+    private static class Initializer {
+        int port;
+        String dirlist;
+        boolean trees;
+        boolean verbose;
+        boolean stoppable;
+        LifeCycle lifeCycle;
+        
+        Initializer(LifeCycle lifeCycle, String[] args){
+            port = DEFAULT_PORT;
+            dirlist = DEFAULT_DIR;
+            if (File.separatorChar == '\\') dirlist = DEFAULT_WIN_DIR;
+            trees = false;
+            verbose = false;
+            stoppable = false;
+            for (int i = 0; i < args.length ; i++ ) {
+                String arg = args[i];
+                if (arg.equals("-port")) {
+                    i++;
+                    port = Integer.parseInt(args[i]);
+                } else if (arg.equals("-dir") || arg.equals("-dirs")) {
+                    i++;
+                    dirlist = args[i];
+                } else if (arg.equals("-verbose")) {
+                    verbose = true;
+                } else if (arg.equals("-trees")) {
+                    trees = true;
+                } else if (arg.equals("-stoppable")) {
+                    stoppable = true;
+                } else {
+                    throw new IllegalArgumentException(arg);
+                }
+            }
+        }
+    }
+    
+    private ClassServer(Initializer init) throws IOException {
+        this(init.port, init.dirlist, init.trees, init.verbose, init.stoppable, init.lifeCycle);
     }
 
     /**
      * Do the real work of the constructor.
      */
-    private void init(int port,
+    private ClassServer(int port,
 		      String dirlist,
 		      boolean trees,
 		      boolean verbose,
@@ -291,6 +331,26 @@ public class ClassServer extends Thread {
     }
 
     /**
+     * Construct an un-started server, accepting the same command line options
+     * supported by {@link #main main}, except for the <code>-stop</code>
+     * option.  
+     * 
+     * {@link Thread#start() } must be called to start the server.
+     *
+     * @param args command line options
+     * @param lifeCycle life cycle control object, or <code>null</code>
+     * @throws IOException if the server socket cannot be created
+     * @throws IllegalArgumentException if a command line option is not
+     * understood
+     * @throws NullPointerException if <code>args</code> or any element
+     * of <code>args</code> is <code>null</code>
+     * @since 2.3.0
+     */
+    public ClassServer(LifeCycle lifeCycle, String [] args)throws IOException {
+	this(new Initializer(lifeCycle, args));
+    }
+    
+    /**
      * Construct a running server, accepting the same command line options
      * supported by {@link #main main}, except for the <code>-stop</code>
      * option.
@@ -302,34 +362,12 @@ public class ClassServer extends Thread {
      * understood
      * @throws NullPointerException if <code>args</code> or any element
      * of <code>args</code> is <code>null</code>
+     * @deprecated {@link Thread#start() } is called from within constructor, 
+     * this is non compliant with safe construction rules in the JMM.
      */
+    @Deprecated
     public ClassServer(String[] args, LifeCycle lifeCycle) throws IOException {
-	int port = DEFAULT_PORT;
-	String dirlist = DEFAULT_DIR;
-	if (File.separatorChar == '\\')
-	    dirlist = DEFAULT_WIN_DIR;
-	boolean trees = false;
-	boolean verbose = false;
-	boolean stoppable = false;
-	for (int i = 0; i < args.length ; i++ ) {
-	    String arg = args[i];
-	    if (arg.equals("-port")) {
-		i++;
-		port = Integer.parseInt(args[i]);
-	    } else if (arg.equals("-dir") || arg.equals("-dirs")) {
-		i++;
-		dirlist = args[i];
-	    } else if (arg.equals("-verbose")) {
-		verbose = true;
-	    } else if (arg.equals("-trees")) {
-		trees = true;
-	    } else if (arg.equals("-stoppable")) {
-		stoppable = true;
-	    } else {
-		throw new IllegalArgumentException(arg);
-	    }
-	}
-	init(port, dirlist, trees, verbose, stoppable, lifeCycle);
+	this(new Initializer(lifeCycle, args));
 	start();
     }
 

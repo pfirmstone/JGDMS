@@ -88,6 +88,9 @@ public class MultihomedClientTest implements LegacyTest {
 
     }
 
+    /**
+     * Safe to start thread in constructor, it's stateless.
+     */
     public static class ProcessReader {
         public ProcessReader(final InputStream input, final PrintStream out) {
             Thread inputThread = new Thread( new Runnable() {

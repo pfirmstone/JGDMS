@@ -199,6 +199,7 @@ abstract class AbstractDgcClient {
 	    EndpointEntry entry = (EndpointEntry) endpointTable.get(endpoint);
 	    if (entry == null) {
 		entry = new EndpointEntry(endpoint);
+                entry.start();
 		endpointTable.put(endpoint, entry);
 		/*
 		 * If the endpoint table was previously empty, we are now
@@ -266,8 +267,11 @@ abstract class AbstractDgcClient {
 	    renewCleanThread = (Thread)	AccessController.doPrivileged(
 		new NewThreadAction(new RenewCleanThread(),
 				    "RenewClean-" + endpoint, true));
-	    renewCleanThread.start();
 	}
+        
+        private void start(){
+            renewCleanThread.start();
+        }
 
 	/**
 	 * Registers the live reference instances in the supplied list to

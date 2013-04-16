@@ -19,7 +19,10 @@
 package com.sun.jini.qa.harness;
 
 import java.io.File;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -28,17 +31,19 @@ import java.util.logging.Logger;
  */
 public class HeartOfTheMachine
 {
-    private String soul ;
+    private final String soul ;
+    private final Thread t;
 
     private HeartOfTheMachine()
     {
         soul = System.getenv("SOUL");
 
         if( soul == null ) {
+            t = null;
             return ;
         }
 
-        Thread t = new Thread( new Runnable() {
+        t = new Thread( new Runnable() {
 
             public void run()
             {
@@ -47,6 +52,9 @@ public class HeartOfTheMachine
 
         }, "no heart without soul");
         t.setDaemon(true);
+    }
+    
+    private void star(){
         t.start();
     }
 
@@ -71,14 +79,19 @@ public class HeartOfTheMachine
 
     public static void start()
     {
-        try {
-            new HeartOfTheMachine();
-        } catch( Throwable t ) {
-            //System.out.println("Heart NOT started");
-            Logger.getLogger("com.sun.jini.qa.harness").severe("Heart NOT started");
-            if (t instanceof Error) throw (Error) t;
-            if (t instanceof RuntimeException) throw (RuntimeException) t;
-        }
+        AccessController.doPrivileged(new PrivilegedAction(){
+
+            @Override
+            public Object run() {
+                try {
+                    new HeartOfTheMachine().star();
+                } catch (Exception t){
+                    Logger.getLogger("com.sun.jini.qa.harness").log(Level.SEVERE, "Heart NOT started", t);
+                }
+                return null;
+            }
+
+        });   
     }
 
 }

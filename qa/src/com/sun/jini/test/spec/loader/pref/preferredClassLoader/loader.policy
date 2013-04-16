@@ -36,6 +36,7 @@ grant codebase "file:${com.sun.jini.test.home}${/}lib/qa1-loader-pref.jar" {
 
 grant codebase "file:${com.sun.jini.qa.harness.harnessJar}" {
     permission net.jini.loader.DownloadPermission;
+    permission java.lang.RuntimePermission "getenv.SOUL";
 };
 
 grant codebase "file:${com.sun.jini.qa.harness.testJar}" {

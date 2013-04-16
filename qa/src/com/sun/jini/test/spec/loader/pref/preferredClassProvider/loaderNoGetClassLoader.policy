@@ -151,4 +151,6 @@ grant {
 
     // discovery-specific PropertyPermission needed by the harness
     permission net.jini.discovery.DiscoveryPermission "*"; 
+
+    permission java.lang.RuntimePermission "getenv.SOUL";
 };

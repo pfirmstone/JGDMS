@@ -219,25 +219,14 @@ public class DiscoveryProtocolSimulator {
     /** Interval to wait in between sending multicast announcements */
     private long multicastAnnouncementInterval = 1000 * 60 * 2;
 
-
-    public DiscoveryProtocolSimulator(QAConfig config,
-                                      String[] memberGroups,
-				      AdminManager manager)
-                                       throws ActivationException, IOException, TestException
-    {
-        this(config,memberGroups,manager,0);
-    }//end constructor
     
-    public DiscoveryProtocolSimulator(QAConfig config,
-                                      String[] memberGroups,
-				      AdminManager manager,
-                                      int unicastPort)
+    public DiscoveryProtocolSimulator(QAConfig config, String[] memberGroups, int unicastPort, LookupSimulatorProxyInterface proxy)
                                        throws ActivationException, IOException, TestException
     {
         this.memberGroups = memberGroups;
         this.unicastPort  = unicastPort;
         // start LUS before switching identity to reggie
-        lookupProxy = (LookupSimulatorProxyInterface) manager.startLookupService();
+        lookupProxy = proxy;
 	LoginContext context = null;
 	Configuration c = config.getConfiguration();
 	try {
@@ -1162,14 +1151,18 @@ public class DiscoveryProtocolSimulator {
             DEFAULT_MULTICAST_TTL = 1;
 	}
 
-        /* start the discovery-related threads */
+        /* create the discovery-related threads */
         multicastRequestThread = new MulticastThread();
         multicastAnnouncementThread = new AnnounceThread();
+        
+    }//end init
+    
+    public void start(){
         /* start the threads */
         unicastRequestThread.start();
         multicastRequestThread.start();
         multicastAnnouncementThread.start();
-    }//end init
+    }
 
 }//end class DiscoveryProtocolSimulator
 
