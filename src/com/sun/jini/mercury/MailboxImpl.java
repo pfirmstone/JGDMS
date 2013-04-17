@@ -80,6 +80,8 @@ import java.rmi.activation.ActivationSystem;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Arrays;
@@ -420,6 +422,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     private Configuration config;
     private Throwable thrown;
     private boolean started = false;
+    private AccessControlContext context;
     
     ///////////////////////
     // Activation Methods
@@ -642,6 +645,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 expirer = init.expirer;
                 this.config = init.config;
                 this.loginContext = loginContext;
+                context = init.context;
                 
             } else {
                 activationID = activID;
@@ -673,6 +677,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 expirer = null;
                 this.config = null;
                 this.loginContext = loginContext;
+                context = null;
             }
             // Assign fields.
         }
@@ -1074,128 +1079,139 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         concurrentObj.writeLock();
         if (started) return;
         started = true; // mutual exclusion
+        
         try {
             if (thrown != null) throw thrown;
-            if (persistent){
-                // Start snapshot thread belongs in start method
-    //	    snapshotter = new SnapshotThread();
-                snapshotter.start();
-            }
+            AccessController.doPrivileged(new PrivilegedExceptionAction(){
 
-            /*  ---  The following will go into start method --- */
+                @Override
+                public Object run() throws Exception {
+                    if (persistent){
+                        // Start snapshot thread belongs in start method
+            //	    snapshotter = new SnapshotThread();
+                        snapshotter.start();
+                    }
 
-            // Start threads
-    //	notifier = new Notifier(config);
-            notifier.start();
-    //	expirer = new ExpirationThread();
-            expirer.start();
+                    /*  ---  The following will go into start method --- */
 
-            // Export server instance and get its reference
-            serverStub = (MailboxBackEnd)exporter.export(this);
-            if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Service stub is: {0}", 
-                serverStub);	
-            }	
+                    // Start threads
+            //	notifier = new Notifier(config);
+                    notifier.start();
+            //	expirer = new ExpirationThread();
+                    expirer.start();
 
-            // Create the proxy that will be registered in the lookup service
-            mailboxProxy = 
-                MailboxProxy.create(serverStub, serviceID);
-            if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Service proxy is: {0}", 
-                mailboxProxy);
-            }		
+                    // Export server instance and get its reference
+                    serverStub = (MailboxBackEnd)exporter.export(MailboxImpl.this);
+                    if (initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Service stub is: {0}", 
+                        serverStub);	
+                    }	
 
-            // Create the admin proxy for this service
-            mailboxAdminProxy = 
-                MailboxAdminProxy.create(serverStub, serviceID);
-            if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Service admin proxy is: {0}", 
-                mailboxAdminProxy);		
-            }
+                    // Create the proxy that will be registered in the lookup service
+                    mailboxProxy = 
+                        MailboxProxy.create(serverStub, serviceID);
+                    if (initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Service proxy is: {0}", 
+                        mailboxProxy);
+                    }		
 
-            // Create leaseFactory
-            leaseFactory = new LeaseFactory(serverStub, serviceID);
+                    // Create the admin proxy for this service
+                    mailboxAdminProxy = 
+                        MailboxAdminProxy.create(serverStub, serviceID);
+                    if (initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Service admin proxy is: {0}", 
+                        mailboxAdminProxy);		
+                    }
 
-            // Get shorthand reference to the discovery manager
-            try {
-                lookupDiscMgr  = 
-                    (DiscoveryManagement)Config.getNonNullEntry(config,
-                        MERCURY, "discoveryManager",
-                        DiscoveryManagement.class);
-                if(lookupDiscMgr instanceof DiscoveryGroupManagement) {
-                     // Verify proper initial state ---> NO_GROUPS
-                    String[] groups =
-                        ((DiscoveryGroupManagement)lookupDiscMgr).getGroups();
-                    if( (groups == DiscoveryGroupManagement.ALL_GROUPS) ||
-                        (groups.length != 0) )
-                    {
-                        throw new ConfigurationException(
-                            "discoveryManager entry must be configured " +
-                            " with no groups.");
-                    }//endif
-                } else {
-                   throw new ConfigurationException(
-                        "discoveryManager entry must implement " +
-                        "DiscoveryGroupManagement");
+                    // Create leaseFactory
+                    leaseFactory = new LeaseFactory(serverStub, serviceID);
+
+                    // Get shorthand reference to the discovery manager
+                    try {
+                        lookupDiscMgr  = 
+                            (DiscoveryManagement)Config.getNonNullEntry(config,
+                                MERCURY, "discoveryManager",
+                                DiscoveryManagement.class);
+                        if(lookupDiscMgr instanceof DiscoveryGroupManagement) {
+                             // Verify proper initial state ---> NO_GROUPS
+                            String[] groups =
+                                ((DiscoveryGroupManagement)lookupDiscMgr).getGroups();
+                            if( (groups == DiscoveryGroupManagement.ALL_GROUPS) ||
+                                (groups.length != 0) )
+                            {
+                                throw new ConfigurationException(
+                                    "discoveryManager entry must be configured " +
+                                    " with no groups.");
+                            }//endif
+                        } else {
+                           throw new ConfigurationException(
+                                "discoveryManager entry must implement " +
+                                "DiscoveryGroupManagement");
+                        }
+
+                        if(lookupDiscMgr instanceof DiscoveryLocatorManagement) {
+                            LookupLocator[] locs =
+                                    ((DiscoveryLocatorManagement)lookupDiscMgr).getLocators();
+                            if( (locs != null) && (locs.length != 0) ) {
+                                throw new ConfigurationException(
+                                    "discoveryManager entry must be configured " +
+                                    "with no locators");
+                            }//endif
+                        } else {
+                            throw new ConfigurationException(
+                                "discoveryManager entry must implement " +
+                                "DiscoveryLocatorManagement");
+                        }  
+
+                        ((DiscoveryGroupManagement)lookupDiscMgr).setGroups(lookupGroups);
+                        ((DiscoveryLocatorManagement)lookupDiscMgr).setLocators(lookupLocators);
+                    } catch (NoSuchEntryException e) {
+                        lookupDiscMgr  =
+                            new LookupDiscoveryManager(lookupGroups, lookupLocators,
+                                null, config);
+                    }
+                    if (initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Discovery manager is: {0}", 
+                        lookupDiscMgr);
+                    }		
+
+                    ServiceID lookupID = new ServiceID(
+                        serviceID.getMostSignificantBits(),
+                        serviceID.getLeastSignificantBits());
+
+                    if (initLogger.isLoggable(Level.FINEST)) {
+                        initLogger.log(Level.FINEST, "Creating JoinManager.");
+                    }
+                    joiner = new JoinManager(
+                        mailboxProxy,                // service object
+                        lookupAttrs,               // service attributes
+                        lookupID,                 // Service ID
+                        lookupDiscMgr,             // DiscoveryManagement ref - default
+                        null,                      // LeaseRenewalManager reference
+                        config); 
+
+                    if (operationsLogger.isLoggable(Level.FINER)) {
+                        operationsLogger.exiting(mailboxSourceClass, 
+                            "doInit");
+                    }
+                    readyState.ready();
+
+                    if (startupLogger.isLoggable(Level.INFO)) {
+                        startupLogger.log
+                               (Level.INFO, "Mercury started: {0}", this);
+                    }
+                    return null;
                 }
-
-                if(lookupDiscMgr instanceof DiscoveryLocatorManagement) {
-                    LookupLocator[] locs =
-                            ((DiscoveryLocatorManagement)lookupDiscMgr).getLocators();
-                    if( (locs != null) && (locs.length != 0) ) {
-                        throw new ConfigurationException(
-                            "discoveryManager entry must be configured " +
-                            "with no locators");
-                    }//endif
-                } else {
-                    throw new ConfigurationException(
-                        "discoveryManager entry must implement " +
-                        "DiscoveryLocatorManagement");
-                }  
-
-                ((DiscoveryGroupManagement)lookupDiscMgr).setGroups(lookupGroups);
-                ((DiscoveryLocatorManagement)lookupDiscMgr).setLocators(lookupLocators);
-            } catch (NoSuchEntryException e) {
-                lookupDiscMgr  =
-                    new LookupDiscoveryManager(lookupGroups, lookupLocators,
-                        null, config);
-            }
-            if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Discovery manager is: {0}", 
-                lookupDiscMgr);
-            }		
-
-            ServiceID lookupID = new ServiceID(
-                serviceID.getMostSignificantBits(),
-                serviceID.getLeastSignificantBits());
-
-            if (initLogger.isLoggable(Level.FINEST)) {
-                initLogger.log(Level.FINEST, "Creating JoinManager.");
-            }
-            joiner = new JoinManager(
-                mailboxProxy,                // service object
-                lookupAttrs,               // service attributes
-                lookupID,                 // Service ID
-                lookupDiscMgr,             // DiscoveryManagement ref - default
-                null,                      // LeaseRenewalManager reference
-                config); 
-
-            if (operationsLogger.isLoggable(Level.FINER)) {
-                operationsLogger.exiting(mailboxSourceClass, 
-                    "doInit");
-            }
-            readyState.ready();
-
-            if (startupLogger.isLoggable(Level.INFO)) {
-                startupLogger.log
-                       (Level.INFO, "Mercury started: {0}", this);
-            }
+                
+            }, context);
+            
         } catch (Throwable t){
             cleanup();
 	    initFailed(t);
         } finally {
             config = null;
             thrown = null;
+            context = null;
             concurrentObj.writeUnlock();
         }
     }

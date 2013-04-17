@@ -77,6 +77,8 @@ import java.rmi.UnmarshalException;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.activation.ActivationException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.security.SecureRandom;
 import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedActionException;
@@ -491,6 +493,7 @@ public class OutriggerServerImpl
     private Exception except;
     private boolean persistent;
     private long maxServerQueryTimeout;
+    private AccessControlContext context;
 
     /**
      * Create a new <code>OutriggerServerImpl</code> server (possibly a
@@ -602,6 +605,7 @@ public class OutriggerServerImpl
             contentsQueryReaperThread = h.contentsQueryReaperThread;
             starter = h.starter;
             maxServerQueryTimeout = h.maxServerQueryTimeout;
+            context = h.context;
         } else {
             lifecycleLogger.log(Level.SEVERE, "Failed to construct Outrigger server", except == null ? thrown : except);
             this.loginContext = null;
@@ -633,6 +637,7 @@ public class OutriggerServerImpl
             contentsQueryReaperThread = null;
             starter = null;
             maxServerQueryTimeout = 0;
+            context = null;
         }
     }
     
@@ -646,74 +651,83 @@ public class OutriggerServerImpl
         if (thrown != null) throw (Error) thrown;
         if (except != null) throw except;
         try {
-            // This takes a while the first time, so let's get it going
-            txnMonitor.start();
-            starter.start();
+            AccessController.doPrivileged(new PrivilegedExceptionAction(){
 
-            // Get store from configuration
-            if (persistent) {
-                store = (Store)Config.getNonNullEntry(config,
-                                                      COMPONENT_NAME,
-                                                      "store", Store.class);
-                expirationOpQueue.start();
-            }
-            // If we have a store, recover the log
-            if (store != null) {
-                log = store.setupStore(this);
+                @Override
+                public Object run() throws Exception {
+                            // This takes a while the first time, so let's get it going
+                    txnMonitor.start();
+                    starter.start();
 
-                // Record this boot
-                //
-                log.bootOp(System.currentTimeMillis(), getSessionId());
-                recoverTxns();
-            } else if (activationID != null || persistent) {
-                /* else we don't have a store, if we need one complain
-                 * will be logged by constructor
-                 */
-                throw new ConfigurationException("Must provide for a " +
-                    "store for component " + COMPONENT_NAME + ", by providing " +
-                    "valid values for the store or " +
-                    PERSISTENCE_DIR_CONFIG_ENTRY + " entries if creating " +
-                    " a persistent space");
-            }
+                    // Get store from configuration
+                    if (persistent) {
+                        store = (Store)Config.getNonNullEntry(config,
+                                                              COMPONENT_NAME,
+                                                              "store", Store.class);
+                        expirationOpQueue.start();
+                    }
+                    // If we have a store, recover the log
+                    if (store != null) {
+                        log = store.setupStore(OutriggerServerImpl.this);
 
-            /* Now that we have recovered any store we have, create a 
-             * Uuid if there was not one in the store.
-             */
-            if (topUuid == null) {
-                topUuid = UuidFactory.generate();
-                if (log != null)
-                    log.uuidOp(topUuid);
-            }		
+                        // Record this boot
+                        //
+                        log.bootOp(System.currentTimeMillis(), getSessionId());
+                        recoverTxns();
+                    } else if (activationID != null || persistent) {
+                        /* else we don't have a store, if we need one complain
+                         * will be logged by constructor
+                         */
+                        throw new ConfigurationException("Must provide for a " +
+                            "store for component " + COMPONENT_NAME + ", by providing " +
+                            "valid values for the store or " +
+                            PERSISTENCE_DIR_CONFIG_ENTRY + " entries if creating " +
+                            " a persistent space");
+                    }
 
-            if (ourRemoteRef instanceof RemoteMethodControl) {
-                spaceProxy = new ConstrainableSpaceProxy2(ourRemoteRef, topUuid,
-                    maxServerQueryTimeout, null);
-                adminProxy = 
-                    new ConstrainableAdminProxy(ourRemoteRef, topUuid, null);
-                participantProxy =
-                    new ConstrainableParticipantProxy(ourRemoteRef, topUuid, null);
-            } else {
-                spaceProxy = new SpaceProxy2(ourRemoteRef, topUuid, 
-                                             maxServerQueryTimeout);
-                adminProxy = new AdminProxy(ourRemoteRef, topUuid);
-                participantProxy = new ParticipantProxy(ourRemoteRef, topUuid);
-            }
+                    /* Now that we have recovered any store we have, create a 
+                     * Uuid if there was not one in the store.
+                     */
+                    if (topUuid == null) {
+                        topUuid = UuidFactory.generate();
+                        if (log != null)
+                            log.uuidOp(topUuid);
+                    }		
 
-            leaseFactory = new LeaseFactory(ourRemoteRef, topUuid);
+                    if (ourRemoteRef instanceof RemoteMethodControl) {
+                        spaceProxy = new ConstrainableSpaceProxy2(ourRemoteRef, topUuid,
+                            maxServerQueryTimeout, null);
+                        adminProxy = 
+                            new ConstrainableAdminProxy(ourRemoteRef, topUuid, null);
+                        participantProxy =
+                            new ConstrainableParticipantProxy(ourRemoteRef, topUuid, null);
+                    } else {
+                        spaceProxy = new SpaceProxy2(ourRemoteRef, topUuid, 
+                                                     maxServerQueryTimeout);
+                        adminProxy = new AdminProxy(ourRemoteRef, topUuid);
+                        participantProxy = new ParticipantProxy(ourRemoteRef, topUuid);
+                    }
 
-            /* Kick off independent threads. */
+                    leaseFactory = new LeaseFactory(ourRemoteRef, topUuid);
 
-            // start the JoinStateManager
-            joinStateManager.startManager(config, log, spaceProxy,
-                new ServiceID(topUuid.getMostSignificantBits(),
-                              topUuid.getLeastSignificantBits()),
-                attributesFor());
-            // Notifier uses TaskManager, which doesn't start threads until given tasks.
-            notifier = new Notifier(spaceProxy, recoveredListenerPreparer, config);
-            operationJournal.start();
-            templateReaperThread.start(); 
-            entryReaperThread.start(); 
-            contentsQueryReaperThread.start();
+                    /* Kick off independent threads. */
+
+                    // start the JoinStateManager
+                    joinStateManager.startManager(config, log, spaceProxy,
+                        new ServiceID(topUuid.getMostSignificantBits(),
+                                      topUuid.getLeastSignificantBits()),
+                        attributesFor());
+                    // Notifier uses TaskManager, which doesn't start threads until given tasks.
+                    notifier = new Notifier(spaceProxy, recoveredListenerPreparer, config);
+                    operationJournal.start();
+                    templateReaperThread.start(); 
+                    entryReaperThread.start(); 
+                    contentsQueryReaperThread.start();
+                    return null;
+                }
+                
+            }, context);
+            
         } catch (Exception e) {
             // Clean up and rethrow.
             lifecycleLogger.log(Level.SEVERE, "Failed to start Outrigger server", e);
@@ -771,6 +785,7 @@ public class OutriggerServerImpl
             starter = null;
             except = null;
             thrown = null;
+            context = null;
         }
     }
 
@@ -803,6 +818,7 @@ public class OutriggerServerImpl
         ContentsQueryReaper contentsQueryReaperThread;
         Thread starter;
         long maxServerQueryTimeout;
+        AccessControlContext context;
     }
 
     /**
@@ -831,6 +847,7 @@ public class OutriggerServerImpl
     	throws IOException, ConfigurationException, ActivationException
     {
         InitHolder h = new InitHolder();
+        h.context = AccessController.getContext();
         try {
             h.txnMonitor = new TxnMonitor(this, config);
             /* Get the activation related preparers we need */

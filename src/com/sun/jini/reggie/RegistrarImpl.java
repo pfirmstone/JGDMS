@@ -34,6 +34,7 @@ import com.sun.jini.proxy.MarshalledWrapper;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
 import com.sun.jini.start.LifeCycle;
+import com.sun.jini.start.Starter;
 import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadyState;
@@ -66,6 +67,8 @@ import java.rmi.RemoteException;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -81,6 +84,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
+import java.util.Collection;
+import java.util.LinkedList;
+import java.util.SortedMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
 import javax.security.auth.Subject;
@@ -140,7 +147,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  * @author Sun Microsystems, Inc.
  *
  */
-class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
+class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Starter {
 
     /** Maximum minMax lease duration for both services and events */
     private static final long MAX_LEASE = 1000L * 60 * 60 * 24 * 365 * 1000;
@@ -172,43 +179,44 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     private static final EntryRep[] emptyAttrs = {};
 
     /** Proxy for myself */
-    private RegistrarProxy proxy;
+    private volatile RegistrarProxy proxy;
     /** Exporter for myself */
-    private Exporter serverExporter;
+    private volatile Exporter serverExporter;
     /** Remote reference for myself */
-    private Registrar myRef;
+    private volatile Registrar myRef;
     /** Our service ID */
-    private ServiceID myServiceID;
+    private volatile ServiceID myServiceID;
     /** Our activation id, or null if not activatable */
-    private ActivationID activationID;
+    private final ActivationID activationID;
     /** Associated activation system, or null if not activatable */
-    private ActivationSystem activationSystem;
+    private final ActivationSystem activationSystem;
     /** Our LookupLocator */
     private volatile LookupLocator myLocator;
     /** Our login context, for logging out */
-    private LoginContext loginContext;
+    private final LoginContext loginContext;
     /** Shutdown callback object, or null if no callback needed */
-    private LifeCycle lifeCycle;
+    private final LifeCycle lifeCycle;
 
     /** Unicast socket factories */
-    private ServerSocketFactory serverSocketFactory ;
-    private SocketFactory socketFactory;
+    private final ServerSocketFactory serverSocketFactory ;
+    private final SocketFactory socketFactory;
 
     /**
      * Map from ServiceID to SvcReg.  Every service is in this map under
      * its serviceID.
      */
-    private final HashMap serviceByID = new HashMap();
+    private final Map<ServiceID,SvcReg> serviceByID = new HashMap<ServiceID,SvcReg>();
     /**
      * Identity map from SvcReg to SvcReg, ordered by lease expiration.
      * Every service is in this map.
      */
-    private final TreeMap serviceByTime = new TreeMap();
+    private final SortedMap<SvcReg,SvcReg> serviceByTime = new TreeMap<SvcReg,SvcReg>();
     /**
      * Map from String to HashMap mapping ServiceID to SvcReg.  Every service 
      * is in this map under its types.
      */
-    private final HashMap serviceByTypeName = new HashMap();
+    private final Map<String,Map<ServiceID,SvcReg>> serviceByTypeName 
+            = new HashMap<String,Map<ServiceID,SvcReg>>();
     /**
      * Map from EntryClass to HashMap[] where each HashMap is a map from
      * Object (field value) to ArrayList(SvcReg).  The HashMap array has as
@@ -220,58 +228,60 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
      * this is a small memory hit and is simpler than subtracting off base
      * index values when accessing the arrays.
      */
-    private final HashMap serviceByAttr = new HashMap(23);
+    private final Map<EntryClass,HashMap<Object,List<SvcReg>>[]> serviceByAttr 
+            = new HashMap<EntryClass,HashMap<Object,List<SvcReg>>[]>(23);
     /**
      * Map from EntryClass to ArrayList(SvcReg).  Services are in this map
      * multiple times, once for each no-fields entry it has (no fields meaning
      * none of the superclasses have fields either).  The map is indexed by
      * the exact type of the entry.
      */
-    private final HashMap serviceByEmptyAttr = new HashMap(11);
+    private final Map<EntryClass,List<SvcReg>> serviceByEmptyAttr 
+            = new HashMap<EntryClass,List<SvcReg>>(11);
     /** All EntryClasses with non-zero numInstances */
-    private final ArrayList entryClasses = new ArrayList();
+    private final List<EntryClass> entryClasses = new ArrayList<EntryClass>();
     /**
      * Map from Long(eventID) to EventReg.  Every event registration is in
      * this map under its eventID.
      */
-    private final HashMap eventByID = new HashMap(11);
+    private final Map<Long,EventReg> eventByID = new HashMap<Long,EventReg>(11);
     /**
      * Identity map from EventReg to EventReg, ordered by lease expiration.
      * Every event registration is in this map.
      */
-    private final TreeMap eventByTime = new TreeMap();
+    private final SortedMap<EventReg,EventReg> eventByTime = new TreeMap<EventReg,EventReg>();
     /**
      * Map from ServiceID to EventReg or EventReg[].  An event
      * registration is in this map if its template matches on (at least)
      * a specific serviceID.
      */
-    private final HashMap subEventByService = new HashMap(11);
+    private final Map<ServiceID,Object> subEventByService = new HashMap<ServiceID,Object>(11);
     /**
      * Map from Long(eventID) to EventReg.  An event registration is in
      * this map if its template matches on ANY_SERVICE_ID.
      */
-    private final HashMap subEventByID = new HashMap(11);
+    private final Map<Long,EventReg> subEventByID = new HashMap<Long,EventReg>(11);
 
     /** Generator for resource (e.g., registration, lease) Uuids */
-    private UuidGenerator resourceIdGenerator = new UuidGenerator();
+    private final UuidGenerator resourceIdGenerator;
     /** Generator for service IDs */
-    private UuidGenerator serviceIdGenerator = resourceIdGenerator;
+    private final UuidGenerator serviceIdGenerator;
     /** Event ID */
-    private long eventID = 0;
+    private volatile long eventID = 0;
     /** Random number generator for use in lookup */
     private final Random random = new Random();
 
     /** Preparer for received remote event listeners */
-    private ProxyPreparer listenerPreparer = new BasicProxyPreparer();
+    private final ProxyPreparer listenerPreparer;
     /** Preparer for remote event listeners recovered from state log */
-    private ProxyPreparer recoveredListenerPreparer = listenerPreparer;
+    private final ProxyPreparer recoveredListenerPreparer;
     /** Preparer for received lookup locators */
-    private ProxyPreparer locatorPreparer = listenerPreparer;
+    private final ProxyPreparer locatorPreparer;
     /** Preparer for lookup locators recovered from state log */
-    private ProxyPreparer recoveredLocatorPreparer = listenerPreparer;
+    private final ProxyPreparer recoveredLocatorPreparer;
 
     /** ArrayList of pending EventTasks */
-    private final ArrayList newNotifies = new ArrayList();
+    private final Collection<EventTask> newNotifies = new LinkedList<EventTask>();
 
     /** Current maximum service lease duration granted, in milliseconds. */
     private long maxServiceLease;
@@ -283,23 +293,23 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     private long minEventExpiration = Long.MAX_VALUE;
 
     /** Manager for discovering other lookup services */
-    private DiscoveryManagement discoer;
+    private final DiscoveryManagement discoer;
     /** Manager for joining other lookup services */
-    private JoinManager joiner;
+    private volatile JoinManager joiner;
     /** Task manager for sending events and discovery responses */
-    private TaskManager tasker;
+    private final TaskManager tasker;
     /** Service lease expiration thread */
-    private Thread serviceExpirer;
+    private final Thread serviceExpirer;
     /** Event lease expiration thread */
-    private Thread eventExpirer;
+    private final Thread eventExpirer;
     /** Unicast discovery request packet receiving thread */
-    private UnicastThread unicaster;
+    private volatile UnicastThread unicaster;
     /** Multicast discovery request packet receiving thread */
-    private Thread multicaster;
+    private final Thread multicaster;
     /** Multicast discovery announcement sending thread */
-    private Thread announcer;
+    private final Thread announcer;
     /** Snapshot-taking thread */
-    private Thread snapshotter;
+    private final Thread snapshotter;
 
     /** Concurrent object to control read and write access */
     private final ReadersWriter concurrentObj = new ReadersWriter();
@@ -311,69 +321,73 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     private final Object snapshotNotifier = new Object();
 
     /** Canonical ServiceType for java.lang.Object */
-    private ServiceType objectServiceType;
+    private final ServiceType objectServiceType;
 
     /** Log for recovering/storing state, or null if running as transient */
-    private ReliableLog log;
+    private final ReliableLog log;
     /** Flag indicating whether system is in a state of recovery */
-    private boolean inRecovery;
-    /** Flag indicating whether system state was recovered from a snapshot */
-    private boolean recoveredSnapshot = false;
+    private volatile boolean inRecovery;
     /** Current number of records in the Log File since the last snapshot */
     private int logFileSize = 0;
 
     /** Log file must contain this many records before snapshot allowed */
-    private int persistenceSnapshotThreshold = 200;
+    private final int persistenceSnapshotThreshold ;
     /** Weight factor applied to snapshotSize when deciding to take snapshot */
-    private float persistenceSnapshotWeight = 10;
+    private final float persistenceSnapshotWeight;
     /** Minimum value for maxServiceLease. */
-    private long minMaxServiceLease = 1000 * 60 * 5;
+    private final long minMaxServiceLease;
     /** Minimum value for maxEventLease. */
-    private long minMaxEventLease = 1000 * 60 * 30;
+    private final long minMaxEventLease;
     /** Minimum average time between lease renewals, in milliseconds. */
-    private long minRenewalInterval = 100;
+    private final long minRenewalInterval;
     /** Port for unicast discovery */
-    private int unicastPort = 0;
+    private volatile int unicastPort;
     /** The groups we are a member of */
-    private volatile String[] memberGroups = { "" };
+    private volatile String[] memberGroups;
     /** The groups we should join */
-    private String[] lookupGroups = DiscoveryGroupManagement.NO_GROUPS;
+    private volatile String[] lookupGroups;
     /** The locators of other lookups we should join */
-    private LookupLocator[] lookupLocators = {};
+    private volatile LookupLocator[] lookupLocators;
     /** The attributes to use when joining (including with myself) */
-    private Entry[] lookupAttrs;
+    private volatile Entry[] lookupAttrs;
     /** Interval to wait in between sending multicast announcements */
-    private long multicastAnnouncementInterval = 1000 * 60 * 2;
+    private final long multicastAnnouncementInterval;
     /** Multicast announcement sequence number */
     private volatile long announcementSeqNo = 0L;
 
     /** Network interfaces to use for multicast discovery */
-    private NetworkInterface[] multicastInterfaces;
+    private final NetworkInterface[] multicastInterfaces;
     /** Flag indicating whether network interfaces were explicitly specified */
-    private boolean multicastInterfacesSpecified;
+    private final boolean multicastInterfacesSpecified;
     /** Interval to wait in between retrying failed interfaces */
-    private int multicastInterfaceRetryInterval = 1000 * 60 * 5;
+    private final int multicastInterfaceRetryInterval;
     /** Utility for participating in version 2 of discovery protocols */
-    private Discovery protocol2;
+    private final Discovery protocol2;
     /** Cached raw constraints associated with unicastDiscovery method*/
-    private InvocationConstraints rawUnicastDiscoveryConstraints;
+    private final InvocationConstraints rawUnicastDiscoveryConstraints;
     /** Constraints specified for incoming multicast requests */
-    private DiscoveryConstraints multicastRequestConstraints;
+    private final DiscoveryConstraints multicastRequestConstraints;
     /** Constraints specified for outgoing multicast announcements */
-    private DiscoveryConstraints multicastAnnouncementConstraints;
+    private final DiscoveryConstraints multicastAnnouncementConstraints;
     /** Constraints specified for handling unicast discovery */
-    private DiscoveryConstraints unicastDiscoveryConstraints;
+    private final DiscoveryConstraints unicastDiscoveryConstraints;
     /** Client subject checker to apply to incoming multicast requests */
-    private ClientSubjectChecker multicastRequestSubjectChecker;
+    private final ClientSubjectChecker multicastRequestSubjectChecker;
     /** Maximum time to wait for calls to finish before forcing unexport */
-    private volatile long unexportTimeout = 1000 * 60 * 2;
+    private final long unexportTimeout;
     /** Time to wait between unexport attempts */
-    private volatile long unexportWait = 1000;
+    private final long unexportWait;
     /** Client subject checker to apply to unicast discovery attempts */
-    private ClientSubjectChecker unicastDiscoverySubjectChecker;
+    private final ClientSubjectChecker unicastDiscoverySubjectChecker;
 
     /** Lock protecting startup and shutdown */
     private final ReadyState ready = new ReadyState();
+    
+    // Not required after start is called.
+    private String unicastDiscoveryHost;
+    private Configuration config;
+    private Exception constructionException;
+    private AccessControlContext context;
 
     /**
      * Constructs RegistrarImpl based on a configuration obtained using the
@@ -389,19 +403,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		  final LifeCycle lifeCycle)
 	throws Exception
     {
-	try {
-	    final Configuration config = ConfigurationProvider.getInstance(
-		configArgs, getClass().getClassLoader());
-
-            loginAndRun(config,activationID,persistent,lifeCycle);
-	} catch (Throwable t) {
-	    logger.log(Level.SEVERE, "Reggie initialization failed", t);
-	    if (t instanceof Exception) {
-		throw (Exception) t;
-	    } else {
-		throw (Error) t;
-	    }
-	}
+            this(ConfigurationProvider.getInstance(
+		configArgs, RegistrarImpl.class.getClassLoader())
+                    ,activationID,persistent,lifeCycle);
     }
 
     /**
@@ -418,9 +422,45 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		  final LifeCycle lifeCycle)
 	throws Exception
     {
-	try {
-            loginAndRun(config,activationID,persistent,lifeCycle);
-	} catch (Throwable t) {
+            this(loginAndRun(config,activationID,persistent,lifeCycle));
+    }
+
+   
+    
+    private static Initializer loginAndRun( final Configuration config, 
+                                            final ActivationID activationID, 
+                                            final boolean persistent, 
+                                            final LifeCycle lifeCycle)
+	throws Exception
+    {
+	
+	Initializer result = null;
+        try {
+            if (activationID != null && !persistent) {
+                throw new IllegalArgumentException();
+            }
+            final LoginContext loginContext = (LoginContext) config.getEntry(
+               COMPONENT, "loginContext", LoginContext.class, null);
+
+            PrivilegedExceptionAction<Initializer> init = new PrivilegedExceptionAction<Initializer>() {
+                public Initializer run() throws Exception {
+                    return new Initializer(config, 
+                            activationID, persistent, lifeCycle, loginContext);
+                }
+            };
+            if (loginContext != null) {
+                loginContext.login();
+                try {
+                    result = Subject.doAsPrivileged(
+                        loginContext.getSubject(), init, null);
+                } catch (PrivilegedActionException e) {
+                    throw e.getCause();
+                }
+            } else {
+                result = init.run();
+            }
+            return result;
+        } catch (Throwable t) {
 	    logger.log(Level.SEVERE, "Reggie initialization failed", t);
 	    if (t instanceof Exception) {
 		throw (Exception) t;
@@ -429,37 +469,114 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    }
 	}
     }
+    
+     private RegistrarImpl(Initializer init){
+        lifeCycle = init.lifeCycle;
+        serverSocketFactory = init.serverSocketFactory;
+        persistenceSnapshotThreshold = init.persistenceSnapshotThreshold;
+        socketFactory = init.socketFactory;
+        recoveredListenerPreparer = init.recoveredListenerPreparer;
+        persistenceSnapshotWeight = init.persistenceSnapshotWeight;
+        recoveredLocatorPreparer = init.recoveredLocatorPreparer;
+        inRecovery = init.inRecovery;
+        activationID = init.activationID;
+        activationSystem = init.activationSystem;
+        serverExporter = init.serverExporter;
+        lookupGroups = init.lookupGroups;
+        lookupLocators = init.lookupLocators;
+        memberGroups = init.memberGroups;
+        unicastPort = init.unicastPort;
+        lookupAttrs = init.lookupAttrs;
+        discoer = init.discoer;
+        listenerPreparer = init.listenerPreparer;
+        locatorPreparer = init.locatorPreparer;
+        minMaxEventLease = init.minMaxEventLease;
+        minMaxServiceLease = init.minMaxServiceLease;
+        minRenewalInterval = init.minRenewalInterval;
+        multicastAnnouncementInterval = init.multicastAnnouncementInterval;
+        multicastInterfaceRetryInterval = init.multicastInterfaceRetryInterval;
+        multicastInterfaces = init.multicastInterfaces;
+        multicastInterfacesSpecified = init.multicastInterfacesSpecified;
+        resourceIdGenerator = init.resourceIdGenerator;
+        serviceIdGenerator = init.serviceIdGenerator;
+        tasker = init.tasker;
+        unexportTimeout = init.unexportTimeout;
+        unexportWait = init.unexportWait;
+        objectServiceType = init.objectServiceType;
+        unicastDiscoverySubjectChecker = init.unicastDiscoverySubjectChecker;
+        protocol2 = init.protocol2;
+        rawUnicastDiscoveryConstraints = init.rawUnicastDiscoveryConstraints;
+        multicastRequestConstraints = init.multicastRequestConstraints;
+        multicastAnnouncementConstraints = init.multicastAnnouncementConstraints;
+        unicastDiscoveryConstraints = init.unicastDiscoveryConstraints;
+        context = init.context;
+        
+        ReliableLog log = null;
+        Thread serviceExpirer = null;
+        Thread eventExpirer = null;
+        UnicastThread unicaster = null;
+        Thread multicaster = null;
+        Thread announcer = null;
+        Thread snapshotter = null;
+        
+        try {
+            // Create threads with correct login context.
+            List<Thread> threads = AccessController.doPrivileged(new PrivilegedExceptionAction<List<Thread>>(){
 
-    private void loginAndRun( final Configuration config,
-                        final ActivationID activationID,
-                        final boolean persistent,
-                        final LifeCycle lifeCycle)
-	throws Throwable
-    {
-	if (activationID != null && !persistent) {
-	    throw new IllegalArgumentException();
-	}
-
-        loginContext = (LoginContext) config.getEntry(
-           COMPONENT, "loginContext", LoginContext.class, null);
-
-        PrivilegedExceptionAction init = new PrivilegedExceptionAction() {
-            public Object run() throws Exception {
-                init(config, activationID, persistent, lifeCycle);
-                return null;
+                        @Override
+                        public List<Thread> run() throws Exception {
+                            List<Thread> list = new ArrayList<Thread>(6);
+                            list.add(new ServiceExpireThread());
+                            list.add(new EventExpireThread());
+                            list.add(new UnicastThread(unicastPort));
+                            list.add(new MulticastThread());
+                            list.add(new AnnounceThread());
+                            list.add(new SnapshotThread());
+                            return list;
+                        }
+                
+                    }, context);
+            serviceExpirer = threads.get(0);
+            eventExpirer = threads.get(1);
+            unicaster = (UnicastThread) threads.get(2);
+            multicaster = threads.get(3);
+            announcer = threads.get(4);
+            snapshotter = threads.get(5);
+            if (init.persistent){
+                log = new ReliableLog(init.persistenceDirectory, new LocalLogHandler());
+                if (logger.isLoggable(Level.CONFIG)) {
+                    logger.log(Level.CONFIG, "using persistence directory {0}",
+                               new Object[]{ init.persistenceDirectory });
+                }
+                log.recover();
+            } else {
+                log = null;
             }
-        };
-        if (loginContext != null) {
-            loginContext.login();
-            try {
-                Subject.doAsPrivileged(
-                    loginContext.getSubject(), init, null);
-            } catch (PrivilegedActionException e) {
-                throw e.getCause();
+            // log snapshot recovers myServiceID
+            if (myServiceID == null) {
+                myServiceID = newServiceID();
             }
-        } else {
-            init.run();
+            
+            constructionException = null;
+        } catch (PrivilegedActionException ex) {
+            constructionException = ex.getException();
+        } catch (IOException ex) {
+            constructionException = ex;
+        } finally {
+            this.log = log;
+            this.serviceExpirer = serviceExpirer;
+            this.eventExpirer = eventExpirer;
+            this.unicaster = unicaster;
+            this.multicaster = multicaster;
+            this.announcer = announcer;
+            this.snapshotter = snapshotter;
         }
+//        snapshotter = new SnapshotThread();
+        multicastRequestSubjectChecker = init.multicastRequestSubjectChecker;
+        loginContext = init.loginContext;
+        unicastDiscoveryHost = init.unicastDiscoveryHost;
+        config = init.config;
+        computeMaxLeases();
     }
 
     /** A service item registration record. */
@@ -685,7 +802,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private SvcReg reg;
+	private final SvcReg reg;
 
 	/** Simple constructor */
 	public SvcRegisteredLogObj(SvcReg reg) {
@@ -726,19 +843,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private ServiceID serviceID;
+	private final ServiceID serviceID;
 	/**
 	 * The lease id.
 	 *
 	 * @serial
 	 */
-	private Uuid leaseID;
+	private final Uuid leaseID;
 	/**
 	 * The attributes added.
 	 *
 	 * @serial
 	 */
-	private EntryRep[] attrSets;
+	private final EntryRep[] attrSets;
 
 	/** Simple constructor */
 	public AttrsAddedLogObj(ServiceID serviceID,
@@ -784,24 +901,24 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private ServiceID serviceID;
+	private final ServiceID serviceID;
 	/**
 	 * The lease id.
 	 *
 	 * @serial
 	 */
-	private Uuid leaseID;
+	private final Uuid leaseID;
 	/**
 	 * The templates to match.
 	 * @serial
 	 */
-	private EntryRep[] attrSetTmpls;
+	private final EntryRep[] attrSetTmpls;
 	/**
 	 * The new attributes.
 	 *
 	 * @serial
 	 */
-	private EntryRep[] attrSets;
+	private final EntryRep[] attrSets;
 
 	/** Simple constructor */
 	public AttrsModifiedLogObj(ServiceID serviceID,
@@ -849,19 +966,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private ServiceID serviceID;
+	private final ServiceID serviceID;
 	/**
 	 * The lease id.
 	 *
 	 * @serial
 	 */
-	private Uuid leaseID;
+	private final Uuid leaseID;
 	/**
 	 * The new attributes.
 	 *
 	 * @serial
 	 */
-	private EntryRep[] attrSets;
+	private final EntryRep[] attrSets;
 
 	/** Simple constructor */
 	public AttrsSetLogObj(ServiceID serviceID,
@@ -904,7 +1021,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private EventReg eventReg;
+	private final EventReg eventReg;
 
 	/** Simple constructor */
 	public EventRegisteredLogObj(EventReg eventReg) {
@@ -941,13 +1058,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private ServiceID serviceID;
+	private final ServiceID serviceID;
 	/**
 	 * The lease id.
 	 *
 	 * @serial
 	 */
-	private Uuid leaseID;
+	private final Uuid leaseID;
 
 	/** Simple constructor */
 	public ServiceLeaseCancelledLogObj(ServiceID serviceID, Uuid leaseID) {
@@ -987,19 +1104,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private ServiceID serviceID;
+	private final ServiceID serviceID;
 	/**
 	 * The lease id.
 	 *
 	 * @serial
 	 */
-	private Uuid leaseID;
+	private final Uuid leaseID;
 	/**
 	 * The new lease expiration time.
 	 *
 	 * @serial
 	 */
-	private long leaseExpTime;
+	private final long leaseExpTime;
 
 	/** Simple constructor */
 	public ServiceLeaseRenewedLogObj(ServiceID serviceID,
@@ -1039,13 +1156,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private long eventID;
+	private final long eventID;
 	/**
 	 * The lease id.
 	 *
 	 * @serial
 	 */
-	private Uuid leaseID;
+	private final Uuid leaseID;
 
 	/** Simple constructor */
 	public EventLeaseCancelledLogObj(long eventID, Uuid leaseID) {
@@ -1084,19 +1201,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private long eventID;
+	private final long eventID;
 	/**
 	 * The lease id.
 	 *
 	 * @serial
 	 */
-	private Uuid leaseID;
+	private final Uuid leaseID;
 	/**
 	 * The new lease expiration time.
 	 *
 	 * @serial
 	 */
-	private long leaseExpTime;
+	private final long leaseExpTime;
 
 	/** Simple constructor */
 	public EventLeaseRenewedLogObj(long eventID,
@@ -1135,19 +1252,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private Object[] regIDs;
+	private final Object[] regIDs;
 	/**
 	 * The lease ids.
 	 *
 	 * @serial
 	 */
-	private Uuid[] leaseIDs;
+	private final Uuid[] leaseIDs;
 	/**
 	 * The new lease expiration times.
 	 *
 	 * @serial
 	 */
-	private long[] leaseExpTimes;
+	private final long[] leaseExpTimes;
 
 	/** Simple constructor */
 	public LeasesRenewedLogObj(Object[] regIDs,
@@ -1185,13 +1302,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private Object[] regIDs;
+	private final Object[] regIDs;
 	/**
 	 * The lease ids.
 	 *
 	 * @serial
 	 */
-	private Uuid[] leaseIDs;
+	private final Uuid[] leaseIDs;
 
 	/** Simple constructor */
 	public LeasesCancelledLogObj(Object[] regIDs, Uuid[] leaseIDs) {
@@ -1236,7 +1353,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private int newPort;
+	private final int newPort;
 
 	/** Simple constructor */
 	public UnicastPortSetLogObj(int newPort) {
@@ -1269,7 +1386,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private String[] groups;
+	private final String[] groups;
 
 	/** Simple constructor */
 	public LookupGroupsChangedLogObj(String[] groups) {
@@ -1359,7 +1476,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 *
 	 * @serial
 	 */
-	private String[] groups;
+	private final String[] groups;
 
 	/** Simple constructor */
 	public MemberGroupsChangedLogObj(String[] groups) {
@@ -1515,7 +1632,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	
 	/** Simple constructor */
 	public LocalLogHandler() { }
-
+        
 	/* Overrides snapshot() defined in ReliableLog's LogHandler class. */
 	public void snapshot(OutputStream out) throws IOException {
 	    takeSnapshot(out);
@@ -1640,7 +1757,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	}
 	
         /** Set reg to the next matching element, or null if none. */
-        protected void step() {
+        protected final void step() {
 	    if (tmpl.serviceTypes.length > 1) {
 		while (services.hasNext()) {
 		    reg = (SvcReg) services.next();
@@ -1664,7 +1781,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     /** Iterate over all matching Items by attribute value. */
     private class AttrItemIter extends ItemIter {
 	/** SvcRegs obtained from serviceByAttr for chosen attr */
-	protected ArrayList svcs;
+	protected List<SvcReg> svcs;
 	/** Current index into svcs */
 	protected int svcidx;
 
@@ -1676,11 +1793,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	public AttrItemIter(Template tmpl, int setidx, int fldidx) {
 	    super(tmpl);
 	    EntryRep set = tmpl.attributeSetTemplates[setidx];
-	    HashMap[] attrMaps =
-		(HashMap[])serviceByAttr.get(getDefiningClass(set.eclass,
+	    HashMap<Object,List<SvcReg>>[] attrMaps =
+		serviceByAttr.get(getDefiningClass(set.eclass,
 							      fldidx));
 	    if (attrMaps != null && attrMaps[fldidx] != null) {
-		svcs = (ArrayList)attrMaps[fldidx].get(set.fields[fldidx]);
+		svcs = attrMaps[fldidx].get(set.fields[fldidx]);
 		if (svcs != null) {
 		    svcidx = svcs.size();
 		    step();
@@ -1696,10 +1813,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	/** Set reg to the next matching element, or null if none. */
 	protected void step() {
 	    while (--svcidx >= 0) {
-		reg = (SvcReg)svcs.get(svcidx);
-		if (reg.leaseExpiration > now &&
-		    matchAttributes(tmpl, reg.item))
-		    return;
+		reg = svcs.get(svcidx);
+		if (reg.leaseExpiration > now 
+                    && matchAttributes(tmpl, reg.item)) {
+                        return;
+                }
 	    }
 	    reg = null;
 	}
@@ -1715,7 +1833,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 */
 	public EmptyAttrItemIter(Template tmpl, EntryClass eclass) {
 	    super(tmpl);
-	    svcs = (ArrayList)serviceByEmptyAttr.get(eclass);
+	    svcs = serviceByEmptyAttr.get(eclass);
 	    if (svcs != null) {
 		svcidx = svcs.size();
 		step();
@@ -1730,9 +1848,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	/** Current index into entryClasses */
 	private int classidx;
 	/** Values iterator for current HashMap */
-	private Iterator iter;
+	private Iterator<List<SvcReg>> iter;
 	/** SvcRegs obtained from iter or serviceByEmptyAttr */
-	private ArrayList svcs;
+	private List<SvcReg> svcs;
 	/** Current index into svcs */
 	private int svcidx = 0;
 
@@ -1788,16 +1906,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	 */
 	private boolean stepClass() {
 	    while (--classidx >= 0) {
-		EntryClass cand = (EntryClass)entryClasses.get(classidx);
+		EntryClass cand = entryClasses.get(classidx);
 		if (!eclass.isAssignableFrom(cand))
 		    continue;
 		if (cand.getNumFields() > 0) {
 		    cand = getDefiningClass(cand, cand.getNumFields() - 1);
-		    HashMap[] attrMaps = (HashMap[])serviceByAttr.get(cand);
+		    Map<Object,List<SvcReg>>[] attrMaps = serviceByAttr.get(cand);
 		    iter = attrMaps[attrMaps.length - 1].values().iterator();
 		} else {
 		    iter = null;
-		    svcs = (ArrayList)serviceByEmptyAttr.get(cand);
+		    svcs = serviceByEmptyAttr.get(cand);
 		    svcidx = svcs.size();
 		}
 		return true;
@@ -1812,7 +1930,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	/** tmpl.serviceID != null */
 	public IDItemIter(Template tmpl) {
 	    super(tmpl);
-	    reg = (SvcReg)serviceByID.get(tmpl.serviceID);
+	    reg = serviceByID.get(tmpl.serviceID);
 	    if (reg != null &&
 		(reg.leaseExpiration <= now || !matchItem(tmpl, reg.item)))
 		reg = null;
@@ -2156,7 +2274,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		while (!hasBeenInterrupted()) {
 		    long now = System.currentTimeMillis();
 		    while (true) {
-			SvcReg reg = (SvcReg)serviceByTime.firstKey();
+			SvcReg reg = serviceByTime.firstKey();
 			minSvcExpiration = reg.leaseExpiration;
 			if (minSvcExpiration > now)
 			    break;
@@ -2204,7 +2322,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 		    long now = System.currentTimeMillis();
 		    minEventExpiration = Long.MAX_VALUE;
 		    while (!eventByTime.isEmpty()) {
-			EventReg reg = (EventReg)eventByTime.firstKey();
+			EventReg reg = eventByTime.firstKey();
 			if (reg.leaseExpiration > now) {
 			    minEventExpiration = reg.leaseExpiration;
 			    break;
@@ -2323,7 +2441,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	/** Multicast socket to receive packets */
 	private final MulticastSocket socket;
 	/** Interfaces for which configuration failed */
-	private final List failedInterfaces = new ArrayList();
+	private final List<NetworkInterface> failedInterfaces = new ArrayList<NetworkInterface>();
 
 	/**
 	 * Create a high priority daemon thread.  Set up the socket now
@@ -2480,10 +2598,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
     /** Unicast discovery request thread code. */
     private class UnicastThread extends InterruptedStatusThread {
 	/** Server socket to accepts connections on. */
-	private ServerSocket listen;
+	private final ServerSocket listen;
 	/** Listen port */
-	public int port;
-
+	public final int port;
+        
 	/**
 	 * Create a daemon thread.  Set up the socket now rather than in run,
 	 * so that we get any exception up front.
@@ -2491,7 +2609,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	public UnicastThread(int port) throws IOException {
 	    super("unicast request");
 	    setDaemon(true);
-	    if (port == 0) {
+            ServerSocket listen = null;
+            if (port == 0) {
 		try {
 		    listen = serverSocketFactory.createServerSocket(Constants.discoveryPort);
 		} catch (IOException e) {
@@ -2502,8 +2621,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    if (listen == null) {
                 listen = serverSocketFactory.createServerSocket(port);
 	    }
+            this.listen = listen;
 	    this.port = listen.getLocalPort();
-	}
+        }
 
 	public void run() {
 	    while (!hasBeenInterrupted()) {
@@ -4424,325 +4544,379 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    }
 	}
     }
-
-    /** Post-login (if login configured) initialization. */
-    private void init(Configuration config,
-		      ActivationID activationID,
-		      boolean persistent,
-		      LifeCycle lifeCycle)
-	throws IOException, ConfigurationException, ActivationException
-    {
-	this.lifeCycle = lifeCycle;
-
-
-        serverSocketFactory = (ServerSocketFactory) config.getEntry(
-		COMPONENT, "serverSocketFactory", ServerSocketFactory.class,
-		ServerSocketFactory.getDefault(), Configuration.NO_DATA);
-        socketFactory = (SocketFactory) config.getEntry(
-		COMPONENT, "socketFactory", SocketFactory.class,
-		SocketFactory.getDefault(), Configuration.NO_DATA);
-
-	/* persistence-specific initialization */
-	if (persistent) {
-	    persistenceSnapshotThreshold = Config.getIntEntry(
-		config, COMPONENT, "persistenceSnapshotThreshold",
-		persistenceSnapshotThreshold, 0, Integer.MAX_VALUE);
-	    String persistenceDirectory = (String) config.getEntry(
-		COMPONENT, "persistenceDirectory", String.class);
-	    recoveredListenerPreparer = (ProxyPreparer) Config.getNonNullEntry(
-		config, COMPONENT, "recoveredListenerPreparer",
-		ProxyPreparer.class, recoveredListenerPreparer);
-	    recoveredLocatorPreparer = (ProxyPreparer) Config.getNonNullEntry(
-		config, COMPONENT, "recoveredLocatorPreparer",
-		ProxyPreparer.class, recoveredLocatorPreparer);
-	    persistenceSnapshotWeight = Config.getFloatEntry(
-		config, COMPONENT, "persistenceSnapshotWeight",
-		persistenceSnapshotWeight, 0F, Float.MAX_VALUE);
-
-	    log = new ReliableLog(persistenceDirectory, new LocalLogHandler());
-	    if (logger.isLoggable(Level.CONFIG)) {
-		logger.log(Level.CONFIG, "using persistence directory {0}",
-			   new Object[]{ persistenceDirectory });
-	    }
-	    inRecovery = true;
-	    log.recover();
-	    inRecovery = false;
-	} else {
-	    log = null;
-	}
-
-	/* activation-specific initialization */
-	if (activationID != null) {
-	    ProxyPreparer activationIdPreparer = (ProxyPreparer)
-		Config.getNonNullEntry(
-		    config, COMPONENT, "activationIdPreparer",
-		    ProxyPreparer.class, new BasicProxyPreparer());
-	    ProxyPreparer activationSystemPreparer = (ProxyPreparer)
-		Config.getNonNullEntry(
-		    config, COMPONENT, "activationSystemPreparer",
-		    ProxyPreparer.class, new BasicProxyPreparer());
-
-	    this.activationID = (ActivationID)
-		activationIdPreparer.prepareProxy(activationID);
-	    activationSystem = (ActivationSystem)
-		activationSystemPreparer.prepareProxy(
-		    ActivationGroup.getSystem());
-
-	    serverExporter = (Exporter) Config.getNonNullEntry(
-		config, COMPONENT, "serverExporter", Exporter.class,
-		new ActivationExporter(
-		    this.activationID,
-		    new BasicJeriExporter(
-			TcpServerEndpoint.getInstance(0),
-			new BasicILFactory())),
-		this.activationID);
-	} else {
-	    this.activationID = null;
-	    activationSystem = null;
-
-	    serverExporter = (Exporter) Config.getNonNullEntry(
-		config, COMPONENT, "serverExporter", Exporter.class,
-		new BasicJeriExporter(
-		    TcpServerEndpoint.getInstance(0),
-		    new BasicILFactory()));
-	}
-
-	/* fetch "initial*" config entries, if first time starting up */
-	if (!recoveredSnapshot) {
-	    Entry[] initialLookupAttributes = (Entry[]) config.getEntry(
-		COMPONENT, "initialLookupAttributes", Entry[].class,
-		new Entry[0]);
-	    lookupGroups = (String[]) config.getEntry(
-		COMPONENT, "initialLookupGroups", String[].class,
-		lookupGroups);
-	    lookupLocators = (LookupLocator[]) config.getEntry(
-		COMPONENT, "initialLookupLocators", LookupLocator[].class,
-		lookupLocators);
-	    memberGroups = (String[]) config.getEntry(
-		COMPONENT, "initialMemberGroups", String[].class,
-		memberGroups);
-	    if (memberGroups == null) {
-		throw new ConfigurationException(
-		    "member groups cannot be ALL_GROUPS (null)");
-	    }
-	    memberGroups = (String[]) removeDups(memberGroups);
-	    unicastPort = Config.getIntEntry(
-		config, COMPONENT, "initialUnicastDiscoveryPort",
-		unicastPort, 0, 0xFFFF);
-
-	    if (initialLookupAttributes != null && 
-		initialLookupAttributes.length > 0)
-	    {
-		List l = new ArrayList(Arrays.asList(baseAttrs));
-		l.addAll(Arrays.asList(initialLookupAttributes));
-		lookupAttrs = (Entry[]) l.toArray(new Entry[l.size()]);
-	    } else {
-		lookupAttrs = baseAttrs;
-	    }
-	}
-
-	/* fetch remaining config entries */
-	MethodConstraints discoveryConstraints = 
-	    (MethodConstraints) config.getEntry(COMPONENT, 
-						"discoveryConstraints",
-						MethodConstraints.class, null);
-	if (discoveryConstraints == null) {
-	    discoveryConstraints = 
-		new BasicMethodConstraints(InvocationConstraints.EMPTY);
-	}
-	try {
-	    discoer = (DiscoveryManagement) config.getEntry(
-		COMPONENT, "discoveryManager", DiscoveryManagement.class);
-	} catch (NoSuchEntryException e) {
-	    discoer = new LookupDiscoveryManager(
-		DiscoveryGroupManagement.NO_GROUPS, null, null, config);
-	}
-	listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(
-	    config, COMPONENT, "listenerPreparer", ProxyPreparer.class,
-	    listenerPreparer);
-	locatorPreparer = (ProxyPreparer) Config.getNonNullEntry(
-	    config, COMPONENT, "locatorPreparer", ProxyPreparer.class,
-	    locatorPreparer);
-	minMaxEventLease = Config.getLongEntry(
-	    config, COMPONENT, "minMaxEventLease",
-	    minMaxEventLease, 1, MAX_LEASE);
-	minMaxServiceLease = Config.getLongEntry(
-	    config, COMPONENT, "minMaxServiceLease",
-	    minMaxServiceLease, 1, MAX_LEASE);
-	minRenewalInterval = Config.getLongEntry(
-	    config, COMPONENT, "minRenewalInterval",
-	    minRenewalInterval, 0, MAX_RENEW);
-	multicastAnnouncementInterval = Config.getLongEntry(
-	    config, COMPONENT, "multicastAnnouncementInterval",
-	    multicastAnnouncementInterval, 1, Long.MAX_VALUE);
-
-	multicastInterfaceRetryInterval = Config.getIntEntry(
-	    config, COMPONENT, "multicastInterfaceRetryInterval",
-	    multicastInterfaceRetryInterval, 1, Integer.MAX_VALUE);
-	try {
-	    multicastInterfaces = (NetworkInterface[]) config.getEntry(
-		COMPONENT, "multicastInterfaces", NetworkInterface[].class);
-	    multicastInterfacesSpecified = true;
-	} catch (NoSuchEntryException e) {
-	    Enumeration en = NetworkInterface.getNetworkInterfaces();
-	    List l = (en != null) ?
-		Collections.list(en) : Collections.EMPTY_LIST;
-	    multicastInterfaces = (NetworkInterface[])
-		l.toArray(new NetworkInterface[l.size()]);
-	    multicastInterfacesSpecified = false;
-	}
-	if (multicastInterfaces == null) {
-	    logger.config("using system default interface for multicast");
-	} else if (multicastInterfaces.length == 0) {
-	    if (multicastInterfacesSpecified) {
-		logger.config("multicast disabled");
-	    } else {
-		logger.severe("no network interfaces detected");
-	    }
-	} else if (logger.isLoggable(Level.CONFIG)) {
-	    logger.log(Level.CONFIG, "multicasting on interfaces {0}",
-		       new Object[]{ Arrays.asList(multicastInterfaces) });
-	}
-
-	try {
-	    multicastRequestSubjectChecker =
-		(ClientSubjectChecker) Config.getNonNullEntry(
-		    config, COMPONENT, "multicastRequestSubjectChecker",
-		    ClientSubjectChecker.class);
-	} catch (NoSuchEntryException e) {
-	    // leave null
-	}
-	resourceIdGenerator = (UuidGenerator) Config.getNonNullEntry(
-	    config, COMPONENT, "resourceIdGenerator", UuidGenerator.class,
-	    resourceIdGenerator);
-	serviceIdGenerator = (UuidGenerator) Config.getNonNullEntry(
-	    config, COMPONENT, "serviceIdGenerator", UuidGenerator.class,
-	    serviceIdGenerator);
-	tasker = (TaskManager) Config.getNonNullEntry(
-	    config, COMPONENT, "taskManager", TaskManager.class,
-	    new TaskManager(50, 1000 * 15, 1.0F));
-	unexportTimeout = Config.getLongEntry(
-	       config, COMPONENT, "unexportTimeout", unexportTimeout,
-	       0, Long.MAX_VALUE);
-	unexportWait = Config.getLongEntry(
-	       config, COMPONENT, "unexportWait", unexportWait,
-	       0, Long.MAX_VALUE);
-	String unicastDiscoveryHost;
-	try {
-	    unicastDiscoveryHost = (String) Config.getNonNullEntry(
-		config, COMPONENT, "unicastDiscoveryHost", String.class);
-	} catch (NoSuchEntryException e) {
-	    // fix for 4906732: only invoke getCanonicalHostName if needed
-	    unicastDiscoveryHost =
-		InetAddress.getLocalHost().getCanonicalHostName();
-	}
-	try {
-	    unicastDiscoverySubjectChecker =
-		(ClientSubjectChecker) Config.getNonNullEntry(
-		    config, COMPONENT, "unicastDiscoverySubjectChecker",
-		    ClientSubjectChecker.class);
-	} catch (NoSuchEntryException e) {
-	    // leave null
-	}
-
-	/* initialize state based on recovered/configured values */
-	objectServiceType = new ServiceType(Object.class, null, null);
-	computeMaxLeases();
-	protocol2 = Discovery.getProtocol2(null);
-	/* cache unprocessed unicastDiscovery constraints to handle
-           reprocessing of time constraints associated with that method */
-	rawUnicastDiscoveryConstraints = discoveryConstraints.getConstraints(
-	       DiscoveryConstraints.unicastDiscoveryMethod);    
-	multicastRequestConstraints = DiscoveryConstraints.process(
-	    discoveryConstraints.getConstraints(
-		DiscoveryConstraints.multicastRequestMethod));
-	multicastAnnouncementConstraints = DiscoveryConstraints.process(
-	    discoveryConstraints.getConstraints(
-		DiscoveryConstraints.multicastAnnouncementMethod));
-	unicastDiscoveryConstraints = DiscoveryConstraints.process(
-	    rawUnicastDiscoveryConstraints);
-	serviceExpirer = new ServiceExpireThread();
-	eventExpirer = new EventExpireThread();
-	unicaster = new UnicastThread(unicastPort);
-	multicaster = new MulticastThread();
-	announcer = new AnnounceThread();
-	snapshotter = new SnapshotThread();
-	if (myServiceID == null) {
-	    myServiceID = newServiceID();
-	}
-	myRef = (Registrar) serverExporter.export(this);
-	proxy = RegistrarProxy.getInstance(myRef, myServiceID);
-	myLocator = (proxy instanceof RemoteMethodControl) ?
-	    new ConstrainableLookupLocator(
-		unicastDiscoveryHost, unicaster.port, null) :
-	    new LookupLocator(unicastDiscoveryHost, unicaster.port);
-	/* register myself */
-	Item item = new Item(new ServiceItem(myServiceID,
-					     proxy,
-					     lookupAttrs));
-	SvcReg reg = new SvcReg(item, myLeaseID, Long.MAX_VALUE);
-	addService(reg);
-	if (log != null) {
-	    log.snapshot();
-	}
-
-	try {
-	    DiscoveryGroupManagement dgm = (DiscoveryGroupManagement) discoer;
-	    String[] groups = dgm.getGroups();
-	    if (groups == null || groups.length > 0) {
-		throw new ConfigurationException(
-		    "discoveryManager must be initially configured with " +
-		    "no groups");
-	    }
-	    DiscoveryLocatorManagement dlm =
-		(DiscoveryLocatorManagement) discoer;
-	    if (dlm.getLocators().length > 0) {
-		throw new ConfigurationException(
-		    "discoveryManager must be initially configured with " +
-		    "no locators");
-	    }
-	    dgm.setGroups(lookupGroups);
-	    dlm.setLocators(lookupLocators);
-	} catch (ClassCastException e) {
-	    throw new ConfigurationException(null, e);
-	}
-	joiner = new JoinManager(proxy, lookupAttrs, myServiceID,
-				 discoer, null, config);
-
-	/* start up all the daemon threads */
-	serviceExpirer.start();
-	eventExpirer.start();
-	unicaster.start();
-	multicaster.start();
-	announcer.start();
+    
+    /**
+     * Reggie Initializer
+     */
+    private static final class Initializer{
+         LifeCycle lifeCycle;
+         ServerSocketFactory serverSocketFactory;
+         int persistenceSnapshotThreshold;
+         SocketFactory socketFactory;
+         ProxyPreparer recoveredListenerPreparer;
+         float persistenceSnapshotWeight;
+         ProxyPreparer recoveredLocatorPreparer;
+         boolean inRecovery;
+         ActivationID activationID;
+         ActivationSystem activationSystem;
+         Exporter serverExporter;
+         String[] lookupGroups = DiscoveryGroupManagement.NO_GROUPS;
+         LookupLocator[] lookupLocators = {};
+         String[] memberGroups = {""};
+         int unicastPort = 0;
+         Entry[] lookupAttrs;
+         DiscoveryManagement discoer;
+         ProxyPreparer listenerPreparer;
+         ProxyPreparer locatorPreparer;
+         long minMaxEventLease;
+         long minMaxServiceLease;
+         long minRenewalInterval;
+         long multicastAnnouncementInterval;
+         int multicastInterfaceRetryInterval;
+         NetworkInterface[] multicastInterfaces;
+         boolean multicastInterfacesSpecified;
+         UuidGenerator resourceIdGenerator;
+         UuidGenerator serviceIdGenerator;
+         TaskManager tasker;
+         long unexportTimeout;
+         long unexportWait;
+         ServiceType objectServiceType;
+         ClientSubjectChecker unicastDiscoverySubjectChecker;
+         Discovery protocol2;
+         InvocationConstraints rawUnicastDiscoveryConstraints;
+         DiscoveryConstraints multicastRequestConstraints;
+         DiscoveryConstraints multicastAnnouncementConstraints;
+         DiscoveryConstraints unicastDiscoveryConstraints;
+         ClientSubjectChecker multicastRequestSubjectChecker;
+         LoginContext loginContext;
+         String persistenceDirectory = null;
+         boolean persistent;
+         String unicastDiscoveryHost;
+         Configuration config;
+         AccessControlContext context;
         
-        /* Shutdown hook so reggie sends a final announcement
-         * packet if VM is terminated.  If reggie is terminated
-         * through DestroyAdmin.destroy() this hook will have no effect.
-         * A timeout on announcer.join() was considered but not deemed
-         * necessary at this point in time.  
-         */
-	Runtime.getRuntime().addShutdownHook(new Thread( new Runnable() {
-	    public void run() {
-		try {
-		    announcer.interrupt();
-		    announcer.join();
-		} catch (Throwable t) {
-                    logThrow(Level.FINEST, getClass().getName(), 
-                        "run", "exception shutting announcer down",
-                        new Object[]{}, t);
-		}
-	    }
-	}));
         
-        snapshotter.start();
-	if (logger.isLoggable(Level.INFO)) {
-	    logger.log(Level.INFO, "started Reggie: {0}, {1}, {2}",
-		       new Object[]{ myServiceID,
-				     Arrays.asList(memberGroups),
-				     myLocator });
-	}
-	ready.ready();
+        
+        Initializer ( Configuration config, ActivationID activationID, 
+                boolean persistent, LifeCycle lifeCycle, LoginContext loginContext)
+	throws IOException, ConfigurationException, ActivationException {
+            if (activationID != null && !persistent) {
+                throw new IllegalArgumentException();
+            }
+            this.lifeCycle = lifeCycle;
+            this.loginContext = loginContext;
+            this.persistent = persistent;
+            this.config = config;
+            context = AccessController.getContext();
+            ProxyPreparer p = new BasicProxyPreparer();
+
+            this.serverSocketFactory = (ServerSocketFactory) config.getEntry(
+                    COMPONENT, "serverSocketFactory", ServerSocketFactory.class,
+                    ServerSocketFactory.getDefault(), Configuration.NO_DATA);
+            this.socketFactory = (SocketFactory) config.getEntry(
+                    COMPONENT, "socketFactory", SocketFactory.class,
+                    SocketFactory.getDefault(), Configuration.NO_DATA);
+
+            /* persistence-specific initialization */
+            if (persistent) {
+                this.persistenceSnapshotThreshold = Config.getIntEntry(
+                    config, COMPONENT, "persistenceSnapshotThreshold",
+                    200, 0, Integer.MAX_VALUE);
+                this.persistenceDirectory = (String) config.getEntry(
+                    COMPONENT, "persistenceDirectory", String.class);
+                this.recoveredListenerPreparer = (ProxyPreparer) Config.getNonNullEntry(
+                    config, COMPONENT, "recoveredListenerPreparer",
+                    ProxyPreparer.class, p);
+                this.recoveredLocatorPreparer = (ProxyPreparer) Config.getNonNullEntry(
+                    config, COMPONENT, "recoveredLocatorPreparer",
+                    ProxyPreparer.class, p);
+                this.persistenceSnapshotWeight = Config.getFloatEntry(
+                    config, COMPONENT, "persistenceSnapshotWeight",
+                    10, 0F, Float.MAX_VALUE);
+            }
+
+            /* activation-specific initialization */
+            if (activationID != null) {
+                ProxyPreparer activationIdPreparer = (ProxyPreparer)
+                    Config.getNonNullEntry(
+                        config, COMPONENT, "activationIdPreparer",
+                        ProxyPreparer.class, new BasicProxyPreparer());
+                ProxyPreparer activationSystemPreparer = (ProxyPreparer)
+                    Config.getNonNullEntry(
+                        config, COMPONENT, "activationSystemPreparer",
+                        ProxyPreparer.class, new BasicProxyPreparer());
+
+                this.activationID = (ActivationID)
+                    activationIdPreparer.prepareProxy(activationID);
+                this.activationSystem = (ActivationSystem)
+                    activationSystemPreparer.prepareProxy(
+                        ActivationGroup.getSystem());
+
+                this.serverExporter = (Exporter) Config.getNonNullEntry(
+                    config, COMPONENT, "serverExporter", Exporter.class,
+                    new ActivationExporter(
+                        this.activationID,
+                        new BasicJeriExporter(
+                            TcpServerEndpoint.getInstance(0),
+                            new BasicILFactory())),
+                    this.activationID);
+            } else {
+                this.activationID = null;
+                activationSystem = null;
+
+                serverExporter = (Exporter) Config.getNonNullEntry(
+                    config, COMPONENT, "serverExporter", Exporter.class,
+                    new BasicJeriExporter(
+                        TcpServerEndpoint.getInstance(0),
+                        new BasicILFactory()));
+            }
+
+            /* fetch "initial*" config entries, first time starting up */
+            Entry[] initialLookupAttributes = (Entry[]) config.getEntry(
+                COMPONENT, "initialLookupAttributes", Entry[].class,
+                new Entry[0]);
+            this.lookupGroups = (String[]) config.getEntry(
+                COMPONENT, "initialLookupGroups", String[].class,
+                DiscoveryGroupManagement.NO_GROUPS);
+            this.lookupLocators = (LookupLocator[]) config.getEntry(
+                COMPONENT, "initialLookupLocators", LookupLocator[].class,
+                lookupLocators);
+            this.memberGroups = (String[]) config.getEntry(
+                COMPONENT, "initialMemberGroups", String[].class,
+                memberGroups);
+            if (memberGroups == null) {
+                throw new ConfigurationException(
+                    "member groups cannot be ALL_GROUPS (null)");
+            }
+            memberGroups = (String[]) removeDups(memberGroups);
+            this.unicastPort = Config.getIntEntry(
+                config, COMPONENT, "initialUnicastDiscoveryPort",
+                0, 0, 0xFFFF);
+
+            if (initialLookupAttributes != null && 
+                initialLookupAttributes.length > 0)
+            {
+                List l = new ArrayList(Arrays.asList(baseAttrs));
+                l.addAll(Arrays.asList(initialLookupAttributes));
+                this.lookupAttrs = (Entry[]) l.toArray(new Entry[l.size()]);
+            } else {
+                lookupAttrs = baseAttrs;
+            }
+            
+
+            /* fetch remaining config entries */
+            MethodConstraints discoveryConstraints = 
+                (MethodConstraints) config.getEntry(COMPONENT, 
+                                                    "discoveryConstraints",
+                                                    MethodConstraints.class, null);
+            if (discoveryConstraints == null) {
+                discoveryConstraints = 
+                    new BasicMethodConstraints(InvocationConstraints.EMPTY);
+            }
+            try {
+                this.discoer = (DiscoveryManagement) config.getEntry(
+                    COMPONENT, "discoveryManager", DiscoveryManagement.class);
+            } catch (NoSuchEntryException e) {
+                discoer = new LookupDiscoveryManager(
+                    DiscoveryGroupManagement.NO_GROUPS, null, null, config);
+            }
+            this.listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(
+                config, COMPONENT, "listenerPreparer", ProxyPreparer.class, p);
+            this.locatorPreparer = (ProxyPreparer) Config.getNonNullEntry(
+                config, COMPONENT, "locatorPreparer", ProxyPreparer.class, p);
+            this.minMaxEventLease = Config.getLongEntry(
+                config, COMPONENT, "minMaxEventLease",
+                1000 * 60 * 30 , 1, MAX_LEASE);
+            this.minMaxServiceLease = Config.getLongEntry(
+                config, COMPONENT, "minMaxServiceLease",
+                1000 * 60 * 5 , 1, MAX_LEASE);
+            this.minRenewalInterval = Config.getLongEntry(
+                config, COMPONENT, "minRenewalInterval",
+                100, 0, MAX_RENEW);
+            this.multicastAnnouncementInterval = Config.getLongEntry(
+                config, COMPONENT, "multicastAnnouncementInterval",
+                1000 * 60 * 2 , 1, Long.MAX_VALUE);
+
+            this.multicastInterfaceRetryInterval = Config.getIntEntry(
+                config, COMPONENT, "multicastInterfaceRetryInterval",
+                1000 * 60 * 5 , 1, Integer.MAX_VALUE);
+            try {
+                this.multicastInterfaces = (NetworkInterface[]) config.getEntry(
+                    COMPONENT, "multicastInterfaces", NetworkInterface[].class);
+                this.multicastInterfacesSpecified = true;
+            } catch (NoSuchEntryException e) {
+                Enumeration en = NetworkInterface.getNetworkInterfaces();
+                List l = (en != null) ?
+                    Collections.list(en) : Collections.EMPTY_LIST;
+                multicastInterfaces = (NetworkInterface[])
+                    l.toArray(new NetworkInterface[l.size()]);
+                multicastInterfacesSpecified = false;
+            }
+            if (multicastInterfaces == null) {
+                logger.config("using system default interface for multicast");
+            } else if (multicastInterfaces.length == 0) {
+                if (multicastInterfacesSpecified) {
+                    logger.config("multicast disabled");
+                } else {
+                    logger.severe("no network interfaces detected");
+                }
+            } else if (logger.isLoggable(Level.CONFIG)) {
+                logger.log(Level.CONFIG, "multicasting on interfaces {0}",
+                           new Object[]{ Arrays.asList(multicastInterfaces) });
+            }
+
+            try {
+                this.multicastRequestSubjectChecker =
+                    (ClientSubjectChecker) Config.getNonNullEntry(
+                        config, COMPONENT, "multicastRequestSubjectChecker",
+                        ClientSubjectChecker.class);
+            } catch (NoSuchEntryException e) {
+                // leave null
+            }
+            UuidGenerator u = new UuidGenerator();
+            this.resourceIdGenerator = (UuidGenerator) Config.getNonNullEntry(
+                config, COMPONENT, "resourceIdGenerator", UuidGenerator.class,
+                u);
+            this.serviceIdGenerator = (UuidGenerator) Config.getNonNullEntry(
+                config, COMPONENT, "serviceIdGenerator", UuidGenerator.class,
+                u);
+            this.tasker = (TaskManager) Config.getNonNullEntry(
+                config, COMPONENT, "taskManager", TaskManager.class,
+                new TaskManager(50, 1000 * 15, 1.0F));
+            this.unexportTimeout = Config.getLongEntry(
+                   config, COMPONENT, "unexportTimeout", unexportTimeout,
+                   0, Long.MAX_VALUE);
+            this.unexportWait = Config.getLongEntry(
+                   config, COMPONENT, "unexportWait", unexportWait,
+                   0, Long.MAX_VALUE);
+            try {
+                unicastDiscoveryHost = (String) Config.getNonNullEntry(
+                    config, COMPONENT, "unicastDiscoveryHost", String.class);
+            } catch (NoSuchEntryException e) {
+                // fix for 4906732: only invoke getCanonicalHostName if needed
+                unicastDiscoveryHost =
+                    InetAddress.getLocalHost().getCanonicalHostName();
+            }
+            try {
+                this.unicastDiscoverySubjectChecker =
+                    (ClientSubjectChecker) Config.getNonNullEntry(
+                        config, COMPONENT, "unicastDiscoverySubjectChecker",
+                        ClientSubjectChecker.class);
+            } catch (NoSuchEntryException e) {
+                // leave null
+            }
+
+            /* initialize state based on recovered/configured values */
+            this.objectServiceType = new ServiceType(Object.class, null, null);
+            this.protocol2 = Discovery.getProtocol2(null);
+            /* cache unprocessed unicastDiscovery constraints to handle
+               reprocessing of time constraints associated with that method */
+            this.rawUnicastDiscoveryConstraints = discoveryConstraints.getConstraints(
+                   DiscoveryConstraints.unicastDiscoveryMethod);    
+            this.multicastRequestConstraints = DiscoveryConstraints.process(
+                discoveryConstraints.getConstraints(
+                    DiscoveryConstraints.multicastRequestMethod));
+           this.multicastAnnouncementConstraints = DiscoveryConstraints.process(
+                discoveryConstraints.getConstraints(
+                    DiscoveryConstraints.multicastAnnouncementMethod));
+            this.unicastDiscoveryConstraints = DiscoveryConstraints.process(
+                this.rawUnicastDiscoveryConstraints);
+        }
+    }
+    
+    public void start() throws Exception {
+        if (constructionException != null) throw constructionException;
+        try {
+            // Make sure we're exporting with correct login context.
+            AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
+
+                public Object run() throws Exception {
+                    myRef = (Registrar) serverExporter.export(RegistrarImpl.this);
+                    proxy = RegistrarProxy.getInstance(myRef, myServiceID);
+                    myLocator = (proxy instanceof RemoteMethodControl) ?
+                        new ConstrainableLookupLocator(
+                            unicastDiscoveryHost, unicaster.port, null) :
+                        new LookupLocator(unicastDiscoveryHost, unicaster.port);
+                    /* register myself */
+                    Item item = new Item(new ServiceItem(myServiceID,
+                                                         proxy,
+                                                         lookupAttrs));
+                    SvcReg reg = new SvcReg(item, myLeaseID, Long.MAX_VALUE);
+                    addService(reg);
+                    if (log != null) {
+                        log.snapshot();
+                    }
+
+                    try {
+                        DiscoveryGroupManagement dgm = (DiscoveryGroupManagement) discoer;
+                        String[] groups = dgm.getGroups();
+                        if (groups == null || groups.length > 0) {
+                            throw new ConfigurationException(
+                                "discoveryManager must be initially configured with " +
+                                "no groups");
+                        }
+                        DiscoveryLocatorManagement dlm =
+                            (DiscoveryLocatorManagement) discoer;
+                        if (dlm.getLocators().length > 0) {
+                            throw new ConfigurationException(
+                                "discoveryManager must be initially configured with " +
+                                "no locators");
+                        }
+                        dgm.setGroups(lookupGroups);
+                        dlm.setLocators(lookupLocators);
+                    } catch (ClassCastException e) {
+                        throw new ConfigurationException(null, e);
+                    }
+                    joiner = new JoinManager(proxy, lookupAttrs, myServiceID,
+                                             discoer, null, config);
+
+                    /* start up all the daemon threads */
+                    serviceExpirer.start();
+                    eventExpirer.start();
+                    unicaster.start();
+                    multicaster.start();
+                    announcer.start();
+
+                    /* Shutdown hook so reggie sends a final announcement
+                     * packet if VM is terminated.  If reggie is terminated
+                     * through DestroyAdmin.destroy() this hook will have no effect.
+                     * A timeout on announcer.join() was considered but not deemed
+                     * necessary at this point in time.  
+                     */
+                    Runtime.getRuntime().addShutdownHook(new Thread( new Runnable() {
+                        public void run() {
+                            try {
+                                announcer.interrupt();
+                                announcer.join();
+                            } catch (Throwable t) {
+                                logThrow(Level.FINEST, getClass().getName(), 
+                                    "run", "exception shutting announcer down",
+                                    new Object[]{}, t);
+                            }
+                        }
+                    }));
+
+                    snapshotter.start();
+                    if (logger.isLoggable(Level.INFO)) {
+                        logger.log(Level.INFO, "started Reggie: {0}, {1}, {2}",
+                                   new Object[]{ myServiceID,
+                                                 Arrays.asList(memberGroups),
+                                                 myLocator });
+                    }
+                    return null;
+                }
+                
+                    }, context);
+        } catch (PrivilegedActionException ex) {
+            throw ex.getException();
+        }
+        
+        // These object no longer needed, set free.
+        config = null;
+        unicastDiscoveryHost = null;
+        context = null;
+        ready.ready();
+    
     }
 
     /** The code that does the real work of register. */
@@ -5629,7 +5803,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust {
 	    unmarshalLocators(stream), recoveredLocatorPreparer, true);
 	recoverServiceRegistrations(stream, logVersion);
 	recoverEventRegistrations(stream);
-	recoveredSnapshot = true;
 	logger.finer("recovered state from snapshot");
     }
 

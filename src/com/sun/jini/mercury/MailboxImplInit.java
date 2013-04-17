@@ -32,6 +32,8 @@ import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -88,6 +90,7 @@ class MailboxImplInit {
     Thread notifier;
     Thread expirer;
     Configuration config;
+    AccessControlContext context;
 
     MailboxImplInit(Configuration config, 
                     boolean persistent, 
@@ -102,6 +105,7 @@ class MailboxImplInit {
         this.notifier = notifier;
         this.expirer = expirer;
         this.config = config;
+        context = AccessController.getContext();
         // Get activation specific configuration items, if activated
         if (activationID != null) {
             ProxyPreparer activationSystemPreparer = (ProxyPreparer) Config.getNonNullEntry(config, MailboxImpl.MERCURY, "activationSystemPreparer", ProxyPreparer.class, new BasicProxyPreparer());
