@@ -4909,13 +4909,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     }, context);
         } catch (PrivilegedActionException ex) {
             throw ex.getException();
+        } finally {
+            // These object no longer needed, set free.
+            config = null;
+            unicastDiscoveryHost = null;
+            context = null;
+            ready.ready();
         }
-        
-        // These object no longer needed, set free.
-        config = null;
-        unicastDiscoveryHost = null;
-        context = null;
-        ready.ready();
     
     }
 

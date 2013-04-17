@@ -5063,6 +5063,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      */
     protected void initFailed(Throwable e) throws Exception {
 	initLogger.log(Level.SEVERE, "Mercury failed to initialize", e);
+        if (e instanceof PrivilegedActionException) e = e.getCause();
 	if (e instanceof Exception) {
 	    throw (Exception) e;
 	} else if (e instanceof Error) {

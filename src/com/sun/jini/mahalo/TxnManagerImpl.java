@@ -1635,6 +1635,9 @@ class TxnManagerImpl /*extends RemoteServer*/
             operationsLogger.exiting(
 	        TxnManagerImpl.class.getName(), "initFailed");
 	}
+        if (e instanceof PrivilegedActionException){
+            e = e.getCause();
+        }
 	if (e instanceof Exception) {
             throw (Exception) e;
         } else if (e instanceof Error) {
