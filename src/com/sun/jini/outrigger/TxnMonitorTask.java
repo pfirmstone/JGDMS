@@ -33,6 +33,8 @@ import java.util.WeakHashMap;
 import java.util.Iterator;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -115,25 +117,25 @@ class TxnMonitorTask extends RetryTask
      * <code>null</code> until we have at least one. Represented by
      * <code>QueryWatcher</code> objects.  
      */
-    private Map		queries;
+    private Map<QueryWatcher,Collection<Txn>>		queries; //Sync on this.
 
     /** count of RemoteExceptions */
-    private int		failCnt;
+    private final AtomicInteger		failCnt;
 
     /** 
      * The next time we need to poll the transaction manager 
      * to get <code>txn</code>'s actual state.
      */
-    private long	nextQuery;
+    private final AtomicLong	nextQuery;
 
     /**
      * When we're given an opportunity to poll the transaction manager
      * for the <code>txn</code>'s state, do so.
      */
-    private boolean	mustQuery;
+    private volatile boolean	mustQuery;
 
     /** next value added to <code>nextQuery</code> */
-    private long	deltaT;
+    private volatile long	deltaT;
 
     /**
      * The initial grace period before the first query.
@@ -168,9 +170,10 @@ class TxnMonitorTask extends RetryTask
 	super(manager, wakeupMgr);
 	this.txn = txn;
 	this.monitor = monitor;
-	nextQuery = startTime();	// retryTime will add INITIAL_GRACE
+	nextQuery = new AtomicLong(startTime());	// retryTime will add INITIAL_GRACE
 	deltaT = INITIAL_GRACE;
 	mustQuery = true;
+        failCnt = new AtomicInteger();
     }
 
     /**
@@ -181,24 +184,31 @@ class TxnMonitorTask extends RetryTask
      * otherwise we back off quickly.
      */
     public long retryTime() {
-	if (failCnt == 0 && txn.getState() != PREPARED) {      // no failures
-	    if (logger.isLoggable(Level.FINEST)) {
-		logger.log(Level.FINEST, "{0} retryTime adds {1}", 
-			   new Object[]{this, Long.valueOf(deltaT)});
-	    }
+        boolean noFailures = false;
+        synchronized (txn){
+            noFailures = (failCnt.get() == 0 && txn.getState() != PREPARED);
+        }
+            if (noFailures) {      // no failures
+                if (logger.isLoggable(Level.FINEST)) {
+                    logger.log(Level.FINEST, "{0} retryTime adds {1}", 
+                               new Object[]{this, Long.valueOf(deltaT)});
+                }
 
-	    nextQuery += deltaT;
-	    if (deltaT < MAX_DELTA_T)
-		deltaT = Math.min(deltaT * 2, MAX_DELTA_T);
-	} else {
-	    if (logger.isLoggable(Level.FINEST)) {
-		logger.log(Level.FINEST, "{0} retryTime adds {1} (for {2})", 
-			   new Object[]{this, Long.valueOf(BETWEEN_EXCEPTIONS), 
-			       (failCnt != 0 ? "failure" : "PREPARED")});
-	    }
-	    nextQuery += BETWEEN_EXCEPTIONS;
-	}
-	return nextQuery;
+                nextQuery.addAndGet(deltaT);
+                synchronized (this){
+                    if (deltaT < MAX_DELTA_T)
+                        deltaT = Math.min(deltaT * 2, MAX_DELTA_T);
+                }
+            } else {
+                if (logger.isLoggable(Level.FINEST)) {
+                    logger.log(Level.FINEST, "{0} retryTime adds {1} (for {2})", 
+                               new Object[]{this, Long.valueOf(BETWEEN_EXCEPTIONS), 
+                                   (failCnt.get() != 0 ? "failure" : "PREPARED")});
+                }
+                nextQuery.addAndGet(BETWEEN_EXCEPTIONS);
+            }
+        
+	return nextQuery.get();
     }
 
     /**
@@ -238,7 +248,7 @@ class TxnMonitorTask extends RetryTask
     synchronized void addSibling(Txn txn) {
 	if (queries == null || queries.size() == 0)
 	    return;
-	Collection sibling = Collections.nCopies(1, txn);
+	Collection<Txn> sibling = Collections.nCopies(1, txn);
 	Iterator it = queries.keySet().iterator();
 	while (it.hasNext()) {
 	    QueryWatcher query = (QueryWatcher)it.next();
@@ -265,14 +275,17 @@ class TxnMonitorTask extends RetryTask
 	 */
 	if (attempt() == 0)
 	    return false;
-
+        int txnState;
+        synchronized (txn){
+            txnState = txn.getState();
+        }
 	if (logger.isLoggable(Level.FINEST)) {
 	    logger.log(Level.FINEST, "{0} txn.getState() = {1}", 
-	        new Object[]{this, Integer.valueOf(txn.getState())});
+	        new Object[]{this, Integer.valueOf(txnState)});
 	}
 
 	// not active or prepared == no longer blocking
-	int txnState = txn.getState();
+	
 	if (txnState != ACTIVE && txnState != PREPARED)
 	    return true;
 
@@ -295,7 +308,7 @@ class TxnMonitorTask extends RetryTask
 
 		if (logger.isLoggable(Level.FINEST)) {
 		    logger.log(Level.FINEST, "{0} nextQuery {1}", 
-			       new Object[]{this, Long.valueOf(nextQuery)});
+			       new Object[]{this, nextQuery});
 		}
 
 		while (it.hasNext()) {
@@ -309,7 +322,7 @@ class TxnMonitorTask extends RetryTask
 				       Long.valueOf(query.getExpiration())});
 		    }
 
-		    if (query.getExpiration() < nextQuery || 
+		    if (query.getExpiration() < nextQuery.get() || 
 			query.isResolved())
 			it.remove();	// expired, so we don't care about it
 		    else {
@@ -406,7 +419,7 @@ class TxnMonitorTask extends RetryTask
 	     * be very complicated since we need to hold a lock to
 	     * while reading and acting on the state.
 	     */
-	    if (++failCnt >= MAX_FAILURES) {
+	    if (failCnt.incrementAndGet() >= MAX_FAILURES) {
 		if (logger.isLoggable(Level.INFO)) {
 		    logger.log(Level.INFO, "Got NoSuchObjectException when " +
 			"calling getState on " + tr + ", this was the " +
@@ -424,7 +437,7 @@ class TxnMonitorTask extends RetryTask
 		return false;	       // try again next time
 	    }
 	} catch (RemoteException e) {
-	    if (++failCnt >= MAX_FAILURES) {
+	    if (failCnt.incrementAndGet() >= MAX_FAILURES) {
 		/* abort if we are not prepared and not already 
 		 * aborted. If prepared retry, otherwise
 		 * we're done. Check state and make any abort() call
@@ -451,7 +464,7 @@ class TxnMonitorTask extends RetryTask
 			    throw new AssertionError(ume);
 			}
 		      case PREPARED:
-		        final Level l = (failCnt%MAX_FAILURES == 0)?
+		        final Level l = (failCnt.get()%MAX_FAILURES == 0)?
 			    Level.INFO:Levels.FAILED;
 			if (logger.isLoggable(l)) {
 			    logger.log(l, "Got RemoteException when calling " +
@@ -489,7 +502,7 @@ class TxnMonitorTask extends RetryTask
 		       new Object[]{this, Integer.valueOf(trState)});
 	}
 
-	failCnt = 0;		       // reset failures -- we got a response
+	failCnt.set(0);		       // reset failures -- we got a response
 
 	/*
 	 * If the two states aren't the same, the state changed and we
@@ -552,7 +565,7 @@ class TxnMonitorTask extends RetryTask
      * <code>true</code>.
      */
     synchronized void add(QueryWatcher query) {
-	if (query == null || query.getExpiration() <= nextQuery) {
+	if (query == null || query.getExpiration() <= nextQuery.get()) {
 	    if (logger.isLoggable(Level.FINEST))
 		logger.log(Level.FINEST, "adding resource to task -- SHORT");
 	    mustQuery = true;
@@ -560,7 +573,7 @@ class TxnMonitorTask extends RetryTask
 	    if (logger.isLoggable(Level.FINEST))
 		logger.log(Level.FINEST, "adding resource to task -- LONG");
 	    if (queries == null)
-		queries = new WeakHashMap();// we use it like a WeakHashSet
+		queries = new WeakHashMap<QueryWatcher,Collection<Txn>>();// we use it like a WeakHashSet
 	    queries.put(query, null);
 	}
     }

@@ -119,7 +119,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
      * transaction has been aborted with us being told, or
      * null if no such task as been allocated.
      */
-    private TxnMonitorTask	monitorTask;
+    private volatile TxnMonitorTask	monitorTask;
 
     /** Count of number of threads holding a read lock on state */
     private int stateReaders = 0;

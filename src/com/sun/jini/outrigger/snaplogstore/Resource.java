@@ -34,8 +34,8 @@ import java.util.Arrays;
 class Resource extends BaseObject implements StoredResource {
     static final long serialVersionUID = -4248052947306243840L;
 
-    private byte[]	cookie;
-    private long	expiration;
+    private final byte[]	cookie;
+    private volatile long	expiration;
 
     Resource(StorableResource resource) {
 	super(resource);

@@ -219,7 +219,7 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
     static EntryHandleTmplDesc descFor(EntryRep tmpl, int numFields) {
 	EntryHandleHashDesc hashDesc = new EntryHandleHashDesc();
 	EntryHandleTmplDesc tmplDesc = new EntryHandleTmplDesc();
-
+        
 	// Get the hash and the related useful information
 	tmplDesc.hash = hashFor(tmpl, numFields, hashDesc);
 
@@ -229,7 +229,7 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
 	    if (i < tmpl.numFields() && tmpl.value(i) != null)
 		tmplDesc.mask |= (hashDesc.mask << (i * hashDesc.bitsPerField));
 	}
-
+        
 	// Ensure that the non-value fields are masked out
 	tmplDesc.hash &= tmplDesc.mask;
 

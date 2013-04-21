@@ -61,7 +61,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -166,7 +168,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     /* Map of transaction ids are their associated, internal 
      * transaction representations */
     private final ConcurrentMap<Long,TxnManagerTransaction> txns;
-    private final Vector<Long> unsettledtxns = new Vector<Long>();
+    private final Queue<Long> unsettledtxns = new ConcurrentLinkedQueue<Long>();
     private final InterruptedStatusThread settleThread;
     private final String persistenceDirectory;
     private final ActivationID activationID;
@@ -216,7 +218,7 @@ class TxnManagerImpl /*extends RemoteServer*/
     private AccessControlContext context;
     private Throwable thrown;
     // sync on this.
-    private boolean startOnce = false;
+    private boolean started = false;
 
     /**
      * Constructs a non-activatable transaction manager.
@@ -396,8 +398,8 @@ class TxnManagerImpl /*extends RemoteServer*/
 
     public void start() throws Exception {
         synchronized (this){
-            if (startOnce) return;
-            startOnce = true;
+            if (started) return;
+            started = true;
         }
         try {
             if (thrown != null) throw thrown;
@@ -516,62 +518,72 @@ class TxnManagerImpl /*extends RemoteServer*/
 	}
         readyState.check();
     
-	TxnManagerTransaction txntr = null;
-
-	long tid = nextID();
-        Uuid uuid = createLeaseUuid(tid);
-
-        if (transactionsLogger.isLoggable(Level.FINEST)) {
-            transactionsLogger.log(Level.FINEST, 
-	        "Transaction ID is: {0}", Long.valueOf(tid));
-	}
-
-        txntr = new TxnManagerTransaction(
-	    txnMgrProxy, logmgr, tid, taskpool, 
-	    taskWakeupMgr, this, uuid);
-	Lease txnmgrlease = null;
-	try {
-            Result r = txnLeasePeriodPolicy.grant(txntr, lease);
-            txntr.setExpiration(r.expiration);
-            txnmgrlease = 
-	        leaseFactory.newLease(
-		    uuid,
-	            r.expiration);
-            expMgr.register(txntr);		
-	} catch (LeaseDeniedException lde) {
-            // Should never happen in our implementation.
-            throw new AssertionError("Transaction lease was denied" + lde);
-        }
-
-        if (transactionsLogger.isLoggable(Level.FINEST)) {
-            transactionsLogger.log(Level.FINEST, 
-	        "Created new TxnManagerTransaction ID is: {0}", Long.valueOf(tid));
-	}
-
-	Transaction tr = txntr.getTransaction();
-	ServerTransaction str = null;
-
-        try {
-	    str = serverTransaction(tr);
-	    txns.put(Long.valueOf(str.id), txntr);
+	TxnManagerTransaction txntr;
+        Lease txnmgrlease = null;
+        ServerTransaction str = null;
+        // following section must be performed atomically, or duplicate ID might be assigned.
+        boolean todoPut = true;
+        while (todoPut){
+            long tid = nextID();
+            Uuid uuid = createLeaseUuid(tid);
 
             if (transactionsLogger.isLoggable(Level.FINEST)) {
-                transactionsLogger.log(Level.FINEST,
-		    "recorded new TxnManagerTransaction", txntr);
-	    }
+                transactionsLogger.log(Level.FINEST, 
+                    "Transaction ID is: {0}", Long.valueOf(tid));
+            }
+
+            txntr = new TxnManagerTransaction(
+                txnMgrProxy, logmgr, tid, taskpool, 
+                taskWakeupMgr, this, uuid);
+            try {
+                Result r = txnLeasePeriodPolicy.grant(txntr, lease);
+                txntr.setExpiration(r.expiration);
+                txnmgrlease = 
+                    leaseFactory.newLease(
+                        uuid,
+                        r.expiration);
+                		
+            } catch (LeaseDeniedException lde) {
+                // Should never happen in our implementation.
+                throw new AssertionError("Transaction lease was denied" + lde);
+            }
+
+            if (transactionsLogger.isLoggable(Level.FINEST)) {
+                transactionsLogger.log(Level.FINEST, 
+                    "Created new TxnManagerTransaction ID is: {0}", Long.valueOf(tid));
+            }
+
+            Transaction tr = txntr.getTransaction();
+
+            try {
+                str = serverTransaction(tr);
+                TxnManagerTransaction existed = txns.putIfAbsent(Long.valueOf(str.id), txntr);
+                /* This should never happen, but in the unprobable event we get a collision */
+                if (existed == null){ 
+                    todoPut = false;
+                    expMgr.register(txntr);
+                } else {
+                    
+                }
+                if (transactionsLogger.isLoggable(Level.FINEST)) {
+                    transactionsLogger.log(Level.FINEST,
+                        "recorded new TxnManagerTransaction", txntr);
+                }
 
 
-        } catch(Exception e) {
-	    if (transactionsLogger.isLoggable(Level.FINEST)) {
-                transactionsLogger.log(Level.FINEST,
-		"Problem creating transaction", e);
-	    }
-	    RuntimeException wrap =
-	        new RuntimeException("Unable to create transaction", e);
-	    transactionsLogger.throwing(
-	        TxnManagerImpl.class.getName(), "create", wrap);
-	    throw wrap;
-	}
+            } catch(Exception e) {
+                if (transactionsLogger.isLoggable(Level.FINEST)) {
+                    transactionsLogger.log(Level.FINEST,
+                    "Problem creating transaction", e);
+                }
+                todoPut = false;
+                RuntimeException wrap =
+                    new RuntimeException("Unable to create transaction", e);
+                transactionsLogger.throwing(
+                    TxnManagerImpl.class.getName(), "create", wrap);
+                throw wrap;
+            }
+        }
 
         TransactionManager.Created tmp = 	
 	    new TransactionManager.Created(str.id, txnmgrlease);		       
@@ -654,10 +666,10 @@ class TxnManagerImpl /*extends RemoteServer*/
 		TxnManagerImpl.class.getName(), "getState", 
 	        Integer.valueOf(state));
 	}
-	return state;
+            return state;
         } catch (TransactionException ex) {
-            throw new UnknownTransactionException("unknown transaction");
-    }
+            throw new UnknownTransactionException("Transaction expired", ex);
+        }
     }
 
 
@@ -697,8 +709,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	}
         readyState.check();
 
-	TxnManagerTransaction txntr =
-		(TxnManagerTransaction) txns.get(Long.valueOf(id));
+	TxnManagerTransaction txntr = txns.get(Long.valueOf(id));
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
@@ -845,24 +856,23 @@ class TxnManagerImpl /*extends RemoteServer*/
      *
      * @param tid the transaction's ID
      */
-    public synchronized void noteUnsettledTxn(long tid) {
+    public void noteUnsettledTxn(long tid) {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerImpl.class.getName(), 
 	        "noteUnsettledTxn", new Object[] {Long.valueOf(tid)});
 	}
 	unsettledtxns.add(Long.valueOf(tid));
-
-	notifyAll();
-
+        synchronized (this){
+            notifyAll();
+        }
+        
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(TxnManagerImpl.class.getName(), 
 	        "noteUnsettledTxn");
 	}
     }
 
-    private synchronized void settleTxns() throws InterruptedException {
-	ClientLog log = null;
-
+    private void settleTxns() throws InterruptedException {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerImpl.class.getName(), 
 	        "settleTxns");
@@ -870,24 +880,25 @@ class TxnManagerImpl /*extends RemoteServer*/
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
                 "Settling {0} transactions.", 
-		Integer.valueOf(unsettledtxns.size()));
+		Integer.valueOf(unsettledtxns.size())); //O(n)
 	}
 
-	int numtxns = 0;
 	Long first = null;
 	long tid = 0;
 
 	while (true) {
-		numtxns = unsettledtxns.size();
+            first = unsettledtxns.poll();
 
-	    if (numtxns == 0) {
+	    if (first == null) {
 	        if (transactionsLogger.isLoggable(Level.FINEST)) {
                     transactionsLogger.log(Level.FINEST,
                         "Settler waiting");
 	        }
                 // Don't wait forever, in case we're not notified, break out
                 // early and check condition.
-		wait(10000L); 
+                synchronized (this){
+                    wait(10000L); 
+                }
                 // Due to spurious wakeup and break out after ten seconds, the following log message is inaccurate.
 //	        if (transactionsLogger.isLoggable(Level.FINEST)) {
 //                    transactionsLogger.log(Level.FINEST,
@@ -896,16 +907,11 @@ class TxnManagerImpl /*extends RemoteServer*/
 		continue;
 	    }
 
-	    first = null;
-
-	    first = (Long) unsettledtxns.firstElement();
 	    tid = first.longValue();
 
 	    SettlerTask task = 
-	        new SettlerTask(
-		    settlerpool, settlerWakeupMgr, this, tid);
+	        new SettlerTask(settlerpool, settlerWakeupMgr, this, tid);
 	    settlerpool.add(task);
-	    unsettledtxns.remove(first);
 
             if (settleThread.hasBeenInterrupted()) 
 	        throw new InterruptedException("settleTxns interrupted");
@@ -915,12 +921,6 @@ class TxnManagerImpl /*extends RemoteServer*/
                     "Added SettlerTask for tid {0}", Long.valueOf(tid));
 	    }
 	}
-	// Not reachable
-        /*
-	 * if (operationsLogger.isLoggable(Level.FINER)) {
-            operationsLogger.exiting(TxnManagerImpl.class.getName(), 
-	 *   "settleTxns");
-	 */
     }
 
 

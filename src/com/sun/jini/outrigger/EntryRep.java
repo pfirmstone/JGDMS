@@ -68,21 +68,21 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
      * The fields of the entry in marshalled form. Use <code>null</code>
      * for <code>null</code> fields.
      */
-    private MarshalledInstance[] values;
+    private volatile MarshalledInstance[] values;
 
-    private String[]	superclasses;	// class names of the superclasses
-    private long[]	hashes;		// superclass hashes
-    private long	hash;		// hash for the entry class
-    private String	className;	// the class ID of the entry
-    private String	codebase;	// the codebase for this entry class
-    private Uuid	id;		// space-relative storage id
-    private transient long	expires;// expiration time
+    private volatile String[]	superclasses;	// class names of the superclasses
+    private volatile long[]	hashes;		// superclass hashes
+    private volatile long	hash;		// hash for the entry class
+    private volatile String	className;	// the class ID of the entry
+    private volatile String	codebase;	// the codebase for this entry class
+    private volatile Uuid	id;		// space-relative storage id
+    private volatile transient long	expires;// expiration time
 
     /** 
      * <code>true</code> if the last time this object was unmarshalled 
      * integrity was being enforced, <code>false</code> otherwise.
      */
-    private transient boolean integrity;
+    private volatile transient boolean integrity;
 
     /** Comparator for sorting fields */
     private static final FieldComparator comparator = new FieldComparator();
@@ -96,6 +96,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
     private static final EntryRep matchAnyRep;
 
     static {
+        classHashes = new WeakHashMap();
 	try {
 	    matchAnyRep = new EntryRep(new Entry() {
 		// keeps tests happy
@@ -113,7 +114,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
      * not only would an unnecessary object creation occur, but it might
      * force the download of the actual class to the server.
      */
-    private transient Class realClass;	// real class of the contained object
+    private volatile transient Class realClass;	// real class of the contained object
 
     /** 
      * Logger for logging information about operations carried out in
@@ -157,7 +158,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
      * Cached hash values for all classes we encounter. Weak hash used
      * in case the class is GC'ed from the client's VM.
      */
-    static private WeakHashMap	classHashes;
+    static final private WeakHashMap classHashes;
 
     /**
      * Lookup the hash value for the given class. If it is not
@@ -168,8 +169,6 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
 					      boolean marshaling) 
 	throws MarshalException, UnusableEntryException
     {
-	if (classHashes == null)
-	    classHashes = new WeakHashMap();
 
 	Long hash = (Long)classHashes.get(clazz);
 
@@ -330,7 +329,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
     EntryRep() { }
 
     /** Used to look up no-arg constructors.  */
-    private static Class[] noArg = new Class[0];
+    private final static Class[] noArg = new Class[0];
 
     /**
      * Ensure that the entry class is valid, that is, that it has appropriate

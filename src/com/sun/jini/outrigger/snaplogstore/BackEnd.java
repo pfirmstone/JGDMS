@@ -39,6 +39,9 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Observable;
 import java.util.Observer;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -59,19 +62,16 @@ class BackEnd implements Observer {
 
     // The following data represent the persistent
     // state.
-    private Long	  sessionId;
-    private StoredObject  joinState;
-    private Map   	  entries;
-    private Map 	  registrations;
-    private Map 	  pendingTxns;
-    private byte          topUuid[];
-    private LastLog	  lastLog;
-
-    /** Number of times to attempt to restart the consumer thread. */
-    private int		retry = 3;
+    private final AtomicLong	  sessionId;
+    private volatile StoredObject  joinState;
+    private final Map<ByteArrayWrapper,Resource>     entries;
+    private final Map<ByteArrayWrapper,Registration> 	  registrations;
+    private final Map<Long,PendingTxn> 	  pendingTxns;
+    private volatile byte          topUuid[];
+    private volatile LastLog	  lastLog;
 
     /** Snapshot object */
-    private SnapshotFile	snapshotFile;
+    private volatile SnapshotFile	snapshotFile;
 
     /** Keep logs and snapshot tied, though not necessary */
     private final int SNAPSHOT_VERSION = LogFile.LOG_VERSION;
@@ -79,17 +79,17 @@ class BackEnd implements Observer {
     /**
      * The base name for the log files.
      */
-    private String	logFileBase;
+    private final String	logFileBase;
 
     /**
      * The base name for the snapshot files
      */
-    private String	snapshotFileBase;
+    private final String	snapshotFileBase;
 
     /**
      * Log file consumer thread.
      */
-    private ConsumerThread	consumer;
+    private final ConsumerThread	consumer;
 
     /** Max time to wait for the consumer thread to die on destroy */
     private final static long WAIT_FOR_THREAD = 1 * TimeConstants.MINUTES;
@@ -104,6 +104,11 @@ class BackEnd implements Observer {
     BackEnd(String path) {
 	logFileBase = new File(path, LogFile.LOG_TYPE).getAbsolutePath();
 	snapshotFileBase = new File(path, "Snapshot.").getAbsolutePath();
+        consumer = new ConsumerThread();
+        entries		= new ConcurrentHashMap<ByteArrayWrapper,Resource>();
+        registrations	= new ConcurrentHashMap<ByteArrayWrapper,Registration>();
+        pendingTxns	= new ConcurrentHashMap<Long,PendingTxn>();
+        sessionId = new AtomicLong();
     }
 
     /**
@@ -206,10 +211,7 @@ class BackEnd implements Observer {
 	    if (snapshot[0] == null) {
 
 		// no snapshot, initialize fields and return
-		sessionId	= null;
-		entries		= new HashMap();
-		registrations	= new HashMap();
-		pendingTxns	= new HashMap();
+		
 		topUuid		= null;
 		lastLog		= null;
 		return;
@@ -225,11 +227,14 @@ class BackEnd implements Observer {
 		    "Wrong file version:" + version, null);
 	    }
 
-	    sessionId	= (Long)in.readObject();
+	    sessionId.set(((Long)in.readObject()).longValue());
 	    joinState	= (StoredObject)in.readObject();
-	    entries	= (Map)in.readObject();
-	    registrations = (Map)in.readObject();
-	    pendingTxns	= (Map)in.readObject();
+            entries.clear();
+	    entries.putAll((Map<ByteArrayWrapper,Resource>)in.readObject());
+            registrations.clear();
+	    registrations.putAll((Map<ByteArrayWrapper,Registration>)in.readObject());
+            pendingTxns.clear();
+	    pendingTxns.putAll((Map)in.readObject());
 	    topUuid	= (byte[])in.readObject();
 	    lastLog	= (LastLog)in.readObject();
 	    in.close();
@@ -244,7 +249,7 @@ class BackEnd implements Observer {
 
 	// Create and start the log consumer thread
 	//
-	consumer = new ConsumerThread();
+	
 	consumer.start();
     }
 
@@ -255,7 +260,6 @@ class BackEnd implements Observer {
      */
     private class ConsumerThread extends Thread {
 
-	private boolean more = false;
 	volatile private boolean interrupted = false;
 
 	ConsumerThread() {}
@@ -269,23 +273,21 @@ class BackEnd implements Observer {
 		    // to process. LogOutputFile is created after
 		    // setup returns.
 		    //
-		    synchronized(this) {
-			while (!more)
-			    wait();
-			more = false;
-		    }
+                    synchronized(this) {
+                        wait();
+                    }
 
-		    // There is a small window between the wait and
-		    // the consumeLogs where update can be called,
-		    // setting more to true and yet consumeLogs
-		    // actually consumes the log file that caused the
-		    // update. This unlikely situation is ok since
-		    // consumeLogs does the right thing if there are
-		    // no logs to process We could sync around
-		    // consumeLogs but we don't want LogOutputFile to
-		    // wait.
-		    //
-		    consumeLogs(false);
+                    // There is a small window between the wait and
+                    // the consumeLogs where update can be called,
+                    // setting more to true and yet consumeLogs
+                    // actually consumes the log file that caused the
+                    // update. This unlikely situation is ok since
+                    // consumeLogs does the right thing if there are
+                    // no logs to process We could sync around
+                    // consumeLogs but we don't want LogOutputFile to
+                    // wait.
+                    //
+                    consumeLogs(false);
 		}
 	    } catch (InterruptedException exit) {}
 	}
@@ -293,7 +295,7 @@ class BackEnd implements Observer {
 	// Cause the thread to consume a log file.
 	//
 	synchronized private void update() {
-	    more = true;	// For the case it is processing log files
+            // For the case it is processing log files
 	    notify();		// For the case is it waiting
 	}
 
@@ -313,16 +315,8 @@ class BackEnd implements Observer {
     public void update(Observable source, Object arg) {
 
 	if (!consumer.isAlive()) {
-	    if (retry > 0) {
-		logger.log(Level.INFO, 
-			   "Consumer thread died, attempting restart");
-		retry--;
-		startConsumer();
-	    } else {
-		logger.log(Level.SEVERE, 
-			   "Consumer thread no longer running");
-		return;
-	    }
+            logger.log(Level.SEVERE, "Consumer thread no longer running");
+            return;
 	}
 	consumer.update();
     }
@@ -410,7 +404,7 @@ class BackEnd implements Observer {
      * only used during recovery after a restart.
      */
     void bootOp(long time, long session) {
-	sessionId = Long.valueOf(session);
+	sessionId.set(session);
 	if (logger.isLoggable(Level.FINE))
 	    logger.log(Level.FINE, "bootOp({0})", new Date(time));
     }
@@ -602,11 +596,12 @@ class BackEnd implements Observer {
 		ObjectOutputStream out = snapshotFile.next();
 
 		out.writeInt(SNAPSHOT_VERSION);
-		out.writeObject(sessionId);
+		out.writeObject(sessionId.get());
 		out.writeObject(joinState);
-		out.writeObject(entries);
-		out.writeObject(registrations);
-		out.writeObject(pendingTxns);
+                // Serial form of maps is HashMap, cannot be changed.
+		out.writeObject(new HashMap(entries));
+		out.writeObject(new HashMap(registrations));
+		out.writeObject(new HashMap(pendingTxns));
 		out.writeObject(topUuid);
 		out.writeObject(lastLog);
 		snapshotFile.commit();
@@ -629,8 +624,8 @@ class BackEnd implements Observer {
      * before the file was unlinked.  
      */
     private static class LastLog implements Serializable {
-	private String	logFile;
-	private long	timeStamp;
+	private final String	logFile;
+	private final long	timeStamp;
 
 	LastLog(String path) {
 	    logFile = path;

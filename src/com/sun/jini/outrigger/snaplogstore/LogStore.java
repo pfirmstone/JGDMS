@@ -39,10 +39,10 @@ import net.jini.space.InternalSpaceException;
  * @see com.sun.jini.outrigger.OutriggerServerImpl
  */
 public class LogStore implements Store {
-    private LogOutputFile	log;
+    private volatile LogOutputFile	log;
     private final String	path;
-    private BackEnd		be;
-    private int			maxOps;
+    private final BackEnd		be;
+    private final int			maxOps;
 
     /** Logger for logging persistent store related information */
     private static final Logger logger = 

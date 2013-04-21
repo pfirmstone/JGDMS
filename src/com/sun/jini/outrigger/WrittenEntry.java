@@ -40,13 +40,13 @@ package com.sun.jini.outrigger;
 // @see OutriggerServerImpl#getMatch(EntryRep,Transaction,long,boolean,boolean,RemoteEventListener,long)
 class WrittenEntry {
     /** The time at which this entry was written. */
-    private long		timestamp;
+    private final long		timestamp;
 
     /** The next node in the list. */
-    private WrittenEntry	next;
+    private volatile WrittenEntry	next;
 
     /** The EntryRep this node refers to. */
-    private EntryRep		rep;
+    private final EntryRep		rep;
 
     /**
      * Create a new time-stamped entry for the given EntryRep.  The comment

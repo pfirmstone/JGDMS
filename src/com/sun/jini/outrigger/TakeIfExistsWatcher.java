@@ -17,6 +17,7 @@
  */
 package com.sun.jini.outrigger;
 
+import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import net.jini.core.transaction.TransactionException;
@@ -58,7 +59,7 @@ class TakeIfExistsWatcher extends SingletonQueryWatcher
      * we would have liked to return, but have been provisionally
      * removed.
      */
-    private final WeakHashMap provisionallyRemovedEntrySet;
+    private final Map provisionallyRemovedEntrySet;
 
     /**
      * Create a new <code>TakeIfExistsWatcher</code>.
@@ -89,7 +90,7 @@ class TakeIfExistsWatcher extends SingletonQueryWatcher
      */
     TakeIfExistsWatcher(long expiration, long timestamp, 
 	 long startOrdinal, Set lockedEntries, 
-         WeakHashMap provisionallyRemovedEntrySet, Txn txn)
+         Map provisionallyRemovedEntrySet, Txn txn)
     {
 	super(expiration, timestamp, startOrdinal);
 

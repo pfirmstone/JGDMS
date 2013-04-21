@@ -28,8 +28,8 @@ package com.sun.jini.outrigger;
 class ThrowThis implements java.io.Serializable {
     static final long serialVersionUID = -7432214583908049814L;
 
-    private Long	evID;		// the event ID
-    private Exception	toThrow;	// the exception to throw
+    private final Long	evID;		// the event ID
+    private final Exception	toThrow;	// the exception to throw
 
     ThrowThis(Long evID, Exception toThrow) {
 	this.evID = evID;

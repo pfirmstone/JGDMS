@@ -82,7 +82,8 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * The <code>TemplateHandle</code>s associated with this
      * watcher.
      */
-    private Set<TemplateHandle> owners = new java.util.HashSet<TemplateHandle>();
+    private final Set<TemplateHandle> owners = new java.util.HashSet<TemplateHandle>();
+    private volatile boolean removed = false;
 
     /**
      * The OutriggerServerImpl we are part of.
@@ -172,7 +173,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 
 	// lock before checking the time and so we can update currentSeqNum
 	synchronized (this) {
-	    if (owners == null) 
+	    if (removed) 
 		return; // Must have been removed
 
 	    if (now > expiration) {
@@ -222,7 +223,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      *        <code>null</code> 
      */
     synchronized boolean addTemplateHandle(TemplateHandle h) {
-	if (owners == null)
+	if (removed)
 	    return false; // Already removed!
 
 	owners.add(h);
@@ -285,15 +286,16 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 	final Set<TemplateHandle> owners;
         OutriggerServerImpl serv;
 	synchronized (this) {
-	    if (this.owners == null)
+	    if (removed)
 		return false; // already removed
 
 	    // Is this a force, or past our expiration?
 	    if (!doIt && (now < expiration))
 		return false; // don't remove, not our time
 
-	    owners = this.owners; // Don't need to clone
-            this.owners = null; // now it's null, it doesn't need sync anymore.
+	    owners = new java.util.HashSet<TemplateHandle>(this.owners); // Don't need to clone
+            this.owners.clear(); // now it's null, it doesn't need sync anymore.
+            removed = true;
 	    expiration = Long.MIN_VALUE; //Make sure no one tries to renew us
             serv = server;
 	}
@@ -349,7 +351,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 	    boolean doneFor = false;
 
 	    synchronized (AvailabilityRegistrationWatcher.this) {
-		if (owners == null)
+		if (removed)
 		    return; // Our registration must been 
 		            // canceled/expired, don't send event
 

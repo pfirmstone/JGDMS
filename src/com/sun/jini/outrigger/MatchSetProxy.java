@@ -48,16 +48,16 @@ class MatchSetProxy implements MatchSet {
     final private Lease lease;
 
     /** Last batch fetched from server */
-    private EntryRep[] reps;
+    private volatile EntryRep[] reps;
 
     /** Last rep returned */
-    private EntryRep lastRepReturned;
+    private volatile EntryRep lastRepReturned;
 
     /** Current index into reps */
-    private int i;
+    private volatile int i;
 
     /** True if reps[i] could not be unpacked */
-    private boolean unpackFailure = true; 
+    private volatile boolean unpackFailure = true; 
 
     MatchSetProxy(MatchSetData inital, SpaceProxy2 parent, OutriggerServer space) {
 	uuid = inital.uuid;

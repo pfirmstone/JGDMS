@@ -19,6 +19,7 @@ package com.sun.jini.outrigger;
 
 import java.util.SortedSet;
 import java.util.Iterator;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -52,19 +53,19 @@ class OperationJournal extends Thread {
     private final TransitionWatchers watchers;
 
     /** The current tail of the transitions list. */
-    private JournalNode tail;
+    private volatile JournalNode tail;
 
     /**
      * The <code>JournalNode</code> we are currently processing or if
      * none are in process the last one we processed.
      */
-    private JournalNode lastProcessed;
+    private volatile JournalNode lastProcessed;
 
     /** If <code>true</code> stop thread */
     private volatile boolean dead = false;
 
     /** The last ordinal value used */
-    private long lastOrdinalUsed = 1;
+    private final AtomicLong lastOrdinalUsed = new AtomicLong(1L);
 
     /** Logger for logging exceptions */
     private static final Logger logger = 
@@ -93,7 +94,7 @@ class OperationJournal extends Thread {
 	 * @param payload The value for the payload field.
 	 */
 	private JournalNode(Object payload) {
-	    ordinal = ++lastOrdinalUsed;
+	    ordinal = lastOrdinalUsed.incrementAndGet();
 	    this.payload = payload;
 	}
 
@@ -298,10 +299,8 @@ class OperationJournal extends Thread {
 	if (watchers == null)
 	    throw new NullPointerException("watchers must be non-null");
 	this.watchers = watchers;
-	synchronized (this) {
-	    tail = new JournalNode(null);
-	}
-	lastProcessed = tail;	
+        tail = new JournalNode(null);
+	lastProcessed = tail;
     }
 
     /**
@@ -340,7 +339,7 @@ class OperationJournal extends Thread {
      * @return the ordinal of the last operation posted.
      */
     synchronized long currentOrdinal() {
-	return lastOrdinalUsed;
+	return lastOrdinalUsed.get();
     }
 
     /**

@@ -71,7 +71,7 @@ import net.jini.core.entry.Entry;
 class SnapshotRep implements Entry {
     static final long serialVersionUID = 5126328162389368097L;
 
-    private EntryRep rep;	// the rep from the snapshot
+    private final EntryRep rep;	// the rep from the snapshot
 
     /**
      * Create a new <code>SnapshotRep</code> that is a snapshot of

@@ -21,8 +21,8 @@ import com.sun.jini.logging.Levels;
 import com.sun.jini.thread.RetryTask;
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
-import java.rmi.RemoteException;
 import java.rmi.NoSuchObjectException;
+import java.rmi.RemoteException;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -40,8 +40,6 @@ import net.jini.core.transaction.server.TransactionManager;
 
 public class SettlerTask extends RetryTask implements TransactionConstants {
     private final long tid;
-    private int attempt; // sync on this.
-    private final int maxtries = Integer.MAX_VALUE;
     private final TransactionManager txnmgr;
 
     /** Logger for operations related messages */
@@ -89,12 +87,8 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
 	        "tryOnce");
 	}
         try {
-            synchronized (this){
-	    if (attempt >= maxtries)
-		return true;
-
-	    attempt++;
-            }
+            // There was previously a check to see if max tries (an int) was
+            // greater than Integer.MAX_VALUE that returned true, the condition was never true.
 
 	    if (transactionsLogger.isLoggable(Level.FINEST)) {
                 transactionsLogger.log(Level.FINEST,
@@ -119,6 +113,8 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
 		    "Attempting to settle transaction in an invalid state: {0}", 
 		    Integer.valueOf(state));
 	        }
+                System.err.println("Attempting to settle transaction in an invalid state:" + 
+		    Integer.valueOf(state));
 	    }
 
 	} catch (NoSuchObjectException nsoe) {
@@ -126,12 +122,14 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
 		transactionsLogger.log(Level.WARNING,
 		"Unable to settle recovered transaction", nsoe);
 	    }
+            nsoe.printStackTrace(System.err);
 //TODO -ignore?	    
         } catch (TransactionException te) {
 	    if(transactionsLogger.isLoggable(Levels.HANDLED)) {
 		transactionsLogger.log(Levels.HANDLED,
 		"Unable to settle recovered transaction", te);
 	    }
+            te.printStackTrace(System.err);
 //TODO -ignore?	    
         } catch (RemoteException re) {
 	    //try again
@@ -139,6 +137,7 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
                 operationsLogger.exiting(SettlerTask.class.getName(), 
 	            "tryOnce", Boolean.valueOf(false));
 	    }
+            re.printStackTrace(System.err);
 	    return false;
 	}
 

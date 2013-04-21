@@ -37,7 +37,7 @@ import net.jini.space.InternalSpaceException;
 class BaseObject implements StoredObject, Serializable {
     static final long serialVersionUID = -400804064969360164L;
 
-    private byte[]	blob;
+    private final byte[]	blob;
 
     BaseObject(StorableObject object) {
 	try {

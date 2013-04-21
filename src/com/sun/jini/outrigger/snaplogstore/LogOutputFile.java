@@ -54,20 +54,20 @@ import net.jini.space.InternalSpaceException;
  * @see java.util.Observable
  */
 class LogOutputFile extends LogFile implements LogOps {
-    private RandomAccessFile	logFile = null;// the current output log file
-    private FileDescriptor	logFD;	   // the current log file descriptor
-    private ObjectOutputStream	out;	   // objects written
-    private int			suffix;	   // the current suffix number
-    private int			opCnt;	   // number of ops on current file
-    private int			maxOps;	   // max ops to allow in file
-    private Observable		observable;// handle Observer/Observable
+    private volatile RandomAccessFile	logFile = null;// the current output log file
+    private volatile FileDescriptor	logFD;	   // the current log file descriptor
+    private volatile ObjectOutputStream	out;	   // objects written
+    private volatile int			suffix;	   // the current suffix number
+    private volatile int			opCnt;	   // number of ops on current file
+    private volatile int			maxOps;	   // max ops to allow in file
+    private volatile Observable		observable;// handle Observer/Observable
 
-    private long logBytes = 0;
+    private volatile long logBytes = 0;
     private final byte[] intBuf = new byte[4];
     private final byte[] zeroBuf = new byte[4];
 
-    private long deferedUpdateLength = 0;
-    private long deferedPosition = 0;
+    private volatile long deferedUpdateLength = 0;
+    private volatile long deferedPosition = 0;
 
     private static final long intBytes = 4;
 

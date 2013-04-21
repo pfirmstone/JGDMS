@@ -38,13 +38,13 @@ import net.jini.security.ProxyPreparer;
  */
 class StorableReference implements Externalizable {
     /** The proxy in marshalled form */
-    private MarshalledObject bytes;
+    private volatile MarshalledObject bytes;
 
     /** A cached copy of the unmarshalled proxy */
-    private transient Object obj;
+    private volatile transient Object obj;
 
     /** True if the <code>obj</code> has been prepared */
-    private transient boolean prepared;
+    private volatile transient boolean prepared;
 
     private static final boolean DEBUG = false;
     private static final long serialVersionUID = -3793675220968988873L;

@@ -38,22 +38,22 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
     /**
      * Lease being used
      */
-    protected Lease lease = null;
+    protected volatile Lease lease = null;
 
     // Time lease will expire
-    private long expTime;
+    private volatile long expTime;
 
     // Time lease of lease duration
-    private long durTime;
+    private volatile long durTime;
 
     // How long until the lease should be renewed
-    private long renewTime;
+    private volatile long renewTime;
 
     // What to set renewTime to, if < 0 the half of duration
-    private long renewWait;
+    private volatile long renewWait;
 
     // Time to let cancel to propgate
-    private long cancelSlop;
+    private volatile long cancelSlop;
 
     // Set renew and exp times
     private void setTimes() {
@@ -68,10 +68,10 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
 	    renewTime = renewWait + curTime;
     }
 
-    protected long renewals = 0;
-    protected boolean cancel;
-    protected long shutdownTime = -1;
-    protected long restartSleep = 10000;
+    protected volatile long renewals = 0;
+    protected volatile boolean cancel;
+    protected volatile long shutdownTime = -1;
+    protected volatile long restartSleep = 10000;
 
     /** 
      * Method should acquire some resource under a lease and return
@@ -142,7 +142,7 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
 	if (cancel && renewals <= 0) {
 	    cancel();
 	} else {
-	    logger.log(Level.INFO, "Expire Test: Slop = " + slop);
+	    logger.log(Level.INFO, "Expire Test: Slop = {0}", slop);
 	    while (true) {
 		// We measure the time twice so propagation delays do
 		// not cause the test to fail.  The test only fails on
@@ -235,10 +235,11 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
 	// easer to code
 	if (cancelSlop > 0) {
 	    try {
-		logger.log(Level.INFO, "Sleeping for " + cancelSlop + " milliseconds to " +
-			  "allow cancel to propagate...");
+		logger.log(Level.INFO, "Sleeping for {0}" +
+			  " milliseconds to " + "allow cancel to propagate... time:{1}", new Object[]{cancelSlop, System.currentTimeMillis()});
 		Thread.sleep(cancelSlop);
-		logger.log(Level.INFO, "awake");
+		logger.log(Level.INFO, "awake ... time:{0}", System.currentTimeMillis());
+                
 	    } catch (InterruptedException e) {
 		// Should not happen
 		throw new TestException("Cancel slop sleep interupted!");

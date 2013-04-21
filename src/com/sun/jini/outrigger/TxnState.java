@@ -43,13 +43,13 @@ class TxnState {
      * direct reference to the only manager for this handle, or a reference
      * to an <code>HashSet</code> with entries for each associated manager.
      */
-    private Object		mgrs;
+    private volatile Object		mgrs;
 
     /**
      * The current state of the handle, such as <code>READ</code> or
      * <code>TAKE</code>.
      */
-    private int			state;
+    private volatile int			state;
 
     /**
      * The holder the handle which owns this object is in

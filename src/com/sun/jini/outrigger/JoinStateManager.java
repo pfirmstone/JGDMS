@@ -54,24 +54,24 @@ import com.sun.jini.logging.Levels;
 // @see JoinAdminState
 class JoinStateManager implements StorableObject {
     /** <code>ProxyPreparer</code> for <code>LookupLocators</code> */
-    private ProxyPreparer lookupLocatorPreparer;
+    private volatile ProxyPreparer lookupLocatorPreparer;
 
     /**
      * Object used to find lookups. Has to implement DiscoveryManagement
      * and DiscoveryLocatorManagement as well as DiscoveryGroupManagement.
      */
-    private DiscoveryGroupManagement dgm;
+    private volatile DiscoveryGroupManagement dgm;
 
     /**
      * <code>JoinManager</code> that is handling the details of binding
      * into Jini lookup services.
      */
-    private JoinManager  mgr;
+    private volatile JoinManager  mgr;
 
     /**
      * The object that is coordinating our persistent state.
      */
-    private LogOps log;
+    private volatile LogOps log;
 
     /**
      * The list of attributes to start with. This field is only used
@@ -80,7 +80,7 @@ class JoinStateManager implements StorableObject {
      * is kept by <code>mgr</code>. This field is nulled out by
      * <code>startManager</code>.
      */
-    private Entry[]		attributes;
+    private volatile Entry[]		attributes;
 
     /**
      * The list of <code>LookupLocator</code>s to start with. This
@@ -89,7 +89,7 @@ class JoinStateManager implements StorableObject {
      * of attributes is kept by <code>mgr</code>. This field is nulled
      * out by <code>startManager</code>.  
      */
-    private LookupLocator	locators[];
+    private volatile LookupLocator	locators[];
 
 
     /**
@@ -99,14 +99,14 @@ class JoinStateManager implements StorableObject {
      * is kept by <code>mgr</code>. This field is nulled out by
      * <code>startManager</code>.
      */
-    private String		groups[];
+    private volatile String		groups[];
 
     /**
      * Conceptually, true if this is the first time this
      * service has come up, implemented as if there was
      * no previous state then this is the first time.
      */
-    private boolean initial = true;
+    private volatile boolean initial = true;
 
     /** Logger for logging join related information */
     private static final Logger logger = 

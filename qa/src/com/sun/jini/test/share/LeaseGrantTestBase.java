@@ -34,12 +34,12 @@ import net.jini.admin.Administrable;
 public abstract class LeaseGrantTestBase extends TestBase implements Test {
     // If true then the tests expects leases to granted
     // exactly.  If false the grant can be for less than the request
-    private boolean exact = false; 
+    private volatile boolean exact = false; 
 
     /**
      * The length of time the lease should be asked for.
      */
-    protected long durationRequest;
+    protected volatile long durationRequest;
 
     /**
      * The expiration time that would be given for the duration request
@@ -47,26 +47,26 @@ public abstract class LeaseGrantTestBase extends TestBase implements Test {
      * <code>Lease.ANY</code>.
      * @see #resourceRequested
      */
-    protected long expirationRequest;
+    protected volatile long expirationRequest;
 
     /**
      * The local time just after the request.  <code>expirationRequest</code>
      * is <code>requestStart + durationRequest</code>.
      * @see #resourceRequested
      */
-    protected long requestStart;
+    protected volatile long requestStart;
 
     /**
      * The length of time that leases get cliped to if they are too
      * long. A negative value indicates no cliping is expected
      */
-    protected long clip = -1;
+    protected volatile long clip = -1;
 
     /*
      * Acceptable slop interval between when we think lease will
      * expire and when it acctually does.
      */
-    protected long slop = 2000;
+    protected volatile long slop = 2000;
     
     /**
      * Test the passed lease to see if it has been granted for an

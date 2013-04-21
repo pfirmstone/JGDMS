@@ -35,11 +35,11 @@ import net.jini.space.InternalSpaceException;
  * @author Sun Microsystems, Inc.
  */
 class SnapshotFile extends LogFile {
-    private RandomAccessFile	snapshotFile = null;// current snapshot file
-    private String		fileName = null; // current snapshot file name
-    private String		previousFilename = null; // previous snapshot
-    private ObjectOutputStream	out;	   // current snapshot stream
-    private int			suffix;	   // the current suffix number
+    private volatile RandomAccessFile	snapshotFile = null;// current snapshot file
+    private volatile String		fileName = null; // current snapshot file name
+    private volatile String		previousFilename = null; // previous snapshot
+    private volatile ObjectOutputStream	out;	   // current snapshot stream
+    private volatile int			suffix;	   // the current suffix number
 
     /** Logger for logging persistent store related information */
     private static final Logger logger = 

@@ -19,6 +19,7 @@ package com.sun.jini.outrigger;
 
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.logging.Level;
@@ -116,7 +117,7 @@ class EntryHolder implements TransactionConstants {
      */
     EntryHandle hasMatch(EntryRep tmpl, TransactableMgr txn, boolean takeIt,
             Set conflictSet, Set lockedEntrySet,
-            WeakHashMap provisionallyRemovedEntrySet)
+            Map provisionallyRemovedEntrySet)
             throws CannotJoinException {
         matchingLogger.entering("EntryHolder", "hasMatch");
         EntryHandleTmplDesc desc = null;
@@ -213,7 +214,7 @@ class EntryHolder implements TransactionConstants {
      */
     boolean attemptCapture(EntryHandle handle, TransactableMgr txn,
 	boolean takeIt, Set conflictSet, Set lockedEntrySet, 
-        WeakHashMap provisionallyRemovedEntrySet, long now)
+        Map provisionallyRemovedEntrySet, long now)
     {
 	try {
 	    return confirmAvailabilityWithTxn(handle.rep(), handle,
@@ -231,7 +232,7 @@ class EntryHolder implements TransactionConstants {
     private boolean confirmAvailabilityWithTxn(EntryRep rep, 
 	      EntryHandle handle, TransactableMgr txnMgr, boolean takeIt, 
 	      long time, Set conflictSet, Set lockedEntrySet,
-	      WeakHashMap provisionallyRemovedEntrySet)
+	      Map provisionallyRemovedEntrySet)
 	throws CannotJoinException
     {
 	// Now that we know we have a match, make sure that the the
@@ -275,7 +276,7 @@ class EntryHolder implements TransactionConstants {
 	confirmAvailability(EntryRep rep, EntryHandle handle,
 	      TransactableMgr txn, boolean takeIt, long time,
 	      Set conflictSet, Set lockedEntrySet,
-	      WeakHashMap provisionallyRemovedEntrySet)
+	      Map provisionallyRemovedEntrySet)
     {
 	if (handle.removed())
 	    return false;
@@ -576,9 +577,9 @@ class EntryHolder implements TransactionConstants {
      * The class that implements <code>RepEnum</code> for this class.
      */
     private class SimpleRepEnum implements RepEnum {
-        private Iterator<EntryHandle> contentsIterator;
-	private TransactableMgr mgr;
-	private long startTime;
+        private final Iterator<EntryHandle> contentsIterator;
+	private final TransactableMgr mgr;
+	private final long startTime;
 
         SimpleRepEnum(TransactableMgr mgr) {
             this.mgr = mgr;
@@ -652,17 +653,17 @@ class EntryHolder implements TransactionConstants {
 	final private boolean takeThem;
 
 	/** <code>EntryHandleTmplDesc</code> for the templates */
-	private EntryHandleTmplDesc[] descs;
+	private volatile EntryHandleTmplDesc[] descs;
 	    
 
 	/** Time used to weed out expired entries, ok if old */
-	long now;
+	volatile long now;
 
 	/** 
 	 * Current position in parent <code>EntryHolder</code>'s
 	 * <code>contents</code> 
 	 */
-	private Iterator<EntryHandle> contentsIterator;
+	private final Iterator<EntryHandle> contentsIterator;
 
 	/**
 	 * Create a new <code>ContinuingQuery</code> object.

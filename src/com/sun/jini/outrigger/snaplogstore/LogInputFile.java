@@ -42,7 +42,7 @@ import net.jini.space.InternalSpaceException;
  * @see LogOutputFile
  */
 class LogInputFile extends LogFile {
-    private File		file;	// the current log file
+    private final File		file;	// the current log file
 
     private static final long	intBytes = 4;
 
@@ -86,8 +86,8 @@ class LogInputFile extends LogFile {
      * @see LogInputFileIterator#next
      */
     private static class LogInputFileIterator implements Iterator {
-	private LogFile		baseLogFile;
-	private Iterator	fileList;
+	private final LogFile		baseLogFile;
+	private final Iterator	fileList;
 
 	/**
 	 * Create a new <code>LogInputFileIterator</code> object

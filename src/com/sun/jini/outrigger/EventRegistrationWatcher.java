@@ -46,21 +46,21 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      * Protected, but only for use by subclasses.
      * Should not be changed.
      */
-    Uuid cookie;
+    volatile Uuid cookie;
 
     /**
      * The handback associated with this registration.
      * Protected, but only for use by subclasses.
      * Should not be changed.
      */
-    MarshalledObject handback;
+    volatile MarshalledObject handback;
 
     /** 
      * The event ID associated with this registration
      * Protected, but only for use by subclasses.
      * Should not be changed.
      */
-    long eventID;
+    volatile long eventID;
 
     /** 
      * The current sequence number. 
@@ -71,7 +71,7 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      * The sequence number of the last event successfully 
      * delivered.  Protected, but only for use by subclasses.
      */
-    long lastSeqNumDelivered = -1;
+    volatile long lastSeqNumDelivered = -1;
 
     /**
      * The <code>TemplateHandle</code> associated with this

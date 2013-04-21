@@ -41,4 +41,8 @@ public class TransactionException extends Exception {
     public TransactionException() {
 	super();
     }
+    
+    public TransactionException(String desc, Throwable cause){
+        super(desc, cause);
+    }
 }

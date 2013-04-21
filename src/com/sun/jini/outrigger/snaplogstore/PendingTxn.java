@@ -51,7 +51,7 @@ class PendingTxn implements Serializable {
 
     /** An object that represents a pending write. */
     static class WriteOp extends PendingOp implements Serializable {
-	Resource entry;
+	final Resource entry;
 
 	WriteOp(Resource entry) {
 	    this.entry = entry;
@@ -64,7 +64,7 @@ class PendingTxn implements Serializable {
 
     /** An object that represents a pending take. */
     static class TakeOp extends PendingOp implements Serializable {
-	byte cookie[];
+	final byte cookie[];
 
 	TakeOp(byte cookie[]) {
 	    this.cookie = cookie;
@@ -75,10 +75,10 @@ class PendingTxn implements Serializable {
 	}
     }
 
-    private long		id;		// the transaction ID
-    private int			state;		// current state
-    private Hashtable		ops;		// list of pending operations
-    private StoredObject	transaction;	// the transaction object
+    private final long		id;		// the transaction ID
+    private volatile int			state;		// current state
+    private final Hashtable		ops;		// list of pending operations
+    private volatile StoredObject	transaction;	// the transaction object
                                                 // itself
     /**
      * Create a new <code>PendingTxn</code> for the given <code>id</code>.

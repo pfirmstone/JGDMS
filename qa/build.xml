@@ -1535,7 +1535,6 @@
     <target name="qa1-share.stubs" depends="compile">
         <rmic base="${build.classes.dir}" stubversion="1.2" classpathref="river.jars">
             <include name="com/sun/jini/test/share/KillVMUtil$$KillVMObjectImpl.class" />
-            <include name="com/sun/jini/test/share/reggie/RegistrarImpl.class" />
             <include name="com/sun/jini/test/share/TesterTransactionManager.class" />
             <include name="com/sun/jini/test/share/LeaseBackEndImpl.class" />
             <include name="com/sun/jini/test/share/TestParticipantImpl.class" />
@@ -1552,11 +1551,6 @@
             <arg pathref="classdep.cp"/>
             <arg value="-files"/>
             <arg line="-in com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarProxy"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarAdminProxy"/>
-            <arg line="com.sun.jini.test.share.reggie.EventLease"/>
-            <arg line="com.sun.jini.test.share.reggie.Registration"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarEvent"/>
             <arg line="com.sun.jini.test.share.AttrOne"/>
             <arg line="com.sun.jini.test.share.AttrTwo"/>
             <arg line="com.sun.jini.test.share.SunOfAttrOne"/>
@@ -1568,7 +1562,6 @@
             <arg line="com.sun.jini.test.share.TesterTransactionManagerProxyVerifier"/>
             <arg line="com.sun.jini.test.share.LeaseBackEndImpl$$VerifierImpl"/>
             <arg line="com.sun.jini.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarImpl_Stub"/>
             <arg line="com.sun.jini.test.share.TesterTransactionManager_Stub"/>
             <arg line="com.sun.jini.test.share.LeaseBackEndImpl_Stub"/>
             <arg line="com.sun.jini.test.share.TestParticipantImpl_Stub"/>
@@ -1586,17 +1579,11 @@
             <arg line="-in net.jini"/>
             <arg line="${jskplatform.exclude}"/>
             <arg line="-hide com.sun.jini.test"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarProxy"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarAdminProxy"/>
-            <arg line="com.sun.jini.test.share.reggie.EventLease"/>
-            <arg line="com.sun.jini.test.share.reggie.Registration"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarEvent"/>
             <arg line="com.sun.jini.test.share.TesterTransactionManagerProxy"/>
             <arg line="com.sun.jini.test.share.TesterTransactionManagerConstrainableProxy"/>
             <arg line="com.sun.jini.test.share.TesterTransactionManagerProxyVerifier"/>
             <arg line="com.sun.jini.proxy.BasicProxyTrustVerifier"/>
             <arg line="com.sun.jini.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarImpl_Stub"/>
             <arg line="com.sun.jini.test.share.TesterTransactionManager_Stub"/>
             <arg line="com.sun.jini.test.share.LeaseBackEndImpl_Stub"/>
             <arg line="com.sun.jini.test.share.TestParticipantImpl_Stub"/>
@@ -1619,10 +1606,7 @@
             <arg value="-files"/>
             <arg line="-in net.jini"/>
             <arg line="-in com.sun.jini"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarImpl"/>
-            <arg line="com.sun.jini.test.share.reggie.CreateLookup"/>
             <arg line="com.sun.jini.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarImpl_Stub"/>
             <arg line="com.sun.jini.test.share.TesterTransactionManager_Stub"/>
             <arg line="com.sun.jini.test.share.LeaseBackEndImpl_Stub"/>
             <arg line="com.sun.jini.test.share.TestParticipantImpl_Stub"/>
@@ -1648,17 +1632,11 @@
             <arg value="-files"/>
             <arg line="-in net.jini"/>
             <arg line="-in com.sun.jini"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarProxy"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarAdminProxy"/>
-            <arg line="com.sun.jini.test.share.reggie.EventLease"/>
-            <arg line="com.sun.jini.test.share.reggie.Registration"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarEvent"/>
             <arg line="net.jini.lookup.entry.Name"/>
             <arg line="net.jini.lookup.entry.ServiceInfo"/>
             <arg line="com.sun.jini.lookup.entry.BasicServiceType"/>
             <arg line="com.sun.jini.reliableLog.LogException"/>
             <arg line="com.sun.jini.test.share.KillVMUtil$$KillVMObjectImpl_Stub"/>
-            <arg line="com.sun.jini.test.share.reggie.RegistrarImpl_Stub"/>
             <arg line="com.sun.jini.test.share.TesterTransactionManager_Stub"/>
             <arg line="com.sun.jini.test.share.LeaseBackEndImpl_Stub"/>
             <arg line="com.sun.jini.test.share.TestParticipantImpl_Stub"/>

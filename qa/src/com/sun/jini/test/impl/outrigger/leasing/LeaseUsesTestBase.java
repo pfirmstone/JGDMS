@@ -278,9 +278,9 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
         if (cancelSlop > 0) {
 	    logger.log(Level.INFO, 
 		       "Sleeping for {0}" + " milliseconds to "
-		       + "allow cancel to propagate...", cancelSlop);
+		       + "allow cancel to propagate... time: {1}", new Object[] {cancelSlop, System.currentTimeMillis()});
 	    Thread.sleep(cancelSlop);
-	    logger.log(Level.INFO, "awake");
+	    logger.log(Level.INFO, "awake: {0}", System.currentTimeMillis());
         }
         logger.log(Level.INFO, 
 		   "Cancel Test: checking to make sure resource " + "is gone");

@@ -24,7 +24,7 @@ package com.sun.jini.outrigger;
  *
  */
 class BaseHandle extends FastList.Node {
-    private EntryRep	rep;		// the rep this handle manages
+    private final EntryRep	rep;		// the rep this handle manages
 
     /**
      * Create a new handle

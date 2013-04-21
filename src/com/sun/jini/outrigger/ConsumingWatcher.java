@@ -17,6 +17,7 @@
  */
 package com.sun.jini.outrigger;
 
+import java.util.Map;
 import java.util.WeakHashMap;
 import net.jini.core.transaction.TransactionException;
 import net.jini.space.InternalSpaceException;
@@ -46,7 +47,7 @@ class ConsumingWatcher extends SingletonQueryWatcher implements Transactable {
      * we would have liked to return, but have been provisionally
      * removed.
      */
-    private final WeakHashMap provisionallyRemovedEntrySet;
+    private final Map provisionallyRemovedEntrySet;
 
     /**
      * Create a new <code>ConsumingWatcher</code>.
@@ -73,7 +74,7 @@ class ConsumingWatcher extends SingletonQueryWatcher implements Transactable {
      *        <code>false</code> otherwise.  
      */
     ConsumingWatcher(long expiration, long timestamp, long startOrdinal, 
-		     WeakHashMap provisionallyRemovedEntrySet, Txn txn,
+		     Map provisionallyRemovedEntrySet, Txn txn,
 		     boolean takeIt)
     {
 	super(expiration, timestamp, startOrdinal);

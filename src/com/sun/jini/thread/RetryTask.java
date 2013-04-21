@@ -62,16 +62,17 @@ import com.sun.jini.constants.TimeConstants;
  * @see WakeupManager
  */
 import com.sun.jini.thread.WakeupManager.Ticket;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public abstract class RetryTask implements TaskManager.Task, TimeConstants {
     private final TaskManager	  manager;	// the TaskManager for this task
-    private RetryTime	  retry;	// the retry object for this task
-    private boolean	  cancelled;	// have we been cancelled?
-    private boolean	  complete;	// have we completed successfully?
-    private Ticket	  ticket;	// the WakeupManager ticket
-    private long	  startTime;	// the time when we were created or 
+    private volatile RetryTime	  retry;	// the retry object for this task
+    private volatile boolean	  cancelled;	// have we been cancelled?
+    private volatile boolean	  complete;	// have we completed successfully?
+    private volatile Ticket	  ticket;	// the WakeupManager ticket
+    private volatile long	  startTime;	// the time when we were created or 
                                         //   last reset
-    private int		  attempt;	// the current attempt number
+    private final AtomicInteger attempt;	// the current attempt number
     private final WakeupManager wakeup;       // WakeupManager for retry scheduling
 
     /**
@@ -102,6 +103,7 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
     public RetryTask(TaskManager manager, WakeupManager wakeupManager) {
 	this.manager = manager;
         this.wakeup = wakeupManager;
+        attempt = new AtomicInteger();
 	reset();
     }
 
@@ -122,11 +124,9 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
      * @see #tryOnce
      * @see #startTime 
      */
-    public void run() {
-	synchronized (this) {		// avoid retry if cancelled
-	    if (cancelled)		// if they cancelled
-		return;			// do nothing
-	}
+    public void run() {		// avoid retry if cancelled
+        if (cancelled) return;			// do nothing
+	
 
 	boolean success = false;
         try {
@@ -136,26 +136,29 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
             if (t instanceof Error) throw (Error) t;
             if (t instanceof RuntimeException) throw (RuntimeException) t;
         }
+        if (!success) {		// if at first we don't succeed ...
+            attempt.incrementAndGet();
+            long at = retryTime();	// ... try, try again
 
-	synchronized (this) {
-	    if (!success) {		// if at first we don't succeed ...
-		attempt++;
-		long at = retryTime();	// ... try, try again
+            if (logger.isLoggable(Level.FINEST)) {
+                logger.log(Level.FINEST, "retry of {0} in {1} ms", 
+                    new Object[]{this, 
+                        Long.valueOf(at - System.currentTimeMillis())});
+            }
 
-		if (logger.isLoggable(Level.FINEST)) {
-		    logger.log(Level.FINEST, "retry of {0} in {1} ms", 
-		        new Object[]{this, 
-			    Long.valueOf(at - System.currentTimeMillis())});
-		}
-
-		if (retry == null)	// only create it if we need to
-		    retry = new RetryTime();
-		ticket = wakeup.schedule(at, retry);
-	    } else {
-		complete = true;
-		notifyAll();		// see waitFor()
-	    }
-	}
+            if (retry == null)	// only create it if we need to
+                retry = new RetryTime();
+            ticket = wakeup.schedule(at, retry);
+        } else {
+            complete = true;
+            // Notify was here, however I noticed that during some tests,
+            // the wakeup manager task was scheduled after cancelling.
+             synchronized (this){
+                notifyAll();	
+            } // see waitFor()
+        }
+       
+	
     }
 
     /**
@@ -173,7 +176,8 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
      * not own the lock the result is undefined and could result in an
      * exception.
      */
-    public synchronized long retryTime() {
+    public long retryTime() {
+        int attempt = this.attempt.get();
 	int index = (attempt < delays.length ? attempt : delays.length - 1); 
 	return delays[index] + System.currentTimeMillis();
     }
@@ -182,15 +186,15 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
      * Return the time this task was created, or the last
      * time {@link #reset reset} was called.
      */
-    public synchronized long startTime() {
+    public long startTime() {
 	return startTime;
     }
 
     /**
      * Return the attempt number, starting with zero.
      */
-    public synchronized int attempt() {
-	return attempt;
+    public int attempt() {
+	return attempt.get();
     }
 
     /**
@@ -200,17 +204,19 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
      * unless a subclass overrides this to do so.  Any override of this
      * method should invoke <code>super.cancel()</code>.
      */
-    public synchronized void cancel() {
+    public void cancel() {
 	cancelled = true;
-	if (ticket != null)
-	    wakeup.cancel(ticket);
-	notifyAll();		// see waitFor()
+        Ticket ticket = this.ticket;
+	if (ticket != null) wakeup.cancel(ticket);
+        synchronized (this) {
+            notifyAll();		// see waitFor()
+        }
     }
 
     /**
      * Return <code>true</code> if <code>cancel</code> has been invoked.
      */
-    public synchronized boolean cancelled() {
+    public boolean cancelled() {
 	return cancelled;
     }
 
@@ -218,26 +224,30 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
      * Return <code>true</code> if <code>tryOnce</code> has returned
      * successfully.
      */
-    public synchronized boolean complete() {
+    public boolean complete() {
 	return complete;
     }
 
-    public synchronized boolean waitFor() throws InterruptedException {
-	while (!cancelled && !complete)
-	    wait();
-	return complete;
+    public boolean waitFor() throws InterruptedException {
+        
+            while (!cancelled && !complete)
+                synchronized (this){
+                    wait();
+                }
+            return complete;
+        
     }
 
     /**
      * Reset values for a new use of this task.
      */
-    public synchronized void reset() {
+    public void reset() {
 	cancel();		// remove from the wakeup queue
 	startTime = System.currentTimeMillis();
 	cancelled = false;
 	complete = false;
 	ticket = null;
-	attempt = 0;
+	attempt.set(0);
     }
 
     /**
@@ -251,9 +261,7 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
 	 * Time to retry the task.
 	 */
 	public void run() {
-	    synchronized (RetryTask.this) {
-		ticket = null;
-	    }
+            ticket = null;
 	    manager.add(RetryTask.this);
 	}
     };

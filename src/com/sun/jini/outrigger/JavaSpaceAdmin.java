@@ -46,7 +46,7 @@ public interface JavaSpaceAdmin extends JoinAdmin, DestroyAdmin {
      * Can be passed to <code>contents</code> to indicate
      * no preference for the fetch size.
      */
-    int USE_DEFAULT = -1;
+    final int USE_DEFAULT = -1;
 
     /**
      * Return the space that this administrative object governs.

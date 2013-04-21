@@ -88,7 +88,7 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
          * removed from the list to which it was added. Protected by
          * synchronization on the node.
          */
-        private FastList<?> list;
+        private volatile FastList<?> list;
 
         /**
          * Remove this node from its list.

@@ -99,6 +99,7 @@ import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
+import net.jini.core.transaction.server.TransactionConstants;
 
 /**
  * A basic implementation of a JavaSpaces<sup><font size=-2>TM</font></sup> 
@@ -241,13 +242,13 @@ public class OutriggerServerImpl
      * <code>EventRegistrationRecord</code> instances
      */
     final private Map<Uuid,LeasedResource> eventRegistrations =
-	Collections.synchronizedMap(new java.util.HashMap<Uuid,LeasedResource>());
+	new ConcurrentHashMap<Uuid,LeasedResource>();
 
     /**
      * A map from contents result cookies to <code>ContentsQuery</code> objects.
      */
     final private Map<Uuid,LeasedResource> contentsQueries = 
-	Collections.synchronizedMap(new java.util.HashMap<Uuid,LeasedResource>());
+	new ConcurrentHashMap<Uuid,LeasedResource>();
 
     /**
      * The transactions recovered after restart. This table
@@ -336,7 +337,7 @@ public class OutriggerServerImpl
      * server.
      * @serial
      */
-    private final OutriggerServer ourRemoteRef;
+    private volatile OutriggerServer ourRemoteRef;
 
     /**
      * The <code>Uuid</code> for this service. Used in the 
@@ -583,7 +584,6 @@ public class OutriggerServerImpl
             transactionManagerPreparer = h.transactionManagerPreparer;
             listenerPreparer = h.listenerPreparer;
             exporter = h.exporter;
-            ourRemoteRef = h.ourRemoteRef;
             contents = h.contents;
             templates = h.templates;
             operationJournal = h.operationJournal;
@@ -655,6 +655,7 @@ public class OutriggerServerImpl
 
                 @Override
                 public Object run() throws Exception {
+                    ourRemoteRef = (OutriggerServer) exporter.export(serverGate);
                             // This takes a while the first time, so let's get it going
                     txnMonitor.start();
                     starter.start();
@@ -731,8 +732,10 @@ public class OutriggerServerImpl
         } catch (Exception e) {
             // Clean up and rethrow.
             lifecycleLogger.log(Level.SEVERE, "Failed to start Outrigger server", e);
-            // If we created a JoinStateManager,
-            
+           
+            unwindExporter(ourRemoteRef, exporter);
+           
+             // If we created a JoinStateManager,
             try {
                 joinStateManager.destroy();
             } catch (Throwable t) {
@@ -796,7 +799,6 @@ public class OutriggerServerImpl
         ProxyPreparer transactionManagerPreparer;
         ProxyPreparer listenerPreparer;
         Exporter exporter;
-        OutriggerServer ourRemoteRef;
         EntryHolderSet contents;
         TransitionWatchers templates;
         OperationJournal operationJournal;
@@ -848,7 +850,7 @@ public class OutriggerServerImpl
     {
         InitHolder h = new InitHolder();
         h.context = AccessController.getContext();
-        try {
+        
             h.txnMonitor = new TxnMonitor(this, config);
             /* Get the activation related preparers we need */
 
@@ -906,8 +908,6 @@ public class OutriggerServerImpl
                     new ActivationExporter(activationID, basicExporter),
                     activationID);
             }
-
-            h.ourRemoteRef = (OutriggerServer)h.exporter.export(serverGate);
 
             // Create our top level proxy
             h.maxServerQueryTimeout =
@@ -1005,16 +1005,7 @@ public class OutriggerServerImpl
             h.contentsQueryReaperThread.setPriority(reapingPriority);
             h.contentsQueryReaperThread.setDaemon(true);
             return h;
-        } catch (IOException e) {
-            unwindExporter(h.ourRemoteRef, h.exporter);
-            throw e;
-        } catch (ConfigurationException e){
-            unwindExporter(h.ourRemoteRef, h.exporter);
-            throw e;
-        } catch (ActivationException e){
-            unwindExporter(h.ourRemoteRef, h.exporter);
-            throw e;
-        }
+        
     }
 
     /**
@@ -1469,7 +1460,7 @@ public class OutriggerServerImpl
      */
      boolean attemptCapture(EntryHandle handle, TransactableMgr txn,
           boolean takeIt, Set lockedEntrySet, 
-	  WeakHashMap provisionallyRemovedEntrySet, long now,
+	  Map provisionallyRemovedEntrySet, long now,
 	  QueryWatcher watcher) 
      {
 	 final EntryHolder holder = contents.holderFor(handle.rep());
@@ -2170,7 +2161,7 @@ public class OutriggerServerImpl
      * in the passed set.
      */
     private static void waitOnProvisionallyRemovedEntries(
-	    WeakHashMap provisionallyRemovedEntrySet) 
+	    Map provisionallyRemovedEntrySet) 
 	throws InterruptedException
     {
 	if (provisionallyRemovedEntrySet.isEmpty())
@@ -2267,10 +2258,11 @@ public class OutriggerServerImpl
 
 	EntryHandle handle = null;
 	final Set conflictSet = new java.util.HashSet();
+        // Shared by multiple new objects.
 	final Set lockedEntrySet = 
-	    (ifExists?new java.util.HashSet():null);
-	final WeakHashMap provisionallyRemovedEntrySet = 
-	    new java.util.WeakHashMap();
+	    (ifExists? Collections.newSetFromMap( new ConcurrentHashMap()):null);
+	final Map provisionallyRemovedEntrySet = 
+	    Collections.synchronizedMap(new java.util.WeakHashMap());
 
 	/*
 	 * First we do the straight search
@@ -2502,7 +2494,7 @@ public class OutriggerServerImpl
      */
     private EntryHandle
 	find(EntryRep tmplRep, Txn txn, boolean takeIt, Set conflictSet, 
-	     Set lockedEntrySet, WeakHashMap provisionallyRemovedEntrySet)
+	     Set lockedEntrySet, Map provisionallyRemovedEntrySet)
 	throws TransactionException
     {
 	final String whichClass = tmplRep.classFor();
@@ -2606,7 +2598,7 @@ public class OutriggerServerImpl
 	    grant(contentsQuery, leaseTime, contentsLeasePolicy, 
 		  "contentsLeasePolicy");
 
-	contentsQueries.put(uuid, contentsQuery);
+	contentsQueries.put(uuid, contentsQuery); // Very low probability of duplicate.
 	return new MatchSetData(uuid, reps, r.duration);
     }
 
@@ -3633,7 +3625,7 @@ public class OutriggerServerImpl
 	    tr = new ServerTransaction(mgr, tr.id);
 	    tr.join(participantProxy, crashCount);
 	    txn = txnTable.put(tr);
-        }
+            }
 
         return txn;
     }
@@ -3778,9 +3770,10 @@ public class OutriggerServerImpl
 	// to a crash after a prepareOp was written but before
 	// a return to the TM
 	//
-	if (txn.getState() == PREPARED)
-	    return PREPARED;
-
+        synchronized (txn){
+            if (txn.getState() == PREPARED)
+                return PREPARED;
+        }
 	/* Make all state changes (in memory and on disk) atomic wrt.
 	 * to operations trying to use the txn.
 	 */
@@ -3919,7 +3912,7 @@ public class OutriggerServerImpl
      * does not rely on the JDK propagating InteruptException
      * properly.
      */
-    private abstract class Reaper extends Thread {
+    private static abstract class Reaper extends Thread {
 	final private long interval;
 	private boolean dead = false;
 
@@ -4000,22 +3993,36 @@ public class OutriggerServerImpl
 	     * traverse the data w/o blocking contents 
 	     * call and operations on MatchSet objects
 	     */
-	    ContentsQuery[] queries;
-	    synchronized (contentsQueries) {
-		Collection c = contentsQueries.values();
-		queries = new ContentsQuery[c.size()];
-		queries = (ContentsQuery[])c.toArray(queries);
-	    }
-		    
+//	    ContentsQuery[] queries;
+//	    synchronized (contentsQueries) {
+//		Collection c = contentsQueries.values();
+//		queries = new ContentsQuery[c.size()];
+//		queries = (ContentsQuery[])c.toArray(queries);
+//	    }
+            
+            
+//	    for (int i=0; i< queries.length; i++) {
+//		final ContentsQuery query = queries[i];
+//		synchronized (query) {
+//		    if (query.getExpiration() <= now) {
+//			query.cancel();
+//		    }
+//		}
+//	    }		    
+            
+            /* Do it the modern way */
 	    final long now = System.currentTimeMillis();
-	    for (int i=0; i< queries.length; i++) {
-		final ContentsQuery query = queries[i];
-		synchronized (query) {
-		    if (query.getExpiration() <= now) {
-			query.cancel();
+            Iterator<LeasedResource> it = contentsQueries.values().iterator();
+            while (it.hasNext()){
+                final LeasedResource query = it.next();
+                synchronized(query){
+                    if (query.getExpiration() <= now) {
+			if (query instanceof ContentsQuery ) {
+                            ((ContentsQuery)query).cancel();
+                        }
 		    }
-		}
-	    }
+                }
+            }
 	}
     }
 

@@ -36,10 +36,10 @@ import net.jini.id.UuidFactory;
  */
 class ByteArrayWrapper implements Serializable {
     /** The 16 bytes being wrapped */
-    private byte[] uuid;
+    private final byte[] uuid;
 
     /** A 32 bit hash of uuid */
-    private int hash;
+    private final int hash;
 
     /** 
      * Create a new <code>ByteArrayWrapper</code> that

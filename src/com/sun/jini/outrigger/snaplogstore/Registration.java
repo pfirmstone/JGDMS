@@ -27,9 +27,9 @@ import com.sun.jini.outrigger.StorableResource;
 class Registration extends Resource {
     static final long serialVersionUID = 2L;
 
-    private BaseObject[] templates;
+    private final BaseObject[] templates;
 
-    private String type;
+    private final String type;
 
     Registration(StorableResource chit, String type, StorableObject[] ts) {
 	super(chit);

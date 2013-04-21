@@ -45,4 +45,8 @@ public class UnknownTransactionException extends TransactionException {
     public UnknownTransactionException() {
 	super();
     }
+    
+    public UnknownTransactionException(String desc, Throwable cause){
+        super(desc, cause);
+    }
 }

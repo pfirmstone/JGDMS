@@ -34,7 +34,7 @@ import java.io.RandomAccessFile;
  */
 public class LogOutputStream extends OutputStream {
 
-    private RandomAccessFile raf;
+    private final RandomAccessFile raf;
     
     /**
      * Creates an output file with the specified <code>RandomAccessFile</code>

@@ -46,13 +46,13 @@ class LogFile {
     /**
      * The directory in which the log files live.
      */
-    protected File baseDir;
+    protected volatile File baseDir;
 
     /**
      * The base part of the file name (e.g., <code>"log."</code> for
      * <code>"log.0"</code>, <code>"log.1"</code>, ...)
      */
-    protected String baseFile;
+    protected volatile String baseFile;
 
     /**
      * The type of log stream

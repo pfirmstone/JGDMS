@@ -33,19 +33,19 @@ abstract class SingletonQueryWatcher extends QueryWatcher {
     private volatile boolean resolved = false;
 
     /** If resolved and an entry was found the entry to return */
-    private EntryHandle handle;
+    private volatile EntryHandle handle;
 
     /** 
      * If resolved and an exception needs to be thrown the exception
      * to throw
      */
-    private Throwable toThrow;
+    private volatile Throwable toThrow;
 
     /**
      * The <code>TemplateHandle</code> associated with this
      * watcher.
      */
-    private TemplateHandle owner;
+    private volatile TemplateHandle owner;
 
     /**
      * Create a new <code>SingletonQueryWatcher</code>.
@@ -188,20 +188,20 @@ abstract class SingletonQueryWatcher extends QueryWatcher {
      *         been resolved.
      */
     void resolve(EntryHandle handle, Throwable throwable) {
-	assert Thread.holdsLock(this) : "Caller of resolve() must hold lock";
+        synchronized (this){
+            if (resolved)
+                throw new IllegalStateException(
+                    "Can't call resolve on a resolved query ");
 
-	if (resolved)
-	    throw new IllegalStateException(
-		"Can't call resolve on a resolved query ");
+            if ((this.handle != null) || (toThrow != null))
+                throw new IllegalStateException(
+                    "At lease one argument must be null");
 
-	if ((this.handle != null) || (toThrow != null))
-	    throw new IllegalStateException(
-		"At lease one argument must be null");
-
-	resolved = true;
-	this.handle = handle;
-	toThrow = throwable;
-	notifyAll();
+            resolved = true;
+            this.handle = handle;
+            toThrow = throwable;
+            notifyAll();
+        }
     }    
 
     /**
@@ -210,7 +210,9 @@ abstract class SingletonQueryWatcher extends QueryWatcher {
      * this watcher has not been removed.
      */
     OutriggerServerImpl getServer() {
-	assert Thread.holdsLock(this) : "getServer() called without lock";
+        // reference is volatile, will retrieve current server.
+        // setting of owner wasn't synchronized.
+//	assert Thread.holdsLock(this) : "getServer() called without lock";
 	return owner.getServer();
     }
 }

@@ -46,16 +46,16 @@ class IteratorProxy implements AdminIterator {
      * Reference to the server.
      * Only assigned by this class.
      */
-    OutriggerAdmin server;
+    volatile OutriggerAdmin server;
 
     /** Last set of reps we got from the server */
-    private EntryRep[] reps;
+    private volatile EntryRep[] reps;
 
     /** 
      * Index of the next entry in rep to return.  If <code>delete()</code>
      * we will call <code>iter.delete()</code> next - 1
      */
-    private int next = -1;	
+    private volatile int next = -1;	
 
     /**
      * How many entries to ask for each time we go to the server
@@ -63,7 +63,7 @@ class IteratorProxy implements AdminIterator {
     private final int fetchSize;
 
     /** ID of last entry we got from server */
-    private Uuid lastId = null;
+    private volatile Uuid lastId = null;
     
     /**
      * Create client side iterator proxy.

@@ -27,13 +27,13 @@ package com.sun.jini.outrigger;
  */
 class EntryHandleHashDesc {
     /** Number of bits allocated in the hash for each field */
-    int bitsPerField;
+    volatile int bitsPerField;
 
     /** How many fields are used in the hash? */
-    int fieldsInHash;
+    volatile int fieldsInHash;
 
     /** A mask with the lower <code>bitsPerField</code> bits set */
-    long mask;
+    volatile long mask;
 
     public String toString() {
 	return bitsPerField + " bits, " + fieldsInHash + " fields, " +

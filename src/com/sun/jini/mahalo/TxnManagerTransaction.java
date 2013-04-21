@@ -445,14 +445,14 @@ class TxnManagerTransaction
 	}
 	//if the lease has expired, or the state is not
 	//amenable there is no need to continue
-
-	if (getState() != ACTIVE)
-	    throw new CannotJoinException("not active");
-
-	if ((getState() == ACTIVE) && (ensureCurrent() == false)) {
-	    doAbort(0);
-	    throw new CannotJoinException("Lease expired");
-	}
+        synchronized (jobLock){ // Following checked atomically.
+            if (getState() != ACTIVE)
+                throw new CannotJoinException("not active");
+            if ((getState() == ACTIVE) && (ensureCurrent() == false)) {
+                doAbort(0);
+                throw new CannotJoinException("Lease expired");
+            }
+        }
 
 	//Create a ParticipantHandle for the new participant
 	//and mark the transactional state as ACTIVE
@@ -581,16 +581,20 @@ class TxnManagerTransaction
 
 	//If the transaction has already expired or the state
 	//is not amenable, don't even try to continue
-
-	if ((getState() == ACTIVE) && (ensureCurrent() == false)) {
-	    doAbort(0);
-	    throw new CannotCommitException("Lease expired");
-	}
-
-	if (getState() == ABORTED)
-	    throw new CannotCommitException("attempt to commit " +
-					    "ABORTED transaction");
-
+        boolean abort = false;
+        try {
+            synchronized (jobLock){
+                if ((getState() == ACTIVE) && (ensureCurrent() == false)) {
+                    abort = true;
+                    throw new CannotCommitException("Lease expired");
+                }
+                if (getState() == ABORTED)
+                    throw new CannotCommitException("attempt to commit " +
+                                                    "ABORTED transaction");
+            }
+        } finally {
+            if (abort) doAbort(0);
+        }
 
 	//Check to see if anyone joined the transaction.  Even
 	//if no one has joined, at this point, attempt to
@@ -1184,7 +1188,7 @@ class TxnManagerTransaction
     }
 
 
-    private Vector parthandles() {
+private Vector parthandles() {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
 	        "parthandles");

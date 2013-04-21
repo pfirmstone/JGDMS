@@ -66,9 +66,14 @@ class TypeTree {
      * An iterator that will walk through a list of known types.
      */
     // @see #RandomizedIterator
-    private abstract class TypeTreeIterator implements Iterator {
+    private static abstract class TypeTreeIterator implements Iterator {
 	protected int cursor;		// the current position in the list
-	protected Object[] typearray;	// the list of types as an array
+	protected final Object[] typearray;	// the list of types as an array
+        
+        protected TypeTreeIterator (Object [] types){
+            cursor = 0;
+            typearray = types;
+        }
 
 	// inherit doc comment
         public boolean hasNext() {
@@ -112,14 +117,13 @@ class TypeTree {
      * maintains a randomized list of subtypes for the given
      * <code>className</code>, including the class itself.
      */
-    class RandomizedIterator extends TypeTreeIterator {
+    static class RandomizedIterator extends TypeTreeIterator {
 	/**
 	 * Create a new <code>RandomizedIterator</code> for the given
 	 * class.
 	 */
-	RandomizedIterator(String className) {
-	    super();
-	    init(className);
+	RandomizedIterator(String className, TypeTree tree) {
+	    super(init(className, tree));
 	}
 
 
@@ -127,12 +131,12 @@ class TypeTree {
 	 * Traverse the given type tree and add to the list all the
 	 * subtypes encountered within.
 	 */
-	private void walkTree(Collection children, Collection list) {
+	private static void walkTree(Collection children, Collection list, TypeTree tree) {
 	    if (children != null) {
 		list.addAll(children);
 	        Object[] kids = children.toArray();
 		for (int i = 0; i< kids.length; i++) {
-		    walkTree(classVector((String)kids[i]), list);
+		    walkTree(tree.classVector((String)kids[i]), list, tree);
 		}
 	    }
 	}
@@ -141,9 +145,9 @@ class TypeTree {
 	 * Set up this iterator to walk over the subtypes of this class,
 	 * including the class itself.  It then randomizes the list.
 	 */
-	private void init(String className) {
-            Collection types = new ArrayList();
-
+	private static Object [] init(String className, TypeTree tree) {
+            Collection<String> types = new ArrayList<String>();
+            Object [] typearray;
 	    if (className.equals(EntryRep.matchAnyClassName())) {
 		// handle "match any" specially" -- search from ROOT
 		// Simplification suggested by 
@@ -155,7 +159,7 @@ class TypeTree {
 	    }
 
 	    // add all subclasses
-	    walkTree(classVector(className), types);
+	    walkTree(tree.classVector(className), types, tree);
 
 	    // Convert it to an array and then randomize
 	    typearray = types.toArray();
@@ -168,6 +172,7 @@ class TypeTree {
 		typearray[i] = typearray[randnum];
 		typearray[randnum] = tmpobj;
 	    }
+            return typearray;
 	}
     }
 
@@ -179,7 +184,7 @@ class TypeTree {
      * instances of the class that named, in a random ordering.
      */
     Iterator subTypes(String className) {
-	return new RandomizedIterator(className);
+	return new RandomizedIterator(className, this);
     }
 
     /**
