@@ -25,7 +25,7 @@ function test_tar_release {
 	cd $TMP_DIR
 
 	tar xf apache-river-$VERSION-src.tar.gz
-	cd apache-river-2.2.0
+	cd apache-river-2.2.1
 	
 	ant build
 
@@ -63,7 +63,7 @@ function sign_all {
 
 	cd dist
 	for f in $( ls ); do
-		gpg --armor --output $f.asc --detach-sign $f
+		gpg --local-user gtrasuk@apache.org --armor --output $f.asc --detach-sign $f 
 		gpg --print-md SHA512 $f > $f.sha
 	done
 	cd ..
