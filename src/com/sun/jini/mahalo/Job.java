@@ -147,8 +147,8 @@ abstract class Job {
      */
     public void scheduleTasks() {
 	TaskManager.Task[] tmp = createTasks();
-        int length = tmp.length;
 	if (tmp != null) {
+            int length = tmp.length;
             if (logger.isLoggable(Level.FINEST)) {
                 logger.log(Level.FINEST,
                     "Job:scheduleTasks with {0} tasks",

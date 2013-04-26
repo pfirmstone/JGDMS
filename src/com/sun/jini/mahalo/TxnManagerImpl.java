@@ -805,7 +805,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         try {
             txntr.abort(waitFor);
         } catch (Throwable t){
-            t.printStackTrace(System.err);
+//            t.printStackTrace(System.err);
             if (t instanceof Error) throw (Error) t;
             if (t instanceof RuntimeException) throw (RuntimeException) t;
         }

@@ -244,14 +244,14 @@ class Notifier implements com.sun.jini.constants.TimeConstants {
 	}
 
 	public boolean runAfter(java.util.List list, int max) {
-	    for (int i = 0; i < max; i++) {
-		Object task = list.get(i);
-		if (task instanceof NotifyTask) {
-		    NotifyTask nt = (NotifyTask)task;
-		    if (sender.runAfter(nt.sender))
-			return true;
-		}
-	    }
+//	    for (int i = 0; i < max; i++) {
+//		Object task = list.get(i);
+//		if (task instanceof NotifyTask) {
+//		    NotifyTask nt = (NotifyTask)task;
+//		    if (sender.runAfter(nt.sender))
+//			return true;
+//		}
+//	    }
 	    return false;
 	}
 

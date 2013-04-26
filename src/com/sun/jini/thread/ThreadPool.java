@@ -21,8 +21,11 @@ package com.sun.jini.thread;
 import com.sun.jini.action.GetLongAction;
 import java.security.AccessController;
 import java.util.Queue;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
@@ -75,49 +78,78 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
     /** thread group that this pool's threads execute in */
     private final ThreadGroup threadGroup;
 
-    /** Lock used to wake idle threads and synchronize writes to idleThreads */
-    private final Lock lock;
-    private final Condition wakeup;
-
-    /** threads definitely available to take new tasks */
-    private volatile int idleThreads;
-
     /** queues of tasks to execute */
-    private final Queue<Runnable> queue;
+    private final BlockingQueue<Runnable> queue;
+    
+    /** 
+     * This Executor is used by JERI (and other Jini implementation classes) 
+     * to delegate tasks to, the intent is to hand off to a new thread 
+     * immediately, however:
+     *
+     * 1. When ThreadPool creates threads too aggressively, stress tests in the 
+     * qa suite create too many threads and hangs because tasks that need to 
+     * respond within a required time cannot.  
+     * 
+     * 2. Conversely when thread creation takes too long, Javaspace tests that 
+     * rely on event propagation to cancel a LeasedResource find that lease still 
+     * available after lease expiry.
+     * 
+     * ThreadPool must degrade gracefully when a system is under significant
+     * load, but it must also execute tasks as soon as possible.
+     * 
+     * To address these issues, a SynchronousQueue has been selected, it has
+     * no storage capacity, it hands tasks directly from the calling thread to
+     * the task thread.  Consider TransferBlockingQueue when Java 6 is no
+     * longer supported.
+     * 
+     * Pool threads block waiting until a task is available or idleTimeout
+     * occurs after which the pool thread dies, client threads block waiting 
+     * until a task thread is available, or after an computed timeout elapses, 
+     * creates a new thread to execute the task.
+     * 
+     * ThreadGroup is a construct originally intended for applet isolation, 
+     * however it was never really successful, AccessControlContext 
+     * is a much more effective way of controlling privilege.
+     * 
+     * We should change this to ensure that each task is executed in the
+     * AccessControlContext of the calling thread, to avoid privilege escalation.
+     */
+    private final AtomicInteger threadCount;
+    private final int delayFactor;
+    private static final int numberOfCores = Runtime.getRuntime().availableProcessors();
+    
+    ThreadPool(ThreadGroup threadGroup){
+        this(threadGroup, 10);
+    }
 
     /**
      * Creates a new thread group that executes tasks in threads of
      * the given thread group.
      */
-    ThreadPool(ThreadGroup threadGroup) {
+    ThreadPool(ThreadGroup threadGroup, int delayFactor) {
 	this.threadGroup = threadGroup;
-        idleThreads = 0;
-        queue = new ConcurrentLinkedQueue<Runnable>(); //Non blocking queue.
-        lock = new ReentrantLock();
-        wakeup = lock.newCondition();
+        queue = new SynchronousQueue<Runnable>(); //Non blocking queue.
+        threadCount = new AtomicInteger();
+        this.delayFactor = delayFactor;
     }
 
     // This method must not block - Executor
     public void execute(Runnable runnable, String name) {
 	Runnable task = new Task(runnable, name);
-        if (idleThreads < 3){ // create a new thread, non blocking approximate
-            Thread t = AccessController.doPrivileged(
-	    new NewThreadAction(threadGroup, new Worker(task), name, true));
-	t.start();
-        } else {
-            boolean accepted = queue.offer(task); //non blocking.
-            if (accepted) { 
-                lock.lock(); // blocking.
-                try {
-                    wakeup.signal(); 
-                } finally {
-                    lock.unlock();
-	    }
-            } else { // Should never happen.
+        boolean accepted = false;
+        try {
+            accepted = queue.offer(task, 1000 * delayFactor* (threadCount.get()/ numberOfCores), TimeUnit.MICROSECONDS);
+        } catch (InterruptedException ex) {
+            Logger.getLogger(ThreadPool.class.getName()).log(Level.SEVERE, "Calling thread interrupted", ex);
+            // restore interrupt.
+            Thread.currentThread().interrupt();
+        } finally {
+            if (!accepted){
                 Thread t = AccessController.doPrivileged(
-	    new NewThreadAction(threadGroup, new Worker(task), name, true));
-	t.start();
-    }
+                    new NewThreadAction(threadGroup, new Worker(task), name, true));
+                t.start();
+                threadCount.incrementAndGet();
+            }
         }
     }
 
@@ -146,10 +178,14 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
                 if (t instanceof RuntimeException){
                     if (t instanceof SecurityException){
                         // ignore it will be logged.
+                    } else if (t instanceof InterruptedException) {
+                        // If we've caught an interrupt, we need to make sure it's
+                        // set so the while loop stops.
+                        Thread.currentThread().interrupt();
                     } else {
                         // Ignorance of RuntimeException is generally bad, bail out.
                         throw (RuntimeException) t;
-    }
+                    }
                 }
             }
         }
@@ -172,36 +208,31 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 	}
 
 	public void run() {
-	    Runnable task = first;
-	    first = null; // For garbage collection.
-            task.run();
-            Thread thread = Thread.currentThread();
-	    while (!thread.isInterrupted()) {
-		/*
-		 * REMIND: What if the task changed this thread's
-		 * priority? or context class loader?
-		 */
-                for ( task = queue.poll(); task != null; task = queue.poll()){
-                    // Keep executing while tasks are available.
-                    thread.setName(NewThreadAction.NAME_PREFIX + task);
-                    task.run();
+            try {
+                Runnable task = first;
+                first = null; // For garbage collection.
+                task.run();
+                Thread thread = Thread.currentThread();
+                while (!thread.isInterrupted()) {
+                    /*
+                     * REMIND: What if the task changed this thread's
+                     * priority? or context class loader?
+                     * 
+                     * thread.setName is not thread safe.
+                     */
+                    try {
+                        task = queue.poll(idleTimeout, TimeUnit.MILLISECONDS);
+//                        thread.setName(NewThreadAction.NAME_PREFIX + task);
+                        task.run();
+//                         thread.setName(NewThreadAction.NAME_PREFIX + "Idle");
+                    } catch (InterruptedException e){
+                        thread.interrupt();
+                        break;
+                    }
                 }
-                // queue is empty;
-                thread.setName(NewThreadAction.NAME_PREFIX + "Idle");
-                lock.lock();
-			try {
-                    idleThreads++;
-                    wakeup.await(idleTimeout, TimeUnit.MILLISECONDS);// releases lock and obtains when woken.
-                    // Allow thread to expire if queue empty after waking.
-                    if (queue.peek() == null) thread.interrupt();
-                } catch (InterruptedException ex) {
-                    // Interrupt thread, another thread can pick up tasks.
-                    thread.interrupt();
-			} finally {
-			    idleThreads--;
-                    lock.unlock();
-			}
-			}
-		    }
-		}
-	}
+            } finally {
+                threadCount.decrementAndGet();
+            }
+        }
+    }
+}

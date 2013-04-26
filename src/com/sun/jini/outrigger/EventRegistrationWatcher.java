@@ -46,32 +46,32 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      * Protected, but only for use by subclasses.
      * Should not be changed.
      */
-    volatile Uuid cookie;
+    Uuid cookie;
 
     /**
      * The handback associated with this registration.
      * Protected, but only for use by subclasses.
      * Should not be changed.
      */
-    volatile MarshalledObject handback;
+    MarshalledObject handback;
 
     /** 
      * The event ID associated with this registration
      * Protected, but only for use by subclasses.
      * Should not be changed.
      */
-    volatile long eventID;
+    long eventID;
 
     /** 
      * The current sequence number. 
      */
     private long currentSeqNum = 0;
 
-    /**
-     * The sequence number of the last event successfully 
-     * delivered.  Protected, but only for use by subclasses.
-     */
-    volatile long lastSeqNumDelivered = -1;
+//    /**
+//     * The sequence number of the last event successfully 
+//     * delivered.  Protected, but only for use by subclasses.
+//     */
+//    volatile long lastSeqNumDelivered = -1;
 
     /**
      * The <code>TemplateHandle</code> associated with this
@@ -102,6 +102,9 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
     {
 	super(timestamp, startOrdinal);
 	this.currentSeqNum = currentSeqNum;
+        handback = null;
+        cookie = null;
+        eventID = 0;
     }
 
     /**
@@ -165,7 +168,7 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
 		doneFor = true;
 	    } else {
 		currentSeqNum++;
-		owner.getServer().enqueueDelivery(new BasicEventSender());
+		owner.getServer().enqueueDelivery(new BasicEventSender(currentSeqNum, eventID, handback));
 	    }
 	}
 
@@ -225,7 +228,7 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      * Assumes locking is handled by the caller.
      * @param newExpiration The expiration time.
      */
-    public void setExpiration(long newExpiration) {
+    public synchronized void setExpiration(long newExpiration) {
 	expiration = newExpiration;
     }
 
@@ -300,44 +303,56 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
      * Common implementation of <code>EventSender</code>.
      */
     private class BasicEventSender implements EventSender {
+        
+        private final long seqNum;
+        private final long eventID;
+        private final MarshalledObject handback;
+        
+        BasicEventSender(long seqNum, long eventID, MarshalledObject handback){
+            this.seqNum = seqNum;
+            this.eventID = eventID;
+            this.handback = handback;
+        }
+        
 	public void sendEvent(JavaSpace source, long now, ProxyPreparer preparer)
 	    throws UnknownEventException, IOException, ClassNotFoundException
 	{
-	    boolean doneFor = false;
-	    long seqNum = -1;
-
-	    synchronized (EventRegistrationWatcher.this) {
-		if (owner == null)
-		    return; // Our watcher must have been removed, we're done
-
-		if (getExpiration() < now) {
-		    doneFor = true; // Our watcher is expired, remove it
-		} else if (currentSeqNum <= lastSeqNumDelivered) {
-		    return; // Someone already sent our event, we're done
-		} else {
-		    // We need to send an event!
-		    seqNum = currentSeqNum;
-		}
-	    
-
-                // cancel is a synchronized method with the same lock.
-                if (doneFor) {
-                    cancel();
-                    return;
-                }
-
-                /* The only way to get here is through a path that sets
-                 * seqNum to the non-initial values
-                 */
-                assert seqNum != -1;
-
-
-
-                // success!, update lastSeqNumDelivered, but don't go backward
-	    
-		if (seqNum > lastSeqNumDelivered)
-		    lastSeqNumDelivered = seqNum;
-	    }
+            // Forget all the tricky crap, just send it.
+//	    boolean doneFor = false;
+//	    long seqNum = -1;
+//
+//	    synchronized (EventRegistrationWatcher.this) {
+//		if (owner == null)
+//		    return; // Our watcher must have been removed, we're done
+//
+//		if (getExpiration() < now) {
+//		    doneFor = true; // Our watcher is expired, remove it
+//		} else if (currentSeqNum <= lastSeqNumDelivered) {
+//		    return; // Someone already sent our event, we're done
+//		} else {
+//		    // We need to send an event!
+//		    seqNum = currentSeqNum;
+//		}
+//	    
+//
+//                // cancel is a synchronized method with the same lock.
+//                if (doneFor) {
+//                    cancel();
+//                    return;
+//                }
+//
+//                /* The only way to get here is through a path that sets
+//                 * seqNum to the non-initial values
+//                 */
+//                assert seqNum != -1;
+//
+//
+//
+//                // success!, update lastSeqNumDelivered, but don't go backward
+//	    
+//		if (seqNum > lastSeqNumDelivered)
+//		    lastSeqNumDelivered = seqNum;
+//	    }
             
              /* If we are here then we need to send an event (probably
 	     * someone could have sent our event between the time
@@ -352,15 +367,15 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
 	    cancel();
 	}
 
-	/**
-	 * Return the <code>EventRegistrationWatcher</code> this
-	 * object is part of (exits because
-	 * <code>(BasicEventSender)other).EventRegistrationWatcher.
-	 * this</code> does not work.
-	 */
-	private EventRegistrationWatcher getOwner() {
-	    return EventRegistrationWatcher.this;
-	}
+//	/**
+//	 * Return the <code>EventRegistrationWatcher</code> this
+//	 * object is part of (exits because
+//	 * <code>(BasicEventSender)other).EventRegistrationWatcher.
+//	 * this</code> does not work.
+//	 */
+//	private EventRegistrationWatcher getOwner() {
+//	    return EventRegistrationWatcher.this;
+//	}
 
 	/**
 	 * Run after another event sender if it is for the same
@@ -369,12 +384,12 @@ abstract class EventRegistrationWatcher extends TransitionWatcher
 	 * run since <code>lastSeqNumDelivered</code> will probably
 	 * equal <code>currentSeqNum</code> when it runs).  
 	 */
-	public boolean runAfter(EventSender other) {
-	    if (!(other instanceof BasicEventSender))
-		return false;
-
-	    return EventRegistrationWatcher.this ==
-		((BasicEventSender)other).getOwner();
-	}
+//	public boolean runAfter(EventSender other) {
+//	    if (!(other instanceof BasicEventSender))
+//		return false;
+//
+//	    return EventRegistrationWatcher.this ==
+//		((BasicEventSender)other).getOwner();
+//	}
     }
 }

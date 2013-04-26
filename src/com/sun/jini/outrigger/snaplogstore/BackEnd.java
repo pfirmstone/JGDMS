@@ -74,7 +74,7 @@ class BackEnd implements Observer {
     private volatile SnapshotFile	snapshotFile;
 
     /** Keep logs and snapshot tied, though not necessary */
-    private final int SNAPSHOT_VERSION = LogFile.LOG_VERSION;
+    private static final int SNAPSHOT_VERSION = LogFile.LOG_VERSION;
 
     /**
      * The base name for the log files.

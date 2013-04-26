@@ -25,6 +25,8 @@ import net.jini.core.lease.LeaseException;
 import net.jini.core.lease.LeaseMapException;
 
 import com.sun.jini.lease.AbstractLeaseMap;
+import java.util.concurrent.ConcurrentMap;
+import net.jini.core.lease.Lease;
 
 /**
  * An implementation of LeaseMap that holds exactly one lease.  Used when
@@ -51,7 +53,7 @@ class DeformedClientLeaseMapWrapper extends AbstractLeaseMap {
      * @param duration the duration to associate with lease
      */
     DeformedClientLeaseMapWrapper(ClientLeaseWrapper lease, long duration) {
-	super(new HashMap(1), lease, duration);	
+	super(new HashMap<Lease, Long>(1), lease, duration);	
     }
 
     // inherit javadoc
@@ -63,13 +65,23 @@ class DeformedClientLeaseMapWrapper extends AbstractLeaseMap {
 
     // inherit javadoc
     public void renewAll() throws LeaseMapException, RemoteException {
-	ClientLeaseWrapper l = 
+	if (map instanceof ConcurrentMap){
+            renewAl();
+        } else {
+            synchronized (mapLock){
+                renewAl();
+            }
+        }
+    }
+    
+    private void renewAl() throws LeaseMapException, RemoteException {
+        ClientLeaseWrapper l = 
 	    (ClientLeaseWrapper) (map.keySet().iterator().next());
-	long d = ((Integer) (map.get(l))).longValue();
+	long d = ( (map.get(l))).longValue();
 	try {
 	    l.renew(d);
 	} catch (LeaseException e) {
-	    final Map m = new HashMap(1);
+	    final Map<ClientLeaseWrapper, LeaseException> m = new HashMap<ClientLeaseWrapper, LeaseException>(1);
 	    m.put(l, e);
 	    throw new LeaseMapException(e.getMessage(), m); 
 	} 

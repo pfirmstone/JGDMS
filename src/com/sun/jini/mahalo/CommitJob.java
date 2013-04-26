@@ -55,7 +55,7 @@ class CommitJob extends Job implements TransactionConstants {
     final ServerTransaction tr;
     final ClientLog log;
     final ParticipantHandle[] handles;
-    final int maxtries = Integer.MAX_VALUE;
+    static final int maxtries = Integer.MAX_VALUE;
     static final Logger logger = TxnManagerImpl.participantLogger;
 
     /**

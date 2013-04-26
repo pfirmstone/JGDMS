@@ -1572,7 +1572,9 @@ public class LookupLocatorDiscovery implements DiscoveryManagement,
 		    }
 		);
 	    } else {
-		discoverLocators(locators);
+                synchronized (LookupLocatorDiscovery.this){
+                    discoverLocators(locators);
+                }
 	    }
 	}
     }

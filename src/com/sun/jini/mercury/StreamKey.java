@@ -30,13 +30,13 @@ import java.io.File;
 class StreamKey {
 
     /** Holds the <tt>File</tt> attribute for the associated stream. */
-    private /*final*/ File file;
+    private final /*final*/ File file;
 
     /** Holds the "enumeration" type for the associated stream. */
-    private /*final*/ StreamType type;
+    private final /*final*/ StreamType type;
 
     /** Holds the cached value of the <tt>file</tt> field's hashCode. */
-    private /*final*/ int hash;
+    private final /*final*/ int hash;
 
     /** 
      * Simple constructor that accepts <tt>File</tt> and <tt>StreamType</tt>

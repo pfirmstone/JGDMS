@@ -266,7 +266,7 @@ class TxnMonitorTask extends RetryTask
 	if (logger.isLoggable(Level.FINEST)) {
 	    logger.log(Level.FINEST, "{0} attempt {1} mustQuery:{2}", 
 	        new Object[]{this, Integer.valueOf(attempt()), 
-			     new Boolean(mustQuery) });
+			     Boolean.valueOf(mustQuery) });
 	}
 
 	/*

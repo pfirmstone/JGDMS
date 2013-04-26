@@ -122,14 +122,14 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
 		transactionsLogger.log(Level.WARNING,
 		"Unable to settle recovered transaction", nsoe);
 	    }
-            nsoe.printStackTrace(System.err);
+//            nsoe.printStackTrace(System.err);
 //TODO -ignore?	    
         } catch (TransactionException te) {
 	    if(transactionsLogger.isLoggable(Levels.HANDLED)) {
 		transactionsLogger.log(Levels.HANDLED,
 		"Unable to settle recovered transaction", te);
 	    }
-            te.printStackTrace(System.err);
+//            te.printStackTrace(System.err);
 //TODO -ignore?	    
         } catch (RemoteException re) {
 	    //try again
@@ -137,7 +137,7 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
                 operationsLogger.exiting(SettlerTask.class.getName(), 
 	            "tryOnce", Boolean.valueOf(false));
 	    }
-            re.printStackTrace(System.err);
+//            re.printStackTrace(System.err);
 	    return false;
 	}
 

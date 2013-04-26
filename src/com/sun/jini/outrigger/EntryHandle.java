@@ -110,7 +110,7 @@ import com.sun.jini.landlord.LeasedResource;
 
 class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
     /** the content hash for the rep */
-    private long     hash;
+    private final long     hash; // Made final for toString() and hash().
 
     /** 
      * If this entry is locked by one or more transaction the info
@@ -266,10 +266,12 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
     // EntryHolder.SimpleRepEnum.nextRep().  Working it through
     // it seems to work in that particular case, but it seems fragile.
     boolean canPerform(TransactableMgr mgr, int op) {
-	if (txnState == null) 
-	    return true; // all operations are legal on a non-transacted entry
+        synchronized (this){ // Audit revealed calling thread didn't always own lock.
+            if (txnState == null) 
+                return true; // all operations are legal on a non-transacted entry
 
-	return txnState.canPerform(mgr, op);
+            return txnState.canPerform(mgr, op);
+        }
     }
 
     /**
@@ -278,10 +280,12 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * thread calling this method should own this object's lock.
      */
     boolean knownMgr(TransactableMgr mgr) {
-	if (txnState == null) 
-	    return (mgr == null); // The only mgr we know about is the null mgr
+        synchronized (this){  // Audit revealed caller methods didn't always hold lock.
+            if (txnState == null) 
+                return (mgr == null); // The only mgr we know about is the null mgr
 
-	return txnState.knownMgr(mgr);
+            return txnState.knownMgr(mgr);
+        }
     }
 
     /**
@@ -290,7 +294,7 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * method should own this object's lock.
      */
     boolean onlyMgr(TransactableMgr mgr) {
-	if (txnState == null) 
+	if (txnState == null) // Audit revealed caller always held lock.
 	    return false;
 
 	return txnState.onlyMgr(mgr);
@@ -302,7 +306,9 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * method should own this object's lock.
      */
     boolean managed() {
-	return txnState != null;
+        synchronized (this){  // Audit revealed caller didn't always have lock.
+            return txnState != null;
+        }
     }
 
     /**
@@ -311,7 +317,7 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * lock.
      */
     void addTxns(java.util.Collection collection) {
-	if (txnState == null) 
+	if (txnState == null) // Confirmed that calling method owns lock.
 	    return; // nothing to add
 
 	txnState.addTxns(collection);
@@ -326,11 +332,13 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * <code>EntryHolder</code> holding this handle.
      */
     void add(TransactableMgr mgr, int op, EntryHolder holder) {
-	if (txnState == null) {
-	    txnState = new TxnState(mgr, op, holder);
-	} else {
-	    txnState.add(mgr, op);
-	}
+        synchronized (this){
+            if (txnState == null) {
+                txnState = new TxnState(mgr, op, holder);
+            } else {
+                txnState.add(mgr, op);
+            }
+        }
     }
 
     /**
@@ -340,7 +348,9 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * transaction that owns a lock on the entry.
      */
     boolean promoteToTakeIfNeeded() {
-	return txnState.promoteToTakeIfNeeded();
+        synchronized (this){
+            return txnState.promoteToTakeIfNeeded();
+        }
     }
 
     /**

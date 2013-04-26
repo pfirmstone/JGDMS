@@ -19,6 +19,7 @@ package com.sun.jini.outrigger;
 
 import java.util.Set;
 import java.util.Iterator;
+import java.util.Map;
 import java.util.WeakHashMap;
 
 import net.jini.core.transaction.TransactionException;
@@ -45,7 +46,7 @@ class TakeMultipleWatcher extends QueryWatcher implements Transactable {
      * we would have liked to return, but have been provisionally
      * removed.
      */
-    private final WeakHashMap provisionallyRemovedEntrySet;
+    private final Map provisionallyRemovedEntrySet;
 
     /**
      * If non-null the transaction this query is
@@ -106,7 +107,7 @@ class TakeMultipleWatcher extends QueryWatcher implements Transactable {
      *        a transaction the <code>Txn</code> object
      *        associated with that transaction.  */
     TakeMultipleWatcher(int limit, long expiration, long timestamp, 
-        long startOrdinal, WeakHashMap provisionallyRemovedEntrySet, Txn txn)
+        long startOrdinal, Map provisionallyRemovedEntrySet, Txn txn)
     {
 	super(expiration, timestamp, startOrdinal);
 	this.limit = limit;

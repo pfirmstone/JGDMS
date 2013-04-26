@@ -71,12 +71,12 @@ interface EventSender {
      */
     public void cancelRegistration();
 
-    /**
-     * Return <code>true</code> if the passed <code>EventSender</code>
-     * should run before this one, otherwise return <code>false</code>.
-     * @param other the sender this object should compare itself too.
-     * @return <code>true</code> if this object should run after
-     * <code>other</code>.
-     */
-    public boolean runAfter(EventSender other);
+//    /**
+//     * Return <code>true</code> if the passed <code>EventSender</code>
+//     * should run before this one, otherwise return <code>false</code>.
+//     * @param other the sender this object should compare itself too.
+//     * @return <code>true</code> if this object should run after
+//     * <code>other</code>.
+//     */
+//    public boolean runAfter(EventSender other);
 }

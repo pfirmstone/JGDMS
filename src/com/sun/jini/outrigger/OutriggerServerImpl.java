@@ -17,6 +17,8 @@
  */
 package com.sun.jini.outrigger;
 
+import au.net.zeus.collection.RC;
+import au.net.zeus.collection.Ref;
 import com.sun.jini.config.Config;
 import com.sun.jini.constants.TimeConstants;
 import com.sun.jini.landlord.Landlord;
@@ -591,7 +593,6 @@ public class OutriggerServerImpl
             recoveredTransactionManagerPreparer = h.recoveredTransactionManagerPreparer;
             recoveredListenerPreparer = h.recoveredListenerPreparer;
             txnTable = h.txnTable;
-            leaseFactory = h.leaseFactory;
             entryLeasePolicy = h.entryLeasePolicy;
             eventLeasePolicy = h.eventLeasePolicy;
             contentsLeasePolicy = h.contentsLeasePolicy;
@@ -599,7 +600,6 @@ public class OutriggerServerImpl
             takeLimit = h.takeLimit;
             maxUnexportDelay = h.maxUnexportDelay;
             unexportRetryDelay = h.unexportRetryDelay;
-            notifier = h.notifier; 
             templateReaperThread = h.templateReaperThread;
             entryReaperThread = h.entryReaperThread;
             contentsQueryReaperThread = h.contentsQueryReaperThread;
@@ -806,7 +806,6 @@ public class OutriggerServerImpl
         ProxyPreparer recoveredTransactionManagerPreparer;
 	ProxyPreparer recoveredListenerPreparer;
         TxnTable txnTable;
-        LeaseFactory leaseFactory;
         LeasePeriodPolicy entryLeasePolicy;
         LeasePeriodPolicy eventLeasePolicy;
         LeasePeriodPolicy contentsLeasePolicy;
@@ -814,7 +813,6 @@ public class OutriggerServerImpl
         int takeLimit;
         long maxUnexportDelay;
         long unexportRetryDelay;
-        Notifier notifier; 
         TemplateReaper templateReaperThread;
         EntryReaper entryReaperThread;
         ContentsQueryReaper contentsQueryReaperThread;
@@ -1898,7 +1896,8 @@ public class OutriggerServerImpl
 	EntryHandle[] handles = new EntryHandle[limit];
 	int found = 0;
 	final Set conflictSet = new java.util.HashSet();
-	final WeakHashMap provisionallyRemovedEntrySet = new WeakHashMap();
+	final Map provisionallyRemovedEntrySet = 
+                RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 1000L);
 
 	for (Iterator i=classes.iterator(); 
 	     i.hasNext() && found < handles.length;) 
@@ -2261,8 +2260,10 @@ public class OutriggerServerImpl
         // Shared by multiple new objects.
 	final Set lockedEntrySet = 
 	    (ifExists? Collections.newSetFromMap( new ConcurrentHashMap()):null);
+        
+        // Changed to concurrent map, because unsynchronized iteration occurs.
 	final Map provisionallyRemovedEntrySet = 
-	    Collections.synchronizedMap(new java.util.WeakHashMap());
+	    RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 1000L);
 
 	/*
 	 * First we do the straight search
@@ -2639,7 +2640,7 @@ public class OutriggerServerImpl
 	final private Uuid uuid;
 
 	/** The <code>Set</code> of classes we need to search */
-	final private Set classes = new java.util.HashSet();
+//	final private Set classes = new java.util.HashSet();
 
 	/** An iteration into <code>classes</code> */
 	final private Iterator classesIterator;
@@ -2654,7 +2655,7 @@ public class OutriggerServerImpl
 	final private Object lock = new Object();
 
 	/** The current expiration time */
-	private long expiration;
+	private volatile long expiration;
 	
 	/** The current <code>ContinuingQuery</code> */
 	private EntryHolder.ContinuingQuery currentQuery;
@@ -2675,15 +2676,15 @@ public class OutriggerServerImpl
 	 * Set of entries that we have encountered that have been
 	 * provisionally removed
 	 */
-	final private WeakHashMap provisionallyRemovedEntrySet
-	    = new WeakHashMap();
+	final private Map provisionallyRemovedEntrySet
+	    = RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 1000L) ;
 
 	private ContentsQuery(Uuid uuid, EntryRep[] tmpls, Txn txn, long limit) {
 	    this.uuid = uuid;
 	    this.tmpls = tmpls;
 	    this.txn = txn;
 	    remaining = limit;
-
+            Set classes = new java.util.HashSet(128);
 	    for (int i=0; i<tmpls.length; i++) {
 		final String whichClass = tmpls[i].classFor();
 		final Iterator subtypes = types.subTypes(whichClass);
@@ -3215,8 +3216,8 @@ public class OutriggerServerImpl
      */
     private class AllReps implements RepEnum {
 	RepEnum		curEnum;	// current unexhausted enum (or null)
-	Stack		toDo;		// classes left to do
-	Txn		txn;		// txn under which this is done
+	final Stack		toDo;		// classes left to do
+	final Txn		txn;		// txn under which this is done
 
 	/** Create a new <code>AllReps</code> object for the given class. */
 	AllReps(String classFor, Txn txn) {
@@ -3231,7 +3232,7 @@ public class OutriggerServerImpl
 	 * are added -- the rest will be picked up when the subclasses are
 	 * set up.
 	 */
-	private void setup(String classFor) {
+	private synchronized void setup(String classFor) {
 	    if (classFor == null)
 		return;
 
@@ -3258,7 +3259,7 @@ public class OutriggerServerImpl
 	}
 
 	// purposefully inherit doc comment
-	public EntryRep nextRep() {
+	public synchronized EntryRep nextRep() {
 	    /*
 	     * We loop to handle the case where the list of elements for
 	     * a type is empty, which means we have to proceed immediately
@@ -3330,7 +3331,7 @@ public class OutriggerServerImpl
 	}
 	
 	// inherit doc comment
-	public EntryRep[] nextReps(int max, Uuid id) {
+	public synchronized EntryRep[] nextReps(int max, Uuid id) {
 	    if (closed && id != null && lastId == null)
 		// They never got the null
 		return null;
@@ -3399,7 +3400,7 @@ public class OutriggerServerImpl
 	 * Delete the entry of the given class and id.  We use class
 	 * to get us to the proper <code>EntryHolder</code> efficiently.
 	 */
-	public void delete(Uuid id) {
+	public synchronized void delete(Uuid id) {
 	    assertOpen();
 	    try {
 		boolean found = false;
@@ -3427,7 +3428,7 @@ public class OutriggerServerImpl
 	/**
 	 * Close operations on this iterator.
 	 */
-	public void close() {
+	public synchronized void close() {
 	    closed = true;
 	    repEnum = null;
 	    rememberLast(null);
@@ -3513,9 +3514,8 @@ public class OutriggerServerImpl
 	if (txnId == null)
 	    return null;
 
-	Txn txn;
-	if((recoveredTxns.isEmpty()) || 
-	   ((txn = (Txn)recoveredTxns.get(txnId)) == null))
+	Txn txn = recoveredTxns.get(txnId);
+	if (txn == null)
 	    throw new InternalSpaceException("recover of write/take with " +
 					     "unknown txnId" );
 	return txn;
@@ -3914,7 +3914,7 @@ public class OutriggerServerImpl
      */
     private static abstract class Reaper extends Thread {
 	final private long interval;
-	private boolean dead = false;
+	private volatile boolean dead = false;
 
 	private Reaper(String name, long interval) {
 	    super(name);

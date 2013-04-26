@@ -375,12 +375,12 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 	    cancel();
 	}
 
-	/**
-	 * Since we try to send every event that occurs, don't
-	 * care which order they run.
-	 */
-	public boolean runAfter(EventSender other) {
-	    return false;
-	}
+//	/**
+//	 * Since we try to send every event that occurs, don't
+//	 * care which order they run.
+//	 */
+//	public boolean runAfter(EventSender other) {
+//	    return false;
+//	}
     }
 }

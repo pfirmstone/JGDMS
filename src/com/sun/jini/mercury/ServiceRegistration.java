@@ -33,6 +33,7 @@ import java.util.HashMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.jini.core.event.RemoteEventListener;
 
@@ -55,7 +56,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
     private final Uuid cookie;
 
     /** The current expiration for this registration */
-    private long expiration = 0;
+    private volatile long expiration = 0;
     
     /** The prepared, client-provided notification target. */
     // This field is transient in order to allow readObject/writeObject
@@ -95,7 +96,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      * active (re)set will provide a new/better target listener that might
      * be able to handle these events.
      */
-    private Map unknownEvents = new HashMap();
+    private final Map unknownEvents = new ConcurrentHashMap();
 
     /** 
      * Unique identifier object for the currently enabled 
@@ -106,8 +107,11 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
     /**
      * Lock object used to coordinate event delivery via the iterator.
      * Has to be a serializable object versus just a plain Object.
+     * 
+     * WTF?  Never use a String lock!!!
+     * 
      */
-    private final String iteratorNotifier = new String();
+    private final Object iteratorNotifier = new Lock();
 
 
     /** Convenience constructor */
@@ -146,13 +150,13 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      * Get the reference to the prepared, 
      * client-supplied notification target 
      */
-    public RemoteEventListener getEventTarget() {
+    public synchronized RemoteEventListener getEventTarget() {
 	return preparedEventTarget;
 
     }
 
     /** Set the reference to the client-supplied notification target */
-    public void setEventTarget(RemoteEventListener preparedTarget) 
+    public synchronized void setEventTarget(RemoteEventListener preparedTarget) 
 	throws IOException
     {
         if (preparedTarget == null) {
@@ -165,7 +169,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
     }
     
     /** Get the remote iterator id */
-    public Uuid getRemoteEventIteratorID() {
+    public synchronized Uuid getRemoteEventIteratorID() {
 	return remoteEventIteratorID;
     }
     
@@ -179,7 +183,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
     }
     
     /** Set the remote iterator id */
-    public void setRemoteEventIteratorID(Uuid id) {
+    public synchronized void setRemoteEventIteratorID(Uuid id) {
 	remoteEventIteratorID = id;
 
     }
@@ -188,7 +192,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      * Returns <code>true</code> if an event target is currently set and
      * false otherwise. 
      */
-    public boolean hasEventTarget() { 
+    public synchronized boolean hasEventTarget() { 
         return (marshalledEventTarget != null);
     }
      
@@ -206,11 +210,13 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
             throw new NullPointerException(
 	        "targetPreparer cannot be null");
         }
-        if (marshalledEventTarget != null) {
-            RemoteEventListener unprepared = 
-	        (RemoteEventListener)marshalledEventTarget.get();
-            preparedEventTarget = (RemoteEventListener)
-                targetPreparer.prepareProxy(unprepared);
+        synchronized (this){
+            if (marshalledEventTarget != null) {
+                RemoteEventListener unprepared = 
+                    (RemoteEventListener)marshalledEventTarget.get();
+                preparedEventTarget = (RemoteEventListener)
+                    targetPreparer.prepareProxy(unprepared);
+            }
         }
 	/* 
 	 * Note: Would like to defer preparation until listener
@@ -225,7 +231,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      * Get the  reference to the registration's associated 
      * <tt>EventLogIterator</tt>
      */
-    public EventLogIterator iterator() {
+    public synchronized EventLogIterator iterator() {
         return eventIterator; 
     }
 
@@ -233,7 +239,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      * Set the reference for this registration's 
      * <tt>EventLogIterator</tt> 
      */
-    public void setIterator(EventLogIterator iter) {
+    public synchronized void setIterator(EventLogIterator iter) {
         eventIterator = iter; 
     }
 
@@ -242,7 +248,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      * secondary sort is immaterial, except to ensure a total order
      * (required by TreeMap).
      */
-    public int compareTo(Object obj) {
+    public synchronized int compareTo(Object obj) {
         ServiceRegistration reg = (ServiceRegistration)obj;
         if (this == reg)
             return 0;
@@ -267,7 +273,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      * Utility method to display debugging information to the
      * provided <tt>Logger</tt>
      */
-    void dumpInfo(Logger logger) {
+    synchronized void dumpInfo(Logger logger) {
             logger.log(Level.FINEST, "{0}", this.toString());
             logger.log(Level.FINEST, "Expires at: {0}", new Date(expiration));
             logger.log(Level.FINEST, "Prepared target is: {0}", preparedEventTarget);
@@ -284,5 +290,10 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
                     logger.log(Level.FINEST, "hasNext exception.", ioe);
 	        }
 	    }
+    }
+    
+    /* Stateless serializable lock */
+    private static final class Lock implements Serializable {
+        private static final long serialVersionUID = 1L;
     }
 }

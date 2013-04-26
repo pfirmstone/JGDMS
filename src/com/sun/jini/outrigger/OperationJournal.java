@@ -130,7 +130,7 @@ class OperationJournal extends Thread {
      * <code>JournalNode</code> payload value used for 
      * caught up markers.
      */
-    private class CaughtUpMarker {
+    private static class CaughtUpMarker {
 	/** The watcher to notify */
 	private final IfExistsWatcher watcher;
 

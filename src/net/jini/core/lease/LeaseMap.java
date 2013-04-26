@@ -30,7 +30,7 @@ import java.rmi.RemoteException;
  *
  * @since 1.0
  */
-public interface LeaseMap extends java.util.Map {
+public interface LeaseMap<Lease, Long> extends java.util.Map<Lease, Long> {
     /**
      * Returns true if the given object is a Lease which can be renewed
      * and cancelled in a batch with other leases in the map.  Whether

@@ -307,7 +307,7 @@ class EntryHolder implements TransactionConstants {
 		    matchingLogger.log(Level.FINER, "match, but can''t " +
 			"perform {0}; handle.knownMgr(txn) == {1}", 
 			new Object[] {Integer.valueOf(op), 
-				      new Boolean(handle.knownMgr(txn))});
+				      Boolean.valueOf(handle.knownMgr(txn))});
 		}
 
 		if (conflictSet != null) {
@@ -747,7 +747,7 @@ class EntryHolder implements TransactionConstants {
 	 *         but the transaction is no longer active.
 	 */
 	EntryHandle next(Set conflictSet, Set lockedEntrySet,
-			 WeakHashMap provisionallyRemovedEntrySet) 
+			 Map provisionallyRemovedEntrySet) 
 	    throws CannotJoinException
 	{
 	    matchingLogger.entering("ContinuingQuery", "next");

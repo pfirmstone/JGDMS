@@ -124,7 +124,7 @@ public interface Landlord extends Remote {
 	 * @see #denied
 	 * @serial
 	 */
-	public long[] granted;
+	public final long[] granted;
 
 	/**
 	 * The <code>i</code><sup><i>th</i></sup> -1 in <code>granted</code>
@@ -133,7 +133,7 @@ public interface Landlord extends Remote {
 	 *
 	 * @serial
 	 */
-	public Exception[] denied;
+	public final Exception[] denied;
 
 	/**
 	 * Create a <code>RenewResults</code> object setting the field

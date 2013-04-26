@@ -31,6 +31,7 @@ import java.util.ListIterator;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.NoSuchElementException;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * Class that implements the interface for an <tt>EventLog</tt>. 
@@ -66,22 +67,22 @@ class TransientEventLog implements EventLog {
     //
 
     /** The associated <tt>Uuid</tt> for this <tt>EventLog</tt>. */
-    private Uuid uuid = null;
+    private final Uuid uuid;
 
     /** The associated, non-persistent storage for events */
-    private List entries = null;
+    private final List entries;
 
     /** 
      * Flag that is used to determine whether or not this object 
      * has been closed. 
      */
-    private boolean closed = false;
+    private volatile boolean closed = false;
 
     /**
      * Flag that is used to determine whether or not this object
      * has been initialized.
      */
-    private boolean initialized = false;
+    private volatile boolean initialized = false;
     
     /**
      * Helper class used to hold a remote event and a sequence id.
@@ -100,7 +101,7 @@ class TransientEventLog implements EventLog {
     /**
      * Counter used to produce event ids.
      */
-    private long eventCounter = 1L;
+    private AtomicLong eventCounter = new AtomicLong(1);
     
     /**
      * Simple constructor that takes a <tt>Uuid</tt> argument.
@@ -145,7 +146,7 @@ class TransientEventLog implements EventLog {
     // Inherit documentation from supertype
     public void add(RemoteEvent event) throws IOException {
 	stateCheck();
-        long id = eventCounter++; 
+        long id = eventCounter.getAndIncrement(); 
         RemoteEventHolder data = new RemoteEventHolder(id, event);
 	entries.add(data);
         printControlData(persistenceLogger, "TransientEventLog::add");
@@ -220,7 +221,7 @@ class TransientEventLog implements EventLog {
         // TODO - trap ClassCastException and throw?
         long lastID = ((Long)cookie).longValue();
 
-	if (lastID >= eventCounter) {
+	if (lastID >= eventCounter.get()) {
 	    throw new NoSuchElementException();
 	}
         

@@ -297,7 +297,7 @@ class SpaceProxy2 implements JavaSpace05, Administrable, ReferentUuid,
 	if (leaseData == null || leaseData.length != 3){
             StringBuilder sb = new StringBuilder(180);
             sb.append("space.write returned malformed data \n");
-            int l = leaseData.length;
+            int l = leaseData == null? 0 : leaseData.length;
             for (int i =0; i < l; i++){
                 sb.append(leaseData[i]).append("\n");
             }

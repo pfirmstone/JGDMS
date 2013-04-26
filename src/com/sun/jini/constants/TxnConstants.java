@@ -40,16 +40,14 @@ public class TxnConstants implements TransactionConstants {
      * @see net.jini.core.transaction.server.TransactionConstants
      */
     public static String getName(int state) {
-	String name = "UNKNOWN";
 	switch (state) {
-	  case ACTIVE:
-	  case VOTING:
-	  case PREPARED:
-	  case NOTCHANGED:
-	  case COMMITTED:
-	  case ABORTED:
-	    name = stateNames[state];
+	  case ACTIVE: return "ACTIVE";
+	  case VOTING: return "VOTING";
+	  case PREPARED: return "PREPARED";
+	  case NOTCHANGED: return "NOTCHANGED";
+	  case COMMITTED: return "COMMITTED";
+	  case ABORTED: return "ABORTED";
+          default: return "UNKNOWN";
 	}
-	return name;
     }
 }

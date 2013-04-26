@@ -40,14 +40,14 @@ public interface Lease {
     /** 
      * Used to request a lease that never expires. 
      */
-    long FOREVER = Long.MAX_VALUE;
+    final long FOREVER = Long.MAX_VALUE;
 
     /**
      * Used by the requestor to indicate that there is no particular lease
      * time desired, and that the grantor of the lease should supply a time
      * that is most convenient for the grantor.
      */
-    long ANY = -1;
+    final long ANY = -1;
 
     /**
      * The serialized form of the lease will convert the time of lease
@@ -138,7 +138,7 @@ public interface Lease {
      *
      * @return the created <tt>LeaseMap</tt> object
      */
-    LeaseMap createLeaseMap(long duration);
+    LeaseMap<Lease, Long> createLeaseMap(long duration);
 
     /**
      * Returns a boolean indicating whether or not the lease given as a

@@ -4784,10 +4784,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 config, COMPONENT, "taskManager", TaskManager.class,
                 new TaskManager(50, 1000 * 15, 1.0F));
             this.unexportTimeout = Config.getLongEntry(
-                   config, COMPONENT, "unexportTimeout", unexportTimeout,
+                   config, COMPONENT, "unexportTimeout", 20000L,
                    0, Long.MAX_VALUE);
             this.unexportWait = Config.getLongEntry(
-                   config, COMPONENT, "unexportWait", unexportWait,
+                   config, COMPONENT, "unexportWait", 10000L,
                    0, Long.MAX_VALUE);
             try {
                 unicastDiscoveryHost = (String) Config.getNonNullEntry(

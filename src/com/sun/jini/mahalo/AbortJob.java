@@ -58,7 +58,7 @@ class AbortJob extends Job implements TransactionConstants {
     final ServerTransaction tr;
     final ClientLog log;
     final ParticipantHandle[] handles;
-    final int maxtries = 5;
+    static final int maxtries = 5;
     static final Logger logger = TxnManagerImpl.participantLogger;
     
     /**

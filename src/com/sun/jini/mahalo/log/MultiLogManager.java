@@ -359,7 +359,7 @@ public class MultiLogManager
 			else {
   		            if (persistenceLogger.isLoggable(Level.FINEST)) {
                                 persistenceLogger.log(Level.FINEST,
-				"Observed a null log file entry for: {0}", slf);
+				"Observed a null log file entry at: {0}", i);
 			    }
 			}
                     } catch (LogException le) {

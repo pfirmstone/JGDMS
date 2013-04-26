@@ -48,7 +48,7 @@ class TxnTable {
 	 * so we can make sure we don't call <code>equals</code> on unprepared
 	 * managers.
 	 */
-	private class Key {
+	private static class Key {
 		/** The manager for the transaction */
 		private final TransactionManager manager;
 
@@ -187,7 +187,7 @@ class TxnTable {
                     if (r != null) return r;
 
                     // Check broken txns
-                    if (brokenTxns.isEmpty()) return null;// No broken Txns so txns is definitive
+//                    if (brokenTxns.isEmpty()) return null;// No broken Txns so txns is definitive
                            
                     idAsLong = Long.valueOf(id);
                     final List txnsForId = (List) brokenTxns.get(idAsLong);

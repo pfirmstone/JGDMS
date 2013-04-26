@@ -25,6 +25,8 @@ import net.jini.id.Uuid;
 import com.sun.jini.thread.WakeupManager;
 import com.sun.jini.collection.WeakTable;
 import com.sun.jini.landlord.LeasedResource;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 
 /**
@@ -137,9 +139,9 @@ class LeaseExpirationMgr implements LeaseManager, WeakTable.KeyGCHandler {
 	public void run() {
 	    final LeasedResource resource = (LeasedResource)resourceRef.get();
 	    if (resource == null)
-		// Already gone
+                    // Already gone
 		return;
-
+            
 	    synchronized (resource) {
 		if (resource.getExpiration() <= System.currentTimeMillis()) {
 		    try {
@@ -147,6 +149,7 @@ class LeaseExpirationMgr implements LeaseManager, WeakTable.KeyGCHandler {
 			landlord.cancel(resource.getCookie());
 		    } catch (UnknownLeaseException e) {
 		        // Don't care, probably already gone
+                        Logger.getLogger(LeaseExpirationMgr.class.getName()).log(Level.SEVERE, null, e);
 		    }
 		}
 		// else Someone must have just renewed the resource,

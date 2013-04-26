@@ -55,12 +55,7 @@ class ByteArrayWrapper implements Serializable {
     }
     
     public boolean equals(Object o) {
-	if (!(o instanceof ByteArrayWrapper))
-	    return false;
-
-	if (o == null)
-	    return false;
-
+	if (!(o instanceof ByteArrayWrapper)) return false;
 	final byte[] ouuid = ((ByteArrayWrapper)o).uuid;
 	return Arrays.equals(uuid, ouuid);
     }

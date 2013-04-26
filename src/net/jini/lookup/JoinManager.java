@@ -1339,7 +1339,7 @@ public class JoinManager {
          * For more information, refer to Bug 4490355.
          */
 	public void fail(Throwable e) {
-	    synchronized(this) {
+	    synchronized(JoinManager.this) {
 		if(bTerminated) {
 		    return;
 		} else {
@@ -1355,7 +1355,7 @@ public class JoinManager {
 				  e1);
 		    }
 		}//endif
-	    }//end sync(this)
+	    }//end sync(JoinManager.this)
 	}//end ProxyReg.fail
 
 	/** Returns true if the both objects' associated proxies are equal. */

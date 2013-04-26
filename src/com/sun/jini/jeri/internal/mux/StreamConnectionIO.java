@@ -72,10 +72,7 @@ final class StreamConnectionIO extends ConnectionIO {
      */
     private final LinkedList sendQueue;
 
-    /** buffer for reading incoming data from connection */
-    private final ByteBuffer inputBuffer =
-	ByteBuffer.allocate(RECEIVE_BUFFER_SIZE);	// ready for reading
-
+    
     /**
      * Creates a new StreamConnectionIO for the connection represented by
      * the supplied OutputStream and InputStream pair.
@@ -257,6 +254,10 @@ final class StreamConnectionIO extends ConnectionIO {
     }
 
     private class Reader implements Runnable {
+        /** buffer for reading incoming data from connection */
+        private final ByteBuffer inputBuffer =
+            ByteBuffer.allocate(RECEIVE_BUFFER_SIZE);	// ready for reading
+
 	Reader() { }
 
 	public void run() {
@@ -340,9 +341,10 @@ final class StreamConnectionIO extends ConnectionIO {
 
     public static ReadableByteChannel newChannel(final InputStream in) {
 	return new ReadableByteChannel() {
-	    private boolean open = true;
+	    private volatile boolean open = true;
 
-	    public int read(ByteBuffer dst) throws IOException {
+            // must be synchronized as per ReadableByteChannel contract
+	    public synchronized int read(ByteBuffer dst) throws IOException {
 		assert dst.hasArray();
 		byte[] array = dst.array();
 		int arrayOffset = dst.arrayOffset();
@@ -373,8 +375,9 @@ final class StreamConnectionIO extends ConnectionIO {
 	    public boolean isOpen() {
 		return open;
 	    }
-
-	    public void close() throws IOException {
+            
+            // Blocking as per Channel contract
+	    public synchronized void close() throws IOException {
 		in.close();
 		open = false;
 	    }
@@ -383,9 +386,10 @@ final class StreamConnectionIO extends ConnectionIO {
 
     public static WritableByteChannel newChannel(final OutputStream out) {
 	return new WritableByteChannel() {
-	    private boolean open = true;
-
-	    public int write(ByteBuffer src) throws IOException {
+	    private volatile boolean open = true;
+            
+            // This method must block while writing as per WritableByteChannel contract.
+	    public synchronized int write(ByteBuffer src) throws IOException {
 		assert src.hasArray();
 
 		int len = src.remaining();
@@ -401,7 +405,8 @@ final class StreamConnectionIO extends ConnectionIO {
 		return open;
 	    }
 
-	    public void close() throws IOException {
+            // This method must block as per the Channel contract
+	    public synchronized void close() throws IOException {
 		out.close();
 		open = false;
 	    }
