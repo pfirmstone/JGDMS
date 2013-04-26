@@ -135,6 +135,7 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 
     // This method must not block - Executor
     public void execute(Runnable runnable, String name) {
+        if (runnable == null) return;
 	Runnable task = new Task(runnable, name);
         boolean accepted = false;
         try {
