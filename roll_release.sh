@@ -128,4 +128,4 @@ test_zip_release
 
 sign_all
 rat_report
-upload_all gtrasuk@people.apache.org:~/public_html/river/
+upload_all gtrasuk@people.apache.org:~/public_html/river/2.2.1-rc2
