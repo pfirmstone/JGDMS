@@ -139,7 +139,7 @@
     </fileset>
     
     <fileset id="reference-collections.jar" dir="${root}/dep-libs/rc-libs">
-        <include name="custard-apple-1.0.2.jar" />
+        <include name="custard-apple-1.0.3.jar" />
     </fileset>
     
     <fileset id="dnsjava.jar" dir="${root}/dep-libs/dnsjava">

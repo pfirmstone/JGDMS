@@ -294,7 +294,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 		return false; // don't remove, not our time
 
 	    owners = new java.util.HashSet<TemplateHandle>(this.owners); // Don't need to clone
-            this.owners.clear(); // now it's null, it doesn't need sync anymore.
+            this.owners.clear(); 
             removed = true;
 	    expiration = Long.MIN_VALUE; //Make sure no one tries to renew us
             serv = server;

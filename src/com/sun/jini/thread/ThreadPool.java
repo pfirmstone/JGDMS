@@ -139,7 +139,7 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 	Runnable task = new Task(runnable, name);
         boolean accepted = false;
         try {
-            accepted = queue.offer(task, 1000 * delayFactor* (threadCount.get()/ numberOfCores), TimeUnit.MICROSECONDS);
+            accepted = queue.offer(task, 700 * delayFactor* (threadCount.get()/ numberOfCores), TimeUnit.MICROSECONDS);
         } catch (InterruptedException ex) {
             Logger.getLogger(ThreadPool.class.getName()).log(Level.SEVERE, "Calling thread interrupted", ex);
             // restore interrupt.

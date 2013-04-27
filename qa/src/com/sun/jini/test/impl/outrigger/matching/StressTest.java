@@ -39,6 +39,7 @@ import com.sun.jini.outrigger.JavaSpaceAdmin;
 import net.jini.admin.Administrable;
 import com.sun.jini.qa.harness.Test;
 import java.io.IOException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 
 /**
@@ -60,14 +61,14 @@ public class StressTest extends MatchTestCore {
      * Collection of <code>Entry</code> objects written
      * to the space by writer tasks.
      */
-    private RandomList writeList = new RandomList();
+    private final RandomList writeList = new RandomList();
 
     /**
      * True if test should interleave read and write operations.
      * Otherwise, all write operations will complete before
      * before the read operations take place.
      */
-    private boolean interleave = false;
+    private volatile boolean interleave = false;
 
     /*
      * TODO: Add -interleave <chunk size> processing (eg
@@ -77,36 +78,36 @@ public class StressTest extends MatchTestCore {
     /**
      * Number of <code>Entry</code> objects to put into the space.
      */
-    private int numEntries = 1000;
+    private volatile int numEntries = 1000;
 
     /**
      * Running count of <code>Entry</code> objects to put into the space.
      * This number will be used to schedule some casualty processing.
      */
-    private Counter writeCount = new Counter();
+    private final Counter writeCount = new Counter();
 
     /**
      * Running count of <code>Entry</code> objects taken from the space.
      * This number will be used to schedule some casualty processing.
      */
-    private Counter takeCount = new Counter();
+    private final Counter takeCount = new Counter();
 
     /**
      * Number of writer tasks to schedule.
      */
-    private int numWriters = 1;
+    private volatile int numWriters = 1;
 
     /**
      * Number of reader tasks to schedule.
      */
-    private int numReaders = 1;
+    private volatile int numReaders = 1;
 
     /**
      * The <code>TaskManager</code> handling read/write tasks.
      * Not valid until <code>construct()</code> is called.
      * @see StressTest#construct
      */
-    private TaskManager taskMgr = null;
+    private volatile TaskManager taskMgr = null;
 
     /**
      * Maintains number of task objects created.  Used to
@@ -114,7 +115,7 @@ public class StressTest extends MatchTestCore {
      * If static data could be contained in inner classes,
      * this would be declared in the StressTask class.
      */
-    private static int taskCounter = 0;
+    private final static AtomicInteger taskCounter = new AtomicInteger();
 
     /**
      * Flag value for determining when a shutdown request has been issued.
@@ -122,20 +123,20 @@ public class StressTest extends MatchTestCore {
      * reissue them one more time. Fail test RemoteExceptions are caught
      * when the flag is false or on second tries.
      */
-    private boolean shutdownAlready = false;
+    private volatile boolean shutdownAlready = false;
 
     /**
      * Flag value which is set after a space restart notification.
      * If true, prevent subsequent threads from waiting on this object.
      */
-    private boolean restartNotificationSent = false;
+    private volatile boolean restartNotificationSent = false;
 
     /**
      * If set, compute timing statistics for reads, takes, and
      * and write operations.
      * Not valid until <code>construct()</code> is called.
      */
-    protected boolean timingStats;
+    protected volatile boolean timingStats;
 
     /**
      * If set, verify each take operation with a subsequent read operation.
@@ -143,15 +144,15 @@ public class StressTest extends MatchTestCore {
      * to verify that the take took place.
      * Not valid until <code>construct()</code> is called.
      */
-    protected boolean verifyingTakes;
+    protected volatile boolean verifyingTakes;
 
     /**
      * fields which are added during porting for correct failure messages
      */
-    protected boolean WriteRandomEntryTaskOK = true;
-    protected String WriteRandomEntryTaskMSG;
-    protected boolean ReadAndTakeEntryTaskOK = true;
-    protected String ReadAndTakeEntryTaskMSG;
+    protected volatile boolean WriteRandomEntryTaskOK = true;
+    protected volatile String WriteRandomEntryTaskMSG;
+    protected volatile boolean ReadAndTakeEntryTaskOK = true;
+    protected volatile String ReadAndTakeEntryTaskMSG;
 
     /**
      * Method called for parsing command line arguments.
@@ -956,7 +957,7 @@ public class StressTest extends MatchTestCore {
         public StressTask(String prefix) {
 
             // Generate unique id
-            id = ++taskCounter;
+            id = taskCounter.incrementAndGet();
 
             // Generate unique prefix string for output messages.
             name = ((prefix == null) ? "???Task" : prefix) + "_" + id + ": ";

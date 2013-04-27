@@ -159,10 +159,10 @@ class OperationJournal extends Thread {
 	 * <code>watcherRegistered</code> has not yet 
 	 * been called.
 	 */
-	private JournalNode end;
+	private volatile JournalNode end;
 
 	/** Our current position in the journal */
-	private JournalNode current;
+	private volatile JournalNode current;
 
 	/**
 	 * Create a new <code>TransitionIterator</code> that will
@@ -468,6 +468,8 @@ class OperationJournal extends Thread {
 		} catch (Throwable tt) {
 		    // don't let a problem in logging kill the thread
 		}
+                if (t instanceof Error) throw (Error) t;
+                if (t instanceof RuntimeException) throw (RuntimeException) t;
 	    }
 	}
     }

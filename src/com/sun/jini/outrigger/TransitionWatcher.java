@@ -17,6 +17,8 @@
  */
 package com.sun.jini.outrigger;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * Base class for objects that represent interest in particular entry
  * visibility transitions.  Each <code>TransitionWatcher</code> has a
@@ -49,10 +51,8 @@ abstract class TransitionWatcher implements Comparable {
     final long startOrdinal;
 
     /** Next tiebreaker to use */
-    private static long nextTiebreaker = 0;
+    private final static AtomicLong nextTiebreaker = new AtomicLong();
 
-    /** Lock for nextTiebreaker */
-    private static Object nextTiebreakerLock = new Object();
 
     /**
      * Create a new <code>TransitionWatcher</code>. 
@@ -65,10 +65,8 @@ abstract class TransitionWatcher implements Comparable {
     TransitionWatcher(long timestamp, long startOrdinal) {
 	this.timestamp = timestamp;
 	this.startOrdinal = startOrdinal;
-
-	synchronized (nextTiebreakerLock) {
-	    tiebreaker = nextTiebreaker++;
-	}
+        tiebreaker = nextTiebreaker.getAndIncrement();
+	
 
     }
 

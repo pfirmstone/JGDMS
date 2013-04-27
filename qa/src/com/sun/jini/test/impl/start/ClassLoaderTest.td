@@ -32,4 +32,4 @@ com.sun.jini.test.impl.start.ClassLoaderTest2.starterConfiguration=${com.sun.jin
 com.sun.jini.test.impl.start.ClassLoaderTest2.host=master
 
 include0=start.properties
-sharedGroup.classpath=${com.sun.jini.jsk.home}$/lib$/sharedvm.jar$:${com.sun.jini.jsk.home}$/lib$/high-scale-lib.jar$:${com.sun.jini.jsk.home}$/lib$/custard-apple-1.0.2.jar$:<file:lib/qa1-start-testservice-common.jar>
+sharedGroup.classpath=${com.sun.jini.jsk.home}$/lib$/sharedvm.jar$:${com.sun.jini.jsk.home}$/lib$/high-scale-lib.jar$:${com.sun.jini.jsk.home}$/lib$/custard-apple-1.0.3.jar$:<file:lib/qa1-start-testservice-common.jar>
