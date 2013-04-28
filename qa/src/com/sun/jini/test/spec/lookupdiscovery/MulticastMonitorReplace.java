@@ -65,8 +65,8 @@ import java.util.List;
  */
 public class MulticastMonitorReplace extends Discovered {
 
-    protected String[] replacementGroups = null;//null ==> generate new groups
-    protected int nLookupsToReplace = 0;
+    protected volatile String[] replacementGroups = null;//null ==> generate new groups
+    protected volatile int nLookupsToReplace = 0;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the

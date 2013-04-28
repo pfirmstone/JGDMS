@@ -36,29 +36,29 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
                                       implements Admin 
 {
     /** the logger */
-    private static Logger logger = 
+    private final static Logger logger = 
 	Logger.getLogger("com.sun.jini.qa.harness");
 
     /** the group proxy */
-    private NonActivatableGroup proxy;
+    private volatile NonActivatableGroup proxy;
 
     /** the system process */
-    private Process process;
+    private volatile Process process;
 
     /** the stdout pipe, which mustn't be GC'd */
-    private Pipe outPipe;
+    private volatile Pipe outPipe;
 
     /** service options provided by the 5-arg constructor */
-    private String[] options;
+    private final String[] options;
 
     /** service properties provided by the 5-arg constructor */
-    private String[] properties;
+    private final String[] properties;
 
     /** merge of group options and service options */
-    private String[] combinedOptions;
+    private volatile String[] combinedOptions;
 
     /** merge of group properties and service properties */
-    private String[] combinedProperties;
+    private volatile String[] combinedProperties;
 
     /**
      * Construct an instance of <code>NonActivatableGroupAdmin</code>.
@@ -98,6 +98,8 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 				    int index)
     {
 	super(config, serviceName, index);
+        options = new String[0];
+        properties = options;
     }
 
     /**
@@ -180,9 +182,9 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
     /**
      * Annotator for annotating output merged into test log
      */
-    private class NonActGrpAnnotator implements Pipe.Annotator {
+    private static class NonActGrpAnnotator implements Pipe.Annotator {
 
-	private String annotation;
+	private final String annotation;
 
         NonActGrpAnnotator(String annotation) {
 	    this.annotation = annotation;

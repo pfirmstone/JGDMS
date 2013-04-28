@@ -46,21 +46,21 @@ class MasterTest {
     private final static int EXTERNAL_REQUEST_PORT=10005;
 
     /** The logger */
-    private static Logger logger = 
+    private final static Logger logger = 
 	Logger.getLogger("com.sun.jini.qa.harness");
 
     /** The System.err stream created when the process was exec'd */
-    private static PrintStream origErr;
+    private volatile static PrintStream origErr;
 
     /** The QAConfig instance, read from System.in */
-    private static QAConfig config;
+    private volatile static QAConfig config;
 
     /** obtained from QATestEnvironment after construct returns */
-    private static AdminManager manager;
+    private volatile static AdminManager manager;
 
-    private static SlaveTest slaveTest;
+    private volatile static SlaveTest slaveTest;
 
-    private static String callAutot;
+    private volatile static String callAutot;
 
     /**
      * The main method invoked in the test VM. The first argument is assumed to
@@ -316,7 +316,7 @@ class MasterTest {
 
     private static class RequestHandler implements Runnable {
 
-	TestEnvironment testExEnv;
+	final TestEnvironment testExEnv;
 
 	RequestHandler(TestEnvironment test) {
 	    this.testExEnv =test;
