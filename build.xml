@@ -907,7 +907,7 @@
             <arg value="net.jini.security.policy.DynamicPolicyProvider"/>
             <arg value="net.jini.security.policy.PolicyFileProvider"/>
             <arg value="org.apache.river.api.security.ConcurrentPolicyFile"/>
-            <arg value="org.apache.river.api.net.URLClassLoader"/>
+            <arg value="org.apache.river.api.net.RFC3986URLClassLoader"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="-in org.apache.river"/>

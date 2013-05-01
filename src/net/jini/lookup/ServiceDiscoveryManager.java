@@ -66,6 +66,7 @@ import java.rmi.server.UnicastRemoteObject;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.HashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -692,7 +693,7 @@ public class ServiceDiscoveryManager {
     private final static class ServiceDiscoveryListenerImpl
                                           implements ServiceDiscoveryListener
     {
-	ArrayList items = new ArrayList(1);
+	final ArrayList items = new ArrayList(1);
 	public synchronized void serviceAdded(ServiceDiscoveryEvent event) {
 	    items.add(event.getPostEventServiceItem());
 	    this.notifyAll();
@@ -714,15 +715,15 @@ public class ServiceDiscoveryManager {
      */
     private final static class EventReg  {
         /* The Event source from the event registration */
-        Object source;
+        final Object source;
         /* The Event ID */
-        public long eventID;
+        public final long eventID;
 	/* The current event sequence number for the Service template */
 	public long seqNo;
 	/* The Event notification lease */
-	public Lease lease;
+	public final Lease lease;
 	/* The pending events */
-	public ArrayList pending;
+	public final ArrayList pending;
 	/* The number of pending LookupTasks */
 	public int lookupsPending;
         public EventReg(Object source, long eventID, long seqNo, Lease lease) {
@@ -742,7 +743,7 @@ public class ServiceDiscoveryManager {
      */
     private final static class ServiceItemReg  {
 	/* Maps ServiceRegistrars to their latest registered item */
-	private final Map items = new HashMap();
+	private final Map<ServiceRegistrar,ServiceItem> items = new HashMap<ServiceRegistrar,ServiceItem>();
 	/* The ServiceRegistrar currently being used to track changes */
 	private ServiceRegistrar proxy;
 	/* Flag that indicates that the ServiceItem has been discarded. */
@@ -1509,11 +1510,11 @@ public class ServiceDiscoveryManager {
 	/* Flag that indicates if the LookupCache has been terminated. */
 	private boolean bCacheTerminated = false;
 	/* Contains the ServiceDiscoveryListener's that receive local events */
-	private final ArrayList sItemListeners = new ArrayList(1);
+	private final ArrayList<ServiceDiscoveryListener> sItemListeners = new ArrayList<ServiceDiscoveryListener>(1);
 	/* Map from ServiceID to ServiceItemReg */
-	private final HashMap serviceIdMap = new HashMap();
+	private final HashMap<ServiceID,ServiceItemReg> serviceIdMap = new HashMap<ServiceID,ServiceItemReg>();
 	/* Map from ProxyReg to EventReg: (proxyReg, {source,id,seqNo,lease})*/
-	private final HashMap eventRegMap = new HashMap();
+	private final HashMap<ProxyReg,EventReg> eventRegMap = new HashMap<ProxyReg,EventReg>();
 	/* Template current cache instance should use for primary matching */
 	private ServiceTemplate tmpl;
 	/* Filter current cache instance should use for secondary matching */
@@ -1527,7 +1528,7 @@ public class ServiceDiscoveryManager {
         /** For tasks waiting on verification events after service discard */
         private TaskManager serviceDiscardTimerTaskMgr;
         /* Thread mutex used to interrupt all ServiceDiscardTimerTasks */
-        private Object serviceDiscardMutex = new Object();
+        private final Object serviceDiscardMutex = new Object();
         /** Whenever a ServiceIdTask is created in this cache, it is assigned
          *  a unique sequence number to allow such tasks associated with the
          *  same ServiceID to be executed in the order in which they were
@@ -1550,14 +1551,7 @@ public class ServiceDiscoveryManager {
 	    synchronized(sItemListeners) {
 		if(sListener != null ) sItemListeners.add(sListener);
 	    }//end sync(sItemListeners)
-            ArrayList set;
-            synchronized(proxyRegSet) {
-                set = (ArrayList)proxyRegSet.clone();
-            }//end sync(proxyRegSet)
-	    for(int i=0; i<set.size(); i++) {
-		ProxyReg reg = (ProxyReg)set.get(i);
-                addProxyReg(reg);
-	    }//end loop
+            
 	}//end constructor
 
 	// This method's javadoc is inherited from an interface of this class
@@ -2245,6 +2239,14 @@ public class ServiceDiscoveryManager {
                 serviceDiscardTimerTaskMgr = new TaskManager
                                                          (10,(15*1000),1.0f);
             }
+            ArrayList set;
+            synchronized(proxyRegSet) {
+                set = new ArrayList(proxyRegSet);
+            }//end sync(proxyRegSet)
+	    for(int i=0; i<set.size(); i++) {
+		ProxyReg reg = (ProxyReg)set.get(i);
+                addProxyReg(reg);
+	    }//end loop
         }//end LookupCacheImpl.initCache
 
 	/** Applies the first-stage <code>filter</code> associated with
@@ -2452,45 +2454,45 @@ public class ServiceDiscoveryManager {
     /* Logger used by this utility. */
     private static final Logger logger = Logger.getLogger(COMPONENT_NAME);
     /* The discovery manager to use (passed in, or create one). */
-    private DiscoveryManagement discMgr;
+    private final DiscoveryManagement discMgr;
     /* Indicates whether the discovery manager was created internally or not */
-    private boolean discMgrInternal = false;
+    private final boolean discMgrInternal;
     /* The listener added to discMgr that receives DiscoveryEvents */
-    private DiscMgrListener discMgrListener = new DiscMgrListener();
+    private final DiscMgrListener discMgrListener;
     /* The LeaseRenewalManager to use (passed in, or create one). */
-    private LeaseRenewalManager leaseRenewalMgr;
+    private final LeaseRenewalManager leaseRenewalMgr;
     /* Contains all of the discovered lookup services (ServiceRegistrar). */
-    private final ArrayList proxyRegSet = new ArrayList(1);
+    private final List<ProxyReg> proxyRegSet = new ArrayList<ProxyReg>(1);
     /* Contains all of the DiscoveryListener's employed in lookup discovery. */
-    private final ArrayList<DiscoveryListener> listeners = new ArrayList<DiscoveryListener>(1);
+    private final List<DiscoveryListener> listeners = new ArrayList<DiscoveryListener>(1);
     /* Random number generator for use in lookup. */
     private final Random random = new Random();
     /* Contains all of the instances of LookupCache that are requested. */
-    private final ArrayList caches = new ArrayList(1);
+    private final ArrayList<LookupCache> caches = new ArrayList<LookupCache>(1);
 
     /* Flag to indicate if the ServiceDiscoveryManager has been terminated. */
     private boolean bTerminated = false;
     /* Object used to obtain the configuration items for this utility. */
-    private Configuration thisConfig;
+    private final Configuration thisConfig;
     /* Preparer for the proxies to the lookup services that are discovered
      * and used by this utility.
      */
-    private ProxyPreparer registrarPreparer;
+    private final ProxyPreparer registrarPreparer;
     /* Preparer for the proxies to the leases returned to this utility when
      * it registers with the event mechanism of any of the discovered lookup
      * services.
      */
-    private ProxyPreparer eventLeasePreparer;
+    private final ProxyPreparer eventLeasePreparer;
     /* Wait value used when handling the "service discard problem". */
-    private long discardWait = 2*(5*60*1000);
+    private final long discardWait;
 
     /* Listener class for lookup service discovery notification. */
-    private class DiscMgrListener implements DiscoveryListener {
+    private class DiscMgrListener implements DiscoveryListener {    
 	/* New or previously discarded proxy has been discovered. */
 	public void discovered(DiscoveryEvent e) {
-	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
-	    ArrayList newProxys = new ArrayList(1);
-	    ArrayList notifies  = null;
+	    ServiceRegistrar[] proxys = e.getRegistrars();
+	    ArrayList<ProxyReg> newProxys = new ArrayList<ProxyReg>(1);
+	    ArrayList<DiscoveryListener> notifies  = null;
 	    for(int i=0; i<proxys.length; i++) {
                 /* Prepare each lookup service proxy before using it. */
                 try {
@@ -2516,11 +2518,11 @@ public class ServiceDiscoveryManager {
 	    }//end loop
 	    synchronized(listeners) {
 		if(!listeners.isEmpty())
-		    notifies = (ArrayList)listeners.clone();
+		    notifies = new ArrayList<DiscoveryListener>(listeners);
 	    }//end sync(listeners)
-	    Iterator iter = newProxys.iterator();
+	    Iterator<ProxyReg> iter = newProxys.iterator();
 	    while(iter.hasNext()) {
-		ProxyReg reg = (ProxyReg)iter.next();
+		ProxyReg reg = iter.next();
 		cacheAddProxy(reg);
 		if(notifies != null)  listenerDiscovered(reg.getProxy(), notifies);
 	    }//end loop
@@ -2528,9 +2530,9 @@ public class ServiceDiscoveryManager {
 
 	/* Previously discovered proxy has been discarded. */
 	public void discarded(DiscoveryEvent e) {
-	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
-	    ArrayList notifies;
-	    ArrayList<ProxyReg> drops = new ArrayList<ProxyReg>(1);
+	    ServiceRegistrar[] proxys = e.getRegistrars();
+	    List<DiscoveryListener> notifies;
+	    List<ProxyReg> drops = new ArrayList<ProxyReg>(1);
 	    synchronized(proxyRegSet) {
 		for(int i=0; i<proxys.length; i++) {
 		    ProxyReg reg = findReg(proxys[i]);
@@ -2549,13 +2551,19 @@ public class ServiceDiscoveryManager {
 		dropProxy(iter.next());
             }//end loop
             if (!drops.isEmpty()){
+                notifies = new LinkedList<DiscoveryListener>();
                 synchronized(listeners) {
                     if(listeners.isEmpty()) return;
-                    notifies = (ArrayList)listeners.clone();
+                    notifies.addAll(listeners);
                 }//end sync(listeners)
                 listenerDropped(drops, notifies);
             }
 	}//end DiscMgrListener.discarded
+        
+        /** Discards a ServiceRegistrar through the discovery manager.*/
+        private void discard(ServiceRegistrar proxy) {
+            discMgr.discard(proxy);
+        }//end discard
 
     }//end class ServiceDiscoveryManager.DiscMgrListener
 
@@ -2749,9 +2757,9 @@ public class ServiceDiscoveryManager {
                                    LeaseRenewalManager leaseMgr)
                                                             throws IOException
     {
-        try {
-            init(discoveryMgr, leaseMgr, EmptyConfiguration.INSTANCE);
-        } catch(ConfigurationException e) { /* swallow this exception */ }
+        
+            this(initial(discoveryMgr, leaseMgr, EmptyConfiguration.INSTANCE));
+        
     }//end constructor
 
     /**
@@ -2822,48 +2830,61 @@ public class ServiceDiscoveryManager {
                                                 throws IOException,
                                                        ConfigurationException
     {
-        init(discoveryMgr, leaseMgr, config);
+        this(init(discoveryMgr, leaseMgr, config));
     }//end constructor
+    
+    private ServiceDiscoveryManager(Initializer init){
+        thisConfig = init.thisConfig;
+        registrarPreparer = init.registrarPreparer;
+        eventLeasePreparer = init.eventLeasePreparer;
+        leaseRenewalMgr = init.leaseRenewalMgr;
+        discardWait = init.discardWait.longValue();
+        discMgr = init.discMgr;
+        discMgrInternal = init.discMgrInternal;
+        discMgrListener = new DiscMgrListener();
+        discMgr.addDiscoveryListener(discMgrListener);
+    }
 
     /** Sends discarded event to each listener waiting for discarded lookups.*/
-    private void listenerDropped(ArrayList drops, ArrayList notifies) {
+    private void listenerDropped(List<ProxyReg> drops, List<DiscoveryListener> notifies) {
 	ServiceRegistrar[] proxys = new ServiceRegistrar[drops.size()];
 	drops.toArray(proxys);
 	listenerDropped(proxys, notifies);
     }//end listenerDropped
 
     /** Sends discarded event to each listener waiting for discarded lookups.*/
-    private void listenerDropped(ServiceRegistrar[] proxys,ArrayList notifies){
-	Iterator iter = notifies.iterator();
+    private void listenerDropped(ServiceRegistrar[] proxys, List<DiscoveryListener> notifies){
+	Iterator<DiscoveryListener> iter = notifies.iterator();
 	while (iter.hasNext()) {
 	    DiscoveryEvent evt = new DiscoveryEvent
-                                        ( this,
-                                          (ServiceRegistrar[])proxys.clone() );
-	    ((DiscoveryListener)iter.next()).discarded(evt);
+                                        ( this, proxys.clone());
+	    iter.next().discarded(evt);
 	}//end loop
     }//end listenerDropped
 
     /** Sends discovered event to each listener listening for new lookups. */
-    private void listenerDiscovered(ServiceRegistrar proxy,ArrayList notifies){
-	Iterator iter = notifies.iterator();
+    private void listenerDiscovered(ServiceRegistrar proxy, List<DiscoveryListener> notifies){
+	Iterator<DiscoveryListener> iter = notifies.iterator();
 	while (iter.hasNext()) {
 	    DiscoveryEvent evt = new DiscoveryEvent
                                         ( this,
                                           new ServiceRegistrar[]{proxy} );
-	    ((DiscoveryListener)iter.next()).discovered(evt);
+	    iter.next().discovered(evt);
 	}//end loop
     }//end listenerDiscovered
 
     /** Returns array of ServiceRegistrar created from the proxyRegSet */
     private ServiceRegistrar[] buildServiceRegistrar() {
-	int k = 0;
-	ServiceRegistrar[] proxys = new ServiceRegistrar[proxyRegSet.size()];
-	Iterator iter = proxyRegSet.iterator();
-	while(iter.hasNext()) {
-	    ProxyReg reg = (ProxyReg)iter.next();
-	    proxys[k++] = reg.getProxy();
-	}//end loop
-	return proxys;
+        synchronized (proxyRegSet){
+            int k = 0;
+            ServiceRegistrar[] proxys = new ServiceRegistrar[proxyRegSet.size()];
+            Iterator<ProxyReg> iter = proxyRegSet.iterator();
+            while(iter.hasNext()) {
+                ProxyReg reg = iter.next();
+                proxys[k++] = reg.getProxy();
+            }//end loop
+            return proxys;
+        }
     }//end buildServiceRegistrar
 
     /**
@@ -2944,10 +2965,7 @@ public class ServiceDiscoveryManager {
      */
     public ServiceItem lookup(ServiceTemplate tmpl, ServiceItemFilter filter) {
 	checkTerminated();
-	ServiceRegistrar[] proxys;
-	synchronized(proxyRegSet) {
-	    proxys =  buildServiceRegistrar();
-	}
+	ServiceRegistrar[] proxys = buildServiceRegistrar();
 	int len = proxys.length;
 	if(len == 0 ) return null;
 	int rand = random.nextInt(Integer.MAX_VALUE) % len;
@@ -3338,12 +3356,10 @@ public class ServiceDiscoveryManager {
 	if (maxMatches < 1)
 	    throw new IllegalArgumentException("maxMatches must be > 0");
         /* retrieve the lookup service(s) to query for matching service(s) */
-	ServiceRegistrar[] proxys;
-	synchronized(proxyRegSet) {
-	    proxys =  buildServiceRegistrar();
-	}
+	ServiceRegistrar[] proxys = buildServiceRegistrar();
+	
 	int len = proxys.length;
-	ArrayList sItemSet = new ArrayList(len);
+	List<ServiceItem> sItemSet = new ArrayList<ServiceItem>(len);
 	if(len > 0) {
             /* loop thru the set of lookups, randomly selecting each lookup */
 	    int rand = (random.nextInt(Integer.MAX_VALUE)) % len;
@@ -3382,8 +3398,8 @@ public class ServiceDiscoveryManager {
 			if(!isArrayContainsServiceItem(sItemSet, sItem))
 			    sItemSet.add(sItem);
 			if(sItemSet.size() >= maxMatches) {
-                            return (ServiceItem [])(sItemSet.toArray
-                                           (new ServiceItem[sItemSet.size()]));
+                            return sItemSet.toArray
+                          (new ServiceItem[sItemSet.size()]);
 			}
 		    }//end loop(j)
 		} catch(Exception e) {
@@ -3614,8 +3630,8 @@ public class ServiceDiscoveryManager {
                                                        throws RemoteException
     {
 	if(tmpl == null) tmpl = new ServiceTemplate(null, null, null);
-	LookupCacheImpl cache = new LookupCacheImpl(tmpl, filter,
-                                                    listener, leaseDuration);
+	LookupCacheImpl cache = new LookupCacheImpl(tmpl, filter, listener, leaseDuration);
+        cache.initCache();
 	synchronized(caches) {
 	    caches.add(cache);
 	}
@@ -3784,10 +3800,10 @@ public class ServiceDiscoveryManager {
     }//end copyServiceTemplate
 
     /** Determines if the given ServiceItem is an element of the given array.*/
-    static private boolean isArrayContainsServiceItem(ArrayList a,
+    static private boolean isArrayContainsServiceItem(List<ServiceItem> a,
                                                       ServiceItem s)
     {
-	Iterator iter = a.iterator();
+	Iterator<ServiceItem> iter = a.iterator();
 	while(iter.hasNext()) {
 	    Object o = iter.next();
 	    if ( !(o instanceof ServiceItem )) continue;
@@ -3800,62 +3816,83 @@ public class ServiceDiscoveryManager {
 	return false;
     }//end isArrayContainsServiceItems
 
+    private static class Initializer {
+        Configuration thisConfig;
+        ProxyPreparer registrarPreparer;
+        ProxyPreparer eventLeasePreparer;
+        LeaseRenewalManager leaseRenewalMgr;
+        Long discardWait = Long.valueOf( 2*(5*60*1000));
+        DiscoveryManagement discMgr;
+        boolean discMgrInternal;
+        DiscMgrListener discMgrListener;
+    }
+    
+    private static Initializer initial(DiscoveryManagement discoveryMgr, LeaseRenewalManager leaseMgr, Configuration config) throws IOException {
+        try {
+            return init(discoveryMgr, leaseMgr, EmptyConfiguration.INSTANCE);
+        } catch(ConfigurationException e) { 
+            /* This should never happen */
+            throw new IOException(e);
+        }
+    }
+    
     /* Convenience method that encapsulates the retrieval of the configurable
      * items from the given <code>Configuration</code> object.
      */
-    private void init(DiscoveryManagement discoveryMgr,
+    private static Initializer init(DiscoveryManagement discoveryMgr,
                       LeaseRenewalManager leaseMgr,
                       Configuration config)
                                     throws IOException, ConfigurationException
     {
+        Initializer init = new Initializer();
         /* Retrieve configuration items if applicable */
         if(config == null)  throw new NullPointerException("config is null");
-        thisConfig = config;
+        init.thisConfig = config;
         /* Proxy preparers */
-        registrarPreparer = (ProxyPreparer)thisConfig.getEntry
+        init.registrarPreparer = (ProxyPreparer)init.thisConfig.getEntry
                                                     (COMPONENT_NAME,
                                                      "registrarPreparer",
                                                      ProxyPreparer.class,
                                                      new BasicProxyPreparer());
-        eventLeasePreparer = (ProxyPreparer)thisConfig.getEntry
+        init.eventLeasePreparer = (ProxyPreparer)init.thisConfig.getEntry
                                                    (COMPONENT_NAME,
                                                     "eventLeasePreparer",
                                                     ProxyPreparer.class,
                                                     new BasicProxyPreparer());
         /* Lease renewal manager */
-        leaseRenewalMgr = leaseMgr;
-	if(leaseRenewalMgr == null) {
+        init.leaseRenewalMgr = leaseMgr;
+	if(init.leaseRenewalMgr == null) {
             try {
-                leaseRenewalMgr
-                   = (LeaseRenewalManager)thisConfig.getEntry
+                init.leaseRenewalMgr
+                   = (LeaseRenewalManager)init.thisConfig.getEntry
                                                  (COMPONENT_NAME,
                                                   "leaseManager",
                                                   LeaseRenewalManager.class);
             } catch(NoSuchEntryException e) { /* use default */
-                leaseRenewalMgr = new LeaseRenewalManager(thisConfig);
+                init.leaseRenewalMgr = new LeaseRenewalManager(init.thisConfig);
             }
         }//endif
         /* Wait value for the "service discard problem". */
-        discardWait = ((Long)thisConfig.getEntry
+        init.discardWait = ((Long) init.thisConfig.getEntry
                                           (COMPONENT_NAME,
                                            "discardWait",
                                            long.class,
-                                           Long.valueOf(discardWait))).longValue();
+                                           init.discardWait)).longValue();
         /* Discovery manager */
-        discMgr = discoveryMgr;
-	if(discMgr == null) {
-	    discMgrInternal = true;
+        init.discMgr = discoveryMgr;
+	if(init.discMgr == null) {
+	    init.discMgrInternal = true;
             try {
-                discMgr = (DiscoveryManagement)thisConfig.getEntry
+                init.discMgr = (DiscoveryManagement)init.thisConfig.getEntry
                                                    (COMPONENT_NAME,
                                                     "discoveryManager",
                                                     DiscoveryManagement.class);
             } catch(NoSuchEntryException e) { /* use default */
-                discMgr = new LookupDiscoveryManager
-                                   (new String[] {""}, null, null, thisConfig);
+                init.discMgr = new LookupDiscoveryManager
+                                   (new String[] {""}, null, null, init.thisConfig);
             }
 	}//endif
-	discMgr.addDiscoveryListener(discMgrListener);
+        return init;
     }//end init
 
 

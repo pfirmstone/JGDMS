@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -19,11 +20,11 @@ import org.junit.Test;
 public class FastListTest {
 
     /** The FastList under test. */
-    private FastList<TestNode> testee;
+    private volatile FastList<TestNode> testee;
     /** Convenience Iterable that gives access to testee's raw data. */
-    private Iterable<TestNode> rawTestee;
+    private volatile Iterable<TestNode> rawTestee;
     /** Next id to use in creating data. */
-    int nextId = 0;
+    final AtomicInteger nextId = new AtomicInteger();
 
     @Before
     public void initialize() {
@@ -281,8 +282,7 @@ public class FastListTest {
     private List<TestNode> makeDataList(int size) {
         List<TestNode> l = new ArrayList<TestNode>();
         for (int i = 0; i < size; i++) {
-            l.add(new TestNode(nextId));
-            nextId++;
+            l.add(new TestNode(nextId.getAndIncrement()));
         }
         return l;
     }
@@ -486,7 +486,7 @@ public class FastListTest {
                     + super.toString() + "]";
         }
 
-        int id;
+        final int id;
 
         private TestNode(int id) {
             this.id = id;

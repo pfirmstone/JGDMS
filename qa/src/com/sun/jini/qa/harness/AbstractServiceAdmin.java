@@ -41,7 +41,7 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.ConstrainableLookupLocator;
 import net.jini.lookup.DiscoveryAdmin;
 import net.jini.security.ProxyPreparer;
-import org.apache.river.impl.net.UriString;
+import org.apache.river.api.net.Uri;
 
 /**
  * An abstract class supporting admins which use strings to identify
@@ -123,83 +123,83 @@ import org.apache.river.impl.net.UriString;
 public abstract class AbstractServiceAdmin implements Admin {
 
     /** The logger */
-    protected static Logger logger =
+    protected final static Logger logger =
 	Logger.getLogger("com.sun.jini.qa.harness");
 
     /** The config object for this test */
-    protected QAConfig config;
+    protected final QAConfig config;
 
     /** The name of the service controlled by this admin */
-    protected String serviceName;
+    protected final String serviceName;
 
     /** The instance number of this service in this test */
-    protected int index;
+    protected final int index;
 
     /** The codebase for the service */
-    private String codebase;
+    private volatile String codebase;
 
     /** The implementation class name of this service */
-    private String impl;
+    private volatile String impl;
 
     /** The policy file applied to this service */
-    private String policyFile;
+    private volatile String policyFile;
 
     /** The classpath for this service */
-    private String classpath;
+    private volatile String classpath;
 
     /** The vm to be used to run this service (uaually null) */
-    private String jvm;
+    private volatile String jvm;
 
     /** The command line options for the service VM */
-    private String[] options;
+    private volatile String[] options;
 
     /** The system properties for the service VM */
-    private String[] properties;
+    private volatile String[] properties;
 
     /** The activation host (usually null) */
-    private String activationHost;
+    private volatile String activationHost;
 
     /** The activation port (only used for non-null act host) */
-    private int activationPort;
+    private volatile int activationPort;
 
     /** The name of the service configuration file */
-    private String serviceConfigFile;
+    private volatile String serviceConfigFile;
 
     /** The name of the service starter configuration file */
-    private String starterConfig;
+    private volatile String starterConfig;
 
     /** The service directory (e.g. the doc directory for the class server */
-    private String dir;
+    private volatile String dir;
 
     /** The port associated with the service (e.g. the class server port */
-    private int port;
+    private volatile int port;
 
     /** Flag indicating a port was defined */
-    private boolean gotPort = false;
+    private volatile boolean gotPort = false;
 
     /** Groups associated with the service */
-    private String[] groups;
+    private volatile String[] groups;
 
     /** Locators associated with the service, expected to be non-null */
-    private LookupLocator[] locators = new LookupLocator[0];
+    private volatile LookupLocator[] locators = new LookupLocator[0];
 
     /** Member groups associated with a lookup service */
-    private String[] memberGroups;
+    private volatile String[] memberGroups;
 
     /** The name of the proxy preparer */
-    private String preparerName;
+    private volatile String preparerName;
 
     /** The name of the persistence directory */
-    private String logDirName; //XXX merge with dir?
+    private volatile String logDirName; //XXX merge with dir?
 
     /** The service type (for selecting the admin class) */
-    private String type;
+    private volatile String type;
 
     /** The transformer for munging the service descriptor */
-    protected ServiceDescriptorTransformer transformer = null;
+    protected volatile ServiceDescriptorTransformer transformer = null;
 
     /** The component name in the configuration file */
-    private String component;
+    private volatile String component;
 
     /**
      * Construct an <code>AbstractServicerAdmin</code>.
@@ -354,8 +354,9 @@ public abstract class AbstractServiceAdmin implements Admin {
 	urls = new URI[st.countTokens()];
 	for (int i = 0; st.hasMoreTokens(); i++) {
             String uri = st.nextToken();
-            uri = UriString.fixWindowsURI(uri);
-            urls[i] = UriString.normalise(new URI(UriString.escapeIllegalCharacters(uri)));
+            uri = Uri.fixWindowsURI(uri);
+            urls[i] = Uri.uriToURI(Uri.parseAndCreate(uri));
+//            urls[i] = UriString.normalise(new URI(UriString.escapeIllegalCharacters(uri)));
 	}
 	return urls;
     }

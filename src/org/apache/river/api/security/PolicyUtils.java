@@ -41,13 +41,10 @@ import java.security.PrivilegedExceptionAction;
 import java.security.Security;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import org.apache.river.impl.net.UriString;
+import org.apache.river.api.net.Uri;
 
 /**
  * This class consist of a number of static methods, which provide a common functionality 
@@ -213,18 +210,17 @@ import org.apache.river.impl.net.UriString;
                         // codebase is "file:"
                         path = "*";
                     }
-                    return UriString.normalisation(filePathToURI(new File(path)
-                            .getAbsolutePath()));
+                    return Uri.uriToURI(Uri.fileToUri(new File(path)));
                 } else {
                     // codebase is "file://<smth>"
-                    return UriString.normalisation(codebase.toURI());
+                    return Uri.uriToURI(Uri.urlToUri(codebase));
                 }
             } catch (Exception e) {
                 if ( e instanceof SecurityException ) throw (SecurityException) e;
                 // Ignore
             }
         }
-        return UriString.normalisation(codebase.toURI());
+        return Uri.uriToURI(Uri.urlToUri(codebase));
     }
 
     /**

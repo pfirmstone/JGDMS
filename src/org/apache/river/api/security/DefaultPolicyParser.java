@@ -25,13 +25,10 @@ package org.apache.river.api.security;
 import org.apache.river.impl.Messages;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
-import org.apache.river.impl.net.UriString;
 import java.io.BufferedReader;
-import java.io.File;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
-import java.net.URI;
 import java.net.URL;
 import java.security.cert.Certificate;
 import java.security.cert.CertificateException;
@@ -51,6 +48,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.StringTokenizer;
 
+import org.apache.river.api.net.Uri;
 import org.apache.river.api.security.DefaultPolicyScanner.GrantEntry;
 import org.apache.river.api.security.DefaultPolicyScanner.KeystoreEntry;
 import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
@@ -265,7 +263,7 @@ class DefaultPolicyParser implements PolicyParser {
         // We do this to support windows, this is to ensure that path
         // capitalisation is correct and illegal strings are escaped correctly.
         if (uriString == null) return null;
-        return UriString.fixWindowsURI(uriString);
+        return Uri.fixWindowsURI(uriString);
     }
     
     Segment segment(String s, Properties p) throws ExpansionFailedException{

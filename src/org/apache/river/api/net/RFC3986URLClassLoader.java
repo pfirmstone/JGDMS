@@ -43,7 +43,6 @@ import java.security.CodeSource;
 import java.security.Permission;
 import java.security.PermissionCollection;
 import java.security.PrivilegedAction;
-import java.security.SecureClassLoader;
 import java.security.cert.Certificate;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -73,7 +72,7 @@ import org.apache.river.impl.Messages;
  * URLs contained in the URL search list.
  * <p>
  * Unlike java.net.URLClassLoader, CodeSource equality is based on Certificate
- * and Uri location equality, not URL.equals().
+ * and RFC3986 Uri location equality, not URL.equals().
  * <p>
  * This allows implementors of {@link java.rmi.Remote} to do two things:
  * <ol>
@@ -83,7 +82,7 @@ import org.apache.river.impl.Messages;
  * </ol>
  * 
  */
-public class URLClassLoader extends java.net.URLClassLoader {
+public class RFC3986URLClassLoader extends java.net.URLClassLoader {
 
     private final List<URL> originalUrls; // Copy on Write
 
@@ -95,18 +94,18 @@ public class URLClassLoader extends java.net.URLClassLoader {
 
     private final URLStreamHandlerFactory factory;
 
-    private volatile AccessControlContext currentContext;
+    private final AccessControlContext currentContext;
 
-    static class SubURLClassLoader extends URLClassLoader {
+    private static class SubURLClassLoader extends RFC3986URLClassLoader {
         // The subclass that overwrites the loadClass() method
         private boolean checkingPackageAccess = false;
 
-        SubURLClassLoader(URL[] urls) {
-            super(urls, ClassLoader.getSystemClassLoader());
+        SubURLClassLoader(URL[] urls, AccessControlContext context) {
+            super(urls, ClassLoader.getSystemClassLoader(), null, context);
         }
 
-        SubURLClassLoader(URL[] urls, ClassLoader parent) {
-            super(urls, parent);
+        SubURLClassLoader(URL[] urls, ClassLoader parent, AccessControlContext context) {
+            super(urls, parent, null, context);
         }
 
         /**
@@ -142,7 +141,7 @@ public class URLClassLoader extends java.net.URLClassLoader {
         }
     }
 
-    static class IndexFile {
+    private static class IndexFile {
 
         private final HashMap<String, ArrayList<URL>> map;
         //private URLClassLoader host;
@@ -238,18 +237,21 @@ public class URLClassLoader extends java.net.URLClassLoader {
         }
     }
 
-    class URLHandler {
+    private static class URLHandler {
         final URL url;
         final URL codeSourceUrl;
+        final RFC3986URLClassLoader loader;
 
-        public URLHandler(URL url) {
+        public URLHandler(URL url, RFC3986URLClassLoader loader) {
             this.url = url;
             this.codeSourceUrl = url;
+            this.loader = loader;
         }
         
-        public URLHandler(URL url, URL codeSourceUrl){
+        public URLHandler(URL url, URL codeSourceUrl, RFC3986URLClassLoader loader){
             this.url = url;
             this.codeSourceUrl = codeSourceUrl;
+            this.loader = loader;
         }
 
         void findResources(String name, ArrayList<URL> resources) {
@@ -289,9 +291,9 @@ public class URLClassLoader extends java.net.URLClassLoader {
             }
             if (packageName != null) {
                 String packageDotName = packageName.replace('/', '.');
-                Package packageObj = getPackage(packageDotName);
+                Package packageObj = loader.getPackage(packageDotName);
                 if (packageObj == null) {
-                    definePackage(packageDotName, null, null,
+                    loader.definePackage(packageDotName, null, null,
                             null, null, null, null, null);
                 } else {
                     if (packageObj.isSealed()) {
@@ -300,7 +302,7 @@ public class URLClassLoader extends java.net.URLClassLoader {
                     }
                 }
             }
-            return defineClass(origName, clBuf, 0, clBuf.length, new UriCodeSource(codeSourceUrl, (Certificate[]) null, null));
+            return loader.defineClass(origName, clBuf, 0, clBuf.length, new UriCodeSource(codeSourceUrl, (Certificate[]) null, null));
         }
 
         URL findResource(String name) {
@@ -344,22 +346,22 @@ public class URLClassLoader extends java.net.URLClassLoader {
 
     }
 
-    class URLJarHandler extends URLHandler {
+    private static class URLJarHandler extends URLHandler {
         private final JarFile jf;
         private final String prefixName;
         private final IndexFile index;
         private final Map<Uri, URLHandler> subHandlers = new HashMap<Uri, URLHandler>();
 
-        public URLJarHandler(URL url, URL jarURL, JarFile jf, String prefixName) {
-            super(url, jarURL);
+        public URLJarHandler(URL url, URL jarURL, JarFile jf, String prefixName, RFC3986URLClassLoader loader) {
+            super(url, jarURL, loader);
             this.jf = jf;
             this.prefixName = prefixName;
             final JarEntry je = jf.getJarEntry("META-INF/INDEX.LIST"); //$NON-NLS-1$
             this.index = (je == null ? null : IndexFile.readIndexFile(jf, je, url));
         }
 
-        public URLJarHandler(URL url, URL jarURL, JarFile jf, String prefixName, IndexFile index) {
-            super(url, jarURL);
+        public URLJarHandler(URL url, URL jarURL, JarFile jf, String prefixName, IndexFile index, RFC3986URLClassLoader loader) {
+            super(url, jarURL, loader);
             this.jf = jf;
             this.prefixName = prefixName;
             this.index = index;
@@ -457,19 +459,19 @@ public class URLClassLoader extends java.net.URLClassLoader {
             }
             if (packageName != null) {
                 String packageDotName = packageName.replace('/', '.');
-                Package packageObj = getPackage(packageDotName);
+                Package packageObj = loader.getPackage(packageDotName);
                 if (packageObj == null) {
                     if (manifest != null) {
-                        definePackage(packageDotName, manifest,
+                        loader.definePackage(packageDotName, manifest,
                                 codeSourceUrl);
                     } else {
-                        definePackage(packageDotName, null, null,
+                        loader.definePackage(packageDotName, null, null,
                                 null, null, null, null, null);
                     }
                 } else {
                     boolean exception = packageObj.isSealed();
                     if (manifest != null) {
-                        if (isSealed(manifest, packageName + "/")) {
+                        if (loader.isSealed(manifest, packageName + "/")) {
                             exception = !packageObj
                                     .isSealed(codeSourceUrl);
                         }
@@ -481,7 +483,7 @@ public class URLClassLoader extends java.net.URLClassLoader {
                 }
             }
             CodeSource codeS = new UriCodeSource(codeSourceUrl, entry.getCertificates(),null);
-            return defineClass(origName, clBuf, 0, clBuf.length, codeS);
+            return loader.defineClass(origName, clBuf, 0, clBuf.length, codeS);
         }
 
         URL findResourceInOwn(String name) {
@@ -528,7 +530,7 @@ public class URLClassLoader extends java.net.URLClassLoader {
             try {
                 key = Uri.urlToUri(url);
             } catch (URISyntaxException ex) {
-                Logger.getLogger(URLClassLoader.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(RFC3986URLClassLoader.class.getName()).log(Level.SEVERE, null, ex);
             }
             synchronized (subHandlers){
                 URLHandler sub = subHandlers.get(key);
@@ -537,11 +539,11 @@ public class URLClassLoader extends java.net.URLClassLoader {
                 }
                 String protocol = url.getProtocol();
                 if (protocol.equals("jar")) { //$NON-NLS-1$
-                    sub = createURLJarHandler(url);
+                    sub = loader.createURLJarHandler(url);
                 } else if (protocol.equals("file")) { //$NON-NLS-1$
                     sub = createURLSubJarHandler(url);
                 } else {
-                    sub = createURLHandler(url);
+                    sub = loader.createURLHandler(url);
                 }
                 if (sub != null && key != null) {
                     subHandlers.put(key, sub);
@@ -571,7 +573,7 @@ public class URLClassLoader extends java.net.URLClassLoader {
                         "jar", "", //$NON-NLS-1$ //$NON-NLS-2$
                         jarURL.toExternalForm() + "!/").openConnection(); //$NON-NLS-1$
                 JarFile jf = juc.getJarFile();
-                URLJarHandler jarH = new URLJarHandler(url, jarURL, jf, prefixName, null);
+                URLJarHandler jarH = new URLJarHandler(url, jarURL, jf, prefixName, loader);
                 // TODO : to think what we should do with indexes & manifest.class file here
                 return jarH;
             } catch (IOException e) {
@@ -581,11 +583,11 @@ public class URLClassLoader extends java.net.URLClassLoader {
 
     }
 
-    class URLFileHandler extends URLHandler {
+    private static class URLFileHandler extends URLHandler {
         private final String prefix;
 
-        public URLFileHandler(URL url) {
-            super(url);
+        public URLFileHandler(URL url, RFC3986URLClassLoader loader) {
+            super(url, null);
             String baseFile = url.getFile();
             String host = url.getHost();
             int hostLength = 0;
@@ -722,7 +724,7 @@ public class URLClassLoader extends java.net.URLClassLoader {
      *             checkCreateClassLoader()} method doesn't allow creation of
      *             new ClassLoaders.
      */
-    public URLClassLoader(URL[] urls) {
+    public RFC3986URLClassLoader(URL[] urls) {
         this(urls, ClassLoader.getSystemClassLoader(), null);
     }
 
@@ -741,7 +743,7 @@ public class URLClassLoader extends java.net.URLClassLoader {
      *             checkCreateClassLoader()} method doesn't allow creation of
      *             new class loaders.
      */
-    public URLClassLoader(URL[] urls, ClassLoader parent) {
+    public RFC3986URLClassLoader(URL[] urls, ClassLoader parent) {
         this(urls, parent, null);
     }
 
@@ -907,14 +909,14 @@ public class URLClassLoader extends java.net.URLClassLoader {
      *            URLClassloader}.
      * @return the created {@code URLClassLoader} instance.
      */
-    public static URLClassLoader newInstance(final URL[] urls) {
-        URLClassLoader sub = AccessController
-                .doPrivileged(new PrivilegedAction<URLClassLoader>() {
-                    public URLClassLoader run() {
-                        return new SubURLClassLoader(urls);
+    public static RFC3986URLClassLoader newInstance(final URL[] urls) {
+        final AccessControlContext context = AccessController.getContext();
+        RFC3986URLClassLoader sub = AccessController
+                .doPrivileged(new PrivilegedAction<RFC3986URLClassLoader>() {
+                    public RFC3986URLClassLoader run() {
+                        return new SubURLClassLoader(urls, context);
                     }
                 });
-        sub.currentContext = AccessController.getContext();
         return sub;
     }
 
@@ -931,15 +933,15 @@ public class URLClassLoader extends java.net.URLClassLoader {
      *            URLClassloader.
      * @return the created {@code URLClassLoader} instance.
      */
-    public static URLClassLoader newInstance(final URL[] urls,
+    public static RFC3986URLClassLoader newInstance(final URL[] urls,
                                              final ClassLoader parentCl) {
-        URLClassLoader sub = AccessController
-                .doPrivileged(new PrivilegedAction<URLClassLoader>() {
-                    public URLClassLoader run() {
-                        return new SubURLClassLoader(urls, parentCl);
+        final AccessControlContext context = AccessController.getContext();
+        RFC3986URLClassLoader sub = AccessController
+                .doPrivileged(new PrivilegedAction<RFC3986URLClassLoader>() {
+                    public RFC3986URLClassLoader run() {
+                        return new SubURLClassLoader(urls, parentCl, context);
                     }
                 });
-        sub.currentContext = AccessController.getContext();
         return sub;
     }
 
@@ -963,12 +965,20 @@ public class URLClassLoader extends java.net.URLClassLoader {
      *             checkCreateClassLoader()} method doesn't allow creation of
      *             new {@code ClassLoader}s.
      */
-    public URLClassLoader(URL[] searchUrls, ClassLoader parent,
+    public RFC3986URLClassLoader(URL[] searchUrls, ClassLoader parent,
                           URLStreamHandlerFactory factory) {
+        this(searchUrls, parent, factory, AccessController.getContext());
+    }
+    
+    RFC3986URLClassLoader( URL[] searchUrls, 
+                            ClassLoader parent, 
+                            URLStreamHandlerFactory factory, 
+                            AccessControlContext context)
+    {
         super(searchUrls, parent, factory);  // ClassLoader protectes against finalizer attack.
         this.factory = factory;
         // capture the context of the thread that creates this URLClassLoader
-        currentContext = AccessController.getContext();
+        currentContext = context;
         int nbUrls = searchUrls.length;
         List<URL> originalUrls = new ArrayList<URL>(nbUrls);
         handlerList = new ArrayList<URLHandler>(nbUrls);
@@ -1115,7 +1125,7 @@ public class URLClassLoader extends java.net.URLClassLoader {
             try {
                 candidateKey = Uri.urlToUri(nextCandidate);
             } catch (URISyntaxException ex) {
-                Logger.getLogger(URLClassLoader.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(RFC3986URLClassLoader.class.getName()).log(Level.SEVERE, null, ex);
             }
             if (!handlerMap.containsKey(candidateKey)) {
                 URLHandler result;
@@ -1137,11 +1147,11 @@ public class URLClassLoader extends java.net.URLClassLoader {
     }
 
     private URLHandler createURLHandler(URL url) {
-        return new URLHandler(url);
+        return new URLHandler(url, this);
     }
 
     private URLHandler createURLFileHandler(URL url) {
-        return new URLFileHandler(url);
+        return new URLFileHandler(url, this);
     }
 
     private URLHandler createURLJarHandler(URL url) {
@@ -1165,7 +1175,7 @@ public class URLClassLoader extends java.net.URLClassLoader {
                     "jar", "", //$NON-NLS-1$ //$NON-NLS-2$
                     jarURL.toExternalForm() + "!/").openConnection(); //$NON-NLS-1$
             JarFile jf = juc.getJarFile();
-            URLJarHandler jarH = new URLJarHandler(url, jarURL, jf, prefixName);
+            URLJarHandler jarH = new URLJarHandler(url, jarURL, jf, prefixName, this);
 
             if (jarH.getIndex() == null) {
                 try {

@@ -47,29 +47,26 @@ public class TxnTableTest extends TestCase {
 	@SuppressWarnings("unchecked")
 	public void testKeyEquals() throws Exception {
 		
-		TxnTable mockTxnTable = mock(TxnTable.class);
+//		TxnTable mockTxnTable = mock(TxnTable.class);
 		
 		TransactionManager mockTransactionManager = mock(TransactionManager.class);
 		
 		final long id = 1000L;
 		final boolean isPrepared = true;
 		
-		Object key = createKeyInstance(mockTxnTable,
-									   mockTransactionManager, 
-									   id, 
-									   isPrepared);
+		Object key = createKeyInstance(mockTransactionManager, 
+                                               id, 
+                                               isPrepared);
 		
-		Object equalKey = createKeyInstance(mockTxnTable,
-											mockTransactionManager, 
-											id, 
-											isPrepared);
+		Object equalKey = createKeyInstance(mockTransactionManager, 
+                                                    id, 
+                                                    isPrepared);
 		
 		assertTrue("These keys should be equal", key.equals(equalKey));
 		
-		Object notPrepared = createKeyInstance(mockTxnTable,
-							  				   mockTransactionManager, 
-											   id, 
-											   !isPrepared);
+		Object notPrepared = createKeyInstance(mockTransactionManager, 
+                                                       id, 
+                                                       !isPrepared);
 		
 		//the following assertion reveals the bug
 		assertTrue("Although not prepared, it's manager is the same and should therefore be equal", key.equals(notPrepared));
@@ -80,25 +77,30 @@ public class TxnTableTest extends TestCase {
 		} catch (AssertionError ae) {}
 	}
 
-	private Object createKeyInstance(TxnTable mockTxnTable,
-									  TransactionManager mockTransactionManager, 
-									  final long firstId,
-									 final boolean isPrepared) throws NoSuchMethodException,
-									 									InstantiationException, 
-									 									IllegalAccessException,
-									 									InvocationTargetException {
+        // Note that TxnTable.Key is now a static class instead of an instance
+        // class, so the TxnTable "this" reference is no longer needed.
+	private Object createKeyInstance(TransactionManager mockTransactionManager, 
+                                  final long firstId,
+                                 final boolean isPrepared) 
+                throws NoSuchMethodException,
+                        InstantiationException, 
+                        IllegalAccessException,
+                        InvocationTargetException {
 		
-		Constructor innerKeyCntr = innerKey.getDeclaredConstructor(new Class[] { TxnTable.class,
-																				  TransactionManager.class,
-														        				  long.class,
-																        		  boolean.class });
+		Constructor innerKeyCntr = innerKey.getDeclaredConstructor(
+                        new Class[] { TransactionManager.class,
+                            long.class,
+                            boolean.class });
+                
 		assertNotNull("Sanity failed", innerKeyCntr);
 		
 		innerKeyCntr.setAccessible(true);
-		Object instance = innerKeyCntr.newInstance(new Object[] {mockTxnTable, 
-																  mockTransactionManager,
-																  firstId,
-																  isPrepared} );
+		Object instance = innerKeyCntr.newInstance(
+                        new Object[] {
+//                            mockTxnTable, 
+                                  mockTransactionManager,
+                                  firstId,
+                                  isPrepared} );
 		
 		assertNotNull("Sanity failed", instance);
 		

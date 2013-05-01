@@ -1083,7 +1083,6 @@ public final class Uri implements Comparable<Uri> {
 //            return false;
 //        }
 
-        /* Certificates can safely be ignored, they're checked by CertificateGrant */
         
         // javadoc:2
         // with a comment: the javadoc says only about certificates and does 
@@ -1168,7 +1167,7 @@ public final class Uri implements Comparable<Uri> {
                     }
                     if (!hostNameMatches) return false; // else continue.
                     
-                    /* Don't want to try resolving URIGrant, it either has a
+                    /* Don't want to try resolving URI with DNS, it either has a
                      * matching host or it doesn't.
                      * 
                      * The following section is for resolving hosts, it is
@@ -1176,7 +1175,7 @@ public final class Uri implements Comparable<Uri> {
                      * purposes only.
                      * 
                      * Not only is it expensive to perform DNS resolution, hence
-                     * the creation of URIGrant, but a CodeSource.implies
+                     * the creation of Uri, but a CodeSource.implies
                      * may also require another SocketPermission which may 
                      * cause the policy to get stuck in an endless loop, since it
                      * doesn't perform the implies in priviledged mode, it might

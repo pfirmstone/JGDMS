@@ -35,7 +35,7 @@ import java.security.PrivilegedAction;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.ConstrainableLookupLocator;
 import net.jini.discovery.LookupLocatorDiscovery;
-import org.apache.river.impl.net.UriString;
+import org.apache.river.api.net.Uri;
 
 /**
  * LookupLocator supports unicast discovery, using only version 1 of the
@@ -186,9 +186,10 @@ public class LookupLocator implements Serializable {
 	}
 	URI uri = null;
 	try {
-            url = UriString.escapeIllegalCharacters(url);
-	    uri = new URI(url);
-            uri = UriString.normalise(uri);
+            uri = Uri.uriToURI(Uri.parseAndCreate(url));
+//            url = UriString.escapeIllegalCharacters(url);
+//	    uri = new URI(url);
+//            uri = UriString.normalise(uri);
 	} catch (URISyntaxException e) {
 	    MalformedURLException mue =
 		new MalformedURLException("URI parsing failure: " + url);

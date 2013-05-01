@@ -72,7 +72,7 @@ public class MuxStartTimeoutTest {
                 }
             });
             t.start();
-            t.join(20000);
+            t.join(35000);
             assertTrue(finished.get());
             assertFalse(succeeded.get());
             assertTrue(failed.get());

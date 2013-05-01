@@ -32,7 +32,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.river.impl.net.UriString;
+import org.apache.river.api.net.Uri;
 
 /**
  * {@link Permission} class used by the 
@@ -153,9 +153,10 @@ public final class SharedActivationPolicyPermission extends Permission
             if (policy.startsWith("file:") || policy.startsWith("FILE:")){
                 String path = null;
                 try {
-                    uncanonicalPath = UriString.fixWindowsURI(uncanonicalPath);
-                    uncanonicalPath = UriString.escapeIllegalCharacters(uncanonicalPath);
-                    path = new File(new URI(uncanonicalPath)).getPath();
+                    uncanonicalPath = Uri.fixWindowsURI(uncanonicalPath);
+//                    uncanonicalPath = Uri.escapeIllegalCharacters(uncanonicalPath);
+                    path = Uri.uriToFile(Uri.escapeAndCreate(uncanonicalPath)).getPath();
+//                    path = new File(new URI(uncanonicalPath)).getPath();
                 } catch (URISyntaxException ex) {
                     path = uncanonicalPath.replace('/', File.separatorChar);
                 } catch (IllegalArgumentException ex){

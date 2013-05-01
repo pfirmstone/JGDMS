@@ -50,7 +50,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
-import org.apache.river.api.net.URLClassLoader;
+import org.apache.river.api.net.RFC3986URLClassLoader;
 
 /**
  * A class loader that supports preferred classes.
@@ -224,7 +224,7 @@ import org.apache.river.api.net.URLClassLoader;
  * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
-public class PreferredClassLoader extends URLClassLoader
+public class PreferredClassLoader extends RFC3986URLClassLoader
     implements ClassAnnotation
 {
     /**
@@ -1028,6 +1028,44 @@ public class PreferredClassLoader extends URLClassLoader
 	} catch (IOException e) {
 	}
 	return null;
+    }
+    
+    /**
+     * Gets an Enumeration of resources with the specified name.
+     *
+     * <p><code>PreferredClassLoader</code> implements this method as
+     * follows:
+     *
+     * <p>This method invokes {@link #isPreferredResource
+     * isPreferredResource} with <code>name</code> as the first
+     * argument and <code>false</code> as the second argument:
+     *
+     * <ul>
+     *
+     * <li>If <code>isPreferredResource</code> returns
+     * <code>true</code>, then this method invokes {@link
+     * #findResources findResources} with <code>name</code> and returns
+     * the results.
+     *
+     * <li>If <code>isPreferredResource</code> returns
+     * <code>false</code>, then this method invokes the superclass
+     * implementation of {@link ClassLoader#getResources getResources}
+     * with <code>name</code> and returns the result.
+     *
+     * </ul>
+     *
+     * @param name the name of the resource to get
+     *
+     * @return an <code>Enumeration</code> for the resource, the
+     * <code>Enumeration</code> is empty if the resource could not be found
+     * 
+     * @throws an IOException if isPreferredResource throws an IOException.
+     * 
+     * @since 2.3.0
+     **/
+    public Enumeration<URL> getResources(String name) throws IOException{
+        return (isPreferredResource(name, false) ?
+                findResources(name) : super.getResources(name));
     }
 
     /*

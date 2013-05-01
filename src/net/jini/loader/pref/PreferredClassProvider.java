@@ -31,7 +31,6 @@ import java.lang.ref.WeakReference;
 import java.lang.reflect.Modifier;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
-import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -48,10 +47,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
-import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
@@ -59,7 +56,6 @@ import java.util.logging.Level;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
 import org.apache.river.api.net.Uri;
-import org.apache.river.impl.net.UriString;
 
 /**
  * An <code>RMIClassLoader</code> provider that supports preferred
