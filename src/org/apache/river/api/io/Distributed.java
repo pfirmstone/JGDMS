@@ -43,8 +43,18 @@ package org.apache.river.api.io;
  * escape during construction, distributed objects will be exposed to multiple
  * threads on multiple nodes, without synchronization or transactions.
  * <p>
+ * Distributed objects are thread safe and immutable.
+ * <p>
  * Do not use Distributed if you don't intend to honor this contract, use
  * Serializable instead.
+ * <p>
+ * Distributed Objects are created remotely using an AccessControlContext with one
+ * ProtectionDomain containing a CodeSource with a null location and null 
+ * Certificates.  Only permissions granted to  any location will apply.  
+ * Minimal privilege is required to prevent remote instantiation 
+ * of ClassLoader, Policy, SecurityManager, or any other type of object with 
+ * security checks performed during construction.
+ * <p>
  * 
  * @author Peter Firmstone.
  */

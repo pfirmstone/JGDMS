@@ -19,6 +19,7 @@ package org.apache.river.api.net;
 
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
+import junit.framework.Assert;
 import junit.framework.TestCase;
 
 public class UriTest extends TestCase {
@@ -1412,6 +1413,13 @@ public class UriTest extends TestCase {
         uri2 = uri1.normalize();
         assertSame("Failed to return same Uri after normalization", uri1, uri2);
     }
+    
+    public void test_parseAndCreate() throws URISyntaxException {
+        System.out.println("URI parse and create test");
+        Uri result = Uri.parseAndCreate("HTTP://river.apache.ORG/foo%7ebar/file%3clib");
+        Uri expResult = new Uri("http://river.apache.org/foo~bar/file%3Clib");
+        assertEquals(expResult, result);
+    }
 
     /**
      * @tests java.net.URI#parseServerAuthority()
@@ -1846,5 +1854,23 @@ public class UriTest extends TestCase {
         }
     }
     
+    public void test_implies() throws Exception {
+        System.out.println("Test implies");
+        Uri grant = Uri.parseAndCreate("file:///foo/*");
+        Uri otherGrant = Uri.parseAndCreate("file:/foo/*");
+        Uri implied = Uri.parseAndCreate("file:/foo/bar");
+        Uri alsoImplied = Uri.parseAndCreate("file:///foo/bar");
+        Assert.assertTrue(grant.implies(implied));
+        Assert.assertTrue(grant.implies(alsoImplied));
+        Assert.assertTrue(otherGrant.implies(implied));
+        Assert.assertTrue(otherGrant.implies(alsoImplied));
+        grant = Uri.parseAndCreate("file:/C:/USERS/PETER/DOCUMENTS/NETBEANSPROJECTS/PETERCONCURRENTPOLICY/QA/-");
+        implied = Uri.parseAndCreate("file:/C:/USERS/PETER/DOCUMENTS/NETBEANSPROJECTS/PETERCONCURRENTPOLICY/QA/LIB/JINIHARNESS.JAR");
+        System.out.println(grant);
+        System.out.println(implied);
+        boolean result = grant.implies(implied);
+        System.out.println(result);
+        Assert.assertTrue(result);
+    }
     
 }

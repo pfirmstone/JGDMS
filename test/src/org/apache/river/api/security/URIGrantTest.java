@@ -66,26 +66,6 @@ public class URIGrantTest {
     @After
     public void tearDown() {
     }
-
-    @Test
-    public void testImplies() throws URISyntaxException {
-        System.out.println("Test implies");
-        Uri grant = Uri.parseAndCreate("file:///foo/*");
-        Uri otherGrant = Uri.parseAndCreate("file:/foo/*");
-        Uri implied = Uri.parseAndCreate("file:/foo/bar");
-        Uri alsoImplied = Uri.parseAndCreate("file:///foo/bar");
-        Assert.assertTrue(instance.implies(grant, implied));
-        Assert.assertTrue(instance.implies(grant,alsoImplied));
-        Assert.assertTrue(instance.implies(otherGrant, implied));
-        Assert.assertTrue(instance.implies(otherGrant, alsoImplied));
-        grant = Uri.parseAndCreate("file:/C:/USERS/PETER/DOCUMENTS/NETBEANSPROJECTS/PETERCONCURRENTPOLICY/QA/-");
-        implied = Uri.parseAndCreate("file:/C:/USERS/PETER/DOCUMENTS/NETBEANSPROJECTS/PETERCONCURRENTPOLICY/QA/LIB/JINIHARNESS.JAR");
-        System.out.println(grant);
-        System.out.println(implied);
-        boolean result = instance.implies(grant, implied);
-        System.out.println(result);
-        Assert.assertTrue(result);
-    }
     
     @Test
     public void testImpliesPD() throws URISyntaxException {

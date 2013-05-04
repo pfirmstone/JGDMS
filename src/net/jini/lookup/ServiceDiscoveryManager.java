@@ -3877,7 +3877,7 @@ public class ServiceDiscoveryManager {
                                           (COMPONENT_NAME,
                                            "discardWait",
                                            long.class,
-                                           init.discardWait)).longValue();
+                                           init.discardWait));
         /* Discovery manager */
         init.discMgr = discoveryMgr;
 	if(init.discMgr == null) {

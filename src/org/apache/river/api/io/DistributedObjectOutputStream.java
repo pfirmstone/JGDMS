@@ -38,7 +38,7 @@ public class DistributedObjectOutputStream extends ObjectOutputStream {
         super(out);
     }
     
-    protected final Object replaceObject(Object o){
+    protected Object replaceObject(Object o){
         if (o instanceof Distributed) return ((Distributed)o).substitute();
         return o;
     }

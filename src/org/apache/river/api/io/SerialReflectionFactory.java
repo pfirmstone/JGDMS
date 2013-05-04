@@ -25,7 +25,16 @@ import java.io.StreamCorruptedException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.CodeSource;
 import java.security.Guard;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.security.ProtectionDomain;
+import java.security.cert.Certificate;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * Distributed form, required for reflective calls to instantiate objects remotely, 
@@ -113,6 +122,13 @@ public final class SerialReflectionFactory implements Externalizable {
      * Constructor parameters must either be Serializable, Externalizable or
      * Distributed objects.
      * <p>
+     * Creation is performed using only privileges granted to all CodeSource's,
+     * if there are no default grants set by the policy administrator, the
+     * creation will be performed with no privileges enabled.
+     * <p>
+     * To avoid security vulnerabilities, policy grants to any CodeSource
+     * should be very limited.
+     * <p>
      * 
      * @param factoryClassOrObject will be used for constructor, factory static method,
      * or builder Object.
@@ -134,38 +150,47 @@ public final class SerialReflectionFactory implements Externalizable {
     }
     
     Object create() throws IOException {
-        Method m;
-        Constructor c;
-        Class clazz;
-        boolean object;
-        if (classOrObject instanceof Class) {
-            clazz = (Class) classOrObject;
-            object = false;
-        }
-        else {
-            clazz = classOrObject.getClass();
-            object = true;
-        }
-         try {
-            if (method != null){
-                m = clazz.getMethod(method, parameterTypes);
-                if (object) return m.invoke(classOrObject, parameters);
-                return m.invoke(null, parameters);
-            } else {
-                c = clazz.getConstructor(parameterTypes);
-                return c.newInstance(parameters);
+        // Perform creation with minimum privileges, so remote code cannot
+        // create URLClassLoader etc.
+        // a CodeSource with null URL is used instead of a null CodeSource so
+        // that an administrator can grant limited default privileges if desired.
+        // Eg to read a default system property.
+        AccessControlContext acc;
+        ProtectionDomain [] pd = new ProtectionDomain[1];
+        pd[0] = new ProtectionDomain(new CodeSource(null,(Certificate[]) null), null);
+        acc = new AccessControlContext(pd);
+        try {
+            return AccessController.doPrivileged(new PrivilegedExceptionAction(){
+
+                @Override
+                public Object run() throws Exception {
+                    Method m;
+                    Constructor c;
+                    Class clazz;
+                    boolean object;
+                    if (classOrObject instanceof Class) {
+                        clazz = (Class) classOrObject;
+                        object = false;
+                    }
+                    else {
+                        clazz = classOrObject.getClass();
+                        object = true;
+                    }
+                    if (method != null){
+                        m = clazz.getMethod(method, parameterTypes);
+                        if (object) return m.invoke(classOrObject, parameters);
+                        return m.invoke(null, parameters);
+                    } else {
+                        c = clazz.getConstructor(parameterTypes);
+                        return c.newInstance(parameters);
+                    }
+                }
             }
-        } catch (InstantiationException ex) {
+                    , acc);
+        } catch (PrivilegedActionException ex) {
+            Logger.getLogger(SerialReflectionFactory.class.getName()).log(Level.SEVERE, null, ex);
             throw new IOException(ex);
-        } catch (IllegalAccessException ex) {
-            throw new SecurityException(ex);
-        } catch (IllegalArgumentException ex) {
-            throw new IOException(ex);
-        } catch (InvocationTargetException ex) {
-            throw new IOException(ex);
-        } catch (NoSuchMethodException ex) {
-            throw new IOException(ex);
-        } 
+        }
     }
     
     // Inherit documentation

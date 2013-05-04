@@ -245,7 +245,7 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
         private int nAdded   = 0;
         private int nRemoved = 0;
         private int nChanged = 0;
-        private Object lock = new Object();
+        private final Object lock = new Object();
         public SrvcListener(QAConfig util, String classname) {
             this.util = util;
             this.classname = classname;
@@ -253,8 +253,7 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
 	public void serviceAdded(ServiceDiscoveryEvent event) {
             ServiceItem srvcItem = event.getPostEventServiceItem();
             ServiceID srvcID = srvcItem.serviceID;
-            logger.log(Level.FINE, ""+nAdded+" -- serviceAdded()-"
-                              +srvcItem.service+"-"+srvcID);
+            logger.log(Level.FINE, "{0} -- serviceAdded()-{1}-{2}", new Object[]{nAdded, srvcItem.service, srvcID});
             synchronized(lock) {
                 nAdded++;
             }
@@ -262,8 +261,7 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
 	public void serviceRemoved(ServiceDiscoveryEvent event) {
             ServiceItem srvcItem = event.getPreEventServiceItem();
             ServiceID srvcID = srvcItem.serviceID;
-            logger.log(Level.FINE, ""+nRemoved+" -- serviceRemoved()-"
-                              +srvcItem.service+"-"+srvcID);
+            logger.log(Level.FINE, "{0} -- serviceRemoved()-{1}-{2}", new Object[]{nRemoved, srvcItem.service, srvcID});
             synchronized(lock) {
                 nRemoved++;
             }
@@ -271,8 +269,7 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
 	public void serviceChanged(ServiceDiscoveryEvent event) {
             ServiceItem srvcItem = event.getPreEventServiceItem();
             ServiceID srvcID = srvcItem.serviceID;
-            logger.log(Level.FINE, ""+nChanged+" -- serviceChanged()-"
-                              +srvcItem.service+"-"+srvcID);
+            logger.log(Level.FINE, "{0} -- serviceChanged()-{1}-{2}", new Object[]{nChanged, srvcItem.service, srvcID});
             synchronized(lock) {
                 nChanged++;
             }
@@ -296,11 +293,23 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
 
     /* Data structure representing information about a services registration */
     public static class RegInfo {
-        public ServiceID srvcID;
-        public ServiceRegistration srvcReg;
-        public Lease srvcLease;
-        public Entry[] srvcAttrs;
-        public ServiceRegistrar lookupProxy;//lookup that granted srvcReg
+        public final ServiceID srvcID;
+        public final ServiceRegistration srvcReg;
+        public final Lease srvcLease;
+        public final Entry[] srvcAttrs;
+        public final ServiceRegistrar lookupProxy;//lookup that granted srvcReg
+        
+        public RegInfo(ServiceID svcID, 
+                ServiceRegistration svcReg, 
+                Lease svcLease, 
+                Entry[] svcAttr, 
+                ServiceRegistrar lookupPrxy){
+            srvcID = svcID;
+            srvcReg = svcReg;
+            srvcLease = svcLease;
+            srvcAttrs = svcAttr;
+            lookupProxy = lookupPrxy;
+        }
     }//end class RegInfo
 
     /* Listener which receives notifications when a service lease expires
@@ -336,10 +345,10 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
      *  of the registration process, this thread will exit.
      */
     protected class RegisterThread extends Thread {
-        private int  startVal;
-        private int  nSrvcs;
-        private int  nAttrs;
-        private long delay;
+        private final int  startVal;
+        private final int  nSrvcs;
+        private final int  nAttrs;
+        private final long delay;
         public RegisterThread(int nSrvcs, int nAttrs, long waitDur) {
             super("RegisterThread");
             setDaemon(true);
@@ -378,37 +387,37 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
     protected final static long SERVICE_ID_VARIANT = (0x2L << 62);
     protected final static int  SERVICE_BASE_VALUE = 978;
 
-    protected String testDesc 
+    protected volatile String testDesc 
                    = "AbstractBaseTest for ServiceDiscoveryManager.lookup()"
                     +" -- number of services -- ";
 
-    protected String[] subCategories;
+    protected volatile String[] subCategories;
 
-    protected boolean createSDMduringConstruction = true;
-    protected boolean waitForLookupDiscovery = true;
+    protected volatile boolean createSDMduringConstruction = true;
+    protected volatile boolean waitForLookupDiscovery = true;
 
-    protected ServiceDiscoveryManager srvcDiscoveryMgr = null;
-    protected ArrayList sdmList = new ArrayList(1);
-    protected ArrayList cacheList = new ArrayList(1);
+    protected volatile ServiceDiscoveryManager srvcDiscoveryMgr = null;
+    protected final ArrayList sdmList = new ArrayList(1);
+    protected final ArrayList cacheList = new ArrayList(1);
 
-    protected ServiceTemplate   template    = null;
-    protected ServiceItemFilter firstStageFilter   = null;
-    protected ServiceItemFilter secondStageFilter = null;
+    protected volatile ServiceTemplate   template    = null;
+    protected volatile ServiceItemFilter firstStageFilter   = null;
+    protected volatile ServiceItemFilter secondStageFilter = null;
 
-    protected LeaseRenewalManager leaseRenewalMgr = null;
-    private DesiredExpirationListener leaseListener;
-    protected ArrayList leaseList = new ArrayList(1);
+    protected volatile LeaseRenewalManager leaseRenewalMgr = null;
+    private volatile DesiredExpirationListener leaseListener;
+    protected final ArrayList<Lease> leaseList = new ArrayList<Lease>(1);
 
-    protected long discardWait = 0;
+    protected volatile long discardWait = 0;
 
     protected LookupListener mainListener = null;
 
-    protected HashMap regInfoMap = new HashMap(1);
-    protected int regCompletionDelay = 5*1000; //milliseconds
-    protected int terminateDelay     = 7*1000; //milliseconds
+    protected final HashMap regInfoMap = new HashMap(1);
+    protected volatile int regCompletionDelay = 5*1000; //milliseconds
+    protected volatile int terminateDelay     = 7*1000; //milliseconds
 
-    protected int nSecsServiceEvent = 40;
-    protected int nSecsRemoteCall   = 5;
+    protected volatile int nSecsServiceEvent = 40;
+    protected volatile int nSecsRemoteCall   = 5;
 
     /**
      * Override default values specified by the base class. 
@@ -771,9 +780,9 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
              */
             int nLookups = ( (lusList.size() <= 0) ? 0 
                                   : (lusList.size() - (i%(lusList.size())) ) );
-            ArrayList regInfoList = new ArrayList(nLookups);
+            ArrayList<RegInfo> regInfoList = new ArrayList<RegInfo>(nLookups);
             for(int j=0;j<nLookups;j++) {
-                RegInfo regInfo = new RegInfo();
+//                RegInfo regInfo = new RegInfo();
                 int jndx = (lusList.size()-1) - j;
                 ServiceRegistrar lookupProxy = 
                                         (ServiceRegistrar)lusList.get(jndx);
@@ -800,10 +809,10 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
 		} catch (TestException e) {
 		    throw new RemoteException("Configuration error", e);
 		}
-                regInfo.srvcID      = srvcID;
-                regInfo.srvcReg     = srvcReg;
-                regInfo.srvcLease   = srvcLease;
-                regInfo.lookupProxy = lookupProxy;
+//                regInfo.srvcID      = srvcID;
+//                regInfo.srvcReg     = srvcReg;
+//                regInfo.srvcLease   = srvcLease;
+//                regInfo.lookupProxy = lookupProxy;
                 /* Renew the service's lease until the test is complete */
                 leaseRenewalMgr.renewUntil(srvcLease,
                                            Lease.FOREVER, //expiration
@@ -815,8 +824,8 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
                 /* Store the new lease for clean up at the end of the test */
                 leaseList.add(srvcLease); //add the new lease
                 /* Create and set attribute(s) for service just registered */
+                Entry[] srvcAttrs = new Entry[nAttrs];
                 if(nAttrs > 0) {
-                    regInfo.srvcAttrs = new Entry[nAttrs];
                     Entry[] attrs = new Entry[nAttrs];
                     for(int k=0;k<nAttrs;k++) {
                         logger.log(Level.FINE, "registering attribute "+k
@@ -826,10 +835,12 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
                         } else { // placeholder for future attributes
                             attrs[k] = new TestServiceIntAttr(attrVal);
                         }//endif
-                        regInfo.srvcAttrs[k] = attrs[k];
+                        srvcAttrs[k] = attrs[k];
                     }//end loop
                     srvcReg.setAttributes(attrs);
                 }//endif
+                // Create RegInfo here.
+                RegInfo regInfo = new RegInfo(srvcID, srvcReg, srvcLease, srvcAttrs, lookupProxy);
                 regInfoList.add(regInfo);
             }//end loop (j) - service registration loop
             synchronized(regInfoMap) {

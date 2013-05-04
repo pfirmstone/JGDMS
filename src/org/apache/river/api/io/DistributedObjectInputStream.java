@@ -49,7 +49,7 @@ public class DistributedObjectInputStream extends ObjectInputStream {
         super.enableResolveObject(true);
     }
     
-    protected final Object resolveObject(Object o) throws IOException{
+    protected Object resolveObject(Object o) throws IOException{
         if (o instanceof SerialReflectionFactory) return ((SerialReflectionFactory)o).create();
         return o;
     }

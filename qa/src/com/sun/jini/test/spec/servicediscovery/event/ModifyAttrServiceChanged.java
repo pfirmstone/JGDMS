@@ -275,8 +275,9 @@ public class ModifyAttrServiceChanged extends AbstractBaseTest {
 			       "  modifying attributes in lookup service -- "
 			       +loc);
 		    changeAttributes(srvcReg,oldAttrs,chngAttr);
-		    regInfo.srvcAttrs = chngAttr;
-                    regInfoList.set(i,regInfo);
+//		    regInfo.srvcAttrs = chngAttr;
+                    RegInfo newRegInfo = new RegInfo(regInfo.srvcID, regInfo.srvcReg, regInfo.srvcLease, chngAttr, regInfo.lookupProxy);
+                    regInfoList.set(i,newRegInfo);
                 }//end loop(i)
                 pair.setValue( regInfoList );
             }//end loop(itr)
