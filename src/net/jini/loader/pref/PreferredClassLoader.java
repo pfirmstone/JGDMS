@@ -420,7 +420,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
                     }
                 }
             } catch (IOException ex) {
-                Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.SEVERE, null, ex);
+                Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.SEVERE, "Unable to access preferred resources", ex);
                 except = ex;
             } finally {
                 try {
@@ -428,7 +428,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
                         prefIn.close();
                     }
                 } catch (IOException ex) {
-                    Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.SEVERE, null, ex);
+                    Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.SEVERE, "Problem closing preferred resources input stream", ex);
                 } 
                 
             }

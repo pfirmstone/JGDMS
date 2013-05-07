@@ -41,13 +41,13 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      *
      *  @serial
      */
-    private ServiceItem preEventItem = null;
+    private final ServiceItem preEventItem;
 
     /** Represents the state of the service after the event.
      *
      *  @serial
      */
-    private ServiceItem postEventItem = null;
+    private final ServiceItem postEventItem;
 
     /**
      * The constructor of <code>ServiceDiscoveryEvent</code> takes
@@ -111,10 +111,12 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
 	    this.preEventItem = new ServiceItem(preEventItem.serviceID,
 					    preEventItem.service,
 					    preEventItem.attributeSets);
+        else this.preEventItem = null;
 	if(postEventItem != null)
 	    this.postEventItem = new ServiceItem(postEventItem.serviceID,
 					     postEventItem.service,
 					     postEventItem.attributeSets);
+        else this.postEventItem = null;
 	
     }
 
