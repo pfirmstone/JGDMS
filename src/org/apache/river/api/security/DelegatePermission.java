@@ -99,7 +99,7 @@ public final class DelegatePermission extends Permission{
     private static final ConcurrentMap instances 
         = RC.concurrentMap( new ConcurrentSkipListMap( 
             RC.comparator( new PermissionComparator()))
-            , Ref.WEAK, Ref.WEAK, 1000L, 1000L ); // Value weak too, because it references key.
+            , Ref.WEAK, Ref.WEAK, 10000L, 10000L ); // Value weak too, because it references key.
         
     /**
      * Factory method to obtain a DelegatePermission, this is essential to 

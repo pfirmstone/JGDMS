@@ -305,10 +305,10 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
         urlCache = RC.concurrentMap(intern, Ref.TIME, Ref.STRONG, 10000L, 10000L);
         ConcurrentMap<Referrer<String>,Referrer<Uri[]>> intern1 =
                 new ConcurrentHashMap<Referrer<String>,Referrer<Uri[]>>();
-        uriCache = RC.concurrentMap(intern1, Ref.TIME, Ref.STRONG, 1000L, 1000L);
+        uriCache = RC.concurrentMap(intern1, Ref.TIME, Ref.STRONG, 10000L, 10000L);
                 ConcurrentMap<Referrer<LoaderKey>,Referrer<ClassLoader>> internal =
                 new ConcurrentHashMap<Referrer<LoaderKey>,Referrer<ClassLoader>>();
-        loaderTable = RC.concurrentMap(internal, Ref.STRONG, Ref.WEAK_IDENTITY, 200L, 200L);
+        loaderTable = RC.concurrentMap(internal, Ref.STRONG, Ref.WEAK_IDENTITY, 5000L, 5000L);
     }
     
     /**

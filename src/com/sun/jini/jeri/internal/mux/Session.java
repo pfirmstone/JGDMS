@@ -127,7 +127,7 @@ final class Session {
     private boolean receivedAckRequired = false;
     private boolean sentAcknowledgment = false;
 
-    private Collection ackListeners = null;
+    private final Collection<AcknowledgmentSource.Listener> ackListeners = new ArrayList<AcknowledgmentSource.Listener>(3);
     private boolean sentAckRequired = false;
     private boolean receivedAcknowledgment = false;
 
@@ -204,9 +204,6 @@ final class Session {
 			}
 			synchronized (sessionLock) {
 			    if (outState < FINISHED) {
-				if (ackListeners == null) {
-				    ackListeners = new ArrayList(3);
-				}
 				ackListeners.add(listener);
 				return true;
 			    } else {
@@ -553,7 +550,7 @@ final class Session {
     }
 
     private void notifyAcknowledgmentListeners(final boolean received) {
-	if (ackListeners != null) {
+	if (!ackListeners.isEmpty()) {
 	    systemThreadPool.execute(new Runnable() {
 		public void run() {
 		    Iterator iter = ackListeners.iterator();
@@ -752,7 +749,7 @@ final class Session {
 		boolean eof = closeIfComplete && complete;
 		boolean close = role == SERVER && eof && inState > OPEN;
 		boolean ackRequired = role == SERVER && eof &&
-		    (ackListeners != null && !ackListeners.isEmpty());
+		    (!ackListeners.isEmpty());
 
 		int op = Mux.Data |
 		    (open ? Mux.Data_open : 0) |

@@ -29,11 +29,14 @@ import java.rmi.RemoteException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * AbstractDgcClient implements the client-side behavior of RMI's
@@ -237,12 +240,12 @@ abstract class AbstractDgcClient {
 	/* mutable instance state (below) is guarded by this object's lock */
 
 	/** true if this entry has been removed from the global table */
-	private boolean removed = false;
+	private volatile boolean removed = false;
 
 	/** table of refs held for endpoint: maps object ID to RefEntry */
 	private final Map refTable = new HashMap(5);
 	/** set of RefEntry instances from last (failed) dirty call */
-	private Set invalidRefs = new HashSet(5);
+	private final Set invalidRefs = new HashSet(5);
 
 	/** absolute time to renew current lease to this endpoint */
 	private long renewTime = Long.MAX_VALUE;
@@ -258,8 +261,11 @@ abstract class AbstractDgcClient {
 	/** true if renew/clean thread may be interrupted */
 	private boolean interruptible = false;
 
-	/** set of clean calls that need to be made */
-	private final Set pendingCleans = new HashSet(5);
+	/** set of clean calls that need to be made, changed Set to an
+         * underlying ConcurrentHashMap because no lock is held while 
+         * iterating and processing pending Clean Requests*/
+	private final Set<CleanRequest> pendingCleans 
+                = Collections.newSetFromMap(new ConcurrentHashMap<CleanRequest,Boolean>(5));
 
 	private EndpointEntry(final Object endpoint) {
 	    this.endpoint = endpoint;
@@ -271,6 +277,14 @@ abstract class AbstractDgcClient {
         
         private void start(){
             renewCleanThread.start();
+        }
+        
+        boolean pendingCleanCalls(){
+            return !pendingCleans.isEmpty();
+        }
+        
+        boolean removed(){
+            return removed;
         }
 
 	/**
@@ -545,7 +559,7 @@ abstract class AbstractDgcClient {
 			long timeUntilRenew =
 			    renewTime - System.currentTimeMillis();
 			timeToWait = Math.max(timeUntilRenew, 1);
-			if (!pendingCleans.isEmpty()) {
+			if (pendingCleanCalls()) {
 			    timeToWait = Math.min(timeToWait, cleanInterval);
 			}
 
@@ -597,8 +611,8 @@ abstract class AbstractDgcClient {
 				invalidRefs.addAll(refTable.values());
 			    }
 			    if (!invalidRefs.isEmpty()) {
-				refsToDirty = invalidRefs;
-				invalidRefs = new HashSet(5);
+				refsToDirty = new HashSet(invalidRefs);
+				invalidRefs.clear();
 			    }
 			    sequenceNum = getNextSequenceNum();
 			}
@@ -608,10 +622,10 @@ abstract class AbstractDgcClient {
 			makeDirtyCall(refsToDirty, sequenceNum);
 		    }
 
-		    if (!pendingCleans.isEmpty()) {
+		    if (pendingCleanCalls()) {
 			makeCleanCalls();
 		    }
-		} while (!removed || !pendingCleans.isEmpty());
+		} while (!removed() || pendingCleanCalls());
 	    }
 	}
 
@@ -701,7 +715,7 @@ abstract class AbstractDgcClient {
 			 * A similar (but different) argument can be made for
 			 * ConnectIOException.
 			 */
-			if (++request.connectFailures >= cleanConnectRetries) {
+			if (request.connectFailures.incrementAndGet() >= cleanConnectRetries) {
 			    iter.remove();
 			}
 		    } else {
@@ -855,12 +869,12 @@ abstract class AbstractDgcClient {
      */
     private static class CleanRequest {
 
-	long sequenceNum;
-	Object[] objectIDs;
-	boolean strong;
+	final long sequenceNum;
+	final Object[] objectIDs;
+	final boolean strong;
 
 	/** how many times this request has failed with ConnectException */
-	int connectFailures = 0;
+	final AtomicInteger connectFailures = new AtomicInteger();
 
 	CleanRequest(long sequenceNum, Object[] objectIDs, boolean strong) {
 	    this.sequenceNum = sequenceNum;

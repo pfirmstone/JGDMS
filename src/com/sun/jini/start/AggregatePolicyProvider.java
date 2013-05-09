@@ -92,7 +92,7 @@ public class AggregatePolicyProvider
     private static final ConcurrentMap<Class<? extends Thread>,Boolean> trustGetCCL
     = RC.concurrentMap(
             new ConcurrentHashMap<Referrer<Class<? extends Thread>>,Referrer<Boolean>>(), 
-            Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 0L);
+            Ref.WEAK_IDENTITY, Ref.STRONG, 10000L, 10000L);
     private static final ProtectionDomain myDomain 
         = AccessController.doPrivileged(
             new PrivilegedAction<ProtectionDomain>() {

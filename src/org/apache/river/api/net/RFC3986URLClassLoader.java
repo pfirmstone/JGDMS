@@ -34,6 +34,7 @@ import java.net.MalformedURLException;
 import java.net.SocketPermission;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.net.URLDecoder;
 import java.net.URLStreamHandlerFactory;
@@ -909,7 +910,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      *            URLClassloader}.
      * @return the created {@code URLClassLoader} instance.
      */
-    public static RFC3986URLClassLoader newInstance(final URL[] urls) {
+    public static URLClassLoader newInstance(final URL[] urls) {
         final AccessControlContext context = AccessController.getContext();
         RFC3986URLClassLoader sub = AccessController
                 .doPrivileged(new PrivilegedAction<RFC3986URLClassLoader>() {
@@ -933,7 +934,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      *            URLClassloader.
      * @return the created {@code URLClassLoader} instance.
      */
-    public static RFC3986URLClassLoader newInstance(final URL[] urls,
+    public static URLClassLoader newInstance(final URL[] urls,
                                              final ClassLoader parentCl) {
         final AccessControlContext context = AccessController.getContext();
         RFC3986URLClassLoader sub = AccessController

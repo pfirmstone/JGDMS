@@ -1897,7 +1897,7 @@ public class OutriggerServerImpl
 	int found = 0;
 	final Set conflictSet = new java.util.HashSet();
 	final Map provisionallyRemovedEntrySet = 
-                RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 1000L);
+                RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 10000L, 10000L);
 
 	for (Iterator i=classes.iterator(); 
 	     i.hasNext() && found < handles.length;) 
@@ -2263,7 +2263,7 @@ public class OutriggerServerImpl
         
         // Changed to concurrent map, because unsynchronized iteration occurs.
 	final Map provisionallyRemovedEntrySet = 
-	    RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 1000L);
+	    RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 10000L, 10000L);
 
 	/*
 	 * First we do the straight search
@@ -2677,7 +2677,7 @@ public class OutriggerServerImpl
 	 * provisionally removed
 	 */
 	final private Map provisionallyRemovedEntrySet
-	    = RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 1000L) ;
+	    = RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 10000L, 10000L) ;
 
 	private ContentsQuery(Uuid uuid, EntryRep[] tmpls, Txn txn, long limit) {
 	    this.uuid = uuid;

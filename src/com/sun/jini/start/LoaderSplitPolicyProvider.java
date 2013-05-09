@@ -98,7 +98,7 @@ public class LoaderSplitPolicyProvider
 	this.defaultPolicy = defaultPolicy;
         delegateMap = RC.concurrentMap(
                 new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<Policy>>()
-                ,Ref.WEAK_IDENTITY , Ref.STRONG, 1000L, 0L);
+                ,Ref.WEAK_IDENTITY , Ref.STRONG, 10000L, 10000L);
 	ensureDependenciesResolved();
     }
 

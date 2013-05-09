@@ -111,10 +111,11 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
      * however it was never really successful, AccessControlContext 
      * is a much more effective way of controlling privilege.
      * 
-     * We should change this to ensure that each task is executed in the
+     * We should consider changing this to ensure that each task is executed in the
      * AccessControlContext of the calling thread, to avoid privilege escalation.
      */
     private final AtomicInteger threadCount;
+    private final AtomicInteger waitingThreads;
     private final int delayFactor;
     private static final int numberOfCores = Runtime.getRuntime().availableProcessors();
     
@@ -130,6 +131,7 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 	this.threadGroup = threadGroup;
         queue = new SynchronousQueue<Runnable>(); //Non blocking queue.
         threadCount = new AtomicInteger();
+        waitingThreads = new AtomicInteger();
         this.delayFactor = delayFactor;
     }
 
@@ -139,7 +141,16 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 	Runnable task = new Task(runnable, name);
         boolean accepted = false;
         try {
-            accepted = queue.offer(task, 700 * delayFactor* (threadCount.get()/ numberOfCores), TimeUnit.MICROSECONDS);
+            // If there are no threads, maxDelay = 0;
+            // If the system is highly loaded, it takes longer for waiting
+            // threads to wake up and take the task, so this is designed to
+            // prevent a heavily loaded system from unnecessarily creating
+            // more threads, while also allowing threads to ramp up quickly
+//            long maxDelay = (threadCount.get() < 400 && waitingThreads.get() == 0) 
+//                    ? 0 : (waitingThreads.get() + 1 ) * (threadCount.get()/ numberOfCores);
+//            maxDelay = maxDelay * 700 * delayFactor;
+//            accepted = queue.offer(task, maxDelay, TimeUnit.MICROSECONDS);
+            accepted = queue.offer(task, waitingThreads.get() * delayFactor *  700, TimeUnit.MICROSECONDS);
         } catch (InterruptedException ex) {
             Logger.getLogger(ThreadPool.class.getName()).log(Level.SEVERE, "Calling thread interrupted", ex);
             // restore interrupt.
@@ -222,11 +233,15 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
                      * thread.setName is not thread safe.
                      */
                     try {
+                        waitingThreads.getAndIncrement();
+                        task = null;
                         task = queue.poll(idleTimeout, TimeUnit.MILLISECONDS);
+                        waitingThreads.getAndDecrement();
 //                        thread.setName(NewThreadAction.NAME_PREFIX + task);
                         if (task != null) task.run();
 //                         thread.setName(NewThreadAction.NAME_PREFIX + "Idle");
                     } catch (InterruptedException e){
+                        waitingThreads.getAndDecrement();
                         thread.interrupt();
                         break;
                     }

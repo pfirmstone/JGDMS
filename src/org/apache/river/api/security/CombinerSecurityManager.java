@@ -122,11 +122,11 @@ extends SecurityManager implements CachingSecurityManager {
                 Referrer<AccessControlContext>> internal = 
                 new NonBlockingHashMap<Referrer<AccessControlContext>, 
                 Referrer<AccessControlContext>>();
-        contextCache = RC.concurrentMap(internal, Ref.TIME, Ref.STRONG, 60000L, 0L);
+        contextCache = RC.concurrentMap(internal, Ref.TIME, Ref.STRONG, 60000L, 60000L);
         ConcurrentMap<Referrer<Object>, Referrer<NavigableSet<Permission>>> refmap 
                 = new NonBlockingHashMap<Referrer<Object>, 
                 Referrer<NavigableSet<Permission>>>();
-        checked = RC.concurrentMap(refmap, Ref.TIME, Ref.STRONG, 20000L, 0L);
+        checked = RC.concurrentMap(refmap, Ref.TIME, Ref.STRONG, 20000L, 20000L);
         g = new SecurityPermission("getPolicy");
         Permission createAccPerm = new SecurityPermission("createAccessControlContext");
         action = new Action();
@@ -251,7 +251,7 @@ extends SecurityManager implements CachingSecurityManager {
              */
             NavigableSet<Referrer<Permission>> internal = 
                     new ConcurrentSkipListSet<Referrer<Permission>>(permCompare);
-            checkedPerms = RC.navigableSet(internal, Ref.TIME, 5000L);
+            checkedPerms = RC.navigableSet(internal, Ref.TIME, 10000L);
             inTrustedCodeRecursiveCall.set(Boolean.TRUE);
             try {
                 NavigableSet<Permission> existed = checked.putIfAbsent(context, checkedPerms);

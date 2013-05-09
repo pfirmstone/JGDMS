@@ -368,8 +368,10 @@
             <package name="net.jini.url.file"/>
             <package name="net.jini.url.httpmd"/>
             <package name="net.jini.url.https"/>
+            <package name="org.apache.river.api.common"/>
             <package name="org.apache.river.api.io"/>
             <package name="org.apache.river.api.lookup"/>
+            <package name="org.apache.river.api.net"/>
             <package name="org.apache.river.api.security"/>
             <package name="org.apache.river.api.util"/>
         </javadoc>
