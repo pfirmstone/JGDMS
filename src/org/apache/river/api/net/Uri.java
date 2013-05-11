@@ -217,16 +217,85 @@ public final class Uri implements Comparable<Uri> {
      */
     static final String queryFragLegal = pcharLegal + "/?";
   
+    private final static char a = 'a';
+    private final static char z = 'z';
+    private final static char A = 'A';
+    private final static char Z = 'Z';
+    private final static char upperCaseBitwiseMask = 0xdf;
+    private final static char lowerCaseBitwiseMask = 0x20;
+    
+    static String toAsciiUpperCase(String s){
+        return new String(toAsciiUpperCase(s.toCharArray()));
+    }
+    
+    static char [] toAsciiUpperCase(char [] array){
+        int length = array.length;
+        for (int i = 0; i < length ; i++){
+            if (array[i] >= a && array[i] <= z) {
+                array[i] = toAsciiUpperCase(array[i]);
+            } 
+        }
+        return array;
+    }
+    
+    static char toAsciiUpperCase(char c){
+        return (char) (c & upperCaseBitwiseMask);
+    }
+    
+    static String toAsciiLowerCase(String s){
+        return new String(toAsciiLowerCase(s.toCharArray()));
+    }
+    
+    static char[] toAsciiLowerCase(char [] array){
+        int length = array.length;
+        for (int i = 0; i < length ; i++){
+            if (array[i] >= A && array[i] <= Z) {
+                array[i] = toAsciiLowerCase(array[i]);
+            }
+        }
+        return array;
+    }
+    
+    static char toAsciiLowerCase(char c){
+        return (char) (c | lowerCaseBitwiseMask);
+    }
+    
+    static boolean charArraysEqual( char [] a , char [] b){
+        int alen = a.length;
+        int blen = b.length;
+        if (alen != blen) return false;
+        for (int i = 0; i < alen; i++){
+            if (a[i] !=  b[i]) return false;
+        }
+        return true;
+    }
+    
+    static boolean asciiStringsUpperCaseEqual(String a, String b){
+        char [] ac = a.toCharArray();
+        toAsciiUpperCase(ac);
+        char [] bc = b.toCharArray();
+        toAsciiUpperCase(bc);
+        return charArraysEqual(ac, bc);
+    }
+    
+    static boolean asciiStringsLowerCaseEqual(String a, String b){
+        char [] ac = a.toCharArray();
+        toAsciiLowerCase(ac);
+        char [] bc = b.toCharArray();
+        toAsciiLowerCase(bc);
+        return charArraysEqual(ac, bc);
+    }
     /** Fixes windows file URI string by converting back slashes to forward
      * slashes and inserting a forward slash before the drive letter if it is
      * missing.  No normalisation or modification of case is performed.
      */
     public static String fixWindowsURI(String uri) {
         if (uri == null) return null;
+        if (File.separatorChar != '\\') return uri;
         if ( uri.startsWith("file:") || uri.startsWith("FILE:")){
             char [] u = uri.toCharArray();
             int l = u.length; 
-            StringBuilder sb = new StringBuilder();
+            StringBuilder sb = new StringBuilder(uri.length()+1);
             for (int i=0; i<l; i++){
                 // Ensure we use forward slashes
                 if (u[i] == File.separatorChar) {
@@ -781,7 +850,8 @@ public final class Uri implements Comparable<Uri> {
             // compare paths
             
             if (fileSchemeCaseInsensitiveOS){
-                ret = path.toUpperCase(Locale.ENGLISH).compareTo(uri.path.toUpperCase(Locale.ENGLISH));
+                ret = toAsciiUpperCase(path).compareTo(toAsciiUpperCase(uri.path));
+//                ret = path.toUpperCase(Locale.ENGLISH).compareTo(uri.path.toUpperCase(Locale.ENGLISH));
             } else {
                 ret = path.compareTo(uri.path);
             }
@@ -869,7 +939,7 @@ public final class Uri implements Comparable<Uri> {
 
     /*
      * Takes a string that may contain hex sequences like %F1 or %2b and
-     * converts the hex values following the '%' to lowercase
+     * converts the hex values following the '%' to uppercase
      */
     private String convertHexToUpperCase(String s) {
         StringBuilder result = new StringBuilder(""); //$NON-NLS-1$
@@ -880,7 +950,8 @@ public final class Uri implements Comparable<Uri> {
         int index = 0, previndex = 0;
         while ((index = s.indexOf('%', previndex)) != -1) {
             result.append(s.substring(previndex, index + 1));
-            result.append(s.substring(index + 1, index + 3).toUpperCase(Locale.ENGLISH));
+            // Convert to upper case ascii
+            result.append(toAsciiUpperCase(s.substring(index + 1, index + 3).toCharArray()));
             index += 3;
             previndex = index;
         }
@@ -965,9 +1036,10 @@ public final class Uri implements Comparable<Uri> {
             if ( !(path != null && (path.equals(uri.path) 
                     || fileSchemeCaseInsensitiveOS
                     // Upper case comparison required for Windows & VMS.
-                    && path.toUpperCase(Locale.ENGLISH).equals(
-                    uri.path.toUpperCase(Locale.ENGLISH)
-                    )))) 
+                    && asciiStringsUpperCaseEqual(path, uri.path)
+//                    path.toUpperCase(Locale.ENGLISH).equals(
+//                    uri.path.toUpperCase(Locale.ENGLISH))
+                    ))) 
             {
                 return false;
             }
@@ -1231,8 +1303,8 @@ public final class Uri implements Comparable<Uri> {
             String thisFile;
             String thatFile;
             if (fileSchemeCaseInsensitiveOS){
-                thisFile = path == null ? null: path.toUpperCase(Locale.ENGLISH);
-                thatFile = implied.path == null ? null: implied.path.toUpperCase(Locale.ENGLISH);
+                thisFile = path == null ? null: toAsciiUpperCase(path);
+                thatFile = implied.path == null ? null: toAsciiUpperCase(implied.path);
             } else {
                 thisFile = path;
                 thatFile = implied.path;
@@ -1872,7 +1944,7 @@ public final class Uri implements Comparable<Uri> {
 
             if (path != null) {
                 if (fileSchemeCaseInsensitiveOS){
-                    result.append(path.toUpperCase(Locale.ENGLISH));
+                    result.append(toAsciiUpperCase(path.toCharArray()));
                 } else {
                     result.append(path);
                 }

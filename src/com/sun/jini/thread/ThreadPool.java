@@ -238,7 +238,11 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
                         task = queue.poll(idleTimeout, TimeUnit.MILLISECONDS);
                         waitingThreads.getAndDecrement();
 //                        thread.setName(NewThreadAction.NAME_PREFIX + task);
-                        if (task != null) task.run();
+                        if (task != null) {
+                            task.run();
+                        } else {
+                            break; //Timeout or spurious wakeup.
+                        }
 //                         thread.setName(NewThreadAction.NAME_PREFIX + "Idle");
                     } catch (InterruptedException e){
                         waitingThreads.getAndDecrement();

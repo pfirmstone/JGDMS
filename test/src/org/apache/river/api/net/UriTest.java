@@ -19,6 +19,7 @@ package org.apache.river.api.net;
 
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
+import java.util.Locale;
 import junit.framework.Assert;
 import junit.framework.TestCase;
 
@@ -1860,6 +1861,8 @@ public class UriTest extends TestCase {
         Uri otherGrant = Uri.parseAndCreate("file:/foo/*");
         Uri implied = Uri.parseAndCreate("file:/foo/bar");
         Uri alsoImplied = Uri.parseAndCreate("file:///foo/bar");
+        System.out.println(grant);
+        System.out.println(implied);
         Assert.assertTrue(grant.implies(implied));
         Assert.assertTrue(grant.implies(alsoImplied));
         Assert.assertTrue(otherGrant.implies(implied));
@@ -1871,6 +1874,21 @@ public class UriTest extends TestCase {
         boolean result = grant.implies(implied);
         System.out.println(result);
         Assert.assertTrue(result);
+    }
+    
+    public void testCaseStringEquals() throws Exception {
+        String a = "zabckel%5f%20klw";
+        String b = "ZABCKEL%5F%20KLW";
+        boolean result = Uri.asciiStringsUpperCaseEqual(a, b);
+        Assert.assertTrue(result);
+        result = Uri.asciiStringsLowerCaseEqual(a, b);
+        Assert.assertTrue(result);
+        String A = Uri.toAsciiUpperCase(a);
+        System.out.println(a);
+        System.out.println(A);
+        System.out.println(a.toCharArray());
+        System.out.println(new String(a.toCharArray()));
+        Assert.assertEquals(A, b);
     }
     
 }

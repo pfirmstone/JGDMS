@@ -50,7 +50,7 @@ class URIEncoderDecoder {
     static {
         legalEscaped = new HashMap<String,Character>();
         char [] legals = "abcdefghijklmnopqrstuvwyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~".toCharArray();
-        StringBuilder buf = new StringBuilder();
+        StringBuilder buf = new StringBuilder(12);
         int l = legals.length;
         for (int i = 0; i< l; i++){
             char ch = legals[i];
@@ -153,7 +153,7 @@ class URIEncoderDecoder {
      */
     static String quoteIllegal(String s, String legal)
             throws UnsupportedEncodingException {
-        StringBuilder buf = new StringBuilder();
+        StringBuilder buf = new StringBuilder(s.length() + 24);
         for (int i = 0; i < s.length(); i++) {
             char ch = s.charAt(i);
             if ( (ch >= 'a' && ch <= 'z')
@@ -190,7 +190,7 @@ class URIEncoderDecoder {
      * @return java.lang.String the converted string
      */
     static String encodeOthers(String s) throws UnsupportedEncodingException {
-        StringBuilder buf = new StringBuilder();
+        StringBuilder buf = new StringBuilder(s.length()*9);
         for (int i = 0; i < s.length(); i++) {
             char ch = s.charAt(i);
             if (ch <= 127) {
@@ -225,7 +225,7 @@ class URIEncoderDecoder {
      */
     static String decode(String s) throws UnsupportedEncodingException {
 
-        StringBuilder result = new StringBuilder();
+        StringBuilder result = new StringBuilder(s.length());
         ByteArrayOutputStream out = new ByteArrayOutputStream();
         int l = s.length();
         for (int i = 0; i < l;) {
@@ -257,7 +257,7 @@ class URIEncoderDecoder {
     }
     
     static String decodeUnreserved(String s) throws URISyntaxException {
-        StringBuilder result = new StringBuilder();
+        StringBuilder result = new StringBuilder(s.length());
         StringBuilder pct_encoded = new StringBuilder(12);
         int l = s.length();
         for (int i = 0; i < l;) {

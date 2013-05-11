@@ -78,7 +78,7 @@ final class UriParser {
         if (index != -1 && (index2 >= index || index2 == -1) && (index3 >= index || index3 == -1)) {
             // the characters up to the first ':' comprise the scheme
             absolute = true;
-            scheme = temp.substring(0, index).toLowerCase(Locale.ENGLISH);
+            scheme = Uri.toAsciiLowerCase(temp.substring(0, index));
             if (scheme.length() == 0) {
                 throw new URISyntaxException(uri, Messages.getString("luni.83"), index);
             }

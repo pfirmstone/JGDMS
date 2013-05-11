@@ -248,11 +248,11 @@ final class Target {
 
     void collect() {
         if (!exported) return;
+        if (logger.isLoggable(Level.FINE)) {
+            logger.log(Level.FINE, "garbage collection of object with id {0}", id);
+        }
         lock.lock();
         try {
-            if (logger.isLoggable(Level.FINE)) {
-                logger.log(Level.FINE, "garbage collection of object with id {0}", id);
-            }
             unexported = true;
             exported = false;
 
@@ -293,11 +293,12 @@ final class Target {
     void referenced(Uuid clientID, long sequenceNum) {
         if (!allowDGC) return;
         if (!exported) return;
+        if (logger.isLoggable(Level.FINEST)) {
+            logger.log(Level.FINEST, "this={0}, clientID={1}, sequenceNum={2}", new Object[]{this, clientID, Long.valueOf(sequenceNum)});
+        }
         lock.lock();
         try {
-            if (logger.isLoggable(Level.FINEST)) {
-                logger.log(Level.FINEST, "this={0}, clientID={1}, sequenceNum={2}", new Object[]{this, clientID, Long.valueOf(sequenceNum)});
-            }
+            
             SequenceEntry entry = (SequenceEntry) sequenceTable.get(clientID);
             if (entry == null) {
                 entry = new SequenceEntry(sequenceNum);
@@ -328,11 +329,11 @@ final class Target {
     void unreferenced(Uuid clientID, long sequenceNum, boolean strong) {
         if (!allowDGC) return;
         if (!exported) return;
+        if (logger.isLoggable(Level.FINEST)) {
+            logger.log(Level.FINEST, "this={0}, clientID={1}, sequenceNum={2}, strong={3}", new Object[]{this, clientID, Long.valueOf(sequenceNum), Boolean.valueOf(strong)});
+        }
         lock.lock();
         try {
-            if (logger.isLoggable(Level.FINEST)) {
-                logger.log(Level.FINEST, "this={0}, clientID={1}, sequenceNum={2}, strong={3}", new Object[]{this, clientID, Long.valueOf(sequenceNum), Boolean.valueOf(strong)});
-            }
             SequenceEntry entry = sequenceTable.get(clientID);
             if (entry == null) {
                 if (strong) {
@@ -358,11 +359,12 @@ final class Target {
     void leaseExpired(Uuid clientID) {
         assert allowDGC;
         if (!exported) return;
+        if (logger.isLoggable(Level.FINEST)) {
+            logger.log(Level.FINEST, "this={0}, clientID={1}", new Object[]{this, clientID});
+        }
         lock.lock();
         try {
-            if (logger.isLoggable(Level.FINEST)) {
-                logger.log(Level.FINEST, "this={0}, clientID={1}", new Object[]{this, clientID});
-            }
+            
             SequenceEntry entry = sequenceTable.get(clientID);
             if (entry != null && !entry.keep()) {
                 /*
