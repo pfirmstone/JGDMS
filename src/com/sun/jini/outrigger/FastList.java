@@ -203,13 +203,15 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
                     /* Finished, no appropriate nodes.*/
                     break;
                 }
-                if (node.removed()) {
-                    /* Tell the base list to drop it */
-                    baseIterator.remove();
-                } else {
-                    /* Found a node to return. */
-                    result = node;
-                    break;
+                synchronized (node){
+                    if (node.removed()) {
+                        /* Tell the base list to drop it */
+                        baseIterator.remove();
+                    } else {
+                        /* Found a node to return. */
+                        result = node;
+                        break;
+                    }
                 }
             }
             return result;
@@ -247,9 +249,9 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
                 throw new IllegalArgumentException("Attempt to reuse node "
                         + node);
             }
+            node.setIndex(nextIndex.getAndIncrement());
+            baseQueue.add(node);
         }
-        node.setIndex(nextIndex.getAndIncrement());
-        baseQueue.add(node);
     }
 
     /**
@@ -276,16 +278,17 @@ class FastList<T extends FastList.Node> implements Iterable<T> {
      * removed.
      */
     public void reap() {
-        long stopIndex = nextIndex.get();
         Iterator<T> it = baseQueue.iterator();
         while (it.hasNext()) {
             T node = it.next();
-            if (node.getIndex() >= stopIndex) {
+            if (node.getIndex() >= nextIndex.get()) {
                 // Done enough
                 return;
             }
-            if (node.removed()) {
-                it.remove();
+            synchronized (node){
+                if (node.removed()) {
+                        it.remove();
+                }
             }
         }
     }
