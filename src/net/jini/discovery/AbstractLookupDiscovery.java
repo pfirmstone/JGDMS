@@ -1623,9 +1623,11 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
             if (!all_groups || !this.groups.isEmpty()) {
                 requestGroups(this.groups);
             }//end if
-            announceeThread.start();
-            announcementTimerThread.start();
-            notifierThread.start();
+            if (nicsToUse != NICS_USE_NONE) {
+                announceeThread.start();
+                announcementTimerThread.start();
+                notifierThread.start();
+            }
             started = true;
         }
     }
