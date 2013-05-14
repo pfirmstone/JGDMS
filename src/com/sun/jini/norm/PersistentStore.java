@@ -75,7 +75,7 @@ class PersistentStore {
     final private LogHandler logHandler;
 
     /** The NormServer we are part of */
-    final private NormServerBaseImpl server;
+    private NormServerBaseImpl server;
 
     /** Number of updates since last snapshot */
     private int updateCount;
@@ -122,6 +122,16 @@ class PersistentStore {
 	    }
 	}
     }
+    
+    /**
+     * Can only be called once after construction.
+     * @param server 
+     */
+    void setServer(NormServerBaseImpl server){
+        synchronized (this){
+            if (this.server == null) this.server = server;
+        }
+    }
 
     /**
      * Destroy the store.
@@ -130,10 +140,12 @@ class PersistentStore {
      */
     void destroy() throws IOException {
 	// Prep all the sub-stores to be destroyed
-	for (Iterator i = subStores.iterator(); i.hasNext(); ) {
-	    SubStore subStore = (SubStore) i.next();
-	    subStore.prepareDestroy();
-	}
+        synchronized (subStores){
+            for (Iterator i = subStores.iterator(); i.hasNext(); ) {
+                SubStore subStore = (SubStore) i.next();
+                subStore.prepareDestroy();
+            }
+        }
 	if (log != null) {
 	    log.deletePersistentStore();
 	    FileSystem.destroy(storeLocation, true);
@@ -156,8 +168,9 @@ class PersistentStore {
 		    subStore.setDirectory(new File(storeLocation, subDir));
 		}
 	    }
-	    
-	    subStores.add(subStore);
+	    synchronized (subStores){
+                subStores.add(subStore);
+            }
 	} catch (IOException e) {
 	    throw new StoreException("Failure adding substore " + subStore,
 				     e);
@@ -273,7 +286,9 @@ class PersistentStore {
 	try {
 	    // Using write lock because we want an exclusive lock
 	    mutatorLock.writeLock();
-	    updateCount = 0;
+            synchronized (this){
+                updateCount = 0;
+            }
 
 	    // Don't need to sync on this because
 	    // mutatorLock.writeLock() gives us an exclusive lock

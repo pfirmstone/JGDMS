@@ -101,7 +101,7 @@ public class EventType implements Serializable {
      * Our event ID
      * @serial
      */
-    private long evID;
+    private final long evID;
 
     /** 
      * Object we check with to ensure leases have not expired and notify
@@ -186,7 +186,7 @@ public class EventType implements Serializable {
      * Returns <code>true</code> if there is a listener registered for this 
      * event type.
      */
-    public boolean haveListener() {
+    public synchronized boolean haveListener() {
 	return marshalledListener != null;
     }
 
@@ -194,11 +194,12 @@ public class EventType implements Serializable {
      * Convince method to get the listener.
      * @return the listener, or <code>null</code> if the listener can't be
      *	       unpacked or prepared, or there is no listener
+     * synchronized externally
      */
     private RemoteEventListener getListener() {
 	if (!haveListener()) 
 	    return null;
-
+            
 	if (listener != null) 
 	    return listener;
 
@@ -269,10 +270,9 @@ public class EventType implements Serializable {
      * scheduled to be sent will have a sequence number one greater than
      * the value past to this call.
      * <p>
-     * Note: this method is not synchronized.
      * @param seqNum value for the last sequence number
      */
-    public void setLastSequenceNumber(long seqNum) {
+    public synchronized void setLastSequenceNumber(long seqNum) {
 	lastSeqNum = seqNum;
     }
 
@@ -372,10 +372,13 @@ public class EventType implements Serializable {
 	    throw new NullPointerException("EventType.restoreTransientState:" +
 	        "Must call with a non-null recoveredListenerPreparer");
 	}
-	this.generator = generator;
-	this.monitor = monitor;
-	this.recoveredListenerPreparer = recoveredListenerPreparer;
-	generator.recoverEventID(evID);
+        synchronized (this){
+            this.generator = generator;
+            this.monitor = monitor;
+            this.recoveredListenerPreparer = recoveredListenerPreparer;
+        }
+            generator.recoverEventID(evID);
+        
     }
 
     /**

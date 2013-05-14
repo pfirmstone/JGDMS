@@ -56,16 +56,16 @@ class LeaseExpirationMgr implements WeakTable.KeyGCHandler {
      * there is a small window where a task could remove the ticket
      * for its replacement.
      */
-    private WeakTable		ticketMap = new WeakTable(this); 
+    private final WeakTable ticketMap; 
 
     /** Ref to the main server object has all the top level methods */
-    private NormServerBaseImpl	server;
+    private volatile NormServerBaseImpl	server;
 
     /** Queue of tasks, ordered by time */
-    private WakeupManager	runQueue = new WakeupManager();
+    private final WakeupManager	runQueue = new WakeupManager();
 
     /** Queue of tasks to expire sets */
-    final List expireQueue = new LinkedList();
+    private final List expireQueue = new LinkedList();
 
     /** Thread to expire sets */
     private final Thread expireThread = new ExpirationThread();
@@ -76,7 +76,25 @@ class LeaseExpirationMgr implements WeakTable.KeyGCHandler {
      */
     LeaseExpirationMgr(NormServerBaseImpl server) {
 	this.server = server;
-	expireThread.start();
+        ticketMap = new WeakTable(this); //this escape is safe.
+    }
+    
+    LeaseExpirationMgr(){
+        ticketMap = new WeakTable(this); //this escape is safe.
+    }
+    
+    /**
+     * Can be set once only after construction.
+     * @param server 
+     */
+    void setServer(NormServerBaseImpl server){
+        synchronized (this){
+            if (this.server == null) this.server = server;
+        }
+    }
+    
+    void start(){
+        expireThread.start();
     }
 
     /**
@@ -105,7 +123,7 @@ class LeaseExpirationMgr implements WeakTable.KeyGCHandler {
     /**
      * Notifies the manager of a lease being renewed. <p>
      *
-     * This method assumes the lock on <code>set</code> is owned by the
+     * This method assumes the lock on <code>resource</code> is owned by the
      * current thread.
      *
      * @param resource the set for which tasks have to be rescheduled
@@ -279,7 +297,7 @@ class LeaseExpirationMgr implements WeakTable.KeyGCHandler {
      */
     private class Expiration implements Runnable {
 
-	private LeaseSet set;
+	private final LeaseSet set;
 	/**
 	 * Create a <code>Expiration</code> task for the passed resource.
 	 *

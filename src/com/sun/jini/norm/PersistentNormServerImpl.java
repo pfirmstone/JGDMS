@@ -41,7 +41,6 @@ class PersistentNormServerImpl extends NormServerBaseImpl {
     PersistentNormServerImpl(String[] configOptions, LifeCycle lifeCycle)
 	throws Exception
     {
-	super(true /* persistent */);
-	init(configOptions, lifeCycle);
+        super(init( configOptions, new NormServerInitializer(true /* persistent */, lifeCycle)));
     }
 }

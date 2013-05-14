@@ -148,7 +148,7 @@ public class JoinState extends LogHandler implements SubStore {
 	this.service = service;
 	this.lrm = lrm;
 	this.config = config;
-	this.serviceAttributes = serviceAttributes;
+	this.serviceAttributes = serviceAttributes.clone();
 	this.recoveredLookupLocatorPreparer = recoveredLookupLocatorPreparer;
 	this.serviceID = serviceID;
     }
@@ -165,73 +165,75 @@ public class JoinState extends LogHandler implements SubStore {
     public void setDirectory(File dir)
 	throws IOException, ConfigurationException
     {
-	if (dir != null) {
-	    try {
-		log = new ReliableLog(dir.getCanonicalPath(), this);
-		log.recover();
-	    } catch (IOException e) {
-		IOException e2 = new IOException(
-		    "Log is corrupted: " + e.getMessage());
-		e2.initCause(e);
-		throw e2;
-	    }
-	}
-	if (!recoveredData) {
-	    /*
-	     * Get initial attributes, groups, and locators, if not retrieved
-	     * from persistent storage.
-	     */
-	    getInitialEntries();
-	} else {
-	    /*
-	     * Prepare recovered lookup locators, dropping ones for which
-	     * preparation fails.
-	     */
-	    List prepared = new LinkedList();
-	    for (int i = locators.length; --i >= 0; ) {
-		try {
-		    prepared.add(
-			recoveredLookupLocatorPreparer.prepareProxy(
-			    locators[i]));
-		} catch (Throwable t) {
-		    if (logger.isLoggable(Level.INFO)) {
-			logThrow(Level.INFO, "setDirectory",
-				 "Problem preparing lookup locator {0} -- " +
-				 "discarding",
-				 new Object[] { locators[i] },
-				 t);
-		    }
-		}
-	    }
-	    locators = (LookupLocator[]) prepared.toArray(
-		new LookupLocator[prepared.size()]);
-	}
+        synchronized (this){
+            if (dir != null) {
+                try {
+                    log = new ReliableLog(dir.getCanonicalPath(), this);
+                    log.recover();
+                } catch (IOException e) {
+                    IOException e2 = new IOException(
+                        "Log is corrupted: " + e.getMessage());
+                    e2.initCause(e);
+                    throw e2;
+                }
+            }
+            if (!recoveredData) {
+                /*
+                 * Get initial attributes, groups, and locators, if not retrieved
+                 * from persistent storage.
+                 */
+                getInitialEntries();
+            } else {
+                /*
+                 * Prepare recovered lookup locators, dropping ones for which
+                 * preparation fails.
+                 */
+                List prepared = new LinkedList();
+                for (int i = locators.length; --i >= 0; ) {
+                    try {
+                        prepared.add(
+                            recoveredLookupLocatorPreparer.prepareProxy(
+                                locators[i]));
+                    } catch (Throwable t) {
+                        if (logger.isLoggable(Level.INFO)) {
+                            logThrow(Level.INFO, "setDirectory",
+                                     "Problem preparing lookup locator {0} -- " +
+                                     "discarding",
+                                     new Object[] { locators[i] },
+                                     t);
+                        }
+                    }
+                }
+                locators = (LookupLocator[]) prepared.toArray(
+                    new LookupLocator[prepared.size()]);
+            }
 
-	// Create DiscoveryManager
-	createDiscoveryManager();
+            // Create DiscoveryManager
+            createDiscoveryManager();
 
-	// Create JoinManager
-	try {
-	    joinMgr = new JoinManager(service, attributes, serviceID, dm, lrm,
-				      config);
-	} catch (IOException e) {
-	    IOException e2 = new IOException(
-		"Problem starting JoinManager: " + e.getMessage());
-	    e2.initCause(e2);
-	    throw e2;
-	}
-
-	// For now we are treating the state of the
-	// JoinManager/LookupDiscoveryManager as truth for our
-	// log, now that we have a lookup manager, force it into
-	// sync with our log
-	try {
-	    takeSnapshot();
-	} catch (IOException e) {
-	    logger.log(Level.WARNING,
-		       "Ignoring problem creating initial snapshot",
-		       e);
-	}
+            // Create JoinManager
+            try {
+                joinMgr = new JoinManager(service, attributes, serviceID, dm, lrm,
+                                          config);
+            } catch (IOException e) {
+                IOException e2 = new IOException(
+                    "Problem starting JoinManager: " + e.getMessage());
+                e2.initCause(e2);
+                throw e2;
+            }
+        
+            // For now we are treating the state of the
+            // JoinManager/LookupDiscoveryManager as truth for our
+            // log, now that we have a lookup manager, force it into
+            // sync with our log
+            try {
+                takeSnapshot();
+            } catch (IOException e) {
+                logger.log(Level.WARNING,
+                           "Ignoring problem creating initial snapshot",
+                           e);
+            }
+        }
     }
 
     /** Logs a throw */
@@ -337,7 +339,7 @@ public class JoinState extends LogHandler implements SubStore {
     }
 
     // Inherit JavaDoc from super-type
-    public void prepareDestroy() {
+    public synchronized void prepareDestroy() {
 	try {
 	    if (log != null)
 		log.close();
@@ -351,7 +353,7 @@ public class JoinState extends LogHandler implements SubStore {
      * Terminate our participation in the Join and discovery
      * Protocols.  Note, this method leaves the logs intact.    
      */
-    public void terminateJoin() {
+    public synchronized void terminateJoin() {
 	// Terminate the JoinManager first so it will not call
 	// into the dm after it has been terminated.
 	if (joinMgr != null)
@@ -365,7 +367,7 @@ public class JoinState extends LogHandler implements SubStore {
     // Methods needed to meet the LogHandler interface
 	
     // Inherit doc comment from super interface
-    public void snapshot(OutputStream out) throws IOException {
+    public synchronized void snapshot(OutputStream out) throws IOException {
 	ObjectOutputStream oostream = new ObjectOutputStream(out);
 	writeAttributes(joinMgr.getAttributes(), oostream);
 	oostream.writeObject(((DiscoveryGroupManagement) dm).getGroups());
@@ -374,7 +376,7 @@ public class JoinState extends LogHandler implements SubStore {
     }
 
     // Inherit doc comment from super interface
-    public void recover(InputStream in) throws Exception {
+    public synchronized void recover(InputStream in) throws Exception {
 	ObjectInputStream oistream = new ObjectInputStream(in);
 	attributes = readAttributes(oistream);
 	groups     = (String[]) oistream.readObject();
@@ -450,13 +452,11 @@ public class JoinState extends LogHandler implements SubStore {
      * Used by all the methods that change persistent state to
      * commit the change to disk
      */
-    private void takeSnapshot() throws IOException {
+    private synchronized void takeSnapshot() throws IOException {
 	if (log == null) {
 	    return;
 	}
-	synchronized (log) {
-	    log.snapshot();
-	}
+        log.snapshot();
     }
 
     /////////////////////////////////////////////////////////////////
@@ -471,7 +471,11 @@ public class JoinState extends LogHandler implements SubStore {
      *         joins no groups (as opposed to "all" groups).
      */
     public String[] getGroups() {
-	return ((DiscoveryGroupManagement) dm).getGroups();
+        DiscoveryGroupManagement dgm;
+        synchronized (this){
+            dgm = (DiscoveryGroupManagement) dm;
+        }
+	return dgm.getGroups();
     }
 
     /**
@@ -482,7 +486,11 @@ public class JoinState extends LogHandler implements SubStore {
      */
     public void addGroups(String[] groups) {
  	try {
-	    ((DiscoveryGroupManagement) dm).addGroups(groups);
+            DiscoveryGroupManagement dgm;
+            synchronized (this){
+                dgm = (DiscoveryGroupManagement) dm;
+            }
+	    dgm.addGroups(groups);
 	} catch (IOException e) {
 	    throw new RuntimeException(
 		"Could not change groups: " + e.getMessage(), e);
@@ -503,7 +511,11 @@ public class JoinState extends LogHandler implements SubStore {
      * @param groups groups to leave
      */
     public void removeGroups(String[] groups) {
-	((DiscoveryGroupManagement) dm).removeGroups(groups);
+        DiscoveryGroupManagement dgm;
+        synchronized (this){
+            dgm = (DiscoveryGroupManagement) dm;
+        }
+	dgm.removeGroups(groups);
 
 	try {
 	    takeSnapshot();
@@ -523,7 +535,11 @@ public class JoinState extends LogHandler implements SubStore {
      */
     public void setGroups(String[] groups) {
 	try {
-	    ((DiscoveryGroupManagement) dm).setGroups(groups);
+            DiscoveryGroupManagement dgm;
+            synchronized (this){
+                dgm = (DiscoveryGroupManagement) dm;
+            }
+	    dgm.setGroups(groups);
 	} catch (IOException e) {
 	    throw new RuntimeException(
 		"Could not change groups: " + e.getMessage(), e);
@@ -543,7 +559,11 @@ public class JoinState extends LogHandler implements SubStore {
      * @return the list of locators of specific lookup services to join
      */    
     public LookupLocator[] getLocators() {
-	return ((DiscoveryLocatorManagement) dm).getLocators();
+        DiscoveryLocatorManagement dlm;
+        synchronized (this){
+            dlm = (DiscoveryLocatorManagement) dm;
+        }
+	return dlm.getLocators();
     }
 
     /**
@@ -553,7 +573,11 @@ public class JoinState extends LogHandler implements SubStore {
      * @param locators locators of specific lookup services to join
      */
     public void addLocators(LookupLocator[] locators) {
-	((DiscoveryLocatorManagement) dm).addLocators(locators);
+        DiscoveryLocatorManagement dlm;
+        synchronized (this){
+            dlm = (DiscoveryLocatorManagement) dm;
+        }
+	dlm.addLocators(locators);
 	try {
 	    takeSnapshot();
 	} catch (IOException e) {
@@ -569,7 +593,11 @@ public class JoinState extends LogHandler implements SubStore {
      * @param locators locators of specific lookup services to leave
      */   
     public void removeLocators(LookupLocator[] locators) {
-	((DiscoveryLocatorManagement) dm).removeLocators(locators);
+        DiscoveryLocatorManagement dlm;
+        synchronized (this){
+            dlm = (DiscoveryLocatorManagement) dm;
+        }
+	dlm.removeLocators(locators);
 	try {
 	    takeSnapshot();
 	} catch (IOException e) {
@@ -587,7 +615,11 @@ public class JoinState extends LogHandler implements SubStore {
      * @param locators locators of specific lookup services to join
      */
     public void setLocators(LookupLocator[] locators) {
-	((DiscoveryLocatorManagement) dm).setLocators(locators);
+        DiscoveryLocatorManagement dlm;
+        synchronized (this){
+            dlm = (DiscoveryLocatorManagement) dm;
+        }
+	dlm.setLocators(locators);
 	try {
 	    takeSnapshot();
 	} catch (IOException e) {
@@ -602,7 +634,11 @@ public class JoinState extends LogHandler implements SubStore {
      * @return the current attribute sets for the service
      */
     public Entry[] getAttributes() {
-	return joinMgr.getAttributes();
+        JoinManager jm;
+        synchronized (this){
+            jm = joinMgr;
+        }
+	return jm.getAttributes();
     }
 
 
@@ -621,7 +657,11 @@ public class JoinState extends LogHandler implements SubStore {
      *         marker interface
      */
     public void addAttributes(Entry[] attrSets, boolean checkSC) {
-	joinMgr.addAttributes(attrSets, checkSC);
+        JoinManager jm;
+        synchronized (this){
+            jm = joinMgr;
+        }
+	jm.addAttributes(attrSets, checkSC);
 	try {
 	    takeSnapshot();
 	} catch (IOException e) {
@@ -651,7 +691,11 @@ public class JoinState extends LogHandler implements SubStore {
 				 Entry[] attrSets,
 				 boolean checkSC)
     {
-	joinMgr.modifyAttributes(attrSetTemplates, attrSets, checkSC);
+        JoinManager jm;
+        synchronized (this){
+            jm = joinMgr;
+        }
+	jm.modifyAttributes(attrSetTemplates, attrSets, checkSC);
 
 	try {
 	    takeSnapshot();

@@ -41,7 +41,7 @@ class LRMEventListener extends InterruptedStatusThread
     private static final Logger logger = Logger.getLogger("com.sun.jini.norm");
 
     /** Ref to the main server object which has all the top level methods */
-    final private NormServerBaseImpl server;
+    volatile private NormServerBaseImpl server;
 
     /**
      * Queue we use to decouple the reception of events from the lease
@@ -65,6 +65,21 @@ class LRMEventListener extends InterruptedStatusThread
 	super("LRM Event Listener");
 	setDaemon(true);
 	this.server = server;	
+    }
+    
+    LRMEventListener() {
+        super("LRM Event Listener");
+	setDaemon(true);
+    }
+    
+    /**
+     * Set only once after construction.
+     * @param server 
+     */
+    void setServer(NormServerBaseImpl server){
+        synchronized (this){
+            if (this.server == null) this.server = server;
+        }
     }
 
     //////////////////////////////////////////////////

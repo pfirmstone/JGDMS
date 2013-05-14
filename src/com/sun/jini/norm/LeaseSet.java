@@ -449,7 +449,7 @@ class LeaseSet implements Serializable, LeasedResource {
      * Nested class that implements <code>EventFactory</code> that
      * generates <code>ExpirationWarningEvent</code>s.
      */
-    private class WarningFactory implements EventFactory {
+    private static class WarningFactory implements EventFactory {
 	private static final long serialVersionUID = 1L;
 
 	/** The source for the event */

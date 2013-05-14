@@ -41,7 +41,6 @@ class TransientNormServerImpl extends NormServerBaseImpl {
     TransientNormServerImpl(String[] configOptions, LifeCycle lifeCycle)
 	throws Exception
     {
-	super(false /* persistent */);
-	init(configOptions, lifeCycle);
+        super(init( configOptions, new NormServerInitializer(false /* persistent */, lifeCycle)));
     }
 }

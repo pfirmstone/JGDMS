@@ -645,9 +645,9 @@ class ClientLeaseWrapper implements Lease, Serializable {
     // things could happen if the wrapper then changes -- right now
     // the wrapper won't change after this method is called but in the 
     // future who is to say.
-    private class FailureFactory implements EventFactory {
+    private static class FailureFactory implements EventFactory {
 	/** Source for event */
-	private LeaseRenewalSet source;
+	private final LeaseRenewalSet source;
 	
 	/** Client lease that could not be renewed in marshalled form */
 	final private MarshalledInstance marshalledLease;

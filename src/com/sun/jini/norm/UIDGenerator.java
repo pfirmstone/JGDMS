@@ -17,6 +17,8 @@
  */
 package com.sun.jini.norm;
 
+import java.util.concurrent.atomic.AtomicLong;
+
 /**
  * Utility class for generating locally unique IDs.
  *
@@ -26,14 +28,13 @@ class UIDGenerator {
     /**
      * Value of the next ID
      */
-    private long nextID = 0;
+    private final AtomicLong nextID = new AtomicLong();
 
     /**
-     * Generate ID, this method performs appropriate locking to
-     * ensure the returned ID is unique.
+     * Generate ID, the returned ID is unique.
      */
-    synchronized long newID() {
-        return nextID++;
+    long newID() {
+        return nextID.getAndIncrement();
     }
 
     /**
@@ -42,7 +43,11 @@ class UIDGenerator {
      * @param ID ID that is in use
      */
     void inUse(long ID) {
-        if (ID >= nextID)
-	    nextID = ID + 1;
+        long nID = nextID.get();
+        while (ID >= nID){
+            boolean success = nextID.compareAndSet(nID, ID + 1);
+            if (success) break;
+	    nID = nextID.get();
+        }
     }
 }

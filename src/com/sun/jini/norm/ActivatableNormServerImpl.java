@@ -100,47 +100,65 @@ class ActivatableNormServerImpl extends NormServerBaseImpl {
     ActivatableNormServerImpl(ActivationID activationID, MarshalledObject data)
 	throws Exception
     {
-	super(true /* persistent */);
-	String[] configOptions = null;
-	try {
+        /* Any Exception thrown happens prior to super being called, so this
+         * isn't susceptible to finalizer attacks.
+         */
+        this(init(getConfigOptions(activationID, data), new Init(true /* persistent */)));
+    }
+    
+    private ActivatableNormServerImpl(NormServerInitializer init){
+        super(init);
+        this.activationSystem = ((Init) init).activationSystem;
+        this.activationID = ((Init) init).activationID;
+    }
+    
+    private static String[] getConfigOptions(ActivationID activationID, MarshalledObject data) throws Exception{
+        try {
 	    if (activationID == null) {
 		throw new NullPointerException("activationID is null");
 	    }
-	    configOptions = (String[]) data.get();
+	    return (String[]) data.get();
 	} catch (Throwable e) {
 	    initFailed(e);
 	}
-	this.activationID = activationID;
-	init(configOptions, null);
+        return new String[0]; // Unreachable, keeps compiler happy.
     }
+    
+    private static class Init extends NormServerInitializer {
+        private ActivationSystem activationSystem;
+        private ActivationID activationID;
+        
+        Init(boolean persistent){
+            super(persistent, null);
+        }
+        void initAsSubject(Configuration config) throws Exception {
+            ProxyPreparer activationSystemPreparer =
+                (ProxyPreparer) Config.getNonNullEntry(
+                    config, NORM, "activationSystemPreparer", ProxyPreparer.class,
+                    new BasicProxyPreparer());
+            activationSystem =
+                (ActivationSystem) activationSystemPreparer.prepareProxy(
+                    ActivationGroup.getSystem());
+            ProxyPreparer activationIdPreparer = (ProxyPreparer)
+                Config.getNonNullEntry(
+                    config, NORM, "activationIdPreparer", ProxyPreparer.class,
+                    new BasicProxyPreparer());
+            activationID = (ActivationID) activationIdPreparer.prepareProxy(
+                activationID);
+            super.initAsSubject(config);
+        }
 
-    void initAsSubject(Configuration config) throws Exception {
-	ProxyPreparer activationSystemPreparer =
-	    (ProxyPreparer) Config.getNonNullEntry(
-		config, NORM, "activationSystemPreparer", ProxyPreparer.class,
-		new BasicProxyPreparer());
-	activationSystem =
-	    (ActivationSystem) activationSystemPreparer.prepareProxy(
-		ActivationGroup.getSystem());
-	ProxyPreparer activationIdPreparer = (ProxyPreparer)
-	    Config.getNonNullEntry(
-		config, NORM, "activationIdPreparer", ProxyPreparer.class,
-		new BasicProxyPreparer());
-	activationID = (ActivationID) activationIdPreparer.prepareProxy(
-	    activationID);
-	super.initAsSubject(config);
-    }
-
-    Exporter getExporter(Configuration config)
-	throws ConfigurationException
-    {
-	Exporter result = (Exporter) Config.getNonNullEntry(
-	    config, NORM, "serverExporter", Exporter.class,
-	    new ActivationExporter(
-		activationID,
-		new BasicJeriExporter(
-		    TcpServerEndpoint.getInstance(0), new BasicILFactory())),
-	    activationID);
-	return result;
+        Exporter getExporter(Configuration config)
+            throws ConfigurationException
+        {
+            Exporter result = (Exporter) Config.getNonNullEntry(
+                config, NORM, "serverExporter", Exporter.class,
+                new ActivationExporter(
+                    activationID,
+                    new BasicJeriExporter(
+                        TcpServerEndpoint.getInstance(0), new BasicILFactory())),
+                activationID);
+            return result;
+        }
     }
 }

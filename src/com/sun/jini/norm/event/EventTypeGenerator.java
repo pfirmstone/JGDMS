@@ -102,7 +102,7 @@ public class EventTypeGenerator implements Serializable {
      * Note: this method is not synchronized.
      * @param evID event ID of recovered <code>EventType</code> object
      */
-    void recoverEventID(long evID) {
+    synchronized void recoverEventID(long evID) {
 	if (evID >= nextEvID)
 	    nextEvID = evID + 1;
     }

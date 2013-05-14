@@ -98,7 +98,10 @@ import com.sun.jini.proxy.ThrowThis;
 import com.sun.jini.start.LifeCycle;
 import com.sun.jini.reliableLog.LogException;
 import com.sun.jini.reliableLog.LogHandler;
+import com.sun.jini.start.Starter;
 import com.sun.jini.thread.InterruptedStatusThread;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 
 /**
  * Base class for implementations of NormServer.  Provides a complete
@@ -107,7 +110,7 @@ import com.sun.jini.thread.InterruptedStatusThread;
  * @author Sun Microsystems, Inc.
  */
 abstract class NormServerBaseImpl
-    implements NormServer, LocalLandlord, ServerProxyTrust, ProxyAccessor
+    implements NormServer, LocalLandlord, ServerProxyTrust, ProxyAccessor, Starter
 {
     /** Current version of log format */
     private static final int CURRENT_LOG_VERSION = 2;
@@ -122,121 +125,126 @@ abstract class NormServerBaseImpl
     final boolean persistent;
 
     /** The login context, for logging out */
-    LoginContext loginContext;
+    final LoginContext loginContext;
 
     /** The location of our persistent storage, or null if not persistent. */
-    String persistenceDirectory;
+    final String persistenceDirectory;
 
     /** Proxy preparer for leases supplied through the API */
-    private ProxyPreparer leasePreparer;
+    final private ProxyPreparer leasePreparer;
 
     /**
      * Proxy preparer for leases recovered from persistent storage, or null if
      * not persistent.
      */
-    private ProxyPreparer recoveredLeasePreparer;
+    final private ProxyPreparer recoveredLeasePreparer;
 
     /** Proxy preparer for listeners supplied through the API */
-    private ProxyPreparer listenerPreparer;
+    final private ProxyPreparer listenerPreparer;
 
     /**
      * Proxy preparer for listeners recovered from persistent storage, or null
      * if not persistent.
      */
-    private ProxyPreparer recoveredListenerPreparer;
+    final private ProxyPreparer recoveredListenerPreparer;
 
     /**
      * Proxy preparer for lookup locators supplied through the API, and not
      * including initial lookup locators.
      */
-    private ProxyPreparer locatorPreparer;
+    final private ProxyPreparer locatorPreparer;
 
     /**
      * Proxy preparer for lookup locators recovered from persistent storage, or
      * null if not persistent.
      */
-    private ProxyPreparer recoveredLocatorPreparer;
+    final private ProxyPreparer recoveredLocatorPreparer;
 
     /** The exporter for exporting and unexporting */
-    Exporter exporter;
+    final Exporter exporter;
 
     /** Object to notify when this service is destroyed, or null */
-    private LifeCycle lifeCycle;
+    final private LifeCycle lifeCycle;
 
     /** The unique ID for this server. */
-    private Uuid serverUuid;
+    volatile private Uuid serverUuid;
 
     /** Our JoinManager */
-    private JoinState joinState;
+    volatile private JoinState joinState;
 
     /** Map of Uuids to LeaseSets */
-    private Map setTable = Collections.synchronizedMap(new HashMap());
+    final private Map<Uuid,LeaseSet> setTable = Collections.synchronizedMap(new HashMap<Uuid,LeaseSet>());
 
     /** Lease renewal manager that actually renews the leases */
-    private LeaseRenewalManager lrm;
+    final private LeaseRenewalManager lrm;
 
     /** Object that expires sets and generates expiration warning events */
-    private LeaseExpirationMgr expMgr;
+    final private LeaseExpirationMgr expMgr;
 
     /** Factory for creating leases */
-    private LeaseFactory leaseFactory;
+    volatile private LeaseFactory leaseFactory;
 
     /** Policy we use for granting and renewing renewal set leases */
-    private LeasePeriodPolicy setLeasePolicy;
+    final private LeasePeriodPolicy setLeasePolicy;
 
     /**
      * Whether to isolate leases in their own renewal sets as opposed to
      * batching leases across sets.
      */
-    private boolean isolateSets;
+    final private boolean isolateSets;
 
     /** Our persistant store */
-    private PersistentStore store;
+    volatile private PersistentStore store;
 
     /** Factory we use to create ClientLeaseWrapper IDs */
-    private UIDGenerator idGen = new UIDGenerator() ;
+    final private UIDGenerator idGen = new UIDGenerator() ;
 
     /** List of leases that have been renewed but not persisted */
-    private List renewedList = new LinkedList();
+    final private List renewedList;
 
     /**
      * Thread that pulls wrapped client leases off the renewedList and logs
      * them to disk
      */
-    private RenewLogThread renewLogger;
+    final private RenewLogThread renewLogger;
 
     /** Object used to generate new event types */
-    private EventTypeGenerator generator;
+    volatile private EventTypeGenerator generator;
 
     /**
      * Object that transfers events from the renewal manager to
      * us so we can remove dead leases and send events
      */
-    private LRMEventListener lrmEventListener;
+    final private LRMEventListener lrmEventListener;
 
     /** Log file must contain this many records before snapshot allowed */
-    private int logToSnapshotThresh;
+    final private int logToSnapshotThresh;
 
     /** Weight factor applied to snapshotSize when deciding to take snapshot */
-    private float snapshotWt;
+    final private float snapshotWt;
 
     /** Inner server proxy */
-    NormServer serverProxy = null;
+    volatile NormServer serverProxy = null;
 
     /** Outer service proxy */
-    LeaseRenewalService normProxy = null;
+    volatile LeaseRenewalService normProxy = null;
 
     /** Admin proxy */
-    private AdminProxy adminProxy;
+    volatile private AdminProxy adminProxy;
 
     /** Thread that performs snapshots when signaled */
-    private SnapshotThread snapshotter;
+    volatile private SnapshotThread snapshotter;
 
     /** Lock protecting startup and shutdown */
     private final ReadyState ready = new ReadyState();
 
     /** Keep track of the number of leases. */
     private final CountLeases countLeases = new CountLeases();
+    
+    /** Fields access only by thread that called constructor, then called start()
+     *  set to null at completion of start() */
+    private AccessControlContext context;
+    private Configuration config;
 
     ////////////////////////////////
     // Methods defined in NormServer
@@ -973,17 +981,31 @@ abstract class NormServerBaseImpl
 
     //////////////////////////////////////////
     // Thread to persist client lease renewals
-    private class RenewLogThread extends InterruptedStatusThread {
+    static class RenewLogThread extends InterruptedStatusThread {
+        private PersistentStore store;
+        private final List renewedList;
 	/** Create a daemon thread */
-	private RenewLogThread() {
+	RenewLogThread(List renewedList) {
 	    super("log renewals thread");
 	    setDaemon(true);
+            this.renewedList = renewedList;
+            
 	}
+        
+        private void setStore(PersistentStore store){
+            synchronized (this){
+                if (this.store == null) this.store = store;
+            }
+        }
 
 	public void run() {
 	    while (!hasBeenInterrupted()) {
 		try {
 		    ClientLeaseWrapper clw;
+                    PersistentStore store;
+                    synchronized (this){
+                        store = this.store;
+                    }
 		    synchronized (renewedList) {
 			// If there is an item on the list pull it off for
 			// processing, otherwise wait and try again
@@ -1319,7 +1341,7 @@ abstract class NormServerBaseImpl
 	    serverUuid = (Uuid) oistream.readObject();
 	    generator = (EventTypeGenerator) oistream.readObject();
 	    final int size = oistream.readInt();
-	    setTable = Collections.synchronizedMap(new HashMap(size));
+	    setTable.clear();
 	    for (int i = 0; i < size; i++) {
 		final LeaseSet set = (LeaseSet) oistream.readObject();
 		setTable.put(set.getUuid(), set);
@@ -1345,11 +1367,13 @@ abstract class NormServerBaseImpl
      * Thread that performs the actual snapshots, done in a separate thread
      * so it will not hang up in-progress remote calls
      */
-    private class SnapshotThread extends InterruptedStatusThread {
+    class SnapshotThread extends InterruptedStatusThread {
+        private final PersistentStore store;
 	/** Create a daemon thread */
-	private SnapshotThread() {
+	SnapshotThread(PersistentStore store) {
 	    super("snapshot thread");
 	    setDaemon(true);
+            this.store = store;
 	}
 
 	/** Signal this thread that is should take a snapshot */
@@ -1716,37 +1740,36 @@ abstract class NormServerBaseImpl
      * Simple container for an alternative return a value so we
      * can provide more detailed diagnostics.
      */
-    class InitException extends Exception {
+    static class InitException extends Exception {
 	private static final long serialVersionUID = 1;
 	private InitException(String message, Throwable nested) {
 	    super(message, nested);
 	}
     }
-
+    
     /**
      * Portion of construction that is common between the activatable and not
      * activatable cases.  This method performs the minimum number of
      * operations before establishing the Subject, and logs errors.
      */
-    void init(String[] configOptions, LifeCycle lifeCycle)
+    static NormServerInitializer init(String[] configOptions, final NormServerInitializer init)
 	throws Exception
     {
 	try {
 	    final Configuration config = ConfigurationProvider.getInstance(
-		configOptions, getClass().getClassLoader());
-	    this.lifeCycle = lifeCycle;
-	    loginContext = (LoginContext) config.getEntry(
+		configOptions, NormServerBaseImpl.class.getClassLoader());
+	    init.loginContext = (LoginContext) config.getEntry(
 		NORM, "loginContext", LoginContext.class, null);
-	    if (loginContext == null) {
-		initAsSubject(config);
+	    if (init.loginContext == null) {
+		init.initAsSubject(config);
 	    } else {
-		loginContext.login();
+		init.loginContext.login();
 		try {
 		    Subject.doAsPrivileged(
-			loginContext.getSubject(),
+			init.loginContext.getSubject(),
 			new PrivilegedExceptionAction() {
 			    public Object run() throws Exception {
-				initAsSubject(config);
+				init.initAsSubject(config);
 				return null;
 			    }
 			},
@@ -1755,11 +1778,10 @@ abstract class NormServerBaseImpl
 		    throw e.getCause();
 		}
 	    }
-	    ready.ready();
-	    logger.log(Level.INFO, "Norm service started: {0}", this);
 	} catch (Throwable e) {
 	    initFailed(e);
 	}
+        return init;
     }
 
     /**
@@ -1788,10 +1810,7 @@ abstract class NormServerBaseImpl
 	} else if (e instanceof Error) {
 	    throw (Error) e;
 	} else {
-	    IllegalStateException ise =
-		new IllegalStateException(e.getMessage());
-	    ise.initCause(e);
-	    throw ise;
+	    throw new IllegalStateException(e);
 	}
     }
 
@@ -1807,167 +1826,142 @@ abstract class NormServerBaseImpl
 	r.setThrown(t);
 	logger.log(r);
     }
+    
+    public void start() throws Exception {
+        try {
+            AccessController.doPrivileged(new PrivilegedExceptionAction(){
 
-    /**
-     * Common construction for activatable and non-activatable cases, run
-     * under the proper Subject.
-     */
-    void initAsSubject(Configuration config) throws Exception {
-	/* Get configuration entries first */
-	if (persistent) {
-	    persistenceDirectory = (String) Config.getNonNullEntry(
-		config, NORM, "persistenceDirectory", String.class);
-	    snapshotWt = Config.getFloatEntry(
-		config, NORM, "persistenceSnapshotWeight",
-		10, 0, Float.MAX_VALUE);
-	    logToSnapshotThresh = Config.getIntEntry(
-		config, NORM, "persistenceSnapshotThreshold",
-		200, 0, Integer.MAX_VALUE);
-	}
-	leasePreparer = (ProxyPreparer) Config.getNonNullEntry(
-	    config, NORM, "leasePreparer", ProxyPreparer.class,
-	    new BasicProxyPreparer());
-	listenerPreparer = (ProxyPreparer) Config.getNonNullEntry(
-	    config, NORM, "listenerPreparer", ProxyPreparer.class,
-	    new BasicProxyPreparer());
-	locatorPreparer = (ProxyPreparer) Config.getNonNullEntry(
-	    config, NORM, "locatorPreparer", ProxyPreparer.class,
-	    new BasicProxyPreparer());
-	if (persistent) {
-	    recoveredLeasePreparer = (ProxyPreparer) Config.getNonNullEntry(
-		config, NORM, "recoveredLeasePreparer", ProxyPreparer.class,
-		new BasicProxyPreparer());
-	    recoveredListenerPreparer =
-		(ProxyPreparer) Config.getNonNullEntry(
-		    config, NORM, "recoveredListenerPreparer",
-		    ProxyPreparer.class, new BasicProxyPreparer());
-	    recoveredLocatorPreparer = (ProxyPreparer) Config.getNonNullEntry(
-		config, NORM, "recoveredLocatorPreparer", ProxyPreparer.class,
-		new BasicProxyPreparer());
-	}
-	setLeasePolicy = (LeasePeriodPolicy) Config.getNonNullEntry(
-	    config, NORM, "leasePolicy", LeasePeriodPolicy.class,
-	    new FixedLeasePeriodPolicy(
-		2 * 60 * 60 * 1000 /* max */, 60 * 60 * 1000 /* default */));
-	isolateSets = ((Boolean) config.getEntry(
-	    NORM, "isolateSets", boolean.class, Boolean.FALSE)).booleanValue();
-	try {
-	    lrm = (LeaseRenewalManager) Config.getNonNullEntry(
-		config, NORM, "leaseManager", LeaseRenewalManager.class);
-	} catch (NoSuchEntryException e) {
-	    lrm = new LeaseRenewalManager(config);
-	}
-	exporter = getExporter(config);
+                @Override
+                public Object run() throws Exception {
+                    serverProxy = (NormServer) exporter.export(NormServerBaseImpl.this);
 
-	serverProxy = (NormServer) exporter.export(this);
+                    boolean done = false;
+                    try {
+                        // We use some of these during the recovery process
+                        expMgr.setServer(NormServerBaseImpl.this);
+                        lrmEventListener.setServer(NormServerBaseImpl.this);
 
-	boolean done = false;
-	try {
-	    // We use some of these during the recovery process
-	    expMgr = new LeaseExpirationMgr(this);
-	    generator = new EventTypeGenerator();
-	    lrmEventListener = new LRMEventListener(this);
-	    renewLogger = new RenewLogThread();
-	    snapshotter = new SnapshotThread();
+                        try {
+                            store = new PersistentStore(
+                                persistenceDirectory, new OurLogHandler(), NormServerBaseImpl.this);
+                            // Creating the store completes the first two stages of 
+                            // log recovery (reading the snapshot and the updates)
+                            // Perform the last stage here of restoring transient state
+                            restoreTransientState();
+                            if (logger.isLoggable(Level.FINER)) {
+                                logger.log(Level.FINER, "Log recovered: {0}",
+                                           inventory());
+                            }
 
-	    try {
-		store = new PersistentStore(
-		    persistenceDirectory, new OurLogHandler(), this);
-		// Creating the store completes the first two stages of 
-		// log recovery (reading the snapshot and the updates)
-		// Perform the last stage here of restoring transient state
-		restoreTransientState();
-		if (logger.isLoggable(Level.FINER)) {
-		    logger.log(Level.FINER, "Log recovered: {0}",
-			       inventory());
-		}
+                        } catch (CorruptedStoreException e) {
+                            throw new InitException("Log corrupted, can't recover ", e);
+                        } catch (StoreException e) {
+                            throw new InitException("Can't recover log", e);
+                        }
+                        
+                        renewLogger.setStore(store);
+                        snapshotter = new SnapshotThread(store);
 
-	    } catch (CorruptedStoreException e) {
-		throw new InitException("Log corrupted, can't recover ", e);
-	    } catch (StoreException e) {
-		throw new InitException("Can't recover log", e);
-	    }
+                        if (serverUuid == null) {
+                            serverUuid = UuidFactory.generate();
+                        }
+                        normProxy = NormProxy.create(serverProxy, serverUuid);
+                        adminProxy = AdminProxy.create(serverProxy, serverUuid);
 
-	    if (serverUuid == null) {
-		serverUuid = UuidFactory.generate();
-	    }
-	    normProxy = NormProxy.create(serverProxy, serverUuid);
-	    adminProxy = AdminProxy.create(serverProxy, serverUuid);
+                        // Create new baseline snapshot
+                        try {
+                            store.snapshot();
+                            if (logger.isLoggable(Level.FINER)) {
+                                logger.log(
+                                    Level.FINER, "Completed new baseline snapshot: {0}",
+                                    inventory());
+                            }
+                        } catch (IOException e) {
+                            throw new InitException(
+                                "Can't create new baseline snapshot", e);
+                        }
 
-	    // Create new baseline snapshot
-	    try {
-		store.snapshot();
-		if (logger.isLoggable(Level.FINER)) {
-		    logger.log(
-			Level.FINER, "Completed new baseline snapshot: {0}",
-			inventory());
-		}
-	    } catch (IOException e) {
-		throw new InitException(
-		    "Can't create new baseline snapshot", e);
-	    }
+                        Entry[] serviceAttributes = {
+                            new ServiceInfo(
+                                "Lease Renewal Service",		// name
+                                "Sun Microsystems, Inc.",		// manufacturer
+                                "Sun Microsystems, Inc.",		// vender
+                                VersionConstants.SERVER_VERSION,	// version
+                                "",					// model
+                                ""),				// serialNumber
+                            new BasicServiceType("Lease Renewal Service")
+                        };
+                        try {
+                            JoinState joinState = new JoinState(
+                                normProxy, lrm, config, serviceAttributes,
+                                recoveredLocatorPreparer,
+                                new ServiceID(serverUuid.getMostSignificantBits(),
+                                              serverUuid.getLeastSignificantBits()));
+                            store.addSubStore(joinState);
+                            // joinState is mutated when added to store, makes
+                            // sure that's published after mutation.
+                            NormServerBaseImpl.this.joinState = joinState;
+                        } catch (StoreException e) {
+                            throw new InitException("Can't create JoinState", e);
+                        }
 
-	    Entry[] serviceAttributes = {
-		new ServiceInfo(
-		    "Lease Renewal Service",		// name
-		    "Sun Microsystems, Inc.",		// manufacturer
-		    "Sun Microsystems, Inc.",		// vender
-		    VersionConstants.SERVER_VERSION,	// version
-		    "",					// model
-		    ""),				// serialNumber
-		new BasicServiceType("Lease Renewal Service")
-	    };
-	    try {
-		joinState = new JoinState(
-		    normProxy, lrm, config, serviceAttributes,
-		    recoveredLocatorPreparer,
-		    new ServiceID(serverUuid.getMostSignificantBits(),
-				  serverUuid.getLeastSignificantBits()));
-		store.addSubStore(joinState);
-	    } catch (StoreException e) {
-		throw new InitException("Can't create JoinState", e);
-	    }
+                        leaseFactory = new LeaseFactory(serverProxy, serverUuid);
 
-	    leaseFactory = new LeaseFactory(serverProxy, serverUuid);
+                        // $$$ By rights this code should be in
+                        // restoreTransientState(), however we can't have an independent
+                        // thread running around changing persistant state util we get
+                        // to this point (I think the only real issue is the baseline
+                        // snapshot) and once we place a set in the expMgr it the
+                        // underlying wakeup queue will start running which can cause
+                        // calls to expireIfTime() (and sendWarningEvent() though those
+                        // should not be a problem since they don't log anything).
+                        //
+                        // I would prefer to ether modify WakeupQueue() to have a "start
+                        // now" method (equivalent to how we create lrmEventListener above
+                        // but call start() bellow) or be able to hold an exclusive
+                        // snapshot lock until the initial snapshot is done.  Ether should
+                        // allow this code to be moved into restoreTransientState
 
-	    // $$$ By rights this code should be in
-	    // restoreTransientState(), however we can't have an independent
-	    // thread running around changing persistant state util we get
-	    // to this point (I think the only real issue is the baseline
-	    // snapshot) and once we place a set in the expMgr it the
-	    // underlying wakeup queue will start running which can cause
-	    // calls to expireIfTime() (and sendWarningEvent() though those
-	    // should not be a problem since they don't log anything).
-	    //
-	    // I would prefer to ether modify WakeupQueue() to have a "start
-	    // now" method (equivalent to how we create lrmEventListener above
-	    // but call start() bellow) or be able to hold an exclusive
-	    // snapshot lock until the initial snapshot is done.  Ether should
-	    // allow this code to be moved into restoreTransientState
+                        // Move to Starter method, is WakeupQueue() above 
+                        // actually WakeupManager() renamed?  I suspect so.
+                        expMgr.start();
+                        for (Iterator i = setTable.values().iterator(); i.hasNext(); ) {
+                            final LeaseSet set = (LeaseSet) i.next();
+                            synchronized (set) {
+                                expMgr.schedule(set);
+                            }
+                        }
 
-	    for (Iterator i = setTable.values().iterator(); i.hasNext(); ) {
-		final LeaseSet set = (LeaseSet) i.next();
-		synchronized (set) {
-		    expMgr.schedule(set);
-		}
-	    }
+                        lrmEventListener.start();
+                        renewLogger.start();
+                        snapshotter.start();
+                        done = true;
+                    } finally {
+                        if (!done) {
+                            try {
+                                unexport(true);
+                            } catch (Exception e) {
+                                logger.log(
+                                    Level.INFO,
+                                    "Unable to unexport after failure during startup",
+                                    e);
+                            }
+                        }
+                    }
+                    return null;
+                }
 
-	    lrmEventListener.start();
-	    renewLogger.start();
-	    snapshotter.start();
-	    done = true;
+            }, context);
+	    ready.ready();
+	    logger.log(Level.INFO, "Norm service started: {0}", this);
+        } catch (PrivilegedActionException e){
+            initFailed(e.getException());
+        } catch (Throwable e) {
+	    initFailed(e);
 	} finally {
-	    if (!done) {
-		try {
-		    unexport(true);
-		} catch (Exception e) {
-		    logger.log(
-			Level.INFO,
-			"Unable to unexport after failure during startup",
-			e);
-		}
-	    }
-	}
+            context = null;
+            config = null;
+        }
     }
 
     /** Returns whether to isolate renewal sets or batch lease across sets. */
@@ -1977,27 +1971,30 @@ abstract class NormServerBaseImpl
 
     /**
      * Creates an instance of this class.
-     *
-     * @param persistent whether this server is persistent
      */
-    NormServerBaseImpl(boolean persistent) {
-	this.persistent = persistent;
-    }
-
-    /**
-     * Returns the exporter to use to export this server.
-     *
-     * @param config the configuration to use for supplying the exporter
-     * @return the exporter to use to export this server
-     * @throws ConfigurationException if a problem occurs retrieving entries
-     *	       from the configuration
-     */
-    Exporter getExporter(Configuration config)
-	throws ConfigurationException
-    {
-	return (Exporter) Config.getNonNullEntry(
-	    config, NORM, "serverExporter", Exporter.class,
-	    new BasicJeriExporter(
-		TcpServerEndpoint.getInstance(0), new BasicILFactory()));
+    NormServerBaseImpl(NormServerInitializer init){
+        persistent = init.persistent;
+        lifeCycle = init.lifeCycle;
+        loginContext = init.loginContext;
+        persistenceDirectory = init.persistenceDirectory;
+        renewedList = init.renewedList;
+        snapshotWt = init.snapshotWt;
+        logToSnapshotThresh = init.logToSnapshotThresh;
+        leasePreparer = init.leasePreparer;
+        listenerPreparer = init.listenerPreparer;
+        locatorPreparer = init.locatorPreparer;
+        recoveredLeasePreparer = init.recoveredLeasePreparer;
+        recoveredListenerPreparer = init.recoveredListenerPreparer;
+        recoveredLocatorPreparer = init.recoveredLocatorPreparer;
+        setLeasePolicy = init.setLeasePolicy;
+        isolateSets = init.isolateSets;
+        lrm = init.lrm;
+        exporter = init.exporter;
+        expMgr = init.expMgr;
+        generator = init.generator;
+        lrmEventListener = init.lrmEventListener;
+        renewLogger = init.renewLogger;
+        context = init.context;
+        config = init.config;
     }
 }
