@@ -34,6 +34,7 @@ import com.sun.jini.reliableLog.ReliableLog;
 import com.sun.jini.reliableLog.LogHandler;
 
 import com.sun.jini.start.LifeCycle;
+import com.sun.jini.start.Starter;
 
 import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadersWriter;
@@ -112,6 +113,9 @@ import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
 
 import java.security.PrivilegedExceptionAction;
 
@@ -162,10 +166,10 @@ import java.util.logging.Logger;
  *
  * @author Sun Microsystems, Inc.
  */
-class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
+class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
 
     /* Name of this component; used in config entry retrieval and the logger.*/
-    private static final String COMPONENT_NAME = "com.sun.jini.fiddler";
+    static final String COMPONENT_NAME = "com.sun.jini.fiddler";
     /* Loggers used by this implementation of the service. */
     static final Logger problemLogger      = Logger.getLogger(COMPONENT_NAME+
                                                               ".problem");
@@ -191,9 +195,9 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      *  containing the <code>LookupLocator</code> and the member groups of
      *  the registrar
      */
-    protected final class LocatorGroupsStruct {
-        public LookupLocator locator;
-        public String[]      groups;
+    static final class LocatorGroupsStruct {
+        final LookupLocator locator;
+        final String[]      groups;
         LocatorGroupsStruct(LookupLocator locator, String[] groups) {
             this.locator = locator;
             this.groups  = groups;
@@ -208,7 +212,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
 
     /** When re-setting the bound on lease durations, that bound cannot be
      *  set to a value larger than this value */
-    private static final long MAX_LEASE = 1000L * 60 * 60 * 24 * 365 * 1000;
+    static final long MAX_LEASE = 1000L * 60 * 60 * 24 * 365 * 1000;
     /** Log format version */
     private static final int LOG_VERSION = 2;
 
@@ -225,9 +229,9 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
     /** The activation id of the current instance of the lookup discovery
      *  service, if it happens to be and activatable instance
      */
-    private ActivationID activationID;
+    private final ActivationID activationID;
     /* Holds the prepared proxy to the ActivationSystem */
-    private ActivationSystem activationSystem;
+    private final ActivationSystem activationSystem;
     /** The unique identifier generated (or recovered) when an instance of
      *  this service is constructed. This ID is typically used to determine
      *  equality between the proxies of any two instances of this service.
@@ -246,7 +250,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      */
     private final TreeMap registrationByTime = new TreeMap();
     /** Performs all group and locator discovery on behalf of clients */
-    private LookupDiscoveryManager discoveryMgr = null; 
+    private final LookupDiscoveryManager discoveryMgr; 
     /** The listener registered for both group discovery events and locator
      *  discovery events.
      */
@@ -264,15 +268,15 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
     /** Earliest expiration time over all active registrations */
     private long minExpiration = Long.MAX_VALUE;
     /** The lookup discovery manager this service's join manager will use */
-    private DiscoveryManagement joinMgrLDM;
+    private final DiscoveryManagement joinMgrLDM;
     /** Manager for discovering and registering with lookup services */
     private JoinManager joinMgr;
     /** Task manager for sending remote discovery events */
-    private TaskManager taskMgr;
+    private final TaskManager taskMgr;
     /** Registration lease expiration thread */
-    private Thread leaseExpireThread;
+    private final LeaseExpireThread leaseExpireThread;
     /** Snapshot-taking thread */
-    private Thread snapshotThread;
+    private final SnapshotThread snapshotThread;
 
     /** Concurrent object to control read and write access */
     private final ReadersWriter concurrentObj = new ReadersWriter();
@@ -285,7 +289,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      *  This object is also used as a flag: non-null ==> persistent service
      *                                      null ==> non-persistent service
      */
-    private ReliableLog log = null;
+    private final ReliableLog log;
     /** Flag indicating whether system is in a state of recovery */
     private boolean inRecovery;
     /** Current number of records in the Log File since the last snapshot */
@@ -293,7 +297,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
     /** The name of the directory to which the persistent modes of this service
      *  will log the service's state (using ReliableLog).
      */
-    private String persistDir;
+    private final String persistDir;
     /** least upper bound applied to all granted lease durations */
     private long leaseBound = 1000 * 60 * 30;
     /** Weight factor applied to snapshotSize when deciding to take snapshot */
@@ -322,11 +326,11 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
     /* Object used to obtain the configuration items for this service. */
     private Configuration config;
     /* The JAAS login context to use when performing a JAAS login. */
-    private LoginContext loginContext = null;
+    private final LoginContext loginContext;
     /* The exporter used to export this service. */
-    private Exporter serverExporter;
+    private final Exporter serverExporter;
     /* Maximum value of upper bound on lease durations.*/
-    private long leaseMax = MAX_LEASE;
+    private final long leaseMax;
     /* Flag indicating this service is being started for the very 1st time */
     private boolean initialStartup = true;
     /** Object that, if non-<code>null</code>, will cause the object's
@@ -337,37 +341,50 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      *  service reference any longer.  Note hat this object is used only 
      *  in the non-activatable case.
      */
-    private LifeCycle lifeCycle = null;
+    private final LifeCycle lifeCycle;
+    
+    /* ProxyPreparer fields were originally static and set every time a 
+     * constructor was called, this was done to enable the static class
+     * RegistrationInfo to prepare recovered proxy's after deserialization.
+     * 
+     * These fields are now final instance fields.  This would for instance
+     * enable multiple FiddlerImpl to co exist in one jvm if necessary using
+     * different configurations.
+     */
     /* Preparer for proxies to remote listeners newly registered with this
      * service.
      */
-    private static ProxyPreparer listenerPreparer;
+    private final ProxyPreparer listenerPreparer;
     /* Preparer for proxies to remote listeners, previously prepared, and
      * recovered from this service's persisted state.
      */
-    private static ProxyPreparer recoveredListenerPreparer;
+    private final ProxyPreparer recoveredListenerPreparer;
     /* Preparer for initial and new lookup locators this service should
      * discover and join.
      */
-    private static ProxyPreparer locatorToJoinPreparer;
+    private final ProxyPreparer locatorToJoinPreparer;
     /* Preparer for lookup locators this service should discover and join
      * that were previously prepared and which were recovered from this
      * service's persisted state.
      */
-    private static ProxyPreparer recoveredLocatorToJoinPreparer;
+    private final ProxyPreparer recoveredLocatorToJoinPreparer;
     /* Preparer for initial and new lookup locators this service should
      * discover on behalf of the clients that register with it.
      */
-    private static ProxyPreparer locatorToDiscoverPreparer;
+    private final ProxyPreparer locatorToDiscoverPreparer;
     /* Preparer for lookup locators this service should discover on behalf
      * of its registered clients that were previously prepared and which
      * were recovered from this service's persisted state.
      */
-    private static ProxyPreparer recoveredLocatorToDiscoverPreparer;
+    private final ProxyPreparer recoveredLocatorToDiscoverPreparer;
     /** Object used to prevent access to this service during the service's
      *  initialization or shutdown processing.
      */
     private final ReadyState readyState = new ReadyState();
+    
+    private boolean persistent;
+    private LocalLogHandler logHandler;
+    private AccessControlContext context;
 
     /* ************************* BEGIN Constructors ************************ */
     /**
@@ -418,14 +435,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
                                               LoginException,
                                               ClassNotFoundException
     {
-        this.activationID = activationID;
-        try {
-            activationSystem = ActivationGroup.getSystem();
-            init( (String[])data.get(), true );//true ==> persistent
-        } catch(Throwable e) {
-            cleanupInitFailure();
-            handleActivatableInitThrowable(e);
-        }
+            this(init( (String[])data.get(), true /* persistent */, activationID ), null);
     }//end activatable constructor
 
     /**
@@ -464,14 +474,35 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
                                                     ConfigurationException,
                                                     LoginException
     {
-        try {
-            this.lifeCycle = lifeCycle;
-            init(configArgs, persistent);
-        } catch(Throwable e) {
-            cleanupInitFailure();
-            handleInitThrowable(e);
-        }
+        this(init(configArgs, persistent), lifeCycle);
     }//end non-activatable constructor
+    
+    FiddlerImpl(FiddlerInit i, LifeCycle lifeCycle){
+        this.lifeCycle = lifeCycle;
+        discoveryMgr = i.discoveryMgr;
+        listenerPreparer = i.listenerPreparer;
+        locatorToJoinPreparer = i.locatorToJoinPreparer;
+        locatorToDiscoverPreparer = i.locatorToDiscoverPreparer;
+        recoveredListenerPreparer = i.recoveredListenerPreparer;
+        recoveredLocatorToJoinPreparer = i.recoveredLocatorToJoinPreparer;
+        recoveredLocatorToDiscoverPreparer = i.recoveredLocatorToDiscoverPreparer;
+        persistDir = i.persistDir;
+        log = i.log;
+        joinMgrLDM = i.joinMgrLDM;
+        leaseMax = i.leaseMax;
+        taskMgr = i.taskMgr;
+        activationSystem = i.activationSystem;
+        serverExporter = i.serverExporter;
+        leaseExpireThread = i.leaseExpireThread;
+        snapshotThread = i.snapshotThread;
+        logHandler = i.logHandler;
+        activationID = i.activationID;
+        // These three fields are used by the Starter.start() implementation.
+        persistent = i.persistent;
+        config = i.config;
+        context = i.context;
+        loginContext = i.loginContext;
+    }
     /* ************************** END Constructors ************************* */
 
     /* ******************* BEGIN Inner Class Definitions ******************* */
@@ -598,19 +629,19 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
          *  of this class when being serialized. (See the description for
          *  <code>writeObject</code> below.)
          */
-        public transient RemoteEventListener listener;
-
+         public transient RemoteEventListener listener;
+         
         /** Constructs an instance of this class and stores the information
          *  related to the current registration: IDs, managed sets, lease
          *  information, and event registration information.
          */
         public RegistrationInfo(Uuid registrationID,
-                                String[] groups,
-                                LookupLocator[] locators,
-                                Uuid leaseID,
-                                long leaseExpiration,
-                                long eventID,
-                                MarshalledObject handback,
+                String[] groups, 
+                LookupLocator[] locators, 
+                Uuid leaseID, 
+                long leaseExpiration, 
+                long eventID, 
+                MarshalledObject handback, 
                                 RemoteEventListener listener)
         {
             this.registrationID = registrationID;
@@ -701,7 +732,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
             }//endif
             return 1;
         }//end compareTo
-
+        
         /** When a registration is granted to a client, the client registers
          *  a remote listener with the lookup discovery service so that the
          *  lookup discovery service may send remote discovery events to the
@@ -743,10 +774,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
             MarshalledObject mo = (MarshalledObject)stream.readObject();
             try {
                 listener = (RemoteEventListener)mo.get();
-                /* Re-prepare the recovered listener */
-                listener = 
-                 (RemoteEventListener)recoveredListenerPreparer.prepareProxy
-                                                                   (listener);
             } catch (Throwable e) {
                 problemLogger.log(Level.INFO, "problem recovering listener "
                                   +"for recovered registration", e);
@@ -756,6 +783,32 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
                    throw (Error)e;
                 }//endif
             }
+        }//end readObject
+        
+        /**
+         * Must be called immediately after de-serialization to prepare
+         * proxies.
+         * 
+         * @param recoveredListenerPreparer
+         * @param recoveredLocatorToDiscoverPreparer 
+         */
+        public void prepare(ProxyPreparer recoveredListenerPreparer,
+                     ProxyPreparer recoveredLocatorToDiscoverPreparer )
+        {
+            try {
+                /* Re-prepare the recovered listener */
+                listener = (RemoteEventListener)
+                        recoveredListenerPreparer.prepareProxy(listener);
+            } catch (Throwable e) {
+                problemLogger.log(Level.INFO, "problem recovering listener "
+                                  +"for recovered registration", e);
+                if((e instanceof Error) && (ThrowableConstants.retryable(e)
+                                             == ThrowableConstants.BAD_OBJECT))
+                {
+                   throw (Error)e;
+                }//endif
+            }
+            
             /* Prepare the locators recovered from the stream */
             int nUnprepared = (locators).size();
             locators = (HashSet)prepareOldLocators
@@ -783,8 +836,9 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
                                       +"... discarding recovered"
                                       +"registration");
                 }//endif
-            }//endif
-        }//end readObject
+            }
+        }
+        
     }//end class RegistrationInfo
 
     /** This class represents a <code>Task</code> object that is placed
@@ -2145,20 +2199,25 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      *     where 'dirname' is the name of the directory path (relative or
      *     absolute) where the snapshot and log file will be maintained.
      */
-    private class LocalLogHandler extends LogHandler {
+    static class LocalLogHandler extends LogHandler {
+        private FiddlerImpl fiddler;
         /** No-arg public constructor */
         public LocalLogHandler() { }
+        
+        synchronized void setFiddler(FiddlerImpl fiddler){
+            this.fiddler = fiddler;
+        }
 
         /* Overrides snapshot() defined in ReliableLog's LogHandler class. */
-        public void snapshot(OutputStream out) throws IOException {
-            takeSnapshot(out);
+        public synchronized void snapshot(OutputStream out) throws IOException {
+            fiddler.takeSnapshot(out);
         }//end snapshot
 
         /* Overrides recover() defined in ReliableLog's LogHandler class. */
-        public void recover(InputStream in)
+        public synchronized void recover(InputStream in)
                             throws IOException, ClassNotFoundException
         {
-            recoverSnapshot(in);
+            fiddler.recoverSnapshot(in);
         }//end recover
 
         /**
@@ -2183,8 +2242,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
          * will then modify the state of the service in a way dictated
          * by the type of record that was retrieved.
          */
-        public void applyUpdate(Object logRecObj) {
-            ((LogRecord)logRecObj).apply(FiddlerImpl.this);
+        public synchronized void applyUpdate(Object logRecObj) {
+            ((LogRecord)logRecObj).apply(fiddler);
         }//end applyUpdate
     }//end class LocalLogHandler
     /* ******************* END Inner Class Definitions ********************* */
@@ -2194,24 +2253,34 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      *  cancel (expire) those leases with expiration times that have exceeded
      *  the current time.
      */
-    private class LeaseExpireThread extends InterruptedStatusThread {
+    static class LeaseExpireThread extends InterruptedStatusThread {
 
+        private FiddlerImpl fiddler;
         /** Create a daemon thread */
         public LeaseExpireThread() {
             super("lease expire");
             setDaemon(true);
         }//end constructor
+        
+        /**
+         * This can only be called prior to the thread starting, otherwise it
+         * blocks until the thread finishes executing.
+         * @param fiddler 
+         */
+        synchronized void setFiddler(FiddlerImpl fiddler){
+            this.fiddler = fiddler;
+        }
 
-        public void run() {
+        public synchronized void run() {
             try {
-                concurrentObj.writeLock();
+                fiddler.concurrentObj.writeLock();
             } catch (ConcurrentLockException e) {
                 return;
             }
             try {
                 while (!hasBeenInterrupted()) {
                     long curTime  = System.currentTimeMillis();
-                    minExpiration = Long.MAX_VALUE;
+                    fiddler.minExpiration = Long.MAX_VALUE;
                     /* Loop through registrationByTime removing registrations
                      * with expiration times that are earlier than the current
                      * time. The logic of this loop relies on the fact that 
@@ -2225,11 +2294,11 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
                      * registration is encountered, each registration is
                      * removed from its various storage locations.
                      */
-                    while (!registrationByTime.isEmpty()) {
+                    while (!fiddler.registrationByTime.isEmpty()) {
                         RegistrationInfo regInfo
-                             = (RegistrationInfo)registrationByTime.firstKey();
+                             = (RegistrationInfo)fiddler.registrationByTime.firstKey();
                         if (regInfo.leaseExpiration > curTime) {
-                            minExpiration = regInfo.leaseExpiration;
+                            fiddler.minExpiration = regInfo.leaseExpiration;
                             break;
                         }
 	                /* The removal of a registration typically involves the
@@ -2247,7 +2316,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
                          * of the existence of this attribute.
 	                 */
                         try {
-                            removeRegistration(regInfo);
+                            fiddler.removeRegistration(regInfo);
                         } catch(IOException e) {
                             String eStr = "Failure while removing "
                                           +"registration (ID = "
@@ -2261,18 +2330,18 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
                                         { new FiddlerStatus(StatusType.ERROR),
                                           new Comment(eStr)
                                         };
-                            joinMgr.addAttributes(errorAttrs,true);
+                            fiddler.joinMgr.addAttributes(errorAttrs,true);
                         }
                     }//end while
                     try {
-                        concurrentObj.writerWait(leaseExpireThreadSyncObj,
-                                                 (minExpiration - curTime));
+                        fiddler.concurrentObj.writerWait(fiddler.leaseExpireThreadSyncObj,
+                                                 (fiddler.minExpiration - curTime));
                     } catch (ConcurrentLockException e) {
                         return;
                     }
                 }//end while
             } finally {
-                concurrentObj.writeUnlock();
+                fiddler.concurrentObj.writeUnlock();
             }
         }//end run
     }//end class LeaseExpireThread
@@ -2322,28 +2391,39 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
      * be locked while a reader mutex is locked, allows the snapshot to
      * be treated as a reader process.
      */
-    private class SnapshotThread extends InterruptedStatusThread {
-
+    static class SnapshotThread extends InterruptedStatusThread {
+        private FiddlerImpl fiddler;
+        
         /** Create a daemon thread */
         public SnapshotThread() {
             super("snapshot thread");
             setDaemon(true);
         }
+        
+        /**
+         * Due to synchronization this can only be set prior to this thread
+         * starting.
+         * 
+         * @param fiddler 
+         */
+        synchronized void setFiddler(FiddlerImpl fiddler){
+            this.fiddler = fiddler;
+        }
 
-        public void run() {
+        public synchronized void run() {
             try {
-                concurrentObj.readLock();
+                fiddler.concurrentObj.readLock();
             } catch (ConcurrentLockException e) {
                 return;
             }
             try {
                 while (!hasBeenInterrupted()) {
                     try {
-                        concurrentObj.readerWait(snapshotThreadSyncObj,
+                        fiddler.concurrentObj.readerWait(fiddler.snapshotThreadSyncObj,
                                                  Long.MAX_VALUE);
                         try {
-                            log.snapshot();
-                            logFileSize = 0;
+                            fiddler.log.snapshot();
+                            fiddler.logFileSize = 0;
                         } catch (Exception e) {
                             if (hasBeenInterrupted())  return;
                             /* If taking the snapshot fails for any reason,
@@ -2364,14 +2444,14 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
                                         { new FiddlerStatus(StatusType.ERROR),
                                           new Comment(eStr)
                                         };
-                            joinMgr.addAttributes(errorAttrs,true);
+                            fiddler.joinMgr.addAttributes(errorAttrs,true);
                         }
                     } catch (ConcurrentLockException e) {
                         return;
                     }
                 }//end while
             } finally {
-                concurrentObj.readUnlock();
+                fiddler.concurrentObj.readUnlock();
             }
         }//end run
     }//end class SnapshotThread
@@ -5000,51 +5080,64 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
         return false;
     }//end locSetContainsLoc
 
-    /* **************** END Private Static Utility Methods ***************** */
-
-    /* ************** BEGIN Private NON-Static Utility Methods ************* */
-    /* BEGIN Private Startup Methods --------------------------------------- */
+    
     /** Common entry point for initialization of the service in any of its
      *  possible modes: transient, non-activatable-persistent, or 
      *  activatable-persistent; with or without performing a JAAS login.
      */
-    private void init(String[] configArgs, boolean persistent)
+    private static FiddlerInit init(String[] configArgs, boolean persistent) 
+            throws IOException, ConfigurationException, LoginException{
+        try {
+            return init(configArgs, persistent, null);
+        } catch (ActivationException e){
+            // swallow will never happen because it's null.
+            return null;
+        }
+    }
+    
+    private static FiddlerInit init(String[] configArgs, 
+                                    boolean persistent, 
+                                    ActivationID activeID)
                                            throws IOException,
                                                   ConfigurationException,
-                                                  LoginException
+                                                  LoginException,
+                                                  ActivationException
     {
-        config = ConfigurationProvider.getInstance
+       
+        Configuration config = ConfigurationProvider.getInstance
                                        ( configArgs,
-                                         (this.getClass()).getClassLoader() );
+                                         (FiddlerImpl.class).getClassLoader() );
 
-        loginContext = (LoginContext)config.getEntry(COMPONENT_NAME,
+        LoginContext loginContext = (LoginContext)config.getEntry(COMPONENT_NAME,
                                                      "loginContext",
                                                      LoginContext.class,
                                                      null);
         if(loginContext != null) {
-            initWithLogin(config, persistent, loginContext);
+            return initWithLogin(config, persistent, loginContext, activeID);
         } else {
-            doInit(config, persistent);
+            return new FiddlerInit(config, persistent, activeID, null);
         }//endif
+        
     }//end init
 
     /** Initialization with JAAS login as the <code>Subject</code> referenced
      *  in the given <code>loginContext</code>.
      */
-    private void initWithLogin(final Configuration config, 
-                               final boolean persistent,
-                                     LoginContext loginContext)
+    private static FiddlerInit initWithLogin( final Configuration config,
+                                final boolean persistent, 
+                                final LoginContext loginContext, 
+                                final ActivationID activeID)
                                                  throws IOException,
                                                         ConfigurationException,
-                                                        LoginException
+                                                        LoginException,
+                                                        ActivationException
     {
         loginContext.login();
         try {
-            Subject.doAsPrivileged( loginContext.getSubject(),
-                                    new PrivilegedExceptionAction() {
-                                        public Object run() throws Exception {
-                                            doInit(config, persistent);
-                                            return null;
+            return Subject.doAsPrivileged( loginContext.getSubject(),
+                                    new PrivilegedExceptionAction<FiddlerInit>() {
+                                        public FiddlerInit run() throws Exception {
+                                            return new FiddlerInit(config, persistent, activeID, loginContext);
                                         }//end run
                                     },
                                     null );//end doAsPrivileged
@@ -5053,355 +5146,187 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
             if(e instanceof IOException)  throw (IOException)e;
             if(e instanceof ConfigurationException) 
                                           throw (ConfigurationException)e;
+            if (e instanceof ActivationException) throw (ActivationException) e;
             throw new RuntimeException(e);
         }
     }//end initWithLogin
-
-    /** Initialization common to all modes in which instances of this service
-     *  runs: activatable/persistent, non-activatable/persistent, and
-     *  transient (non-activatable /non-persistent).
-     */
-    private void doInit(final Configuration config, final boolean persistent)
-                                                 throws IOException,
-                                                        ConfigurationException
+    
+    /* **************** END Private Static Utility Methods ***************** */
+    
+    /* BEGIN public start method*/
+    public void start() throws Exception 
     {
-        /* Note that two discovery managers are retrieved/created in this
-         * method. One manager is used internally by this service to provide
-         * the lookup discovery capabilities offered to the clients that
-         * register to use this service. That manager (discoveryMgr) is
-         * considered part of this service's implementation, and thus is
-         * created rather than retrieved from the configuration. When
-         * created here, this manager is configured to initially discover
-         * NO_GROUPS and NO LOCATORS. The sets of groups and locators to
-         * discover on behalf of the registered clients will be populated
-         * during recovery; and then the discovery mechanism provided by
-         * this manager will be started later, after recovery and
-         * configuration retrieval has occurred, and after this service
-         * has been exported. Thus, it is important that this manager be
-         * created prior to recovery; as is done below.
-         * 
-         * The second discovery manager (joinMgrLDM) is passed to the join
-         * manager that is employed by this service to advertise itself to
-         * clients through lookup services. This discovery manager is
-         * retrieved from the configuration, and must satisfy the following
-         * requirements: must be an instance of both DiscoveryGroupManagement
-         * and DiscoveryLocatorManagement, and should be initially configured
-         * to discover NO_GROUPS and NO LOCATORS. This discovery manager is
-         * retrieved from the configuration after recovery of any persistent
-         * state, and after retrieval of any initial configuration items.
-         */
-        discoveryMgr = new LookupDiscoveryManager
-                                          (DiscoveryGroupManagement.NO_GROUPS,
-                                           new LookupLocator[0],
-                                           null,
-                                           config);
+        try {
+        AccessController.doPrivileged(new PrivilegedExceptionAction(){
 
-        /* Get the proxy preparers for the remote event listeners */
-        listenerPreparer = (ProxyPreparer)Config.getNonNullEntry
-                                                   (config,
-                                                    COMPONENT_NAME,
-                                                    "listenerPreparer",
-                                                    ProxyPreparer.class,
-                                                    new BasicProxyPreparer());
-        /* Get the proxy preparers for the lookup locators to join */
-        locatorToJoinPreparer = (ProxyPreparer)Config.getNonNullEntry
-                                                   (config,
-                                                    COMPONENT_NAME,
-                                                    "locatorToJoinPreparer",
-                                                    ProxyPreparer.class,
-                                                    new BasicProxyPreparer());
-        /* Get the proxy preparers for the lookup locators to discover */
-        locatorToDiscoverPreparer = (ProxyPreparer)Config.getNonNullEntry
-                                                 (config,
-                                                  COMPONENT_NAME,
-                                                  "locatorToDiscoverPreparer",
-                                                  ProxyPreparer.class,
-                                                  new BasicProxyPreparer());
-        if(persistent) {
-            /* Retrieve the proxy preparers that will only be applied during
-             * the state recovery process below, when any previously stored
-             * listeners or locators are recovered from persistent storage.
-             */
-            recoveredListenerPreparer = 
-             (ProxyPreparer)Config.getNonNullEntry(config,
-                                                   COMPONENT_NAME,
-                                                   "recoveredListenerPreparer",
-                                                   ProxyPreparer.class,
-                                                   new BasicProxyPreparer());
-            recoveredLocatorToJoinPreparer =
-             (ProxyPreparer)Config.getNonNullEntry
-                                             (config,
-                                              COMPONENT_NAME,
-                                              "recoveredLocatorToJoinPreparer",
-                                              ProxyPreparer.class,
-                                              new BasicProxyPreparer());
-            recoveredLocatorToDiscoverPreparer = 
-             (ProxyPreparer)Config.getNonNullEntry
-                                         (config,
-                                          COMPONENT_NAME,
-                                          "recoveredLocatorToDiscoverPreparer",
-                                          ProxyPreparer.class,
-                                          new BasicProxyPreparer());
-
-
-            /* Get the log directory for persisting this service's state */
-            persistDir = (String)Config.getNonNullEntry(config,
-                                                        COMPONENT_NAME,
-                                                        "persistenceDirectory",
-                                                        String.class);
-            /* Recover the state that was persisted on prior runs (if any) */
-            log = new ReliableLog(persistDir, new LocalLogHandler());
-            inRecovery = true;
-            log.recover();
-            inRecovery = false;
-        }//endif(persistent)
-
-        /* For the two persistent versions of this service (activatable and
-         * non-activatable), state recovery is complete. For the non-persistent
-         * version of this service, no state recovery occurred (because it
-         * wasn't necessary).
-         *
-         * For the two persistent versions, there is a circumstance in which
-         * 'one time', initial items must be retrieved from the configuration:
-         * when the service is started for the very first time. For the
-         * non-persistent version, those items will be retrieved every time
-         * the service is started.
-         *
-         * The flag 'initialStartup' is used below to determine whether
-         * or not to retrieve the initial configuration items. This is the
-         * only purpose for that flag. 
-         *
-         * For either persistent version of the service, the flag's value
-         * will be changed to false during the startup process only when
-         * there already exists a 'snapshot' of the service's state from
-         * a previous run. This is because the flag's value is only
-         * changed during the recovery of the snapshot (see the method
-         * recoverSnapshot()). Note that the only time such a snapshot
-         * should NOT already exist at startup, is when the service is
-         * being started for the very first time. Thus, when either
-         * persistent version of the service is started for the first
-         * time, the service's configuration is consulted for the initial
-         * values of the items below; otherwise, when the service is being
-         * re-started (after a crash for example), the values used for
-         * those items will be the values retrieved above during recovery
-         * of the service's persistent state.
-         * 
-         * With respect to the non-persistent version of the service, the
-         * values of the items below will always be retrieved at startup.
-         * This is because the non-persistent version of the service never
-         * attempts to recover previously stored state; thus, the flag's
-         * value will never change. Note that this will be true even if a
-         * snapshot exists from a previous run of one of the persistent
-         * versions of the service. 
-         *
-         * The service's Uuid is also handled here.
-         */
-        if(initialStartup) {
-            if(log != null) {
-                snapshotWt = ((Float)config.getEntry
-                                         (COMPONENT_NAME,
-                                          "initialPersistenceSnapshotWeight",
-                                          float.class,
-                                          new Float(snapshotWt))).floatValue();
-                snapshotThresh =
-                       Config.getIntEntry
-                                  (config,
-                                   COMPONENT_NAME,
-                                   "initialPersistenceSnapshotThreshold",
-                                   snapshotThresh, 0, Integer.MAX_VALUE);
-            }//endif(log != null)
-            leaseBound = Config.getLongEntry(config,
-                                             COMPONENT_NAME,
-                                             "initialLeaseBound",
-                                             leaseBound, 0, Long.MAX_VALUE);
-            /* Get any additional attributes with which to associate this
-             * service when registering it with any lookup services.
-             */
-            Entry[] initAttrs = (Entry[])config.getEntry
-                                                   (COMPONENT_NAME,
-                                                    "initialLookupAttributes",
-                                                    Entry[].class,
-                                                    null );
-            if(initAttrs != null) {
-                ArrayList attrsList
-                   = new ArrayList(thisServicesAttrs.length+initAttrs.length);
-                for(int i=0;i<thisServicesAttrs.length;i++) {
-                    attrsList.add(thisServicesAttrs[i]);
-                }//end loop
-                for(int i=0;i<initAttrs.length;i++) {
-                    attrsList.add(initAttrs[i]);
-                }//end loop
-                thisServicesAttrs = (Entry[])attrsList.toArray
-                                                (new Entry[attrsList.size()]);
-            }//endif(initAttrs != null)
-
-            /* Get the initial groups this service should join. */
-            thisServicesGroups =
-                 (String[])config.getEntry(COMPONENT_NAME, 
-                                           "initialLookupGroups", 
-                                           String[].class, 
-                                           thisServicesGroups);
-            /* Get the initial locators this service should join. */
-            thisServicesLocators =
-                     (LookupLocator[])config.getEntry(COMPONENT_NAME, 
-                                                      "initialLookupLocators", 
-                                                      LookupLocator[].class, 
-                                                      new LookupLocator[0]);
-            if(thisServicesLocators == null) {
-                thisServicesLocators = new LookupLocator[0];
-            }//endif
-
-            /* Generate the private, universally unique (over space and time)
-             * ID that will be used by the outer proxy to test for equality
-             * with other proxies.
-             */
-            proxyID = UuidFactory.generate();
-        }//endif(initialStartup)
-
-        /* The proxyID should never be null at this point. It should have
-         * been either recovered from the persisted state, or generated above.
-         */
-        if(proxyID == null) throw new NullPointerException("proxyID == null");
-
-        /* Get the various configurable constants */
-        leaseMax = Config.getLongEntry(config,
-                                       COMPONENT_NAME,
-                                       "leaseMax",
-                                       leaseMax, 0, Long.MAX_VALUE);
-        /* Take a snapshot of the current state to "clean up" the log file,
-         * and to record the items set above.
-         */
-	if(log != null) log.snapshot();
-        /* The service ID used to register this service with lookup services
-         * is always derived from the proxyID that is associated with the
-         * service for the lifetime of the service.
-         */
-        serviceID = new ServiceID(proxyID.getMostSignificantBits(),
-                                  proxyID.getLeastSignificantBits());
-        /* Get a general-purpose task manager for this service */
-        taskMgr = (TaskManager)Config.getNonNullEntry
+            @Override
+            public Object run() throws Exception {
+                if (persistent){
+                    logHandler.setFiddler(FiddlerImpl.this);
+                    inRecovery = true;
+                    log.recover();
+                    inRecovery = false;
+                }
+                
+                /* For the two persistent versions of this service (activatable and
+                 * non-activatable), state recovery is complete. For the non-persistent
+                 * version of this service, no state recovery occurred (because it
+                 * wasn't necessary).
+                 *
+                 * For the two persistent versions, there is a circumstance in which
+                 * 'one time', initial items must be retrieved from the configuration:
+                 * when the service is started for the very first time. For the
+                 * non-persistent version, those items will be retrieved every time
+                 * the service is started.
+                 *
+                 * The flag 'initialStartup' is used below to determine whether
+                 * or not to retrieve the initial configuration items. This is the
+                 * only purpose for that flag. 
+                 *
+                 * For either persistent version of the service, the flag's value
+                 * will be changed to false during the startup process only when
+                 * there already exists a 'snapshot' of the service's state from
+                 * a previous run. This is because the flag's value is only
+                 * changed during the recovery of the snapshot (see the method
+                 * recoverSnapshot()). Note that the only time such a snapshot
+                 * should NOT already exist at startup, is when the service is
+                 * being started for the very first time. Thus, when either
+                 * persistent version of the service is started for the first
+                 * time, the service's configuration is consulted for the initial
+                 * values of the items below; otherwise, when the service is being
+                 * re-started (after a crash for example), the values used for
+                 * those items will be the values retrieved above during recovery
+                 * of the service's persistent state.
+                 * 
+                 * With respect to the non-persistent version of the service, the
+                 * values of the items below will always be retrieved at startup.
+                 * This is because the non-persistent version of the service never
+                 * attempts to recover previously stored state; thus, the flag's
+                 * value will never change. Note that this will be true even if a
+                 * snapshot exists from a previous run of one of the persistent
+                 * versions of the service. 
+                 *
+                 * The service's Uuid is also handled here.
+                 */
+                if(initialStartup) {
+                    if(log != null) {
+                        snapshotWt = ((Float)config.getEntry
+                                                 (FiddlerImpl.COMPONENT_NAME,
+                                                  "initialPersistenceSnapshotWeight",
+                                                  float.class,
+                                                  new Float(snapshotWt))).floatValue();
+                        snapshotThresh =
+                               Config.getIntEntry
                                           (config,
-                                           COMPONENT_NAME,
-                                           "taskManager",
-                                           TaskManager.class,
-                                           new TaskManager(10,1000*15,1.0f) );
-        /* Get the discovery manager to pass to this service's join manager. */
-        try {
-            joinMgrLDM  = 
-                (DiscoveryManagement)Config.getNonNullEntry
-                                                  (config,
-                                                   COMPONENT_NAME,
-                                                   "discoveryManager",
-                                                   DiscoveryManagement.class);
-            if( joinMgrLDM instanceof DiscoveryGroupManagement ) {
-                String[] groups0 =
-                           ((DiscoveryGroupManagement)joinMgrLDM).getGroups();
-                if(    (groups0 == DiscoveryGroupManagement.ALL_GROUPS)
-                    || (groups0.length != 0) )
-                {
-                    throw new ConfigurationException
-                                 ("discoveryManager entry must be configured "
-                                  +"to initially discover/join NO_GROUPS");
-                }//endif
-            } else {// !(joinMgrLDM instanceof DiscoveryGroupManagement)
-                throw new ConfigurationException
-                                       ("discoveryManager entry must "
-                                        +"implement DiscoveryGroupManagement");
-            }//endif
-            if( joinMgrLDM instanceof DiscoveryLocatorManagement ) {
-                LookupLocator[] locs0 =
-                        ((DiscoveryLocatorManagement)joinMgrLDM).getLocators();
-                if( (locs0 != null) && (locs0.length != 0) ) {
-                    throw new ConfigurationException
-                                 ("discoveryManager entry must be configured "
-                                  +"to initially discover/join no locators");
-                }//endif
-            } else {// !(joinMgrLDM instanceof DiscoveryLocatorManagement)
-                throw new ConfigurationException
-                                     ("discoveryManager entry must "
-                                      +"implement DiscoveryLocatorManagement");
-            }//endif
-        } catch (NoSuchEntryException e) {
-            joinMgrLDM
-               = new LookupDiscoveryManager(DiscoveryGroupManagement.NO_GROUPS,
-                                            new LookupLocator[0], null,config);
+                                           FiddlerImpl.COMPONENT_NAME,
+                                           "initialPersistenceSnapshotThreshold",
+                                           snapshotThresh, 0, Integer.MAX_VALUE);
+                    }//endif(log != null)
+                    leaseBound = Config.getLongEntry(config,
+                                                     FiddlerImpl.COMPONENT_NAME,
+                                                     "initialLeaseBound",
+                                                     leaseBound, 0, Long.MAX_VALUE);
+                    /* Get any additional attributes with which to associate this
+                     * service when registering it with any lookup services.
+                     */
+                    Entry[] initAttrs = (Entry[])config.getEntry
+                                                           (FiddlerImpl.COMPONENT_NAME,
+                                                            "initialLookupAttributes",
+                                                            Entry[].class,
+                                                            null );
+                    if(initAttrs != null) {
+                        ArrayList attrsList
+                           = new ArrayList(thisServicesAttrs.length+initAttrs.length);
+                        for(int i=0;i<thisServicesAttrs.length;i++) {
+                            attrsList.add(thisServicesAttrs[i]);
+                        }//end loop
+                        for(int i=0;i<initAttrs.length;i++) {
+                            attrsList.add(initAttrs[i]);
+                        }//end loop
+                        thisServicesAttrs = (Entry[])attrsList.toArray
+                                                        (new Entry[attrsList.size()]);
+                    }//endif(initAttrs != null)
+
+                    /* Get the initial groups this service should join. */
+                    thisServicesGroups =
+                         (String[])config.getEntry(FiddlerImpl.COMPONENT_NAME, 
+                                                   "initialLookupGroups", 
+                                                   String[].class, 
+                                                   thisServicesGroups);
+                    /* Get the initial locators this service should join. */
+                    thisServicesLocators =
+                             (LookupLocator[])config.getEntry(FiddlerImpl.COMPONENT_NAME, 
+                                                              "initialLookupLocators", 
+                                                              LookupLocator[].class, 
+                                                              new LookupLocator[0]);
+                    if(thisServicesLocators == null) {
+                        thisServicesLocators = new LookupLocator[0];
+                    }//endif
+
+                    /* Generate the private, universally unique (over space and time)
+                     * ID that will be used by the outer proxy to test for equality
+                     * with other proxies.
+                     */
+                    proxyID = UuidFactory.generate();
+                }//endif(initialStartup)
+
+                /* The proxyID should never be null at this point. It should have
+                 * been either recovered from the persisted state, or generated above.
+                 */
+                if(proxyID == null) throw new NullPointerException("proxyID == null");
+                /* Take a snapshot of the current state to "clean up" the log file,
+                 * and to record the items set above.
+                 */
+                if(log != null) log.snapshot();
+                /* The service ID used to register this service with lookup services
+                 * is always derived from the proxyID that is associated with the
+                 * service for the lifetime of the service.
+                 */
+                serviceID = new ServiceID(proxyID.getMostSignificantBits(),
+                                          proxyID.getLeastSignificantBits());
+                
+                        /* Export this service */
+                innerProxy = (Fiddler)serverExporter.export(FiddlerImpl.this);
+
+                /* Create the outer (smart) proxy that is registered with lookups */
+                outerProxy = FiddlerProxy.createServiceProxy(innerProxy, proxyID);
+                /* Create the proxy that can be used to administer this service */
+                adminProxy = FiddlerAdminProxy.createAdminProxy(innerProxy, proxyID);
+
+                /* Start the discovery mechanism for all recovered registrations */
+                discoveryMgr.addDiscoveryListener(discoveryListener);
+
+                /* Advertise the services provided by this entity */
+                joinMgr = new JoinManager(outerProxy, thisServicesAttrs,
+                                          serviceID, joinMgrLDM, null,
+                                          config);
+                ((DiscoveryLocatorManagement)joinMgrLDM).setLocators
+                                                                (thisServicesLocators);
+                ((DiscoveryGroupManagement)joinMgrLDM).setGroups(thisServicesGroups);
+
+                /* start up all the daemon threads */
+                leaseExpireThread.setFiddler(FiddlerImpl.this);
+                leaseExpireThread.start();
+                if(log != null) {
+                    snapshotThread.setFiddler(FiddlerImpl.this);
+                    snapshotThread.start();
+                }
+                logInfoStartup();
+                readyState.ready(); 
+                return null;
+            }
+            
+        } , context);
+        } catch (PrivilegedActionException e) {
+            Throwable t = e.getCause();
+            cleanupInitFailure();
+            handleActivatableInitThrowable(t);
+        } finally {
+            logHandler = null;
+            context = null;
         }
-
-        /* Handle items and duties related to exporting this service. */
-        ServerEndpoint endpoint = TcpServerEndpoint.getInstance(0);
-        InvocationLayerFactory ilFactory = new BasicILFactory();
-        Exporter defaultExporter = new BasicJeriExporter(endpoint,
-                                                         ilFactory,
-                                                         false,
-                                                         true);
-        /* For the activatable server */
-        if(activationID != null) {
-            ProxyPreparer aidPreparer =
-              (ProxyPreparer)Config.getNonNullEntry(config,
-                                                    COMPONENT_NAME,
-                                                    "activationIdPreparer",
-                                                    ProxyPreparer.class,
-                                                    new BasicProxyPreparer());
-            ProxyPreparer aSysPreparer = 
-              (ProxyPreparer)Config.getNonNullEntry(config,
-                                                    COMPONENT_NAME,
-                                                    "activationSystemPreparer",
-                                                    ProxyPreparer.class,
-                                                    new BasicProxyPreparer());
-            activationID = (ActivationID)aidPreparer.prepareProxy
-                                                               (activationID);
-            activationSystem = (ActivationSystem)aSysPreparer.prepareProxy
-                                                            (activationSystem);
-            defaultExporter = new ActivationExporter(activationID,
-                                                     defaultExporter);
-        }//endif(activationID != null)
-
-        /* Get the exporter that will be used to export this service */
-        try {
-            serverExporter = (Exporter)Config.getNonNullEntry(config,
-                                                              COMPONENT_NAME,
-                                                              "serverExporter",
-                                                              Exporter.class,
-                                                              defaultExporter,
-                                                              activationID);
-        } catch(ConfigurationException e) {// exception, use default
-            throw new ExportException("Configuration exception while "
-                                      +"retrieving service's exporter",
-                                      e);
-        }
-        /* Export this service */
-        innerProxy = (Fiddler)serverExporter.export(this);
-
-        /* Create the outer (smart) proxy that is registered with lookups */
-        outerProxy = FiddlerProxy.createServiceProxy(innerProxy, proxyID);
-        /* Create the proxy that can be used to administer this service */
-        adminProxy = FiddlerAdminProxy.createAdminProxy(innerProxy, proxyID);
-
-        /* Create the following threads here, after a possible JAAS login,
-         * rather than in the constructor, before the login. This must
-         * be done so that the threads will have the correct subject.
-         */
-        leaseExpireThread = new LeaseExpireThread();
-        if(log != null) snapshotThread = new SnapshotThread();
-
-        /* Start the discovery mechanism for all recovered registrations */
-        discoveryMgr.addDiscoveryListener(discoveryListener);
-
-        /* Advertise the services provided by this entity */
-	joinMgr = new JoinManager(outerProxy, thisServicesAttrs,
-                                  serviceID, joinMgrLDM, null,
-                                  config);
-        ((DiscoveryLocatorManagement)joinMgrLDM).setLocators
-                                                        (thisServicesLocators);
-        ((DiscoveryGroupManagement)joinMgrLDM).setGroups(thisServicesGroups);
-
-	/* start up all the daemon threads */
-	leaseExpireThread.start();
-        if(log != null) snapshotThread.start();
-        logInfoStartup();
-	readyState.ready();
-    }//end doInit
-    /* END Private Startup Methods ----------------------------------------- */
+    } 
+    /* END public start method */
 
     /* BEGIN Private Shutdown Methods -------------------------------------- */
     /* Called in the constructor when failure occurs during the initialization
@@ -5470,7 +5395,10 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
         handleInitThrowable(t);
         if (t instanceof ActivationException) {
             throw (ActivationException)t;
-        } else if (t instanceof LoginException) {
+        } else if (t instanceof ClassNotFoundException) { 
+            /* instanceof LoginException would have already been rethown so wasn't 
+             * reachable I suspect ClassNotFoundException is what the implementer wanted.
+             */
             throw (ClassNotFoundException)t;
         } else {
             throw new AssertionError(t);
@@ -6962,6 +6890,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
         snapshotWt     = stream.readFloat();
         RegistrationInfo regInfo;
         while ((regInfo = (RegistrationInfo)stream.readObject()) != null) {
+            regInfo.prepare(recoveredListenerPreparer, recoveredLocatorToDiscoverPreparer);
             regInfo.seqNum += Integer.MAX_VALUE;
             addRegistration(regInfo);
         }//end loop
@@ -7205,7 +7134,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
             logInfoPersist
                      ("Log recovery: apply changing lookup locators to join");
             fiddlerImpl.thisServicesLocators =
-                  prepareOldLocators(recoveredLocatorToJoinPreparer,locators);
+                  prepareOldLocators(fiddlerImpl.recoveredLocatorToJoinPreparer,locators);
         }
     }//end LookupLocatorsChangedLogObj
 
@@ -7574,7 +7503,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
             int nUnprepared = locators.length;
             /* Prepare the recovered locators */
             locators = 
-              prepareOldLocators(recoveredLocatorToDiscoverPreparer, locators);
+              prepareOldLocators(fiddlerImpl.recoveredLocatorToDiscoverPreparer, locators);
             /* If all the locs were successfully prepared, add them to the
              * associated registration; otherwise, remove the registration
              * from the managed set. (For more information, see the comment
@@ -7653,7 +7582,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
             int nUnprepared = locators.length;
             /* Prepare the recovered locators */
             locators = 
-              prepareOldLocators(recoveredLocatorToDiscoverPreparer, locators);
+              prepareOldLocators(fiddlerImpl.recoveredLocatorToDiscoverPreparer, locators);
             /* If all the locs were successfully prepared, set them in the
              * associated registration; otherwise, remove the registration
              * from the managed set. (For more information, see the comment
@@ -7733,7 +7662,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
             int nUnprepared = locators.length;
             /* Prepare the recovered locators */
             locators = 
-              prepareOldLocators(recoveredLocatorToDiscoverPreparer, locators);
+              prepareOldLocators(fiddlerImpl.recoveredLocatorToDiscoverPreparer, locators);
             /* If all the locs were successfully prepared, remove them from
              * the associated registration; otherwise, remove the registration
              * from the managed set. (For more information, see the comment
@@ -7976,9 +7905,9 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
     /* BEGIN Private Logging Facility Methods ------------------------------ */
     /* Returns a String containing the elements of the array */
     private static String writeArrayElementsToString(Object[] arr) {
-        if(arr == null) return new String("[]");
+        if(arr == null) return "[]";
         if(arr.length <= 0) {
-            return new String("[]");
+            return "[]";
         }//endif
         StringBuffer strBuf = new StringBuffer("["+arr[0]);
         for(int i=1;i<arr.length;i++){
@@ -8003,10 +7932,10 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler {
     /* Returns a String containing the group names in writable form */
     private static String writeGroupArrayToString(String[] groups) {
         if(groups == null) {
-            return new String("[ALL_GROUPS]");
+            return "[ALL_GROUPS]";
         }//endif
         if(groups.length <= 0) {
-            return new String("[]");
+            return "[]";
         }//endif
         StringBuffer strBuf = null;
         if(groups[0].compareTo("") == 0) {
