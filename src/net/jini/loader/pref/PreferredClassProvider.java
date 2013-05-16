@@ -66,8 +66,9 @@ import org.apache.river.api.net.Uri;
  * service provider.
  *
  * <p><code>PreferredClassProvider</code> uses instances of {@link
- * PreferredClassLoader} to load classes from codebase URL paths
- * supplied to <code>RMIClassLoader.loadClass</code> methods.
+ * PreferredClassLoader} to load classes from codebase URI paths
+ * supplied to <code>RMIClassLoader.loadClass</code> methods.  In 
+ * previous releases only codebase URL paths were permitted.
  *
  * <p><code>PreferredClassProvider</code> does not enforce {@link
  * DownloadPermission} by default, but a subclass can configure it to
@@ -127,10 +128,23 @@ import org.apache.river.api.net.Uri;
  *
  * <p>A <code>PreferredClassProvider</code> maintains an internal
  * table of class loader instances indexed by keys that comprise a
- * path of URLs and a parent class loader.  The table does not
+ * path of URIs and a parent class loader.  In previous releases keys utilised 
+ * {@link URL}, but now utilise {@link Uri} by default.  The following property 
+ * <code>-Dnet.jini.loader.codebaseAnnotation=URL</code> 
+ * may be set from the command line to revert to {@link URL}.  The table does not
  * strongly reference the class loader instances, in order to allow
  * them (and the classes they have defined) to be garbage collected
  * when they are not otherwise reachable.
+ * 
+ * <p>The behavioural difference between {@link Uri} and {@link URL} when used
+ * in ClassLoader index keys is subtle, {@link URL} remote links rely on DNS to resolve
+ * domain names to IP addresses, for this reason, when using strict {@link URL}
+ * codebase annotations, the IP address of each codebase at the time they're resolved
+ * is part of the codebase annotations identity.  {@link Uri} identity on the other hand is 
+ * determined by RFC3986 normalization and is more flexible the codebase server 
+ * to change its IP address or be replicated by other codebase servers 
+ * different IP addresses, provided they can be reached by their domain name
+ * address.
  *
  * <p>The methods {@link #loadClass loadClass}, {@link #loadProxyClass
  * loadProxyClass}, and {@link #getClassLoader getClassLoader}, which
@@ -234,6 +248,23 @@ import org.apache.river.api.net.Uri;
  * </table>
  **/
 public class PreferredClassProvider extends RMIClassLoaderSpi {
+    
+    /**
+     * value of "net.jini.loader.codebaseAnnotation" property, as cached at class
+     * initialization time.  It may contain malformed URLs.
+     */
+    private final static boolean uri;
+    static {
+        String codebaseAnnotationProperty = null;
+	String prop = AccessController.doPrivileged(
+           new GetPropertyAction("net.jini.loader.codebaseAnnotation"));
+	if (prop != null && prop.trim().length() > 0) {
+	    codebaseAnnotationProperty = prop;
+	}
+        if (codebaseAnnotationProperty == null) uri = true;
+        else if ("URL".equalsIgnoreCase(codebaseAnnotationProperty)) uri = false;
+        else uri = true;
+    }
 
     /** encodings for primitive array class element types */
     private static final String PRIMITIVE_TYPES = "BCDFIJSZ";
@@ -1654,7 +1685,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
          * When a child ClassLoader is collected, the LoaderKey will be removed
          * within the next 10ms.
          */
-	LoaderKey key = new LoaderKey(uris, parent, null);
+	LoaderKey key = uri? new LoaderKey(uris, parent, null) : new LoaderKey(urls, parent, null);
         ClassLoader loader = loaderTable.get(key);
 
 	/*
@@ -1761,7 +1792,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     }
 
     /**
-     * Loader table key: a codebase Uri path and a weak reference to
+     * Loader table key: a codebase annotation and a weak reference to
      * a parent class loader (possibly null).  The weak reference is
      * registered with "refQueue" so that the entry can be removed
      * after the loader has become unreachable.
@@ -1769,7 +1800,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      * LoaderKey used to be a combination of URL path and weak reference to a
      * parent class loader.
      * 
-     * It was updated to utilise Uri for the following reasons:
+     * It was updated to also allow Uri for the following reasons:
      * 
      * 1. Modern environments have dynamically assigned IP addresses, Uri can provide a
      *    level of indirection for Dynamic DNS and Dynamic IP.
@@ -1787,11 +1818,11 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
      *      interacting with the protocol etc.
      **/
     private static class LoaderKey extends WeakReference<ClassLoader> {
-	private final Uri[] uris;
+	private final Object[] uris;
 	private final boolean nullParent;
 	private final int hashValue;
 
-	public LoaderKey(Uri[] urls, ClassLoader parent, ReferenceQueue<ClassLoader> refQueue) {
+	public LoaderKey(Object[] urls, ClassLoader parent, ReferenceQueue<ClassLoader> refQueue) {
 	    super(parent, refQueue);
 	    nullParent = (parent == null);
             uris = urls;

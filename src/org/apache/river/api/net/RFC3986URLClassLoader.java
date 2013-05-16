@@ -17,6 +17,7 @@
 
 package org.apache.river.api.net;
 
+import com.sun.jini.action.GetPropertyAction;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -72,8 +73,16 @@ import org.apache.river.impl.Messages;
  * loaded by this {@code URLClassLoader} are granted permission to access the
  * URLs contained in the URL search list.
  * <p>
- * Unlike java.net.URLClassLoader, CodeSource equality is based on Certificate
- * and RFC3986 Uri location equality, not URL.equals().
+ * Unlike java.net.URLClassLoader, {@link CodeSource#equals(java.lang.Object) } 
+ * and {@link CodeSource#hashCode() } is based on Certificate
+ * and RFC3986 {@link Uri#equals(java.lang.Object) } and {@link Uri#hashCode() }, 
+ * not {@link URL#equals(java.lang.Object)}. SecureClassLoader
+ * uses the overridden CodeSource equality as a key to cache ProtectionDomain's.
+ * <p>
+ * The following property 
+ * <code>-Dnet.jini.loader.codebaseAnnotation=URL</code> 
+ * may be set from the command line to revert to {@link URL#equals(java.lang.Object) }
+ * and {@link URL#hashCode() }.
  * <p>
  * This allows implementors of {@link java.rmi.Remote} to do two things:
  * <ol>
@@ -84,6 +93,23 @@ import org.apache.river.impl.Messages;
  * 
  */
 public class RFC3986URLClassLoader extends java.net.URLClassLoader {
+    
+    /**
+     * value of "net.jini.loader.codebaseAnnotation" property, as cached at class
+     * initialization time.  It may contain malformed URLs.
+     */
+    private final static boolean uri;
+    static {
+        String codebaseAnnotationProperty = null;
+	String prop = AccessController.doPrivileged(
+           new GetPropertyAction("net.jini.loader.codebaseAnnotation"));
+	if (prop != null && prop.trim().length() > 0) {
+	    codebaseAnnotationProperty = prop;
+	}
+        if (codebaseAnnotationProperty == null) uri = true;
+        else if (Uri.asciiStringsUpperCaseEqual(codebaseAnnotationProperty, "URL")) uri = false;
+        else uri = true;
+    }
 
     private final List<URL> originalUrls; // Copy on Write
 
@@ -303,7 +329,8 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                     }
                 }
             }
-            return loader.defineClass(origName, clBuf, 0, clBuf.length, new UriCodeSource(codeSourceUrl, (Certificate[]) null, null));
+            if (uri) return loader.defineClass(origName, clBuf, 0, clBuf.length, new UriCodeSource(codeSourceUrl, (Certificate[]) null, null));
+            return loader.defineClass(origName, clBuf, 0, clBuf.length, new CodeSource(codeSourceUrl, (Certificate[]) null));
         }
 
         URL findResource(String name) {
@@ -483,7 +510,9 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                     }
                 }
             }
-            CodeSource codeS = new UriCodeSource(codeSourceUrl, entry.getCertificates(),null);
+            CodeSource codeS = uri ? 
+                new UriCodeSource(codeSourceUrl, entry.getCertificates(),null) 
+                : new CodeSource(codeSourceUrl, entry.getCertificates());
             return loader.defineClass(origName, clBuf, 0, clBuf.length, codeS);
         }
 
