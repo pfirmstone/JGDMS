@@ -199,30 +199,33 @@ public abstract class LeaseGrantTestBase extends TestBase implements Test {
      */
     protected void parse() throws Exception {
         super.parse();
-        exact = getConfig().getBooleanConfigVal("com.sun.jini.test.share.exact", false);
-        clip  = getConfig().getLongConfigVal("com.sun.jini.test.share.clip", -1);
-        slop  = getConfig().getLongConfigVal("com.sun.jini.test.share.slop", 1000);
-        final String durStr = getConfig().getStringConfigVal("com.sun.jini.test.share.duration", null);
+        synchronized (this){
+            QAConfig config = getConfig();
+            exact = config.getBooleanConfigVal("com.sun.jini.test.share.exact", false);
+            clip  = config.getLongConfigVal("com.sun.jini.test.share.clip", -1);
+            slop  = config.getLongConfigVal("com.sun.jini.test.share.slop", 1000);
+            final String durStr = config.getStringConfigVal("com.sun.jini.test.share.duration", null);
 
-        if (durStr == null) {
-            durationRequest = 1000 * 60;
-        } else if (durStr.equals("forever")) {
-            durationRequest = Lease.FOREVER;
-        } else if (durStr.equals("anylength")) {
-            durationRequest = Lease.ANY;
-        } else {
-            try {
-                durationRequest = Long.parseLong(durStr);
-            } catch (NumberFormatException e) {
-                throw new Exception("Malformed argument for -duration property");
+            if (durStr == null) {
+                durationRequest = 1000 * 60;
+            } else if (durStr.equals("forever")) {
+                durationRequest = Lease.FOREVER;
+            } else if (durStr.equals("anylength")) {
+                durationRequest = Lease.ANY;
+            } else {
+                try {
+                    durationRequest = Long.parseLong(durStr);
+                } catch (NumberFormatException e) {
+                    throw new Exception("Malformed argument for -duration property");
+                }
             }
-        }
 
-        // Log out test options.
-        logger.log(Level.INFO, "exact = {0}", exact);
-        logger.log(Level.INFO, "clip = {0}", clip);
-        logger.log(Level.INFO, "slop = {0}", slop);
-        logger.log(Level.INFO, "durationRequest = {0}", durationRequest);
+            // Log out test options.
+            logger.log(Level.INFO, "exact = {0}", exact);
+            logger.log(Level.INFO, "clip = {0}", clip);
+            logger.log(Level.INFO, "slop = {0}", slop);
+            logger.log(Level.INFO, "durationRequest = {0}", durationRequest);
+        }
     }
 
     /**

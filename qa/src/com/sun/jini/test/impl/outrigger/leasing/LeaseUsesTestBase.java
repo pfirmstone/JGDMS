@@ -46,22 +46,22 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
     /**
      * Lease being used
      */
-    private volatile Lease lease = null;
+    private Lease lease = null;
 
     // Time lease will expire
-    private volatile long expTime;
+    private long expTime;
 
     // Time lease of lease duration
-    private volatile long durTime;
+    private long durTime;
 
     // How long until the lease should be renewed
-    private volatile long renewTime;
+    private long renewTime;
 
     // What to set renewTime to, if < 0 the half of duration
-    private volatile long renewWait;
+    private long renewWait;
 
     // Time to let cancel to propgate
-    private volatile long cancelSlop;
+    private long cancelSlop;
 
     // Set renew and exp times
     private void setTimes() {
@@ -75,10 +75,10 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
             renewTime = renewWait + curTime;
         }
     }
-    private final AtomicLong renewals = new AtomicLong();
-    private volatile boolean cancel;
-    private volatile long shutdownTime = -1;
-    private volatile long restartSleep = 10000;
+    private long renewals = 0;
+    private boolean cancel;
+    private long shutdownTime = -1;
+    private long restartSleep = 10000;
 
     /**
      * Method should acquire some resource under a lease and return
@@ -127,25 +127,27 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
      */
     protected void parse() throws Exception {
         super.parse();
+        synchronized (this){
+            // Get values from property file for this test.
+            QAConfig config = getConfig();
+            renewals = config.getIntConfigVal("com.sun.jini.test.share.renew", 0);
+            cancel = config.getBooleanConfigVal("com.sun.jini.test.share.cancel", false);
+            renewWait = config.getLongConfigVal("com.sun.jini.test.share.renew_wait", -1);
+            shutdownTime = config.getLongConfigVal("com.sun.jini.test.share.shutdownTime", -1);
+            restartSleep = config.getLongConfigVal("com.sun.jini.test.share.restartSleep", 10000);
+            cancelSlop = config.getLongConfigVal("com.sun.jini.test.share.cancel_slop", 0);
 
-        // Get values from property file for this test.
-        renewals.set(getConfig().getIntConfigVal("com.sun.jini.test.share.renew", 0));
-        cancel = getConfig().getBooleanConfigVal("com.sun.jini.test.share.cancel", false);
-        renewWait = getConfig().getLongConfigVal("com.sun.jini.test.share.renew_wait", -1);
-        shutdownTime = getConfig().getLongConfigVal("com.sun.jini.test.share.shutdownTime", -1);
-        restartSleep = getConfig().getLongConfigVal("com.sun.jini.test.share.restartSleep", 10000);
-        cancelSlop = getConfig().getLongConfigVal("com.sun.jini.test.share.cancel_slop", 0);
-
-        // Log out test options.
-        logger.log(Level.INFO, "renewals = {0}", renewals);
-        logger.log(Level.INFO, "cancel = {0}", cancel);
-        logger.log(Level.INFO, "renewWait = {0}", renewWait);
-        logger.log(Level.INFO, "shutdownTime = {0}", shutdownTime);
-        logger.log(Level.INFO, "restartSleep = {0}", restartSleep);
-        logger.log(Level.INFO, "cancelSlop = {0}", cancelSlop);
+            // Log out test options.
+            logger.log(Level.INFO, "renewals = {0}", renewals);
+            logger.log(Level.INFO, "cancel = {0}", cancel);
+            logger.log(Level.INFO, "renewWait = {0}", renewWait);
+            logger.log(Level.INFO, "shutdownTime = {0}", shutdownTime);
+            logger.log(Level.INFO, "restartSleep = {0}", restartSleep);
+            logger.log(Level.INFO, "cancelSlop = {0}", cancelSlop);
+        }
     }
 
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
         lease = acquireResource();
         addLease(lease, true);
         setTimes();
@@ -161,7 +163,7 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
             throw new TestException("Lease had an improper duration");
         }
 
-        if (cancel && renewals.get() <= 0) {
+        if (cancel && renewals <= 0) {
 	    cancel();
         } else {
             logger.log(Level.INFO, "Expire Test: Slop = {0}", slop);
@@ -192,42 +194,43 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
                 final long preTime = System.currentTimeMillis();
                 final boolean stillThere;
                 final long postTime;
-                synchronized (this){
-                    stillThere = isAvailable();
+                stillThere = isAvailable();
 
-                    /*
-                     * We also use postTime as an approximation of the
-                     * current time for the remainder of this iteration
-                     */
-                    postTime = System.currentTimeMillis();
+                /*
+                 * We also use postTime as an approximation of the
+                 * current time for the remainder of this iteration
+                 */
+                postTime = System.currentTimeMillis();
 
-                    /*
-                     * Check for late expiration against preTime
-                     * postTime - slop elemnates overflow problems when
-                     * expTime == FOREVER
-                     */
-                    if (stillThere && (preTime - slop > expTime)) {
-                        throw new TestException(
-                                "Resource was available after lease expiration");
-                    }
-
+                /*
+                 * Check for late expiration against preTime
+                 * postTime - slop elemnates overflow problems when
+                 * expTime == FOREVER
+                 */
+                if (stillThere && (preTime - slop > expTime)) {
                     // Check for early expiration against postTime
-                    logger.log(Level.FINEST, "postTime: {0}, (expTime - slop): {1}",
-                            new Object[]{postTime, expTime - slop});
-                    if (!stillThere && (postTime < expTime - slop)) {
-                        throw new TestException(
-                                "Resource was not available before lease expiration");
-                    }
-
-                    if (!stillThere) {
-
-                        // No use testing once it is gone
-                        break;
-                    }
+                    logger.log(Level.WARNING, "expTime: {0}, (preTime - slop): {1}, still there: {2}",
+                            new Object[]{expTime, preTime - slop, stillThere});
+                    throw new TestException(
+                            "Resource was available after lease expiration");
                 }
 
+
+                if (!stillThere && (postTime < expTime - slop)) {
+                    // Check for early expiration against postTime
+                    logger.log(Level.WARNING, "postTime: {0}, (expTime - slop): {1}, still there: {2}",
+                            new Object[]{postTime, expTime - slop, stillThere});
+                    throw new TestException(
+                            "Resource was not available before lease expiration");
+                }
+
+                if (!stillThere) {
+
+                    // No use testing once it is gone
+                    break;
+                }
                 // Do we need to renew
-                if (renewals.get() > 0 && postTime > renewTime) {
+                if (renewals > 0 && postTime > renewTime) {
 		    lease.renew(durationRequest);
 		    resourceRequested();
                     setTimes();
@@ -237,8 +240,8 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
                         throw new TestException(
                                 "Renewed lease had an improper duration");
                     }
-                    renewals.decrementAndGet();
-                } else if (renewals.get() == 0 && cancel) {
+                    renewals--;
+                } else if (renewals == 0 && cancel) {
 		    cancel();
 
                     /*
@@ -267,20 +270,21 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
         if (!isAvailable()) {
             throw new TestException("Resource was never available");
         }
+        synchronized (this){
+            logger.log(Level.INFO, "Cancel Test: canceling lease");
+            lease.cancel();
 
-	logger.log(Level.INFO, "Cancel Test: canceling lease");
-	lease.cancel();
-
-        /*
-         * We could poll and loop here, but one big sleep is much
-         * easer to code
-         */
-        if (cancelSlop > 0) {
-	    logger.log(Level.INFO, 
-		       "Sleeping for {0}" + " milliseconds to "
-		       + "allow cancel to propagate... time: {1}", new Object[] {cancelSlop, System.currentTimeMillis()});
-	    Thread.sleep(cancelSlop);
-	    logger.log(Level.INFO, "awake: {0}", System.currentTimeMillis());
+            /*
+             * We could poll and loop here, but one big sleep is much
+             * easer to code
+             */
+            if (cancelSlop > 0) {
+                logger.log(Level.INFO, 
+                           "Sleeping for {0}" + " milliseconds to "
+                           + "allow cancel to propagate... time: {1}", new Object[] {cancelSlop, System.currentTimeMillis()});
+                Thread.sleep(cancelSlop);
+                logger.log(Level.INFO, "awake: {0}", System.currentTimeMillis());
+            }
         }
         logger.log(Level.INFO, 
 		   "Cancel Test: checking to make sure resource " + "is gone");
