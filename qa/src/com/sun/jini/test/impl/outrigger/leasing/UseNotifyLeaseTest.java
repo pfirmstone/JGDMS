@@ -107,6 +107,7 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
                     // quickly, this will just set it false.  Alternative;
                     // reset listener immediately after we receive it.
 //                    listener.setReceived(false);
+                   assert listener.isReceived() == false;
 
                     /*
                      * Important to have the write inside the
