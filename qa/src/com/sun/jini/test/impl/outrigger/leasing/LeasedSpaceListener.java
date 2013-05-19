@@ -75,11 +75,16 @@ public class LeasedSpaceListener
 	return new BasicProxyTrustVerifier(proxy);
     }
 
-    public synchronized void notify(RemoteEvent theEvent)
+    public void notify(RemoteEvent theEvent)
             throws UnknownEventException, RemoteException {
-	logger.log(Level.FINEST, "notify called at " + (new java.util.Date()));
-        received = true;
-        this.notifyAll();
+        // Perform logging outside the synchronized block so we don't affect
+        // timing.
+        java.util.Date date = new java.util.Date();
+        synchronized (this){
+            received = true;
+            this.notifyAll();
+        }
+        logger.log(Level.INFO, "notify called at {0}", date);
     }
 
     /**

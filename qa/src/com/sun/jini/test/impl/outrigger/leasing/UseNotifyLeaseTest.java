@@ -80,8 +80,6 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
             synchronized (this){
                 listener = new LeasedSpaceListener(getConfig().getConfiguration());
                 space = (JavaSpace) services[0];
-                JavaSpace space = this.space;
-                LeasedSpaceListener listener = this.listener;
                 EventRegistration reg = space.notify(aEntry, null, listener,
                         durationRequest, null);
                 reg = (EventRegistration)
@@ -105,7 +103,10 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
             synchronized (this){
                 logger.log(Level.FINEST, "Writing entry {0}", ++count);
                 synchronized (listener) {
-                    listener.setReceived(false);
+                    // This doesn't look atomic, if the event is sent too
+                    // quickly, this will just set it false.  Alternative;
+                    // reset listener immediately after we receive it.
+//                    listener.setReceived(false);
 
                     /*
                      * Important to have the write inside the
@@ -121,6 +122,8 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
                         listener.wait(callbackWait);
                         if (listener.isReceived()){
                             logger.log(Level.FINEST, "Wait done at {0}, received = {1}", new Object[]{new java.util.Date(), listener.isReceived()});
+                            // Reset listener, see comment above.
+                            listener.setReceived(false);
                             return true;
                         }
                     }
