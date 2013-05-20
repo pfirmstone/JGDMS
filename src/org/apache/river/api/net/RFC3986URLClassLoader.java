@@ -52,6 +52,7 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Locale;
@@ -110,6 +111,8 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
         else if (Uri.asciiStringsUpperCaseEqual(codebaseAnnotationProperty, "URL")) uri = false;
         else uri = true;
     }
+    
+    private final static Logger logger = Logger.getLogger(RFC3986URLClassLoader.class.getName());
 
     private final List<URL> originalUrls; // Copy on Write
 
@@ -371,6 +374,10 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                 return null;
             }
         }
+        
+        public void close() throws IOException {
+            // do nothing.
+        }
 
     }
 
@@ -560,7 +567,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             try {
                 key = Uri.urlToUri(url);
             } catch (URISyntaxException ex) {
-                Logger.getLogger(RFC3986URLClassLoader.class.getName()).log(Level.SEVERE, null, ex);
+                logger.log(Level.WARNING, "Unable to create Uri from URL" + url.toString(), ex);
             }
             synchronized (subHandlers){
                 URLHandler sub = subHandlers.get(key);
@@ -609,6 +616,30 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             } catch (IOException e) {
             }
             return null;
+        }
+        
+        public void close() throws IOException {
+            IOException first = null;
+            try {
+                jf.close();
+            } catch (IOException e){
+                first = e;
+            }
+            synchronized (subHandlers){
+                Iterator<URLHandler> it = subHandlers.values().iterator();
+                while (it.hasNext()){
+                    try {
+                        it.next().close();
+                    } catch (IOException e){
+                        if (first == null) first = e;
+                        else {
+                            logger.log(Level.WARNING, "Unable to close URLHandler during URLClassLoader close()", e);
+                        }
+                    }
+                }
+                subHandlers.clear();
+            }
+            if (first != null) throw first;
         }
 
     }
@@ -1155,7 +1186,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             try {
                 candidateKey = Uri.urlToUri(nextCandidate);
             } catch (URISyntaxException ex) {
-                Logger.getLogger(RFC3986URLClassLoader.class.getName()).log(Level.SEVERE, null, ex);
+                logger.log(Level.WARNING, "Unable to parse URL" + nextCandidate.toString(), ex);
             }
             if (!handlerMap.containsKey(candidateKey)) {
                 URLHandler result;
@@ -1365,6 +1396,42 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
         }
         return null;
 
+    }
+    
+    /**
+     * Java 6 compatible implementation that overrides Java 7 URLClassLoader.close()
+     * 
+     * URLClassLoader implements Closeable in Java 7 to allow resources such
+     * as open jar files to be released.
+     * 
+     * Closes any open resources and prevents this ClassLoader loading any
+     * additional classes or resources.
+     * 
+     * @throws IOException
+     */
+    public void close() throws IOException {
+        synchronized (searchList){
+            searchList.clear(); // Prevent any new searches.
+        }
+        IOException first = null;
+        synchronized (handlerList){
+            Iterator<URLHandler> it = handlerList.iterator();
+            while (it.hasNext()){
+                try {
+                    it.next().close();
+                } catch (IOException e){
+                    if (first == null) first = e;
+                    else {
+                        // Log it because it can't be included in returned exceptions.
+                        logger.log(Level.WARNING, "Unable to close URLHandler during URLClassLoader close()", e);
+                    }
+                }
+            }
+            handlerList.clear();
+            handlerMap.clear();
+            if (first != null) throw first;
+        }
+        // This ClassLoader is no longer able to load any new resources.
     }
 
 }
