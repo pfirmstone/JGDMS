@@ -23,8 +23,9 @@ package com.sun.jini.outrigger;
  * @author Sun Microsystems, Inc.
  *
  */
-class BaseHandle extends FastList.Node {
-    private final EntryRep	rep;		// the rep this handle manages
+class BaseHandle  {
+    private final EntryRep rep;		// the rep this handle manages
+    private boolean removed = false;
 
     /**
      * Create a new handle
@@ -43,6 +44,20 @@ class BaseHandle extends FastList.Node {
     // inherit doc comment
     public String classFor() {
 	return rep.classFor();
+    }
+    
+    public synchronized boolean removed(){
+        return removed;
+    }
+    
+    /**
+     * 
+     * @return true if this is the first time remove is called.
+     */
+    public synchronized boolean remove(){
+        boolean result = !removed;
+        removed = true;
+        return result;
     }
 }
 

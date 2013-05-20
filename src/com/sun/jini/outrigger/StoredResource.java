@@ -33,6 +33,10 @@ public interface StoredResource {
      * Restore the state of a <code>StorableResource</code>. The resource
      * to be restored will have its expiration set before this method
      * returns.
+     * 
+     * If this method returned a new StorableResource instead of mutating
+     * the passed in StorableResource as a side effect, the implementation 
+     * could be thread safe and immutable.
      *
      * @see LogOps#renewOp
      *

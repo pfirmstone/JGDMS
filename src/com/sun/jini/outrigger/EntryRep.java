@@ -64,6 +64,11 @@ import net.jini.space.JavaSpace;
 class EntryRep implements StorableResource, LeasedResource, Serializable {
     static final long serialVersionUID = 3L;
 
+    // Synchronization isn't used where volatile access would be atomic.  
+    // External operations should synchronize if atomicicity is required for 
+    // multiple operations.
+    // Synchronization is used where multiple fields are accessed or one field
+    // is accessed more than once to ensure atomicity.
     /**
      * The fields of the entry in marshalled form. Use <code>null</code>
      * for <code>null</code> fields.
@@ -134,7 +139,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
      * Each entry is usable insofar as the codebase under which it was
      * written is usable.
      */
-    void shareWith(EntryRep other) {
+    synchronized void shareWith(EntryRep other) {
 	className = other.className;
 	superclasses = other.superclasses;
 	hashes = other.hashes;
@@ -391,55 +396,64 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
      */
     Entry entry() throws UnusableEntryException {
 	ObjectInputStream objIn = null;
+        String className = ""; // set before any exception can be thrown.
 	try {
 	    ArrayList badFields = null;
 	    ArrayList except = null;
+            Entry entryObj = null;
+            int valuesLength = 0;
+            int nvals = 0;		// index into this.values[]
+                      
+            synchronized (this){
+                className = this.className;
+                realClass = ClassLoading.loadClass(codebase, className,
+                                                   null, integrity, null);
 
-	    realClass = ClassLoading.loadClass(codebase, className,
-					       null, integrity, null);
+                if (findHash(realClass, false).longValue() != hash)
+                    throw throwNewUnusableEntryException(
+                        new IncompatibleClassChangeError(realClass + " changed"));
 
-	    if (findHash(realClass, false).longValue() != hash)
-		throw throwNewUnusableEntryException(
-		    new IncompatibleClassChangeError(realClass + " changed"));
+                entryObj = (Entry) realClass.newInstance();
 
-	    Entry entryObj = (Entry) realClass.newInstance();
+                Field[] fields = getFields(realClass);
 
-	    Field[] fields = getFields(realClass);
+                /*
+                 * Loop through the fields, ensuring no primitives and
+                 * checking for wildcards.
+                 */
 
-	    /*
-	     * Loop through the fields, ensuring no primitives and
-	     * checking for wildcards.
-	     */
-	    int nvals = 0;		// index into this.values[]
-	    for (int i = 0; i < fields.length; i++) {
-		Throwable nested = null;
-		try {
-		    if (!usableField(fields[i]))
-			continue;
-		    
-		    final MarshalledInstance val = values[nvals++];
-		    Object value = (val == null ? null : val.get(integrity));
-		    fields[i].set(entryObj, value);
-		} catch (Throwable e) {
-		    nested = e;
-		}
+                int fLength = fields.length;
+                valuesLength = values.length;
+                for (int i = 0; i < fLength; i++) {
+                    Throwable nested = null;
+                    try {
+                        if (!usableField(fields[i]))
+                            continue;
 
-		if (nested != null) {	// some problem occurred
-		    if (badFields == null) {
-			badFields = new ArrayList(fields.length);
-			except = new ArrayList(fields.length);
-		    }
-		    badFields.add(fields[i].getName());
-		    except.add(nested);
-		}
-	    }
+                        final MarshalledInstance val = values[nvals++];
+                        Object value = (val == null ? null : val.get(integrity));
+                        fields[i].set(entryObj, value);
+                    } catch (Throwable e) {
+                        nested = e;
+                    }
+
+                    if (nested != null) {	// some problem occurred
+                        if (badFields == null) {
+                            badFields = new ArrayList(fLength);
+                            except = new ArrayList(fLength);
+                        }
+                        badFields.add(fields[i].getName());
+                        except.add(nested);
+                    }
+                }
+            }
 
 	    /* See if any fields have vanished from the class, 
 	     * because of the hashing this should never happen but
 	     * throwing an exception that provides more info
 	     * (instead of AssertionError) seems harmless.
 	     */
-	    if (nvals < values.length) {
+	    if (nvals < valuesLength) {
 		throw throwNewUnusableEntryException(
 			entryObj,		// should this be null?
 			null,			// array of bad-field names
@@ -450,7 +464,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
 				    " since this EntryRep was created")
 			});
 	    }
-
+            
 	    // if there were any bad fields, throw the exception
 	    if (badFields != null) {
 		String[] bf =
@@ -517,45 +531,47 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
 
 	EntryRep other = (EntryRep) o;
 
-	// If we're not the same class then we can't be equal
-	if (hash != other.hash)
-	    return false;
+        synchronized (this){
+            // If we're not the same class then we can't be equal
+            if (hash != other.hash)
+                return false;
 
-	/* Paranoid check just to make sure we can't get an
-	 * IndexOutOfBoundsException. Should never happen.
-	 */
-	if (values.length != other.values.length)
-	    return false;
+            /* Paranoid check just to make sure we can't get an
+             * IndexOutOfBoundsException. Should never happen.
+             */
+            if (values.length != other.values.length)
+                return false;
 
-	/* OPTIMIZATION:
-	 * If we have a case where one element is null and the corresponding
-	 * element within the object we're comparing ourselves with is
-	 * non-null (or vice-versa), we can stop right here and declare the
-	 * two objects to be unequal. This is slightly faster than checking 
-	 * the bytes themselves.
-	 * LOGIC: They've both got to be null or both have got to be
-	 *        non-null or we're out-of-here...
-	 */
-	for (int i = 0; i < values.length; i++) {
-	    if ((values[i] == null) && (other.values[i] != null))
-		return false;
-	    if ((values[i] != null) && (other.values[i] == null))
-		return false;
-	}
+            /* OPTIMIZATION:
+             * If we have a case where one element is null and the corresponding
+             * element within the object we're comparing ourselves with is
+             * non-null (or vice-versa), we can stop right here and declare the
+             * two objects to be unequal. This is slightly faster than checking 
+             * the bytes themselves.
+             * LOGIC: They've both got to be null or both have got to be
+             *        non-null or we're out-of-here...
+             */
+            for (int i = 0; i < values.length; i++) {
+                if ((values[i] == null) && (other.values[i] != null))
+                    return false;
+                if ((values[i] != null) && (other.values[i] == null))
+                    return false;
+            }
 
-	/* The most expensive tests we save for last.
-	 * Because we've made the null/non-null check above, we can
-	 * simplify our comparison here: if our element is non-null,
-	 * we know the other value is non-null, too.
-	 * If any equals() calls from these element comparisons come
-	 * back false then return false. If they all succeed, we fall
-	 * through and return true (they were equal).
-	 */
-	for (int i = 0; i < values.length; i++) {
-	    // Short-circuit evaluation if null, compare otherwise.
-	    if (values[i] != null && !values[i].equals(other.values[i]))
-		return false;
-	}
+            /* The most expensive tests we save for last.
+             * Because we've made the null/non-null check above, we can
+             * simplify our comparison here: if our element is non-null,
+             * we know the other value is non-null, too.
+             * If any equals() calls from these element comparisons come
+             * back false then return false. If they all succeed, we fall
+             * through and return true (they were equal).
+             */
+            for (int i = 0; i < values.length; i++) {
+                // Short-circuit evaluation if null, compare otherwise.
+                if (values[i] != null && !values[i].equals(other.values[i]))
+                    return false;
+            }
+        }
 
 	return true;
     }
@@ -600,27 +616,28 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
      *         been called.
      */
     void pickID() {
-	if (id != null)
-	    throw new IllegalStateException("pickID called more than once");
-	id = UuidFactory.generate();
+        synchronized (this){
+            if (id != null)
+                throw new IllegalStateException("pickID called more than once");
+            id = UuidFactory.generate();
+        }
     }
 
     /**
      * Return the <code>MarshalledObject</code> for the given field.
      */
     public MarshalledInstance value(int fieldNum) {
-	return values[fieldNum];
+            return values[fieldNum];
     }
 
     /**
      * Return the number of fields in this kind of entry.
      */
     public int numFields() {
-	if (values != null) {
-	    return values.length;
-	} else {
-	    return 0;
-	}
+        synchronized (this){
+            if (values != null) return values.length;
+        }
+	return 0;
     }
 
     /**
@@ -667,17 +684,18 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
 
 	//Note: If this object is the MatchAny template then 
 	//      return true (all entries match MatchAny)
-	if (EntryRep.isMatchAny(this))
-	    return true;
-
-	for (int f = 0; f < values.length; f++) {
-	    if (values[f] == null) {		// skip wildcards
-		continue;
-	    }
-	    if (!values[f].equals(other.values[f])) {
-		return false;
-	    }
-	}
+        synchronized (this){
+            if (EntryRep.isMatchAny(this)) return true;
+        
+            for (int f = 0; f < values.length; f++) {
+                if (values[f] == null) {		// skip wildcards
+                    continue;
+                }
+                if (!values[f].equals(other.values[f])) {
+                    return false;
+                }
+            }
+        }
 	return true;	     // no mismatches, so must be OK
     }
 
@@ -693,13 +711,14 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
         if (otherClass.equals(matchAnyClassName()))
 	    // The other is a null template, all entries are at least entry.
 	    return true;
-
-	if (className.equals(otherClass))
-	    return true;
-	for (int i = 0; i < superclasses.length; i++)
-	    if (superclasses[i].equals(otherClass))
-		return true;
-	return false;
+        synchronized (this){
+            if (className.equals(otherClass))
+                return true;
+            for (int i = 0; i < superclasses.length; i++)
+                if (superclasses[i].equals(otherClass))
+                    return true;
+            return false;
+        }
     }
 
     /** Comparator for sorting fields. Cribbed from Reggie */
@@ -786,7 +805,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
     // -------------------------------------
 
     // inherit doc comment
-    public void store(ObjectOutputStream out) throws IOException {
+    public synchronized void store(ObjectOutputStream out) throws IOException {
 	final long bits0;
 	final long bits1;
 	if (id == null) {
@@ -808,7 +827,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
     }
 
     // inherit doc comment
-    public void restore(ObjectInputStream in) 
+    public synchronized void restore(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException 
     {
 	final long bits0 = in.readLong();

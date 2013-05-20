@@ -41,7 +41,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * The current expiration time of the registration
      * Protected, but only for use by subclasses.
      */
-    volatile long expiration;
+    long expiration;
 
     /** 
      * The UUID that identifies this registration 
@@ -55,7 +55,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * Only for use by subclasses.
      * Should not be changed.
      */
-    volatile MarshalledObject handback;
+    MarshalledObject handback;
 
     /**
      * <code>true</code> if client is interested
@@ -71,7 +71,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * Protected, but only for use by subclasses.
      * Should not be changed.
      */
-    volatile long eventID;
+    long eventID;
 
     /** 
      * The current sequence number. 
@@ -83,7 +83,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
      * watcher.
      */
     private final Set<TemplateHandle> owners = new java.util.HashSet<TemplateHandle>();
-    private volatile boolean removed = false;
+    private boolean removed = false;
 
     /**
      * The OutriggerServerImpl we are part of.
@@ -173,8 +173,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 
 	// lock before checking the time and so we can update currentSeqNum
 	synchronized (this) {
-	    if (removed) 
-		return; // Must have been removed
+	    if (removed) return; // Must have been removed
 
 	    if (now > expiration) {
 		doneFor = true;
@@ -187,8 +186,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 	    }
 	}
 
-	if (doneFor)
-	    cancel();
+	if (doneFor) cancel();
     }
 
     /**
@@ -237,14 +235,13 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
     /**
      * Set the expiration time of this object.  This method may be
      * called before <code>setTemplateHandle</code> is called.
-     * Assumes locking is handled by the caller.
      * @param newExpiration The expiration time.
      */
-    public void setExpiration(long newExpiration) {
+    public final synchronized void setExpiration(long newExpiration) {
 	expiration = newExpiration;
     }
 
-    public long getExpiration() {
+    public final synchronized long getExpiration() {
 	return expiration;
     }
 
@@ -286,12 +283,10 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 	final Set<TemplateHandle> owners;
         OutriggerServerImpl serv;
 	synchronized (this) {
-	    if (removed)
-		return false; // already removed
+	    if (removed) return false; // already removed
 
 	    // Is this a force, or past our expiration?
-	    if (!doIt && (now < expiration))
-		return false; // don't remove, not our time
+	    if (!doIt && (now < expiration)) return false; // don't remove, not our time
 
 	    owners = new java.util.HashSet<TemplateHandle>(this.owners); // Don't need to clone
             this.owners.clear(); 
@@ -349,7 +344,7 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
 	    throws UnknownEventException, IOException, ClassNotFoundException
 	{
 	    boolean doneFor = false;
-
+            RemoteEvent event;
 	    synchronized (AvailabilityRegistrationWatcher.this) {
 		if (removed)
 		    return; // Our registration must been 
@@ -365,10 +360,11 @@ abstract class AvailabilityRegistrationWatcher extends TransitionWatcher
                     cancel();
                     return;
                 }
-            }
-	    getListener(preparer).notify(
-		new OutriggerAvailabilityEvent(source, eventID, ourSeqNumber, 
-					       handback, isVisible, rep));
+                event = new OutriggerAvailabilityEvent(source, eventID, ourSeqNumber, 
+					       handback, isVisible, rep);
+            }// end sync(AvailabilityRegistrationWatcher.this)
+            // Overridden keep out of sync block.
+	    getListener(preparer).notify( event );
 	}
 	
 	public void cancelRegistration() {

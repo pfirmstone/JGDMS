@@ -20,14 +20,17 @@ package com.sun.jini.outrigger;
 import java.util.Hashtable;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Set;
 import java.util.WeakHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import net.jini.core.entry.UnusableEntryException;
 import net.jini.core.transaction.CannotJoinException;
 import net.jini.core.transaction.server.TransactionConstants;
+import net.jini.id.Uuid;
 
 /**
  * <code>EntryHolder</code>s hold all the entries of a exact given
@@ -40,14 +43,16 @@ import net.jini.core.transaction.server.TransactionConstants;
  */
 class EntryHolder implements TransactionConstants {
     /** The list that holds the handles */
-    private final FastList<EntryHandle> contents = new FastList<EntryHandle>();
+//    private final FastList<EntryHandle> contents = new FastList<EntryHandle>();
+    
+    private final Queue<EntryHandle> content = new ConcurrentLinkedQueue<EntryHandle>();
 
     /** 
      * The map of cookies to handles, shared with the
      * <code>EntryHolderSet</code> and every other
      * <code>EntryHolder</code>.  
      */
-    private final Hashtable idMap;
+    private final Map<Uuid, EntryHandle> idMap;
 
     /** The server we are working for */
     private final OutriggerServerImpl space;
@@ -67,7 +72,7 @@ class EntryHolder implements TransactionConstants {
      * <code>EntryHolderSet</code> so that there is one table that can
      * map ID to <code>EntryRep</code>
      */
-    EntryHolder(OutriggerServerImpl space, Hashtable idMap) {
+    EntryHolder(OutriggerServerImpl space, Map<Uuid,EntryHandle> idMap) {
 	this.space = space;
 	this.idMap = idMap;
     }
@@ -123,7 +128,7 @@ class EntryHolder implements TransactionConstants {
         EntryHandleTmplDesc desc = null;
         long startTime = 0;
 
-        for (EntryHandle handle : contents) {
+        for (EntryHandle handle : content) {
 
             if (startTime == 0) {
                 // First time through
@@ -162,7 +167,7 @@ class EntryHolder implements TransactionConstants {
     void dump(String name) {
 	try {
 	    System.out.println(name);
-	    for (EntryHandle handle : contents)
+	    for (EntryHandle handle : content)
 	    {
 		EntryRep rep = handle.rep();
 		System.out.println("    " + rep + ", " + rep.entry());
@@ -278,15 +283,12 @@ class EntryHolder implements TransactionConstants {
 	      Set conflictSet, Set lockedEntrySet,
 	      Map provisionallyRemovedEntrySet)
     {
-	if (handle.removed())
-	    return false;
-
 	synchronized (handle) {
+            if (handle.removed()) return false;
 	    // get rid of stale entries
 	    if (isExpired(time, handle))
 		return false;
-	    if (handle.removed())    // oh, well -- someone got it first
-		return false;
+		
 	    if (handle.isProvisionallyRemoved()) {
 		if (provisionallyRemovedEntrySet != null)
 		    provisionallyRemovedEntrySet.put(handle, null);
@@ -412,10 +414,12 @@ class EntryHolder implements TransactionConstants {
 		    // that is the only way knownMgr return true, and
 		    // managed() false)
 		    assert txn == null;
-		    if (handle.removed() || handle.isProvisionallyRemoved())
-			// Someone got to it first
-			return false;
-		    handle.provisionallyRemove();
+                    synchronized (handle){
+                        if (handle.removed() || handle.isProvisionallyRemoved())
+                            // Someone got to it first
+                            return false;
+                        handle.provisionallyRemove();
+                    }
 		}
 	    }
 	} else {
@@ -500,10 +504,7 @@ class EntryHolder implements TransactionConstants {
      * null if the list is empty.
      */
     private EntryHandle getContentsHead(){
-        for(EntryHandle head : contents){
-            return head;
-        }
-        return null;
+        return content.peek();
     }
     
     /**
@@ -546,10 +547,8 @@ class EntryHolder implements TransactionConstants {
 	if (head != null && head != handle)
 	    rep.shareWith(head.rep());
 
-	if (txn != null) 
-	    txn.add(handle);
-
-	contents.add(handle);
+	if (txn != null) txn.add(handle);
+	content.add(handle);
 	idMap.put(rep.getCookie(), handle);
     }
 
@@ -584,7 +583,7 @@ class EntryHolder implements TransactionConstants {
         SimpleRepEnum(TransactableMgr mgr) {
             this.mgr = mgr;
             startTime = System.currentTimeMillis();
-            contentsIterator = contents.iterator();
+            contentsIterator = content.iterator();
         }
 
         // inherit doc comment from superclass
@@ -598,9 +597,11 @@ class EntryHolder implements TransactionConstants {
                  * Skip over handles which are either removed or unable to
                  * perform a READ operation.
                  */
-                if (handle.canPerform(mgr, TransactableMgr.READ)
-                        && !isExpired(startTime, handle) && !handle.removed()) {
-                    return handle.rep();
+                synchronized (handle){
+                    if (handle.canPerform(mgr, TransactableMgr.READ)
+                            && !isExpired(startTime, handle) && !handle.removed()) {
+                        return handle.rep();
+                    }
                 }
 
             }
@@ -687,7 +688,7 @@ class EntryHolder implements TransactionConstants {
 	    this.txn = txn;
 	    this.takeThem = takeThem;
 	    this.now = now;
-	    contentsIterator = contents.iterator();
+	    contentsIterator = content.iterator();
 	}
 
 	/**
@@ -784,10 +785,9 @@ class EntryHolder implements TransactionConstants {
 	 * and matches one or more of the templates 
 	 */
 	private boolean handleMatch(EntryHandle handle) {
-	    if (handle.removed())
-		return false;
-
-	    for (int i=0; i<tmpls.length; i++) {
+	    if (handle.removed()) return false;
+            int length = tmpls.length;
+	    for (int i=0; i<length; i++) {
 		final EntryRep tmpl = tmpls[i];
 		final EntryHandleTmplDesc desc = descs[i];
 
@@ -813,10 +813,12 @@ class EntryHolder implements TransactionConstants {
      *         <code>false</code> otherwise.  
      */
     boolean remove(EntryHandle h, boolean recovery) {
-	assert (recovery || Thread.holdsLock(h));
-
-	final boolean ok = contents.remove(h);
-	h.removalComplete();
+	boolean ok = false;
+        synchronized (h){
+            ok =content.remove(h);
+            assert h.remove();
+            h.removalComplete();
+        }
 	if (ok) {
 	    idMap.remove(h.rep().getCookie());
 	    /* This may cause an ifExists query to be resolved,
@@ -839,7 +841,7 @@ class EntryHolder implements TransactionConstants {
      * is also the rep's <code>EntryHandle</code>.
      */
     private EntryHandle handleFor(EntryRep rep) {
-	return (EntryHandle) idMap.get(rep.getCookie());
+	return idMap.get(rep.getCookie());
     }
 
     /**
@@ -852,11 +854,11 @@ class EntryHolder implements TransactionConstants {
 	// removed ("reaped") from the collection. 
 
 	long now = System.currentTimeMillis();
-	for(EntryHandle handle : contents){
+	for(EntryHandle handle : content){
 	    // Don't try to remove things twice
-	    if (handle.removed()) {
-		continue;
-	    }
+//	    if (handle.removed()) {
+//		continue;
+//	    }
 
 	    // Calling isExpired() will both make the check and remove it
 	    // if necessary.
@@ -865,7 +867,7 @@ class EntryHolder implements TransactionConstants {
 
 	// This provides the FastList with an opportunity to actually
 	// excise the items identified as "removed" from the list.
-	contents.reap();
+//	contents.reap();
     }
 }
 

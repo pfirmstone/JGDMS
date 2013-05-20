@@ -17,7 +17,9 @@
  */
 package com.sun.jini.outrigger;
 
+import java.util.Queue;
 import java.util.Set;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Holds a collection of <code>TemplateHandle</code>s who's templates
@@ -28,7 +30,9 @@ import java.util.Set;
  */
 class WatchersForTemplateClass {
     /** All the templates we know about */
-    private final FastList<TemplateHandle> contents = new FastList<TemplateHandle>();	
+//    private final FastList<TemplateHandle> contents = new FastList<TemplateHandle>();	
+    
+    private final Queue<TemplateHandle> content = new ConcurrentLinkedQueue<TemplateHandle>();
 
     /** The object we are inside of */
     private final TransitionWatchers owner;
@@ -65,7 +69,7 @@ class WatchersForTemplateClass {
 	 * if we have more than one with the same template. It
 	 * is bad if we add the watcher to a removed handle.
 	 */	
-        for(TemplateHandle handle : contents) {
+        for(TemplateHandle handle : content) {
 	    if (template.equals(handle.rep())) {
 		synchronized (handle) {
 		    if (!handle.removed()) {
@@ -99,12 +103,13 @@ class WatchersForTemplateClass {
 	    /* First add handle to contents so handle is fully initialized 
 	     * before we start to pass it around use
 	     */
-	    contents.add(handle);
+	    content.add(handle);
 	    if (watcher.addTemplateHandle(handle)) {
 		handle.addTransitionWatcher(watcher);
 	    } else {
 		// watcher is already dead, undo adding handle
-		contents.remove(handle);				    
+		content.remove(handle);	
+                handle.remove();
 	    }
 	}
     }
@@ -133,18 +138,18 @@ class WatchersForTemplateClass {
 	 * the changed entry and if they do ask them to 
 	 * put the appropriate watchers in the set.
 	 */
-	for (TemplateHandle handle : contents)
+	for (TemplateHandle handle : content)
 	{
 	    // See the if handle mask is incompatible
-	    EntryHandleTmplDesc desc = handle.descFor(repNumFields);
+	    EntryHandleTmplDesc desc = handle.descFor(repNumFields); // final
 
-	    if ((entryHash & desc.mask) != desc.hash)
-		continue;
+	    if ((entryHash & desc.mask) != desc.hash) continue;
 
-	    if (handle.matches(rep)) {
-		if (handle.removed()) //no sync, ok if we check a removed one
-		    continue;
-		handle.collectInterested(set, transition, ordinal);
+	    if (handle.matches(rep)) { // rep access is synchronized
+                synchronized (handle){
+                    if (handle.removed()) continue;
+                    handle.collectInterested(set, transition, ordinal);
+                }
 	    }
 	}
     }
@@ -168,7 +173,7 @@ class WatchersForTemplateClass {
      */
     void reap(long now) {
 	// First remove empty handles
-	for (TemplateHandle handle : contents)
+	for (TemplateHandle handle : content)
 	{
 	    // Dump any expired watchers.
 	    handle.reap(now);
@@ -179,7 +184,8 @@ class WatchersForTemplateClass {
 	     */
 	    synchronized (handle) {
 		if (handle.isEmpty()) {
-		    contents.remove(handle);
+		    content.remove(handle);
+                    handle.remove();
 		    continue;
 		}
 	    }
@@ -188,7 +194,7 @@ class WatchersForTemplateClass {
 	/* This provides the FastList with an opportunity to actually
 	 * excise the items identified as "removed" from the list.
 	 */
-	contents.reap();
+//	contents.reap();
     }
 }
 

@@ -17,8 +17,10 @@
  */
 package com.sun.jini.outrigger;
 
+import java.util.ArrayList;
 import java.util.Set;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Vector;
 
 /**
@@ -31,7 +33,7 @@ class TemplateHandle extends BaseHandle {
      * A cache of the <code>EntryHandleTmplDesc</code> indexed
      * by the number of fields.
      */
-    final private Vector descs = new Vector();
+    final private ArrayList<EntryHandleTmplDesc> descs = new ArrayList<EntryHandleTmplDesc>();
 
     /**
 
@@ -45,7 +47,7 @@ class TemplateHandle extends BaseHandle {
      * changing <code>FastList</code> to support overlapping traversals
      * of different lists from the same thread.)
      */
-    final private Set watchers = new java.util.HashSet();
+    final private Set<TransitionWatcher> watchers = new java.util.HashSet<TransitionWatcher>();
 
     /**
      * The <code>WatchersForTemplateClass</code> this object
@@ -66,24 +68,39 @@ class TemplateHandle extends BaseHandle {
      */
     //!! Since the mask/hash algorithm tops out at a certain number of fields,
     //!! we could avoid some overhead by topping out at the same count.
-    EntryHandleTmplDesc descFor(int numFields) {
+    EntryHandleTmplDesc descFor(int index) {
 	/* Since setSize can truncate, test and set need to be atomic.
 	 * Hold the lock after setting the size so don't calculate
 	 * a given desc more than once (though that is only an optimization)
 	 */
 	synchronized (descs) {
-	    // Make sure descs is big enough
-	    if (numFields >= descs.size())
-		descs.setSize(numFields + 1);
+	    
+	    int size = descs.size();
 
 	    // Do we have a cached value?
-	    EntryHandleTmplDesc desc = 
-		(EntryHandleTmplDesc)descs.elementAt(numFields);
+	    EntryHandleTmplDesc desc = null;
+            if (index < size) desc = descs.get(index);
 
 	    if (desc == null) {
 		// None in cache, calculate one
-		desc = EntryHandle.descFor(rep(), numFields);
-		descs.setElementAt(desc, numFields);
+		desc = EntryHandle.descFor(rep(), index);
+                if (index == size){
+                    descs.add(desc);
+                }
+                else if (index < size){
+                    descs.set(index, desc);
+                }
+                // Make sure descs is big enough and pad with null if
+                // fields are added out of order.
+                else if (index > size) {
+                    descs.ensureCapacity(index + 1);
+                    int difference = index - size;
+                    for (int i = 0; i < difference; i++){
+                        descs.add(null);
+                    }
+                    descs.add(desc);
+                }
+		assert descs.indexOf(desc) == index;
 	    }
 	    return desc;
 	}
@@ -110,6 +127,8 @@ class TemplateHandle extends BaseHandle {
 	if (watcher == null)
 	    throw new NullPointerException("Watcher can not be null");
 
+        // If thread holds lock during removal TransitionWatcher cannot be added
+        // so this assertion is unnecessary.
 	assert !removed() : "Added watcher to a removed TemplateHandle";
 	watchers.add(watcher);
     }

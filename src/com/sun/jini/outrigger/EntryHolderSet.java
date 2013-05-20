@@ -24,6 +24,8 @@ import java.util.Collection;
 import net.jini.core.lease.Lease;
 import net.jini.id.Uuid;
 import com.sun.jini.landlord.LeasedResource;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * A set of <code>EntryHolder</code> objects for a given space.
@@ -33,11 +35,11 @@ import com.sun.jini.landlord.LeasedResource;
  * @see EntryHolder
  * @see OutriggerServerImpl
  */
-class EntryHolderSet {
-    private final Map holders = new java.util.HashMap();
+final class EntryHolderSet {
+    private final ConcurrentMap<String,EntryHolder> holders = new ConcurrentHashMap<String,EntryHolder>();
     // Map of LeaseDescs indexed by the cookie of the underlying
     // LeasedResource.
-    private final Hashtable idMap = new Hashtable();
+    private final Map<Uuid, EntryHandle> idMap = new Hashtable<Uuid, EntryHandle>();
 
     private final OutriggerServerImpl space;
 
@@ -62,15 +64,14 @@ class EntryHolderSet {
      *
      * @see #holderFor(EntryRep)
      */
-    synchronized EntryHolder holderFor(String className) {
-	synchronized (holders) {
-	    EntryHolder holder = (EntryHolder) holders.get(className);
-	    if (holder == null) {
-		holder = new EntryHolder(space, idMap);
-		holders.put(className, holder);
-	    }
-	    return holder;
-	}
+    EntryHolder holderFor(String className) {
+        EntryHolder holder = holders.get(className);
+        if (holder == null) {
+            holder = new EntryHolder(space, idMap);
+            EntryHolder exists = holders.putIfAbsent(className, holder);
+            if (exists != null) holder = exists;
+        }
+        return holder;
     }
 
     LeasedResource getLeasedResource(Uuid cookie) {
@@ -85,7 +86,7 @@ class EntryHolderSet {
      * with it.
      */
     EntryHandle handleFor(Object cookie) {
-	return (EntryHandle)idMap.get(cookie);
+	return idMap.get(cookie);
     }
 
     /**
@@ -93,14 +94,8 @@ class EntryHolderSet {
      * Assumes the caller holds the lock on handle
      */
     void remove(EntryHandle handle) {
-	final EntryHolder holder;
-	synchronized (holders) {
-	    holder = (EntryHolder) holders.get(handle.rep().classFor());
-	}
-
-	if (holder == null)
-	    return;
-
+	final EntryHolder holder = holders.get(handle.rep().classFor());
+	if (holder == null) return;
 	holder.remove(handle, false);
     }
 
@@ -124,7 +119,7 @@ class EntryHolderSet {
 	}
 
 	for (int i=0; i<content.length; i++) {
-	    content[i].reap();
+            content[i].reap();
 	}	    
     }
 }

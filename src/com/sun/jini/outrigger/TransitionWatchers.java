@@ -19,7 +19,10 @@ package com.sun.jini.outrigger;
 
 import java.util.Map;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.SortedSet;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * Given an <code>EntryHandle</code> who's entry is making a
@@ -38,7 +41,8 @@ class TransitionWatchers {
      * A map from class names to <code>WatchersForTemplateClass</code>
      * objects 
      */
-    final private Map holders = new java.util.HashMap();
+    final private ConcurrentMap<String,WatchersForTemplateClass> holders 
+            = new ConcurrentHashMap<String,WatchersForTemplateClass>();
 
     /** The server we are working for */
     final private OutriggerServerImpl server;
@@ -82,15 +86,12 @@ class TransitionWatchers {
     void add(TransitionWatcher watcher, EntryRep template) {
 	// Get/create the appropriate WatchersForTemplateClass
 	final String className = template.classFor();
-	WatchersForTemplateClass holder;
-	synchronized (holders) {
-	    holder = (WatchersForTemplateClass) holders.get(className);	    
-	    if (holder == null) {
-		holder = new WatchersForTemplateClass(this);
-		holders.put(className, holder);
-	    }
-	}
-
+	WatchersForTemplateClass holder = holders.get(className);	    
+        if (holder == null) {
+            holder = new WatchersForTemplateClass(this);
+            WatchersForTemplateClass existed = holders.putIfAbsent(className, holder);
+            if (existed != null) holder = existed;
+        }
 	// Add the watcher to the WatchersForTemplateClass
 	holder.add(watcher, template);
     }
@@ -129,39 +130,24 @@ class TransitionWatchers {
 	WatchersForTemplateClass holder;
 	
 	/* Collect all the watchers looking for the exact class of the
-	 * transitioned entry. Sync both to protect holder, and
-	 * to make sure we do at least one sync so we see any
-	 * watchers added before this call.
+	 * transitioned entry. 
 	 */
-	synchronized (holders) {
-	    holder = (WatchersForTemplateClass)holders.get(className);	    
-	}
+        holder = holders.get(className);
 
-	if (holder != null)
-	    holder.collectInterested(rslt, transition, ordinal);
+	if (holder != null) holder.collectInterested(rslt, transition, ordinal);
 
 	// Get all the templates that are super classes of className
 	final String[] superclasses = rep.superclasses();
-	for (int i=0; i<superclasses.length; i++) {	    
-	    synchronized (holders) {
-		holder = 
-		    (WatchersForTemplateClass)holders.get(superclasses[i]);
-	    }
+	for (int i=0; i<superclasses.length; i++) {	 
+            holder = holders.get(superclasses[i]);
 	    if (holder != null)
 		holder.collectInterested(rslt, transition, ordinal);
 	}
 
 	// Including those registered for the null template
 	final String nullClass = EntryRep.matchAnyEntryRep().classFor();
-	synchronized(holders) {
-	    holder =
-		(WatchersForTemplateClass)holders.get(nullClass);
-	}
-        
-	if (holder!=null){
-	    holder.collectInterested(rslt, transition, ordinal);
-	}
-	
+        holder = holders.get(nullClass);
+	if (holder!=null) holder.collectInterested(rslt, transition, ordinal);
 	return rslt;
     }
 
@@ -171,6 +157,7 @@ class TransitionWatchers {
      * <code>FastList</code>s.
      */
     void reap() {
+        //Old comment related to cloning holders.values().
  	/* This could take a while, instead of blocking all other
 	 * access to handles, clone the contents of handles and
 	 * iterate down the clone (we don't do this too often and
@@ -179,17 +166,13 @@ class TransitionWatchers {
 	 * clone would probably work well since we don't add (and
 	 * never remove) elements that often.)
 	 */
-	final WatchersForTemplateClass content[];
-	synchronized (holders) {
-	    final Collection values = holders.values();
-	    content = new WatchersForTemplateClass[values.size()];
-	    values.toArray(content);
-	}
-
+	
 	final long now = System.currentTimeMillis();
-	for (int i=0; i<content.length; i++) {
-	    content[i].reap(now);
-	}	    
+	
+        Iterator<WatchersForTemplateClass> watchers = holders.values().iterator();
+        while (watchers.hasNext()){
+            watchers.next().reap(now);
+        }
     }
 
     /**

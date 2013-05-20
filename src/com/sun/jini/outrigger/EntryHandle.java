@@ -137,7 +137,7 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      */
     EntryHandle(EntryRep rep, TransactableMgr mgr, EntryHolder holder) {
 	super(rep);
-	hash = (rep != null ? hashFor(rep, rep.numFields()) : -1);
+	hash = (rep != null ? hashFor(rep, rep.numFields())[0] : -1);
 	if (mgr == null) {
 	    txnState = null;
 	} else {
@@ -166,9 +166,9 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      *
      * @see #hashFor(EntryRep,int,EntryHandleHashDesc)
      */
-    static long hashFor(EntryRep rep, int numFields) {
-	return hashFor(rep, numFields, null);
-    }
+//    static long hashFor(EntryRep rep, int numFields) {
+//	return hashFor(rep, numFields, null);
+//    }
 
     /**
      * Calculate the hash for a particular entry, assuming the given
@@ -181,15 +181,20 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * @see #hashFor(EntryRep,int)
      * @see #descFor(EntryRep,int)
      * @see EntryHandleHashDesc
+     * @return long[4] containing the hash, bitsPerField, fieldsInHash and mask
+     * in that order.
      */
-    private static long
-	hashFor(EntryRep rep, int numFields, EntryHandleHashDesc hashDesc)
+    private static long []
+	hashFor(EntryRep rep, int numFields)
     {
-	if (rep == null || numFields == 0)
-	    return 0;
-
+        long [] result = new long [4];
+	if (rep == null || numFields == 0) return result;
+        
+        /** Number of bits allocated in the hash for each field */
 	int bitsPerField = Math.max(64 / numFields, 4);	// at least 4 bits
+        /** How many fields are used in the hash? */
 	int fieldsInHash = 64 / bitsPerField;		// max fields used
+        /** A mask with the lower <code>bitsPerField</code> bits set */
 	long mask =					// per-field bit mask
 		    0xffffffffffffffffL >>> (64 - bitsPerField);
 	long hash = 0;					// current hash value
@@ -200,15 +205,12 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
 	// set the appropriate rep of the overall hash for the field's hash
 	for (int i = 0; i < endField; i++)
 	    hash |= (hashForField(rep, i) & mask) << (i * bitsPerField);
-
-	// If someone wants to remember these results, fill 'em in
-	if (hashDesc != null) {
-	    hashDesc.bitsPerField = bitsPerField;
-	    hashDesc.fieldsInHash = fieldsInHash;
-	    hashDesc.mask = mask;
-	}
-
-	return hash;
+        
+        result [0] = hash;
+        result [1] = bitsPerField;
+        result [2] = fieldsInHash;
+        result [3] = mask;
+	return result;
     }
 
     /**
@@ -217,21 +219,29 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * @see EntryHandleTmplDesc
      */
     static EntryHandleTmplDesc descFor(EntryRep tmpl, int numFields) {
-	EntryHandleHashDesc hashDesc = new EntryHandleHashDesc();
-	EntryHandleTmplDesc tmplDesc = new EntryHandleTmplDesc();
+//	EntryHandleHashDesc hashDesc = new EntryHandleHashDesc();
+	EntryHandleTmplDesc tmplDesc;
         
 	// Get the hash and the related useful information
-	tmplDesc.hash = hashFor(tmpl, numFields, hashDesc);
+        long [] hashDesc = hashFor(tmpl, numFields);
+	long hash = hashDesc[0];
+        long bitsPerField = hashDesc [1];
+        long fieldsInHash = hashDesc [2];
+        long mask = hashDesc [3];
+        
+        long tmplMask = 0;
 
 	// Create the mask to mask away wildcard fields
-	for (int i = 0; i < hashDesc.fieldsInHash; i++) {
+	for (int i = 0; i < fieldsInHash; i++) {
 	    // If this field is one we have a value for, set bits in the mask
 	    if (i < tmpl.numFields() && tmpl.value(i) != null)
-		tmplDesc.mask |= (hashDesc.mask << (i * hashDesc.bitsPerField));
+		tmplMask |= (mask << (i * bitsPerField));
 	}
         
 	// Ensure that the non-value fields are masked out
-	tmplDesc.hash &= tmplDesc.mask;
+	hash &= tmplMask;
+        
+        tmplDesc = new EntryHandleTmplDesc(hash, tmplMask);
 
 	return tmplDesc;
     }
