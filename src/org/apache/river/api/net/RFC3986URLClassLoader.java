@@ -1376,13 +1376,29 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
     }
 
     Class<?> findClassImpl(String className) {
-        String partialName = className.replace('.', '/');
-        final String classFileName = new StringBuilder(partialName).append(".class").toString(); //$NON-NLS-1$
-        String packageName = null;
-        int position = partialName.lastIndexOf('/');
-        if ((position = partialName.lastIndexOf('/')) != -1) {
-            packageName = partialName.substring(0, position);
+        char dot = '.';
+        char slash = '/';
+        int len = className.length();
+        char[] name = new char [len + 6];
+        // Poplulate name
+        className.getChars(0,len, name, 0);
+        ".class".getChars(0, 6, name, len);
+        // Replace dots with slashes up to len and remember the index of the last slash.
+        int lastSlash = -1;
+        for (int i = 0; i < len; i++){ // len excludes ".class"
+            if (name[i] == dot) {
+                name[i] = slash;
+                lastSlash = i;
+            }
         }
+        // Create our new classFileName
+        String classFileName = new String(name);
+        // Share the underlying char[] of classFileName with packageName
+        String packageName = null;
+        if (lastSlash != -1) {
+            packageName = classFileName.substring(0, lastSlash);
+        }
+        // Query our URLHandlers for the class.
         int n = 0;
         while (true) {
             URLHandler handler = getHandler(n++);
@@ -1406,6 +1422,8 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      * 
      * Closes any open resources and prevents this ClassLoader loading any
      * additional classes or resources.
+     * 
+     * TODO: Add support for nested Exceptions when support for Java 6 is dropped. 
      * 
      * @throws IOException
      */
