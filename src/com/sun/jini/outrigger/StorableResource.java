@@ -23,11 +23,12 @@ import com.sun.jini.landlord.LeasedResource;
  * Sub-interface of <code>StorableObject</code> that must be implemented by
  * objects that represent leased resources and must persist their state.
  *
+ * @param <T> 
  * @see LogOps
  *
  * @author Sun Microsystems, Inc.
  *
  * @since 2.0
  */
-public interface StorableResource extends StorableObject, LeasedResource {
+public interface StorableResource<T extends LeasedResource> extends StorableObject<T>, LeasedResource {
 }

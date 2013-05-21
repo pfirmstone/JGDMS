@@ -23,15 +23,22 @@ import java.io.IOException;
  * Interface for a stored resource. Objects implementing this interface 
  * are passed into calls to <code>Recover</code> objects.
  *
+ * @param <T> the type of object stored.
  * @see Recover
  */
-public interface StoredObject {
+public interface StoredObject<T extends StorableObject<T>> {
 
     /**  
      * Restore the state of a <code>StorableObject</code> object.
+     * 
+     * There are two use cases for this method:<br>
+     * 
+     * 1. The object passed in is restored with the stored state and the same object returned.<br>
+     * 2. The object passed in is immutable and a copy with the restored state is returned.<br>
      *   
-     * @param object to restore 
+     * @param object to restore
+     * @return a restored instance of T
      */  
-    public void restore(StorableObject object)
+    public T restore(T object)
 	throws IOException, ClassNotFoundException;
 }

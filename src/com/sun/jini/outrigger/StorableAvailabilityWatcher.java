@@ -33,7 +33,7 @@ import net.jini.security.ProxyPreparer;
  * registrations.  
  */
 class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
-    implements StorableResource
+    implements StorableResource<StorableAvailabilityWatcher>
 {
     /** The listener that should be notified of matches */
     private StorableReference listener;
@@ -160,7 +160,7 @@ class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
     /**
      * Restore the persistent fields
      */
-    public void restore(ObjectInputStream in) 
+    public StorableAvailabilityWatcher restore(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException 
     {
         synchronized (this){
@@ -173,6 +173,7 @@ class StorableAvailabilityWatcher extends AvailabilityRegistrationWatcher
             if (listener == null)
                 throw new StreamCorruptedException(
                     "Stream corrupted, should not be null");
+            return this;
         }
     }
 }

@@ -61,7 +61,7 @@ import net.jini.space.JavaSpace;
  * @see JavaSpace
  * @see Entry
  */
-class EntryRep implements StorableResource, LeasedResource, Serializable {
+class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializable {
     static final long serialVersionUID = 3L;
 
     // Synchronization isn't used where volatile access would be atomic.  
@@ -827,7 +827,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
     }
 
     // inherit doc comment
-    public synchronized void restore(ObjectInputStream in) 
+    public synchronized EntryRep restore(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException 
     {
 	final long bits0 = in.readLong();
@@ -845,6 +845,7 @@ class EntryRep implements StorableResource, LeasedResource, Serializable {
 	values       = (MarshalledInstance [])in.readObject();
 	hash	     = in.readLong();
 	hashes       = (long[])in.readObject();
+        return this;
     }
 
     // Utility methods for throwing and logging exceptions

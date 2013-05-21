@@ -33,7 +33,7 @@ import net.jini.security.ProxyPreparer;
  * persistent event registrations.
  */
 class StorableEventWatcher extends EventRegistrationWatcher
-    implements StorableResource
+    implements StorableResource<StorableEventWatcher>
 {
     /** The listener that should be notified of matches */
     private volatile StorableReference listener;
@@ -137,7 +137,7 @@ class StorableEventWatcher extends EventRegistrationWatcher
     /**
      * Restore the persistent fields
      */
-    public synchronized void restore(ObjectInputStream in) 
+    public synchronized StorableEventWatcher restore(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException 
     {
 	cookie = UuidFactory.read(in);
@@ -148,5 +148,6 @@ class StorableEventWatcher extends EventRegistrationWatcher
 	if (listener == null)
 	    throw new StreamCorruptedException(
 		"Stream corrupted, should not be null");
+        return this;
     }
 }

@@ -25,22 +25,29 @@ import java.io.ObjectOutputStream;
  * Interface that must be implemented by objects that must persist their
  * state.
  *
+ * @param <T> The type of the object to be restored 
  * @see LogOps
  *
  * @author Sun Microsystems, Inc.
  *
  * @since 2.0
  */
-public interface StorableObject {
+public interface StorableObject<T> {
 
     /**  
      * Store the persistent fields 
+     * @param out
+     * @throws IOException  
      */
     public void store(ObjectOutputStream out) throws IOException;
 
     /**
-     * Restore the persistent fields
+     * Restore the persistent fields and return new instance.
+     * @param in
+     * @return
+     * @throws IOException
+     * @throws ClassNotFoundException  
      */
-    public void restore(ObjectInputStream in) 
+    public T  restore(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException;
 }

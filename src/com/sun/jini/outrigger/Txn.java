@@ -85,7 +85,7 @@ import net.jini.security.ProxyPreparer;
  *
  * @author Sun Microsystems, Inc.  
  */
-class Txn implements TransactableMgr, TransactionConstants, StorableObject {
+class Txn implements TransactableMgr, TransactionConstants, StorableObject<Txn> {
 
     /** The internal id Outrigger as assigned to the transaction */
     final private long id;
@@ -499,7 +499,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
     }
 
     // inherit doc comment
-    public void restore(ObjectInputStream in) 
+    public Txn restore(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException 
     {
 	/* Only transactions that got prepared and not committed or
@@ -510,5 +510,6 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject {
             trm      = (StorableReference)in.readObject();
             trId     = in.readLong();
         }
+        return this;
     }
 }

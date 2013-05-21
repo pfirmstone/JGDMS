@@ -52,7 +52,7 @@ import com.sun.jini.logging.Levels;
  * @see JoinManager
  */
 // @see JoinAdminState
-class JoinStateManager implements StorableObject {
+class JoinStateManager implements StorableObject<JoinStateManager> {
     /** <code>ProxyPreparer</code> for <code>LookupLocators</code> */
     private volatile ProxyPreparer lookupLocatorPreparer;
 
@@ -593,13 +593,14 @@ class JoinStateManager implements StorableObject {
     }
 
     // inherit doc comment
-    public void restore(ObjectInputStream in) 
+    public JoinStateManager restore(ObjectInputStream in) 
 	throws IOException, ClassNotFoundException 
     {
 	initial = false;
         attributes = readAttributes(in);
         locators   = (LookupLocator [])in.readObject();
         groups     = (String [])in.readObject();
+        return this;
     }
 
     /**

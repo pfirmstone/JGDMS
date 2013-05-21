@@ -34,12 +34,15 @@ import net.jini.space.InternalSpaceException;
  * The target object is serialized and stored here as a byte
  * array.
  */
-class BaseObject implements StoredObject, Serializable {
+class BaseObject<T extends StorableObject<T>> implements StoredObject<T>, Serializable {
     static final long serialVersionUID = -400804064969360164L;
 
+    /**
+     * @serialField 
+     */
     private final byte[]	blob;
 
-    BaseObject(StorableObject object) {
+    BaseObject(T object) {
 	try {
 	    ByteArrayOutputStream baos = new ByteArrayOutputStream();
 	    ObjectOutputStream oos = new ObjectOutputStream(baos);
@@ -52,10 +55,27 @@ class BaseObject implements StoredObject, Serializable {
 	}
     }
 
-    public void restore(StorableObject object)
+    public T restore(T object)
       throws IOException, ClassNotFoundException {
 	ObjectInputStream ois = new ObjectInputStream(new ByteArrayInputStream(blob));
-	object.restore(ois);
+	T result = object.restore(ois);
 	ois.close();
+        return result;
+    }
+    
+    /**
+     * Added to enable the serial form to be modified
+     * in a backward compatible manner (if necessary) with 2.3.0 and later.  
+     * Modified serial form would be a breaking change for versions
+     * prior to 2.3.0 
+     * 
+     * @serialData 
+     * @param ois
+     * @throws IOException
+     * @throws ClassNotFoundException 
+     * @since 2.3.0
+     */
+    private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
+        ois.defaultReadObject();
     }
 }
