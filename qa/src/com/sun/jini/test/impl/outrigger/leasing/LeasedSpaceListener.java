@@ -39,6 +39,11 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 
 import com.sun.jini.qa.harness.QAConfig;
+import java.io.WriteAbortedException;
+import java.rmi.server.ExportException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -50,7 +55,9 @@ public class LeasedSpaceListener
 {
     private static Logger logger = Logger.getLogger("com.sun.jini.qa.harness");
     private boolean received = false;
-    private final Object proxy;
+    private Object proxy;
+    private final Exporter exporter;
+    private final AccessControlContext context;
 
     public LeasedSpaceListener(Configuration c) throws RemoteException {
 	try {
@@ -61,18 +68,40 @@ public class LeasedSpaceListener
 				      "outriggerListenerExporter",
 				      Exporter.class);
 	    }
-	    proxy = exporter.export(this);
+            this.exporter = exporter;
+            context = AccessController.getContext();
+	    // Proxy was originally exported here, allowing "this" to escape.
 	} catch (ConfigurationException e) {
 	    throw new RemoteException("Bad configuration", e);
 	}
     }
+    
+    private synchronized Object getProxy(){
+        if (proxy == null) { 
+            proxy = AccessController.doPrivileged(new PrivilegedAction<Object>(){
 
-    public Object writeReplace() throws ObjectStreamException {
+                @Override
+                public Object run() {
+                    try {
+                        return exporter.export(LeasedSpaceListener.this);
+                    } catch (ExportException ex) {
+                        String message = "Proxy export failed for LeaseListener";
+                        logger.log(Level.WARNING, message , ex);
+                        return null;
+                    }
+                }
+                
+            }, context);
+        }
         return proxy;
     }
 
+    public Object writeReplace() throws ObjectStreamException {
+        return getProxy();
+    }
+
     public TrustVerifier getProxyVerifier() {
-	return new BasicProxyTrustVerifier(proxy);
+	return new BasicProxyTrustVerifier(getProxy());
     }
 
     public void notify(RemoteEvent theEvent)
@@ -84,7 +113,7 @@ public class LeasedSpaceListener
             received = true;
             this.notifyAll();
         }
-        logger.log(Level.INFO, "notify called at {0}", date);
+        logger.log(Level.INFO, "notify called at {0}", date.getTime());
     }
 
     /**
