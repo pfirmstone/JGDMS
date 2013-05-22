@@ -34,6 +34,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 
 import com.sun.jini.qa.harness.QAConfig;
+import java.rmi.server.ExportException;
 
 /**
  * Simple event listener class.
@@ -46,25 +47,40 @@ public class SimpleEventListener
 {
     private long maxSeqNum = 0;
     private Object proxy;
+    private final Exporter exporter;
 
     public SimpleEventListener(Configuration c) throws RemoteException {
-	try {
+	this(getExporter(c));
+        // 
+        export();
+    }
+    
+    private SimpleEventListener(Exporter exporter){
+        this.exporter = exporter;
+    }
+    
+    private static Exporter getExporter(Configuration c) throws RemoteException {
+        try {
 	    Exporter exporter = QAConfig.getDefaultExporter();
 	    if (c instanceof com.sun.jini.qa.harness.QAConfiguration) {
 		exporter =
 		(Exporter) c.getEntry("test", "outriggerListenerExporter", Exporter.class);
 	    }
-	    proxy = exporter.export(this);
+            return exporter;
 	} catch (ConfigurationException e) {
 	    throw new IllegalArgumentException("Bad configuration" + e);
 	}
     }
+    
+    private synchronized void export() throws ExportException{
+        proxy = exporter.export(this);
+    }
 
-    public Object writeReplace() throws ObjectStreamException {
+    public synchronized Object writeReplace() throws ObjectStreamException {
 	return proxy;
     }
 
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new BasicProxyTrustVerifier(proxy);
     }
 
@@ -74,7 +90,7 @@ public class SimpleEventListener
      *
      * @param ev Remote event object.
      */
-    public void notify(RemoteEvent ev) throws RemoteException {
+    public synchronized void notify(RemoteEvent ev) throws RemoteException {
         maxSeqNum = Math.max(ev.getSequenceNumber(), maxSeqNum);
     }
 
@@ -83,7 +99,7 @@ public class SimpleEventListener
      *
      * @return number of <code>notify</code> called.
      */
-    public long getNotifyCount(EventRegistration reg) {
+    public synchronized long getNotifyCount(EventRegistration reg) {
         return (maxSeqNum - reg.getSequenceNumber());
     }
 }

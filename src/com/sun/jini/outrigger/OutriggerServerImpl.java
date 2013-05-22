@@ -79,6 +79,7 @@ import java.rmi.UnmarshalException;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.activation.ActivationException;
+import java.rmi.server.ExportException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.SecureRandom;
@@ -641,7 +642,7 @@ public class OutriggerServerImpl
         }
     }
     
-    public void start() throws Exception {
+    public void start() throws IOException, ConfigurationException, LoginException {
         // Threads are created with login context if it exists, but started in
         // privileged context.
         synchronized (this){
@@ -649,12 +650,18 @@ public class OutriggerServerImpl
             started = true;
         }
         if (thrown != null) throw (Error) thrown;
-        if (except != null) throw except;
+        if (except != null){
+            if (except instanceof IOException) throw (IOException) except;
+            else if (except instanceof ConfigurationException) throw (ConfigurationException) except;
+            else if (except instanceof LoginException) throw (LoginException) except;
+            else if (except instanceof RuntimeException) throw (RuntimeException) except;
+        }
+   
         try {
             AccessController.doPrivileged(new PrivilegedExceptionAction(){
 
                 @Override
-                public Object run() throws Exception {
+                public Object run() throws ExportException, ConfigurationException, IOException {
                     ourRemoteRef = (OutriggerServer) exporter.export(serverGate);
                             // This takes a while the first time, so let's get it going
                     txnMonitor.start();
@@ -729,7 +736,8 @@ public class OutriggerServerImpl
                 
             }, context);
             
-        } catch (Exception e) {
+        } catch (PrivilegedActionException ex) {
+            Exception e = ex.getException();
             // Clean up and rethrow.
             lifecycleLogger.log(Level.SEVERE, "Failed to start Outrigger server", e);
            
@@ -782,7 +790,10 @@ public class OutriggerServerImpl
                     // Ignore and go on
                 }
             }
-            throw e;
+            if (e instanceof IOException) throw (IOException) e;
+            else if (e instanceof ConfigurationException) throw (ConfigurationException) e;
+            else if (e instanceof LoginException) throw (LoginException) e;
+            else if (e instanceof RuntimeException) throw (RuntimeException) e;
         } finally {
             config = null;
             starter = null;

@@ -46,10 +46,10 @@ import net.jini.security.ProxyPreparer;
  */
 class ActivatableNormServerImpl extends NormServerBaseImpl {
     /** Our activation ID */
-    private ActivationID activationID;
+    private final ActivationID activationID;
 
     /** The activation system, prepared */
-    private ActivationSystem activationSystem;
+    private final ActivationSystem activationSystem;
 
     // Inherit java doc from super type
     public void destroy() throws RemoteException {

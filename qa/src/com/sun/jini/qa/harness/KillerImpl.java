@@ -25,6 +25,7 @@ import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
+import java.rmi.server.ExportException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -51,10 +52,10 @@ class KillerImpl
         Logger.getLogger("com.sun.jini.qa.harness");
 
     /** The inner proxy of this server */
-    private final Remote ourStub;
+    private Remote ourStub; 
 
     /** The exporter */
-    Exporter exporter;
+    final Exporter exporter;
 
     /**
      * Shared activation constructor required by the 
@@ -66,13 +67,29 @@ class KillerImpl
     public KillerImpl(ActivationID activationID, MarshalledObject data)
 	throws IOException, ClassNotFoundException
     {
-	logger.log(Level.INFO, "Starting VMKiller service");
-	exporter = 
+	this(getExporter(activationID));
+        // Before we call export, the final freeze has occurred after calling
+        // our private constructor, we are also synchronized during export.
+        export();
+    }
+    
+    private KillerImpl(Exporter exporter) throws
+            IOException, ClassNotFoundException
+    {
+        this.exporter = exporter;
+    }
+    
+    private static Exporter getExporter(ActivationID activationID){
+        logger.log(Level.INFO, "Starting VMKiller service");
+	return
 	    new ActivationExporter(
 		   activationID, 
 		   new BasicJeriExporter(TcpServerEndpoint.getInstance(0),
 					 new BasicILFactory()));
-	ourStub = exporter.export(this);
+    }
+    
+    private synchronized void export() throws ExportException{
+        ourStub = exporter.export(this);
     }
 
     // inherit javadoc
@@ -81,7 +98,7 @@ class KillerImpl
 	System.exit(0);
     }
 
-    public Object getAdmin() throws RemoteException {
+    public synchronized Object getAdmin() throws RemoteException {
 	return ourStub;
     }
 
@@ -159,7 +176,7 @@ class KillerImpl
     }
 
     // inherit javadoc
-    public Object getProxy() {
+    public synchronized Object getProxy() {
 	return ourStub;
     }
 }

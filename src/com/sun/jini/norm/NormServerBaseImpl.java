@@ -245,6 +245,8 @@ abstract class NormServerBaseImpl
      *  set to null at completion of start() */
     private AccessControlContext context;
     private Configuration config;
+    
+    private boolean started;
 
     ////////////////////////////////
     // Methods defined in NormServer
@@ -1828,6 +1830,10 @@ abstract class NormServerBaseImpl
     }
     
     public void start() throws Exception {
+        synchronized (this){
+            if (started) return;
+            started = true;
+        }
         try {
             AccessController.doPrivileged(new PrivilegedExceptionAction(){
 

@@ -93,30 +93,40 @@ class NonActivatableGroupImpl {
 	private Object proxy;
 
 	/** the groups exporter */
-	private Exporter exporter;
+	private final Exporter exporter;
 
 	/** store service references here to ensure no GC interference */
-	private ArrayList serviceList = new ArrayList();
+	private final ArrayList serviceList = new ArrayList();
 
 	/**
 	 * Construct a <code>NonActivatableGroup</code>. Instances export themselves
 	 * at construction time using a <code>JrmpExporter</code>.
 	 */
 	public GroupImpl() {
-	    exporter = new JrmpExporter();
-	    try {
-		proxy = exporter.export(this);
+            this (new JrmpExporter());
+	    export();
+	}
+        
+        private GroupImpl(Exporter exporter){
+           this.exporter = exporter;
+        }
+        
+        private void export(){
+            try {
+                synchronized (this){
+                    proxy = exporter.export(this);
+                }
 	    } catch (ExportException e) {
 		e.printStackTrace();
 		try {Thread.sleep(5000);} catch (Exception e2){}
 		throw new RuntimeException("Export of group failed", e);
 	    }
-	}
-
+        }
+        
 	/**
 	 * Return the proxy for the NonActivatableGroup remote object
 	 */
-	Object getProxy() {
+	synchronized Object getProxy() {
 	     return proxy;
 	}
 
@@ -180,7 +190,9 @@ class NonActivatableGroupImpl {
 	    }
 	    try {
 		Created created = (Created) desc.create(starterConfig);
-		serviceList.add(created);
+                synchronized (this){
+                    serviceList.add(created);
+                }
 		return created.proxy;
 	    } catch (Exception e) {
 		throw new RemoteException("Create failed", e);
@@ -193,7 +205,7 @@ class NonActivatableGroupImpl {
      */
     private static class DestroyThread extends Thread {
 	
-	Exporter exporter;
+	final Exporter exporter;
 
         /** Create a non-daemon thread */
         public DestroyThread(Exporter exporter) {

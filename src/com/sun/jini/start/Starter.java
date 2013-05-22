@@ -21,16 +21,22 @@ package com.sun.jini.start;
 /**
  * Implemented by a service to enable starting after construction.
  * 
+ * @see ServiceDescriptor
+ * @see Exporter
+ * 
  */
 public interface Starter {
     /**
      * Called by the ServiceStarter after construction, allows the service to
-     * delay starting threads until construction is complete, to allow safe
-     * publication of the service in accordance with the JMM.
-     * 
+     * delay starting threads and exporting until after construction is complete, 
+     * to allow safe publication of the service in accordance with the JMM.
+     * <p>
      * In addition to starting threads after construction, it also allows
      * services to avoid throwing an exception during construction to avoid
      * finalizer attacks.
+     * <p>
+     * The implementation is required to ensure start() is only executed once,
+     * additional invocations must return immediately.
      * 
      * @throws Exception if there's a problem with construction or startup.
      */

@@ -31,6 +31,7 @@ import java.io.Serializable;
 
 import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import java.rmi.server.ExportException;
 
 import net.jini.export.Exporter;
 import net.jini.config.Configuration;
@@ -63,7 +64,10 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
     /**
      * The TestLease factory used to create TestLease instances
      */
-    final private AbstractTestLeaseFactory testLeaseFactory;
+    private AbstractTestLeaseFactory testLeaseFactory;
+    
+    final private Exporter exporter;
+    final private Class factoryClass;
 
     /**
      * Simple constructor
@@ -106,7 +110,12 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
 		throw new RemoteException("Configuration error", e);
 	    }
 	}
-	LeaseBackEnd stub = 
+	this.exporter = exporter;
+        this.factoryClass = factoryClass;
+    }
+    
+    private synchronized void export() throws ExportException, RemoteException {
+        LeaseBackEnd stub = 
 	    (LeaseBackEnd) exporter.export(this);
 
 	// create the lease factory
@@ -139,13 +148,8 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
     } 
 
     /** Return the array of owners */
-    public LeaseOwner[] getOwners() {
-	return owners;
-    }
-
-    /** Return the array of leases */
-    TestLease[] getLeases() {
-	return leases;
+    public synchronized LeaseOwner[] getOwners() {
+	return owners.clone();
     }
 
     // inherit doc comment

@@ -79,17 +79,19 @@ public class DiscoveryServiceUtil {
 		    throw new RemoteException("Configuration problem", e);
 		}
 	    }
-	    proxy = exporter.export(this);
+            synchronized (this){
+                proxy = exporter.export(this);
+            }
         }
 
-	private Object writeReplace() throws ObjectStreamException {
+	private synchronized Object writeReplace() throws ObjectStreamException {
 	    return proxy;
 	}
 
         public void notify(RemoteEvent ev) {
         }
 
-	public TrustVerifier getProxyVerifier() {
+	public synchronized TrustVerifier getProxyVerifier() {
 	    return new BasicProxyTrustVerifier(proxy);
 	}
     }//end class BasicEventListener

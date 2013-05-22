@@ -385,6 +385,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
     private boolean persistent;
     private LocalLogHandler logHandler;
     private AccessControlContext context;
+    
+    private boolean started;
 
     /* ************************* BEGIN Constructors ************************ */
     /**
@@ -5154,8 +5156,12 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
     /* **************** END Private Static Utility Methods ***************** */
     
     /* BEGIN public start method*/
-    public void start() throws Exception 
+    public void start() throws IOException, ActivationException, ConfigurationException, LoginException, ClassNotFoundException 
     {
+        synchronized (this){
+            if (started) return;
+            started = true;
+        }
         try {
         AccessController.doPrivileged(new PrivilegedExceptionAction(){
 

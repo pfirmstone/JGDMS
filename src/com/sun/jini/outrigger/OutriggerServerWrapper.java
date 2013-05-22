@@ -486,7 +486,7 @@ class OutriggerServerWrapper
 	return delegate.getProxyVerifier();
     }
 
-    public void start() throws Exception {
-        ((Starter) delegate).start();
+    public void start() throws IOException, ConfigurationException, LoginException {
+        delegate.start();
     }
 }

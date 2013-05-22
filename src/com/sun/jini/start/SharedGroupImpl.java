@@ -15,37 +15,24 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 package com.sun.jini.start;
 
+import java.rmi.MarshalledObject;
+import java.rmi.Remote;
+import java.rmi.activation.ActivationID;
+import java.rmi.activation.ActivationSystem;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.security.auth.Subject;
+import javax.security.auth.login.LoginContext;
 import net.jini.activation.ActivationExporter;
-import net.jini.config.Configuration;
-import net.jini.config.ConfigurationProvider;
-import net.jini.config.ConfigurationException;
-import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
-import net.jini.export.ProxyAccessor;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
-import net.jini.security.TrustVerifier;
-import net.jini.security.proxytrust.ServerProxyTrust;
-
-import java.rmi.MarshalledObject;
-import java.rmi.Remote;
-import java.rmi.RemoteException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationID;
-import java.rmi.activation.ActivationSystem;
-import java.rmi.activation.ActivationException;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-
-import javax.security.auth.Subject;
-import javax.security.auth.login.LoginContext;
 
 /**
  * The provided implementation
@@ -187,239 +174,14 @@ import javax.security.auth.login.LoginContext;
  * @author Sun Microsystems, Inc.
  *
  */
-public class SharedGroupImpl 
-    implements SharedGroupBackEnd, ServerProxyTrust, ProxyAccessor 
-{
-
-    /** Component name for configuration entries */
-    private static final String START_PACKAGE = "com.sun.jini.start";
-
-    /** Configure logger */
-    private static final Logger logger =
-        Logger.getLogger(START_PACKAGE + ".sharedGroup");
-
-    /** Our prepared activation ID reference */
-    private ActivationID activationID = null;
-
-    /** The prepared activation system reference */
-    private ActivationSystem activationSystem;
-    
-    /** The inner proxy of this server */
-    private Remote ourStub;
-
-    /** <code>LoginContext</code> for this service. */
-    private final LoginContext loginContext;
-    
-    /** The exporter for exporting and unexporting */
-    protected Exporter exporter;
-
+public class SharedGroupImpl extends AbstractSharedGroup implements Remote {
     /**
      * Activation constructor. 
      */
-    private SharedGroupImpl(ActivationID activationID, MarshalledObject data)
+    SharedGroupImpl(ActivationID activationID, MarshalledObject data)
 	throws Exception
     {
-	logger.entering(SharedGroupImpl.class.getName(), "SharedGroupImpl", 
-            new Object[] { activationID, data}); 
-	this.activationID = activationID;
-        try {
-            String[] configArgs = (String[])data.get();	
-            final Configuration config =
-                ConfigurationProvider.getInstance(configArgs);
-            loginContext = (LoginContext) config.getEntry(
-                START_PACKAGE, "loginContext", LoginContext.class, null);
-            if (loginContext != null) {
-                doInitWithLogin(config, loginContext);
-            } else {
-                doInit(config);
-            }
-	} catch (Exception e) {
-            cleanup();
-	    throw e;
-	}
-	logger.exiting(SharedGroupImpl.class.getName(), "SharedGroupImpl"); 
-    }
-
-    private void doInitWithLogin(final Configuration config,
-        LoginContext loginContext) throws Exception
-    {
-        loginContext.login();
-        try {
-            Subject.doAsPrivileged(
-                loginContext.getSubject(),
-                new PrivilegedExceptionAction() {
-                    public Object run() throws Exception {
-                        doInit(config);
-                        return null;
-                    }
-                },
-                null);
-        } catch (PrivilegedActionException e) {
-            throw e.getException();
-        }
-    }
-    
-    private void doInit(Configuration config) throws Exception {
-        ProxyPreparer activationSystemPreparer =
-            (ProxyPreparer) config.getEntry(
-                START_PACKAGE, "activationSystemPreparer",
-                ProxyPreparer.class, new BasicProxyPreparer());
-	if (activationSystemPreparer == null) {
-             throw new ConfigurationException(START_PACKAGE 
-	     + ".activationSystemPreparer entry should not be null");
-        }
-        logger.log(Level.FINE, START_PACKAGE + ".activationSystemPreparer: {0}",
-            activationSystemPreparer);
-	    
-	ProxyPreparer activationIdPreparer = (ProxyPreparer)
-	    config.getEntry(START_PACKAGE, "activationIdPreparer",
-	    ProxyPreparer.class, new BasicProxyPreparer());
-	if (activationIdPreparer == null) {
-             throw new ConfigurationException(START_PACKAGE 
-	     + ".activationIdPreparer entry should not be null");
-        }
-        logger.log(Level.FINE, START_PACKAGE + ".activationIdPreparer: {0}",
-            activationIdPreparer);
-	    
-        // Prepare activation subsystem
-	/*
-	 * ActivationGroup is trusted and returned ActivationSystem
-	 * might already have been prepared by the group itself.
-	 */
-	activationSystem = (ActivationSystem) 
-	    activationSystemPreparer.prepareProxy(
-                ActivationGroup.getSystem());
-        logger.log(Level.FINE, "Prepared ActivationSystem: {0}",
-            activationSystem);
-	activationID = (ActivationID)  
-	    activationIdPreparer.prepareProxy(activationID);
-        logger.log(Level.FINEST, "Prepared ActivationID: {0}",
-            activationID);
-
-        /**
-	 * Would like to get this entry sooner, but need to use
-	 * the prepared activationID.
-	 */
-	exporter = (Exporter) config.getEntry(
-                START_PACKAGE, "exporter", Exporter.class, 
-		new ActivationExporter(
-		    activationID,
-		    new BasicJeriExporter(
-			TcpServerEndpoint.getInstance(0), 
-			new BasicILFactory(), false, true)),
-		activationID);
-	if (exporter == null) {
-             throw new ConfigurationException(START_PACKAGE 
-	     + ".exporter entry should not be null");
-        }
-        logger.log(Level.FINE, START_PACKAGE + ".exporter: {0}",
-            exporter);
-	
-	// Export service
-        ourStub = exporter.export(this);		
-        logger.log(Level.FINEST, "Exported service proxy: {0}",
-            ourStub);
-    }
-
-    // javadoc inherited from supertype
-    public void destroyVM() throws RemoteException, ActivationException {
-	logger.entering(SharedGroupImpl.class.getName(), "destroyVM"); 
-	/*
-	 * Would like to synch access to activationSystem, but need
-	 * to avoid holding locks across remote invocations.
-	 */
-        if (activationSystem != null) {
-	    activationSystem.unregisterGroup(
-		ActivationGroup.currentGroupID());
-                logger.finest("ActivationGroup unregistered.");
-		/* Unregistering the group implicitly unregisters
-		 * all the objects associated with that group as well.
-		 */
-	    activationSystem = null;     
-	}
-        (new DestroyThread()).start();
-	logger.exiting(SharedGroupImpl.class.getName(), "destroyVM"); 
-    }
-
-    /**
-     * Private utility method which attempts to roll back from 
-     * from a failed initialization attempt. 
-     */
-    private void cleanup() {
-	logger.entering(SharedGroupImpl.class.getName(), "cleanup"); 
-        /* 
-	 * Caller decides whether or not to unregister this object.
-	 */
-        if (exporter != null) {
-            try {
-	        // Unexport object so that no new calls come in
-	        exporter.unexport(true);
-                logger.finest("SharedGroupImpl unexported.");
-	    } catch (Exception e) {
-                logger.log(Level.FINEST, 
-		    "Problem unexporting SharedGroupImpl.", e);
-	    }
-        }
-		
-	if (loginContext != null) {
-	    try {
-		loginContext.logout();
-                logger.finest("SharedGroupImpl logged-out.");
-	    } catch (Exception e) {
-                logger.log(Level.FINEST, 
-		    "Problem logging out for SharedGroupImpl.", e);
-	    }
-	}
-	logger.exiting(SharedGroupImpl.class.getName(), "cleanup"); 
-    }
-
-    /**
-     * Termination thread code.  We do this in a separate thread to
-     * allow the calling thread to return normally. This is not guaranteed
-     * since it's still possible for the VM to exit before the calling
-     * thread returns.
-     */
-    private class DestroyThread extends Thread {
-
-        /** Create a non-daemon thread */
-        public DestroyThread() {
-            super("DestroyThread");
-            /* override inheritance from RMI daemon thread */
-            setDaemon(false);
-        }
-
-        public void run() {
-            logger.entering(DestroyThread.class.getName(), 
-                "run");
- 
-            logger.finest("Calling System.exit() ...");
-
-	    /*
-	     * Forcefully destroy the VM, in case there are any lingering 
-	     * threads.
-	     */
-	    System.exit(0);
-        }
-    }
-    // inherit javadoc
-    public Object getProxy() {
-        logger.entering(SharedGroupImpl.class.getName(), 
-                "getProxy");
-        logger.exiting(SharedGroupImpl.class.getName(), 
-                "getProxy", ourStub);
-	return ourStub;
-    }
-    
-    //////////////////////////////////////////
-    // ProxyTrust Method
-    //////////////////////////////////////////
-    //inherit javadoc
-    public TrustVerifier getProxyVerifier( ) {
-        /* No verifier if the server isn't secure */
-        if (!(ourStub instanceof RemoteMethodControl)) {
-            throw new UnsupportedOperationException();
-        } else {
-            return new ProxyVerifier((SharedGroupBackEnd)ourStub);
-        }
+        super(activationID, data);
+        export();
     }
 }
