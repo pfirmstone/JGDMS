@@ -132,6 +132,7 @@ public class RenewalFailureTest extends TestBase implements Test {
 
 	// Register for failure events
 	final OurListener listener = new OurListener();
+        listener.export();
 	final MarshalledObject handback = new MarshalledObject(new Long(347));
 	EventRegistration reg = 
 	    set.setRenewalFailureListener(listener, handback);
@@ -157,6 +158,7 @@ public class RenewalFailureTest extends TestBase implements Test {
 	logger.log(Level.INFO, "Creating leases and adding them to set");
 
 	home = new LeaseBackEndImpl(17);
+        home.export();
 	createAndRegisterLease(
 	    new RemoteException("Synthetic RemoteException"), false, set);
 	createAndRegisterLease(

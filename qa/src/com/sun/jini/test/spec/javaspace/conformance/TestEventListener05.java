@@ -34,6 +34,7 @@ import java.rmi.RemoteException;
 
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
+import java.rmi.server.ExportException;
 
 
 public class TestEventListener05 implements RemoteEventListener,
@@ -44,10 +45,15 @@ public class TestEventListener05 implements RemoteEventListener,
 
     private Object proxy;
 
-    private ArrayList notifications = new ArrayList();
+    private final ArrayList notifications;
+    private final Exporter exporter;
 
     public TestEventListener05() throws RemoteException {
-        Configuration c = getConfiguration();
+        this(getExporter(getConfiguration()));
+        export(); // Exported after final freeze of private constructor.
+    }
+    
+    private static Exporter getExporter(Configuration c) throws RemoteException{
         Exporter exporter = QAConfig.getDefaultExporter();
         if (c instanceof com.sun.jini.qa.harness.QAConfiguration) {
             try {
@@ -58,32 +64,41 @@ public class TestEventListener05 implements RemoteEventListener,
                 throw new RemoteException("Configuration Error", e);
             }
         }
-        proxy = exporter.export(this);
+        return exporter;
+    }
+    
+    private TestEventListener05(Exporter exporter){
+        this.exporter = exporter;
+        notifications = new ArrayList();
     }
 
-    public void notify(RemoteEvent theEvent) throws UnknownEventException,
+    private synchronized void export() throws ExportException{
+        proxy = exporter.export(this);
+    }
+    
+    public synchronized void notify(RemoteEvent theEvent) throws UnknownEventException,
                                                     java.rmi.RemoteException
     {
         notifications.add(theEvent);
     }
 
-    public List getNotifications() {
-        return notifications;
+    public synchronized List getNotifications() {
+        return new ArrayList(notifications);
     }
 
-    public Object writeReplace() throws ObjectStreamException {
+    public synchronized Object writeReplace() throws ObjectStreamException {
         return proxy;
     }
 
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
         return new BasicProxyTrustVerifier(proxy);
     }
 
-    public static void setConfiguration(Configuration configuration) {
+    public static synchronized void setConfiguration(Configuration configuration) {
         TestEventListener05.configuration = configuration;
     }
 
-    public static Configuration getConfiguration() {
+    public static synchronized Configuration getConfiguration() {
         if (TestEventListener05.configuration == null) {
             throw new IllegalStateException("Configuration not set");
         }

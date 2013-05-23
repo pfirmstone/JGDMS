@@ -159,7 +159,9 @@ public class RemoveExactlyOneTest extends TestBase implements Test {
 
 	// Create and register listeners
 	warningListener = new WarningListener(failureFails?null:throwThis);
+        warningListener.export();
 	failureListener = new BaseListener(failureFails?throwThis:null);
+        failureListener.export();
 
 	MarshalledObject handback = new MarshalledObject(new Long(3));
 	logger.log(Level.FINER, "setting expiration warning listener");

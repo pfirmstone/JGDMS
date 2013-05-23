@@ -418,7 +418,7 @@ public class JavaSpaceAuditor implements JavaSpace {
                                                      tmpl, 
 						     listener, 
 						     handback);
-
+            passThrough.export();
             /*
              * Note if ether of these would happen the space.notify call
              * would throw an IllegalArgumentException

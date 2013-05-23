@@ -117,6 +117,7 @@ public class RenewAtTest extends TestBase implements Test {
 	// Create the object that will serve as the landlord
 	final RenewAtOwner owners[] = new RenewAtOwner[8];
 	final LeaseBackEndImpl home = new LeaseBackEndImpl(owners.length);
+        home.export();
 	int j = 0;
 
 	// Desired exp before end of test, desired renewal < max grant

@@ -34,6 +34,7 @@ import java.io.Serializable;
 
 import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import java.rmi.server.ExportException;
 
 import net.jini.export.Exporter;
 import net.jini.config.Configuration;
@@ -61,7 +62,9 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
     private int idGen = 0;
 
     /** Our stub */
-    final private LeaseBackEnd stub;
+    private LeaseBackEnd stub;
+    
+    private final Exporter exporter;
 
     /** Total number of calls to renew */
     private long renewCalls;
@@ -92,10 +95,14 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
 	} catch (ConfigurationException e) {
 	    throw new RemoteException("Configuration problem", e);
 	}
-	stub = (LeaseBackEnd)exporter.export(this);
+	this.exporter = exporter;
+    }
+    
+    public synchronized void export() throws ExportException{
+        stub = (LeaseBackEnd)exporter.export(this);
     }
 
-    public Object writeReplace() throws ObjectStreamException {
+    public synchronized Object writeReplace() throws ObjectStreamException {
 	return stub;
     }
 

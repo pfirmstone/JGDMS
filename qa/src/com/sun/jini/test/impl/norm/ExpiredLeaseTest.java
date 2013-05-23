@@ -93,6 +93,7 @@ public class ExpiredLeaseTest extends TestBase implements Test {
 
 	// Register for failure events
 	final OurListener listener = new OurListener();
+        listener.export();
 	final MarshalledObject handback = new MarshalledObject(new Long(347));
 	EventRegistration reg = 
 	    set.setRenewalFailureListener(listener, handback);

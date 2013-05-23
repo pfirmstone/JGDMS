@@ -78,10 +78,11 @@ public class ProxyToString extends AbstractBaseTest {
                 fiddlerAdminProxy = (FiddlerAdmin)admin;
             }//endif
         }//endif
-
-        fiddlerRegistration = DiscoveryServiceUtil.getRegistration
+        DiscoveryServiceUtil.BasicEventListener listener = new DiscoveryServiceUtil.BasicEventListener();
+        listener.export();
+        fiddlerRegistration = DiscoveryServiceUtil.getRegistration 
                                (fiddlerProxy,
-                                new DiscoveryServiceUtil.BasicEventListener());
+                                listener);
 
         fiddlerLease = getPreparedLease(fiddlerRegistration);
         return this;

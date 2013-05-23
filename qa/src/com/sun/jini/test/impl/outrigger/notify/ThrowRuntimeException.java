@@ -50,6 +50,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import com.sun.jini.qa.harness.Test;
+import java.rmi.server.ExportException;
 
 /**
  * Check to see how space deals with RuntimeException being thrown by
@@ -81,6 +82,7 @@ public class ThrowRuntimeException extends TestBase implements Test {
         private long lastSeqNum = -1;
         final private boolean throwRuntime;
 	private Object proxy;
+        private final Exporter exporter;
 
         /** Simple constructor */
         Listener(Configuration c, 
@@ -92,18 +94,22 @@ public class ThrowRuntimeException extends TestBase implements Test {
 		    exporter =
 		    (Exporter) c.getEntry("test", "outriggerListenerExporter", Exporter.class);
 		}
-		proxy = exporter.export(this);
+		this.exporter = exporter;
 	    } catch (ConfigurationException e) {
 		throw new RemoteException("Bad configuration", e);
 	    }
             this.throwRuntime = throwRuntime;
         }
+        
+        public synchronized void export() throws ExportException{
+            proxy = exporter.export(this);
+        }
 
-        public Object writeReplace() throws ObjectStreamException {
+        public synchronized Object writeReplace() throws ObjectStreamException {
 	    return proxy;
 	}
 
-	public TrustVerifier getProxyVerifier() {
+	public synchronized TrustVerifier getProxyVerifier() {
 	    return new BasicProxyTrustVerifier(proxy);
 	}
 
@@ -111,7 +117,7 @@ public class ThrowRuntimeException extends TestBase implements Test {
          * Return the sequence number of the last event received, if
          * no event has been received return -1
          */
-        long lastEvent() {
+        synchronized long lastEvent() {
             return lastSeqNum;
         }
 
@@ -158,7 +164,9 @@ public class ThrowRuntimeException extends TestBase implements Test {
             JavaSpace.class});
 	Configuration c = getConfig().getConfiguration();
         final Listener listener1 = new Listener(c, true);
+        listener1.export();
         final Listener listener2 = new Listener(c, false);
+        listener2.export();
         final JavaSpace space = (JavaSpace) services[0];
         final Entry aEntry = new UninterestingEntry();
 

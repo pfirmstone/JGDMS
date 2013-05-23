@@ -86,9 +86,11 @@ public class RenewLeaseMap extends AbstractBaseTest {
         reg = new LookupDiscoveryRegistration[expectedDurations.length];
         lease = new Lease[expectedDurations.length];
         for(int i=0;i<reg.length;i++) {
+            DiscoveryServiceUtil.BasicEventListener listener = new DiscoveryServiceUtil.BasicEventListener();
+            listener.export();
             reg[i] = DiscoveryServiceUtil.getRegistration
                                (discoverySrvc,
-                                new DiscoveryServiceUtil.BasicEventListener());
+                                listener);
             lease[i] = getPreparedLease(reg[i]);
             long duration = DiscoveryServiceUtil.expirationToDuration
                                                  (lease[i].getExpiration(),

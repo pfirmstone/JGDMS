@@ -27,6 +27,7 @@ import net.jini.export.Exporter;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import java.io.ObjectStreamException;
+import java.rmi.server.ExportException;
 
 /**
  *
@@ -39,6 +40,7 @@ public class ARemoteInterfaceImpl
 {
     private String rtn;
     private Object proxy;
+    private Exporter exporter;
 
     public ARemoteInterfaceImpl(Configuration c, String s) throws RemoteException {
 	Exporter exporter = QAConfig.getDefaultExporter();
@@ -51,15 +53,19 @@ public class ARemoteInterfaceImpl
 		throw new RemoteException("Bad configuration", e);
 	    }
 	}
-	proxy = exporter.export(this);
+	this.exporter = exporter;
         rtn = s;
     }
+    
+    public synchronized void export() throws ExportException {
+        proxy = exporter.export(this);
+    }
 
-    public Object writeReplace() throws ObjectStreamException {
+    public synchronized Object writeReplace() throws ObjectStreamException {
         return proxy;
     }
 
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new BasicProxyTrustVerifier(proxy);
     }
 

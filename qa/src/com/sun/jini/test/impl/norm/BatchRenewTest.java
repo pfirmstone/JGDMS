@@ -132,6 +132,7 @@ public class BatchRenewTest extends TestBase implements Test {
 	// Create the object that will serve as the landlord
 	final BaseOwner owners[] = new BaseOwner[15];
 	final LeaseBackEndImpl home = new LeaseBackEndImpl(owners.length);
+        home.export();
 	int j = 0;
 
 	// Three Arg renewFors

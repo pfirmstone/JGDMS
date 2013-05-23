@@ -136,6 +136,7 @@ public class SnapshotTransactionCommitTakeTest
          * will prevent normal commit completion
          */
         TransactionParticipant tp = new ParticipantImpl();
+        ((ParticipantImpl)tp).export();
         ((ServerTransaction) txn).join(tp, System.currentTimeMillis());
 
         // run thread which will prevent normal commit completion

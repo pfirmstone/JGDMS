@@ -40,6 +40,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 
 import com.sun.jini.qa.harness.QAConfig;
+import java.rmi.server.ExportException;
 
 /**
  * This auxilary class listens for notify events and counts them.
@@ -54,13 +55,15 @@ public class NotifyCounter
     protected final Entry template;
 
     /** Time for which this listener will count events */
-    protected volatile long leaseTime;
+    protected final long leaseTime;
 
     /** number of events */
     private long maxEvNum;
 
     /** the proxy */
-    private final Object proxy;
+    private Object proxy;
+    
+    private final Exporter exporter;
 
     private volatile static Configuration configuration;
 
@@ -74,6 +77,21 @@ public class NotifyCounter
 	}
 	return NotifyCounter.configuration;
     }
+    
+    private static Exporter getExporter(Configuration c) throws RemoteException{
+        Exporter exporter = QAConfig.getDefaultExporter();
+	if (c instanceof com.sun.jini.qa.harness.QAConfiguration) {
+	    try {
+		exporter = (Exporter) c.getEntry("test",
+						 "outriggerListenerExporter",
+						 Exporter.class);
+	    } catch (ConfigurationException e) {
+		throw new RemoteException("Configuration Error", e);
+	    }
+	}
+        return exporter;
+    }
+    
 
     /**
      * Constructor with no arguments, set template to null, and lease time to 0.
@@ -96,28 +114,26 @@ public class NotifyCounter
      */
     public NotifyCounter(Entry template, long leaseTime)
             throws RemoteException {
-	Configuration c = getConfiguration();
-	Exporter exporter = QAConfig.getDefaultExporter();
-	if (c instanceof com.sun.jini.qa.harness.QAConfiguration) {
-	    try {
-		exporter = (Exporter) c.getEntry("test",
-						 "outriggerListenerExporter",
-						 Exporter.class);
-	    } catch (ConfigurationException e) {
-		throw new RemoteException("Configuration Error", e);
-	    }
-	}
-	proxy = exporter.export(this);
+	this(template, leaseTime, getExporter(getConfiguration()));
+	export(); //Export is called after private constructor freezes final fields.
+    }
+    
+    private NotifyCounter(Entry template, long leaseTime, Exporter exporter){
         maxEvNum = 0;
+        this.exporter = exporter;
         this.template = template;
         this.leaseTime = leaseTime;
     }
+    
+    private synchronized void export() throws ExportException{
+        proxy = exporter.export(this);
+    }
 
-    public Object writeReplace() throws ObjectStreamException {
+    public synchronized Object writeReplace() throws ObjectStreamException {
 	return proxy;
     }
 
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new BasicProxyTrustVerifier(proxy);
     }
 

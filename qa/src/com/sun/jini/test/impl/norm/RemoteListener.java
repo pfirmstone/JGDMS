@@ -36,6 +36,7 @@ import java.io.Serializable;
 
 import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import java.rmi.server.ExportException;
 
 /**
  * Remote listener impl to be sub-classed by a class which actually does work
@@ -44,20 +45,27 @@ class RemoteListener
     implements RemoteEventListener, ServerProxyTrust, Serializable
 {
     private Object proxy;
+    private final Exporter exporter;
 
     RemoteListener() throws RemoteException {
+        Exporter exporter = null;
 	try {
-	    Exporter exporter = QAConfig.getDefaultExporter();
+	    exporter = QAConfig.getDefaultExporter();
 	    Configuration c = QAConfig.getConfig().getConfiguration();
 	    if (c instanceof com.sun.jini.qa.harness.QAConfiguration) {
 		exporter = (Exporter) c.getEntry("test",
 						 "normListenerExporter", 
 						 Exporter.class);
 	    }
-	    proxy = exporter.export(this); 
+	    
 	} catch (ConfigurationException e) {
 	    throw new RemoteException("Configuration problem", e);
 	}
+        this.exporter = exporter;
+    }
+    
+    public synchronized void export() throws ExportException{
+        proxy = exporter.export(this); 
     }
 
     public Object writeReplace() throws ObjectStreamException {

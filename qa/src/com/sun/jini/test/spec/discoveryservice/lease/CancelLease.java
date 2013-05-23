@@ -83,9 +83,11 @@ public class CancelLease extends AbstractBaseTest {
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
         String[] expectedGroups = getGroupsToDiscover();
+        DiscoveryServiceUtil.BasicEventListener listener = new DiscoveryServiceUtil.BasicEventListener();
+        listener.export();
         reg = DiscoveryServiceUtil.getRegistration
                                 (discoverySrvc,
-                                 new DiscoveryServiceUtil.BasicEventListener(),
+                                 listener,
                                  expectedGroups);
         String[] currentGroups = reg.getGroups();
         if( !GroupsUtil.compareGroupSets(currentGroups,expectedGroups,Level.OFF) ) {

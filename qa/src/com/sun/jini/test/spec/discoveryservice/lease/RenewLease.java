@@ -69,9 +69,11 @@ public class RenewLease extends AbstractBaseTest {
      */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
+        DiscoveryServiceUtil.BasicEventListener listener = new DiscoveryServiceUtil.BasicEventListener();
+        listener.export();
         reg = DiscoveryServiceUtil.getRegistration
                                (discoverySrvc,
-                                new DiscoveryServiceUtil.BasicEventListener());
+                                listener);
         long duration = DiscoveryServiceUtil.expirationToDuration
                                           ((getPreparedLease(reg)).getExpiration(),
                                            System.currentTimeMillis());

@@ -55,6 +55,12 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 
 import com.sun.jini.qa.harness.QAConfig;
+import java.rmi.server.ExportException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 public class MonitoredSpaceListener
     implements RemoteEventListener, ServerProxyTrust, Serializable
@@ -110,6 +116,9 @@ public class MonitoredSpaceListener
                                            // Registration object
     private boolean wrongSource = false; // event with the wrong source
     private boolean early = false; // event before seq num in registation
+    
+    private final Exporter exporter;
+    private final AccessControlContext acContext;
 
     /**
      * Create a <code>MonitoredSpaceListener</code> that will pass the
@@ -135,7 +144,8 @@ public class MonitoredSpaceListener
 	    					    "spaceLoginContext",
 	    					    LoginContext.class);
 	    }
-	    proxy = exporter.export(this);
+            acContext = AccessController.getContext();
+            this.exporter = exporter;
 	    if (context != null) {
 		context.login();
 	    }
@@ -148,12 +158,27 @@ public class MonitoredSpaceListener
         this.client = client;
         handBack = regObject;
     }
+    
+    public synchronized void export() throws ExportException {
+        try {
+            proxy = AccessController.doPrivileged(new PrivilegedExceptionAction(){
 
-    public Object writeReplace() throws ObjectStreamException {
+                @Override
+                public Object run() throws ExportException {
+                    return exporter.export(MonitoredSpaceListener.this);
+                }
+                
+            }, acContext);
+        } catch (PrivilegedActionException ex) {
+            throw (ExportException) ex.getException();
+        }
+    }
+
+    public synchronized Object writeReplace() throws ObjectStreamException {
         return proxy;
     }
 
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new BasicProxyTrustVerifier(proxy);
     }
 

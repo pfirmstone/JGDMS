@@ -30,6 +30,8 @@ import com.sun.jini.proxy.BasicProxyTrustVerifier;
 
 import java.io.ObjectStreamException;
 import java.io.Serializable;
+import java.io.WriteAbortedException;
+import java.rmi.server.ExportException;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -47,14 +49,24 @@ class RemoteListener implements RemoteEventListener,
     protected static Logger logger = 
         Logger.getLogger("com.sun.jini.qa.harness");
 
-    protected Object proxy;
+    private Object proxy;
+    private final Exporter exporter;
 
     RemoteListener(Exporter exporter) throws RemoteException {
-	proxy = exporter.export(this);
+	this.exporter = exporter;
+    }
+    
+    private Object getProxy() throws ExportException{
+        if (proxy == null) proxy = exporter.export(this);
+        return proxy;
     }
 
-    public Object writeReplace() throws ObjectStreamException {
-	return proxy;
+    public synchronized Object writeReplace() throws ObjectStreamException {
+        try {
+            return getProxy();
+        } catch (ExportException ex) {
+            throw new WriteAbortedException("Unable to export proxy", ex);
+        }
     }
 
     public synchronized void notify(RemoteEvent theEvent)
@@ -62,7 +74,11 @@ class RemoteListener implements RemoteEventListener,
     {
     }
 
-    public TrustVerifier getProxyVerifier() {
-	return new BasicProxyTrustVerifier(proxy);
+    public synchronized TrustVerifier getProxyVerifier() {
+        try {
+            return new BasicProxyTrustVerifier(getProxy());
+        } catch (ExportException ex) {
+            throw new IllegalStateException("Unable to export proxy", ex);
+        }
     }
 }

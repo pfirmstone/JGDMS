@@ -48,8 +48,8 @@ public class RememberingRemoteListener extends RemoteListener {
     /**
      * holds the events and their arrival times
      */
-    private ArrayList events = new ArrayList();
-    private ArrayList arrivalTimes = new ArrayList();
+    private final ArrayList events = new ArrayList();
+    private final ArrayList arrivalTimes = new ArrayList();
 
     /**
      * Constructor requiring an exporter to export the listener.
@@ -61,7 +61,7 @@ public class RememberingRemoteListener extends RemoteListener {
      */ 
     public RememberingRemoteListener(Exporter exporter) throws RemoteException {
 	super(exporter);
-    }
+    } 
     
     // inherit javadoc from parent class
     public synchronized void notify(RemoteEvent theEvent) 

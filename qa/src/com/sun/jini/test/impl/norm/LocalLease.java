@@ -45,6 +45,9 @@ import net.jini.core.constraint.MethodConstraints;
 
 import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
+import java.rmi.server.ExportException;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A lease implementation that is completely local for use in some of the 
@@ -82,14 +85,24 @@ class LocalLease implements Lease, Serializable {
      */
     private long id;
 
-    private ProxyTrustImpl pt = new ProxyTrustImpl();
+    private ProxyTrustImpl pt = getProxyTrust();
+    
+    private static ProxyTrustImpl getProxyTrust() {
+        ProxyTrustImpl proxy = new ProxyTrustImpl();
+        try {
+            proxy.export();
+        } catch (ExportException ex) {
+            throw new RuntimeException("Problem creating verifier", ex);
+        }
+        return proxy;
+    }
 
     public static LocalLease getLocalLease(long initExp, 
 					   long renewLimit, 
 					   long bundle, 
 					   long id) 
     {
-	ProxyTrustImpl pt = new ProxyTrustImpl();
+	ProxyTrustImpl pt = getProxyTrust();
 	if (pt.getProxy() instanceof RemoteMethodControl) {
 	    return new ConstrainableLocalLease(initExp, renewLimit, bundle, id, pt);
 	} else {
@@ -103,7 +116,7 @@ class LocalLease implements Lease, Serializable {
 					   long id,
 					   long count) 
     {
-	ProxyTrustImpl pt = new ProxyTrustImpl();
+	ProxyTrustImpl pt = getProxyTrust();
 	if (pt.getProxy() instanceof RemoteMethodControl) {
 	    return new ConstrainableFailingLocalLease(initExp, renewLimit, bundle, id, count, pt);
 	} else {
@@ -117,7 +130,7 @@ class LocalLease implements Lease, Serializable {
 					   long id,
 					   long count) 
     {
-	ProxyTrustImpl pt = new ProxyTrustImpl();
+	ProxyTrustImpl pt = getProxyTrust();
 	if (pt.getProxy() instanceof RemoteMethodControl) {
 	    return new ConstrainableDestructingLocalLease(initExp, renewLimit, bundle, id, count, pt);
 	} else {
@@ -353,7 +366,8 @@ class LocalLease implements Lease, Serializable {
     public static class ProxyTrustImpl
 	implements ProxyTrust, ServerProxyTrust, Serializable
     {
-	ProxyTrust proxy;
+	private ProxyTrust proxy;
+        private Exporter exporter;
 
 	public ProxyTrustImpl() {
 	    try {
@@ -365,13 +379,20 @@ class LocalLease implements Lease, Serializable {
 		if (exporter == null) {
 		    return; // configuration isn't secure
 		}
-		proxy = (ProxyTrust) exporter.export(this);
+                this.exporter = exporter;
+		
 	    } catch (Exception e) {
 		throw new RuntimeException("Problem creating verifier", e);
 	    }
 	}
+        
+        public synchronized void export() throws ExportException {
+            if (exporter != null){
+                proxy = (ProxyTrust) exporter.export(this);
+            }
+        }
 
-	public ProxyTrust getProxy() {
+	public synchronized ProxyTrust getProxy() {
 	    return proxy;
 	}
 

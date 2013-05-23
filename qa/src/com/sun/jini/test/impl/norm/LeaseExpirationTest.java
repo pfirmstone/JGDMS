@@ -145,6 +145,7 @@ public class LeaseExpirationTest extends TestBase implements Test {
 	addLease(setLease, true);
 
 	listener = new OurListener(setLease, setRenewals);
+        listener.export();
 
 	// If we need to register for warning events
 	if (shouldRegister) {	    
@@ -175,6 +176,7 @@ public class LeaseExpirationTest extends TestBase implements Test {
 
 	// Create owners and leases
 	final LeaseBackEndImpl home = new LeaseBackEndImpl(leaseCount);
+        home.export();
 	for (int i = 0; i < leaseCount; i++) {
 	    final long now = System.currentTimeMillis();
 	    final long initExp = now + renewGrant;

@@ -41,6 +41,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 
 import com.sun.jini.qa.harness.QAConfig;
+import java.rmi.server.ExportException;
 
 /**
  * Simple listener that prints message to log when an event is received
@@ -53,6 +54,7 @@ class TestSpaceListener
 
     final private Entry tmpl;
     private Object proxy;
+    private final Exporter exporter;
 
     /**
      * Create a new TestSpaceListener that dumps to the pasted stream
@@ -64,18 +66,22 @@ class TestSpaceListener
 		exporter =
 		(Exporter) c.getEntry("test", "outriggerListenerExporter", Exporter.class);
 	    }
-	    proxy = exporter.export(this);
+	    this.exporter = exporter;
 	} catch (ConfigurationException e) {
 	    throw new IllegalArgumentException("Bad configuration" + e);
 	}
         this.tmpl = tmpl;
     }
+    
+    public synchronized void export() throws ExportException {
+        proxy = exporter.export(this);
+    }
 
-    public Object writeReplace() throws ObjectStreamException {
+    public synchronized Object writeReplace() throws ObjectStreamException {
         return proxy;
     }
 
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new BasicProxyTrustVerifier(proxy);
     }
 

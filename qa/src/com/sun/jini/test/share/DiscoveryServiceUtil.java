@@ -46,6 +46,7 @@ import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
+import java.rmi.server.ExportException;
 
 /**
  * This class contains a set of static methods that provide general-purpose
@@ -63,7 +64,7 @@ public class DiscoveryServiceUtil {
     public static class BasicEventListener 
 	implements RemoteEventListener, ServerProxyTrust, Serializable 
     {
-
+        private final Exporter exporter;
 	private Object proxy;
 
         public BasicEventListener() throws RemoteException {
@@ -79,9 +80,11 @@ public class DiscoveryServiceUtil {
 		    throw new RemoteException("Configuration problem", e);
 		}
 	    }
-            synchronized (this){
-                proxy = exporter.export(this);
-            }
+            this.exporter = exporter;
+        }
+        
+        public synchronized void export() throws ExportException{
+            proxy = exporter.export(this);
         }
 
 	private synchronized Object writeReplace() throws ObjectStreamException {

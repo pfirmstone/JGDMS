@@ -87,6 +87,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import com.sun.jini.qa.harness.Test;
 import com.sun.jini.test.share.LookupServices;
+import java.rmi.server.ExportException;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -726,9 +727,10 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
 	implements RemoteEventListener, ServerProxyTrust, Serializable
     {
 
-        private RegistrationInfo regInfo;
+        private final RegistrationInfo regInfo;
         private Object proxy;
-	private ProxyPreparer registrarPreparer;
+	private final ProxyPreparer registrarPreparer;
+        private final Exporter exporter;
         public LDSEventListener(RegistrationInfo regInfo)
 	    throws RemoteException
         {
@@ -736,7 +738,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
             this.regInfo = regInfo;
 	    Configuration c = getConfig().getConfiguration();
 	    Exporter exporter = QAConfig.getDefaultExporter();
-	    registrarPreparer = new BasicProxyPreparer();
+	    ProxyPreparer registrarPreparer = new BasicProxyPreparer();
 	    if (c instanceof com.sun.jini.qa.harness.QAConfiguration) {
 		try {
 		    exporter = (Exporter) c.getEntry("test",
@@ -750,8 +752,13 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
 		    throw new RemoteException("Configuration error", e);
 		}
 	    }
-	    proxy = exporter.export(this);
+	    this.exporter = exporter;
+            this.registrarPreparer = registrarPreparer;
         }//end constructor
+        
+        public synchronized void export() throws ExportException{
+            proxy = exporter.export(this);
+        }
 
 	public Object writeReplace() throws ObjectStreamException {
 	    return proxy;
@@ -1266,6 +1273,7 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
                                                         iHandback);
         LDSEventListener listener =
                                new AbstractBaseTest.LDSEventListener(regInfo);
+        listener.export();
         LookupDiscoveryRegistration ldsReg = null;
 	try {
 	    ldsReg = discoverySrvc.register(groupsToDiscover,

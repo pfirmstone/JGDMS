@@ -93,9 +93,11 @@ public class CancelLeaseMap extends AbstractBaseTest {
         long  durs[]  = new long[reg.length];
         String[] expectedGroups = getGroupsToDiscover();
         for(int i=0;i<reg.length;i++) {
+            DiscoveryServiceUtil.BasicEventListener listener = new DiscoveryServiceUtil.BasicEventListener();
+            listener.export();
             reg[i] = DiscoveryServiceUtil.getRegistration
                                (discoverySrvc,
-                                new DiscoveryServiceUtil.BasicEventListener(),
+                                listener,
                                 expectedGroups);
             String[] currentGroups = reg[i].getGroups();
             if( !GroupsUtil.compareGroupSets(currentGroups,expectedGroups,Level.OFF) ) {

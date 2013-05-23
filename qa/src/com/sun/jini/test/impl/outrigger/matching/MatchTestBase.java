@@ -83,6 +83,7 @@ public abstract class MatchTestBase extends MatchTestCore {
 	    new ARemoteInterfaceImpl(getConfig().getConfiguration(),
 				     "The quick brown fox"
 				     + " jumps over the lazy dog");
+        ((ARemoteInterfaceImpl)aRemoteMatch.aRI).export();
 	writeList.add(aRemoteMatch);
         ChildOfStringMatch aChildStringEntry = new ChildOfStringMatch(true);
         aChildStringEntry.aString = "BAR";

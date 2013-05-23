@@ -103,6 +103,7 @@ public class AddRenewRemoveTest extends TestBase implements Test {
 	final long now = System.currentTimeMillis();
 
 	final LeaseBackEndImpl home = new LeaseBackEndImpl(1);
+        home.export();
 	final long initExp = now + renewGrant;
 	final RenewingOwner owner = new RenewingOwner(initExp, renewCount, 
 						    renewGrant,

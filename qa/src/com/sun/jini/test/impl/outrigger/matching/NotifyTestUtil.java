@@ -81,11 +81,13 @@ class NotifyTestUtil {
     void registerForNotify(Entry tmpl)
             throws TransactionException, RemoteException, java.io.IOException {
 	try {
+            TestSpaceListener tsl = 
+                    new TestSpaceListener(config.getConfiguration(), tmpl);
+            tsl.export();
 	    EventRegistration er = 
 		space.notify(tmpl,
 			     null, 
-			     new TestSpaceListener(config.getConfiguration(), 
-			                           tmpl),
+			     tsl,
 			     Lease.ANY, 
 			     new MarshalledObject(tmpl));
 	    QAConfig c = QAConfig.getConfig();

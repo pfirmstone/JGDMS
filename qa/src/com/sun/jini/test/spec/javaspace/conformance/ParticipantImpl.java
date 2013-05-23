@@ -39,6 +39,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 
 import com.sun.jini.qa.harness.QAConfig;
+import java.rmi.server.ExportException;
 
 /**
  * This class is needed to prevent normal committing operation.
@@ -53,7 +54,7 @@ public class ParticipantImpl implements TransactionParticipant,
 
 
     private static Configuration configuration;
-
+    private final Exporter exporter;
     private Object proxy;
 
     public static void setConfiguration(Configuration configuration) {
@@ -82,14 +83,18 @@ public class ParticipantImpl implements TransactionParticipant,
 		throw new RemoteException("Configuration Error", e);
 	    }
 	}
-	proxy = exporter.export(this);
+	this.exporter = exporter;
+    }
+    
+    public synchronized void export() throws ExportException{
+        proxy = exporter.export(this);
     }
 
-    public Object writeReplace() throws ObjectStreamException {
+    public synchronized Object writeReplace() throws ObjectStreamException {
 	return proxy;
     }
 
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new BasicProxyTrustVerifier(proxy);
     }
 
