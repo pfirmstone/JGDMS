@@ -114,7 +114,7 @@ public class LeaseBackEndImpl implements LeaseBackEnd, ServerProxyTrust {
         this.factoryClass = factoryClass;
     }
     
-    private synchronized void export() throws ExportException, RemoteException {
+    public synchronized void export() throws ExportException, RemoteException {
         LeaseBackEnd stub = 
 	    (LeaseBackEnd) exporter.export(this);
 

@@ -59,6 +59,7 @@ public class TestLeaseProvider {
      */
     public TestLeaseProvider(int leaseCount) throws RemoteException {
 	leaseBackEnd = new LeaseBackEndImpl(leaseCount);
+        leaseBackEnd.export();
     }
 
     /**
@@ -73,6 +74,7 @@ public class TestLeaseProvider {
     public TestLeaseProvider(int leaseCount, Class factoryClass) 
 	       throws RemoteException {
 	leaseBackEnd = new LeaseBackEndImpl(leaseCount, factoryClass);
+        leaseBackEnd.export();
     }
 
     /**

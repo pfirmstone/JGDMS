@@ -68,6 +68,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import com.sun.jini.qa.harness.Test;
+import java.rmi.server.ExportException;
 
 /**
  * This class determines if, when a client's lease on a registration with the
@@ -90,13 +91,16 @@ public class LeaseExpiration extends AbstractBaseTest {
     /** Convenience class for handling the events sent by the service
      *  with which the client (the test) has registered
      */
-
-    private Object proxy;
+    
+    
 
     public class ServiceEventListener implements RemoteEventListener, 
 						 ServerProxyTrust,
 						 Serializable 
     {
+        private final Exporter exporter;
+        private Object proxy;
+        
         public ServiceEventListener() throws RemoteException {
             super();
 	    Configuration c = getConfig().getConfiguration();
@@ -110,14 +114,19 @@ public class LeaseExpiration extends AbstractBaseTest {
 		    throw new RemoteException("Could not find listener exporter", e);
 		}
 	    }
+            this.exporter = exporter;
+        }
+        
+        private synchronized void export() throws ExportException{
             proxy = exporter.export(this);
         }
+        
 
-	public Object writeReplace() throws ObjectStreamException {
+	public synchronized Object writeReplace() throws ObjectStreamException {
 	    return proxy;
 	}
 
-	public TrustVerifier getProxyVerifier() {
+	public synchronized TrustVerifier getProxyVerifier() {
 	    return new BasicProxyTrustVerifier(proxy);
 	}
 
@@ -175,14 +184,14 @@ public class LeaseExpiration extends AbstractBaseTest {
     }//end class LRMListener
 
     private ServiceRegistrar srvcReg = null;
-    private ArrayList lookupList = new ArrayList();
+    private final ArrayList lookupList = new ArrayList();
     private String[] memberGroups = DiscoveryGroupManagement.NO_GROUPS;
     private static final int N_CYCLES_WAIT_EXPIRATION = 10;
     private static final long N_SECS = 30;
-    private long duration = N_SECS*1000;
+    private final long duration = N_SECS*1000;
     private MarshalledObject handback = null;
     private boolean eventReceived = false;
-    private Object eventLock = new Object();
+    private final Object eventLock = new Object();
 
     /** Constructs and returns the duration values (in milliseconds) to 
      *  request on each renewal attempt (can be overridden by sub-classes)
@@ -205,21 +214,23 @@ public class LeaseExpiration extends AbstractBaseTest {
         /* Start a lookup service */
         logger.log(Level.FINE, 
                           "starting a new lookup service");
-        synchronized(eventLock) {
-            eventReceived = false;
-            srvcReg = getManager().startLookupService(); // already prepared
-            lookupList.add( srvcReg );
+        synchronized (this){
+            synchronized(eventLock) {
+                eventReceived = false;
+                srvcReg = getManager().startLookupService(); // already prepared
+                lookupList.add( srvcReg );
+            }
+            DiscoveryAdmin admin = DiscoveryAdminUtil.getDiscoveryAdmin(srvcReg);
+            memberGroups = admin.getMemberGroups();
+            LocatorsUtil.displayLocator(QAConfig.getConstrainedLocator(srvcReg.getLocator()),
+                                        "  lookup locator",Level.FINE);
+            logger.log(Level.FINE, 
+                       "  lookup MemberGroup(s) = "
+                       +GroupsUtil.toCommaSeparatedStr(memberGroups));
+            handback = new MarshalledObject
+                                  (GroupsUtil.toCommaSeparatedStr(memberGroups));
+            return this;
         }
-        DiscoveryAdmin admin = DiscoveryAdminUtil.getDiscoveryAdmin(srvcReg);
-        memberGroups = admin.getMemberGroups();
-        LocatorsUtil.displayLocator(QAConfig.getConstrainedLocator(srvcReg.getLocator()),
-                                    "  lookup locator",Level.FINE);
-        logger.log(Level.FINE, 
-		   "  lookup MemberGroup(s) = "
-		   +GroupsUtil.toCommaSeparatedStr(memberGroups));
-	handback = new MarshalledObject
-                              (GroupsUtil.toCommaSeparatedStr(memberGroups));
-        return this;
     }//end construct
 
     /** Executes the current test by doing the following:
@@ -257,7 +268,7 @@ public class LeaseExpiration extends AbstractBaseTest {
      *  9. Verify that the lookup discovery service does not send anymore
      *     discovery events to the registration's listener
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
         logger.log(Level.FINE, "run()");
         if(discoverySrvc == null) {
             throw new TestException("could not successfully start the service "
@@ -270,6 +281,7 @@ public class LeaseExpiration extends AbstractBaseTest {
         /* Request a registration with the lookup discovery service */
         logger.log(Level.FINE, "registering with the lookup discovery service");
 	ServiceEventListener eventListener = new ServiceEventListener();
+        eventListener.export();
 	LookupDiscoveryRegistration reg = 
 	    DiscoveryServiceUtil.getRegistration
 	                  (discoverySrvc,

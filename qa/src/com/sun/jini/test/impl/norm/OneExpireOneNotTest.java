@@ -123,6 +123,7 @@ public class OneExpireOneNotTest extends QATestEnvironment implements Test {
             "test.normLeasePreparer", expsLease);
 
 	final LeaseBackEndImpl backend = new LeaseBackEndImpl(leaseCount);
+        backend.export();
 
 	for (int i=0; i<leaseCount; i+=2) {
 	    long initExpiration = System.currentTimeMillis() + renewGrant;
