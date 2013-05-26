@@ -89,6 +89,12 @@ class Pipe implements Runnable {
     void start(){
         outThread.start();
     }
+    
+    void stop() throws IOException{
+        outThread.interrupt();
+        in.close();
+        stream.close();
+    }
 
     /**
      * Wait until the run method terminates due to reading EOF on input

@@ -157,6 +157,7 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 		   "NonActivatableGroup exec command line: '" + cmdBuf + "'");
 	logServiceParameters();
 
+        ObjectInputStream proxyStream = null;
 	// exec the process, setup the pipe, and get the proxy
 	try {
 	    process = Runtime.getRuntime().exec(cmdArray);
@@ -166,14 +167,29 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 			       null, //filter
 			       new NonActGrpAnnotator("NonActGrp-out: "));
             outPipe.start();
-	    ObjectInputStream proxyStream = 
-		new ObjectInputStream(process.getErrorStream());
+	    proxyStream = new ObjectInputStream(process.getErrorStream());
 	    proxy = (NonActivatableGroup)
 		    ((MarshalledObject) proxyStream.readObject()).get();
-	} catch (IOException e) {
+        } catch (IOException e) {
+            // Clean up.
+            process.destroy();
+            try {
+                outPipe.stop();
+            } catch (IOException ex){ }//Ignore
+            try {
+                if (proxyStream != null) proxyStream.close();
+            } catch (IOException ex){ } // Ignore.
 	    throw new TestException("NonActivatableGroupAdmin: Failed to exec "
 				  + "the group", e);
 	} catch (ClassNotFoundException e) {
+            // Clean up.
+            process.destroy();
+            try {
+                outPipe.stop();
+            } catch (IOException ex){ }//Ignore
+            try {
+                if (proxyStream != null) proxyStream.close();
+            } catch (IOException ex){ } // Ignore.
 	    throw new TestException("NonActivatableGroupAdmin: Failed to exec "
 				  + "the group", e);
 	}

@@ -32,6 +32,10 @@ import java.io.ObjectStreamException;
 import java.io.Serializable;
 import java.io.WriteAbortedException;
 import java.rmi.server.ExportException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -51,13 +55,33 @@ class RemoteListener implements RemoteEventListener,
 
     private Object proxy;
     private final Exporter exporter;
+    private final AccessControlContext context;
 
     RemoteListener(Exporter exporter) throws RemoteException {
 	this.exporter = exporter;
+        this.context = AccessController.getContext(); // Save context for lazy export.
     }
     
+    /**
+     * Must synchronize on this when called.
+     * @return proxy
+     * @throws ExportException 
+     */
     private Object getProxy() throws ExportException{
-        if (proxy == null) proxy = exporter.export(this);
+        if (proxy == null){
+            try {
+                proxy = AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
+
+                    @Override
+                    public Object run() throws ExportException {
+                        return exporter.export(RemoteListener.this);
+                    }
+
+                }, context);
+            } catch (PrivilegedActionException ex) {
+                throw (ExportException) ex.getException();
+            }
+        }
         return proxy;
     }
 
