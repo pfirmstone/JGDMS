@@ -43,12 +43,12 @@ import com.sun.jini.qa.harness.QAConfig;
 public class TransactionRegisterForAvailabilityEventTest05
         extends TransactionTest
 {
-    private ArrayList templates = new ArrayList();
-    private ArrayList expectedResult = new ArrayList();
+    private final ArrayList templates = new ArrayList();
+    private final ArrayList expectedResult = new ArrayList();
 
-    private SimpleEntry sampleEntry1 = new SimpleEntry("TestEntry #1", 1);
-    private SimpleEntry sampleEntry2 = new SimpleEntry("TestEntry #2", 2);
-    private SimpleEntry sampleEntry3 = new SimpleEntry("TestEntry #1", 2);
+    private final SimpleEntry sampleEntry1 = new SimpleEntry("TestEntry #1", 1);
+    private final SimpleEntry sampleEntry2 = new SimpleEntry("TestEntry #2", 2);
+    private final SimpleEntry sampleEntry3 = new SimpleEntry("TestEntry #1", 2);
 
     /**
      * This method asserts that for JavaSpace05's
@@ -98,7 +98,7 @@ public class TransactionRegisterForAvailabilityEventTest05
      *
      * @throws Exception
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
         Transaction txn = getTransaction();
         ArrayList registrations = new ArrayList();
 
@@ -112,11 +112,10 @@ public class TransactionRegisterForAvailabilityEventTest05
                 txn, true, testEventListener0, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
         final long gotER0Timestamp = System.currentTimeMillis();
-        List notifications = testEventListener0.getNotifications();
         expectedResult.add(sampleEntry1);  // this entry is to trigger the event
         space.write(sampleEntry1, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener0.getNotifications(), expectedResult,
                            "Writing one entry to trigger an event");
         registrations.add(er0);
         reset(txn);
@@ -127,13 +126,12 @@ public class TransactionRegisterForAvailabilityEventTest05
         EventRegistration er1 = space05.registerForAvailabilityEvent(templates,
                 txn, true, testEventListener1, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener1.getNotifications();
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         space.write(sampleEntry1, txn, leaseForeverTime);
         space.write(sampleEntry2, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener1.getNotifications(), expectedResult,
                            "Writing 2 entries to trigger 2 events");
         registrations.add(er1);
         reset(txn);
@@ -143,13 +141,12 @@ public class TransactionRegisterForAvailabilityEventTest05
         EventRegistration er2 = space05.registerForAvailabilityEvent(templates,
                 txn, true, testEventListener2, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener2.getNotifications();
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
         space.write(sampleEntry2, txn, leaseForeverTime);
         space.write(sampleEntry3, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener2.getNotifications(), expectedResult,
                            "Writing 2 entries to trigger 2 events "
                            + "(with single template)");
         registrations.add(er2);
@@ -160,7 +157,6 @@ public class TransactionRegisterForAvailabilityEventTest05
         EventRegistration er3 = space05.registerForAvailabilityEvent(templates,
                 txn, true, testEventListener3, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener3.getNotifications();
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
@@ -168,7 +164,7 @@ public class TransactionRegisterForAvailabilityEventTest05
         space.write(sampleEntry2, txn, leaseForeverTime);
         space.write(sampleEntry3, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener3.getNotifications(), expectedResult,
                            "Writing 3 entries to trigger 3 events "
                            + "(with single template)");
         registrations.add(er3);
@@ -179,13 +175,12 @@ public class TransactionRegisterForAvailabilityEventTest05
         EventRegistration er4 = space05.registerForAvailabilityEvent(templates,
                 txn, true, testEventListener4, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener4.getNotifications();
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         space.write(sampleEntry1, txn, leaseForeverTime);
         space.write(sampleEntry2, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener4.getNotifications(), expectedResult,
                            "Writing 2 entries to trigger 2 events "
                            + "(with null template)");
         registrations.add(er4);
@@ -196,13 +191,12 @@ public class TransactionRegisterForAvailabilityEventTest05
         EventRegistration er5 = space05.registerForAvailabilityEvent(templates,
                 txn, true, testEventListener5, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener5.getNotifications();
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry1);
         space.write(sampleEntry1, txn, leaseForeverTime);
         space.write(sampleEntry1, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener5.getNotifications(), expectedResult,
                            "Writing 2 duplicate entries to trigger 2 events "
                            + "(with null template)");
 
@@ -222,13 +216,12 @@ public class TransactionRegisterForAvailabilityEventTest05
         EventRegistration er6 = space05.registerForAvailabilityEvent(templates,
                 txn, true, testEventListener6, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener6.getNotifications();
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
         space.write(sampleEntry2, txn, leaseForeverTime);
         space.write(sampleEntry3, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener6.getNotifications(), expectedResult,
                            "Writing 2 entries to trigger 2 events " +
                            "(with multiple matching templates)");
         registrations.add(er6);
@@ -245,11 +238,10 @@ public class TransactionRegisterForAvailabilityEventTest05
                 templates, txn, false,
                 testEventListener0a, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener0a.getNotifications();
         expectedResult.add(sampleEntry1);  // this entry is to trigger the event
         space.write(sampleEntry1, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener0a.getNotifications(), expectedResult,
                            "Writing one entry to trigger an event");
         registrations.add(er0a);
         reset(txn);
@@ -261,13 +253,12 @@ public class TransactionRegisterForAvailabilityEventTest05
                 templates, txn, false,
                 testEventListener1a, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener1a.getNotifications();
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         space.write(sampleEntry1, txn, leaseForeverTime);
         space.write(sampleEntry2, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener1a.getNotifications(), expectedResult,
                            "Writing 2 entries to trigger 2 events");
         registrations.add(er1a);
         reset(txn);
@@ -278,13 +269,12 @@ public class TransactionRegisterForAvailabilityEventTest05
                 templates, txn, false,
                 testEventListener2a, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener2a.getNotifications();
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
         space.write(sampleEntry2, txn, leaseForeverTime);
         space.write(sampleEntry3, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener2a.getNotifications(), expectedResult,
                            "Writing 2 entries to trigger 2 events "
                            + "(with single template)");
         registrations.add(er2a);
@@ -296,7 +286,6 @@ public class TransactionRegisterForAvailabilityEventTest05
                 templates, txn, false,
                 testEventListener3a, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener3a.getNotifications();
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
@@ -304,7 +293,7 @@ public class TransactionRegisterForAvailabilityEventTest05
         space.write(sampleEntry2, txn, leaseForeverTime);
         space.write(sampleEntry3, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener3a.getNotifications(), expectedResult,
                            "Writing 3 entries to trigger 3 events "
                            + "(with single template)");
         registrations.add(er3a);
@@ -316,13 +305,12 @@ public class TransactionRegisterForAvailabilityEventTest05
                 templates, txn, false,
                 testEventListener4a, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener4a.getNotifications();
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry2);
         space.write(sampleEntry1, txn, leaseForeverTime);
         space.write(sampleEntry2, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener4a.getNotifications(), expectedResult,
                            "Writing 2 entries to trigger 2 events "
                            + "(with null template)");
         registrations.add(er4a);
@@ -334,13 +322,12 @@ public class TransactionRegisterForAvailabilityEventTest05
                 templates, txn, false,
                 testEventListener5a, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener5a.getNotifications();
         expectedResult.add(sampleEntry1);
         expectedResult.add(sampleEntry1);
         space.write(sampleEntry1, txn, leaseForeverTime);
         space.write(sampleEntry1, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener5a.getNotifications(), expectedResult,
                            "Writing 2 duplicate entries to trigger 2 events "
                            + "(with null template)");
 
@@ -361,13 +348,12 @@ public class TransactionRegisterForAvailabilityEventTest05
                 templates, txn, false,
                 testEventListener6a, leaseForeverTime,
                 new MarshalledObject("notUsedHere"));
-        notifications = testEventListener6a.getNotifications();
         expectedResult.add(sampleEntry2);
         expectedResult.add(sampleEntry3);
         space.write(sampleEntry2, txn, leaseForeverTime);
         space.write(sampleEntry3, txn, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener6a.getNotifications(), expectedResult,
                            "Writing 2 entries to trigger 2 events " +
                            "(with multiple matching templates)");
         registrations.add(er6a);
@@ -416,12 +402,11 @@ public class TransactionRegisterForAvailabilityEventTest05
          * The expectedResult is empty.
          */
         Thread.sleep(2000);     // let the time for registrations to be dropped
-        notifications = testEventListener2.getNotifications();
-        notifications.clear(); // clear all the previous notifications
+        testEventListener2.clearNotifications(); // clear all the previous notifications
         space.write(sampleEntry2, null, leaseForeverTime);
         space.write(sampleEntry3, null, leaseForeverTime);
         Thread.sleep(waitingNotificationsToComeTime);
-        checkNotifications(notifications, expectedResult,
+        checkNotifications(testEventListener2.getNotifications(), expectedResult,
                            "Writing 2 entries to trigger no events " +
                            "(registration dropped)");
         cleanSpace(space);

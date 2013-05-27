@@ -85,6 +85,10 @@ public class TestEventListener05 implements RemoteEventListener,
     public synchronized List getNotifications() {
         return new ArrayList(notifications);
     }
+    
+    public synchronized void clearNotifications() {
+        notifications.clear();
+    }
 
     public synchronized Object writeReplace() throws ObjectStreamException {
         return proxy;
