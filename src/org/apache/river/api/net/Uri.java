@@ -1921,7 +1921,7 @@ public final class Uri implements Comparable<Uri> {
     private String getHashString() {
         StringBuilder result = new StringBuilder();
         if (scheme != null) {
-            result.append(scheme.toLowerCase());
+            result.append(toAsciiLowerCase(scheme));
             result.append(':');
         }
         if (opaque) {
@@ -1935,7 +1935,7 @@ public final class Uri implements Comparable<Uri> {
                     if (userinfo != null) {
                         result.append(userinfo + "@"); //$NON-NLS-1$
                     }
-                    result.append(host.toLowerCase());
+                    result.append(toAsciiLowerCase(host));
                     if (port != -1) {
                         result.append(":" + port); //$NON-NLS-1$
                     }
@@ -1944,7 +1944,7 @@ public final class Uri implements Comparable<Uri> {
 
             if (path != null) {
                 if (fileSchemeCaseInsensitiveOS){
-                    result.append(toAsciiUpperCase(path.toCharArray()));
+                    result.append(toAsciiUpperCase(path));
                 } else {
                     result.append(path);
                 }

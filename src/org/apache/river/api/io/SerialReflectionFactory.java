@@ -23,7 +23,6 @@ import java.io.ObjectOutput;
 import java.io.Serializable;
 import java.io.StreamCorruptedException;
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -33,6 +32,7 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
+import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -40,9 +40,12 @@ import java.util.logging.Logger;
  * Distributed form, required for reflective calls to instantiate objects remotely, 
  * using a constructor, static method or an Object method.
  * 
- * This object must be Thread confined, it is not thread safe.
+ * This object must be Thread confined, it is not thread safe.  It should be
+ * created on demand, it is primarily for use by {@link DistributedObjectInputStream}
+ * and {@link DistributedObjectOutputStream}, it is created by {@link Distributed}
+ * Object implementations and {@link DistributedObjectInputStream}
  * 
- * Internal state is guarded, arrays are not defensively coped.
+ * Internal state is guarded, arrays are not defensively copied.
  * 
  * This is compatible with Version 2 of the Java Serialization Protocol.
  * 
@@ -80,11 +83,15 @@ public final class SerialReflectionFactory implements Externalizable {
     private static final byte OBJECT = 8;
     private static final byte NULL = 9;
     
+    // Serial Form
     private Object classOrObject;
     private String method;
     private Class [] parameterTypes;
     private Object [] parameters;
-    private final boolean constructed; // default value is false.
+    
+    // Private local object state.
+    private int hash;
+    private boolean constructed; // default value is false.
     
     /**
      * Public method provided for java serialization framework.
@@ -147,6 +154,12 @@ public final class SerialReflectionFactory implements Externalizable {
             throw new IllegalArgumentException("Array lengths don't match, or arrays are too long,"
                     + " parameter array limit 127, "
                     + "you need to see a shrink if you need this many parameters");
+        int hash = 7;
+        hash = 89 * hash + (this.classOrObject != null ? this.classOrObject.hashCode() : 0);
+        hash = 89 * hash + (this.method != null ? this.method.hashCode() : 0);
+        hash = 89 * hash + Arrays.hashCode(this.parameterTypes);
+        hash = 89 * hash + Arrays.deepHashCode(this.parameters);
+        this.hash = hash;
     }
     
     Object create() throws IOException {
@@ -196,6 +209,7 @@ public final class SerialReflectionFactory implements Externalizable {
     // Inherit documentation
     public void writeExternal(ObjectOutput out) throws IOException {
         distributable.checkGuard(null);
+        if (! constructed) throw new IOException("Attempt to write blank SerialReflectionFactory");
         out.writeObject(classOrObject);
         out.writeObject(method);
         /* don't clone arrays for defensive copies, it's up to constructing 
@@ -309,6 +323,7 @@ public final class SerialReflectionFactory implements Externalizable {
          * will never be shared with other threads and will be replaced by
          * a fully constructed thread safe immutable object. */
         if (constructed) throw new IllegalStateException("Object already constructed");
+        constructed = true;
         /* Don't defensively copy arrays, the object is used immediately after
          * deserialization to construct the Distributed Object, the fields are
          * not accessed again, it is up to creator methods themselves to 
@@ -322,5 +337,33 @@ public final class SerialReflectionFactory implements Externalizable {
         for (int i = 0; i < len; i++){
             parameters[i] = readObject(in);
         }
+        int hash = 7;
+        hash = 89 * hash + (this.classOrObject != null ? this.classOrObject.hashCode() : 0);
+        hash = 89 * hash + (this.method != null ? this.method.hashCode() : 0);
+        hash = 89 * hash + Arrays.deepHashCode(this.parameterTypes);
+        hash = 89 * hash + Arrays.deepHashCode(this.parameters);
+        this.hash = hash;
+    }
+    
+    // equals and hashcode are implemented to avoid sending duplicates in 
+    // object streams.
+    @Override
+    public int hashCode() {
+        return hash;
+    }
+    
+    @Override
+    public boolean equals(Object o){
+        if (!(o instanceof SerialReflectionFactory)) return false;
+        if ( hash != o.hashCode()) return false;
+        SerialReflectionFactory other = (SerialReflectionFactory) o;
+        if ( classOrObject == null && other.classOrObject != null) return false;
+        if ( classOrObject != null && ! classOrObject.equals(other.classOrObject)) return false;
+        if ( method == null && other.method != null) return false;
+        if ( method != null && ! method.equals(other.method)) return false;
+        if (!Arrays.equals(parameterTypes, other.parameterTypes)) return false;
+        if (!Arrays.deepEquals(parameters, other.parameters)) return false;
+        return true;
+        // A locally constructed instance may be equal to a deserialized one.
     }
 }

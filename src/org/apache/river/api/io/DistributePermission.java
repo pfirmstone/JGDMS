@@ -24,7 +24,7 @@ import java.security.BasicPermission;
  * ObjectOutput
  * 
  * @author peter
- * @see SerialFactory
+ * @see SerialReflectionFactory
  * @see ObjectOutput
  */
 public class DistributePermission  extends BasicPermission{
