@@ -136,70 +136,70 @@ public abstract class AbstractServiceAdmin implements Admin {
     protected final int index;
 
     /** The codebase for the service */
-    private volatile String codebase;
+    private String codebase;
 
     /** The implementation class name of this service */
-    private volatile String impl;
+    private String impl;
 
     /** The policy file applied to this service */
-    private volatile String policyFile;
+    private String policyFile;
 
     /** The classpath for this service */
-    private volatile String classpath;
+    private String classpath;
 
     /** The vm to be used to run this service (uaually null) */
-    private volatile String jvm;
+    private String jvm;
 
     /** The command line options for the service VM */
-    private volatile String[] options;
+    private String[] options;
 
     /** The system properties for the service VM */
-    private volatile String[] properties;
+    private String[] properties;
 
     /** The activation host (usually null) */
-    private volatile String activationHost;
+    private String activationHost;
 
     /** The activation port (only used for non-null act host) */
-    private volatile int activationPort;
+    private int activationPort;
 
     /** The name of the service configuration file */
-    private volatile String serviceConfigFile;
+    private String serviceConfigFile;
 
     /** The name of the service starter configuration file */
-    private volatile String starterConfig;
+    private String starterConfig;
 
     /** The service directory (e.g. the doc directory for the class server */
-    private volatile String dir;
+    private String dir;
 
     /** The port associated with the service (e.g. the class server port */
-    private volatile int port;
+    private int port;
 
     /** Flag indicating a port was defined */
-    private volatile boolean gotPort = false;
+    private boolean gotPort = false;
 
     /** Groups associated with the service */
-    private volatile String[] groups;
+    private String[] groups;
 
     /** Locators associated with the service, expected to be non-null */
-    private volatile LookupLocator[] locators = new LookupLocator[0];
+    private LookupLocator[] locators = new LookupLocator[0];
 
     /** Member groups associated with a lookup service */
-    private volatile String[] memberGroups;
+    private String[] memberGroups;
 
     /** The name of the proxy preparer */
-    private volatile String preparerName;
+    private String preparerName;
 
     /** The name of the persistence directory */
-    private volatile String logDirName; //XXX merge with dir?
+    private String logDirName; //XXX merge with dir?
 
     /** The service type (for selecting the admin class) */
-    private volatile String type;
+    private String type;
 
     /** The transformer for munging the service descriptor */
-    protected volatile ServiceDescriptorTransformer transformer = null;
+    private ServiceDescriptorTransformer transformer = null;
 
     /** The component name in the configuration file */
-    private volatile String component;
+    private String component;
 
     /**
      * Construct an <code>AbstractServicerAdmin</code>.
@@ -224,7 +224,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @return the component name
      * @throws TestException if the property is not defined
      */
-    protected String getServiceComponent() throws TestException {
+    protected synchronized String getServiceComponent() throws TestException {
 	if (component == null) {
 	    component = getMandatoryParameter("component");
 	}
@@ -237,7 +237,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service type
      */
-    public String getComponent() {
+    public synchronized String getComponent() {
 	return component;
     }
 
@@ -248,7 +248,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @return the type identifier
      * @throws TestException if the property is not defined
      */
-    protected String getServiceType() throws TestException {
+    protected synchronized String getServiceType() throws TestException {
 	type = getMandatoryParameter("type");
 	return type;
     }
@@ -259,7 +259,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service type
      */
-    public String getType() {
+    public synchronized String getType() {
 	return type;
     }
 
@@ -271,7 +271,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * 
      * @return the preparer entry name 
      */
-    protected String getServicePreparerName() {
+    protected synchronized String getServicePreparerName() {
 	preparerName = config.getServiceStringProperty(serviceName,
 						       "preparername",
 						       index);
@@ -284,7 +284,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service proxy preparer name
      */
-    public String getPreparerName() {
+    public synchronized String getPreparerName() {
 	return preparerName;
     }
 
@@ -295,7 +295,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @return the impl class name
      * @throws TestException if the impl class name cannot be found
      */
-    protected String getServiceImpl() throws TestException {
+    protected synchronized String getServiceImpl() throws TestException {
 	impl = getMandatoryParameter("impl");
 	return impl;
     }
@@ -306,7 +306,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service implementation class name
      */
-    public String getImpl() {
+    public synchronized String getImpl() {
 	return impl;
     }
 
@@ -322,7 +322,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *         if codebase integrity is required and a problem occurs
      *         converting the URL
      */
-    protected final String getServiceCodebase() throws TestException {
+    protected synchronized final String getServiceCodebase() throws TestException {
 	codebase = getMandatoryParameter("codebase");
 	String cb = fixCodebase(codebase);
         try {
@@ -385,7 +385,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service codebase
      */
-    public String getCodebase() {
+    public synchronized String getCodebase() {
 	return  codebase;
     }
 
@@ -397,7 +397,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @return the policy file name
      * @throws TestException if the policy file name cannot be found
      */
-    protected String getServicePolicyFile() throws TestException {
+    protected synchronized String getServicePolicyFile() throws TestException {
 	policyFile = getMandatoryParameter("policyfile");
 	return policyFile;
     }
@@ -408,7 +408,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service policy file name
      */
-    public String getPolicyFile() {
+    public synchronized String getPolicyFile() {
 	return policyFile;
     }
 
@@ -420,7 +420,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @return the classpath
      * @throws TestException if the classpath cannot be found
      */
-    protected String getServiceClasspath() throws TestException {
+    protected synchronized String getServiceClasspath() throws TestException {
 	classpath = getMandatoryParameter("classpath");
 	String globalcp = config.getStringConfigVal("globalclasspath", null);
 	if (globalcp != null) {
@@ -438,7 +438,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service classpath
      */
-    public String getClasspath() {
+    public synchronized String getClasspath() {
 	return classpath;
     }
 
@@ -448,7 +448,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * 
      * @return the vm to run, or <code>null</code> if not found
      */
-    protected String getServiceJVM() {
+    protected synchronized String getServiceJVM() {
 	jvm = config.getServiceStringProperty(serviceName,
 					      "serverjvm",
 					      index);
@@ -461,7 +461,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service vm
      */
-    public String getJVM() {
+    public synchronized String getJVM() {
 	return jvm;
     }
   
@@ -473,7 +473,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @return a directory name, or <code>null</code> if not found
      * @throws TestException if the parameter is not found
      */
-    protected String getServiceDir() throws TestException {
+    protected synchronized String getServiceDir() throws TestException {
 	dir = getMandatoryParameter("dir");
 	return dir;
     }
@@ -484,7 +484,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service vm
      */
-    public String getDir() {
+    public synchronized String getDir() {
 	return dir;
     }
   
@@ -523,9 +523,9 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @return a <code>String</code> array of command line options, or 
      *         <code>null</code> if none were found
      */
-    protected String[] getServiceOptions() {
+    protected synchronized String[] getServiceOptions() {
 	options = config.extractOptions(getServiceVMArgs());
-	return options;
+	return options == null ? null : options.clone();
     }
 
     /**
@@ -534,8 +534,8 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service options
      */
-    public String[] getOptions() {
-	return options;
+    public synchronized String[] getOptions() {
+	return options == null ? null : options.clone();
     }
   
     /**
@@ -563,14 +563,15 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @throws TestException if the returned array would contain an odd
      *         number of elements
      */
-    protected String[] getServiceProperties() throws TestException {
+    protected synchronized String[] getServiceProperties() throws TestException {
         properties = config.extractProperties(getServiceVMArgs());
 	if (properties != null) {
 	    if (properties.length % 2 == 1) {
 		throw new TestException("Properties array has odd count");
 	    }
+            return properties.clone();
 	}
-	return properties;
+	return null;
     }
 
     /**
@@ -582,8 +583,8 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service properties
      */
-    public String[] getProperties() {
-	return properties;
+    public synchronized String[] getProperties() {
+	return properties == null ? null : properties.clone();
     }
 
     /**
@@ -593,7 +594,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * 
      * @return the host name, or <code>null</code> if undefined
      */
-    protected String getServiceActivationHost() {
+    protected synchronized String getServiceActivationHost() {
 	activationHost = config.getServiceStringProperty(serviceName,
 					                 "activationhost", 
 							 index);
@@ -606,7 +607,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service activation host
      */
-    public String getActivationHost() {
+    public synchronized String getActivationHost() {
 	return activationHost;
     }
 	
@@ -617,7 +618,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * 
      * @return the port number, or <code>0</code> if undefined
      */
-    protected int getServiceActivationPort() {
+    protected synchronized int getServiceActivationPort() {
 	activationPort = config.getServiceIntProperty(serviceName,
 						       "activationport", 
 						       index);
@@ -630,7 +631,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service activation port
      */
-    public int getActivationPort() {
+    public synchronized int getActivationPort() {
 	return activationPort;
     }
 	
@@ -642,7 +643,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * 
      * @return the port number, or <code>0</code> if undefined
      */
-    protected int getServicePort() {
+    protected synchronized int getServicePort() {
 	gotPort = true;
 	port = config.getServiceIntProperty(serviceName,
 					    "port", 
@@ -660,7 +661,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service port
      */
-    public int getPort() {
+    public synchronized int getPort() {
 	return port;
     }
 
@@ -676,7 +677,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @return the service configuration file name
      * @throws TestException if the configuration file is undefined
      */
-    protected String getServiceConfigurationFileName() throws TestException {
+    protected synchronized String getServiceConfigurationFileName() throws TestException {
         serviceConfigFile = "-";
 	if (!config.getConfigurationTag().equals("none")) {
 	    serviceConfigFile = 
@@ -700,7 +701,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @param list the list to append the configuration file name
      * @throws TestException if the configuration file is not defined
      */
-    protected void addServiceConfigurationFileName(List list) 
+    protected synchronized void addServiceConfigurationFileName(List list) 
 	throws TestException
     {
 	list.add(getServiceConfigurationFileName());
@@ -712,7 +713,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service configuration file name
      */
-    public String getConfigurationFileName() {
+    public synchronized String getConfigurationFileName() {
 	return serviceConfigFile;
     }
 
@@ -756,7 +757,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @return the service configuration file name
      * @throws TestException if the starter configuration is undefined
      */
-    protected String getServiceStarterConfigurationFileName() 
+    protected synchronized String getServiceStarterConfigurationFileName() 
 	throws TestException 
     {
 	starterConfig = "-";
@@ -777,7 +778,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the service's starter configuration file name
      */
-    public String getStarterConfigurationFileName() {
+    public synchronized String getStarterConfigurationFileName() {
 	return starterConfig;
     }
 
@@ -954,10 +955,12 @@ public abstract class AbstractServiceAdmin implements Admin {
 	    logger.logp(Level.FINE, null, null, 
 			"     activation port   : " + intVal);
 	}
-	if (preparerName != null) {
-	    logger.logp(Level.FINE, null, null,
-			"     proxy preparer    : " + preparerName);
-	}
+        synchronized (this){
+            if (preparerName != null) {
+                logger.logp(Level.FINE, null, null,
+                            "     proxy preparer    : " + preparerName);
+            }
+        }
     }
 
     /**
@@ -1024,7 +1027,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @param list the command-line list
      * @throws TestException if the component name is undefined for this service
      */
-    protected void addServiceUnicastDiscoveryPort(ArrayList list) 
+    protected synchronized void addServiceUnicastDiscoveryPort(ArrayList list) 
 	throws TestException
     {
 	getServicePort();
@@ -1050,7 +1053,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @param list the overrides list
      */
-    protected void addServiceGroupsAndLocators(ArrayList list) 
+    protected synchronized void addServiceGroupsAndLocators(ArrayList list) 
 	throws TestException
     {
 	String tojoin = config.getServiceStringProperty(serviceName,
@@ -1169,7 +1172,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the array of groups
      */
-    public String[] getGroups() {
+    public synchronized String[] getGroups() {
 	return groups;
     }
 
@@ -1179,7 +1182,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the array of locators
      */
-    public LookupLocator[] getLocators() {
+    public synchronized LookupLocator[] getLocators() {
 	return locators;
     }
 
@@ -1195,7 +1198,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @param list the options list to append the overrides to 
      */
-    protected void addServiceMemberGroups(ArrayList list) throws TestException {
+    protected synchronized void addServiceMemberGroups(ArrayList list) throws TestException {
 	String memberstring = config.getServiceStringProperty(serviceName,
 							      "membergroups", 
 							      index);
@@ -1297,7 +1300,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the set of membergroups
      */
-    public String[] getMemberGroups() {
+    public synchronized String[] getMemberGroups() {
 	return memberGroups;
     }
 
@@ -1343,7 +1346,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *                       if the log name was absolute and the named
      *                       directory exists
      */
-    protected String getServicePersistenceLog() throws TestException {
+    protected synchronized String getServicePersistenceLog() throws TestException {
 	File logDir = null;
 	String log = config.getServiceStringProperty(serviceName,
 						     "log",
@@ -1392,7 +1395,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      * @param list the override list into which to place the override
      * @throws TestException if the configuration is undefined
      */
-    protected void addServiceExporter(ArrayList list) throws TestException{
+    protected synchronized void addServiceExporter(ArrayList list) throws TestException{
 	Configuration c = getServiceConfiguration();
 	if (type == null) {
 	    getServiceType();
@@ -1412,7 +1415,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @return the log name
      */
-    public String getLogDir() {
+    public synchronized String getLogDir() {
 	return logDirName;
     }
 
@@ -1472,6 +1475,10 @@ public abstract class AbstractServiceAdmin implements Admin {
      *                       name could be found in the test configuration
      */
     protected Object doProxyPreparation(Object proxy) throws TestException {
+        String preparerName;
+        synchronized (this){
+            preparerName = this.preparerName;
+        }
 	String[] entryTokens = config.splitKey(preparerName);
 	if (entryTokens != null) {
 	    try {
@@ -1506,7 +1513,7 @@ public abstract class AbstractServiceAdmin implements Admin {
      *
      * @param t the transformer
      */
-    public void registerDescriptorTransformer(ServiceDescriptorTransformer t) {
+    public synchronized void registerDescriptorTransformer(ServiceDescriptorTransformer t) {
 	this.transformer = t;
     }
 
@@ -1528,6 +1535,13 @@ public abstract class AbstractServiceAdmin implements Admin {
     public String getName() {
 	return serviceName;
     }
-}
 
+    /**
+     * @return the transformer
+     */
+    protected synchronized ServiceDescriptorTransformer getTransformer() {
+        return transformer;
+    }
+    
+}
 

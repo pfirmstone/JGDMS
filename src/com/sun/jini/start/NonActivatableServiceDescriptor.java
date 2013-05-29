@@ -239,7 +239,7 @@ public class NonActivatableServiceDescriptor
     protected transient boolean descCreated = false;
     
     /** Lock object for <code>descCreated</code> flag */
-    protected transient Object descCreatedLock = new Object();
+    protected final Object descCreatedLock = new Lock();
     
     private static LifeCycle NoOpLifeCycle = 
         new LifeCycle() { // default, no-op object
@@ -272,6 +272,10 @@ public class NonActivatableServiceDescriptor
         }//end constructor
     }//end class Created
 
+    private static class Lock implements Serializable {
+        private static final long serialVersionUID = 1L;
+    }
+    
     /**
      * Main constructor. Simply assigns given parameters to 
      * their associated, internal fields unless otherwise noted.
@@ -742,7 +746,6 @@ public class NonActivatableServiceDescriptor
         lifeCycle = NoOpLifeCycle;
         servicePreparer = null;
         descCreated = false;
-        descCreatedLock = new Object();
     }
     
     /**

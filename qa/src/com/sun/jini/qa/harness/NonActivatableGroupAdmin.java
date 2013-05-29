@@ -40,13 +40,13 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 	Logger.getLogger("com.sun.jini.qa.harness");
 
     /** the group proxy */
-    private volatile NonActivatableGroup proxy;
+    private NonActivatableGroup proxy;
 
     /** the system process */
-    private volatile Process process;
+    private Process process;
 
     /** the stdout pipe, which mustn't be GC'd */
-    private volatile Pipe outPipe;
+    private Pipe outPipe;
 
     /** service options provided by the 5-arg constructor */
     private final String[] options;
@@ -55,10 +55,10 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
     private final String[] properties;
 
     /** merge of group options and service options */
-    private volatile String[] combinedOptions;
+    private String[] combinedOptions;
 
     /** merge of group properties and service properties */
-    private volatile String[] combinedProperties;
+    private String[] combinedProperties;
 
     /**
      * Construct an instance of <code>NonActivatableGroupAdmin</code>.
@@ -159,40 +159,42 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 
         ObjectInputStream proxyStream = null;
 	// exec the process, setup the pipe, and get the proxy
-	try {
-	    process = Runtime.getRuntime().exec(cmdArray);
-	    outPipe = new Pipe("NonActivatableGroup_system-out", 
-			       process.getInputStream(),
-			       System.out,
-			       null, //filter
-			       new NonActGrpAnnotator("NonActGrp-out: "));
-            outPipe.start();
-	    proxyStream = new ObjectInputStream(process.getErrorStream());
-	    proxy = (NonActivatableGroup)
-		    ((MarshalledObject) proxyStream.readObject()).get();
-        } catch (IOException e) {
-            // Clean up.
-            process.destroy();
+        synchronized (this){
             try {
-                outPipe.stop();
-            } catch (IOException ex){ }//Ignore
-            try {
-                if (proxyStream != null) proxyStream.close();
-            } catch (IOException ex){ } // Ignore.
-	    throw new TestException("NonActivatableGroupAdmin: Failed to exec "
-				  + "the group", e);
-	} catch (ClassNotFoundException e) {
-            // Clean up.
-            process.destroy();
-            try {
-                outPipe.stop();
-            } catch (IOException ex){ }//Ignore
-            try {
-                if (proxyStream != null) proxyStream.close();
-            } catch (IOException ex){ } // Ignore.
-	    throw new TestException("NonActivatableGroupAdmin: Failed to exec "
-				  + "the group", e);
-	}
+                process = Runtime.getRuntime().exec(cmdArray);
+                outPipe = new Pipe("NonActivatableGroup_system-out", 
+                                   process.getInputStream(),
+                                   System.out,
+                                   null, //filter
+                                   new NonActGrpAnnotator("NonActGrp-out: "));
+                outPipe.start();
+                proxyStream = new ObjectInputStream(process.getErrorStream());
+                proxy = (NonActivatableGroup)
+                        ((MarshalledObject) proxyStream.readObject()).get();
+            } catch (IOException e) {
+                // Clean up.
+                process.destroy();
+                try {
+                    outPipe.stop();
+                } catch (IOException ex){ }//Ignore
+                try {
+                    if (proxyStream != null) proxyStream.close();
+                } catch (IOException ex){ } // Ignore.
+                throw new TestException("NonActivatableGroupAdmin: Failed to exec "
+                                      + "the group", e);
+            } catch (ClassNotFoundException e) {
+                // Clean up.
+                process.destroy();
+                try {
+                    outPipe.stop();
+                } catch (IOException ex){ }//Ignore
+                try {
+                    if (proxyStream != null) proxyStream.close();
+                } catch (IOException ex){ } // Ignore.
+                throw new TestException("NonActivatableGroupAdmin: Failed to exec "
+                                      + "the group", e);
+            }
+        }
     }
 
     /**
@@ -218,7 +220,7 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
      * @throws RemoteException if a communication error occurs when the
      *                         groups <code>stop</code> method is called
      */
-    public void stop() throws RemoteException {
+    public synchronized void stop() throws RemoteException {
 	proxy.stop();
 	Timeout.TimeoutHandler handler =
 	    new Timeout.ThreadTimeoutHandler(Thread.currentThread());
@@ -238,7 +240,7 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
      *
      * @return the <code>NonActivatableGroup</code> proxy
      */
-    public Object getProxy() {
+    public synchronized Object getProxy() {
 	return proxy;
     }
 
@@ -248,10 +250,10 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
      *
      * @return the merged property array
      */
-    public String[] getServiceOptions() {
+    public synchronized String[] getServiceOptions() {
 	combinedOptions = config.mergeOptions(super.getServiceOptions(),
 					      options);
-	return combinedOptions;
+	return combinedOptions.clone();
     }
 
     /** 
@@ -261,8 +263,8 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
      *
      * @return the merged options array
      */
-    public String[] getOptions() {
-	return combinedOptions;
+    public synchronized String[] getOptions() {
+	return combinedOptions.clone();
     }
 
     /**
@@ -271,10 +273,10 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
      *
      * @return the merged property array
      */
-    public String[] getServiceProperties() throws TestException {
+    public synchronized String[] getServiceProperties() throws TestException {
 	combinedProperties = config.mergeProperties(super.getServiceProperties(),
 						properties);
-	return combinedProperties;
+	return combinedProperties.clone();
     }
 
     /** 
@@ -284,8 +286,8 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
      *
      * @return the merged property array
      */
-    public String[] getProperties() {
-	return combinedProperties;
+    public synchronized String[] getProperties() {
+	return combinedProperties.clone();
     }
 
     /**
@@ -293,7 +295,7 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
      *
      * @return true if the dump is successfully requested
      */
-    public boolean forceThreadDump() {
+    public synchronized boolean forceThreadDump() {
 	logger.log(Level.INFO, "Attempting to force thread dump on "
 		   + "NonActivatableGroup " + process);
 	boolean ret = true;

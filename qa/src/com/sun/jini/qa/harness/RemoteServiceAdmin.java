@@ -35,10 +35,10 @@ class RemoteServiceAdmin extends AbstractServiceAdmin implements Admin {
     private Object serviceRef;
 
     /** the slave host name */
-    private String hostname;
+    private final String hostname;
 
     /** the test properties */
-    private QAConfig config;
+    private final QAConfig config;
 
     /**
      * Construct a <code>RemoteServiceAdmin</code>.
@@ -59,7 +59,7 @@ class RemoteServiceAdmin extends AbstractServiceAdmin implements Admin {
     }
 
     /* inherit javadoc */
-    public Object getProxy() {
+    public synchronized Object getProxy() {
 	return serviceRef;
     }
 
@@ -103,9 +103,11 @@ class RemoteServiceAdmin extends AbstractServiceAdmin implements Admin {
 		throw new TestException("expected MarshalledObject, got " 
 					+ o.getClass());
 	    }
-	    serviceRef = ((MarshalledObject) o).get();
-	    getServicePreparerName();
-	    serviceRef = doProxyPreparation(serviceRef);
+            synchronized (this){
+                serviceRef = ((MarshalledObject) o).get();
+                getServicePreparerName();
+                serviceRef = doProxyPreparation(serviceRef);
+            }
 	} catch (Exception e) {
 	    throw new TestException("Unexpected exception", e);
 	}
@@ -121,7 +123,10 @@ class RemoteServiceAdmin extends AbstractServiceAdmin implements Admin {
      */
     public void stop() throws RemoteException {
 	try {
-	    SlaveRequest request = new StopServiceRequest(serviceRef);
+	    SlaveRequest request;
+                synchronized (this){
+                    request = new StopServiceRequest(serviceRef);
+                }
 	    Object o = SlaveTest.call(hostname, request);
 	    if (o == null) {
 		return;

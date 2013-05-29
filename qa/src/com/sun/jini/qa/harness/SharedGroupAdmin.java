@@ -81,7 +81,7 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
     private String[] combinedOptions;
 
     /** the admin manager */
-    private AdminManager manager;
+    private final AdminManager manager;
 
     /**
      * Construct an <code>SharedGroupAdmin</code>.
@@ -128,7 +128,7 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
     }
 
     /* inherit javadoc */
-    public Object getProxy() {
+    public synchronized Object getProxy() {
 	return serviceRef;
     }
 
@@ -168,7 +168,7 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
      *                          will be wrapped in a 
      *                          {@link com.sun.jini.qa.harness.TestException}.
      */
-    public void start() throws RemoteException, TestException {
+    public synchronized void start() throws RemoteException, TestException {
 	if (!ActivationSystemAdmin.wasStarted()) {
 	    manager.startService("activationSystem");
 	}
@@ -225,10 +225,10 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
      *
      * @return the merged property array
      */
-    public String[] getServiceProperties() throws TestException {
+    public synchronized String[] getServiceProperties() throws TestException {
 	combinedProperties = 
 	    config.mergeProperties(super.getServiceProperties(), properties);
-	return combinedProperties;
+	return combinedProperties.clone();
     }
 
     /** 
@@ -238,8 +238,8 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
      *
      * @return the merged property array
      */
-    public String[] getProperties() {
-	return combinedProperties;
+    public synchronized String[] getProperties() {
+	return combinedProperties.clone();
     }
 
     /**
@@ -248,10 +248,10 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
      *
      * @return the merged property array
      */
-    public String[] getServiceOptions() {
+    public synchronized String[] getServiceOptions() {
 	combinedOptions = 
 	    config.mergeOptions(super.getServiceOptions(), options);
-	return combinedOptions;
+	return combinedOptions.clone();
     }
 
     /** 
@@ -261,8 +261,8 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
      *
      * @return the merged options array
      */
-    public String[] getOptions() {
-	return combinedOptions;
+    public synchronized String[] getOptions() {
+	return combinedOptions.clone();
     }
 
     /**
@@ -273,7 +273,7 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
      * @throws RemoteException if an error occurs while 
      *                         attempting to start or call the back end service 
      */
-    public void killVM() throws RemoteException {
+    public synchronized void killVM() throws RemoteException {
 	try {
 	    if (killerProxy == null) {
 		ActivatableServiceStarterAdmin killerAdmin =
@@ -297,7 +297,7 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
      *
      * @throws RemoteException if destroying the shared group failed
      */
-    public void stop() throws RemoteException {
+    public synchronized void stop() throws RemoteException {
 	try {
 	    if (killerProxy != null) {
 		logger.log(Level.FINE, "destroying VMKiller service");
@@ -321,7 +321,7 @@ public class SharedGroupAdmin extends AbstractServiceAdmin implements Admin {
      *
      * @return the shared vm log dir (which may be <code>null</code>)
      */
-    public File getSharedGroupLog() {
+    public synchronized File getSharedGroupLog() {
 	return sharedGroupLog;
     }
 }

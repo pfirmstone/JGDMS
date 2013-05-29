@@ -94,7 +94,7 @@ public class SimpleModifyLookupAttributes extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
 	/* create the lookup service */
 	super.construct(sysConfig);
 	/* retrieve the proxy to the JoinAdmin methods */
@@ -156,7 +156,7 @@ public class SimpleModifyLookupAttributes extends QATestRegistrar {
      *  expected classes.
      *  @exception QATestException usually indicates test failure
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	/* retrieve the initial set of attribute classes belonging to the
 	 * Registrar; verify that this set contains the expected classes 
 	 */

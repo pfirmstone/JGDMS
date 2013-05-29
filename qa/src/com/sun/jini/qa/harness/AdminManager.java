@@ -118,13 +118,13 @@ public class AdminManager {
 	Logger.getLogger("com.sun.jini.qa.harness");
 
     /** A mapping of service name prefixes to their index counters. */    
-    private HashMap serviceCounters  = new HashMap();
+    private final HashMap serviceCounters  = new HashMap();
     
     /** The set of admins to be managed by this manager. */
-    private HashSet createdAdminSet   = new HashSet();
+    private final HashSet createdAdminSet   = new HashSet();
     
     /** The <code>QAConfig</code> object */
-    private QAConfig config;
+    private final QAConfig config;
 
     /** the admin for the shared group managed by this class. */
     private SharedGroupAdmin sharedGroupAdmin;
@@ -230,7 +230,7 @@ public class AdminManager {
      *                       of the admin types.
      * @throws  NullPointerException if <code>serviceName</code> is null
      */
-    private Admin getAdmin(String serviceName, int counter, String host)
+    private synchronized Admin getAdmin(String serviceName, int counter, String host)
 	                       throws TestException
     {
 	logger.log(Level.FINEST, 
@@ -397,7 +397,7 @@ public class AdminManager {
      *         proxy is bound. <code>null</code> is returned if the
      *         admin cannot be found.
      */
-    public Admin getAdmin(Object proxy) {
+    public synchronized Admin getAdmin(Object proxy) {
 	Iterator it = createdAdminSet.iterator();
 	while (it.hasNext()) {
 	    Admin ad = (Admin) it.next();
@@ -819,7 +819,7 @@ public class AdminManager {
      *                  activation group to be no longer registered with the
      *                  the activation system
      */
-    public void destroyAllServices(int nSecsWait) {
+    public synchronized void destroyAllServices(int nSecsWait) {
 	/*
 	 * ArrayLists are created containing the service proxies
 	 * to delete. This is important because the destroyService
@@ -901,7 +901,7 @@ public class AdminManager {
      *                  <code>stopAndWait</code> method was called and returned
      *                  a success status.
      */
-    public boolean destroyService(Object service, int nSecsWait) {
+    public synchronized boolean destroyService(Object service, int nSecsWait) {
 	if (service == null) {
 	    return true;
 	}
@@ -957,7 +957,7 @@ public class AdminManager {
      * @return the shared log directory path represented as a string. This
      *         string will be null if there is no active shared group.
      */
-    public String getSharedVMLog() {
+    public synchronized String getSharedVMLog() {
 	String sharedLogDir = null;
 	if (sharedGroupAdmin != null) {
 	    sharedLogDir = 
@@ -1023,8 +1023,8 @@ public class AdminManager {
      *
      * @return the <code>Iterator</code>
      */
-    Iterator iterator() {
-	return createdAdminSet.iterator();
+    synchronized Iterator iterator() {
+	return new HashSet(createdAdminSet).iterator();
     }
 
     /**
@@ -1052,7 +1052,7 @@ public class AdminManager {
      * 
      * @return the admin
      */
-    public SharedGroupAdmin getSharedGroupAdmin() {
+    public synchronized SharedGroupAdmin getSharedGroupAdmin() {
 	return sharedGroupAdmin;
     }
 
@@ -1061,11 +1061,11 @@ public class AdminManager {
      * 
      * @return the admin
      */
-    public NonActivatableGroupAdmin getNonActivatableGroupAdmin() {
+    public synchronized NonActivatableGroupAdmin getNonActivatableGroupAdmin() {
 	return nonActivatableGroupAdmin;
     }
 
-    public AbstractServiceAdmin[] getAllAdmins() {
+    public synchronized AbstractServiceAdmin[] getAllAdmins() {
 	AbstractServiceAdmin[] admins = 
 	    new AbstractServiceAdmin[createdAdminSet.size()];
 	return (AbstractServiceAdmin[]) createdAdminSet.toArray(admins);

@@ -126,17 +126,19 @@ public class ClassServerAdmin extends AbstractServiceAdmin implements Admin {
 	    throw new TestException("ClassServerAdmin: no constructor for "
 				   + serverClassName);
 	}
-	try {
-	    classServer = (ClassServer) 
-		          cons.newInstance(new Object[]{new Integer(port),
-							dir,
-							new Boolean(trees),
-							new Boolean(verbose)});
-	} catch (Exception e) {
-	    throw new TestException("Exception instantiating class server "
-				    + serverClassName, e);
-	}
-	classServer.start();
+        synchronized (this){
+            try {
+                classServer = (ClassServer) 
+                              cons.newInstance(new Object[]{new Integer(port),
+                                                            dir,
+                                                            new Boolean(trees),
+                                                            new Boolean(verbose)});
+            } catch (Exception e) {
+                throw new TestException("Exception instantiating class server "
+                                        + serverClassName, e);
+            }
+            classServer.start();
+        }
     }
 
     /**
@@ -145,7 +147,7 @@ public class ClassServerAdmin extends AbstractServiceAdmin implements Admin {
      *
      * @throws RemoteException never.
      */
-    public void stop() throws RemoteException {
+    public synchronized void stop() throws RemoteException {
 	classServer.terminate();
     }
 
@@ -155,7 +157,7 @@ public class ClassServerAdmin extends AbstractServiceAdmin implements Admin {
      *
      * @return a local reference to the <code>ClassServer</code>
      */
-    public Object getProxy() {
+    public synchronized Object getProxy() {
 	return classServer;
     }
 }

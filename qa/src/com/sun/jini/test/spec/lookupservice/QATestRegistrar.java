@@ -356,7 +356,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public Test construct(QAConfig config) throws Exception {
+    public synchronized Test construct(QAConfig config) throws Exception {
 	int i,j;
 	int index;
 
@@ -476,7 +476,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
     }
  
     /* Retrieve (and display) configuration values for the current test */
-    private void getSetupInfo() {
+    private synchronized void getSetupInfo() {
         /* begin harness info */
         logger.log(Level.FINE, "----- Harness Info ----- ");
         String harnessCodebase = System.getProperty("java.rmi.server.codebase",
@@ -528,42 +528,42 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
     /** Returns the number of different service classes to test per run
      *  @return int
      */
-    protected int getNTestClasses() {
+    protected synchronized int getNTestClasses() {
 	return   nTestClasses;
     }
 
     /** Returns the number of different instances of each test class
      *  @return int
      */
-    protected int getNInstancesPerClass() {
+    protected synchronized int getNInstancesPerClass() {
 	return   nInstancesPerClass;
     }
 
     /** Returns the total number of different test class instances created
      *  @return int
      */
-    protected int getNInstances() {
+    protected synchronized int getNInstances() {
 	return   nInstances;
     }
 
     /** Returns the number of different attribute classes to test per run
      *  @return int
      */
-    protected int getNAttrClasses() {
+    protected synchronized int getNAttrClasses() {
 	return   nAttrClasses;
     }
 
     /** Returns the number of different instances of each attribute class
      *  @return int
      */
-    protected int getNAttrInstancesPerClass() {
+    protected synchronized int getNAttrInstancesPerClass() {
 	return   nAttrInstancesPerClass;
     }
 
     /** Returns total number of different attribute class instances created
      *  @return int
      */
-    protected int getNAttrInstances() {
+    protected synchronized int getNAttrInstances() {
 	return   nAttrInstances;
     }
 
@@ -572,14 +572,14 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  net.jini.core.lookup.ServiceRegistrar
      *  @see net.jini.core.lookup.ServiceRegistrar
      */
-    protected ServiceRegistrar getProxy() { 
+    protected synchronized ServiceRegistrar getProxy() { 
 	return proxy;
     }
     
     /** Returns the lookup service admin object
      *  @return lookup service admin object
      */
-    protected Object getAdminProxy() { 
+    protected synchronized Object getAdminProxy() { 
 	return adminProxy;
     }
 
@@ -587,7 +587,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  select a service being looked up
      *  @return int
      */
-    protected int getSelectMethod() {
+    protected synchronized int getSelectMethod() {
 	return   selectMethod;
     }
 

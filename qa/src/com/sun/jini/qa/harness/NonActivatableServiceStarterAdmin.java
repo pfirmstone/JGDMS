@@ -58,7 +58,7 @@ public class NonActivatableServiceStarterAdmin extends AbstractServiceAdmin
     private boolean privateGroup = false;
 
     /** the admin manager for the test */
-    private AdminManager manager;
+    private final AdminManager manager;
 
     /**
      * Construct a <code>NonActivatableServiceStarterAdmin</code>.
@@ -80,7 +80,7 @@ public class NonActivatableServiceStarterAdmin extends AbstractServiceAdmin
     }
 
     /* inherit javadoc */
-    public Object getProxy() {
+    public synchronized Object getProxy() {
 	return serviceRef;
     }
 
@@ -120,7 +120,7 @@ public class NonActivatableServiceStarterAdmin extends AbstractServiceAdmin
      *                          will be wrapped in a 
      *                          {@link com.sun.jini.qa.harness.TestException}.  
      */
-    public void start() throws RemoteException, TestException {
+    public synchronized void start() throws RemoteException, TestException {
 	try {
 	    // generate the overrides string array
 	    ArrayList optionsList = new ArrayList();
@@ -150,8 +150,7 @@ public class NonActivatableServiceStarterAdmin extends AbstractServiceAdmin
 					    getClasspath(),
 					    getImpl(),
 					    serviceConfigArgs,
-					    getStarterConfigurationFileName(),
-					    transformer);
+					    getStarterConfigurationFileName(), getTransformer());
 						       
 	} catch (Exception e) {
 	    throw new TestException("Problem creating service for "
@@ -181,7 +180,7 @@ public class NonActivatableServiceStarterAdmin extends AbstractServiceAdmin
      *         and the back-end of the service while attempting to destroy
      *         the service.
      */
-    public void stop() throws RemoteException {
+    public synchronized void stop() throws RemoteException {
 	try {
 	    ServiceDestroyer.destroy(serviceRef);
 	} catch (ConnectException e) {

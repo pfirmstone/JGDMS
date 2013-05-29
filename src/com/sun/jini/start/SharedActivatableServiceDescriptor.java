@@ -493,7 +493,11 @@ public class SharedActivatableServiceDescriptor
      * @return the <A HREF="#innerProxy">inner proxy</A> preparer associated with 
      * this service descriptor.
      */
-    final public ProxyPreparer getInnerProxyPreparer() { return innerProxyPreparer; }
+    final public ProxyPreparer getInnerProxyPreparer() {
+        synchronized (descCreatedLock){
+            return innerProxyPreparer; 
+        }
+    }
 
     /**
      * Sets the <A HREF="#innerProxy">inner</A> 
@@ -595,9 +599,10 @@ public class SharedActivatableServiceDescriptor
             (ProxyPreparer) Config.getNonNullEntry(config,
 	        ServiceStarter.START_PACKAGE, "activationIdPreparer", 
 		ProxyPreparer.class, new BasicProxyPreparer());
-
-        if (innerProxyPreparer == null) {
-            innerProxyPreparer = globalServicePreparer;
+        synchronized (descCreatedLock){
+            if (innerProxyPreparer == null) {
+                innerProxyPreparer = globalServicePreparer;
+            }
         }
         
 	/* Warn user of inaccessible codebase(s) */
@@ -630,7 +635,9 @@ public class SharedActivatableServiceDescriptor
             proxy = aid.activate(true);
 
 	    if(proxy != null) {
-                proxy = innerProxyPreparer.prepareProxy(proxy);
+                synchronized (descCreatedLock){
+                    proxy = innerProxyPreparer.prepareProxy(proxy);
+                }
 	        if (proxy instanceof ServiceProxyAccessor) {
                     proxy = ((ServiceProxyAccessor)proxy).getServiceProxy();
                     if(proxy != null) {

@@ -101,7 +101,7 @@ public class ActivatableServiceStarterAdmin
     private SharedActivatableServiceDescriptor.Created created;
 
     /** the admin manager */
-    private AdminManager manager;
+    private final AdminManager manager;
 
     /** flag indicating whether this service is running shared */
     private boolean privateGroup = false;
@@ -132,7 +132,7 @@ public class ActivatableServiceStarterAdmin
      * @return the group ID, or <code>null</code> if the service has
      *         not been started
      */
-    public ActivationGroupID getGroupID() {
+    public synchronized ActivationGroupID getGroupID() {
 	return (created == null ? null : created.gid);
     }
     
@@ -143,12 +143,12 @@ public class ActivatableServiceStarterAdmin
      * @return the activation ID, or <code>null</code> if the service has
      *         not been started
      */
-     public ActivationID getActivationID() {
+     public synchronized ActivationID getActivationID() {
 	return (created == null ? null : created.aid);
     }
 
     /* inherit javadoc */
-    public Object getProxy() {
+    public synchronized Object getProxy() {
 	return serviceRef;
     }
 
@@ -198,7 +198,7 @@ public class ActivatableServiceStarterAdmin
      *                          will be wrapped in a 
      *                          {@link com.sun.jini.qa.harness.TestException}.  
      */
-    public void start() throws RemoteException, TestException {
+    public synchronized void start() throws RemoteException, TestException {
 	try {
 	    // generate the overrides string array
 	    ArrayList optionsList = new ArrayList();
@@ -232,9 +232,9 @@ public class ActivatableServiceStarterAdmin
 	    getServicePreparerName();
 	    logServiceParameters(); // log debug output
 	    logOverrides(serviceConfigArgs);
-	    if (transformer != null) {
+	    if (getTransformer() != null) {
 		desc = (SharedActivatableServiceDescriptor) 
-		       transformer.transform(desc);
+		       getTransformer().transform(desc);
 	    }
 	    created = (SharedActivatableServiceDescriptor.Created) 
 		      desc.create(starterConfig);
@@ -262,7 +262,7 @@ public class ActivatableServiceStarterAdmin
      * @throws RemoteException if a communications error occured while making
      *                         the remote call to the killVM backend server
      */
-    public void killVM() throws RemoteException {
+    public synchronized void killVM() throws RemoteException {
 	groupAdmin.killVM();
     }
 
@@ -335,7 +335,7 @@ public class ActivatableServiceStarterAdmin
      *              typically, this exception occurs when problems arise while
      *              attempting to interact with the activation system
      */
-    public int stopAndWait(int nSecsWait) 
+    public synchronized int stopAndWait(int nSecsWait) 
                throws RemoteException, ActivationException
     {
 	int destroyCode = ServiceDestroyer.DESTROY_SUCCESS;       
@@ -377,7 +377,7 @@ public class ActivatableServiceStarterAdmin
      * @throws TestException if this method attempts to start a shared
      *                       group and the attempt fails
      */
-    protected String getServiceSharedLogDir() throws TestException {
+    protected synchronized String getServiceSharedLogDir() throws TestException {
 	if (groupAdmin == null) {
 	    if (config.getBooleanConfigVal("com.sun.jini.qa.harness.shared",
 					   true))
@@ -415,7 +415,7 @@ public class ActivatableServiceStarterAdmin
      *
      * @return the service shared log directory name
      */
-    public String getSharedLogDir() {
+    public synchronized String getSharedLogDir() {
 	return sharedLogDirName;
     }
 
@@ -428,7 +428,7 @@ public class ActivatableServiceStarterAdmin
      *
      * @return the value of the restart parameter
      */
-    protected boolean getServiceRestart() {
+    protected synchronized boolean getServiceRestart() {
 	restart = config.getServiceBooleanProperty(serviceName,
 						   "restart",
 						   index,
@@ -442,7 +442,7 @@ public class ActivatableServiceStarterAdmin
      *
      * @return the service restart value
      */
-    public boolean getRestart() {
+    public synchronized boolean getRestart() {
 	return restart;
     }
 

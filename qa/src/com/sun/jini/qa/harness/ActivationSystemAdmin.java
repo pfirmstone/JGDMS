@@ -118,7 +118,7 @@ public class ActivationSystemAdmin
      *
      * @return true of the activation system has been started
      */
-    public static boolean wasStarted() {
+    public synchronized static boolean wasStarted() {
 	return started;
     }
 
@@ -176,123 +176,129 @@ public class ActivationSystemAdmin
      * @throws RemoteException  never.
      */
     public void start() throws RemoteException, TestException {
-	if (started) {
-	    throw new TestException("ActivationSystemAdmin: an activation "
-				  + "system has "
-				  + "already been started by this class");
-	}
-	if (!config.getBooleanConfigVal("com.sun.jini.qa.harness.runactivation",
-				        true)) 
-	{
-	    logger.log(Level.FINE, "Activation system is disabled");
-	    return;
-	} else {
-	    cleanupRunningActivationSystem(); // clean up a lingering old one
-	}
-	String type = getServiceType();
-	if (! (type.equals("rmid") || type.equals("phoenix"))) {   
-	    throw new TestException("'type' for " + serviceName
-				    + " is " + type + " - must be "
-				    + " either 'rmid' or 'phoenix'");
-	}
+        synchronized (ActivationSystemAdmin.class){
+            if (started) {
+                throw new TestException("ActivationSystemAdmin: an activation "
+                                      + "system has "
+                                      + "already been started by this class");
+            }
+        }
+        synchronized (this){
+            if (!config.getBooleanConfigVal("com.sun.jini.qa.harness.runactivation",
+                                            true)) 
+            {
+                logger.log(Level.FINE, "Activation system is disabled");
+                return;
+            } else {
+                cleanupRunningActivationSystem(); // clean up a lingering old one
+            }
+            String type = getServiceType();
+            if (! (type.equals("rmid") || type.equals("phoenix"))) {   
+                throw new TestException("'type' for " + serviceName
+                                        + " is " + type + " - must be "
+                                        + " either 'rmid' or 'phoenix'");
+            }
 
-	ArrayList l = new ArrayList(10);
-	String actCommand = null;
-	if (type.equals("rmid")) {
-	    l.add(System.getProperty("java.home") + "/bin/rmid");
-	} else {
-	    l.add(System.getProperty("java.home") + "/bin/java");
-	}
-	l.add("-Djava.security.policy=" + getServicePolicyFile());
-	String[] opts = getServiceOptions();
-	if (opts != null) {
-	    for (int i = 0; i < opts.length; i++) {
-		l.add(opts[i]);
-	    }
-	}
-	String[] props = getServiceProperties();
-	if (props != null) {
-	    for (int i = 0; i < props.length; i += 2) {
-		l.add("-D" + props[i] + "=" + props[i+1]);
-	    }
-	}
-	// don't use -jar syntax in case of augmented classpath
-	if (type.equals("phoenix")) {
-	    l.add("-Djava.rmi.server.codebase=" + getServiceCodebase());
-	    l.add("-cp");
-	    l.add(getServiceClasspath());
-	    l.add("com.sun.jini.phoenix.Activation");
-	    l.add(getServiceConfigurationFileName());
-	}
+            ArrayList l = new ArrayList(10);
+            String actCommand = null;
+            if (type.equals("rmid")) {
+                l.add(System.getProperty("java.home") + "/bin/rmid");
+            } else {
+                l.add(System.getProperty("java.home") + "/bin/java");
+            }
+            l.add("-Djava.security.policy=" + getServicePolicyFile());
+            String[] opts = getServiceOptions();
+            if (opts != null) {
+                for (int i = 0; i < opts.length; i++) {
+                    l.add(opts[i]);
+                }
+            }
+            String[] props = getServiceProperties();
+            if (props != null) {
+                for (int i = 0; i < props.length; i += 2) {
+                    l.add("-D" + props[i] + "=" + props[i+1]);
+                }
+            }
+            // don't use -jar syntax in case of augmented classpath
+            if (type.equals("phoenix")) {
+                l.add("-Djava.rmi.server.codebase=" + getServiceCodebase());
+                l.add("-cp");
+                l.add(getServiceClasspath());
+                l.add("com.sun.jini.phoenix.Activation");
+                l.add(getServiceConfigurationFileName());
+            }
 
-	logDirName = getServicePersistenceLog();
-	if (logDirName != null) {
-	    if (type.equals("rmid")) {
-		l.add("-log");
-		l.add(logDirName);
-	    } else { // unicode '"' to work around windows platform issue
-		l.add("com.sun.jini.phoenix.persistenceDirectory=" 
-		      + "\\u0022" + logDirName + "\\u0022");
-		addRegisteredOverrides(l);
-	    }
-	}
-	String[] cmdArray = (String[]) l.toArray(new String[0]);
-	StringBuffer cmdBuf = new StringBuffer();
-	for (int i = 0; i < cmdArray.length; i++) {
-	    if (i != 0) {
-		cmdBuf.append(" ");
-	    }
-	    cmdBuf.append(cmdArray[i]);
-	}
-	logger.log(Level.FINE, "command: '" + cmdBuf + "'");
-	getServicePreparerName();
-	logServiceParameters();
-	try {
-	    actProcess = Runtime.getRuntime().exec(cmdArray);
-	    outPipe = new Pipe("activation system-out", 
-			       actProcess.getInputStream(),
-			       System.out,
-			       null, 
-			       new ActSysAnnotator("ActSys-out: "));
-            outPipe.start();
-	    errPipe = new Pipe("activation system-err", 
-			       actProcess.getErrorStream(),
-			       System.out,
-			       null,
-			       new ActSysAnnotator("ActSys-err: "));
-            errPipe.start();
-	} catch (IOException e) {
-	    throw new TestException("ActivationSystemAdmin: Failed to exec "
-				  + "the activation system", e);
-	}
-	if (!config.activationUp(60)) {
-	    throw new TestException("ActivationSystemAdmin: activation system "
-				    + "did not start");
-	}
-	try {
-	    actSystem = ActivationGroup.getSystem();
-	} catch (ActivationException e) {
-	    try {
-		int exitStatus = actProcess.exitValue();
-		throw new TestException("ActivationSystemAdmin: activation "
-					+ "system exited with status "
-					+ exitStatus, e);
-	    } catch (IllegalThreadStateException ignore) {
-		throw new TestException("ActivationSystemAdmin: problem "
-					+ "getting activation system",
-					e);
-	    }
-	}
-	ActivationSystemAdmin.started = true;
-	actSystem = (ActivationSystem) doProxyPreparation(actSystem);
+            logDirName = getServicePersistenceLog();
+            if (logDirName != null) {
+                if (type.equals("rmid")) {
+                    l.add("-log");
+                    l.add(logDirName);
+                } else { // unicode '"' to work around windows platform issue
+                    l.add("com.sun.jini.phoenix.persistenceDirectory=" 
+                          + "\\u0022" + logDirName + "\\u0022");
+                    addRegisteredOverrides(l);
+                }
+            }
+            String[] cmdArray = (String[]) l.toArray(new String[0]);
+            StringBuffer cmdBuf = new StringBuffer();
+            for (int i = 0; i < cmdArray.length; i++) {
+                if (i != 0) {
+                    cmdBuf.append(" ");
+                }
+                cmdBuf.append(cmdArray[i]);
+            }
+            logger.log(Level.FINE, "command: '" + cmdBuf + "'");
+            getServicePreparerName();
+            logServiceParameters();
+            try {
+                actProcess = Runtime.getRuntime().exec(cmdArray);
+                outPipe = new Pipe("activation system-out", 
+                                   actProcess.getInputStream(),
+                                   System.out,
+                                   null, 
+                                   new ActSysAnnotator("ActSys-out: "));
+                outPipe.start();
+                errPipe = new Pipe("activation system-err", 
+                                   actProcess.getErrorStream(),
+                                   System.out,
+                                   null,
+                                   new ActSysAnnotator("ActSys-err: "));
+                errPipe.start();
+            } catch (IOException e) {
+                throw new TestException("ActivationSystemAdmin: Failed to exec "
+                                      + "the activation system", e);
+            }
+            if (!config.activationUp(60)) {
+                throw new TestException("ActivationSystemAdmin: activation system "
+                                        + "did not start");
+            }
+            try {
+                actSystem = ActivationGroup.getSystem();
+            } catch (ActivationException e) {
+                try {
+                    int exitStatus = actProcess.exitValue();
+                    throw new TestException("ActivationSystemAdmin: activation "
+                                            + "system exited with status "
+                                            + exitStatus, e);
+                } catch (IllegalThreadStateException ignore) {
+                    throw new TestException("ActivationSystemAdmin: problem "
+                                            + "getting activation system",
+                                            e);
+                }
+            }
+            actSystem = (ActivationSystem) doProxyPreparation(actSystem);
+        }
+        synchronized (ActivationSystemAdmin.class){
+            ActivationSystemAdmin.started = true;
+        }
     }
 
     /**
      * Annotator for annotating output merged into test log
      */
-    private class ActSysAnnotator implements Pipe.Annotator {
+    private static class ActSysAnnotator implements Pipe.Annotator {
 
-	private String annotation;
+	private final String annotation;
 
         ActSysAnnotator(String annotation) {
 	    this.annotation = annotation;
@@ -318,7 +324,7 @@ public class ActivationSystemAdmin
      * @throws RemoteException if failed to contact/shutdown the activation
      *                         system
      */
-    public void stop() throws RemoteException {
+    public synchronized void stop() throws RemoteException {
 	if (actSystem == null) {
 	    return;
 	}
@@ -405,7 +411,7 @@ public class ActivationSystemAdmin
      *
      * @return the <code>ActivationSystem</code> proxy
      */
-    public Object getProxy() {
+    public synchronized Object getProxy() {
 	return actSystem;
     }
 

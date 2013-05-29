@@ -29,7 +29,7 @@ import java.rmi.MarshalledObject;
 class StopServiceRequest implements SlaveRequest {
 
     /** the service proxy wrapped in a <code>MarshalledObject</code> */
-    MarshalledObject marshalledServiceRef;
+    final MarshalledObject marshalledServiceRef;
 
     /**
      * Construct the request. Wrap the given proxy in a 
