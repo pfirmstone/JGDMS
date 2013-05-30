@@ -54,7 +54,7 @@ import java.io.IOException;
 public class NotifyOnAttrMod extends QATestRegistrar {
 
     /** Class which handles all events sent by the lookup service */
-    public class Listener extends BasicListener implements RemoteEventListener {
+    private class Listener extends BasicListener implements RemoteEventListener {
         public Listener() throws RemoteException {
             super();
         }
@@ -65,7 +65,7 @@ public class NotifyOnAttrMod extends QATestRegistrar {
         }
     }
 
-    protected Vector evntVec = new Vector();
+    protected final Vector evntVec = new Vector();
 
     private ServiceItem[] srvcItems ;
     private ServiceRegistration[] srvcRegs ;
@@ -106,7 +106,7 @@ public class NotifyOnAttrMod extends QATestRegistrar {
      *  on the contents of the corresponding template and the appropriate 
      *  transition mask; along with a handback containing the service ID . 
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
 
         int i,j,k;
         ServiceID curSrvcID;
@@ -118,6 +118,7 @@ public class NotifyOnAttrMod extends QATestRegistrar {
 	logger.log(Level.FINE, "in setup() method.");
 
 	listener = new Listener();
+        ((BasicListener) listener).export();
         attrEntries = super.createAttributes(ATTR_CLASSES);
         addAttrs = new Entry[attrEntries.length][1];
         for (i=attrStartIndx,k=0;i<attrEntries.length;i++) {
@@ -182,7 +183,7 @@ public class NotifyOnAttrMod extends QATestRegistrar {
      *  returned in the i_th event object equals the service ID of the 
      *  i_th service.
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	logger.log(Level.FINE, "in run() method.");
 	int i,j,k;
 	int nExpectedEvnts = 0;
@@ -198,7 +199,8 @@ public class NotifyOnAttrMod extends QATestRegistrar {
 	logger.log(Level.FINE, "Waiting " + deltaTListener + " milliseconds " +
 			  "for all events to arrive.");
 	try {
-	    Thread.sleep(deltaTListener);
+            QATestUtils.waitDeltaT(deltaTListener, this);
+//	    Thread.sleep(deltaTListener);
 	} catch (InterruptedException e) {
 	}
 
@@ -213,7 +215,7 @@ public class NotifyOnAttrMod extends QATestRegistrar {
      *  Unexports the listener and then performs any remaining standard
      *  cleanup duties.
      */
-    public void tearDown() {
+    public synchronized void tearDown() {
 	logger.log(Level.FINE, "in tearDown() method.");
 	try {
 	    unexportListener(listener, true);

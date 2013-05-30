@@ -55,14 +55,14 @@ import java.io.IOException;
 public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
 
     /** Class which handles all events sent by the lookup service */
-    public class Listener extends BasicListener implements RemoteEventListener
+    private class Listener extends BasicListener implements RemoteEventListener
     {
         public Listener() throws RemoteException {
             super();
         }
 
         /** Method called remotely by lookup to handle the generated event. */
-        public synchronized void notify(RemoteEvent ev) {
+        public void notify(RemoteEvent ev) {
             ServiceEvent srvcEvnt = (ServiceEvent)ev;
             evntVec.addElement(srvcEvnt);
         }
@@ -83,7 +83,7 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
         }
     }
 
-    protected Vector evntVec = new Vector();
+    protected final Vector evntVec = new Vector();
 
     private long srvcLeaseDurMS;
     private ServiceItem[] srvcItems;
@@ -115,7 +115,7 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
      *  and the appropriate transition mask; along with a callback containing 
      *  the service ID.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         int i;
         ServiceID curSrvcID;
 	EventRegistration[] evntRegs;
@@ -126,6 +126,7 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
 	logger.log(Level.FINE, "in setup() method.");
 
 	listener = new Listener();
+        ((BasicListener) listener).export();
         nInstances = super.getNInstances();
         nInstancesPerClass = super.getNInstancesPerClass();
         srvcLeaseDurMS = 2*nInstances*QATestUtils.N_MS_PER_SEC;
@@ -167,7 +168,7 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
      *  4. Verifies that the handback returned in the i_th event object 
      *  equals the service ID of the i_th service.
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	logger.log(Level.FINE, "in run() method.");
 
 	/* wait for the service leases to expire */
@@ -175,7 +176,8 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
 	    long waitTime = srvcLeaseDurMS + super.deltaTEvntNotify; 
 	    logger.log(Level.FINE, "Sleeping " + waitTime + " milliseconds " +
 			      "for service leases to expire.");
-	    Thread.sleep(waitTime);
+            QATestUtils.waitDeltaT(waitTime, this);
+	    //Thread.sleep(waitTime);
 	} catch (InterruptedException e) {
 	}
 
@@ -191,7 +193,7 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
      *  Unexports the listener and then performs any remaining standard
      *  cleanup duties.
      */
-    public void tearDown() {
+    public synchronized void tearDown() {
 	logger.log(Level.FINE, "in tearDown() method.");
 	try {
 	    unexportListener(listener, true);

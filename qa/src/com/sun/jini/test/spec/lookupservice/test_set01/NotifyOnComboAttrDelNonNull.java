@@ -58,7 +58,7 @@ public class NotifyOnComboAttrDelNonNull extends QATestRegistrar {
     private static boolean SHOW_TIMINGS = true;
 
     /** Class which handles all events sent by the lookup service */
-    public class Listener extends BasicListener 
+    private class Listener extends BasicListener 
                           implements RemoteEventListener
     {
         public Listener() throws RemoteException {
@@ -67,20 +67,22 @@ public class NotifyOnComboAttrDelNonNull extends QATestRegistrar {
         /** Method called remotely by lookup to handle the generated event. */
         public void notify(RemoteEvent ev) {
             ServiceEvent srvcEvnt = (ServiceEvent)ev;
-            evntVec.addElement(srvcEvnt);
-            try {
-                QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
-                                      (srvcEvnt.getRegistrationObject().get());
+            synchronized (NotifyOnComboAttrDelNonNull.this){
+                evntVec.addElement(srvcEvnt);
+                try {
+                    QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
+                                          (srvcEvnt.getRegistrationObject().get());
 
-                receivedTuples.addElement(new QATestUtils.SrvcAttrTuple
-                                                   (srvcItems,addAttrs,
-                                                    tuple.getSrvcObj(),
-                                                    tuple.getAttrObj(),
-                                                    srvcEvnt.getTransition()));
-            } catch (ClassNotFoundException e) {
-                logger.log(Level.INFO, "Unexpected exception", e);
-            } catch (IOException e) {
-                logger.log(Level.INFO, "Unexpected exception", e);
+                    receivedTuples.addElement(new QATestUtils.SrvcAttrTuple
+                                                       (srvcItems,addAttrs,
+                                                        tuple.getSrvcObj(),
+                                                        tuple.getAttrObj(),
+                                                        srvcEvnt.getTransition()));
+                } catch (ClassNotFoundException e) {
+                    logger.log(Level.INFO, "Unexpected exception", e);
+                } catch (IOException e) {
+                    logger.log(Level.INFO, "Unexpected exception", e);
+                }
             }
         }
     }
@@ -141,7 +143,7 @@ public class NotifyOnComboAttrDelNonNull extends QATestRegistrar {
      *  requests a handback which contains the associated service/attribute 
      *  "tuple" to be associated with the event.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k;
         int transitionMask =   ServiceRegistrar.TRANSITION_MATCH_NOMATCH
                              | ServiceRegistrar.TRANSITION_NOMATCH_MATCH
@@ -169,6 +171,7 @@ public class NotifyOnComboAttrDelNonNull extends QATestRegistrar {
 	super.construct(sysConfig);
         /* create the event handler */
 	listener = new Listener();
+        ((BasicListener) listener).export();
         /* load and create an initialized instance (non-null fields) of each
          * of the attribute classes; which will be added to and then deleted
          * from each registered service
@@ -278,7 +281,7 @@ public class NotifyOnComboAttrDelNonNull extends QATestRegistrar {
      *       3. Verifies that the events expected are actually sent by the
      *          lookup service.
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	int i,j;
 	for (i=0;i<nSrvcs;i++) {
 	    for (j=0;j<nAttrClasses;j++) {
@@ -293,7 +296,7 @@ public class NotifyOnComboAttrDelNonNull extends QATestRegistrar {
 	    }
 	}
 	QATestUtils.verifyEventTuples
-	  (receivedTuples,expectedTuples,maxNMsToWaitForEvents,SHOW_TIMINGS);
+	  (receivedTuples,expectedTuples,maxNMsToWaitForEvents,SHOW_TIMINGS, this);
 	QATestUtils.verifyEventItems(evntVec);
     }
 
@@ -303,7 +306,7 @@ public class NotifyOnComboAttrDelNonNull extends QATestRegistrar {
      *  Unexports the listener and then performs any remaining standard
      *  cleanup duties.
      */
-    public void tearDown() {
+    public synchronized void tearDown() {
 	try {
 	    unexportListener(listener, true);
 	} finally {

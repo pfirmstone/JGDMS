@@ -63,9 +63,9 @@ public class EvntLeaseExpiration extends QATestRegistrar {
     }
 
     /** The event handler for the services registered by this class */
-    private static RemoteEventListener listener;
+    private static BasicListener listener;
 
-    protected Vector evntVec = new Vector();
+    protected final Vector evntVec = new Vector();
 
     private long evntLeaseDurMS;
     private ServiceItem[] srvcItems ;
@@ -87,10 +87,11 @@ public class EvntLeaseExpiration extends QATestRegistrar {
      *  a lease duration that is less than the duration of the service
      *  leases.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
 	super.construct(sysConfig);
 	logger.log(Level.FINE, "in setup() method.");
 	listener = new Listener();
+        listener.export();
         evntLeaseDurMS = 5*QATestUtils.N_MS_PER_SEC;
         srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
 	srvcRegs = super.registerAll();
@@ -132,7 +133,7 @@ public class EvntLeaseExpiration extends QATestRegistrar {
      *                             Service  :
      *                             Lease    Analyze
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 
 	logger.log(Level.FINE, "EvntLeaseExpiration : in run() method.");
 
@@ -140,11 +141,9 @@ public class EvntLeaseExpiration extends QATestRegistrar {
 	/* wait for the event lease to expire */
 	try {
 	    long waitTime = evntLeaseDurMS + super.deltaTEvntLeaseExp;
-	    String message = 
-		"Waiting " + waitTime + " milliseconds for event lease" +
-		" to expire.";
-	    logger.log(Level.FINE, message);
-	    Thread.sleep(waitTime);
+	    logger.log(Level.FINE, "Waiting {0} milliseconds for event lease to expire.", waitTime);
+            QATestUtils.waitDeltaT(waitTime, this);
+//	    Thread.sleep(waitTime);
 	} catch (InterruptedException e) {
 	}
 
@@ -160,7 +159,8 @@ public class EvntLeaseExpiration extends QATestRegistrar {
 	logger.log(Level.FINE, "Waiting " + deltaTListener + " milliseconds" +
 			  " for listener to collect events.");
 	try {
-	    Thread.sleep(deltaTListener);
+            QATestUtils.waitDeltaT( deltaTListener, this);
+	    //Thread.sleep(deltaTListener);
 	} catch (InterruptedException e) {
 	}
 
@@ -181,7 +181,7 @@ public class EvntLeaseExpiration extends QATestRegistrar {
      *  Unexports the listener and then performs any remaining standard
      *  cleanup duties.
      */
-    public void tearDown() {
+    public synchronized void tearDown() {
 	logger.log(Level.FINE, "in tearDown() method.");
 	try {
 	    unexportListener(listener, true);

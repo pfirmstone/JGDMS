@@ -55,7 +55,7 @@ public class ExpiredSetAttributes extends QATestRegistrar {
     private long leaseStartTime; 
     private Entry[] attrEntries;
     
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
  	super.construct(sysConfig);
 	attrEntries = super.createAttributes(ATTR_CLASSES);
         nInstances = super.getNInstances();
@@ -66,8 +66,8 @@ public class ExpiredSetAttributes extends QATestRegistrar {
    }
 
     /** Executes the current QA test. */
-    public void run() throws Exception {
-	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000);
+    public synchronized void run() throws Exception {
+	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000, this);
 	doSetAttributes();
     }
 

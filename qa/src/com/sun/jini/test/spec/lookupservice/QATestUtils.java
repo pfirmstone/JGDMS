@@ -412,12 +412,14 @@ public class QATestUtils {
      *  @param deltaT time increment
      *  @exception TestException usually indicates a failure
      */
-    public static void computeDurAndWait(long baseT0,
-                                         long deltaT) throws Exception
+    public static void computeDurAndWait(long baseT0, long deltaT, Object lock) throws Exception
     {
-        long dur = baseT0 + deltaT - System.currentTimeMillis();
+        long finishTime = baseT0 + deltaT;
+        long dur = finishTime - System.currentTimeMillis();
 	if(dur > 0) {
-	    Thread.sleep(dur);
+            do {
+                synchronized (lock) { lock.wait(dur); }
+            } while (finishTime > System.currentTimeMillis()); // In case of spurious wakeup or notify.
 	} else {
             throw new TestException("Environment problem; this configuration"
                                     + " does not allow for the timing"
@@ -429,8 +431,14 @@ public class QATestUtils {
     /** Sleeps for the given amount of milliseconds
      *  @param deltaT time in milliseconds to sleep
      */
-    public static void waitDeltaT(long deltaT) throws Exception {
-	Thread.sleep(deltaT);
+    public static void waitDeltaT(long deltaT, Object lock) throws Exception {
+        long finish = System.currentTimeMillis() + deltaT;
+        synchronized (lock){
+            do {
+                lock.wait(deltaT);
+            } while (finish > System.currentTimeMillis());
+        }
+//	Thread.sleep(deltaT);
     }
 
     /** Returns true if the input argument is even; false otherwise
@@ -1347,10 +1355,7 @@ public class QATestUtils {
      *  @param showTime true/false: write elapsed time to standard output
      *  @exception TestException usually indicates a failure
      */
-    public static void verifyEventTuples(Vector  receivedTuples,
-                                         Vector  expectedTuples,
-                                         long    maxWaitTime,
-                                         boolean showTime)
+    public static void verifyEventTuples(Vector receivedTuples, Vector expectedTuples, long maxWaitTime, boolean showTime, Object lock)
                                                          throws Exception
     {
         int i,j;
@@ -1359,7 +1364,9 @@ public class QATestUtils {
         /* give the Listener a chance to collect all events */
         while(true) {
 	    try {
-                Thread.sleep(waitDeltaT);
+                synchronized (lock){
+                    lock.wait(waitDeltaT);
+                }
 	    } catch (InterruptedException e) { }
             if (showTime) {
                 System.out.println("Total Time: "

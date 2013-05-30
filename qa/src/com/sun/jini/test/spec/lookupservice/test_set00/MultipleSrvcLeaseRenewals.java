@@ -42,7 +42,7 @@ public class MultipleSrvcLeaseRenewals extends QATestRegistrar {
     /** the expected number of matches when testing lookup by ID */
     private static int EXPECTED_N_MATCHES = 1;
     /* set lease duration to 3 minute */
-   private final static long DEFAULT_LEASEDURATION
+    private final static long DEFAULT_LEASEDURATION
                                                 = (3*QATestUtils.N_MS_PER_MIN);
     private final static int DEFAULT_LOOP_COUNT = 5;
     private static int  loopCount= DEFAULT_LOOP_COUNT;   
@@ -72,7 +72,7 @@ public class MultipleSrvcLeaseRenewals extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         int i;
 	super.construct(sysConfig);
 
@@ -128,13 +128,13 @@ public class MultipleSrvcLeaseRenewals extends QATestRegistrar {
      *                :           :           :           :            :
      *               L0          L1          L2          L3           L4
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	logger.log(Level.FINE, "MultipleSrvcLeaseRenewals : in run() method.");
 	logger.log(Level.FINE, "# of trials = " + loopCount);
 	for(int i =0; i<loopCount; i++) {
 	    logger.log(Level.FINE, "\n**** Start trial #" + i + "****");
 	    logger.log(Level.FINE, "Waiting 3/4 of lease duration time.");
-	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime);
+	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime, this);
 	    leaseStartTime = QATestUtils.getCurTime();
 	    logger.log(Level.FINE, "Renewing leases ...");
 	    QATestUtils.doRenewLease(srvcLeases, leaseDuration);
@@ -144,7 +144,7 @@ public class MultipleSrvcLeaseRenewals extends QATestRegistrar {
 				     leaseStartTime + leaseDuration);
 	    logger.log(Level.FINE, "Waiting 1/2 of the lease duration time.");
 	    QATestUtils.computeDurAndWait(leaseStartTime, 
-					  halfDurationTime);
+					  halfDurationTime, this);
 	    logger.log(Level.FINE, "Asserting that each service proxy " +
 			      "can still be found.");
 	    QATestUtils.doLookup(srvcItems, srvcIDTmpls, proxy ); 

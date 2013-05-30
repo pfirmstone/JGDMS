@@ -102,10 +102,11 @@ public class LeaseMapRenew extends QATestRegistrar {
      *  @exception TestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         int i;
 	super.construct(sysConfig);
 	listener = new Listener();
+        ((BasicListener) listener).export();
         nInstances = super.getNInstances();
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
 	proxy = super.getProxy();
@@ -163,10 +164,10 @@ public class LeaseMapRenew extends QATestRegistrar {
      *                :           :           :           :            :
      *               L0          L1          L2          L3           L4
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	for(int i =0; i<loopCount; i++) {
 	    logger.log(Level.FINEST, "renewLeaseWait: " + i);
-	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime);
+	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime, this);
 	    logger.log(Level.FINEST, "doRenewLease");
 	    leaseStartTime = QATestUtils.getCurTime();
 	    leaseMap.renewAll(); 
@@ -177,7 +178,7 @@ public class LeaseMapRenew extends QATestRegistrar {
 	    if (!mapCopy.equals(leaseMap))
 	    	throw new TestException("map contents changed");
 	    logger.log(Level.FINEST, "lookupwait");
-	    QATestUtils.computeDurAndWait(leaseStartTime, halfDurationTime);
+	    QATestUtils.computeDurAndWait(leaseStartTime, halfDurationTime, this);
 	    logger.log(Level.FINEST, "dolookup");
 	    QATestUtils.doLookup(srvcItems, srvcIDTmpls, proxy ); 
 	    logger.log(Level.FINEST, "lookup successful");

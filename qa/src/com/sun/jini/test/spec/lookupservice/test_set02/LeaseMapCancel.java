@@ -90,10 +90,11 @@ public class LeaseMapCancel extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         int i;
 	super.construct(sysConfig);
 	listener = new Listener();
+        ((BasicListener) listener).export();
         nInstances = super.getNInstances();
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
 	proxy = super.getProxy();
@@ -117,7 +118,7 @@ public class LeaseMapCancel extends QATestRegistrar {
    }
 
     /** Executes the current QA test. */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	QATestUtils.verifyLeases(srvcLeases,
 				 leaseStartTime + leaseDuration);
 	QATestUtils.verifyLeases(evntLeases,

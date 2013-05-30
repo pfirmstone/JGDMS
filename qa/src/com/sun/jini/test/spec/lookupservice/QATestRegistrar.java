@@ -598,7 +598,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  net.jini.core.lookup.ServiceItem
      *  @see net.jini.core.lookup.ServiceItem
      */
-    protected ServiceItem[] createServiceItems(String[] classNames)
+    protected synchronized ServiceItem[] createServiceItems(String[] classNames)
                                                          throws Exception
     {
 	int k = 0;
@@ -622,7 +622,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  net.jini.core.lookup.ServiceItem
      *  @see net.jini.core.lookup.ServiceItem
      */
-    protected ServiceItem[] createServiceItems(String[] classNames,
+    protected synchronized ServiceItem[] createServiceItems(String[] classNames,
                                                Entry[] attrs)
                                                          throws Exception
     {
@@ -755,7 +755,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *                net.jini.core.entry.Entry
      *  @see net.jini.core.entry.Entry
      */
-    protected Entry[] createNullFieldAttributes() throws Exception {
+    protected synchronized Entry[] createNullFieldAttributes() throws Exception {
         int i=0;
         Entry[] attrs = new Entry[ATTR_CLASSES.length];
         for (i=0;i<nAttrClasses;i++) {
@@ -773,7 +773,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *                net.jini.core.entry.Entry
      *  @see net.jini.core.entry.Entry
      */
-    protected Entry[] createAttributes(String[] classNames)
+    protected synchronized Entry[] createAttributes(String[] classNames)
                                                          throws Exception
     {
 	    int k = 0;
@@ -803,7 +803,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *                net.jini.core.entry.Entry
      *  @see net.jini.core.entry.Entry
      */
-    protected Entry[] createModifiedAttributes(String[] classNames)
+    protected synchronized Entry[] createModifiedAttributes(String[] classNames)
                                                          throws Exception
     {
 	int k = 0;
@@ -885,7 +885,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  net.jini.core.lookup.ServiceRegistration
      *  @see net.jini.core.lookup.ServiceRegistration
      */
-    protected ServiceRegistration[] registerAll() throws Exception {
+    protected synchronized ServiceRegistration[] registerAll() throws Exception {
         return registerNSrvcsPerClass(nInstancesPerClass);
     }
 
@@ -898,7 +898,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  net.jini.core.lookup.ServiceRegistration
      *  @see net.jini.core.lookup.ServiceRegistration
      */
-    protected ServiceRegistration[] registerAll(long srvcLeaseDurMS)
+    protected synchronized ServiceRegistration[] registerAll(long srvcLeaseDurMS)
                                                          throws Exception
     {
         return registerNSrvcsPerClass(nInstancesPerClass,srvcLeaseDurMS);
@@ -913,7 +913,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  net.jini.core.lookup.ServiceRegistration
      *  @see net.jini.core.lookup.ServiceRegistration
      */
-    protected ServiceRegistration[] registerNSrvcsPerClass(int n)
+    protected synchronized ServiceRegistration[] registerNSrvcsPerClass(int n)
                                                          throws Exception
     {
         int i=0;
@@ -941,7 +941,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  net.jini.core.lookup.ServiceRegistration
      *  @see net.jini.core.lookup.ServiceRegistration
      */
-    protected ServiceRegistration[] registerNSrvcsPerClass(int n,
+    protected synchronized ServiceRegistration[] registerNSrvcsPerClass(int n,
                                                            long srvcLeaseDurMS)
                                                          throws Exception
     {
@@ -1046,17 +1046,21 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
 		throw new RemoteException("Configuration problem", e);
 	    }
 	}
-	listenerMap.put(listener, exporter);
+        synchronized (listenerMap){
+            listenerMap.put(listener, exporter);
+        }
 	return exporter.export(listener);
 
     }
 
     protected void unexportListener(RemoteEventListener l, boolean force) {
+        synchronized (listenerMap){
 	Exporter exporter = (Exporter) listenerMap.get(l);
-	if (exporter != null) {
-	    exporter.unexport(force);
-	    listenerMap.remove(l);
-	}
+            if (exporter != null) {
+                exporter.unexport(force);
+                listenerMap.remove(l);
+            }
+        }
     }
 
     protected abstract class BasicListener 
@@ -1066,14 +1070,17 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
 
         public BasicListener() throws RemoteException {
             super();
-	    proxy = exportListener(this);
+        }
+        
+        public synchronized void export() throws RemoteException {
+            proxy = exportListener(this);
         }
 
-	public Object writeReplace() throws ObjectStreamException {
+	public synchronized Object writeReplace() throws ObjectStreamException {
 	    return proxy;
 	}
 
-	public TrustVerifier getProxyVerifier() {
+	public synchronized TrustVerifier getProxyVerifier() {
 	    return new BasicProxyTrustVerifier(proxy);
 	}
     }

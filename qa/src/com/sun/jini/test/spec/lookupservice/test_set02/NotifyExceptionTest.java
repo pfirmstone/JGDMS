@@ -34,7 +34,7 @@ public abstract class NotifyExceptionTest extends QATestRegistrar {
     protected RemoteEventListener listener;
 
     /** Do-nothing remote event listener */
-    public class Listener extends BasicListener
+    private class Listener extends BasicListener
                           implements RemoteEventListener
     {
         public Listener() throws RemoteException {
@@ -51,9 +51,10 @@ public abstract class NotifyExceptionTest extends QATestRegistrar {
      *
      * Creates the lookup service and a do-nothing remote event listener.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
 	super.construct(sysConfig);
 	listener = new Listener();
+        ((BasicListener) listener).export();
         return this;
     }
 
@@ -63,7 +64,7 @@ public abstract class NotifyExceptionTest extends QATestRegistrar {
      *  Unexports the listener and then performs any remaining standard
      *  cleanup duties.
      */
-    public void tearDown() {
+    public synchronized void tearDown() {
 	try {
 	    unexportListener(listener, true);
 	} finally {

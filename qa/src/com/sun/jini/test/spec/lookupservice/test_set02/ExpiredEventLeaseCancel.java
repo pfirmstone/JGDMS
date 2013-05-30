@@ -89,10 +89,11 @@ public class ExpiredEventLeaseCancel extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         int i;
 	super.construct(sysConfig);
 	listener = new Listener();
+        ((BasicListener) listener).export();
         nInstances = super.getNInstances();
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
 	proxy = super.getProxy();
@@ -114,8 +115,8 @@ public class ExpiredEventLeaseCancel extends QATestRegistrar {
         return this;
    }
 
-    public void run() throws Exception {
-	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000);
+    public synchronized void run() throws Exception {
+	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000, this);
 	doLeaseCancel();
     }
 

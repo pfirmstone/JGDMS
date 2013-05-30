@@ -76,15 +76,17 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
             super();
 	}
         /** Method called remotely by lookup to handle the generated event. */
-	public synchronized void notify(RemoteEvent theEvent)
+	public void notify(RemoteEvent theEvent)
 	                throws UnknownEventException, java.rmi.RemoteException 
 	{
-	    notificationEvnt[numEvnt++] = (ServiceEvent) theEvent;
+            synchronized (MultipleEvntLeaseRenewals.this){
+                notificationEvnt[numEvnt++] = (ServiceEvent) theEvent;
+            }
 	}
     }
 
     /** The event handler for the services registered by this class */
-    private static RemoteEventListener listener;
+    private static BasicListener listener;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current QA test.
@@ -107,11 +109,12 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      *  contains one of the event leases created during the event 
      *  notification registration process.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
 
         QATestUtils.setLeaseDuration(sysConfig, 1000L * 60 * 60);
 	super.construct(sysConfig);
 	listener = new Listener();
+        listener.export();
 	logger.log(Level.FINE, "in setup() method.");
         nInstances = super.getNInstances();
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
@@ -176,7 +179,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      *               :           :          :            :            :
      *              P0          P1         P2           P3           P4
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	logger.log(Level.FINE, "MultipleSrvcLeaseRenewals : in run() method.");
 	logger.log(Level.FINE, "# of trials = " + loopCount);
 
@@ -184,7 +187,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
 	    logger.log(Level.FINE, "\n**** Start trial #" + i + "****");
 	    logger.log(Level.FINE, "Waiting 3/4 of lease duration time.");
 	    numEvnt = 0;
-	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime);
+	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime, this);
 	    logger.log(Level.FINE, "Renewing leases ...");
 	    leaseStartTime = QATestUtils.getCurTime();
 	    QATestUtils.doRenewLease(evntLeases, leaseDuration);
@@ -194,7 +197,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
 				     leaseStartTime + leaseDuration);
 	    logger.log(Level.FINE, "Waiting 1/2 of the lease duration time.");
 	    QATestUtils.computeDurAndWait(leaseStartTime, 
-					  halfDurationTime);
+					  halfDurationTime, this);
 
 	    String transitionText = null;
 	    int transition;
@@ -213,7 +216,8 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
 		logger.log(Level.FINE, "Waiting " + deltaTListener + 
 				  " milliseconds for all " +
 				  transitionText + " events to arrive.");
-		Thread.sleep(deltaTListener);
+                QATestUtils.waitDeltaT( deltaTListener, this);
+		//wait(deltaTListener);
 	    } catch (InterruptedException e) {
 	    }
 	    logger.log(Level.FINE, "Verifying event set for correctness ...");
@@ -227,7 +231,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
      *  Unexports the listener and then performs any remaining standard
      *  cleanup duties.
      */
-    public void tearDown() {
+    public synchronized void tearDown() {
 	logger.log(Level.FINE, "in tearDown() method.");
 	try {
 	    unexportListener(listener, true);

@@ -58,7 +58,7 @@ public class NotifyOnComboSrvcLeaseExp extends QATestRegistrar {
     private static boolean SHOW_TIMINGS = false;
 
     /** Class which handles all events sent by the lookup service */
-    public class Listener extends BasicListener 
+    private class Listener extends BasicListener 
                           implements RemoteEventListener
     {
         public Listener() throws RemoteException {
@@ -67,20 +67,22 @@ public class NotifyOnComboSrvcLeaseExp extends QATestRegistrar {
         /** Method called remotely by lookup to handle the generated event. */
         public void notify(RemoteEvent ev) {
             ServiceEvent srvcEvnt = (ServiceEvent)ev;
-            evntVec.addElement(srvcEvnt);
-            try {
-                QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
-                                      (srvcEvnt.getRegistrationObject().get());
+            synchronized (NotifyOnComboSrvcLeaseExp.this){
+                evntVec.addElement(srvcEvnt);
+                try {
+                    QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
+                                          (srvcEvnt.getRegistrationObject().get());
 
-                receivedTuples.addElement(new QATestUtils.SrvcAttrTuple
-                                                   (srvcItems,tmplAttrs,
-                                                    tuple.getSrvcObj(),
-                                                    tuple.getAttrObj(),
-                                                    srvcEvnt.getTransition()));
-            } catch (ClassNotFoundException e) {
-                logger.log(Level.INFO, "Unexpected exception", e);
-            } catch (IOException e) {
-                logger.log(Level.INFO, "Unexpected exception", e);
+                    receivedTuples.addElement(new QATestUtils.SrvcAttrTuple
+                                                       (srvcItems,tmplAttrs,
+                                                        tuple.getSrvcObj(),
+                                                        tuple.getAttrObj(),
+                                                        srvcEvnt.getTransition()));
+                } catch (ClassNotFoundException e) {
+                    logger.log(Level.INFO, "Unexpected exception", e);
+                } catch (IOException e) {
+                    logger.log(Level.INFO, "Unexpected exception", e);
+                }
             }
         }
     }
@@ -141,7 +143,7 @@ public class NotifyOnComboSrvcLeaseExp extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has not yet begun.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         int i,j,k;
         int transitionMask =   ServiceRegistrar.TRANSITION_MATCH_NOMATCH
                              | ServiceRegistrar.TRANSITION_NOMATCH_MATCH
@@ -171,6 +173,7 @@ public class NotifyOnComboSrvcLeaseExp extends QATestRegistrar {
 	super.construct(sysConfig);
         /* create the event handler */
 	listener = new Listener();
+        ((BasicListener) listener).export();
         /* retrieve the proxies to the lookup service */
 	proxy = super.getProxy();
         /* load each of the attribute classes and create a non-initialized
@@ -261,7 +264,7 @@ public class NotifyOnComboSrvcLeaseExp extends QATestRegistrar {
      *  actually sent by the lookup service
      *  @exception QATestException usually indicates test failure
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	int i=0;
 	int j=0;
 	oldState =
@@ -285,7 +288,7 @@ public class NotifyOnComboSrvcLeaseExp extends QATestRegistrar {
 	                                  expectedTuples);
 	}
 	QATestUtils.verifyEventTuples
-	  (receivedTuples,expectedTuples,maxNMsToWaitForEvents,SHOW_TIMINGS);
+	  (receivedTuples,expectedTuples,maxNMsToWaitForEvents,SHOW_TIMINGS, this);
 	QATestUtils.verifyEventItems(evntVec);
     }
 
@@ -297,7 +300,7 @@ public class NotifyOnComboSrvcLeaseExp extends QATestRegistrar {
      *  @exception QATestException will usually indicate an "unresolved"
      *  condition because at this point the test has completed.
      */
-    public void tearDown() {
+    public synchronized void tearDown() {
 	try {
 	    unexportListener(listener, true);
 	} finally {

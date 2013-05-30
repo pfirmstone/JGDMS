@@ -53,7 +53,7 @@ public class ExpiredServiceLeaseCancel extends QATestRegistrar {
     private int nInstances = 0;
     private long leaseStartTime;  
     
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
  	super.construct(sysConfig);
         nInstances = super.getNInstances();
 	srvcItems = super.createServiceItems(TEST_SRVC_CLASSES);
@@ -69,8 +69,8 @@ public class ExpiredServiceLeaseCancel extends QATestRegistrar {
     }
 
     /** Executes the current QA test. */
-    public void run() throws Exception {
-	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000);
+    public synchronized void run() throws Exception {
+	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000, this);
 	doLeaseCancel();
     }
 

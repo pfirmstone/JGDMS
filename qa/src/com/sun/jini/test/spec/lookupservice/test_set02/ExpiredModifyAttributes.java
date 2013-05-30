@@ -55,7 +55,7 @@ public class ExpiredModifyAttributes extends QATestRegistrar {
     private Entry[] modAttrs;
     private int attrsLen;
 
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
 	super.construct(sysConfig);
 	attrEntries = super.createAttributes(ATTR_CLASSES);
 	modAttrs = new Entry[attrEntries.length];
@@ -70,8 +70,8 @@ public class ExpiredModifyAttributes extends QATestRegistrar {
     }
 
     /** Executes the current QA test. */
-    public void run() throws Exception {
-	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000);
+    public synchronized void run() throws Exception {
+	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000, this);
 	doModifyAttributes();
     }
 

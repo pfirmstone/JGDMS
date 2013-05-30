@@ -172,19 +172,19 @@ public class ClassServer extends Thread {
 			    Logger.getLogger("com.sun.jini.tool.ClassServer");
 
     /** Server socket to accept connections on */
-    private ServerSocket server;
+    private final ServerSocket server;
     /** Directories to serve from */
-    private String[] dirs;
+    private final String[] dirs;
     /** Map from String (JAR root) to JarFile[] (JAR class path) */
-    private Map map;
+    private final Map<String, JarFile[]> map;
     /** Verbosity flag */
     private volatile boolean verbose;
     /** Stoppable flag */
-    private boolean stoppable;
+    private final boolean stoppable;
     /** Read permission on dir and all subdirs, for each dir in dirs */
-    private FilePermission[] perms;
+    private final FilePermission[] perms;
     /** Life cycle control */
-    private LifeCycle lifeCycle;
+    private final LifeCycle lifeCycle;
 
     /**
      * Construct a server that does not support network shutdown.
@@ -308,10 +308,12 @@ public class ClassServer extends Thread {
             ioe.initCause(be);
             throw ioe ;
         }
-	if (!trees)
+	if (!trees) {
+            map = null;
 	    return;
-	map = new HashMap();
-	Map jfmap = new HashMap();
+        }
+	map = new HashMap<String, JarFile[]>();
+	Map<String,JarFile> jfmap = new HashMap<String,JarFile>();
 	for (int i = 0; i < dirs.length; i++) {
 	    String[] files = new File(dirs[i]).list();
 	    if (files == null)
@@ -323,7 +325,7 @@ public class ClassServer extends Thread {
 		String name = jar.substring(0, jar.length() - 4);
 		if (map.containsKey(name))
 		    continue;
-		List jflist = new ArrayList(1);
+		List<JarFile> jflist = new ArrayList<JarFile>(1);
 		addJar(jar, jflist, jfmap);
 		map.put(name, jflist.toArray(new JarFile[jflist.size()]));
 	    }
@@ -372,10 +374,10 @@ public class ClassServer extends Thread {
     }
 
     /** Add transitive Class-Path JARs to jflist. */
-    private void addJar(String jar, List jflist, Map jfmap)
+    private void addJar(String jar, List<JarFile> jflist, Map<String,JarFile> jfmap)
 	throws IOException
     {
-	JarFile jf = (JarFile) jfmap.get(jar);
+	JarFile jf = jfmap.get(jar);
 	if (jf != null) {
 	    if (jflist.contains(jf)) {
 		return;

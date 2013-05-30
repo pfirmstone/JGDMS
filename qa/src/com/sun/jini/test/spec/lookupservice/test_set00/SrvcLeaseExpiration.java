@@ -69,7 +69,7 @@ public class SrvcLeaseExpiration extends QATestRegistrar {
      *  an approximate service lease start time for each service item by 
      *  retrieving the current system time.
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
 
 	super.construct(sysConfig);
 
@@ -114,14 +114,14 @@ public class SrvcLeaseExpiration extends QATestRegistrar {
      *   Lookup          Lease    Lookup
      *                  Expires
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	logger.log(Level.FINE, "SrvcLeaseExpiration : in run() method.");
 	logger.log(Level.FINE, "Performing lookup ...");
 	QATestUtils.doLookup(srvcItems, srvcIDTmpls, proxy );
 
 	logger.log(Level.FINE, "Waiting " + (leaseDuration*2) + 
 			  " milliseconds for service leases to expire.");
-	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration*2);
+	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration*2, this);
 
 	logger.log(Level.FINE, "Checking that no services can be found.");
 	doLookupNoMatch();

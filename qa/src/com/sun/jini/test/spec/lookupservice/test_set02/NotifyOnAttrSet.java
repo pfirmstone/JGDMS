@@ -55,7 +55,7 @@ import java.io.IOException;
 public class NotifyOnAttrSet extends QATestRegistrar {
 
     /** Class which handles all events sent by the lookup service */
-    public class Listener extends BasicListener 
+    private class Listener extends BasicListener 
                           implements RemoteEventListener
     {
         public Listener() throws RemoteException {
@@ -68,7 +68,7 @@ public class NotifyOnAttrSet extends QATestRegistrar {
         }
     }
 
-    protected Vector evntVec = new Vector();
+    protected final Vector evntVec = new Vector();
 
     private ServiceItem[] srvcItems ;
     private ServiceRegistration[] srvcRegs ;
@@ -121,6 +121,7 @@ public class NotifyOnAttrSet extends QATestRegistrar {
 	super.construct(sysConfig);
         /* create a single event handler to process all received events */
 	listener = new Listener();
+        ((BasicListener) listener).export();
         /* load and instantiate a set of initialized (non-null fields) 
          * attribute classes
          */
@@ -205,7 +206,7 @@ public class NotifyOnAttrSet extends QATestRegistrar {
      *  i_th service.
      *  @exception QATestException usually indicates test failure
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	int i,j,k;
 	int nExpectedEvnts = 0;
 	for(i=0; i<srvcRegs.length; i++) {
@@ -216,7 +217,8 @@ public class NotifyOnAttrSet extends QATestRegistrar {
 
 	/* give the Listener a chance to collect all events */
 	try {
-	    Thread.sleep(deltaTListener);
+            QATestUtils.waitDeltaT( deltaTListener, this);
+//	    Thread.sleep(deltaTListener);
 	} catch (InterruptedException e) {
 	}
 	QATestUtils.verifyEventVector(evntVec,nExpectedEvnts,
@@ -229,7 +231,7 @@ public class NotifyOnAttrSet extends QATestRegistrar {
      *  Unexports the listener and then performs any remaining standard
      *  cleanup duties.
      */
-    public void tearDown() {
+    public synchronized void tearDown() {
 	try {
 	    unexportListener(listener, true);
 	} finally {

@@ -55,7 +55,7 @@ import java.io.IOException;
 public class NotifyOnAttrAdd extends QATestRegistrar {
 
     /** Class which handles all events sent by the lookup service */
-    public class Listener extends BasicListener implements RemoteEventListener
+    private class Listener extends BasicListener implements RemoteEventListener
     {
         public Listener() throws RemoteException {
             super();
@@ -67,7 +67,7 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
         }
     }
 
-    protected Vector evntVec = new Vector();
+    protected final Vector evntVec = new Vector();
 
     private ServiceItem[] srvcItems ;
     private ServiceRegistration[] srvcRegs ;
@@ -78,7 +78,7 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
     private Entry[][] attrs;
 
     /* The event handler for the services registered by this class */
-    private static RemoteEventListener listener;
+    private static BasicListener listener;
 
     /* The transition expected to be returned for all services */
     private static int EXPECTED_TRANSITION
@@ -101,7 +101,7 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
      *  appropriate transition mask; along with a handback containing the 
      *  service ID . 
      */
-    public Test construct(QAConfig sysConfig) throws Exception {
+    public synchronized Test construct(QAConfig sysConfig) throws Exception {
         int i;
         ServiceID curSrvcID;
 	EventRegistration[] evntRegs;
@@ -112,6 +112,7 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
 	logger.log(Level.FINE, "NotifyOnAttrAdd : in setup() method.");
 
 	listener = new Listener();
+        listener.export();
         attrEntries = super.createAttributes(ATTR_CLASSES);
         attrs = new Entry[attrEntries.length][1];
         for (i=0;i<attrEntries.length;i++) {
@@ -158,7 +159,7 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
      *  returned in the i_th event object equals the service ID of the 
      *  i_th service.
      */
-    public void run() throws Exception {
+    public synchronized void run() throws Exception {
 	logger.log(Level.FINE, "NotifyOnAttrAdd : in run() method.");
 	int j;
 	int nExpectedEvnts = 0;
@@ -177,7 +178,8 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
 		"Waiting " + deltaTListener + " milliseconds for" +
 		"events to arrive.";
 	    logger.log(Level.FINE, message);
-	    Thread.sleep(deltaTListener);
+            QATestUtils.waitDeltaT(deltaTListener, this);
+//	    Thread.sleep(deltaTListener);
 	} catch (InterruptedException e) {
 	}
 
@@ -192,7 +194,7 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
      *  Unexports the listener and then performs any remaining standard
      *  cleanup duties.
      */
-    public void tearDown() {
+    public synchronized void tearDown() {
 	logger.log(Level.FINE, "NotifyOnAttrAdd : in tearDown() method.");
 	try {
 	    unexportListener(listener, true);
