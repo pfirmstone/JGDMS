@@ -26,6 +26,7 @@ import java.rmi.MarshalledObject;
 import com.sun.jini.config.Config;
 import com.sun.jini.test.impl.start.TestService;
 import com.sun.jini.start.LifeCycle;
+import com.sun.jini.start.Starter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
@@ -45,6 +46,8 @@ import java.io.FileInputStream;
 import java.io.ByteArrayOutputStream;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.SecureClassLoader;
@@ -57,7 +60,7 @@ import javax.security.auth.login.LoginException;
 /**
  * Activatable implementation of the TestService interface.
  */
-public class TestServiceImpl implements TestService, ProxyAccessor {
+public class TestServiceImpl implements TestService, ProxyAccessor, Starter {
 
     private static volatile int staticInt = 0;
     
@@ -66,8 +69,11 @@ public class TestServiceImpl implements TestService, ProxyAccessor {
     private TestService serverStub = null;
 
     private static final String TEST_SERVICE = "com.sun.jini.testservice";
+    private boolean started;
+    private Exporter exporter;
+    private AccessControlContext context;
 
-    public Object getProxy() { return serverStub; }
+    public synchronized Object getProxy() { return serverStub; }
 
     // Activation constructor
     public TestServiceImpl(ActivationID activationID, MarshalledObject data)
@@ -124,19 +130,16 @@ public class TestServiceImpl implements TestService, ProxyAccessor {
     private void doInit(Configuration config) throws Exception {
         uuid = net.jini.id.UuidFactory.generate();
 
-        Exporter exporter = (Exporter) Config.getNonNullEntry(
+        exporter = (Exporter) Config.getNonNullEntry(
             config, TEST_SERVICE, "exporter", Exporter.class,
             new BasicJeriExporter(
                 TcpServerEndpoint.getInstance(0), new BasicILFactory(), false, true));
         System.out.println("service exporter is: "
             +  exporter);
-        // Export server instance and get its reference
-        serverStub = (TestService)exporter.export(this);
-        System.out.println("Service stub is: " + serverStub);
+        context = AccessController.getContext();
         
         // Store class loader ref in shared map
-        TestServiceSharedMap.storeClassLoader(
-            uuid, this.getClass().getClassLoader());
+        TestServiceSharedMap.storeClassLoader(uuid, this.getClass().getClassLoader());
     }
 
     // inherit javadoc
@@ -204,8 +207,11 @@ public class TestServiceImpl implements TestService, ProxyAccessor {
     {
         boolean result = false;
 	try {
-            ClassLoader thisClassLoader = 
-                (ClassLoader) TestServiceSharedMap.getClassLoader(uuid);
+            ClassLoader thisClassLoader;
+            synchronized (this){
+                thisClassLoader = 
+                    (ClassLoader) TestServiceSharedMap.getClassLoader(uuid);
+            }
             ClassLoader otherClassLoader = 
                 (ClassLoader) TestServiceSharedMap.getClassLoader(other);
             ArrayList thisLoaders = new ArrayList();
@@ -240,7 +246,24 @@ public class TestServiceImpl implements TestService, ProxyAccessor {
         l.add(c);
     }
     
-    public Uuid getUuid() throws RemoteException {
+    public synchronized Uuid getUuid() throws RemoteException {
         return uuid;
+    }
+
+    @Override
+    public final synchronized void start() throws Exception {
+        if (started) return;
+        started = true;
+        AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
+
+            @Override
+            public Object run() throws Exception {
+                // Export server instance and get its reference
+                serverStub =  (TestService) exporter.export(TestServiceImpl.this);
+                System.out.println("Service stub is: " + serverStub);
+                return null;
+            }
+            
+        }, context);
     }
 }

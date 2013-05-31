@@ -35,8 +35,8 @@ public interface Starter {
      * services to avoid throwing an exception during construction to avoid
      * finalizer attacks.
      * <p>
-     * The implementation is required to ensure start() is only executed once,
-     * additional invocations must return immediately.
+     * The implementation is required to ensure start() is idempotent 
+     * (only executed once, additional invocations must return immediately).
      * 
      * @throws Exception if there's a problem with construction or startup.
      */

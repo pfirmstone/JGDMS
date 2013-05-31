@@ -194,7 +194,7 @@ public class ActivateWrapper implements Remote, Serializable {
      * The "wrapped" activatable object.
      * @serial
      */
-    private /*final*/ Object impl;
+    private final Object impl;
 
     /**
      * The parameter types for the "activation constructor".
@@ -470,6 +470,23 @@ public class ActivateWrapper implements Remote, Serializable {
 		constructor.setAccessible(true);
 		impl =
 		    constructor.newInstance(new Object[]{id, desc.data});
+                if (impl instanceof Starter) {
+                    ((Starter) impl).start();
+                } else {
+                    logger.log( Level.SEVERE,
+                        "Service {0} doesn''t implement {1} {2} {3} {4} {5} {6}", 
+                        new Object []
+                            {
+                                impl.getClass().getCanonicalName(),
+                                Starter.class.getCanonicalName(),
+                                "this service is likely to suffer from race",
+                                "conditions caused by export performed during", 
+                                "construction, or threads started while ''this''",
+                                "has been allowed to escape during construction",
+                                "https://www.securecoding.cert.org/confluence/display/java/TSM01-J.+Do+not+let+the+this+reference+escape+during+object+construction"
+                            } 
+                    );
+                }
  	        logger.log(Level.FINEST, 
 		    "Obtained implementation instance: {0}", impl);
 	    } finally {

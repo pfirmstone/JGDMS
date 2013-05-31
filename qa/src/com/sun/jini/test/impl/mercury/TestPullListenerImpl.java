@@ -18,6 +18,7 @@
 package com.sun.jini.test.impl.mercury;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import com.sun.jini.start.LifeCycle;
+import com.sun.jini.start.Starter;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -37,6 +38,8 @@ import net.jini.core.event.RemoteEventListener;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
@@ -53,20 +56,23 @@ import net.jini.event.MailboxPullRegistration;
 import net.jini.event.InvalidIteratorException;
 
 public class TestPullListenerImpl 
-    implements TestPullListener, ProxyAccessor, ServerProxyTrust
+    implements TestPullListener, ProxyAccessor, ServerProxyTrust, Starter
 {
-    private Map events = Collections.synchronizedMap(new HashMap());
+    private final Map events = new HashMap();
 
     private Exporter exporter;
     
-    protected TestPullListener serverStub;
+    private TestPullListener serverStub;
 
     private static final String LISTENER = 
         "com.sun.jini.test.impl.mercury.listener";
-
-    public Object getProxy() { return serverStub; }
     
-    public TrustVerifier getProxyVerifier() {
+    private AccessControlContext context;
+    private boolean started;
+
+    public synchronized Object getProxy() { return serverStub; }
+    
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new BasicProxyTrustVerifier(serverStub);
     }    
 
@@ -117,8 +123,7 @@ public class TestPullListenerImpl
 				  new BasicILFactory(), 
 				  false, 
 				  true));
-        // Export server instance and get its reference
-        serverStub = (TestPullListener)exporter.export(this);
+        context = AccessController.getContext();
     }
 
     protected Object getNonNullEntry(Configuration config,
@@ -153,12 +158,15 @@ public class TestPullListenerImpl
 	RemoteEventHandle key = new RemoteEventHandle(theEvent);
 
         // See if we already have the handle
-	RemoteEvent incoming = (RemoteEvent) events.get(key);
-
+        RemoteEvent incoming;
+        String eventString;
+        synchronized (events) {
+            incoming = (RemoteEvent) events.get(key);
+            eventString = events.toString();
+        }
         String s = (incoming ==null) ? "not found" : "found";
-	System.out.println("Desired event was " + s + ": " + key);
-	System.out.println("Events are:" + events.toString());
-
+        System.out.println("Desired event was " + s + ": " + key);
+        System.out.println("Events are:" + eventString);
 	if (incoming == null)
 	    return false; // don't have it
 	else
@@ -171,21 +179,43 @@ public class TestPullListenerImpl
         ArrayList al = new ArrayList();
 	net.jini.event.RemoteEventIterator ri = 
 	    mr.getRemoteEvents();
-	for ( RemoteEvent event = ri.next(5000L); 
-	      event != null; 
-	      event = ri.next(5000L)) {
-	    events.put(new RemoteEventHandle(event), event); 
-            al.add(event);
-	}
+        synchronized (events){
+            for ( RemoteEvent event = ri.next(5000L); 
+                  event != null; 
+                  event = ri.next(5000L)) {
+                events.put(new RemoteEventHandle(event), event); 
+                al.add(event);
+            }
+        }
 	return al;
     }
     
     public Collection getCollectedRemoteEvents() {
-	return Collections.list(Collections.enumeration(events.values()));
+        synchronized (events){
+            return new ArrayList(events.values());
+        }
     }
 
     public int getCollectedRemoteEventsSize() {
-	return events.size();
+        synchronized (events){
+            return events.size();
+        }
+    }
+
+    @Override
+    public final synchronized void start() throws Exception {
+        if (started) return;
+        started = true;
+        AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
+
+            @Override
+            public Object run() throws Exception {
+                // Export server instance and get its reference
+                serverStub = (TestPullListener) exporter.export(TestPullListenerImpl.this);
+                return null;
+            }
+            
+        }, context);
     }
 
 }

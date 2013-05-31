@@ -36,35 +36,35 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 
 /**
- *  This is created and discarded during construction of (@link AbstractSharedGroup).
+ *  This is created and discarded during construction of (@link SharedGroupImpl).
  */
-class AbstractSharedGroupInit {
+class SharedGroupImplInit {
     ActivationSystem activationSystem;
     ActivationID activationID;
     Exporter exporter;
     AccessControlContext context;
     LoginContext loginContext;
     
-    AbstractSharedGroupInit(Configuration config, ActivationID id, LoginContext LoginContext) throws Exception {
+    SharedGroupImplInit(Configuration config, ActivationID id, LoginContext LoginContext) throws Exception {
         ProxyPreparer activationSystemPreparer =
             (ProxyPreparer) config.getEntry(
-                AbstractSharedGroup.START_PACKAGE, "activationSystemPreparer",
+                SharedGroupImpl.START_PACKAGE, "activationSystemPreparer",
                 ProxyPreparer.class, new BasicProxyPreparer());
 	if (activationSystemPreparer == null) {
-             throw new ConfigurationException(AbstractSharedGroup.START_PACKAGE 
+             throw new ConfigurationException(SharedGroupImpl.START_PACKAGE 
 	     + ".activationSystemPreparer entry should not be null");
         }
-        AbstractSharedGroup.logger.log(Level.FINE, AbstractSharedGroup.START_PACKAGE + ".activationSystemPreparer: {0}",
+        SharedGroupImpl.logger.log(Level.FINE, SharedGroupImpl.START_PACKAGE + ".activationSystemPreparer: {0}",
             activationSystemPreparer);
 	    
 	ProxyPreparer activationIdPreparer = (ProxyPreparer)
-	    config.getEntry(AbstractSharedGroup.START_PACKAGE, "activationIdPreparer",
+	    config.getEntry(SharedGroupImpl.START_PACKAGE, "activationIdPreparer",
 	    ProxyPreparer.class, new BasicProxyPreparer());
 	if (activationIdPreparer == null) {
-             throw new ConfigurationException(AbstractSharedGroup.START_PACKAGE 
+             throw new ConfigurationException(SharedGroupImpl.START_PACKAGE 
 	     + ".activationIdPreparer entry should not be null");
         }
-        AbstractSharedGroup.logger.log(Level.FINE, AbstractSharedGroup.START_PACKAGE + ".activationIdPreparer: {0}",
+        SharedGroupImpl.logger.log(Level.FINE, SharedGroupImpl.START_PACKAGE + ".activationIdPreparer: {0}",
             activationIdPreparer);
 	    
         // Prepare activation subsystem
@@ -75,11 +75,11 @@ class AbstractSharedGroupInit {
 	activationSystem = (ActivationSystem) 
 	    activationSystemPreparer.prepareProxy(
                 ActivationGroup.getSystem());
-        AbstractSharedGroup.logger.log(Level.FINE, "Prepared ActivationSystem: {0}",
+        SharedGroupImpl.logger.log(Level.FINE, "Prepared ActivationSystem: {0}",
             activationSystem);
 	activationID = (ActivationID)  
 	    activationIdPreparer.prepareProxy(id);
-        AbstractSharedGroup.logger.log(Level.FINEST, "Prepared ActivationID: {0}",
+        SharedGroupImpl.logger.log(Level.FINEST, "Prepared ActivationID: {0}",
             activationID);
 
         /**
@@ -87,7 +87,7 @@ class AbstractSharedGroupInit {
 	 * the prepared activationID.
 	 */
 	exporter = (Exporter) config.getEntry(
-                AbstractSharedGroup.START_PACKAGE, "exporter", Exporter.class, 
+                SharedGroupImpl.START_PACKAGE, "exporter", Exporter.class, 
 		new ActivationExporter(
 		    activationID,
 		    new BasicJeriExporter(
@@ -95,10 +95,10 @@ class AbstractSharedGroupInit {
 			new BasicILFactory(), false, true)),
 		activationID);
 	if (exporter == null) {
-             throw new ConfigurationException(AbstractSharedGroup.START_PACKAGE 
+             throw new ConfigurationException(SharedGroupImpl.START_PACKAGE 
 	     + ".exporter entry should not be null");
         }
-        AbstractSharedGroup.logger.log(Level.FINE, AbstractSharedGroup.START_PACKAGE + ".exporter: {0}",
+        SharedGroupImpl.logger.log(Level.FINE, SharedGroupImpl.START_PACKAGE + ".exporter: {0}",
             exporter);
 	context = AccessController.getContext();
 	

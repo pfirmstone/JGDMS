@@ -24,6 +24,7 @@ import com.sun.jini.landlord.LeaseFactory;
 import com.sun.jini.landlord.LeasePeriodPolicy;
 import com.sun.jini.landlord.LeasedResource;
 import com.sun.jini.landlord.FixedLeasePeriodPolicy;
+import com.sun.jini.start.Starter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
@@ -40,6 +41,8 @@ import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.server.RemoteObject;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
@@ -66,7 +69,7 @@ import net.jini.core.lease.LeaseMapException;
 import net.jini.export.ProxyAccessor;
 
 public class TestGeneratorImpl 
-    implements TestGenerator, Landlord, TimeConstants, ProxyAccessor
+    implements TestGenerator, Landlord, TimeConstants, ProxyAccessor, Starter
 {
 
     private static Logger logger = Logger.getLogger("com.sun.jini.qa.harness");
@@ -74,7 +77,7 @@ public class TestGeneratorImpl
     private static final String GENERATOR = 
         "com.sun.jini.test.impl.mercury.generator";
 
-    private Map regs = Collections.synchronizedMap(new HashMap());
+    private Map regs = new HashMap();
 
     private Exporter exporter;
 
@@ -87,8 +90,11 @@ public class TestGeneratorImpl
     Uuid generatorUuid = null;
 
     LeaseFactory leaseFactory;
+    
+    AccessControlContext context;
+    private boolean started;
 
-    public Object getProxy() { return serverStub; }
+    public synchronized Object getProxy() { return serverStub; }
 
     public TestGeneratorImpl(String[] configArgs, LifeCycle lc) 
 	throws Exception 
@@ -139,16 +145,13 @@ public class TestGeneratorImpl
 				  new BasicILFactory(), 
 				  false, 
 				  true));
-        // Export server instance and get its reference
-        serverStub = (TestGenerator)exporter.export(this);
 	generatorUuid = UuidFactory.generate();
-	leaseFactory = new LeaseFactory((Landlord) serverStub, generatorUuid);
         generatorLeasePolicy =
             new FixedLeasePeriodPolicy(
                 20 * MINUTES,     // Maximum lease is 2 minutes
                 1 * MINUTES      // Default lease is 1 hour
             );
-	
+	context = AccessController.getContext();
     }
 
     protected Object getNonNullEntry(Configuration config,
@@ -166,7 +169,7 @@ public class TestGeneratorImpl
         return result;
     }
 
-    public EventRegistration register(long evID, MarshalledObject handback,
+    public synchronized EventRegistration register(long evID, MarshalledObject handback,
 					RemoteEventListener toInform,
 					long leaseLength)
 	throws UnknownEventException, LeaseDeniedException
@@ -181,11 +184,11 @@ public class TestGeneratorImpl
 					lease, reg.getSequenceNumber());
     }
 
-    private Uuid leaseUuid(long evID) {
+    private synchronized Uuid leaseUuid(long evID) {
 	return UuidFactory.create(generatorUuid.getLeastSignificantBits(), evID);
     }
 
-    public RemoteEvent generateEvent(long evID, int maxTries)
+    public synchronized RemoteEvent generateEvent(long evID, int maxTries)
 	throws RemoteException, UnknownEventException
     {
 	TestRegistration reg = null;
@@ -241,7 +244,7 @@ public class TestGeneratorImpl
     // LandLord methods
     //-----------------------
 
-    public long renew(Uuid cookie, long extension)
+    public synchronized long renew(Uuid cookie, long extension)
         throws LeaseDeniedException, UnknownLeaseException, RemoteException {
 	TestRegistration reg = (TestRegistration) regs.get(cookie);
 	synchronized (reg) {
@@ -285,7 +288,7 @@ public class TestGeneratorImpl
 	}
     }
 
-    public void cancel(Uuid cookie)
+    public synchronized void cancel(Uuid cookie)
         throws UnknownLeaseException 
     {
 	TestRegistration reg = (TestRegistration) regs.remove(cookie);
@@ -309,11 +312,28 @@ public class TestGeneratorImpl
 	return map;
     }
 
+    @Override
+    public final synchronized void start() throws Exception {
+        if (started) return;
+        started = true;
+        AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
+
+            @Override
+            public Object run() throws Exception {
+                // Export server instance and get its reference
+                serverStub = (TestGenerator)exporter.export(TestGeneratorImpl.this);
+                leaseFactory = new LeaseFactory((Landlord) serverStub, generatorUuid);
+                return null;
+            }
+            
+        }, context);
+    }
+
 
     private class TestRegistration implements LeasedResource {
-	private Uuid uuid;
-	private MarshalledObject handback;
-	private RemoteEventListener toInform;
+	final private Uuid uuid;
+	final private MarshalledObject handback;
+	final private RemoteEventListener toInform;
 	private long expiration;
 	private long sequenceNumber;
 

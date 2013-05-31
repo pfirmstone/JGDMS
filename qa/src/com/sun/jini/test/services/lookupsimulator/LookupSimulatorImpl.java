@@ -60,6 +60,9 @@ import com.sun.jini.start.LifeCycle;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 import com.sun.jini.config.Config;
+import com.sun.jini.start.Starter;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.config.Configuration;
@@ -97,7 +100,8 @@ import net.jini.jeri.tcp.TcpServerEndpoint;
  */
 public class LookupSimulatorImpl implements LookupSimulator, 
 					    ServerProxyTrust,
-					    ProxyAccessor
+					    ProxyAccessor,
+                                            Starter
 {
     private static Logger logger = Logger.getLogger("com.sun.jini.harness.test");
     private MethodConstraints locatorConstraints;
@@ -117,12 +121,14 @@ public class LookupSimulatorImpl implements LookupSimulator,
     /** 64-bit buffer for use with secRand */
     private final byte[] secRandBuf8 = new byte[8];
     /* For synchronization instead of ReadersWriter locks used by reggie */
-    private Object lockObject = new Object();
-    private String unsupportedOperation = 
+    private final Object lockObject = new Object();
+    private final String unsupportedOperation = 
         "lookup service is a simulation; does not support requested operation";
     private LifeCycle lifeCycle;
     private LoginContext loginContext;
     boolean noneConfiguration;
+    private boolean started;
+    private AccessControlContext context;
 
     public LookupSimulatorImpl(ActivationID activationID, 
 			       MarshalledObject data)
@@ -205,11 +211,11 @@ public class LookupSimulatorImpl implements LookupSimulator,
     }//end constructor
 
     // This method's javadoc is inherited from an interface of this class
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new LookupSimulatorProxyVerifier(myRef);
     }
 
-    public LookupLocator getConstrainedLocator(String host, int port) 
+    public synchronized LookupLocator getConstrainedLocator(String host, int port) 
     {
 	return new ConstrainableLookupLocator(host, port, locatorConstraints);
     }
@@ -222,7 +228,7 @@ public class LookupSimulatorImpl implements LookupSimulator,
 	return getConstrainedLocator(loc.getHost(), loc.getPort());
     }
 
-    public LookupLocator getConstrainedLocator(String url) 
+    public synchronized LookupLocator getConstrainedLocator(String url) 
 	throws MalformedURLException
     {
 	return new ConstrainableLookupLocator(url, locatorConstraints);
@@ -233,11 +239,11 @@ public class LookupSimulatorImpl implements LookupSimulator,
      *
      * @return the proxy
      */
-    public Object getServiceProxy() throws RemoteException {
+    public synchronized Object getServiceProxy() throws RemoteException {
 	return proxy;
     }
 
-    public Object getProxy() {
+    public synchronized Object getProxy() {
 	return myRef;
     }
 
@@ -279,7 +285,7 @@ public class LookupSimulatorImpl implements LookupSimulator,
         throw new UnsupportedOperationException(unsupportedOperation);
     }//end getServiceTypes
 
-    public ServiceID getServiceID()  throws RemoteException {
+    public synchronized ServiceID getServiceID()  throws RemoteException {
         return serviceID;
     }//end getServiceID
 
@@ -299,7 +305,7 @@ public class LookupSimulatorImpl implements LookupSimulator,
     /* DiscoveryAdmin methods */
     public String[] getMemberGroups() throws RemoteException {
         synchronized(lockObject) {
-            return memberGroups;
+            return memberGroups.clone();
         }//end sync
     }//end getGroups
     public void addMemberGroups(String[] groups) throws RemoteException {
@@ -383,10 +389,8 @@ public class LookupSimulatorImpl implements LookupSimulator,
 						  Exporter.class,
 						  Configuration.NO_DEFAULT,
 						  activationID);
+            context = AccessController.getContext();
 	}
-	myRef = (LookupSimulator) serverExporter.export(this);
-        if (serviceID == null) serviceID = newServiceID();
-	proxy = LookupSimulatorProxy.getInstance(myRef, serviceID);
     }//end init
 
     /** Generate a new UUID */
@@ -443,6 +447,23 @@ public class LookupSimulatorImpl implements LookupSimulator,
         return arr;
     }//end removeDups
 
+    @Override
+    public final synchronized void start() throws Exception {
+        if (started) return;
+        started = true;
+        AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
+
+            @Override
+            public Object run() throws Exception {
+                myRef = (LookupSimulator) serverExporter.export(LookupSimulatorImpl.this);
+                if (serviceID == null) serviceID = newServiceID();
+                proxy = LookupSimulatorProxy.getInstance(myRef, serviceID);
+                return null;
+            }
+            
+        }, context);
+    }
+
     private class DestroyThread extends Thread {
         /** Create a non-daemon thread */
         public DestroyThread() {
@@ -450,33 +471,43 @@ public class LookupSimulatorImpl implements LookupSimulator,
             setDaemon(false); // override inheritance from RMI daemon thread
         }//end constructor
         public void run() {
-            /* must unregister before unexport */
-            if (activationID != null) {
-                try {
-                    activationSystem.unregisterObject(activationID);
-                } catch (RemoteException e) {
-                    return;// give up until we can at least unregister
-                } catch (ActivationException e) { }
-            }//endif
-	    while (!serverExporter.unexport(false)) {
-		Thread.yield();
-	    }
-            if (activationID != null) {
-                try {
-                    while (!Activatable.inactive(activationID)) {
-                        Thread.yield();
-                    }//end loop
-                } catch (RemoteException e) {
-                } catch (ActivationException e) { }
-            }
-	    if (lifeCycle != null) {
-		lifeCycle.unregister(LookupSimulatorImpl.this);
-	    }
-            if (loginContext != null) {
-                try {
-                    loginContext.logout();
-                } catch (LoginException e) {
-                    logger.log(Level.FINE, "logout failed", e);
+            synchronized (LookupSimulatorImpl.this){
+                /* must unregister before unexport */
+                if (activationID != null) {
+                    try {
+                        activationSystem.unregisterObject(activationID);
+                    } catch (RemoteException e) {
+                        return;// give up until we can at least unregister
+                    } catch (ActivationException e) { }
+                }//endif
+                while (!serverExporter.unexport(false)) {
+                    try {
+                        LookupSimulatorImpl.this.wait(10);
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();// restore interrupt.
+                    }
+                }
+                if (activationID != null) {
+                    try {
+                        while (!Activatable.inactive(activationID)) {
+                            try {
+                                LookupSimulatorImpl.this.wait(10);
+                            } catch (InterruptedException ex) {
+                                Thread.currentThread().interrupt();// restore interrupt.
+                            }
+                        }//end loop
+                    } catch (RemoteException e) {
+                    } catch (ActivationException e) { }
+                }
+                if (lifeCycle != null) {
+                    lifeCycle.unregister(LookupSimulatorImpl.this);
+                }
+                if (loginContext != null) {
+                    try {
+                        loginContext.logout();
+                    } catch (LoginException e) {
+                        logger.log(Level.FINE, "logout failed", e);
+                    }
                 }
             }
         }

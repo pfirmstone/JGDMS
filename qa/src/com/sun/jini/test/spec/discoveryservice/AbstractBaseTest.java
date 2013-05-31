@@ -760,11 +760,11 @@ abstract public class AbstractBaseTest extends QATestEnvironment implements Test
             proxy = exporter.export(this);
         }
 
-	public Object writeReplace() throws ObjectStreamException {
+	public synchronized Object writeReplace() throws ObjectStreamException {
 	    return proxy;
 	}
 
-	public TrustVerifier getProxyVerifier() {
+	public synchronized TrustVerifier getProxyVerifier() {
 	    return new BasicProxyTrustVerifier(proxy);
 	}
 

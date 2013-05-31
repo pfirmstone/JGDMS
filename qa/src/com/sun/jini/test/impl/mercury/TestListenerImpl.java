@@ -19,6 +19,7 @@ package com.sun.jini.test.impl.mercury;
 
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import com.sun.jini.start.LifeCycle;
+import com.sun.jini.start.Starter;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -38,6 +39,8 @@ import net.jini.core.event.RemoteEventListener;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
@@ -50,9 +53,9 @@ import javax.security.auth.login.LoginException;
 
 
 public class TestListenerImpl
-    implements TestListener, ProxyAccessor, ServerProxyTrust
+    implements TestListener, ProxyAccessor, ServerProxyTrust, Starter
 {
-    private Map events = Collections.synchronizedMap(new HashMap());
+    private final Map events = new HashMap();
 
     private Exporter exporter;
     
@@ -60,8 +63,11 @@ public class TestListenerImpl
 
     private static final String LISTENER = 
         "com.sun.jini.test.impl.mercury.listener";
+    private boolean started;
+    
+    private AccessControlContext context;
 
-    public Object getProxy() { return serverStub; }
+    public synchronized Object getProxy() { return serverStub; }
 
     public TestListenerImpl(String[] configArgs, LifeCycle lc) throws Exception {
         final Configuration config =
@@ -110,8 +116,7 @@ public class TestListenerImpl
 				  new BasicILFactory(), 
 				  false, 
 				  true));
-        // Export server instance and get its reference
-        serverStub = (TestListener)exporter.export(this);
+        context = AccessController.getContext();
     }
 
     protected Object getNonNullEntry(Configuration config,
@@ -132,7 +137,7 @@ public class TestListenerImpl
     //
     // RemoteEventListener methods
     //
-    public void notify(RemoteEvent theEvent)
+    public synchronized void notify(RemoteEvent theEvent)
 	throws UnknownEventException, RemoteException
     {
 	//System.out.println(name + "::notify() - receiving event");
@@ -159,7 +164,10 @@ public class TestListenerImpl
 	RemoteEventHandle key = new RemoteEventHandle(theEvent);
 
         // See if we already have the handle
-	RemoteEventHandle incoming = (RemoteEventHandle) events.get(key);
+	RemoteEventHandle incoming;
+        synchronized (this){
+            incoming = (RemoteEventHandle) events.get(key);
+        }
 
         //String s = (incoming ==null) ? "not found" : "found";
 	//System.out.println("Event was " + s + ":" + incoming);
@@ -170,14 +178,30 @@ public class TestListenerImpl
 	    return true; // have it
     }
 
-    public long getEventCount() throws RemoteException {
+    public synchronized long getEventCount() throws RemoteException {
         int size = events.size();
 	// System.out.println(name + "::getEventCount() - " + size);
 	return size;
     }
 
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new BasicProxyTrustVerifier(serverStub);
+    }
+
+    @Override
+    public final synchronized void start() throws Exception {
+        if (started) return;
+        started = true;
+        AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
+
+            @Override
+            public Object run() throws Exception {
+                // Export server instance and get its reference
+                serverStub = (TestListener)exporter.export(TestListenerImpl.this);
+                return null;
+            }
+            
+        }, context);
     }
 }
 

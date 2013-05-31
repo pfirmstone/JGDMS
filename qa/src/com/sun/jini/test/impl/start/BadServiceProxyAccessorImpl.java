@@ -20,6 +20,7 @@ package com.sun.jini.test.impl.start;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import com.sun.jini.start.LifeCycle;
 import com.sun.jini.start.ServiceProxyAccessor;
+import com.sun.jini.start.Starter;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -41,6 +42,8 @@ import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
 import java.rmi.server.UnicastRemoteObject;
+import java.security.AccessControlContext;
+import java.security.AccessController;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collections;
@@ -52,22 +55,26 @@ import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 
 
+
 public class BadServiceProxyAccessorImpl 
-    implements BadServiceProxyAccessor, ProxyAccessor
+    implements BadServiceProxyAccessor, ProxyAccessor, Starter
 {
-    protected Object serverStub;
+    private Object serverStub;
+    private AccessControlContext context;
 
     private static final String BAD_SPA = 
         "com.sun.jini.test.impl.mercury.badSPA";
+    private Exporter exporter;
+    private boolean started;
 
     // ProxyAccessor - for activation code
-    public Object getProxy() { return serverStub; }
+    public synchronized Object getProxy() { return serverStub; }
 
     // ServiceProxyAccessor - for ServiceStarter code
     public Object getServiceProxy() { return null; }
 
     // ServerProxyTrust - for proxy preparation
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new BasicProxyTrustVerifier(serverStub);
     }
     // Activatable constructor
@@ -132,14 +139,13 @@ public class BadServiceProxyAccessorImpl
 
     /** Initialization common to both activatable and transient instances. */
     private void doInit(Configuration config) throws Exception {
-        Exporter exporter = (Exporter) getNonNullEntry(
+        exporter = (Exporter) getNonNullEntry(
             config, "exporter", Exporter.class,
             new BasicJeriExporter(TcpServerEndpoint.getInstance(0), 
 				  new BasicILFactory(), 
 				  false, 
 				  true));
-        // Export server instance and get its reference
-        serverStub = exporter.export(this);
+        context = AccessController.getContext();
     }
 
     protected Object getNonNullEntry(Configuration config,
@@ -157,6 +163,21 @@ public class BadServiceProxyAccessorImpl
         return result;
     }
 
+    @Override
+    public final synchronized void start() throws Exception {
+        if (started) return;
+        started = true;
+        AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
+
+            @Override
+            public Object run() throws Exception {
+                // Export server instance and get its reference
+                serverStub =  exporter.export(BadServiceProxyAccessorImpl.this);
+                return null;
+            }
+            
+        }, context);
+    }
 }
 
 

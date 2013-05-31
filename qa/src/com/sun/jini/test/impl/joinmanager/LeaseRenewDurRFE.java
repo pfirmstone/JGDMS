@@ -78,6 +78,7 @@ import com.sun.jini.config.Config;
 import com.sun.jini.config.ConfigUtil;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.qa.harness.Test;
+import com.sun.jini.start.Starter;
 
 import net.jini.activation.ActivationExporter;
 import net.jini.activation.ActivationGroup;
@@ -106,12 +107,16 @@ import java.rmi.activation.ActivationSystem;
 import java.rmi.activation.ActivationException;
 import java.rmi.MarshalledObject;
 import java.rmi.server.ExportException;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.List;
 import java.util.StringTokenizer;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
+import javax.security.auth.login.LoginException;
 
 /**
  * This class verifies that the current implementation of the 
@@ -1057,193 +1062,274 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 
     static class RemoteTestServiceImpl implements ServerProxyTrust,
                                                   ProxyAccessor,
-                                                  RemoteTestServiceInterface
+                                                  RemoteTestServiceInterface,
+                                                  Starter
                                                   
     {
         private static final String COMPONENT_NAME = "test";
         private static final String JM_COMPONENT_NAME
                                              = "net.jini.lookup.JoinManager";
-        private int val = 0;
-        private long renewDur = Lease.FOREVER;
+        final private int val;
+        final private long renewDur;
 
-        private Configuration config;
-        private LoginContext loginContext = null;
-        private Uuid proxyID = null;
-        private ServiceID serviceID = null;
-        private ActivationID activationID;
-        private ActivationSystem activationSystem;
-        private Exporter serverExporter;
+        final private Configuration config;
+        final private LoginContext loginContext;
+        final private Uuid proxyID;
+        final private ServiceID serviceID;
+        final private ActivationID activationID;
+        final private ActivationSystem activationSystem;
+        volatile private boolean activationSystemUnregister;
+        final private Exporter serverExporter;
         private TestServiceProxy outerProxy;
         private RemoteTestServiceInterface innerProxy;
-        private String[] groupsToJoin = DiscoveryGroupManagement.NO_GROUPS;
-        private LookupLocator[] locatorsToJoin = new LookupLocator[0];
-        private LookupDiscoveryManager ldm;
+        final private String[] groupsToJoin;
+        final private LookupLocator[] locatorsToJoin;
+        final private LookupDiscoveryManager ldm;
         private JoinManager joinMgr;
+        private AccessControlContext context;
+        private boolean started = false;
 
         RemoteTestServiceImpl(ActivationID activationID,
                               MarshalledObject data) throws Exception
-        {
-            this.activationID = activationID;
-            activationSystem = ActivationGroup.getSystem();
-            init( (String[])data.get() );
+        {// All exceptions are thrown prior to this Object being created.
+            this(init((String[])data.get(), activationID, ActivationGroup.getSystem()));
         }//end constructor
+        
+        private RemoteTestServiceImpl(Init init){
+            config = init.config;
+            loginContext = init.loginContext;
+            proxyID = init.proxyID;
+            serviceID = init.serviceID;
+            activationID = init.activationID;
+            activationSystem = init.activationSystem;
+            serverExporter = init.serverExporter;
+            groupsToJoin = init.groupsToJoin;
+            locatorsToJoin = init.locatorsToJoin;
+            ldm = init.ldm;
+            context = init.context;
+            val = init.val.intValue();
+            renewDur = init.renewDur.longValue();
+        }
+        
+        public synchronized void start() throws Exception {
+            if (started) return;
+            AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
+
+                @Override
+                public Object run() throws Exception {
+                    innerProxy =
+                           (RemoteTestServiceInterface)serverExporter.export(RemoteTestServiceImpl.this);
+                    outerProxy = TestServiceProxy.createTestServiceProxy
+                                                  (innerProxy, proxyID, val, renewDur);
+                    joinMgr = new JoinManager(outerProxy, null, serviceID,
+                                              ldm, null, config);
+                    return null;
+                }
+                
+            }, context);
+            started = true;
+            context = null; //Be careful not to store things on the stack.
+        }
 
         public void exitService() throws RemoteException, ActivationException {
-            if (activationSystem != null) {
+            if (activationSystemUnregister) {
 	        activationSystem.unregisterGroup
                                           ( ActivationGroup.currentGroupID() );
-                activationSystem = null;     
+                activationSystemUnregister = false;
             }//endif
             (new DestroyThread()).start();
         }//end exitService
 
-        private void init(String[] args) throws Exception {
-            config = ConfigurationProvider.getInstance
-                                       ( args,
-                                         (this.getClass()).getClassLoader() );
+        private static Init init(   String[] args, 
+                                    ActivationID activationID, 
+                                    ActivationSystem activationSystem
+                                ) throws Exception 
+        {
+            Configuration config 
+                    = ConfigurationProvider.getInstance
+                           ( args,
+                             RemoteTestServiceImpl.class.getClassLoader() );
             try {
-                loginContext = (LoginContext)Config.getNonNullEntry
+                LoginContext loginContext = (LoginContext)Config.getNonNullEntry
                                                          (config,
                                                           COMPONENT_NAME,
                                                           "loginContext",
                                                           LoginContext.class);
                 logger.log(Levels.HANDLED,
                            " ***** loginContext retrieved *****");
-                initWithLogin(config, loginContext);
+                return initWithLogin(config, loginContext, activationID, activationSystem);
             } catch (NoSuchEntryException e) {
                 if(secureProto) {
                     logger.log(Levels.HANDLED, " ***** NO loginContext *****");
                 }//endif
-                doInit(config);
+                return doInit(config, null, activationID, activationSystem);
             }
         }//end init
 
-        private void initWithLogin(final Configuration config, 
-                                         LoginContext loginContext)
-                                                             throws Exception
+        private static Init initWithLogin(final Configuration config, 
+                                   final LoginContext loginContext, 
+                                   final ActivationID activationID, 
+                                   final ActivationSystem activationSystem
+                            ) throws LoginException, IOException, ConfigurationException 
         {
             loginContext.login();
             try {
-                Subject.doAsPrivileged
-                                  ( loginContext.getSubject(),
-                                    new PrivilegedExceptionAction() {
-                                        public Object run() throws Exception {
-                                            doInit(config);
-                                            return null;
-                                        }//end run
-                                    },
-                                    null );//end doAsPrivileged
-            } catch (Throwable e) {
-                if(e instanceof PrivilegedExceptionAction) e = e.getCause();
-                if(e instanceof IOException)  throw (IOException)e;
-                if(e instanceof ConfigurationException) 
-                                          throw (ConfigurationException)e;
-                throw new RuntimeException(e);
+                return Subject.doAsPrivileged
+                  ( loginContext.getSubject(),
+                    new PrivilegedExceptionAction<Init>() {
+                        public Init run() throws Exception {
+                            return doInit(  
+                                        config, 
+                                        loginContext, 
+                                        activationID, 
+                                        activationSystem
+                                    );
+                        }//end run
+                    },
+                    null );//end doAsPrivileged
+            } catch (PrivilegedActionException e) {
+                // Previous exception handling was broken, caught Throwable and
+                // checked for instance of PrivilegedExceptionAction,
+                // by mistake.
+                Exception ex = e.getException();
+                if(ex instanceof IOException)  throw (IOException)ex;
+                if(ex instanceof ConfigurationException) 
+                                          throw (ConfigurationException)ex;
+                throw new RuntimeException(ex);
             }
         }//end initWithLogin
-
-        private void doInit(final Configuration config)  throws Exception {
-
-            val = ((Integer)config.getEntry(COMPONENT_NAME,
-                                            "val",
-                                            int.class,
-                                            new Integer(val))).intValue();
-            renewDur = ((Long)config.getEntry
-                                            (JM_COMPONENT_NAME,
-                                             "maxLeaseDuration",
-                                             long.class,
-                                             new Long(renewDur))).longValue();
-            proxyID = UuidFactory.generate();
-            if(proxyID == null) throw new NullPointerException
-                                                          ("proxyID == null");
-
-            String serviceIDStr = (String)Config.getNonNullEntry
-                                                             (config,
-                                                              COMPONENT_NAME,
-                                                              "serviceID",
-                                                              String.class);
-            serviceID = ConfigUtil.createServiceID(serviceIDStr);
-            locatorsToJoin =
-                     (LookupLocator[])config.getEntry(COMPONENT_NAME, 
-                                                      "locatorsToJoin", 
-                                                      LookupLocator[].class, 
-                                                      new LookupLocator[0]);
-            /* display the overridden config items */
-            logger.log(Levels.HANDLED," TestService-"+val+": service ID = "
-                                  +serviceID);
-            for(int i=0; i<locatorsToJoin.length; i++) {
-                logger.log(Levels.HANDLED," TestService-"+val+": locsToJoin["
-                                      +i+"] = "+locatorsToJoin[i]);
-            }//end loop
-            if(renewDur == Lease.FOREVER) {
-                logger.log(Levels.HANDLED,
-                           " TestService-"+val+": lease duration = DEFAULT");
-            } else {
-                logger.log(Levels.HANDLED,
-                           " TestService-"+val+": lease duration = "
-                           +renewDur);
-            }//endif
-
-            ldm = new LookupDiscoveryManager(groupsToJoin, locatorsToJoin,
-                                             null, config);
-
-            ServerEndpoint endpoint = TcpServerEndpoint.getInstance(0);
-            InvocationLayerFactory ilFactory = new BasicILFactory();
-            Exporter defaultExporter = new BasicJeriExporter(endpoint,
-                                                             ilFactory,
-                                                             false,
-                                                             true);
-            if(activationID != null) {
-                ProxyPreparer aidPreparer =
-                  (ProxyPreparer)Config.getNonNullEntry
-                                                   (config,
-                                                    COMPONENT_NAME,
-                                                    "activationIdPreparer",
-                                                    ProxyPreparer.class,
-                                                    new BasicProxyPreparer());
-                ProxyPreparer aSysPreparer = 
-                  (ProxyPreparer)Config.getNonNullEntry
-                                                   (config,
-                                                    COMPONENT_NAME,
-                                                    "activationSystemPreparer",
-                                                    ProxyPreparer.class,
-                                                    new BasicProxyPreparer());
-                activationID = (ActivationID)aidPreparer.prepareProxy
-                                                               (activationID);
-                activationSystem = (ActivationSystem)aSysPreparer.prepareProxy
-                                                            (activationSystem);
-                defaultExporter = new ActivationExporter(activationID,
-                                                         defaultExporter);
-            }//endif(activationID != null)
-            try {
-                serverExporter = (Exporter)Config.getNonNullEntry
-                                                             (config,
-                                                              COMPONENT_NAME,
-                                                              "serverExporter",
-                                                              Exporter.class,
-                                                              defaultExporter);
-            } catch(ConfigurationException e) {
-                throw new ExportException("Configuration exception while "
-                                          +"retrieving service's exporter",
-                                          e);
-            }
-            innerProxy =
-                   (RemoteTestServiceInterface)serverExporter.export(this);
-            outerProxy = TestServiceProxy.createTestServiceProxy
-                                          (innerProxy, proxyID, val, renewDur);
-            joinMgr = new JoinManager(outerProxy, null, serviceID,
-                                      ldm, null, config);
+        
+        private static Init doInit( Configuration config, 
+                                    LoginContext loginContext, 
+                                    ActivationID activationID, 
+                                    ActivationSystem activationSystem
+                                  ) throws ConfigurationException, IOException 
+        {
+            return new Init(config, loginContext, activationID, activationSystem);
         }//end doInit
+        
+        private static class Init {
+            Integer val;
+            Long renewDur;
+            Uuid proxyID;
+            ServiceID serviceID;
+            LookupLocator [] locatorsToJoin;
+            String[] groupsToJoin = DiscoveryGroupManagement.NO_GROUPS;
+            LookupDiscoveryManager ldm;
+            ActivationID activationID;
+            ActivationSystem activationSystem;
+            boolean activationSystemUnregister = false;
+            Exporter serverExporter;
+            LoginContext loginContext;
+            AccessControlContext context;
+            Configuration config;
+            
+            Init(Configuration config, 
+                    LoginContext loginContext,
+                    ActivationID activationID, 
+                    ActivationSystem activationSystem) 
+                    throws ConfigurationException, IOException
+            {
+                this.loginContext = loginContext;
+                this.config = config;
+                val = ((Integer)config.getEntry(COMPONENT_NAME,
+                                                "val",
+                                                int.class,
+                                                Integer.valueOf(0)));
+                renewDur = ((Long)config.getEntry
+                                                (JM_COMPONENT_NAME,
+                                                 "maxLeaseDuration",
+                                                 long.class,
+                                                 Long.valueOf(Lease.FOREVER)));
+                proxyID = UuidFactory.generate();
+                if(proxyID == null) throw new NullPointerException
+                                                              ("proxyID == null");
 
-        public TrustVerifier getProxyVerifier() {
+                String serviceIDStr = (String)Config.getNonNullEntry
+                                                                 (config,
+                                                                  COMPONENT_NAME,
+                                                                  "serviceID",
+                                                                  String.class);
+                serviceID = ConfigUtil.createServiceID(serviceIDStr);
+                locatorsToJoin =
+                         (LookupLocator[])config.getEntry(COMPONENT_NAME, 
+                                                          "locatorsToJoin", 
+                                                          LookupLocator[].class, 
+                                                          new LookupLocator[0]);
+                /* display the overridden config items */
+                logger.log(Levels.HANDLED," TestService-"+val+": service ID = "
+                                      +serviceID);
+                for(int i=0; i<locatorsToJoin.length; i++) {
+                    logger.log(Levels.HANDLED," TestService-"+val+": locsToJoin["
+                                          +i+"] = "+locatorsToJoin[i]);
+                }//end loop
+                if(renewDur == Lease.FOREVER) {
+                    logger.log(Levels.HANDLED,
+                               " TestService-"+val+": lease duration = DEFAULT");
+                } else {
+                    logger.log(Levels.HANDLED,
+                               " TestService-"+val+": lease duration = "
+                               +renewDur);
+                }//endif
+
+                ldm = new LookupDiscoveryManager(groupsToJoin, locatorsToJoin,
+                                                 null, config);
+
+                ServerEndpoint endpoint = TcpServerEndpoint.getInstance(0);
+                InvocationLayerFactory ilFactory = new BasicILFactory();
+                Exporter defaultExporter = new BasicJeriExporter(endpoint,
+                                                                 ilFactory,
+                                                                 false,
+                                                                 true);
+                if(activationID != null) {
+                    ProxyPreparer aidPreparer =
+                      (ProxyPreparer)Config.getNonNullEntry
+                                                       (config,
+                                                        COMPONENT_NAME,
+                                                        "activationIdPreparer",
+                                                        ProxyPreparer.class,
+                                                        new BasicProxyPreparer());
+                    ProxyPreparer aSysPreparer = 
+                      (ProxyPreparer)Config.getNonNullEntry
+                                                       (config,
+                                                        COMPONENT_NAME,
+                                                        "activationSystemPreparer",
+                                                        ProxyPreparer.class,
+                                                        new BasicProxyPreparer());
+                    this.activationID = (ActivationID)aidPreparer.prepareProxy
+                                                                   (activationID);
+                    this.activationSystem = (ActivationSystem)aSysPreparer.prepareProxy
+                                                                (activationSystem);
+                    defaultExporter = new ActivationExporter(activationID,
+                                                             defaultExporter);
+                    activationSystemUnregister = true;
+                }//endif(activationID != null)
+                try {
+                    serverExporter = (Exporter)Config.getNonNullEntry
+                                                                 (config,
+                                                                  COMPONENT_NAME,
+                                                                  "serverExporter",
+                                                                  Exporter.class,
+                                                                  defaultExporter);
+                } catch(ConfigurationException e) {
+                    throw new ExportException("Configuration exception while "
+                                              +"retrieving service's exporter",
+                                              e);
+                }
+                context = AccessController.getContext();
+            }
+            
+        }
+
+        public synchronized TrustVerifier getProxyVerifier() {
             return new ProxyVerifier(innerProxy, proxyID);
         }//end getProxyVerifier
 
-        public Object getProxy() {
+        public synchronized Object getProxy() {
             return innerProxy;
         }//end getProxy
 
-        public Object getServiceProxy() {
+        public synchronized Object getServiceProxy() {
             return outerProxy;
         }//end getServiceProxy
 
