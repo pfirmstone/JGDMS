@@ -101,7 +101,7 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
     private static final EntryRep matchAnyRep;
 
     static {
-        classHashes = new WeakHashMap();
+        classHashes = new WeakHashMap<Class,Long>();
 	try {
 	    matchAnyRep = new EntryRep(new Entry() {
 		// keeps tests happy
@@ -163,7 +163,7 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
      * Cached hash values for all classes we encounter. Weak hash used
      * in case the class is GC'ed from the client's VM.
      */
-    static final private WeakHashMap classHashes;
+    static final private WeakHashMap<Class,Long> classHashes;
 
     /**
      * Lookup the hash value for the given class. If it is not
@@ -175,7 +175,7 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
 	throws MarshalException, UnusableEntryException
     {
 
-	Long hash = (Long)classHashes.get(clazz);
+	Long hash = classHashes.get(clazz);
 
 	// If hash not cached, calculate it for this class and,
 	// recursively, all superclasses
@@ -288,9 +288,10 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
 	}
 
 	// copy the vals with the correct length
-	this.values = new MarshalledInstance[nvals];
-	System.arraycopy(vals, 0, this.values, 0, nvals);
-
+	MarshalledInstance [] values = new MarshalledInstance[nvals];
+	System.arraycopy(vals, 0, values, 0, nvals);
+        this.values = values; // safe publication
+        
 	try {
 	    hash = findHash(realClass, true).longValue();
 	} catch (UnusableEntryException e) {
@@ -299,8 +300,8 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
 	}
 
 	// Loop through the supertypes, making a list of all superclasses.
-	ArrayList sclasses = new ArrayList();
-	ArrayList shashes = new ArrayList();
+	ArrayList<String> sclasses = new ArrayList<String>();
+	ArrayList<Long> shashes = new ArrayList<Long>();
 	for (Class c = realClass.getSuperclass();
 	     c != Object.class;
 	     c = c.getSuperclass())
@@ -315,11 +316,12 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
 		throw new AssertionError(e);
 	    }
 	}
-	superclasses = (String[])sclasses.toArray(new String[sclasses.size()]);
-	hashes = new long[shashes.size()];
+	superclasses = sclasses.toArray(new String[sclasses.size()]); // safe publication.
+	long [] hashes = new long[shashes.size()];
 	for (int i=0; i < hashes.length; i++) {
-	    hashes[i] = ((Long)shashes.get(i)).longValue();
+	    hashes[i] = (shashes.get(i)).longValue();
 	}
+        this.hashes = hashes; // safe publication.
     }
 
     /**
@@ -891,7 +893,7 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
 
     /**
      * Construct, log, and throw a new UnusableEntryException, that
-     * raps a given exception.
+     * wraps a given exception.
      */
     private static UnusableEntryException throwNewUnusableEntryException(
             Throwable nested) 

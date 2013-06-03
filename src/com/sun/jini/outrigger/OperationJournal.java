@@ -440,13 +440,13 @@ class OperationJournal extends Thread {
 			AssertionError("JournalNode with null payload");
 		} else if (payload instanceof EntryTransition) {
 		    final EntryTransition t = (EntryTransition)payload;
-		    final SortedSet set = 
+		    final SortedSet<TransitionWatcher> set = 
 			watchers.allMatches(t, ordinal);
 		    final long now = System.currentTimeMillis();
 
-		    for (Iterator i=set.iterator(); i.hasNext() && !dead; ) {
+		    for (Iterator<TransitionWatcher> i=set.iterator(); i.hasNext() && !dead; ) {
 			final TransitionWatcher watcher = 
-			    (TransitionWatcher)i.next();
+			    i.next();
 			watcher.process(t, now);
 		    }
 		} else if (payload instanceof CaughtUpMarker) {

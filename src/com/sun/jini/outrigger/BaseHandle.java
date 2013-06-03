@@ -17,21 +17,29 @@
  */
 package com.sun.jini.outrigger;
 
+import java.util.Queue;
+
 /**
  * Base class for handles to Entries and templates.
  *
  * @author Sun Microsystems, Inc.
  *
  */
-class BaseHandle  {
+abstract class BaseHandle  {
     private final EntryRep rep;		// the rep this handle manages
-    private boolean removed = false;
+    private final Queue<? extends BaseHandle> content;
 
     /**
      * Create a new handle
+     * 
+     * @param content thread safe Queue from which this BaseHandle will be removed
+     * atomically, BaseHandle is not added to content during construction,
+     * as it would allow this to escape.
+     * @param rep EntryRep managed by this BaseHandle.
      */
-    BaseHandle(EntryRep rep) {
+    protected BaseHandle(EntryRep rep, Queue<? extends BaseHandle> content) {
 	this.rep = rep;
+        this.content = content;
     }
 
     /**
@@ -46,18 +54,15 @@ class BaseHandle  {
 	return rep.classFor();
     }
     
-    public synchronized boolean removed(){
-        return removed;
-    }
+    public abstract boolean removed();
     
     /**
+     * Overridden and called from subclass.
      * 
-     * @return true if this is the first time remove is called.
+     * @return true if removed.
      */
-    public synchronized boolean remove(){
-        boolean result = !removed;
-        removed = true;
-        return result;
+    public boolean remove(){
+        return content.remove(this);
     }
 }
 

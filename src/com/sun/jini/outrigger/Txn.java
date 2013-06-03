@@ -112,7 +112,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject<Txn> 
      * The list of <code>Transactable</code> participating in 
      * this transaction.
      */
-    final private List txnables = new java.util.LinkedList();
+    final private List<Transactable> txnables = new java.util.LinkedList<Transactable>();
 
     /**
      * The task responsible for monitoring to see if this
@@ -277,11 +277,11 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject<Txn> 
 	    }
 
 	    // loop through Transactable members of this Txn
-	    final Iterator i = txnables.iterator();
+	    final Iterator<Transactable> i = txnables.iterator();
 	    int c=0; // Counter for debugging message
 	    while (i.hasNext()) {
 		// get this member's vote
-		final Transactable transactable = (Transactable)i.next();
+		final Transactable transactable = i.next();
 		final int prepState =  transactable.prepare(this, space);
 		if (logger.isLoggable(Level.FINEST)) {
 		    logger.log(Level.FINEST, "prepare:prepared " +
@@ -361,9 +361,10 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject<Txn> 
 		new Object[]{tr, Long.valueOf(trId), TxnConstants.getName(state)});
 	    }
 
-	    final Iterator i = txnables.iterator();
-	    while (i.hasNext())
-		((Transactable) i.next()).abort(this, space);
+	    final Iterator<Transactable> i = txnables.iterator();
+	    while (i.hasNext()) {
+                i.next().abort(this, space);
+            }
 	    state = ABORTED;
 	    cleanup();
 	    break;
@@ -400,15 +401,16 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject<Txn> 
 	    return;
 
 	  case PREPARED:	// voted PREPARED, time to finish up
-	    final Iterator i = txnables.iterator();
+	    final Iterator<Transactable> i = txnables.iterator();
 	    if (logger.isLoggable(Level.FINEST)) {
 		logger.log(Level.FINEST, "commit:committing transaction mgr:" +
 		    "{0}, id:{1}, state:{2}", 
 		new Object[]{tr, Long.valueOf(trId), TxnConstants.getName(state)});
 	    }
 
-	    while (i.hasNext())
-		((Transactable) i.next()).commit(this, space);
+	    while (i.hasNext()) {
+                i.next().commit(this, space);
+            }
 	    state = COMMITTED;
 	    cleanup();
 	    return;

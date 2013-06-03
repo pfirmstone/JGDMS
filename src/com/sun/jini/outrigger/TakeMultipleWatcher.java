@@ -46,7 +46,7 @@ class TakeMultipleWatcher extends QueryWatcher implements Transactable {
      * we would have liked to return, but have been provisionally
      * removed.
      */
-    private final Map provisionallyRemovedEntrySet;
+    private final Set<EntryHandle> provisionallyRemovedEntrySet;
 
     /**
      * If non-null the transaction this query is
@@ -107,7 +107,7 @@ class TakeMultipleWatcher extends QueryWatcher implements Transactable {
      *        a transaction the <code>Txn</code> object
      *        associated with that transaction.  */
     TakeMultipleWatcher(int limit, long expiration, long timestamp, 
-        long startOrdinal, Map provisionallyRemovedEntrySet, Txn txn)
+        long startOrdinal, Set<EntryHandle> provisionallyRemovedEntrySet, Txn txn)
     {
 	super(expiration, timestamp, startOrdinal);
 	this.limit = limit;

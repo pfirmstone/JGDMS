@@ -18,6 +18,7 @@
 package com.sun.jini.outrigger;
 
 import java.util.Set;
+import net.jini.id.Uuid;
 
 /**
  * Subclass of <code>QueryWatcher</code> for non-transactional if
@@ -34,7 +35,7 @@ class ReadIfExistsWatcher extends SingletonQueryWatcher
      * unavailable (e.g. they are locked). We only keep
      * the ids, not the entries themselves.
      */
-    private final Set lockedEntries;
+    private final Set<Uuid> lockedEntries;
 
     /**
      * Set <code>true</code> once the query thread is 
@@ -61,7 +62,7 @@ class ReadIfExistsWatcher extends SingletonQueryWatcher
      *         <code>null</code>.
      */
     ReadIfExistsWatcher(long expiration, long timestamp, long startOrdinal, 
-			Set lockedEntries)
+			Set<Uuid> lockedEntries)
     {
 	super(expiration, timestamp, startOrdinal);
 

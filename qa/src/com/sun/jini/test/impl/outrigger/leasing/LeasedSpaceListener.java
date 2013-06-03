@@ -113,7 +113,7 @@ public class LeasedSpaceListener
             received = true;
             this.notifyAll();
         }
-        logger.log(Level.INFO, "notify called at {0}", date.getTime());
+        logger.log(Level.FINER, "notify called at {0}", date.getTime());
     }
 
     /**

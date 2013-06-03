@@ -30,22 +30,20 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  */
 class WatchersForTemplateClass {
     /** All the templates we know about */
-//    private final FastList<TemplateHandle> contents = new FastList<TemplateHandle>();	
-    
     private final Queue<TemplateHandle> content = new ConcurrentLinkedQueue<TemplateHandle>();
 
-    /** The object we are inside of */
-    private final TransitionWatchers owner;
+    /** The OutriggerServerImpl we belong to */
+    private final OutriggerServerImpl owner;
 
     /**
      * Create a new <code>WatchersForTemplateClass</code> object
      * associated with the specified <code>TransitionWatchers</code> object.
-     * @param owner The <code>TransitionWatchers</code> that
+     * @param owner The <code>OutriggerServerImpl</code> that
      *              this object will be a part of.
      * @throws NullPointerException if <code>owner</code> is
      *         <code>null</code>.
      */
-    WatchersForTemplateClass(TransitionWatchers owner) {
+    WatchersForTemplateClass(OutriggerServerImpl owner) {
 	if (owner == null)
 	    throw new NullPointerException("owner must be non-null");
 	this.owner = owner;
@@ -66,52 +64,18 @@ class WatchersForTemplateClass {
      */
     void add(TransitionWatcher watcher, EntryRep template) {
 	/* We try to find an existing handle, but it is ok
-	 * if we have more than one with the same template. It
-	 * is bad if we add the watcher to a removed handle.
+	 * if we have more than one with the same template.
+         * It isn't possible to add a watcher to a removed
+         * handle even if present during iteration.
 	 */	
         for(TemplateHandle handle : content) {
-	    if (template.equals(handle.rep())) {
-		synchronized (handle) {
-		    if (!handle.removed()) {
-			/* Found one, add and break. Call
-			 * addTemplateHandle() before adding to handle
-			 * so if the handle calls the watcher it will
-			 * be in a complete state. Add inside the
-			 * lock so handle can't be removed.
-			 */
-			if (watcher.addTemplateHandle(handle)) {
-			    handle.addTransitionWatcher(watcher);
-			} // else the watcher was removed, don't add to handle
-
-			return; // found a handle and added the watcher
-		    }
-		}
-	    }
+	    if (template.equals(handle.rep()) &&
+                handle.addTransitionWatcher(watcher)) return;
 	}
-
-	/* If we are here we could not find a handle with the right
-	 * template, create one, add the watcher to it, and it
-	 * to contents.
-	 */
-	TemplateHandle handle = new TemplateHandle(template, this);
-
-	/* We need the sync both to prevent concurrent modification
-	 * of handle (since we add it to contents first), and to
-	 * make sure other threads see the changes we are about to make.
-	 */
-	synchronized (handle) {
-	    /* First add handle to contents so handle is fully initialized 
-	     * before we start to pass it around use
-	     */
-	    content.add(handle);
-	    if (watcher.addTemplateHandle(handle)) {
-		handle.addTransitionWatcher(watcher);
-	    } else {
-		// watcher is already dead, undo adding handle
-		content.remove(handle);	
-                handle.remove();
-	    }
-	}
+        
+	TemplateHandle handle = new TemplateHandle(template, owner, content);
+        if (handle.addTransitionWatcher(watcher)) content.add(handle);
+        // else the new handle is discarded.
     }
     
     /**
@@ -126,7 +90,7 @@ class WatchersForTemplateClass {
      * @param ordinal The ordinal associated with <code>transition</code>.
      * @throws NullPointerException if either argument is <code>null</code>.
      */
-    void collectInterested(Set set, EntryTransition transition, 
+    void collectInterested(Set<TransitionWatcher> set, EntryTransition transition, 
 			   long ordinal) 
     {
 	final EntryHandle entryHandle = transition.getHandle();
@@ -145,23 +109,8 @@ class WatchersForTemplateClass {
 
 	    if ((entryHash & desc.mask) != desc.hash) continue;
 
-	    if (handle.matches(rep)) { // rep access is synchronized
-                synchronized (handle){
-                    if (handle.removed()) continue;
-                    handle.collectInterested(set, transition, ordinal);
-                }
-	    }
+	    if (handle.matches(rep)) handle.collectInterested(set, transition, ordinal);
 	}
-    }
-
-    /**
-     * Return the <code>OutriggerServerImpl</code> this 
-     * handle is part of.
-     * @return The <code>OutriggerServerImpl</code> this 
-     * handle is part of.
-     */
-    OutriggerServerImpl getServer() {
-	return owner.getServer();
     }
 
     /**
@@ -177,24 +126,8 @@ class WatchersForTemplateClass {
 	{
 	    // Dump any expired watchers.
 	    handle.reap(now);
-
-	    /* Need to lock on the handle so no one will
-	     * add a watcher between the check for empty and
-	     * when it gets marked removed.
-	     */
-	    synchronized (handle) {
-		if (handle.isEmpty()) {
-		    content.remove(handle);
-                    handle.remove();
-		    continue;
-		}
-	    }
+            handle.removeIfEmpty();
 	}
-
-	/* This provides the FastList with an opportunity to actually
-	 * excise the items identified as "removed" from the list.
-	 */
-//	contents.reap();
     }
 }
 

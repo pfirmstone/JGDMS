@@ -24,6 +24,7 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -52,7 +53,7 @@ class EntryHolder implements TransactionConstants {
      * <code>EntryHolderSet</code> and every other
      * <code>EntryHolder</code>.  
      */
-    private final Map<Uuid, EntryHandle> idMap;
+    private final ConcurrentMap<Uuid, EntryHandle> idMap;
 
     /** The server we are working for */
     private final OutriggerServerImpl space;
@@ -72,9 +73,13 @@ class EntryHolder implements TransactionConstants {
      * <code>EntryHolderSet</code> so that there is one table that can
      * map ID to <code>EntryRep</code>
      */
-    EntryHolder(OutriggerServerImpl space, Map<Uuid,EntryHandle> idMap) {
+    EntryHolder(OutriggerServerImpl space, ConcurrentMap<Uuid,EntryHandle> idMap) {
 	this.space = space;
 	this.idMap = idMap;
+    }
+    
+    EntryHandle newEntryHandle(EntryRep rep, TransactableMgr mgr){
+        return new EntryHandle(rep, mgr, this, content);
     }
 
     /**
@@ -122,7 +127,7 @@ class EntryHolder implements TransactionConstants {
      */
     EntryHandle hasMatch(EntryRep tmpl, TransactableMgr txn, boolean takeIt,
             Set conflictSet, Set lockedEntrySet,
-            Map provisionallyRemovedEntrySet)
+            Set provisionallyRemovedEntrySet)
             throws CannotJoinException {
         matchingLogger.entering("EntryHolder", "hasMatch");
         EntryHandleTmplDesc desc = null;
@@ -219,7 +224,7 @@ class EntryHolder implements TransactionConstants {
      */
     boolean attemptCapture(EntryHandle handle, TransactableMgr txn,
 	boolean takeIt, Set conflictSet, Set lockedEntrySet, 
-        Map provisionallyRemovedEntrySet, long now)
+        Set provisionallyRemovedEntrySet, long now)
     {
 	try {
 	    return confirmAvailabilityWithTxn(handle.rep(), handle,
@@ -236,8 +241,8 @@ class EntryHolder implements TransactionConstants {
      */
     private boolean confirmAvailabilityWithTxn(EntryRep rep, 
 	      EntryHandle handle, TransactableMgr txnMgr, boolean takeIt, 
-	      long time, Set conflictSet, Set lockedEntrySet,
-	      Map provisionallyRemovedEntrySet)
+	      long time, Set conflictSet, Set<Uuid> lockedEntrySet,
+	      Set<EntryHandle> provisionallyRemovedEntrySet)
 	throws CannotJoinException
     {
 	// Now that we know we have a match, make sure that the the
@@ -280,8 +285,8 @@ class EntryHolder implements TransactionConstants {
     private boolean
 	confirmAvailability(EntryRep rep, EntryHandle handle,
 	      TransactableMgr txn, boolean takeIt, long time,
-	      Set conflictSet, Set lockedEntrySet,
-	      Map provisionallyRemovedEntrySet)
+	      Set conflictSet, Set<Uuid> lockedEntrySet,
+	      Set<EntryHandle> provisionallyRemovedEntrySet)
     {
 	synchronized (handle) {
             if (handle.removed()) return false;
@@ -291,7 +296,7 @@ class EntryHolder implements TransactionConstants {
 		
 	    if (handle.isProvisionallyRemoved()) {
 		if (provisionallyRemovedEntrySet != null)
-		    provisionallyRemovedEntrySet.put(handle, null);
+		    provisionallyRemovedEntrySet.add(handle);
 		return false;
 	    }
 
@@ -525,31 +530,19 @@ class EntryHolder implements TransactionConstants {
 	/* Make sure info duplicated across all the handles in this
 	 * holder is shared.
 	 *
-	 * Because this thread will usually hold the lock on handle,
-	 * we must call contents.head before calling contents.add
-	 * otherwise during the head call this thread will attempt to
-	 * obtain a lock on a 2nd FastList node in the same FastList,
-	 * and make that attempt in the wrong order. In particular
-	 * this could lead to deadlocks when SimpleRepEnum or
-	 * ContinuingQuery call into FastList.Node.restart ( restart
-	 * locks the node its called on (which can be the same node
-	 * head locks) and then tries to lock the tail (which can be
-	 * handle if add has already been called)). By calling head
-	 * before calling add we have locks on two FastList.Node
-	 * objects, but they are not in the same list so we are ok.
-	 *
 	 * We make the head call before calling txn.add because
 	 * it seems like better hygiene to fix reps state before
 	 * exposing it to others (even though shareWith will
 	 * not change handle's state materially).  
 	 */
 	final EntryHandle head = getContentsHead();
-	if (head != null && head != handle)
-	    rep.shareWith(head.rep());
-
-	if (txn != null) txn.add(handle);
-	content.add(handle);
-	idMap.put(rep.getCookie(), handle);
+	if (head != null && head != handle) rep.shareWith(head.rep());
+        synchronized (handle){ //typically synchronized externally anyway.
+            if (txn != null) txn.add(handle);
+            content.add(handle);
+            EntryHandle existed = idMap.putIfAbsent(rep.getCookie(), handle);
+            if (existed != null) throw new IllegalStateException("An EntryHandle with that Cookie already exists in idMap");
+        }
     }
 
     /**
@@ -654,7 +647,7 @@ class EntryHolder implements TransactionConstants {
 	final private boolean takeThem;
 
 	/** <code>EntryHandleTmplDesc</code> for the templates */
-	private volatile EntryHandleTmplDesc[] descs;
+        final private ThreadLocal<EntryHandleTmplDesc[]> descLocal;
 	    
 
 	/** Time used to weed out expired entries, ok if old */
@@ -689,6 +682,7 @@ class EntryHolder implements TransactionConstants {
 	    this.takeThem = takeThem;
 	    this.now = now;
 	    contentsIterator = content.iterator();
+            descLocal = new ThreadLocal<EntryHandleTmplDesc[]>();
 	}
 
 	/**
@@ -703,9 +697,7 @@ class EntryHolder implements TransactionConstants {
 	 *                 expired entries, ok if old
 	 */
 	void restart(long now) {
-	    if (!contentsIterator.hasNext())
-		return;
-
+	    if (!contentsIterator.hasNext()) return;
 	    this.now = now;
 	}
 
@@ -747,13 +739,11 @@ class EntryHolder implements TransactionConstants {
 	 *         the operation is to be performed under a transaction,
 	 *         but the transaction is no longer active.
 	 */
-	EntryHandle next(Set conflictSet, Set lockedEntrySet,
-			 Map provisionallyRemovedEntrySet) 
+	EntryHandle next(Set conflictSet, Set<Uuid> lockedEntrySet, Set<EntryHandle> provisionallyRemovedEntrySet) 
 	    throws CannotJoinException
 	{
 	    matchingLogger.entering("ContinuingQuery", "next");
-
-
+            EntryHandleTmplDesc[] descs = descLocal.get();
 	    while (contentsIterator.hasNext()) {
 	        EntryHandle handle = contentsIterator.next();
 	        if(descs == null){
@@ -763,17 +753,15 @@ class EntryHolder implements TransactionConstants {
 	                descs[i] = EntryHandle.descFor(tmpls[i], 
 	                                               handle.rep().numFields());
 	            }
+                    descLocal.set(descs);
 	        }
-		if (handleMatch(handle)) {
-		    
+		if (handleMatch(handle, descs)) {
 		    final boolean available =
 			confirmAvailabilityWithTxn(handle.rep(), handle, txn, 
 			    takeThem, now, conflictSet, lockedEntrySet, 
 			    provisionallyRemovedEntrySet);
 
-		    if (available) {
-			return handle;
-		    }
+		    if (available) return handle;
 		}
 	    }
 
@@ -784,7 +772,7 @@ class EntryHolder implements TransactionConstants {
 	 * Returns <code>true</code> if handle has not been removed
 	 * and matches one or more of the templates 
 	 */
-	private boolean handleMatch(EntryHandle handle) {
+	private boolean handleMatch(EntryHandle handle, EntryHandleTmplDesc[] descs) {
 	    if (handle.removed()) return false;
             int length = tmpls.length;
 	    for (int i=0; i<length; i++) {
@@ -815,59 +803,40 @@ class EntryHolder implements TransactionConstants {
     boolean remove(EntryHandle h, boolean recovery) {
 	boolean ok = false;
         synchronized (h){
-            ok =content.remove(h);
-            assert h.remove();
+            ok = h.remove();
+            if (!ok) throw new AssertionError("EntryHandle not removed");
             h.removalComplete();
+            // Ensure removal of EntryHandle is atomic.
+            boolean removed = idMap.remove(h.rep().getCookie(), h);
+            if (!removed) throw new IllegalStateException ("EntryHandle was missing from idMap at time of removal");
+            /* This may cause an ifExists query to be resolved,
+             * even if this entry was not locked under a transaction 
+             */
+            if (!recovery) {
+                space.recordTransition(
+                    new EntryTransition(h, null, false, false, false));
+            }
         }
-	if (ok) {
-	    idMap.remove(h.rep().getCookie());
-	    /* This may cause an ifExists query to be resolved,
-	     * even if this entry was not locked under a transaction 
-	     */
-	    if (!recovery) {
-		space.recordTransition(
-		    new EntryTransition(h, null, false, false, false));
-	    }
-	}
-
 	return ok;
     }
 
     /**
-     * Return the handle for the given <code>EntryRep</code> object.  
-     * This is done via lookup in the <code>idMap</code>.  The 
-     * <code>idMap</code> is doing double duty here.  The 
-     * <code>LeaseDesc</code> associated with an <code>EntryRep</code> 
-     * is also the rep's <code>EntryHandle</code>.
-     */
-    private EntryHandle handleFor(EntryRep rep) {
-	return idMap.get(rep.getCookie());
-    }
-
-    /**
-     * Reap the expired elements (and the underlying FastList)
+     * Reap the expired elements.
      */
     void reap() {
 
-	// Examine each of the elements within the FastList to determine if
+	// Examine each of the elements to determine if
 	// any of them have expired. If they have, ensure that they are
 	// removed ("reaped") from the collection. 
 
 	long now = System.currentTimeMillis();
 	for(EntryHandle handle : content){
 	    // Don't try to remove things twice
-//	    if (handle.removed()) {
-//		continue;
-//	    }
-
+	    if (handle.removed()) continue;
 	    // Calling isExpired() will both make the check and remove it
 	    // if necessary.
 	    isExpired(now, handle);
 	}
-
-	// This provides the FastList with an opportunity to actually
-	// excise the items identified as "removed" from the list.
-//	contents.reap();
     }
 }
 

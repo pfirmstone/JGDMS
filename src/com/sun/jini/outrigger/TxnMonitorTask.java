@@ -303,7 +303,7 @@ class TxnMonitorTask extends RetryTask
 		if (queries == null)	// no resources, so nobody wants it
 		    return false;	// try again next time
 
-		Iterator it = queries.keySet().iterator();
+		Iterator<QueryWatcher> it = queries.keySet().iterator();
 		boolean foundNeed = false;
 
 		if (logger.isLoggable(Level.FINEST)) {
@@ -312,7 +312,7 @@ class TxnMonitorTask extends RetryTask
 		}
 
 		while (it.hasNext()) {
-		    QueryWatcher query = (QueryWatcher)it.next();
+		    QueryWatcher query = it.next();
 		    if (query == null)     // gone -- the map will reap it
 			continue;
 		    if (logger.isLoggable(Level.FINEST)) {
@@ -322,9 +322,9 @@ class TxnMonitorTask extends RetryTask
 				       Long.valueOf(query.getExpiration())});
 		    }
 
-		    if (query.getExpiration() < nextQuery.get() || 
-			query.isResolved())
-			it.remove();	// expired, so we don't care about it
+		    if (query.getExpiration() < nextQuery.get() || query.isResolved()) {
+                        it.remove();
+                    }	// expired, so we don't care about it
 		    else {
 			foundNeed = true;
 			break;

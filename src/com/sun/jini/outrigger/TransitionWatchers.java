@@ -56,11 +56,18 @@ class TransitionWatchers {
      *        <code>null</code>
      */
     TransitionWatchers(OutriggerServerImpl server) {
-	if (server == null)
+	this(check(server), server);
+    }
+    
+    private static boolean check(OutriggerServerImpl server) throws NullPointerException {
+        if (server == null)
 	    throw new NullPointerException("server must be non-null");
-	this.server = server;
+        return true;
     }
 
+    private TransitionWatchers(boolean checked, OutriggerServerImpl server){
+        this.server = server;
+    }
     /**
      * Add a <code>TransitionWatcher</code> to the list
      * of watchers looking for visibility transitions in
@@ -88,7 +95,7 @@ class TransitionWatchers {
 	final String className = template.classFor();
 	WatchersForTemplateClass holder = holders.get(className);	    
         if (holder == null) {
-            holder = new WatchersForTemplateClass(this);
+            holder = new WatchersForTemplateClass(server);
             WatchersForTemplateClass existed = holders.putIfAbsent(className, holder);
             if (existed != null) holder = existed;
         }
@@ -123,9 +130,9 @@ class TransitionWatchers {
      * @throws NullPointerException if <code>transition</code> is 
      *         <code>null</code>.
      */
-    SortedSet allMatches(EntryTransition transition, long ordinal) {
+    SortedSet<TransitionWatcher> allMatches(EntryTransition transition, long ordinal) {
 	final EntryRep rep = transition.getHandle().rep();
-	final SortedSet rslt = new java.util.TreeSet();
+	final SortedSet<TransitionWatcher> rslt = new java.util.TreeSet<TransitionWatcher>();
 	final String className = rep.classFor();
 	WatchersForTemplateClass holder;
 	
@@ -153,22 +160,10 @@ class TransitionWatchers {
 
     /**
      * Visit each <code>TransitionWatcher</code> and check to see if
-     * it has expired, removing it if it has.  Also reap the
-     * <code>FastList</code>s.
+     * it has expired, removing it if it has. 
      */
     void reap() {
-        //Old comment related to cloning holders.values().
- 	/* This could take a while, instead of blocking all other
-	 * access to handles, clone the contents of handles and
-	 * iterate down the clone (we don't do this too often and
-	 * handles should never be that big so a shallow copy should
-	 * not be that bad, if it did get to be bad caching the
-	 * clone would probably work well since we don't add (and
-	 * never remove) elements that often.)
-	 */
-	
 	final long now = System.currentTimeMillis();
-	
         Iterator<WatchersForTemplateClass> watchers = holders.values().iterator();
         while (watchers.hasNext()){
             watchers.next().reap(now);

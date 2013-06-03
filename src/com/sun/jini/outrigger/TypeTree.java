@@ -21,9 +21,16 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Hashtable;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.Set;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 
 /**
  * A type tree for entries.  It maintains, for each class, a list of
@@ -38,8 +45,17 @@ import java.util.Vector;
  * @see OutriggerServerImpl
  */
 class TypeTree {
-    /** For each type, a vector of known subtypes */
-    private final Hashtable<String,Vector> subclasses = new Hashtable<String,Vector>();
+    /** For each type, a set of known subtypes.
+     * 
+     * Note: This was originally Hashtable<String,Vector<String>>, although
+     * a synchronized Map<String<Set<String>> could have been used in place
+     * of the concurrent collections, on this occasion, the concurrent
+     * implementations were easier to implement and understand atomically.
+     * 
+     * The decision to use concurrent collections was not made for performance
+     * reasons, but rather simplicity of implementation, see addKnown method.
+     */
+    private final ConcurrentMap<String,Set<String>> subclasses = new ConcurrentHashMap<String,Set<String>>();
 
     /**
      * A generator used to randomize the order of iterator returns
@@ -54,38 +70,34 @@ class TypeTree {
 	net.jini.core.entry.Entry.class.getName();
 
     /**
-     * Return the vector of subclasses for the given class.
+     * Return the set of subclasses for the given class.
      */
-    private Vector classVector(String whichClass) {
-        synchronized (subclasses){
-	return (Vector) subclasses.get(whichClass);
-    }
+    private Set<String> classSet(String whichClass) {
+        return subclasses.get(whichClass);
     }
 
     /**
      * An iterator that will walk through a list of known types.
      */
     // @see #RandomizedIterator
-    private static abstract class TypeTreeIterator implements Iterator {
+    private static abstract class TypeTreeIterator<T> implements Iterator<T> {
 	protected int cursor;		// the current position in the list
-	protected final Object[] typearray;	// the list of types as an array
+	protected final T [] typearray;	// the list of types as an array
         
-        protected TypeTreeIterator (Object [] types){
+        protected TypeTreeIterator (T [] types){
             cursor = 0;
             typearray = types;
         }
 
 	// inherit doc comment
         public boolean hasNext() {
-            if (cursor < typearray.length)
-                return true;
- 
+            if (cursor < typearray.length) return true;
             return false;
         }
  
 	// inherit doc comment
-        public Object next() throws NoSuchElementException {
-            Object val = null;
+        public T next() throws NoSuchElementException {
+            T val = null;
  
             if (cursor >= typearray.length)
                 throw new NoSuchElementException("TypeTreeIterator: next");
@@ -117,7 +129,7 @@ class TypeTree {
      * maintains a randomized list of subtypes for the given
      * <code>className</code>, including the class itself.
      */
-    static class RandomizedIterator extends TypeTreeIterator {
+    private static class RandomizedIterator extends TypeTreeIterator<String> {
 	/**
 	 * Create a new <code>RandomizedIterator</code> for the given
 	 * class.
@@ -131,12 +143,12 @@ class TypeTree {
 	 * Traverse the given type tree and add to the list all the
 	 * subtypes encountered within.
 	 */
-	private static void walkTree(Collection children, Collection list, TypeTree tree) {
+	private static void walkTree(Collection<String> children, Collection<String> list, TypeTree tree) {
 	    if (children != null) {
 		list.addAll(children);
-	        Object[] kids = children.toArray();
+	        String[] kids = children.toArray(new String[children.size()]);
 		for (int i = 0; i< kids.length; i++) {
-		    walkTree(tree.classVector((String)kids[i]), list, tree);
+		    walkTree(tree.classSet(kids[i]), list, tree);
 		}
 	    }
 	}
@@ -145,9 +157,10 @@ class TypeTree {
 	 * Set up this iterator to walk over the subtypes of this class,
 	 * including the class itself.  It then randomizes the list.
 	 */
-	private static Object [] init(String className, TypeTree tree) {
-            Collection<String> types = new ArrayList<String>();
-            Object [] typearray;
+	private static String [] init(String className, TypeTree tree) {
+            // Use a Linked to avoid resizing.
+            Collection<String> types = new LinkedList<String>();
+            String [] typearray;
 	    if (className.equals(EntryRep.matchAnyClassName())) {
 		// handle "match any" specially" -- search from ROOT
 		// Simplification suggested by 
@@ -159,15 +172,15 @@ class TypeTree {
 	    }
 
 	    // add all subclasses
-	    walkTree(tree.classVector(className), types, tree);
+	    walkTree(tree.classSet(className), types, tree);
 
 	    // Convert it to an array and then randomize
-	    typearray = types.toArray();
+	    typearray = types.toArray(new String[types.size()]);
 	    int randnum = 0;
-	    Object tmpobj = null;
-
-	    for (int i = 0; i < typearray.length; i++) {
-		randnum = numgen.nextInt(typearray.length - i);
+	    String tmpobj = null;
+            int length = typearray.length;
+	    for (int i = 0; i < length; i++) {
+		randnum = numgen.nextInt(length - i);
 		tmpobj = typearray[i];
 		typearray[i] = typearray[randnum];
 		typearray[randnum] = tmpobj;
@@ -183,7 +196,7 @@ class TypeTree {
      * In other words, it returns the names of all classes that are
      * instances of the class that named, in a random ordering.
      */
-    Iterator subTypes(String className) {
+    Iterator<String> subTypes(String className) {
 	return new RandomizedIterator(className, this);
     }
 
@@ -234,21 +247,13 @@ class TypeTree {
      * Add the subclass to the list of known subclasses of this superclass.  
      */
     private boolean addKnown(String superclass, String subclass) {
-	Vector v;
-
-	synchronized (subclasses) {
-	    v = classVector(superclass);
-	    if (v == null) {
-		v = new Vector();
-		subclasses.put(superclass, v);
-	    }
-	}
-
-	synchronized (v) {
-	    if (v.contains(subclass))
-		return false;
-	    v.addElement(subclass);
-	}
-	return true;
+	Set<String> v;
+        v = classSet(superclass);
+        if (v == null) {
+            v = new ConcurrentSkipListSet<String>();
+            Set<String> existed = subclasses.putIfAbsent(superclass, v);
+            if (existed != null) v = existed; // discard new set.
+        }
+	return v.add(subclass);
     }
 }

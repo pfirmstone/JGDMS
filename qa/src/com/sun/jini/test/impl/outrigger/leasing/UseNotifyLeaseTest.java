@@ -103,10 +103,6 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
             synchronized (this){
                 logger.log(Level.FINEST, "Writing entry {0}", ++count);
                 synchronized (listener) {
-                    // This doesn't look atomic, if the event is sent too
-                    // quickly, this will just set it false.  Alternative;
-                    // reset listener immediately after we receive it.
-//                    listener.setReceived(false);
                    assert listener.isReceived() == false;
 
                     /*
@@ -123,7 +119,7 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
                         listener.wait(callbackWait);
                         if (listener.isReceived()){
                             logger.log(Level.FINEST, "Wait done at {0}, received = {1}", new Object[]{new java.util.Date(), listener.isReceived()});
-                            // Reset listener, see comment above.
+                            // Reset listener state.
                             listener.setReceived(false);
                             return true;
                         }

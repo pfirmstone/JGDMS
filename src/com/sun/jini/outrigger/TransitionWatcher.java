@@ -35,7 +35,7 @@ import java.util.concurrent.atomic.AtomicLong;
  * Unless otherwise noted, all the package protected methods
  * are thread safe.  
  */
-abstract class TransitionWatcher implements Comparable {
+abstract class TransitionWatcher implements Comparable<TransitionWatcher> {
     /** The time stamp for this object */
     final private long timestamp;
 
@@ -102,8 +102,8 @@ abstract class TransitionWatcher implements Comparable {
      * @throws ClassCastException if <code>o</code> is not
      *         a <code>TransitionWatcher</code>.  
      */
-    public int compareTo(Object o) {
-	final TransitionWatcher other = (TransitionWatcher)o;
+    public int compareTo(TransitionWatcher o) {
+	final TransitionWatcher other = o;
 	if (timestamp < other.timestamp)
 	    return -1;
 

@@ -18,10 +18,16 @@
 package com.sun.jini.outrigger;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Set;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Queue;
 import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.ReadLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock.WriteLock;
 
 /**
  * <code>TemplateHandle</code> associates one or more
@@ -29,14 +35,8 @@ import java.util.Vector;
  * Unless otherwise noted all methods are thread safe.
  */
 class TemplateHandle extends BaseHandle {
+    
     /**
-     * A cache of the <code>EntryHandleTmplDesc</code> indexed
-     * by the number of fields.
-     */
-    final private ArrayList<EntryHandleTmplDesc> descs = new ArrayList<EntryHandleTmplDesc>();
-
-    /**
-
      * The watchers. We use a <code>HashSet</code> because we will
      * probably do a fair number of removals for each traversal and
      * the number of watchers managed by one <code>TemplateHandle</code>
@@ -47,63 +47,39 @@ class TemplateHandle extends BaseHandle {
      * changing <code>FastList</code> to support overlapping traversals
      * of different lists from the same thread.)
      */
-    final private Set<TransitionWatcher> watchers = new java.util.HashSet<TransitionWatcher>();
+    final private Set<TransitionWatcher> watchers 
+            = Collections.newSetFromMap(
+                        new ConcurrentHashMap<TransitionWatcher,Boolean>());
+    /**
+     * WriteLock guarantees that no updates can be performed during a 
+     * removal operation.
+     */
+    final private WriteLock wl;
+    final private ReadLock rl;
+    private boolean removed; // mutate with wl, read with rl
 
     /**
      * The <code>WatchersForTemplateClass</code> this object
      * belongs to.
      */
-    final private WatchersForTemplateClass owner;
+    final private OutriggerServerImpl owner;
 
     /**
      * Create a handle for the template <code>tmpl</code>.
      */
-    TemplateHandle(EntryRep tmpl, WatchersForTemplateClass owner) {
-	super(tmpl);
+    TemplateHandle(EntryRep tmpl, OutriggerServerImpl owner, Queue<TemplateHandle> content) {
+	super(tmpl, content);
 	this.owner = owner;
+        ReentrantReadWriteLock rwl = new ReentrantReadWriteLock();
+        wl = rwl.writeLock();
+        rl = rwl.readLock();
     }
 
     /**
      * Return the description for the given field count.
      */
-    //!! Since the mask/hash algorithm tops out at a certain number of fields,
-    //!! we could avoid some overhead by topping out at the same count.
     EntryHandleTmplDesc descFor(int index) {
-	/* Since setSize can truncate, test and set need to be atomic.
-	 * Hold the lock after setting the size so don't calculate
-	 * a given desc more than once (though that is only an optimization)
-	 */
-	synchronized (descs) {
-	    
-	    int size = descs.size();
-
-	    // Do we have a cached value?
-	    EntryHandleTmplDesc desc = null;
-            if (index < size) desc = descs.get(index);
-
-	    if (desc == null) {
-		// None in cache, calculate one
-		desc = EntryHandle.descFor(rep(), index);
-                if (index == size){
-                    descs.add(desc);
-                }
-                else if (index < size){
-                    descs.set(index, desc);
-                }
-                // Make sure descs is big enough and pad with null if
-                // fields are added out of order.
-                else if (index > size) {
-                    descs.ensureCapacity(index + 1);
-                    int difference = index - size;
-                    for (int i = 0; i < difference; i++){
-                        descs.add(null);
-                    }
-                    descs.add(desc);
-                }
-		assert descs.indexOf(desc) == index;
-	    }
-	    return desc;
-	}
+        return EntryHandle.descFor(rep(), index);
     }
 
     /**
@@ -115,22 +91,24 @@ class TemplateHandle extends BaseHandle {
 
     /** 
      * Add a watcher to this handle. Assumes that the handle has not
-     * been removed from its <code>FastList</code> and that
-     * the caller owns the lock on <code>this</code>.
+     * been removed.
      * @param watcher the watcher to be added.
+     * @return true if watcher is added, false otherwise.
      * @throws NullPointerException if watcher is <code>null</code>.
      */
-    void addTransitionWatcher(TransitionWatcher watcher) {
-	assert Thread.holdsLock(this) : 
-	    "addTransitionWatcher() called without lock";
-
-	if (watcher == null)
+    boolean addTransitionWatcher(TransitionWatcher watcher) {
+        if (watcher == null)
 	    throw new NullPointerException("Watcher can not be null");
-
-        // If thread holds lock during removal TransitionWatcher cannot be added
-        // so this assertion is unnecessary.
-	assert !removed() : "Added watcher to a removed TemplateHandle";
-	watchers.add(watcher);
+        rl.lock();
+        try {
+            if (removed) return false;
+            if (watcher.addTemplateHandle(this)) {
+                return watchers.add(watcher);
+            }
+            return false;
+        } finally {
+            rl.unlock();
+        }
     }
 
     /**
@@ -140,10 +118,15 @@ class TemplateHandle extends BaseHandle {
      * @param watcher the watcher to be removed.
      * @throws NullPointerException if watcher is <code>null</code>.
      */
-    synchronized void removeTransitionWatcher(TransitionWatcher watcher) {
+    void removeTransitionWatcher(TransitionWatcher watcher) {
 	if (watcher == null)
 	    throw new NullPointerException("Watcher can not be null");
-	watchers.remove(watcher);
+        rl.lock();
+        try {
+            watchers.remove(watcher);
+        } finally {
+            rl.unlock();
+        }
     }
 
     /**
@@ -158,16 +141,22 @@ class TemplateHandle extends BaseHandle {
      * @param ordinal The ordinal associated with <code>transition</code>.
      * @throws NullPointerException if either argument is <code>null</code>.
      */
-    synchronized void collectInterested(Set set, EntryTransition transition,
+    void collectInterested(Set<TransitionWatcher> set, EntryTransition transition,
 					long ordinal) 
     {
-	final Iterator i = watchers.iterator();
-	while (i.hasNext()) {
-	    final TransitionWatcher w = (TransitionWatcher)i.next();
-	    if (w.isInterested(transition, ordinal)) {
-		set.add(w);
-	    }
-	}
+        rl.lock();
+        try {
+            if (removed) return;
+            final Iterator i = watchers.iterator();
+            while (i.hasNext()) {
+                final TransitionWatcher w = (TransitionWatcher)i.next();
+                if (w.isInterested(transition, ordinal)) {
+                    set.add(w);
+                }
+            }
+        } finally {
+            rl.unlock();
+        }
     }
 
     /**
@@ -177,7 +166,7 @@ class TemplateHandle extends BaseHandle {
      * handle is part of.
      */
     OutriggerServerImpl getServer() {
-	return owner.getServer();
+	return owner;
     }
 
     /**
@@ -187,36 +176,57 @@ class TemplateHandle extends BaseHandle {
      *            milliseconds since the beginning of the epoch.
      */
     void reap(long now) {
-	/* This could take a while, instead of blocking all other
-	 * access, clone the contents of watchers and
-	 * iterate down the clone (we don't do this too often and
-	 * watchers should never be that big so a shallow copy
-	 * should not be that bad. If it does get bad may
-	 * need to switch to a FastList for watchers.
-	 * (we don't do this for collection of interested watchers
-	 * because calls to isInterested() are designed to be cheap,
-	 * calls to removeIfExpired() will grab locks and could
-	 * write to disk))
-	 */
-	final TransitionWatcher content[];
-	synchronized (this) {
-	    content = new TransitionWatcher[watchers.size()];
-	    watchers.toArray(content);
-	}
-
-	for (int i=0; i<content.length; i++) {
-	    content[i].removeIfExpired(now);
-	}
+        rl.lock();
+        try{
+            Iterator<TransitionWatcher> it = watchers.iterator();
+            while (it.hasNext()){
+                it.next().removeIfExpired(now);
+            }
+        } finally {
+            rl.unlock();
+        }
     }
 
+    
     /**
-     * Return <code>true</code> if there are no watchers associated
-     * with this object and <code>false</code> otherwise. Assumes
-     * the call holds the lock on <code>this</code>.
-     * @return <code>true</code> if there are no watchers in this handle.
+     * Need to lock on the wl so no one will
+     * add a watcher between the check for empty and
+     * when it gets removed.
      */
-    boolean isEmpty() {
-	assert Thread.holdsLock(this) : "isEmpty() called without lock";
-	return watchers.isEmpty();
-    } 
+    boolean removeIfEmpty(){
+        wl.lock();
+        try {
+            if (watchers.isEmpty()) {
+                return remove();
+            }
+            return false;
+        } finally {
+            wl.unlock();
+        }
+    }
+
+    @Override
+    public boolean removed() {
+        rl.lock();
+        try {
+            return removed;
+        } finally {
+            rl.unlock();
+        }
+    }
+
+    @Override
+    public boolean remove() {
+        wl.lock();
+        try {
+            if (removed){
+                return false; // already removed.
+            } else {
+                removed = super.remove();
+                return removed;
+            }
+        } finally {
+            wl.unlock();
+        }
+    }
 }

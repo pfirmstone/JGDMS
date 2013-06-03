@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import net.jini.core.transaction.TransactionException;
+import net.jini.id.Uuid;
 import net.jini.space.InternalSpaceException;
 
 /**
@@ -38,7 +39,7 @@ class TransactableReadIfExistsWatcher extends SingletonQueryWatcher
      * unavailable (e.g. they are locked). We only keep
      * the ids, not the entries themselves.
      */
-    private final Set lockedEntries;
+    private final Set<Uuid> lockedEntries;
 
     /**
      * Set <code>true</code> once the query thread is 
@@ -59,7 +60,7 @@ class TransactableReadIfExistsWatcher extends SingletonQueryWatcher
      * we would have liked to return, but have been provisionally
      * removed.
      */
-    private final Map provisionallyRemovedEntrySet;
+    private final Set<EntryHandle> provisionallyRemovedEntrySet;
 
     /**
      * Create a new <code>TransactableReadIfExistsWatcher</code>.
@@ -89,8 +90,8 @@ class TransactableReadIfExistsWatcher extends SingletonQueryWatcher
      *         <code>txn</code> is <code>null</code>.
      */
     TransactableReadIfExistsWatcher(long expiration, long timestamp, 
-	 long startOrdinal, Set lockedEntries, 
-         Map provisionallyRemovedEntrySet, Txn txn)
+	 long startOrdinal, Set<Uuid> lockedEntries, 
+         Set<EntryHandle> provisionallyRemovedEntrySet, Txn txn)
     {
 	super(expiration, timestamp, startOrdinal);
 

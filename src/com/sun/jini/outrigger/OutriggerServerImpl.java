@@ -19,6 +19,7 @@ package com.sun.jini.outrigger;
 
 import au.net.zeus.collection.RC;
 import au.net.zeus.collection.Ref;
+import au.net.zeus.collection.Referrer;
 import com.sun.jini.config.Config;
 import com.sun.jini.constants.TimeConstants;
 import com.sun.jini.landlord.Landlord;
@@ -1241,7 +1242,7 @@ public class OutriggerServerImpl
 	    grant(rep, lease, entryLeasePolicy, "entryLeasePolicy");
 
 	final EntryHolder holder = contents.holderFor(rep);
-	final EntryHandle handle = new EntryHandle(rep, txn, holder);
+	final EntryHandle handle = holder.newEntryHandle(rep, txn);
 
 	// Verify that the transaction is still active. Lock it so
 	// nobody can change it behind our backs while where making
@@ -1320,7 +1321,7 @@ public class OutriggerServerImpl
 	    leaseData[i] = 
 		grant(entry, leaseTimes[i], entryLeasePolicy, "entryLeasePolicy");
 	    holders[i] = contents.holderFor(entry);
-	    handles[i] = new EntryHandle(entry, txn, holders[i]);
+	    handles[i] = holders[i].newEntryHandle(entry, txn);
 	}
 
 	// Verify that the transaction is still active. Lock it so
@@ -1469,7 +1470,7 @@ public class OutriggerServerImpl
      */
      boolean attemptCapture(EntryHandle handle, TransactableMgr txn,
           boolean takeIt, Set lockedEntrySet, 
-	  Map provisionallyRemovedEntrySet, long now,
+	  Set<EntryHandle> provisionallyRemovedEntrySet, long now,
 	  QueryWatcher watcher) 
      {
 	 final EntryHolder holder = contents.holderFor(handle.rep());
@@ -1894,10 +1895,10 @@ public class OutriggerServerImpl
 	/* First we do a straight search of the entries currently in the space */
 	   
 	// Set of classes we need to search
-	final Set classes = new java.util.HashSet();
+	final Set<String> classes = new java.util.HashSet<String>();
 	for (int i=0; i<tmpls.length; i++) {
 	    final String whichClass = tmpls[i].classFor();
-	    final Iterator subtypes = types.subTypes(whichClass);
+	    final Iterator<String> subtypes = types.subTypes(whichClass);
 	    while (subtypes.hasNext()) {
 		classes.add(subtypes.next());
 	    }		
@@ -1907,13 +1908,20 @@ public class OutriggerServerImpl
 	EntryHandle[] handles = new EntryHandle[limit];
 	int found = 0;
 	final Set conflictSet = new java.util.HashSet();
-	final Map provisionallyRemovedEntrySet = 
-                RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 10000L, 10000L);
+	final Set<EntryHandle> provisionallyRemovedEntrySet = 
+               Collections.newSetFromMap(
+                RC.map(
+                    new ConcurrentHashMap<Referrer<EntryHandle>,Referrer<Boolean>>(),
+                    Ref.WEAK_IDENTITY,
+                    Ref.STRONG,
+                    10000L,
+                    10000L
+                ));
 
-	for (Iterator i=classes.iterator(); 
+	for (Iterator<String> i=classes.iterator(); 
 	     i.hasNext() && found < handles.length;) 
         {
-	    final String clazz = (String)i.next();
+	    final String clazz = i.next();
 	    final EntryHolder.ContinuingQuery query = 
 		createQuery(tmpls, clazz, txn, true, start);
 
@@ -2144,7 +2152,7 @@ public class OutriggerServerImpl
 	if (supertypes == null)
 	    return null;
 
-	final List tmplsToCheck = new java.util.LinkedList();	
+	final List<EntryRep> tmplsToCheck = new java.util.LinkedList<EntryRep>();	
 	for (int i=0; i<tmpls.length; i++) {
 	    final EntryRep tmpl = tmpls[i];
 	    final String tmplClass = tmpl.classFor();
@@ -2161,7 +2169,7 @@ public class OutriggerServerImpl
 	}
 
 	return holder.continuingQuery(
-            (EntryRep[])tmplsToCheck.toArray(new EntryRep[tmplsToCheck.size()]),
+            tmplsToCheck.toArray(new EntryRep[tmplsToCheck.size()]),
 	    txn, takeIt, now);				       
     }
 
@@ -2171,13 +2179,13 @@ public class OutriggerServerImpl
      * in the passed set.
      */
     private static void waitOnProvisionallyRemovedEntries(
-	    Map provisionallyRemovedEntrySet) 
+	    Set<EntryHandle> provisionallyRemovedEntrySet) 
 	throws InterruptedException
     {
 	if (provisionallyRemovedEntrySet.isEmpty())
 	    return;
 	
-	final Set keys = provisionallyRemovedEntrySet.keySet();
+	final Set<EntryHandle> keys = provisionallyRemovedEntrySet;
 
 	for (Iterator i=keys.iterator(); i.hasNext();) {
 	    final EntryHandle handle = (EntryHandle)i.next();
@@ -2269,12 +2277,19 @@ public class OutriggerServerImpl
 	EntryHandle handle = null;
 	final Set conflictSet = new java.util.HashSet();
         // Shared by multiple new objects.
-	final Set lockedEntrySet = 
-	    (ifExists? Collections.newSetFromMap( new ConcurrentHashMap()):null);
+	final Set<Uuid> lockedEntrySet = 
+	    (ifExists? Collections.newSetFromMap( new ConcurrentHashMap<Uuid,Boolean>()):null);
         
         // Changed to concurrent map, because unsynchronized iteration occurs.
-	final Map provisionallyRemovedEntrySet = 
-	    RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 10000L, 10000L);
+	final Set<EntryHandle> provisionallyRemovedEntrySet = 
+	    Collections.newSetFromMap(
+                RC.map(
+                    new ConcurrentHashMap<Referrer<EntryHandle>,Referrer<Boolean>>(),
+                    Ref.WEAK_IDENTITY,
+                    Ref.STRONG,
+                    10000L,
+                    10000L
+                ));
 
 	/*
 	 * First we do the straight search
@@ -2461,7 +2476,7 @@ public class OutriggerServerImpl
      * Make sure the transactions listed here are monitored for as
      * long as the given query exists.
      */
-    private void monitor(QueryWatcher watcher, Collection toMonitor) {
+    private void monitor(QueryWatcher watcher, Collection<Txn> toMonitor) {
 	if (!toMonitor.isEmpty())	    
 	    txnMonitor.add(watcher, toMonitor);
     }
@@ -2471,7 +2486,7 @@ public class OutriggerServerImpl
      * a reasonable amount of time since they recently caused a conflict,
      * although for a non-leased event.
      */
-    void monitor(Collection toMonitor) {
+    void monitor(Collection<Txn> toMonitor) {
 	if (!toMonitor.isEmpty())	    
 	    txnMonitor.add(toMonitor);
     }
@@ -2506,7 +2521,7 @@ public class OutriggerServerImpl
      */
     private EntryHandle
 	find(EntryRep tmplRep, Txn txn, boolean takeIt, Set conflictSet, 
-	     Set lockedEntrySet, Map provisionallyRemovedEntrySet)
+	     Set lockedEntrySet, Set<EntryHandle> provisionallyRemovedEntrySet)
 	throws TransactionException
     {
 	final String whichClass = tmplRep.classFor();
@@ -2687,8 +2702,15 @@ public class OutriggerServerImpl
 	 * Set of entries that we have encountered that have been
 	 * provisionally removed
 	 */
-	final private Map provisionallyRemovedEntrySet
-	    = RC.map(new ConcurrentHashMap(), Ref.WEAK_IDENTITY, Ref.STRONG, 10000L, 10000L) ;
+	final private Set<EntryHandle> provisionallyRemovedEntrySet
+	    = Collections.newSetFromMap(
+                RC.map(
+                    new ConcurrentHashMap<Referrer<EntryHandle>,Referrer<Boolean>>(),
+                    Ref.WEAK_IDENTITY,
+                    Ref.STRONG, 
+                    10000L, 
+                    10000L
+                )) ;
 
 	private ContentsQuery(Uuid uuid, EntryRep[] tmpls, Txn txn, long limit) {
 	    this.uuid = uuid;
@@ -3502,7 +3524,7 @@ public class OutriggerServerImpl
 	typeCheck(rep);
 
 	final EntryHolder holder = contents.holderFor(rep);
-	final EntryHandle handle = new EntryHandle(rep, txn, holder);
+	final EntryHandle handle = holder.newEntryHandle(rep, txn);
 	addWrittenRep(handle, holder, txn);
     }
 

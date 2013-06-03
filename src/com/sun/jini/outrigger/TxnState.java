@@ -43,18 +43,18 @@ class TxnState {
      * direct reference to the only manager for this handle, or a reference
      * to an <code>HashSet</code> with entries for each associated manager.
      */
-    private volatile Object		mgrs;
+    private Object mgrs;
 
     /**
      * The current state of the handle, such as <code>READ</code> or
      * <code>TAKE</code>.
      */
-    private volatile int			state;
+    private int state;
 
     /**
      * The holder the handle which owns this object is in
      */
-    final private EntryHolder	holder;
+    final private EntryHolder holder;
 
     /** Logger for logging information about entry matching */
     private static final Logger matchingLogger = 

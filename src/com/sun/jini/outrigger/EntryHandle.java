@@ -19,6 +19,7 @@ package com.sun.jini.outrigger;
 
 import net.jini.io.MarshalledInstance;
 import com.sun.jini.landlord.LeasedResource;
+import java.util.Queue;
 
 /**
  * This object holds an annotated reference to an
@@ -123,6 +124,7 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * but the removal has not yet been committed to disk
      */
     private boolean removePending = false;
+    private boolean removed = false;
 
     /**
      * Create a new handle, calculating the hash for the object.
@@ -134,9 +136,10 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * @param holder If mgr is non-<code>null</code> this must be
      *            the holder holding this handle.  Otherwise it may be
      *            <code>null</code> 
+     * @param content Queue this EntryHandle will be removed from.
      */
-    EntryHandle(EntryRep rep, TransactableMgr mgr, EntryHolder holder) {
-	super(rep);
+    EntryHandle(EntryRep rep, TransactableMgr mgr, EntryHolder holder, Queue<EntryHandle> content) {
+	super(rep, content);
 	hash = (rep != null ? hashFor(rep, rep.numFields())[0] : -1);
 	if (mgr == null) {
 	    txnState = null;
@@ -159,16 +162,6 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
     long hash() {
 	return hash;
     }
-
-    /**
-     * Calculate the hash for a particular entry, assuming the given number
-     * of fields.
-     *
-     * @see #hashFor(EntryRep,int,EntryHandleHashDesc)
-     */
-//    static long hashFor(EntryRep rep, int numFields) {
-//	return hashFor(rep, numFields, null);
-//    }
 
     /**
      * Calculate the hash for a particular entry, assuming the given
@@ -219,7 +212,6 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * @see EntryHandleTmplDesc
      */
     static EntryHandleTmplDesc descFor(EntryRep tmpl, int numFields) {
-//	EntryHandleHashDesc hashDesc = new EntryHandleHashDesc();
 	EntryHandleTmplDesc tmplDesc;
         
 	// Get the hash and the related useful information
@@ -276,7 +268,7 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
     // EntryHolder.SimpleRepEnum.nextRep().  Working it through
     // it seems to work in that particular case, but it seems fragile.
     boolean canPerform(TransactableMgr mgr, int op) {
-        synchronized (this){ // Audit revealed calling thread didn't always own lock.
+        synchronized (this){ // Audit revealed calling thread didn't always own lock see comment above.
             if (txnState == null) 
                 return true; // all operations are legal on a non-transacted entry
 
@@ -451,5 +443,15 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
 	final boolean last = txnState.commit(mgr, space, this);
 	if (last)
 	    txnState = null;
+    }
+
+    @Override
+    public synchronized boolean removed() {
+        return removed;
+    }
+    
+    public synchronized boolean remove() {
+        if (!removed) removed = super.remove();
+        return removed;
     }
 }

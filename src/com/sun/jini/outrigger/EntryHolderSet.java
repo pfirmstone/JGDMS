@@ -24,6 +24,7 @@ import java.util.Collection;
 import net.jini.core.lease.Lease;
 import net.jini.id.Uuid;
 import com.sun.jini.landlord.LeasedResource;
+import java.util.Iterator;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -39,7 +40,7 @@ final class EntryHolderSet {
     private final ConcurrentMap<String,EntryHolder> holders = new ConcurrentHashMap<String,EntryHolder>();
     // Map of LeaseDescs indexed by the cookie of the underlying
     // LeasedResource.
-    private final Map<Uuid, EntryHandle> idMap = new Hashtable<Uuid, EntryHandle>();
+    private final ConcurrentMap<Uuid, EntryHandle> idMap = new ConcurrentHashMap<Uuid, EntryHandle>();
 
     private final OutriggerServerImpl space;
 
@@ -111,15 +112,19 @@ final class EntryHolderSet {
 	 * clone would probably work well since we don't add (and
 	 * never remove) elements that often.)
 	 */
-	final EntryHolder content[];
-	synchronized (holders) {
-	    final Collection values = holders.values();
-	    content = new EntryHolder[values.size()];
-	    values.toArray(content);
-	}
-
-	for (int i=0; i<content.length; i++) {
-            content[i].reap();
-	}	    
+//	final EntryHolder content[];
+//	synchronized (holders) {
+//	    final Collection values = holders.values();
+//	    content = new EntryHolder[values.size()];
+//	    values.toArray(content);
+//	}
+//
+//	for (int i=0; i<content.length; i++) {
+//            content[i].reap();
+//	}
+        Iterator<EntryHolder> it = holders.values().iterator();
+        while (it.hasNext()){
+            it.next().reap();
+        }
     }
 }

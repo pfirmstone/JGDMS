@@ -52,9 +52,9 @@ class TxnMonitor implements Runnable {
      */
     private static class ToMonitor {
 	final QueryWatcher	query;         // query governing interest in txns
-	final Collection	txns;	       // the transactions to monitor
+	final Collection<Txn>	txns;	       // the transactions to monitor
 
-	ToMonitor(QueryWatcher query, Collection txns) {
+	ToMonitor(QueryWatcher query, Collection<Txn> txns) {
 	    this.query = query;
 	    this.txns = txns;
 	}
@@ -71,7 +71,7 @@ class TxnMonitor implements Runnable {
      * @see OutriggerServerImpl#getMatch 
      */
     // @see #ToMonitor
-    private final LinkedList pending = new LinkedList();
+    private final LinkedList<ToMonitor> pending = new LinkedList<ToMonitor>();
 
     /** wakeup manager for <code>TxnMonitorTask</code>s */
     private final WakeupManager wakeupMgr = 
@@ -154,14 +154,14 @@ class TxnMonitor implements Runnable {
      * Add a set of <code>transactions</code> to be monitored under the
      * given query.
      */
-    synchronized void add(QueryWatcher query, Collection transactions) {
+    synchronized void add(QueryWatcher query, Collection<Txn> transactions) {
 	if (logger.isLoggable(Level.FINEST)) {
 	    final StringBuffer buf = new StringBuffer();
 	    buf.append("Setting up monitor for ");
 	    buf.append(query);
 	    buf.append(" toMonitor:");
 	    boolean notFirst = false;
-	    for (Iterator i=transactions.iterator(); i.hasNext();) {
+	    for (Iterator<Txn> i=transactions.iterator(); i.hasNext();) {
 		if (notFirst) {
 		    buf.append(",");
 		    notFirst = true;
@@ -179,7 +179,7 @@ class TxnMonitor implements Runnable {
      * Add a set of <code>transactions</code> to be monitored under no
      * lease.
      */
-    void add(Collection transactions) {
+    void add(Collection<Txn> transactions) {
 	add(null, transactions);
     }
 
@@ -194,21 +194,21 @@ class TxnMonitor implements Runnable {
 		synchronized (this) {
 		
 		    // Sleep if nothing is pending.
-		    while (pending.isEmpty() && !die)
-			wait();
+		    while (pending.isEmpty() && !die) {
+                        wait();
+                    }
 
-		    if (die)
-			return;
+		    if (die) return;
 
-		    tm = (ToMonitor)pending.removeFirst();
+		    tm = pending.removeFirst();
 		}
 
 		logger.log(Level.FINER, "creating monitor tasks for {0}",
 			   tm.query);
 
-		Iterator it = tm.txns.iterator();
+		Iterator<Txn> it = tm.txns.iterator();
 		while (it.hasNext()) {
-		    Txn txn = (Txn) it.next();
+		    Txn txn = it.next();
 		    TxnMonitorTask task = taskFor(txn);
 		    task.add(tm.query);
 		}
