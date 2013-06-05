@@ -249,9 +249,9 @@ class TxnMonitorTask extends RetryTask
 	if (queries == null || queries.size() == 0)
 	    return;
 	Collection<Txn> sibling = Collections.nCopies(1, txn);
-	Iterator it = queries.keySet().iterator();
+	Iterator<QueryWatcher> it = queries.keySet().iterator();
 	while (it.hasNext()) {
-	    QueryWatcher query = (QueryWatcher)it.next();
+	    QueryWatcher query = it.next();
 	    if (query != null)	// from a weak map, so might be null
 		monitor.add(query, sibling);
 	}
@@ -333,7 +333,7 @@ class TxnMonitorTask extends RetryTask
 
 		if (logger.isLoggable(Level.FINEST)) {
 		    logger.log(Level.FINEST, "{0} foundNeed = {1}", 
-			       new Object[]{this, new Boolean(foundNeed)});
+			       new Object[]{this, Boolean.valueOf(foundNeed)});
 		}
 
 		if (!foundNeed)		// nobody wants it

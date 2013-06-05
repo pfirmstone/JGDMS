@@ -17,9 +17,7 @@
  */
 package com.sun.jini.outrigger;
 
-import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
 import net.jini.core.transaction.TransactionException;
 import net.jini.space.InternalSpaceException;
 

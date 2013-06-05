@@ -17,8 +17,8 @@
  */
 package com.sun.jini.outrigger;
 
-import java.util.SortedSet;
 import java.util.Iterator;
+import java.util.SortedSet;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -209,31 +209,33 @@ class OperationJournal extends Thread {
 	     */
 
 	    // Skip if payload is not an EntryTransition
-	    Object payload = current.payload;
-	    while (true) {
-		if (current == end) {
-		    /* This is the last one...still need to return 
-		     * it's payload if applicable.
-		     */
-		    current = null;
-		    if (payload instanceof EntryTransition)	
-			// Might be null, but that's ok
-			return (EntryTransition)payload;
-		    
-		    return null;
-		}
+            synchronized (this){
+                Object payload = current.payload;
+                while (true) {
+                    if (current == end) {
+                        /* This is the last one...still need to return 
+                         * it's payload if applicable.
+                         */
+                        current = null;
+                        if (payload instanceof EntryTransition)	
+                            // Might be null, but that's ok
+                            return (EntryTransition)payload;
 
-		current = current.getNext();	    
-		assert current != null : "Iteration when off end";
+                        return null;
+                    }
 
-		if ((payload != null) && 
-		    (payload instanceof EntryTransition)) 
-		{
-		    return (EntryTransition)payload;
-		}		    
+                    current = current.getNext();	    
+                    assert current != null : "Iteration when off end";
 
-		payload = current.payload;
-	    }
+                    if ((payload != null) && 
+                        (payload instanceof EntryTransition)) 
+                    {
+                        return (EntryTransition)payload;
+                    }		    
+
+                    payload = current.payload;
+                }
+            }
 	}	
 
 	/**
@@ -248,25 +250,27 @@ class OperationJournal extends Thread {
 	 *         <code>watcherRegistered</code> has been called.
 	 */
 	void watcherRegistered() {
-	    if (end != null)
-		throw new IllegalStateException(
-		    "watcherRegistered() called more than once");
+            synchronized (this){
+                if (end != null)
+                    throw new IllegalStateException(
+                        "watcherRegistered() called more than once");
+            
+                end = lastProcessed(current);
 
-	    end = lastProcessed(current);
+                if (current == end) {
+                    /* Noting has been processed since we were created.
+                     * There are no elements in the iteration.
+                     */
+                    current = null;
+                    return;
+                }
 
-	    if (current == end) {
-		/* Noting has been processed since we were created.
-		 * There are no elements in the iteration.
-		 */
-		current = null;
-		return;
-	    }
-
-	    /* Skip the tail when we were created, we don't
-	     * need to return it since it was in the journal before
-	     * we were created.
-	     */
-	    current = current.getNext();
+                /* Skip the tail when we were created, we don't
+                 * need to return it since it was in the journal before
+                 * we were created.
+                 */
+                current = current.getNext();
+            }
 	}
 
 	/**
@@ -279,7 +283,7 @@ class OperationJournal extends Thread {
 	 * @throws IllegalStateException if 
 	 *         <code>watcherRegistered</code> has been called.
 	 */
-	long currentOrdinalAtCreation() {
+	synchronized long currentOrdinalAtCreation() {
 	    if (end != null)
 		throw new IllegalStateException(
 		    "watcherRegistered() has been called");
@@ -347,9 +351,7 @@ class OperationJournal extends Thread {
      * @param node The node to post.
      */
     private synchronized void post(JournalNode node) {
-        synchronized (tail){
-            tail.next = node;
-        }
+        tail.setNext(node);
         tail = node;
         notifyAll();
     }
@@ -399,9 +401,11 @@ class OperationJournal extends Thread {
     /**
      * Terminate queue processing.
      */
-    synchronized void terminate() {
+    void terminate() {
 	dead = true;
-	notifyAll();
+        synchronized (this){
+            notifyAll();
+        }
     }
 
     /**
@@ -444,9 +448,8 @@ class OperationJournal extends Thread {
 			watchers.allMatches(t, ordinal);
 		    final long now = System.currentTimeMillis();
 
-		    for (Iterator<TransitionWatcher> i=set.iterator(); i.hasNext() && !dead; ) {
-			final TransitionWatcher watcher = 
-			    i.next();
+		    for (Iterator<TransitionWatcher> i = set.iterator(); i.hasNext() && !dead; ) {
+			final TransitionWatcher watcher = i.next();
 			watcher.process(t, now);
 		    }
 		} else if (payload instanceof CaughtUpMarker) {
