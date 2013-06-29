@@ -402,8 +402,12 @@ class OperationJournal extends Thread {
      * Terminate queue processing.
      */
     void terminate() {
-	dead = true;
+        /* Only set dead to true while synchronized, this means that all
+         * pending transitions will be processed then wait() is called
+         * releasing the lock so queue processing can terminate.
+         */
         synchronized (this){
+            dead = true;
             notifyAll();
         }
     }
