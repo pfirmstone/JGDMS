@@ -76,21 +76,21 @@ public class MarshalledInstance implements Serializable {
      * <code>null</code> then the object marshalled was a <code>null</code>
      * reference.
      */  
-    private byte[] objBytes = null;
+    private final byte[] objBytes;
  
     /**
      * @serial Bytes of location annotations, which are ignored by
      * <code>equals</code>.  If <code>locBytes</code> is null, there were no
      * non-<code>null</code> annotations during marshalling.
      */  
-    private byte[] locBytes = null;
+    private final byte[] locBytes;
  
     /**
      * @serial Stored hash code of contained object.
      *   
      * @see #hashCode
      */  
-    private int hash;
+    private final int hash;
 
     static final long serialVersionUID = -5187033771082433496L;
     
@@ -134,6 +134,8 @@ public class MarshalledInstance implements Serializable {
 
 	if (obj == null) {
 	    hash = 13;		// null hash for java.rmi.MarshalledObject
+            objBytes = null;
+            locBytes = null;
 	    return;
 	}
 	ByteArrayOutputStream bout = new ByteArrayOutputStream();
