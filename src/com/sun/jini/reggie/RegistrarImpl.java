@@ -2948,9 +2948,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public ServiceRegistration register(Item nitem, long leaseDuration)
         throws NoSuchObjectException
     {	
+        ready.check(); // Don't wait while holding write lock.
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    ServiceRegistration reg = registerDo(nitem, leaseDuration);
 	    if (logger.isLoggable(Level.FINE)) {
 		logger.log(
@@ -2968,9 +2968,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     // This method's javadoc is inherited from an interface of this class
     public MarshalledWrapper lookup(Template tmpl) throws NoSuchObjectException
     {	
+        ready.check();
 	concurrentObj.readLock();
 	try {
-	    ready.check();
 	    return lookupDo(tmpl);
 	} finally {
 	    concurrentObj.readUnlock();
@@ -2981,9 +2981,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public Matches lookup(Template tmpl, int maxMatches)
 	throws NoSuchObjectException
     {	
+        ready.check();
 	concurrentObj.readLock();
 	try {
-	    ready.check();
 	    return lookupDo(tmpl, maxMatches);
 	} finally {
 	    concurrentObj.readUnlock();
@@ -2998,9 +2998,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				    long leaseDuration)
 	throws RemoteException
     {	
+        ready.check(); // Don't wait while holding write lock.
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    EventRegistration reg = notifyDo(
 		tmpl, transitions, listener, handback, leaseDuration);
 	    if (logger.isLoggable(Level.FINE)) {
@@ -3022,9 +3022,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public EntryClassBase[] getEntryClasses(Template tmpl)
         throws NoSuchObjectException
     {
+        ready.check();
 	concurrentObj.readLock();
 	try {
-	    ready.check();
 	    return getEntryClassesDo(tmpl);
 	} finally {
 	    concurrentObj.readUnlock();
@@ -3035,9 +3035,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public Object[] getFieldValues(Template tmpl, int setIndex, int field)
         throws NoSuchObjectException
     {
+        ready.check();
 	concurrentObj.readLock();
 	try {
-	    ready.check();
 	    return getFieldValuesDo(tmpl, setIndex, field);
 	} finally {
 	    concurrentObj.readUnlock();
@@ -3048,9 +3048,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public ServiceTypeBase[] getServiceTypes(Template tmpl, String prefix)
         throws NoSuchObjectException
     {
+        ready.check();
 	concurrentObj.readLock();
 	try {
-	    ready.check();
 	    return getServiceTypesDo(tmpl, prefix);
 	} finally {
 	    concurrentObj.readUnlock();
@@ -3075,9 +3075,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			      EntryRep[] attrSets)
 	throws NoSuchObjectException, UnknownLeaseException
     {
+        ready.check();// Don't wait while holding write lock.
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    if (serviceID.equals(myServiceID))
 	        throw new SecurityException("privileged service id");
 	    addAttributesDo(serviceID, leaseID, attrSets);
@@ -3095,9 +3095,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				 EntryRep[] attrSets)
 	throws NoSuchObjectException, UnknownLeaseException
     {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    if (serviceID.equals(myServiceID))
 	        throw new SecurityException("privileged service id");
 	    modifyAttributesDo(serviceID, leaseID, attrSetTmpls, attrSets);
@@ -3115,9 +3115,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			      EntryRep[] attrSets)
 	throws NoSuchObjectException, UnknownLeaseException
     {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    if (serviceID.equals(myServiceID))
 	        throw new SecurityException("privileged service id");
 	    setAttributesDo(serviceID, leaseID, attrSets);
@@ -3132,9 +3132,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public void cancelServiceLease(ServiceID serviceID, Uuid leaseID)
 	throws NoSuchObjectException, UnknownLeaseException
     {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    cancelServiceLeaseDo(serviceID, leaseID);
 	    addLogRecord(new ServiceLeaseCancelledLogObj(serviceID, leaseID));
 	    queueEvents();
@@ -3155,9 +3155,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				  long renewDuration)
 	throws NoSuchObjectException, UnknownLeaseException
     {	
+        ready.check();
 	concurrentObj.priorityWriteLock();
 	try {
-	    ready.check();
 	    return renewServiceLeaseDo(serviceID, leaseID, renewDuration);
 	    /* addLogRecord is in renewServiceLeaseDo */
 	} finally {
@@ -3169,9 +3169,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public void cancelEventLease(long eventID, Uuid leaseID)
 	throws NoSuchObjectException, UnknownLeaseException
     {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    cancelEventLeaseDo(eventID, leaseID);
 	    addLogRecord(new EventLeaseCancelledLogObj(eventID, leaseID));
 	    if (logger.isLoggable(Level.FINE)) {
@@ -3189,9 +3189,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public long renewEventLease(long eventID, Uuid leaseID, long renewDuration)
 	throws NoSuchObjectException, UnknownLeaseException
     {	
+        ready.check();
 	concurrentObj.priorityWriteLock();
 	try {
-	    ready.check();
 	    return renewEventLeaseDo(eventID, leaseID, renewDuration);
 	    /* addLogRecord is in renewEventLeaseDo */
 	} finally {
@@ -3205,9 +3205,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				    long[] renewDurations)
         throws NoSuchObjectException
     {	
+        ready.check();
 	concurrentObj.priorityWriteLock();
 	try {
-	    ready.check();
 	    return renewLeasesDo(regIDs, leaseIDs, renewDurations);
 	    /* addLogRecord is in renewLeasesDo */
 	} finally {
@@ -3219,9 +3219,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public Exception[] cancelLeases(Object[] regIDs, Uuid[] leaseIDs)
         throws NoSuchObjectException
     {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    Exception[] exceptions = cancelLeasesDo(regIDs, leaseIDs);
 	    addLogRecord(new LeasesCancelledLogObj(regIDs, leaseIDs));
 	    queueEvents();
@@ -3251,9 +3251,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public Entry[] getLookupAttributes() throws NoSuchObjectException {
+        ready.check();
 	concurrentObj.readLock();
 	try {
-	    ready.check();
 	    /* no need to clone, never modified once created */
 	    return lookupAttrs;
 	} finally {
@@ -3263,9 +3263,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public void addLookupAttributes(Entry[] attrSets) throws RemoteException {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    EntryRep[] attrs = EntryRep.toEntryRep(attrSets, true);
 	    addAttributesDo(myServiceID, myLeaseID, attrs);
 	    joiner.addAttributes(attrSets);
@@ -3284,9 +3284,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				       Entry[] attrSets)
 	throws RemoteException
     {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    EntryRep[] tmpls = EntryRep.toEntryRep(attrSetTemplates, false);
 	    EntryRep[] attrs = EntryRep.toEntryRep(attrSets, false);
 	    modifyAttributesDo(myServiceID, myLeaseID, tmpls, attrs);
@@ -3303,9 +3303,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public String[] getLookupGroups() throws NoSuchObjectException {
+        ready.check();
 	concurrentObj.readLock();
 	try {
-	    ready.check();
 	    /* no need to clone, never modified once created */
 	    return lookupGroups;
 	} finally {
@@ -3315,9 +3315,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public void addLookupGroups(String[] groups) throws NoSuchObjectException {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    DiscoveryGroupManagement dgm = (DiscoveryGroupManagement) discoer;
 	    try {
 		dgm.addGroups(groups);
@@ -3341,9 +3341,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public void removeLookupGroups(String[] groups)
 	throws NoSuchObjectException
     {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    DiscoveryGroupManagement dgm = (DiscoveryGroupManagement) discoer;
 	    dgm.removeGroups(groups);
 	    lookupGroups = dgm.getGroups();
@@ -3361,9 +3361,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public void setLookupGroups(String[] groups) throws NoSuchObjectException {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    DiscoveryGroupManagement dgm = (DiscoveryGroupManagement) discoer;
 	    try {
 		dgm.setGroups(groups);
@@ -3386,9 +3386,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public LookupLocator[] getLookupLocators() throws NoSuchObjectException {
+        ready.check();
 	concurrentObj.readLock();
 	try {
-	    ready.check();
 	    /* no need to clone, never modified once created */
 	    return lookupLocators;
 	} finally {
@@ -3473,9 +3473,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public void addMemberGroups(String[] groups) throws NoSuchObjectException {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    for (int i = 0; i < groups.length; i++) {
 	        if (indexOf(memberGroups, groups[i]) < 0)
 		    memberGroups = (String[])arrayAdd(memberGroups, groups[i]);
@@ -3499,9 +3499,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     public void removeMemberGroups(String[] groups)
 	throws NoSuchObjectException
     {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    for (int i = 0; i < groups.length; i++) {
                 int j = indexOf(memberGroups, groups[i]);
 	        if (j >= 0)
@@ -3524,9 +3524,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public String[] getMemberGroups() throws NoSuchObjectException {
+        ready.check();
 	concurrentObj.readLock();
 	try {
-	    ready.check();
 	    /* no need to clone, never modified once created */
 	    return memberGroups;
 	} finally {
@@ -3536,9 +3536,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public void setMemberGroups(String[] groups) throws NoSuchObjectException {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    memberGroups = (String[])removeDups(groups);
 	    addLogRecord(new MemberGroupsChangedLogObj(memberGroups));
 	    synchronized (announcer) {
@@ -3557,9 +3557,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public int getUnicastPort() throws NoSuchObjectException {
+        ready.check();
 	concurrentObj.readLock();
 	try {
-	    ready.check();
 	    return unicastPort;
 	} finally {
 	    concurrentObj.readUnlock();
@@ -3568,9 +3568,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public void setUnicastPort(int port) throws IOException,RemoteException {
+        ready.check();
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
 	    if (port == unicastPort)
 		return;
 	    if ((port == 0 && unicaster.port == Constants.discoveryPort) ||
@@ -3612,9 +3612,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     // This method's javadoc is inherited from an interface of this class
     public void destroy() throws RemoteException {
+        ready.check();
 	concurrentObj.priorityWriteLock();
 	try {
-	    ready.check();
 	    logger.info("starting Reggie shutdown");
 	    /* unregister with activation system if activatable */
 	    if (activationID != null) {
@@ -4826,6 +4826,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     
     public void start() throws Exception {
         if (constructionException != null) throw constructionException;
+        concurrentObj.writeLock();
         try {
             // Make sure we're exporting with correct login context.
             AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
@@ -4914,6 +4915,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             config = null;
             unicastDiscoveryHost = null;
             context = null;
+            concurrentObj.writeUnlock();
             ready.ready();
         }
     
@@ -5408,11 +5410,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    renewDuration = maxServiceLease;
 	else if (renewDuration < 0)
 	    throw new IllegalArgumentException("negative lease duration");
-	SvcReg reg = (SvcReg)serviceByID.get(serviceID);
+	SvcReg reg = serviceByID.get(serviceID);
 	if (reg == null ||
 	    !reg.leaseID.equals(leaseID) ||
 	    reg.leaseExpiration <= now)
 	    throw new UnknownLeaseException();
+        if (reg == null) throw new UnknownLeaseException("No service recorded for ID: " + serviceID);
+        if (!reg.leaseID.equals(leaseID)) throw new UnknownLeaseException("Incorrect lease ID: " + leaseID + " not equal to reg lease ID: " + reg.leaseID);
+	if (reg.leaseExpiration <= now) throw new UnknownLeaseException("Lease expired");
 	if (renewDuration > maxServiceLease &&
 	    renewDuration > reg.leaseExpiration - now)
 	    renewDuration = Math.max(reg.leaseExpiration - now,
@@ -5435,7 +5440,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 				      Uuid leaseID,
 				      long renewExpiration)
     {
-	SvcReg reg = (SvcReg)serviceByID.get(serviceID);
+	SvcReg reg = serviceByID.get(serviceID);
 	if (reg == null || !reg.leaseID.equals(leaseID))
 	    return;
 	/* force a re-sort: must remove before changing, then reinsert */
@@ -5449,7 +5454,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	throws UnknownLeaseException
     {
 	long now = System.currentTimeMillis();
-	EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
+	EventReg reg = eventByID.get(Long.valueOf(eventID));
 	if (reg == null || reg.leaseExpiration <= now)
 	    throw new UnknownLeaseException();
 	deleteEvent(reg);
@@ -5483,10 +5488,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	else if (renewDuration < 0)
 	    throw new IllegalArgumentException("negative lease duration");
 	EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
-	if (reg == null ||
-	    !reg.leaseID.equals(leaseID) ||
-	    reg.leaseExpiration <= now)
-	    throw new UnknownLeaseException();
+	if (reg == null) throw new UnknownLeaseException("No event recorded for ID: " + eventID);
+        if (!reg.leaseID.equals(leaseID)) throw new UnknownLeaseException("Incorrect lease ID: " + eventID + " not equal to reg lease ID: " + reg.leaseID);
+	if (reg.leaseExpiration <= now) throw new UnknownLeaseException("Lease expired");
 	if (renewDuration > maxEventLease &&
 	    renewDuration > reg.leaseExpiration - now)
 	    renewDuration = Math.max(reg.leaseExpiration - now, maxEventLease);
