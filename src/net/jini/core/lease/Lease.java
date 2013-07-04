@@ -138,7 +138,7 @@ public interface Lease {
      *
      * @return the created <tt>LeaseMap</tt> object
      */
-    LeaseMap<Lease, Long> createLeaseMap(long duration);
+    LeaseMap createLeaseMap(long duration);
 
     /**
      * Returns a boolean indicating whether or not the lease given as a

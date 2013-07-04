@@ -57,9 +57,9 @@ import com.sun.jini.qa.harness.Test;
  */
 public class LookupMinEqualsMax extends AbstractBaseTest {
 
-    protected long waitDur = 30*1000;
-    protected int  minMatches = 0;
-    protected int  maxMatches = 0;
+    protected volatile long waitDur = 30*1000;
+    protected volatile int  minMatches = 0;
+    protected volatile int  maxMatches = 0;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test.
@@ -176,7 +176,85 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
 							  waitDur);
 	long endTime = System.currentTimeMillis();
 	long actualBlockTime = endTime-startTime;
-	long waitError = (actualBlockTime-waitDur)/1000;
+         /* 7th May 2013 - Peter Firmstone.
+          * According to section SD4.1.3 The blocking feature of lookup
+          * waitDur is measured in milliseconds.
+          * 
+          * Quote:
+              * the method will wait a finite period of time until either an 
+              * acceptable minimum number of service references are discovered 
+              * or the specified time period has passed. 
+          * 
+          * waitError is specified incorrectly here, since it is converted to
+          * seconds and hence requires that the lookup method wait no longer than one second less
+          * of waitDur if the acceptable minimum number of services are 
+          * discovered, this is appears incorrect.
+          * 
+          * long waitError = (actualBlockTime-waitDur)/1000
+          * 
+          * } else { //(nExpectedSrvcs>=minMatches)
+	  *  // Blocking time should be less than the full amount
+	  *  if(waitError >= 0) {
+          * 	throw new TestException(" -- blocked longer than expected "
+          *			  +"-- requested block = "
+          *			  + waitDurSecs +" second(s), actual "
+          * 			  +"block = "+(actualBlockTime/1000)
+          *			  +" second(s)");
+	  *     }
+          * }//endif(nExpectedSrvcs<maxMatches)
+          * 
+          * In addition it was previously considered an error if the wait period
+          * was exactly equal to waitDur after being rounded to seconds,
+          * this is in conflict with the spec that specifies UNTIL either an 
+          * acceptable minimum number of service references are discovered 
+          * or the specified time period has passed. 
+          * 
+          * The test failed to allow for a corner case where an acceptable minimum
+          * number of service references are discovered concurrently to the 
+          * specified time period elapsing.
+          * 
+          * Additionally however, Object.wait(waitDur) may not wake up at the
+          * correct wait time if another object happens to be holding the lock.
+          * 
+          * The spec doesn't specify limits on the wait period, except that it
+          * has passed.  Originally this test allowed 30 seconds to elapse after
+          * waitDur
+          * 
+          * I have changed waitDur to milliseconds to comply with the spec
+          * on the 7th of May 2013
+          * 
+          * The limits were changed to allow 300 milliseconds to elapse after the 
+          * wait period completes.
+          * 
+          * In addtion Item number 3 below states:
+          * 
+             * 3. while lookup() is blocking, if enough new services are
+             *    registered so that the acceptable minimum is achieved,
+             *    lookup() will return immediately; that is, even if there
+             *    is more time left on the wait period, lookup() will not
+             *    wait for more services beyond the minimum. 
+             *
+             *    For example, if 3 services are initially registered and
+             *    lookup is called with min = 4 and max = 7, then lookup()
+             *    will find the 3 services and then wait for more services to
+             *    be registered. Suppose that while lookup() is blocking
+             *    another 5 services are registered, bringing the total number
+             *    of services to 8. In this case, lookup() will stopping
+             *    waiting and return 4 services (the minimum), not the
+             *    maximum 7.
+          * 
+          * The problem with this statement is if additonal threads are waiting
+          * for the object monitor, there's no guarantee the waiting thread can
+          * obtain the monitor first and return the minimum number.  In fact
+          * the jvm is more likely to prefer a thread that's still
+          * in cpu cache rather than a thread that's been waiting for a long 
+          * time and isn't loaded in the cpu cache.
+          * 
+          * The specification doesn't make this distinction, it only limits
+          * the result to maxMatches.  So we need to check that maxMatches isn't
+          * exceeded.
+          */
+	long waitError = (actualBlockTime-waitDur);
 	/* Delay to allow all of the services to finish registering */
 	DiscoveryServiceUtil.delayMS(regCompletionDelay);
 	/* populate the expected info after lookup to prevent delay */
@@ -206,23 +284,12 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
 	 *    first is less than the acceptable minimum, then lookup()
 	 *    will wait for the desired services to be registered with
 	 *    the lookups
-	 * 3. while lookup() is blocking, if enough new services are
-	 *    registered so that the acceptable minimum is achieved,
-	 *    lookup() will return immediately; that is, even if there
-	 *    is more time left on the wait period, lookup() will not
-	 *    wait for more services beyond the minimum. 
-	 *
-	 *    For example, if 3 services are initially registered and
-	 *    lookup is called with min = 4 and max = 7, then lookup()
-	 *    will find the 3 services and then wait for more services to
-	 *    be registered. Suppose that while lookup() is blocking
-	 *    another 5 services are registered, bringing the total number
-	 *    of services to 8. In this case, lookup() will stopping
-	 *    waiting and return 4 services (the minimum), not the
-	 *    maximum 7.
+	 * 3. DELETED 7th May 2013 see comments
 	 * 4. if the minimum number of services have not been registered
 	 *    during the wait period, lookup() will return what it has
 	 *    found.
+         * 5. ADDED 7th May 2013 The maximum number of services returned 
+         *    never exceeds maxMatches.
 	 *
 	 * Below, determine the number of services to expect based on
 	 * the specified behavior described above.    
@@ -245,15 +312,18 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
 	} else {//(nPreReg >= minMatches) ==> won't block
 	    logger.log(Level.FINE, ""
 		       +":   lookup() will NOT block");
-	    if(nPreReg == minMatches) {//return min immediately
-		nExpectedSrvcs = minMatches;
-	    } else {//(nPreReg > minMatches)
+            /* 7th May 2013: This requirement complicates 
+             * thread synchronization and is superflous to the specification.
+             */
+//	    if(nPreReg == minMatches) {//return min immediately
+//		nExpectedSrvcs = minMatches;
+//	    } else {//(nPreReg > minMatches)
 		if(nPreReg < maxMatches) {
 		    nExpectedSrvcs = nPreReg;
 		} else {//(nPreReg >= maxMatches)
 		    nExpectedSrvcs = maxMatches;
 		}//endif
-	    }//endif
+//	    }//endif
 	}//endif            
 	logger.log(Level.FINE, ""
 		   +":   minMatches       = "+minMatches);
@@ -272,24 +342,24 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
 	    if(waitError<-3) {
 		throw new TestException(" -- failed to block requested "
 				  +"time -- requested block = "
-				  +waitDurSecs+" second(s), actual "
-				  +"block = "+(actualBlockTime/1000)
-				  +" second(s)");
-	    } else if(waitError>30) {
+				  +waitDur+" millisecond(s), actual "
+				  +"block = "+(actualBlockTime)
+				  +" millisecond(s)");
+	    } else if(waitError>300) {
 		throw new TestException(" -- exceeded requested block "
 				  +"time -- requested block = "
-				  +waitDurSecs+" second(s), actual "
-				  +"block = "+(actualBlockTime/1000)
-				  +" second(s)");
+				  +waitDur+" millisecond(s), actual "
+				  +"block = "+(actualBlockTime)
+				  +" millisecond(s)");
 	    }//endif
 	} else { //(nExpectedSrvcs>=minMatches)
-	    /* Blocking time should be less than the full amount */
-	    if(waitError >= 0) {
+	    /* Blocking time will likely be less than the full wait period */
+	    if(waitError > 300) {
 		throw new TestException(" -- blocked longer than expected "
 				  +"-- requested block = "
-				  +waitDurSecs+" second(s), actual "
-				  +"block = "+(actualBlockTime/1000)
-				  +" second(s)");
+				  + waitDur +" millisecond(s), actual "
+				  +"block = "+(actualBlockTime)
+				  +" millisecond(s) wait error = " + waitError);
 	    }
 	}//endif(nExpectedSrvcs<maxMatches)
 	verifyServiceItems(srvcItems,

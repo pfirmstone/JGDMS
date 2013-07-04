@@ -77,11 +77,11 @@ class DeformedClientLeaseMapWrapper extends AbstractLeaseMap {
     private void renewAl() throws LeaseMapException, RemoteException {
         ClientLeaseWrapper l = 
 	    (ClientLeaseWrapper) (map.keySet().iterator().next());
-	long d = ( (map.get(l))).longValue();
+	long d = ( (Long)(map.get(l))).longValue();
 	try {
 	    l.renew(d);
 	} catch (LeaseException e) {
-	    final Map<ClientLeaseWrapper, LeaseException> m = new HashMap<ClientLeaseWrapper, LeaseException>(1);
+	    final Map<Lease, Exception> m = new HashMap<Lease, Exception>(1);
 	    m.put(l, e);
 	    throw new LeaseMapException(e.getMessage(), m); 
 	} 

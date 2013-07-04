@@ -54,7 +54,7 @@ final public class ConstrainableLandlordLeaseMap extends LandlordLeaseMap {
      * @throws NullPointerException if landlord is <code>null</code>.
      */
     ConstrainableLandlordLeaseMap(Landlord landlord, Uuid landlordUuid, 
-				  Lease lease, long duration) 
+				  LandlordLease lease, long duration) 
     {
 	super(landlord, landlordUuid, lease, duration);
 	if (!(landlord instanceof RemoteMethodControl))

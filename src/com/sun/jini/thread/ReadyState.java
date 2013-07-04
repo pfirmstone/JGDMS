@@ -38,7 +38,7 @@ public class ReadyState {
     // flag to indicate the service is shutting down
     private static final int SHUTDOWN = 2;
     
-    private int state = INITIALIZE;
+    private volatile int state = INITIALIZE;
 
     /**
      * Checks if the service is ready to use, waiting if it is
@@ -46,14 +46,19 @@ public class ReadyState {
      * shutting down.  Note that the <code>NoSuchObjectException</code> will be 
      * wrapped in a <code>RemoteExceptionWrapper</code>.
      */
-    public synchronized void check() {
+    public void check() {
 	while (true) {
 	    switch (state) {
 		case INITIALIZE:
-		    try {
-			wait();
-		    } catch (InterruptedException e) {}
-		    break;
+                    synchronized (this){
+                        try {
+                            wait(500L);
+                        } catch (InterruptedException e) {
+                            // Restore interrupt.
+                            Thread.currentThread().interrupt();
+                        }
+                    }
+                    continue;
 		case READY:
 		    return;
 		default:

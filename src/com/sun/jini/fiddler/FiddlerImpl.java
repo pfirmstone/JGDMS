@@ -578,7 +578,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
          *  (HashSet is used to prevent duplicates.)
          *  @serial
          */
-        public HashSet groups;
+        public HashSet<String> groups;
         /** The managed set containing the locators of the specific lookup
          *  services the lookup discovery service should attempt to discover
          *  for the current registration. (HashSet is used to prevent
@@ -649,7 +649,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
             this.registrationID = registrationID;
             /* Initialize the groups field, removing nulls and duplicates */
             if(groups != null) {
-                this.groups = new HashSet();
+                this.groups = new HashSet<String>();
                 for(int i=0;i<groups.length;i++) {
                     if(groups[i] == null) continue;
                     this.groups.add(groups[i]);
@@ -1705,8 +1705,9 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
         private void removeRegInfoGroups(RegistrationInfo regInfo,
                                          String[] groups)
         {
-            HashSet removeSet = new HashSet();
-            for(int i=0;i<groups.length;i++) {
+            HashSet<String> removeSet = new HashSet<String>();
+            int l = groups.length;
+            for(int i = 0; i < l; i++) {
                 removeSet.add(groups[i]);
             }//end loop
             (regInfo.groups).removeAll(removeSet);
@@ -2644,7 +2645,12 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
      */
     public Object getAdmin() throws NoSuchObjectException, RemoteException {
 	readyState.check();
-        return adminProxy;
+        concurrentObj.readLock();
+        try {
+            return adminProxy;
+        } finally {
+            concurrentObj.readUnlock();
+        }
     }
     /*  END com.sun.jini.fiddler.Fiddler --> net.jini.admin.Administrable   */
     /* -------------------------------------------------------------------- */
@@ -3323,7 +3329,12 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
      */
     public Object getServiceProxy() throws NoSuchObjectException {
 	readyState.check();
-        return outerProxy;
+        concurrentObj.readLock();
+        try {
+            return outerProxy;
+        } finally {
+            concurrentObj.readUnlock();
+        }
     }//end getServiceProxy
 
     /*  END com.sun.jini.fiddler.Fiddler 
@@ -3354,7 +3365,12 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
      */
     public Uuid getProxyID() throws NoSuchObjectException, RemoteException {
 	readyState.check();
-        return proxyID;
+        concurrentObj.readLock();
+        try {
+            return proxyID;
+        } finally {
+            concurrentObj.readUnlock();
+        }
     }//end getProxyID
 
     /**
@@ -5162,6 +5178,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
             if (started) return;
             started = true;
         }
+        concurrentObj.writeLock();
         try {
         AccessController.doPrivileged(new PrivilegedExceptionAction(){
 
@@ -5330,6 +5347,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Starter {
         } finally {
             logHandler = null;
             context = null;
+            concurrentObj.writeUnlock();
         }
     } 
     /* END public start method */

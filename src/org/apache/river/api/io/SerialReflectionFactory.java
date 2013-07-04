@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.io.StreamCorruptedException;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
+import java.net.ProtocolException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import java.security.CodeSource;
@@ -70,8 +71,8 @@ public final class SerialReflectionFactory implements Externalizable {
      * proceeded by a byte header indicating its type.  For null values, only the
      * byte header is written to stream.
      * 
-     * This protocol is fixed and cannot be changed after release.
      */
+    private static byte VERSION = 1;
     private static final byte BOOLEAN = 0;
     private static final byte BYTE = 1;
     private static final byte CHAR = 2;
@@ -210,6 +211,7 @@ public final class SerialReflectionFactory implements Externalizable {
     public void writeExternal(ObjectOutput out) throws IOException {
         distributable.checkGuard(null);
         if (! constructed) throw new IOException("Attempt to write blank SerialReflectionFactory");
+        out.writeByte(VERSION);
         out.writeObject(classOrObject);
         out.writeObject(method);
         /* don't clone arrays for defensive copies, it's up to constructing 
@@ -329,6 +331,10 @@ public final class SerialReflectionFactory implements Externalizable {
          * not accessed again, it is up to creator methods themselves to 
          * preserve invariants.
          */
+        byte version = in.readByte();
+        // In future we could potentially handle different versions, but for now,
+        // bail out.
+        if (version != VERSION) throw new ProtocolException("Incompatible SerialReflectionFactory protocol");
         classOrObject = in.readObject();
         method = (String) in.readObject();
         parameterTypes = (Class[]) in.readObject();

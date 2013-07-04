@@ -278,6 +278,7 @@ class LocalLease implements Lease, Serializable {
     }
 
     private static class LocalLeaseMap extends OurAbstractLeaseMap {
+        private static final long serialVersionUID = 1L;
 	/** 
 	 * Two <code>LocalLeases</code> with the same bundle value can 
 	 * be batched together

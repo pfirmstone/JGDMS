@@ -50,7 +50,7 @@ class EntryRep implements Serializable, Cloneable {
     public EntryClass eclass;
     /**
      * The codebase of the entry class.
-     *
+     * 
      * @serial
      */
     public String codebase;

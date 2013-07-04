@@ -19,6 +19,7 @@ package com.sun.jini.tool;
 
 import com.sun.jini.logging.Levels;
 import com.sun.jini.start.LifeCycle;
+import com.sun.jini.start.Starter;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -161,7 +162,7 @@ import java.util.logging.Logger;
  * @author Sun Microsystems, Inc.
  *
  */
-public class ClassServer extends Thread {
+public class ClassServer extends Thread implements Starter {
     /** Default HTTP port */
     private static int DEFAULT_PORT = 8080;
     /** Default directory to serve files from on non-Windows OS */
@@ -331,31 +332,15 @@ public class ClassServer extends Thread {
 	    }
 	}
     }
-
-    /**
-     * Construct an un-started server, accepting the same command line options
-     * supported by {@link #main main}, except for the <code>-stop</code>
-     * option.  
-     * 
-     * {@link Thread#start() } must be called to start the server.
-     *
-     * @param args command line options
-     * @param lifeCycle life cycle control object, or <code>null</code>
-     * @throws IOException if the server socket cannot be created
-     * @throws IllegalArgumentException if a command line option is not
-     * understood
-     * @throws NullPointerException if <code>args</code> or any element
-     * of <code>args</code> is <code>null</code>
-     * @since 2.3.0
-     */
-    public ClassServer(LifeCycle lifeCycle, String [] args)throws IOException {
-	this(new Initializer(lifeCycle, args));
-    }
     
     /**
-     * Construct a running server, accepting the same command line options
+     * Construct a server, accepting the same command line options
      * supported by {@link #main main}, except for the <code>-stop</code>
      * option.
+     * 
+     * If constructed by {@link com.sun.jini.start.ServiceStarter},
+     * {@link Starter#start() }, is called automatically, otherwise {@link #start()}
+     * must be called manually after construction.
      *
      * @param args command line options
      * @param lifeCycle life cycle control object, or <code>null</code>
@@ -364,13 +349,10 @@ public class ClassServer extends Thread {
      * understood
      * @throws NullPointerException if <code>args</code> or any element
      * of <code>args</code> is <code>null</code>
-     * @deprecated {@link Thread#start() } is called from within constructor, 
-     * this is non compliant with safe construction rules in the JMM.
+     * @see Starter
      */
-    @Deprecated
     public ClassServer(String[] args, LifeCycle lifeCycle) throws IOException {
 	this(new Initializer(lifeCycle, args));
-	start();
     }
 
     /** Add transitive Class-Path JARs to jflist. */

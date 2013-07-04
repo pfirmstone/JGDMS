@@ -17,14 +17,14 @@
  */
 package com.sun.jini.test.impl.norm;
 
-import net.jini.core.lease.*;
-import java.rmi.RemoteException;
 import java.io.Serializable;
-import java.util.Map;
-import java.util.Set;
 import java.util.AbstractSet;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.Map;
+import java.util.Set;
+import net.jini.core.lease.Lease;
+import net.jini.core.lease.LeaseMap;
 
 /**
  * Lifted from com.sun.jini.lease.AbstractLeaseMap so we can have a codebase

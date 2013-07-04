@@ -69,7 +69,9 @@ public class LandlordLeaseMap extends AbstractLeaseMap {
     LandlordLeaseMap(Landlord landlord, Uuid landlordUuid, Lease lease,
 		     long duration) 
     {
-	super(lease, duration);
+	super(new HashMap(), lease, duration);
+        if (!(lease instanceof LandlordLease)) throw 
+                new ClassCastException("Lease must be of type LandlordLease");
 	if (landlord == null)
 	    throw new NullPointerException("Landlord must be non-null");
 
@@ -91,17 +93,20 @@ public class LandlordLeaseMap extends AbstractLeaseMap {
 
     // inherit doc comment
     public void cancelAll() throws LeaseMapException, RemoteException {
-	Uuid[] cookies = new Uuid[size()];
-	LandlordLease[] leases = new LandlordLease[cookies.length];
-	Iterator it = keySet().iterator();
-	for (int i = 0; it.hasNext(); i++) {
-	    LandlordLease lease = (LandlordLease) it.next();
-	    leases[i] = lease;
-	    cookies[i] = lease.cookie();
-	}
-
-	final Map rslt = landlord.cancelAll(cookies);
-
+        final Map rslt;
+	Uuid[] cookies;
+        LandlordLease[] leases;
+        synchronized (mapLock){
+            cookies = new Uuid[size()];
+            leases = new LandlordLease[cookies.length];
+            Iterator it = keySet().iterator();
+            for (int i = 0; it.hasNext(); i++) {
+                LandlordLease lease = (LandlordLease) it.next();
+                leases[i] = lease;
+                cookies[i] = lease.cookie();
+            }
+            rslt = landlord.cancelAll(cookies);
+        }
 	if (rslt == null) {
 	    // Everything worked out, normal return
 	    return;
@@ -134,17 +139,21 @@ public class LandlordLeaseMap extends AbstractLeaseMap {
 
     // inherit doc comment
     public void renewAll() throws LeaseMapException, RemoteException {
-	Uuid[] cookies = new Uuid[size()];
-	long[] extensions = new long[cookies.length];
-	LandlordLease[] leases = new LandlordLease[cookies.length];
-	Iterator it = keySet().iterator();
-	for (int i = 0; it.hasNext(); i++) {
-	    LandlordLease lease = (LandlordLease) it.next();
-	    leases[i] = lease;
-	    cookies[i] = lease.cookie();
-	    extensions[i] = ((Long) get(lease)).longValue();
-	}
-
+        Uuid[] cookies;
+	long[] extensions;
+	LandlordLease[] leases;
+        synchronized (mapLock){
+            cookies = new Uuid[size()];
+            extensions = new long[cookies.length];
+            leases = new LandlordLease[cookies.length];
+            Iterator it = keySet().iterator();
+            for (int i = 0; it.hasNext(); i++) {
+                LandlordLease lease = (LandlordLease) it.next();
+                leases[i] = lease;
+                cookies[i] = lease.cookie();
+                extensions[i] = ((Long) get(lease)).longValue();
+            }
+        }
 	long now = System.currentTimeMillis();
 	Landlord.RenewResults results = 
 	    landlord.renewAll(cookies, extensions);

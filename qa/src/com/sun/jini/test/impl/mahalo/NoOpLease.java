@@ -17,19 +17,15 @@
  */
 package com.sun.jini.test.impl.mahalo;
 
-import java.io.ObjectInputStream;
+import com.sun.jini.lease.AbstractLease;
 import java.io.IOException;
 import java.io.InvalidObjectException;
+import java.io.ObjectInputStream;
 import java.rmi.RemoteException;
-
 import net.jini.core.lease.Lease;
-import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.LeaseDeniedException;
+import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.UnknownLeaseException;
-import net.jini.id.Uuid;
-import net.jini.id.ReferentUuid;
-import net.jini.id.ReferentUuids;
-import com.sun.jini.lease.AbstractLease;
 
 /**
  * No-op implementation of <code>net.jini.core.lease.Lease</code> that works

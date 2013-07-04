@@ -40,14 +40,14 @@ import net.jini.core.lease.LeaseMapException;
  * @author Sun Microsystems, Inc.
  *
  */
-public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, ConcurrentMap<Lease, Long> {
+public abstract class AbstractLeaseMap implements LeaseMap, ConcurrentMap {
     /**
      * Map from Lease to Long(duration), where all leases have the same
      * destination.
      *
      * @serial
      */
-    protected final Map<Lease, Long> map;
+    protected final Map map;
     
     protected final Object mapLock; 
 
@@ -58,16 +58,15 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
      * @param duration  
      */
     protected AbstractLeaseMap(Lease lease, long duration) {
-	this(new ConcurrentHashMap<Lease, Long>(13), lease, duration);
+	this(new ConcurrentHashMap(13), lease, duration);
     }
 
     /**
      * Provide a map of your choice.  It is assumed that
      * canContainKey(lease) is true.
-     * @deprecated to get peoples attention that map may require synchronized access.
+     * @param map 
      */
-    @Deprecated
-    protected AbstractLeaseMap(Map<Lease, Long> map, Lease lease, long duration) {
+    protected AbstractLeaseMap(Map map, Lease lease, long duration) {
         if (map instanceof ConcurrentMap) {
             this.map = map;
             mapLock = null;
@@ -92,7 +91,7 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
      * @param value 
      */
     protected static void checkValue(Object value) {
-	if (!(value instanceof Long)) {
+	if (!(value instanceof java.lang.Long)) {
             throw new IllegalArgumentException("value is not a Long");
         }
     }
@@ -120,20 +119,20 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
     }
 
     // inherit javadoc
-    public Long get(Object key) {
+    public Object get(Object key) {
 	checkKey(key);
 	return map.get(key);
     }
 
     // inherit javadoc
-    public Long put(Lease key, Long value) {
+    public Object put(Object key, Object value) {
 	checkKey(key);
 	checkValue(value);
 	return map.put(key, value);
     }
 
     // inherit javadoc
-    public Long remove(Object key) {
+    public Object remove(Object key) {
 	checkKey(key);
 	return map.remove(key);
     }
@@ -142,11 +141,11 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
      * of the keys and values.
      */
     // inherit javadoc
-    public void putAll(Map<? extends Lease, ? extends Long> m) {
+    public void putAll(Map m) {
 	Iterator iter = m.entrySet().iterator();
 	while (iter.hasNext()) {
             @SuppressWarnings("unchecked")
-	    Map.Entry<? extends Lease, ? extends Long> e = (Map.Entry<? extends Lease, ? extends Long>) iter.next();
+	    Map.Entry e = (Map.Entry) iter.next();
 	    put(e.getKey(), e.getValue());
 	}
     }
@@ -157,12 +156,12 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
     }
 
     // inherit javadoc
-    public Set<Lease> keySet() {
+    public Set keySet() {
 	return map.keySet();
     }
 
     // inherit javadoc
-    public Collection<Long> values() {
+    public Collection values() {
 	return map.values();
     }
 
@@ -170,7 +169,7 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
      * Map.Entry.setValue.
      */
     // inherit javadoc
-    public Set<Map.Entry<Lease, Long>> entrySet() {
+    public Set entrySet() {
 	return new EntrySet(map.entrySet());
     }
 
@@ -185,29 +184,45 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
     }
 
     @Override
-    public Long putIfAbsent(final Lease key, final Long value) {
+    public Object putIfAbsent(final Object key, final Object value) {
+        checkKey(key);
+        checkValue(value);
         if (map instanceof ConcurrentMap){
-            ConcurrentMap<Lease, Long> m = (ConcurrentMap<Lease, Long>) map;
+            ConcurrentMap m = (ConcurrentMap) map;
             return m.putIfAbsent(key, value);
         } else {
             synchronized (mapLock){
-                Set<Map.Entry<Lease, Long>> entries;
+                Set entries;
                 entries = map.entrySet();
-                Map.Entry<Lease, Long> entry = new Map.Entry<Lease, Long>(){
+                Map.Entry entry = new Map.Entry(){
 
                     @Override
-                    public Lease getKey() {
+                    public Object getKey() {
                         return key;
                     }
 
                     @Override
-                    public Long getValue() {
+                    public Object getValue() {
                         return value;
                     }
 
                     @Override
-                    public Long setValue(Long value) {
+                    public Object setValue(Object value) {
                         throw new UnsupportedOperationException("Not supported.");
+                    }
+                    
+                    public boolean equals(Object o){
+                        if (!(o instanceof Map.Entry)) return false;
+                        Map.Entry e2 = (Map.Entry) o;
+                        Map.Entry e1 = this;
+                        return (e1.getKey()==null ? e2.getKey()==null : e1.getKey().equals(e2.getKey()))  &&
+                         (e1.getValue()==null ? e2.getValue()==null : e1.getValue().equals(e2.getValue()));
+                    }
+                    
+                    public int hashCode(){
+                        Map.Entry e = this;
+                        return (e.getKey()==null ? 0 : e.getKey().hashCode()) ^
+                        (e.getValue()==null ? 0 : e.getValue().hashCode());
                     }
                     
                 };
@@ -216,7 +231,7 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
                     return value;
                 } else if ( map.containsKey(key)) {
                     // Might contain null value;
-                    Long result = map.get(key);
+                    Object result = map.get(key);
                     if (result == null) map.put(key, value);
                     // If result is not null it is returned and no put was made
                     // or if it is null, the key value pair was added and null value 
@@ -236,7 +251,7 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
         if (map instanceof ConcurrentMap){
             return ((ConcurrentMap) map).remove(key, value);
         } else {
-            Set<Map.Entry<Lease,Long>> entries;
+            Set entries;
                 entries = map.entrySet();
                 Map.Entry entry = new Map.Entry(){
 
@@ -255,39 +270,68 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
                         throw new UnsupportedOperationException("Not supported.");
                     }
                     
+                    public boolean equals(Object o){
+                        if (!(o instanceof Map.Entry)) return false;
+                        Map.Entry e2 = (Map.Entry) o;
+                        Map.Entry e1 = this;
+                        return (e1.getKey()==null ? e2.getKey()==null : e1.getKey().equals(e2.getKey()))  &&
+                         (e1.getValue()==null ? e2.getValue()==null : e1.getValue().equals(e2.getValue()));
+                    }
+                    
+                    public int hashCode(){
+                        Map.Entry e = this;
+                        return (e.getKey()==null ? 0 : e.getKey().hashCode()) ^
+                        (e.getValue()==null ? 0 : e.getValue().hashCode());
+                    }
                 };
                 return entries.remove(entry);
         }
     }
 
     @Override
-    public boolean replace(final Lease key, final Long oldValue, Long newValue) {
+    public boolean replace(final Object key, final Object oldValue, Object newValue) {
+        checkKey(key);
+        checkValue(newValue);
         if (map instanceof ConcurrentMap){
             return ((ConcurrentMap)map).replace(key, oldValue, newValue);
         } else {
             synchronized (mapLock){
-            Set<Map.Entry<Lease,Long>> entries;
+            Set entries;
                 entries = map.entrySet();
-                Map.Entry<Lease, Long> entry = new Map.Entry<Lease, Long>(){
+                Map.Entry entry = new Map.Entry(){
 
                     @Override
-                    public Lease getKey() {
+                    public Object getKey() {
                         return key;
                     }
 
                     @Override
-                    public Long getValue() {
+                    public Object getValue() {
                         return oldValue;
                     }
 
                     @Override
-                    public Long setValue(Long value) {
+                    public Object setValue(Object value) {
                         throw new UnsupportedOperationException("Not supported.");
+                    }
+                    
+                    public boolean equals(Object o){
+                        if (!(o instanceof Map.Entry)) return false;
+                        Map.Entry e2 = (Map.Entry) o;
+                        Map.Entry e1 = this;
+                        return (e1.getKey()==null ? e2.getKey()==null : e1.getKey().equals(e2.getKey()))  &&
+                         (e1.getValue()==null ? e2.getValue()==null : e1.getValue().equals(e2.getValue()));
+                    }
+                    
+                    public int hashCode(){
+                        Map.Entry e = this;
+                        return (e.getKey()==null ? 0 : e.getKey().hashCode()) ^
+                        (e.getValue()==null ? 0 : e.getValue().hashCode());
                     }
                     
                 };
                 if (entries.contains(entry)){
-                    Long result = map.put(key, newValue);
+                    Object result = map.put(key, newValue);
                     assert result.equals(oldValue);
                     return true;
                 } else  {
@@ -298,33 +342,49 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
     }
 
     @Override
-    public Long replace(final Lease key, final Long value) {
+    public Object replace(final Object key, final Object value) {
+        checkKey(key);
+        checkValue(value);
         if (map instanceof ConcurrentMap){
-            return ((ConcurrentMap<Lease, Long>)map).replace(key, value);
+            return ((ConcurrentMap)map).replace(key, value);
         } else {
             synchronized (mapLock){
-            Set<Map.Entry<Lease,Long>> entries;
+                Set entries;
                 entries = map.entrySet();
-                Map.Entry<Lease, Long> entry = new Map.Entry<Lease, Long>(){
+                Map.Entry entry = new Map.Entry(){
 
                     @Override
-                    public Lease getKey() {
+                    public Object getKey() {
                         return key;
                     }
 
                     @Override
-                    public Long getValue() {
+                    public Object getValue() {
                         return value;
                     }
 
                     @Override
-                    public Long setValue(Long value) {
+                    public Object setValue(Object value) {
                         throw new UnsupportedOperationException("Not supported.");
+                    }
+                    
+                    public boolean equals(Object o){
+                        if (!(o instanceof Map.Entry)) return false;
+                        Map.Entry e2 = (Map.Entry) o;
+                        Map.Entry e1 = this;
+                        return (e1.getKey()==null ? e2.getKey()==null : e1.getKey().equals(e2.getKey()))  &&
+                         (e1.getValue()==null ? e2.getValue()==null : e1.getValue().equals(e2.getValue()));
+                    }
+                    
+                    public int hashCode(){
+                        Map.Entry e = this;
+                        return (e.getKey()==null ? 0 : e.getKey().hashCode()) ^
+                        (e.getValue()==null ? 0 : e.getValue().hashCode());
                     }
                     
                 };
                 if (entries.contains(entry)){
-                    Long result = map.put(key, value);
+                    Object result = map.put(key, value);
                     return result;
                 } else  {
                     return null;
@@ -340,15 +400,15 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
      * also use an AbstractSet for this set, so we're really not
      * making things that much worse.
      */
-    private final static class EntrySet extends AbstractSet<Map.Entry<Lease,Long>> {
-	private final Set<Map.Entry<Lease, Long>> set;
+    private final static class EntrySet extends AbstractSet {
+	private final Set set;
 
-	public EntrySet(Set<Map.Entry<Lease, Long>> set) {
+	public EntrySet(Set set) {
 	    this.set = set;
 	}
 
 	/** Wrap so we can do type checking on Map.Entry.setValue. */
-	public Iterator<Map.Entry<Lease, Long>> iterator() {
+	public Iterator iterator() {
 	    return new EntryIterator(set.iterator());
 	}
 
@@ -370,10 +430,10 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
     }
 
     /** A wrapper so that we can wrap each Entry returned. */
-    private static final class EntryIterator implements Iterator<Map.Entry<Lease,Long>> {
-	private final Iterator<Map.Entry<Lease,Long>> iter;
+    private static final class EntryIterator implements Iterator {
+	private final Iterator iter;
 
-	public EntryIterator(Iterator<Map.Entry<Lease,Long>> iter) {
+	public EntryIterator(Iterator iter) {
 	    this.iter = iter;
 	}
 
@@ -381,8 +441,8 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
 	    return iter.hasNext();
 	}
 
-	public Map.Entry<Lease,Long> next() {
-	    return new Entry(iter.next());
+	public Map.Entry next() {
+	    return new Entry((Map.Entry) iter.next());
 	}
 
 	public void remove() {
@@ -391,22 +451,22 @@ public abstract class AbstractLeaseMap implements LeaseMap<Lease, Long>, Concurr
     }
 
     /** Pass through, except for type checking on setValue */
-    private static final class Entry implements Map.Entry<Lease, Long> {
-	private final Map.Entry<Lease, Long> e;
+    private static final class Entry implements Map.Entry {
+	private final Map.Entry e;
 
-	public Entry(Map.Entry<Lease, Long> e) {
+	public Entry(Map.Entry e) {
 	    this.e = e;
 	}
 
-	public Lease getKey() {
+	public Object getKey() {
 	    return e.getKey();
 	}
 
-	public Long getValue() {
+	public Object getValue() {
 	    return e.getValue();
 	}
 
-	public Long setValue(Long value) {
+	public Object setValue(Object value) {
 	    checkValue(value);
 	    return e.setValue(value);
 	}

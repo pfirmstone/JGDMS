@@ -21,7 +21,7 @@ package net.jini.core.lease;
 import java.rmi.RemoteException;
 
 /**
- * An unsynchronized Map from Lease to Long (the duration to use when
+ * An Map from Lease to Long (the duration to use when
  * renewing the lease).  For all methods of LeaseMap except canContainKey,
  * an IllegalArgumentException is thrown if a key is not a Lease or a value
  * is not a Long.  Null keys and values are not supported.
@@ -30,7 +30,7 @@ import java.rmi.RemoteException;
  *
  * @since 1.0
  */
-public interface LeaseMap<Lease, Long> extends java.util.Map<Lease, Long> {
+public interface LeaseMap extends java.util.Map {
     /**
      * Returns true if the given object is a Lease which can be renewed
      * and cancelled in a batch with other leases in the map.  Whether

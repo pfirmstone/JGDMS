@@ -22,6 +22,7 @@ import java.rmi.RemoteException;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.core.lookup.ServiceID;
 import net.jini.id.Uuid;
@@ -57,7 +58,7 @@ class RegistrarLeaseMap extends AbstractLeaseMap {
 
     /** Constructor used by ConstrainableRegistrarLeaseMap */
     RegistrarLeaseMap(Registrar server, RegistrarLease lease, long duration) {
-	super(lease, duration);
+	super(new HashMap(), lease, duration);
 	this.server = server;
 	registrarID = lease.getRegistrarID();
     }
@@ -70,66 +71,69 @@ class RegistrarLeaseMap extends AbstractLeaseMap {
 
     // This method's javadoc is inherited from an interface of this class
     public void renewAll() throws LeaseMapException, RemoteException {
-	int size = map.size();
-	if (size == 0)
-	    return;
-	Object[] regIDs = new Object[size];
-	Uuid[] leaseIDs = new Uuid[size];
-	long[] durations = new long[size];
-	int i = 0;
-	for (Iterator iter = map.entrySet().iterator(); iter.hasNext(); i++) {
-	    Map.Entry e = (Map.Entry)iter.next();
-	    RegistrarLease ls = (RegistrarLease)e.getKey();
-	    regIDs[i] = ls.getRegID();
-	    leaseIDs[i] = ls.getReferentUuid();
-	    durations[i] = ((Long)e.getValue()).longValue();
-	}
-	RenewResults results = server.renewLeases(regIDs, leaseIDs, durations);
-	long now = System.currentTimeMillis();
-	HashMap emap = (results.exceptions != null) ?
-	    	       new HashMap(2 * results.exceptions.length + 1) : null;
-	i = 0;
-	int j = 0;
-	for (Iterator iter = map.entrySet().iterator(); iter.hasNext(); i++) {
-	    Map.Entry e = (Map.Entry)iter.next();
-	    long duration = results.durations[i];
-	    if (duration >= 0) {
-		((RegistrarLease)e.getKey()).setExpiration(duration + now);
-	    } else {
-		emap.put(e.getKey(), results.exceptions[j++]);
-		iter.remove();
-	    }
-	}
-	if (emap != null)
-	    throw new LeaseMapException("lease renewal failures", emap);
+        synchronized (mapLock){
+            int size = map.size();
+            if (size == 0) return;
+            Object[] regIDs = new Object[size];
+            Uuid[] leaseIDs = new Uuid[size];
+            long[] durations = new long[size];
+            int i = 0;
+            for (Iterator<Map.Entry<RegistrarLease,Long>> iter = map.entrySet().iterator(); iter.hasNext(); i++) {
+                Map.Entry<RegistrarLease,Long> e = iter.next();
+                RegistrarLease ls = e.getKey();
+                regIDs[i] = ls.getRegID();
+                leaseIDs[i] = ls.getReferentUuid();
+                durations[i] = (e.getValue()).longValue();
+            }
+            RenewResults results = server.renewLeases(regIDs, leaseIDs, durations);
+            long now = System.currentTimeMillis();
+            HashMap<Lease,Exception> emap = (results.exceptions != null) ?
+                           new HashMap<Lease,Exception>(2 * results.exceptions.length + 1) : null;
+            i = 0;
+            int j = 0;
+            for (Iterator<Map.Entry<RegistrarLease,Long>> iter = map.entrySet().iterator(); iter.hasNext(); i++) {
+                Map.Entry<RegistrarLease,Long> e = iter.next();
+                long duration = results.durations[i];
+                if (duration >= 0) {
+                    e.getKey().setExpiration(duration + now);
+                } else {
+                    emap.put(e.getKey(), results.exceptions[j++]);
+                    iter.remove();
+                }
+            }
+            if (emap != null)
+                throw new LeaseMapException("lease renewal failures", emap);
+        }
     }
 
     // This method's javadoc is inherited from an interface of this class
     public void cancelAll() throws LeaseMapException, RemoteException {
-	int size = map.size();
-	if (size == 0)
-	    return;
-	Object[] regIDs = new Object[size];
-	Uuid[] leaseIDs = new Uuid[size];
-	int i = 0;
-	for (Iterator iter = map.keySet().iterator(); iter.hasNext(); i++) {
-	    RegistrarLease ls = (RegistrarLease)iter.next();
-	    regIDs[i] = ls.getRegID();
-	    leaseIDs[i] = ls.getReferentUuid();
-	}
-	Exception[] exceptions = server.cancelLeases(regIDs, leaseIDs);
-	if (exceptions == null)
-	    return;
-	i = 0;
-	HashMap emap = new HashMap(13);
-	for (Iterator iter = map.keySet().iterator(); iter.hasNext(); i++) {
-	    RegistrarLease ls = (RegistrarLease)iter.next();
-	    Exception ex = exceptions[i];
-	    if (ex != null) {
-		emap.put(ls, ex);
-		iter.remove();
-	    }
-	}
-	throw new LeaseMapException("lease cancellation failures", emap);
+        synchronized (mapLock){
+            int size = map.size();
+            if (size == 0)
+                return;
+            Object[] regIDs = new Object[size];
+            Uuid[] leaseIDs = new Uuid[size];
+            int i = 0;
+            for (Iterator iter = map.keySet().iterator(); iter.hasNext(); i++) {
+                RegistrarLease ls = (RegistrarLease)iter.next();
+                regIDs[i] = ls.getRegID();
+                leaseIDs[i] = ls.getReferentUuid();
+            }
+            Exception[] exceptions = server.cancelLeases(regIDs, leaseIDs);
+            if (exceptions == null)
+                return;
+            i = 0;
+            HashMap emap = new HashMap(13);
+            for (Iterator iter = map.keySet().iterator(); iter.hasNext(); i++) {
+                RegistrarLease ls = (RegistrarLease)iter.next();
+                Exception ex = exceptions[i];
+                if (ex != null) {
+                    emap.put(ls, ex);
+                    iter.remove();
+                }
+            }
+            throw new LeaseMapException("lease cancellation failures", emap);
+        }
     }
 }
