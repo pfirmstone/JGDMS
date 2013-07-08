@@ -26,7 +26,7 @@ import java.rmi.MarshalledObject;
 import com.sun.jini.config.Config;
 import com.sun.jini.test.impl.start.TestService;
 import com.sun.jini.start.LifeCycle;
-import com.sun.jini.start.Starter;
+import org.apache.river.api.util.Commission;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
@@ -60,7 +60,7 @@ import javax.security.auth.login.LoginException;
 /**
  * Activatable implementation of the TestService interface.
  */
-public class TestServiceImpl implements TestService, ProxyAccessor, Starter {
+public class TestServiceImpl implements TestService, ProxyAccessor, Commission {
 
     private static volatile int staticInt = 0;
     

@@ -16,23 +16,25 @@
  * limitations under the License.
  */
 
-package com.sun.jini.start;
+package org.apache.river.api.util;
 
 /**
- * Implemented by a service to enable starting after construction.
+ * Implemented by an object to enable starting threads, perform remote
+ * export or any other activity after construction is complete, required to put
+ * the object into an operational state.
  * 
  * @see ServiceDescriptor
  * @see Exporter
  * 
  */
-public interface Starter {
+public interface Commission {
     /**
-     * Called by the ServiceStarter after construction, allows the service to
-     * delay starting threads and exporting until after construction is complete, 
+     * Called after construction, this method enables objects to delay
+     * starting threads or exporting until after construction is complete, 
      * to allow safe publication of the service in accordance with the JMM.
      * <p>
      * In addition to starting threads after construction, it also allows
-     * services to avoid throwing an exception during construction to avoid
+     * objects to avoid throwing an exception during construction to avoid
      * finalizer attacks.
      * <p>
      * The implementation is required to ensure start() is idempotent 

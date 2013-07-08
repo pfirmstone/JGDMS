@@ -18,6 +18,7 @@
 
 package com.sun.jini.start;
 
+import org.apache.river.api.util.Commission;
 import com.sun.jini.config.Config;
 
 import net.jini.config.Configuration;
@@ -676,15 +677,15 @@ public class NonActivatableServiceDescriptor
                 constructor);
             constructor.setAccessible(true);
             impl = constructor.newInstance(argParms);
-            if (impl instanceof Starter) {
-                ((Starter) impl).start();
+            if (impl instanceof Commission) {
+                ((Commission) impl).start();
             } else {
                 logger.log( Level.SEVERE,
                     "Service {0} doesn''t implement {1} {2} {3} {4} {5} {6}", 
                     new Object []
                         {
                             impl.getClass().getCanonicalName(),
-                            Starter.class.getCanonicalName(),
+                            Commission.class.getCanonicalName(),
                             "this service is likely to suffer from race",
                             "conditions caused by export performed during", 
                             "construction, or threads started while ''this''",

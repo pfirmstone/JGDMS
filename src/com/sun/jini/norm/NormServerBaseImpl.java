@@ -98,7 +98,7 @@ import com.sun.jini.proxy.ThrowThis;
 import com.sun.jini.start.LifeCycle;
 import com.sun.jini.reliableLog.LogException;
 import com.sun.jini.reliableLog.LogHandler;
-import com.sun.jini.start.Starter;
+import org.apache.river.api.util.Commission;
 import com.sun.jini.thread.InterruptedStatusThread;
 import java.security.AccessControlContext;
 import java.security.AccessController;
@@ -110,7 +110,7 @@ import java.security.AccessController;
  * @author Sun Microsystems, Inc.
  */
 abstract class NormServerBaseImpl
-    implements NormServer, LocalLandlord, ServerProxyTrust, ProxyAccessor, Starter
+    implements NormServer, LocalLandlord, ServerProxyTrust, ProxyAccessor, Commission
 {
     /** Current version of log format */
     private static final int CURRENT_LOG_VERSION = 2;

@@ -47,7 +47,7 @@ import net.jini.config.ConfigurationException;
 import net.jini.id.Uuid;
 
 import com.sun.jini.start.LifeCycle;
-import com.sun.jini.start.Starter;
+import org.apache.river.api.util.Commission;
 
 /**
  * For various reasons there is code that we would like
@@ -61,7 +61,7 @@ import com.sun.jini.start.Starter;
  * @since 2.0
  */
 class OutriggerServerWrapper 
-    implements OutriggerServer, ServerProxyTrust, ProxyAccessor, Starter
+    implements OutriggerServer, ServerProxyTrust, ProxyAccessor, Commission
 {
     /** The object being delegated to */     
     private final OutriggerServerImpl delegate;

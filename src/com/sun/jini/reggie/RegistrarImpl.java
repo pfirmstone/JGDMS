@@ -34,7 +34,7 @@ import com.sun.jini.proxy.MarshalledWrapper;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
 import com.sun.jini.start.LifeCycle;
-import com.sun.jini.start.Starter;
+import org.apache.river.api.util.Commission;
 import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadyState;
@@ -147,7 +147,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  * @author Sun Microsystems, Inc.
  *
  */
-class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Starter {
+class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commission {
 
     /** Maximum minMax lease duration for both services and events */
     private static final long MAX_LEASE = 1000L * 60 * 60 * 24 * 365 * 1000;
@@ -877,7 +877,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	public void apply(RegistrarImpl regImpl) {
 	    try {
 		regImpl.addAttributesDo(serviceID, leaseID, attrSets);
-	    } catch (UnknownLeaseException e) {
+            } catch (UnknownLeaseException e) {
 		/* this exception should never occur when recovering  */
 		throw new AssertionError("an UnknownLeaseException should"
 					 + " never occur during recovery");
@@ -5248,11 +5248,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	throws UnknownLeaseException
     {
 	long now = System.currentTimeMillis();
-	SvcReg reg = (SvcReg)serviceByID.get(serviceID);
-	if (reg == null ||
-	    !reg.leaseID.equals(leaseID) ||
-	    reg.leaseExpiration <= now)
-	    throw new UnknownLeaseException();
+	SvcReg reg = checkLease(serviceID, leaseID, now);
 	Item pre = (Item)reg.item.clone();
 	EntryRep[] sets = reg.item.attributeSets;
 	int i = 0;
@@ -5297,11 +5293,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 					   "attribute set type mismatch");
 	}
 	long now = System.currentTimeMillis();
-	SvcReg reg = (SvcReg)serviceByID.get(serviceID);
-	if (reg == null ||
-	    !reg.leaseID.equals(leaseID) ||
-	    reg.leaseExpiration <= now)
-	    throw new UnknownLeaseException();
+	SvcReg reg = checkLease(serviceID, leaseID, now);
 	Item pre = (Item)reg.item.clone();
 	EntryRep[] preSets = pre.attributeSets;
 	EntryRep[] sets = reg.item.attributeSets;
@@ -5348,11 +5340,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	else
 	    attrSets = (EntryRep[])removeDups(attrSets);
 	long now = System.currentTimeMillis();
-	SvcReg reg = (SvcReg)serviceByID.get(serviceID);
-	if (reg == null ||
-	    !reg.leaseID.equals(leaseID) ||
-	    reg.leaseExpiration <= now)
-	    throw new UnknownLeaseException();
+	SvcReg reg = checkLease(serviceID, leaseID, now);
 	Item pre = (Item)reg.item.clone();
 	EntryRep[] entries = reg.item.attributeSets;
 	for (int i = entries.length; --i >= 0; ) {
@@ -5372,11 +5360,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	if (serviceID.equals(myServiceID))
 	    throw new SecurityException("privileged service id");
 	long now = System.currentTimeMillis();
-	SvcReg reg = (SvcReg)serviceByID.get(serviceID);
-	if (reg == null ||
-	    !reg.leaseID.equals(leaseID) ||
-	    reg.leaseExpiration <= now)
-	    throw new UnknownLeaseException();
+	SvcReg reg = checkLease(serviceID, leaseID, now);
 	deleteService(reg, now);
 	/* wake up thread if this might be the (only) earliest time */
 	if (reg.leaseExpiration == minSvcExpiration)
@@ -5396,6 +5380,27 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 						   renewExpiration));
 	return renewExpiration - now;
     }
+    
+    private SvcReg checkLease(ServiceID serviceID, Uuid leaseID, long now) 
+            throws UnknownLeaseException
+    {
+        
+	SvcReg reg = serviceByID.get(serviceID);
+        if (reg == null) throw new UnknownLeaseException("No service recorded for ID: " + serviceID);
+        if (!reg.leaseID.equals(leaseID)) throw new UnknownLeaseException("Incorrect lease ID: " + leaseID + " not equal to reg lease ID: " + reg.leaseID);
+	if (reg.leaseExpiration <= now) throw new UnknownLeaseException("Lease expired");
+        return reg;
+    }
+    
+    private EventReg checkEvent(Uuid leaseID, long eventID, long now)
+            throws UnknownLeaseException
+    {
+        EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
+	if (reg == null) throw new UnknownLeaseException("No event recorded for ID: " + eventID);
+        if (!reg.leaseID.equals(leaseID)) throw new UnknownLeaseException("Incorrect lease ID: " + eventID + " not equal to reg lease ID: " + reg.leaseID);
+	if (reg.leaseExpiration <= now) throw new UnknownLeaseException("Lease expired");
+        return reg;
+    }
 
     /** Renew a service lease for a relative duration from now. */
     private long renewServiceLeaseInt(ServiceID serviceID,
@@ -5410,14 +5415,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    renewDuration = maxServiceLease;
 	else if (renewDuration < 0)
 	    throw new IllegalArgumentException("negative lease duration");
-	SvcReg reg = serviceByID.get(serviceID);
-	if (reg == null ||
-	    !reg.leaseID.equals(leaseID) ||
-	    reg.leaseExpiration <= now)
-	    throw new UnknownLeaseException();
-        if (reg == null) throw new UnknownLeaseException("No service recorded for ID: " + serviceID);
-        if (!reg.leaseID.equals(leaseID)) throw new UnknownLeaseException("Incorrect lease ID: " + leaseID + " not equal to reg lease ID: " + reg.leaseID);
-	if (reg.leaseExpiration <= now) throw new UnknownLeaseException("Lease expired");
+        SvcReg reg = checkLease(serviceID, leaseID, now);
 	if (renewDuration > maxServiceLease &&
 	    renewDuration > reg.leaseExpiration - now)
 	    renewDuration = Math.max(reg.leaseExpiration - now,
@@ -5454,9 +5452,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	throws UnknownLeaseException
     {
 	long now = System.currentTimeMillis();
-	EventReg reg = eventByID.get(Long.valueOf(eventID));
-	if (reg == null || reg.leaseExpiration <= now)
-	    throw new UnknownLeaseException();
+	EventReg reg = checkEvent(leaseID, eventID, now);
+//        EventReg reg = eventByID.get(Long.valueOf(eventID));
+//	if (reg == null || reg.leaseExpiration <= now)
+//	    throw new UnknownLeaseException();
 	deleteEvent(reg);
 	/* wake up thread if this might be the (only) earliest time */
 	if (reg.leaseExpiration == minEventExpiration)
@@ -5487,10 +5486,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    renewDuration = maxEventLease;
 	else if (renewDuration < 0)
 	    throw new IllegalArgumentException("negative lease duration");
-	EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
-	if (reg == null) throw new UnknownLeaseException("No event recorded for ID: " + eventID);
-        if (!reg.leaseID.equals(leaseID)) throw new UnknownLeaseException("Incorrect lease ID: " + eventID + " not equal to reg lease ID: " + reg.leaseID);
-	if (reg.leaseExpiration <= now) throw new UnknownLeaseException("Lease expired");
+	EventReg reg = checkEvent(leaseID, eventID, now);
 	if (renewDuration > maxEventLease &&
 	    renewDuration > reg.leaseExpiration - now)
 	    renewDuration = Math.max(reg.leaseExpiration - now, maxEventLease);

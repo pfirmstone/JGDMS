@@ -27,6 +27,7 @@ import java.io.IOException;
 import java.util.Date;
 import com.sun.jini.test.spec.lookupservice.QATestRegistrar;
 import com.sun.jini.test.spec.lookupservice.QATestUtils;
+import java.util.logging.Logger;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceRegistration;
@@ -77,8 +78,8 @@ public class LeaseMapRenew extends QATestRegistrar {
     }
 
     /** The event handler for the services registered by this class */
-    private static RemoteEventListener listener;
-
+    private RemoteEventListener listener;
+    
     /** Performs actions necessary to prepare for execution of the 
      *  current QA test.
      *

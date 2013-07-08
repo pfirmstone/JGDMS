@@ -83,7 +83,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  expired to guarantee that the next lookup is performed after
      *  service lease expiration has occurred
      */
-    public long deltaTSrvcLeaseExp = 10;
+    private long deltaTSrvcLeaseExp = 10;
 
     /** The number of milliseconds to wait after the event lease has
      *  expired to guarantee that the next event-generating operation is
@@ -831,7 +831,7 @@ public abstract class QATestRegistrar extends QATestEnvironment implements Test 
      *  @return Entry object as defined in net.jini.core.entry.Entry
      *  @see net.jini.core.entry.Entry
      */
-    protected Entry createAttribute(Class classObj,
+    protected synchronized Entry createAttribute(Class classObj,
                                     int   classIndx,
                                     int   createFlag)  throws Exception
     {

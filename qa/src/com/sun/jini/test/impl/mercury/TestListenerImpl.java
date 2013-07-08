@@ -19,7 +19,7 @@ package com.sun.jini.test.impl.mercury;
 
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import com.sun.jini.start.LifeCycle;
-import com.sun.jini.start.Starter;
+import org.apache.river.api.util.Commission;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -53,7 +53,7 @@ import javax.security.auth.login.LoginException;
 
 
 public class TestListenerImpl
-    implements TestListener, ProxyAccessor, ServerProxyTrust, Starter
+    implements TestListener, ProxyAccessor, ServerProxyTrust, Commission
 {
     private final Map events = new HashMap();
 

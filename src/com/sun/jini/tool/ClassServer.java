@@ -19,7 +19,7 @@ package com.sun.jini.tool;
 
 import com.sun.jini.logging.Levels;
 import com.sun.jini.start.LifeCycle;
-import com.sun.jini.start.Starter;
+import org.apache.river.api.util.Commission;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -162,7 +162,7 @@ import java.util.logging.Logger;
  * @author Sun Microsystems, Inc.
  *
  */
-public class ClassServer extends Thread implements Starter {
+public class ClassServer extends Thread implements Commission {
     /** Default HTTP port */
     private static int DEFAULT_PORT = 8080;
     /** Default directory to serve files from on non-Windows OS */

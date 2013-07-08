@@ -78,7 +78,7 @@ import com.sun.jini.config.Config;
 import com.sun.jini.config.ConfigUtil;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.qa.harness.Test;
-import com.sun.jini.start.Starter;
+import org.apache.river.api.util.Commission;
 
 import net.jini.activation.ActivationExporter;
 import net.jini.activation.ActivationGroup;
@@ -1063,7 +1063,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
     static class RemoteTestServiceImpl implements ServerProxyTrust,
                                                   ProxyAccessor,
                                                   RemoteTestServiceInterface,
-                                                  Starter
+                                                  Commission
                                                   
     {
         private static final String COMPONENT_NAME = "test";

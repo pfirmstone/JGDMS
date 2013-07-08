@@ -35,7 +35,7 @@ import com.sun.jini.mahalo.log.LogRecovery;
 import com.sun.jini.mahalo.log.MultiLogManager;
 import com.sun.jini.mahalo.log.MultiLogManagerAdmin;
 import com.sun.jini.start.LifeCycle;
-import com.sun.jini.start.Starter;
+import org.apache.river.api.util.Commission;
 import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadyState;
 import com.sun.jini.thread.TaskManager;
@@ -119,7 +119,7 @@ import net.jini.security.TrustVerifier;
 class TxnManagerImpl /*extends RemoteServer*/
     implements TxnManager, LeaseExpirationMgr.Expirer,
 	       LogRecovery, TxnSettler, com.sun.jini.constants.TimeConstants,
-               LocalLandlord, ServerProxyTrust, ProxyAccessor, Starter
+               LocalLandlord, ServerProxyTrust, ProxyAccessor, Commission
 {
     /** Logger for (successful) service startup message */
     static final Logger startupLogger = 

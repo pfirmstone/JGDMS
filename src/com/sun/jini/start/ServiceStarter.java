@@ -136,7 +136,7 @@ public class ServiceStarter {
     /** Component name for service starter configuration entries */
     static final String START_PACKAGE = "com.sun.jini.start";
     
-   
+
     /** Configure logger */
     static /*final*/ Logger logger = null;
     static {
