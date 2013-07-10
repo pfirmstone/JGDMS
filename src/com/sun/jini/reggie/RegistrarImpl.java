@@ -1635,14 +1635,24 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
         
 	/* Overrides snapshot() defined in ReliableLog's LogHandler class. */
 	public void snapshot(OutputStream out) throws IOException {
-	    takeSnapshot(out);
+            concurrentObj.readLock();
+            try {
+                takeSnapshot(out);
+            } finally {
+                concurrentObj.readUnlock();
+            }
 	}
 
 	/* Overrides recover() defined in ReliableLog's LogHandler class. */
 	public void recover(InputStream in)
 	    throws IOException, ClassNotFoundException
 	{
-	    recoverSnapshot(in);
+            concurrentObj.writeLock();
+            try {
+                recoverSnapshot(in);
+            } finally {
+                concurrentObj.writeUnlock();
+            }
 	}
 
 	/**
