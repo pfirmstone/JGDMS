@@ -87,7 +87,9 @@ import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.SortedMap;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentSkipListMap;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
 import javax.security.auth.Subject;
@@ -205,7 +207,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
      * Map from ServiceID to SvcReg.  Every service is in this map under
      * its serviceID.
      */
-    private final Map<ServiceID,SvcReg> serviceByID = new HashMap<ServiceID,SvcReg>();
+    private final Map<ServiceID,SvcReg> serviceByID = new ConcurrentHashMap<ServiceID,SvcReg>();
     /**
      * Identity map from SvcReg to SvcReg, ordered by lease expiration.
      * Every service is in this map.
@@ -244,12 +246,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
      * Map from Long(eventID) to EventReg.  Every event registration is in
      * this map under its eventID.
      */
-    private final Map<Long,EventReg> eventByID = new HashMap<Long,EventReg>(11);
+    private final Map<Long,EventReg> eventByID = new ConcurrentHashMap<Long,EventReg>(11);
     /**
      * Identity map from EventReg to EventReg, ordered by lease expiration.
      * Every event registration is in this map.
      */
-    private final SortedMap<EventReg,EventReg> eventByTime = new TreeMap<EventReg,EventReg>();
+    private final SortedMap<EventReg,EventReg> eventByTime = new ConcurrentSkipListMap<EventReg,EventReg>();
     /**
      * Map from ServiceID to EventReg or EventReg[].  An event
      * registration is in this map if its template matches on (at least)
