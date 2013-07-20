@@ -17,19 +17,17 @@
  */
 package com.sun.jini.outrigger;
 
-import java.io.IOException;
-import java.util.Map;
-import java.util.List;
-import java.util.Iterator;
-import java.util.logging.Logger;
-
-import net.jini.core.transaction.server.TransactionManager;
-import net.jini.core.transaction.server.ServerTransaction;
-import net.jini.security.ProxyPreparer;
-
 import com.sun.jini.logging.Levels;
+import java.io.IOException;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.logging.Logger;
+import net.jini.core.transaction.server.ServerTransaction;
+import net.jini.core.transaction.server.TransactionManager;
+import net.jini.security.ProxyPreparer;
 
 /**
  * Keeps a mapping from {@link TransactionManager}/id pairs, to {@link Txn}
@@ -124,17 +122,14 @@ class TxnTable {
 	 * <code>Txn</code> objects that have the id. <code>null</code> if there are
 	 * no broken <code>Txn</code>s.
 	 */
-	private final ConcurrentMap<Long,List<Txn>> brokenTxns = new ConcurrentHashMap<Long,List<Txn>>();
+	private final ConcurrentMap<Long,Set<Txn>> brokenTxns = new ConcurrentHashMap<Long,Set<Txn>>();
 
 	/**
 	 * <code>ProxyPreparer</code> to use when unpacking transactions, may be
 	 * <code>null</code>.
 	 */
 	private final ProxyPreparer proxyPreparer;
-
-	/** An array of type <code>Txn</code> to pass to <code>toArray</code> */
-	private static final Txn[] txnArray = new Txn[0];
-
+        
 	/** The logger to use */
 	static private final Logger logger = Logger
 			.getLogger(OutriggerServerImpl.txnLoggerName);
@@ -180,34 +175,20 @@ class TxnTable {
 	Txn get(TransactionManager manager, long id) throws IOException,
 			ClassNotFoundException {
 		final Long idAsLong;
-		final Txn brokenTxnsForId[];
+                Set<Txn> txnsForId;
 		// Try the table of non-broken txns first
                 {
-                    final Txn r = (Txn) txns.get(new Key(manager, id, false));
+                    final Txn r = txns.get(new Key(manager, id, false));
                     if (r != null) return r;
-
-                    // Check broken txns
-//                    if (brokenTxns.isEmpty()) return null;// No broken Txns so txns is definitive
                            
                     idAsLong = Long.valueOf(id);
-                    final List txnsForId = (List) brokenTxns.get(idAsLong);
+                    txnsForId = brokenTxns.get(idAsLong);
                     if (txnsForId == null)
                             /*
                              * Broken Txns, but none with the right ID so txns is definitive
                              * for this manager/id pair.
                              */
                             return null;
-
-                    /*
-                     * If we are here there are broken Txns with the specified id, we
-                     * need to try and fix each one and check to see if there is a
-                     * match. Make a copy of the list so we don't need to hold a lock
-                     * while making fix attempts (which in general involve remote
-                     * communications).
-                     */
-                    synchronized (txnsForId){
-                        brokenTxnsForId = (Txn[]) txnsForId.toArray(txnArray);
-                    }
                 }
 
 		/*
@@ -216,23 +197,24 @@ class TxnTable {
 		 */
 		Txn match = null;
 		Throwable t = null; // The first throwable we get, if any
-		final List<Txn> fixed = new java.util.LinkedList<Txn>(); // fixed Txns
-		for (int i = 0; i < brokenTxnsForId.length; i++) {
+                Iterator<Txn> txnsit = txnsForId.iterator();
+                while (txnsit.hasNext()){
 			try {
-				final ServerTransaction st = brokenTxnsForId[i]
+                                Txn txn = txnsit.next();
+				final ServerTransaction st = txn
 						.getTransaction(proxyPreparer);
 
 				/*
-				 * We fixed a Txn, remember so we can move it to txns.
+				 * We fixed a Txn, so we can move it to txns.
 				 */
-				fixed.add(brokenTxnsForId[i]);
-
+                                put(txn);
+                                txnsit.remove();
 				/*
 				 * Did this match? Pass unprepared manager to prepared one!
 				 */
 				if (st.mgr.equals(manager)) {
 					// bingo!
-					match = brokenTxnsForId[i];
+					match = txn;
 					break;
 				}
 			} catch (Throwable tt) {
@@ -247,49 +229,39 @@ class TxnTable {
 
 				if (t == null)
 					t = tt;
+                                // We could potentially swallow an Error if we find a match
+                                // Is this advisable?  A denial of service
+                                // attack could throw an Error.  But then it's not
+                                // necessarily a good thing to swallow an Error either.
 			}
 		}
-
-		/*
-		 * Now that all the remote operations are done we
-		 * can move anything that was fixed.
-		 */
-		if (!fixed.isEmpty()) {
-			
-                    if (!brokenTxns.isEmpty()) {
-                            final List<Txn> txnsForId = brokenTxns.get(idAsLong);
-                            if (txnsForId != null) {
-                                    // Remove from brokenTxns
-                                    synchronized (txnsForId){
-                                        txnsForId.removeAll(fixed);
-                                        // can we get rid of txnsForId and brokenTxns?
-                                        if (!txnsForId.isEmpty()){
-                                            // Make sure we only remove txnsForId and not some other collection.
-                                            brokenTxns.remove(idAsLong, txnsForId);
-                                        }
-                                    }
-                                    // Put in txns
-                                    for (Iterator i = fixed.iterator(); i.hasNext();) {
-                                            put((Txn) i.next());
-                                    }
-                            } else {
-                                    /*
-                                     * if the list for this id is gone the fixed Txns must
-                                     * have already been moved by someone else
-                                     */
-                            }
-                    } else {
-                            /*
-                             * if brokenTxns is gone the fixed Txns must have already
-                             * been moved by someone else
-                             */
+                
+                // Now remove empty collection from brokenTxns so it doesn't leak memory
+                while (txnsForId.isEmpty()){
+                    boolean removed = brokenTxns.remove(idAsLong, txnsForId);
+                    if (!removed) break;
+                    try {
+                        Thread.sleep(10L); // Allow time for other threads to complete.
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt(); // Restore interrupt.
                     }
-			
-		}
+                    // Check that set is still empty.           
+                    if (removed && !txnsForId.isEmpty()){
+                        // Somebody had a reference and added to the set.
+                        Set<Txn> existed = brokenTxns.putIfAbsent(idAsLong, txnsForId);
+                        if (existed != null){
+                            // Someone else replaced our set!
+                            // Add all to this new collection
+                            existed.addAll(txnsForId);
+                            txnsForId = existed;
+                        }
+                    } else {
+                        break;
+                    }
+                }
 
 		// Did we run out of candidates, or did we find a match?
-		if (match != null)
-			return match;
+		if (match != null) return match;
 
 		/*
 		 * Was there some Txn that may have been a match but is still broken so
@@ -398,32 +370,15 @@ class TxnTable {
 		if (st == null) {
 			// txn is broken, put in brokenTxns
 			final Long id = Long.valueOf(txn.getTransactionId());
-			List<Txn> txnsForId = brokenTxns.get(id);
+			Set<Txn> txnsForId = brokenTxns.get(id);
 			if (txnsForId == null) {
-                            txnsForId = new java.util.LinkedList<Txn>();
-                            txnsForId.add(txn); // Never add an empty collection.
-                            List<Txn> existed = brokenTxns.putIfAbsent(id, txnsForId);
-                            while (existed != null) {
-                                synchronized (existed){
-                                    // Never add to an empty collection, it may have been removed.
-                                    // Try to replace it with our shiny new collection.
-                                    if (existed.isEmpty()){
-                                        boolean replaced = brokenTxns.replace(id, existed, txnsForId);
-                                        if (!replaced){
-                                            //This means someone else has replaced it first.
-                                            existed = brokenTxns.putIfAbsent(id, txnsForId);
-                                            //Existed will be another instance, very low probability of null.
-                                            //If it is another instance we're not sync'd on it until next loop.
-                                        }
-                                    } else {
-                                        existed.add(txn);
-                                        existed = null;
-                                    }
-                                    
-                                }
+                            txnsForId = new ConcurrentSkipListSet<Txn>();
+                            Set<Txn> existed = brokenTxns.putIfAbsent(id, txnsForId);
+                            if (existed != null) {
+                                txnsForId = existed;
                             }        
-			}
-                        
+			} 
+                        txnsForId.add(txn);
 		} else {
 			// Txn is ok, put it in txns
 			final Key k = new Key(st.mgr, st.id, true);

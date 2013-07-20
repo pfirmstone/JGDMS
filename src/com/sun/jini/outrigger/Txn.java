@@ -85,7 +85,7 @@ import net.jini.security.ProxyPreparer;
  *
  * @author Sun Microsystems, Inc.  
  */
-class Txn implements TransactableMgr, TransactionConstants, StorableObject<Txn> {
+class Txn implements TransactableMgr, TransactionConstants, StorableObject<Txn>, Comparable<Txn> {
 
     /** The internal id Outrigger as assigned to the transaction */
     final private long id;
@@ -513,5 +513,26 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject<Txn> 
             trId     = in.readLong();
         }
         return this;
+    }
+
+    @Override
+    public int compareTo(Txn o) {
+        if (o == null) return -1;
+        if (o.id < id) return -1;
+        if (o.id > id) return 1;
+        return 0;
+    }
+
+    @Override
+    public int hashCode() {
+        int hash = 7;
+        hash = 31 * hash + (int) (this.id ^ (this.id >>> 32));
+        return hash;
+    }
+    
+    public boolean equals(Object o){
+        if (!(o instanceof Txn)) return false;
+        Txn txn = (Txn) o;
+        return id == txn.id;
     }
 }

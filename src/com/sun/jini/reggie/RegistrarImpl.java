@@ -207,7 +207,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
      * Map from ServiceID to SvcReg.  Every service is in this map under
      * its serviceID.
      */
-    private final Map<ServiceID,SvcReg> serviceByID = new ConcurrentHashMap<ServiceID,SvcReg>();
+    private final Map<ServiceID,SvcReg> serviceByID = new HashMap<ServiceID,SvcReg>();
     /**
      * Identity map from SvcReg to SvcReg, ordered by lease expiration.
      * Every service is in this map.
@@ -246,12 +246,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
      * Map from Long(eventID) to EventReg.  Every event registration is in
      * this map under its eventID.
      */
-    private final Map<Long,EventReg> eventByID = new ConcurrentHashMap<Long,EventReg>(11);
+    private final Map<Long,EventReg> eventByID = new HashMap<Long,EventReg>(11);
     /**
      * Identity map from EventReg to EventReg, ordered by lease expiration.
      * Every event registration is in this map.
      */
-    private final SortedMap<EventReg,EventReg> eventByTime = new ConcurrentSkipListMap<EventReg,EventReg>();
+    private final SortedMap<EventReg,EventReg> eventByTime = new TreeMap<EventReg,EventReg>();
     /**
      * Map from ServiceID to EventReg or EventReg[].  An event
      * registration is in this map if its template matches on (at least)
@@ -690,7 +690,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	 *
 	 * @serial
 	 */
-	public long leaseExpiration;
+	private long leaseExpiration;
 
 	/** Simple constructor */
 	public EventReg(long eventID, Uuid leaseID, Template tmpl,
@@ -705,6 +705,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	    this.handback = handback;
 	    this.leaseExpiration = leaseExpiration;
 	}
+        
+        synchronized long incrementSeqNo(long increment){
+            seqNo += increment;
+            return seqNo;
+        }
+        
+        synchronized long incrementAndGetSeqNo(){
+            return ++seqNo;
+        }
+        
+        synchronized long getSeqNo(){
+            return seqNo;
+        }
 
 	/**
 	 * Primary sort by leaseExpiration, secondary by eventID.  The
@@ -715,8 +728,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	    EventReg reg = (EventReg)obj;
 	    if (this == reg)
 		return 0;
-	    if (leaseExpiration < reg.leaseExpiration ||
-		(leaseExpiration == reg.leaseExpiration &&
+	    if (getLeaseExpiration() < reg.getLeaseExpiration() ||
+		(getLeaseExpiration() == reg.getLeaseExpiration() &&
 		 eventID < reg.eventID))
 		return -1;
 	    return 1;
@@ -777,6 +790,20 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 			   "failed to recover event listener", e);
 	    }
 	}
+
+        /**
+         * @return the leaseExpiration
+         */
+        synchronized long getLeaseExpiration() {
+            return leaseExpiration;
+        }
+
+        /**
+         * @param leaseExpiration the leaseExpiration to set
+         */
+        synchronized void setLeaseExpiration(long leaseExpiration) {
+            this.leaseExpiration = leaseExpiration;
+        }
     }
 
     /**
@@ -822,11 +849,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
          * @see RegistrarImpl.LocalLogHandler#applyUpdate
 	 */
 	public void apply(RegistrarImpl regImpl) {
-	    SvcReg oldReg =
-		(SvcReg)regImpl.serviceByID.get(reg.item.serviceID);
-	    if (oldReg != null)
-		regImpl.deleteService(oldReg, 0);
-	    regImpl.addService(reg);
+            regImpl.concurrentObj.writeLock();
+            try {
+                SvcReg oldReg =
+                    (SvcReg)regImpl.serviceByID.get(reg.item.serviceID);
+                if (oldReg != null)
+                    regImpl.deleteService(oldReg, 0);
+                regImpl.addService(reg);
+            } finally {
+                regImpl.concurrentObj.writeUnlock();
+            }
 	}
     }
 
@@ -877,13 +909,16 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
          * @see RegistrarImpl.LocalLogHandler#applyUpdate
 	 */
 	public void apply(RegistrarImpl regImpl) {
+            regImpl.concurrentObj.writeLock();
 	    try {
 		regImpl.addAttributesDo(serviceID, leaseID, attrSets);
             } catch (UnknownLeaseException e) {
 		/* this exception should never occur when recovering  */
 		throw new AssertionError("an UnknownLeaseException should"
 					 + " never occur during recovery");
-	    }
+	    } finally {
+                regImpl.concurrentObj.writeUnlock();
+            }   
 	}
     }
 
@@ -942,6 +977,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
          * @see RegistrarImpl.LocalLogHandler#applyUpdate
 	 */
 	public void apply(RegistrarImpl regImpl) {
+            regImpl.concurrentObj.writeLock();
 	    try {
 		regImpl.modifyAttributesDo(serviceID, leaseID,
 					   attrSetTmpls, attrSets);
@@ -949,7 +985,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 		/* this exception should never occur when recovering  */
 		throw new AssertionError("an UnknownLeaseException should"
 					 + " never occur during recovery");
-	    }
+	    } finally {
+                regImpl.concurrentObj.writeUnlock();
+            }
 	}
     }
 
@@ -1000,11 +1038,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
          * @see RegistrarImpl.LocalLogHandler#applyUpdate
 	 */
 	public void apply(RegistrarImpl regImpl) {
+            regImpl.concurrentObj.writeLock();
 	    try {
 		regImpl.setAttributesDo(serviceID, leaseID, attrSets);
 	    } catch (UnknownLeaseException e) {
 		/* this exception should never occur when recovering  */
-	    }
+	    } finally {
+                regImpl.concurrentObj.writeUnlock();
+            }
 	}
     }
 
@@ -1038,12 +1079,21 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
          * @see RegistrarImpl.LocalLogHandler#applyUpdate
 	 */
 	public void apply(RegistrarImpl regImpl) {
-	    eventReg.prepareListener(regImpl.recoveredListenerPreparer);
-	    eventReg.seqNo += Integer.MAX_VALUE;
-	    regImpl.addEvent(eventReg);
-	    regImpl.eventID++;
+            synchronized (eventReg){ // Atomic
+                eventReg.prepareListener(regImpl.recoveredListenerPreparer);
+                eventReg.incrementSeqNo(Integer.MAX_VALUE);
+            }
+            regImpl.concurrentObj.writeLock();
+            try{
+                regImpl.addEvent(eventReg);
+                regImpl.eventID++;
+            } finally {
+                regImpl.concurrentObj.writeUnlock();
+            }
 	}
     }
+    
+    
 
     /**
      * LogObj class whose instances are recorded to the log file whenever
@@ -1083,11 +1133,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
          * @see RegistrarImpl.LocalLogHandler#applyUpdate
 	 */
 	public void apply(RegistrarImpl regImpl) {
+            regImpl.concurrentObj.writeLock();
 	    try {
 		regImpl.cancelServiceLeaseDo(serviceID, leaseID);
 	    } catch (UnknownLeaseException e) {
 		/* this exception should never occur when recovering  */
-	    }
+	    } finally {
+                regImpl.concurrentObj.writeUnlock();
+            }
 	}
     }
 
@@ -1180,11 +1233,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
          * @see RegistrarImpl.LocalLogHandler#applyUpdate
 	 */
 	public void apply(RegistrarImpl regImpl) {
+            regImpl.concurrentObj.writeLock();
 	    try {
 		regImpl.cancelEventLeaseDo(eventID, leaseID);
 	    } catch (UnknownLeaseException e) {
 		/* this exception should never occur when recovering */
-	    }
+	    } finally {
+                regImpl.concurrentObj.writeUnlock();
+            }
 	}
     }
 
@@ -1328,7 +1384,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	    /* Exceptions can be returned, since we didn't weed out unknown
 	     * leases before logging, but we can just ignore them anyway.
 	     */
-	    regImpl.cancelLeasesDo(regIDs, leaseIDs);
+            regImpl.concurrentObj.writeLock();
+            try {
+                regImpl.cancelLeasesDo(regIDs, leaseIDs);
+            } finally {
+                regImpl.concurrentObj.writeUnlock();
+            }
 	}
     }
 
@@ -1523,8 +1584,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	 * @see RegistrarImpl.LocalLogHandler#applyUpdate
 	 */
 	public void apply(RegistrarImpl regImpl) {
-	    regImpl.lookupAttrs = attrs;
-	}
+                regImpl.lookupAttrs = attrs;
+        }
 
 	/**
 	 * Writes attributes as a null-terminated list of MarshalledInstances.
@@ -1975,7 +2036,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 			 int transition)
 	{
 	    this.reg = reg;
-	    seqNo = ++reg.seqNo;
+	    seqNo = reg.incrementAndGetSeqNo();
 	    this.sid = sid;
 	    this.item = item;
 	    this.transition = transition;
@@ -2335,8 +2396,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 		    minEventExpiration = Long.MAX_VALUE;
 		    while (!eventByTime.isEmpty()) {
 			EventReg reg = eventByTime.firstKey();
-			if (reg.leaseExpiration > now) {
-			    minEventExpiration = reg.leaseExpiration;
+			if (reg.getLeaseExpiration() > now) {
+			    minEventExpiration = reg.getLeaseExpiration();
 			    break;
 			}
 			deleteEvent(reg);
@@ -5095,8 +5156,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	addEvent(reg);
 	addLogRecord(new EventRegisteredLogObj(reg));
 	/* see if the expire thread needs to wake up earlier */
-	if (reg.leaseExpiration < minEventExpiration) {
-	    minEventExpiration = reg.leaseExpiration;
+	if (reg.getLeaseExpiration() < minEventExpiration) {
+	    minEventExpiration = reg.getLeaseExpiration();
 	    concurrentObj.waiterNotify(eventNotifier);
 	}
 	return new EventRegistration(
@@ -5106,9 +5167,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 		myRef,
 		myServiceID,
 		reg.eventID,
-		reg.leaseID,
-		reg.leaseExpiration),
-	    reg.seqNo);
+		reg.leaseID, reg.getLeaseExpiration()),
+	    reg.getSeqNo());
     }
 
     /**
@@ -5407,10 +5467,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     private EventReg checkEvent(Uuid leaseID, long eventID, long now)
             throws UnknownLeaseException
     {
-        EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
+        EventReg reg = eventByID.get(Long.valueOf(eventID));
 	if (reg == null) throw new UnknownLeaseException("No event recorded for ID: " + eventID);
         if (!reg.leaseID.equals(leaseID)) throw new UnknownLeaseException("Incorrect lease ID: " + eventID + " not equal to reg lease ID: " + reg.leaseID);
-	if (reg.leaseExpiration <= now) throw new UnknownLeaseException("Lease expired");
+	if (reg.getLeaseExpiration() <= now) throw new UnknownLeaseException("Lease expired");
         return reg;
     }
 
@@ -5450,13 +5510,18 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 				      Uuid leaseID,
 				      long renewExpiration)
     {
-	SvcReg reg = serviceByID.get(serviceID);
-	if (reg == null || !reg.leaseID.equals(leaseID))
-	    return;
-	/* force a re-sort: must remove before changing, then reinsert */
-	serviceByTime.remove(reg);
-	reg.leaseExpiration = renewExpiration;
-	serviceByTime.put(reg, reg);
+        concurrentObj.writeLock();
+        try {
+            SvcReg reg = serviceByID.get(serviceID);
+            if (reg == null || !reg.leaseID.equals(leaseID))
+                return;
+            /* force a re-sort: must remove before changing, then reinsert */
+            serviceByTime.remove(reg);
+            reg.leaseExpiration = renewExpiration;
+            serviceByTime.put(reg, reg);
+        } finally {
+            concurrentObj.writeUnlock();
+        }
     }
 
     /** The code that does the real work of cancelEventLease. */
@@ -5470,7 +5535,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 //	    throw new UnknownLeaseException();
 	deleteEvent(reg);
 	/* wake up thread if this might be the (only) earliest time */
-	if (reg.leaseExpiration == minEventExpiration)
+	if (reg.getLeaseExpiration() == minEventExpiration)
 	    concurrentObj.waiterNotify(eventNotifier);
     }
 
@@ -5500,12 +5565,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	    throw new IllegalArgumentException("negative lease duration");
 	EventReg reg = checkEvent(leaseID, eventID, now);
 	if (renewDuration > maxEventLease &&
-	    renewDuration > reg.leaseExpiration - now)
-	    renewDuration = Math.max(reg.leaseExpiration - now, maxEventLease);
+	    renewDuration > reg.getLeaseExpiration() - now)
+	    renewDuration = Math.max(reg.getLeaseExpiration() - now, maxEventLease);
 	long renewExpiration = now + renewDuration;
 	/* force a re-sort: must remove before changing, then reinsert */
 	eventByTime.remove(reg);
-	reg.leaseExpiration = renewExpiration;
+	reg.setLeaseExpiration(renewExpiration);
 	eventByTime.put(reg, reg);
 	/* see if the expire thread needs to wake up earlier */
 	if (renewExpiration < minEventExpiration) {
@@ -5520,13 +5585,18 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 				    Uuid leaseID,
 				    long renewExpiration)
     {
-	EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
-	if (reg == null || !reg.leaseID.equals(leaseID))
-	    return;
-	/* force a re-sort: must remove before changing, then reinsert */
-	eventByTime.remove(reg);
-	reg.leaseExpiration = renewExpiration;
-	eventByTime.put(reg, reg);
+        concurrentObj.writeLock();
+        try {
+            EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
+            if (reg == null || !reg.leaseID.equals(leaseID))
+                return;
+            /* force a re-sort: must remove before changing, then reinsert */
+            eventByTime.remove(reg);
+            reg.setLeaseExpiration(renewExpiration);
+            eventByTime.put(reg, reg);
+        } finally {
+            concurrentObj.writeUnlock();
+        }
     }
 
     /**
@@ -5652,7 +5722,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 			       ServiceID sid,
 			       long now)
     {
-	if (reg.leaseExpiration <= now)
+	if (reg.getLeaseExpiration() <= now)
 	    return;
 	if ((reg.transitions &
 		  ServiceRegistrar.TRANSITION_NOMATCH_MATCH) != 0 &&
@@ -5836,7 +5906,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	EventReg eReg;
 	while ((eReg = (EventReg)stream.readObject()) != null) {
 	    eReg.prepareListener(recoveredListenerPreparer);
-	    eReg.seqNo += Integer.MAX_VALUE;
+//	    eReg.seqNo += Integer.MAX_VALUE;
+            eReg.incrementSeqNo(Integer.MAX_VALUE);
 	    addEvent(eReg);
 	}
     }
