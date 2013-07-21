@@ -46,11 +46,11 @@ public class LeaseMapRenew extends QATestRegistrar {
     /* lease duration to 1 minute */
     private final static long DEFAULT_LEASEDURATION = 120000;
     private final static int DEFAULT_LOOP_COUNT = 5;
-    private static int  loopCount= DEFAULT_LOOP_COUNT;   
-    private static long leaseDuration = DEFAULT_LEASEDURATION;
-    private static long initialLeaseDuration = DEFAULT_LEASEDURATION * 2;
-    private static long leaseWaitTime  = DEFAULT_LEASEDURATION *3/4;
-    private static long halfDurationTime = DEFAULT_LEASEDURATION /2;
+    private final static int  loopCount= DEFAULT_LOOP_COUNT;   
+    private final static long leaseDuration = DEFAULT_LEASEDURATION;
+    private final static long initialLeaseDuration = DEFAULT_LEASEDURATION * 2;
+    private final static long leaseWaitTime  = DEFAULT_LEASEDURATION *3/4;
+    private final static long halfDurationTime = DEFAULT_LEASEDURATION /2;
     private ServiceItem[] srvcItems ;
     private ServiceRegistration[] srvcRegs ;
     private Lease[] srvcLeases ;
