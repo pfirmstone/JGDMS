@@ -168,7 +168,7 @@ public class LeaseMapRenew extends QATestRegistrar {
     public synchronized void run() throws Exception {
 	for(int i =0; i<loopCount; i++) {
 	    logger.log(Level.FINEST, "renewLeaseWait: " + i);
-	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime, this);
+	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime, 0, this);
 	    logger.log(Level.FINEST, "doRenewLease");
 	    leaseStartTime = QATestUtils.getCurTime();
 	    leaseMap.renewAll(); 
@@ -179,7 +179,7 @@ public class LeaseMapRenew extends QATestRegistrar {
 	    if (!mapCopy.equals(leaseMap))
 	    	throw new TestException("map contents changed");
 	    logger.log(Level.FINEST, "lookupwait");
-	    QATestUtils.computeDurAndWait(leaseStartTime, halfDurationTime, this);
+	    QATestUtils.computeDurAndWait(leaseStartTime, halfDurationTime, 0, this);
 	    logger.log(Level.FINEST, "dolookup");
 	    QATestUtils.doLookup(srvcItems, srvcIDTmpls, proxy ); 
 	    logger.log(Level.FINEST, "lookup successful");

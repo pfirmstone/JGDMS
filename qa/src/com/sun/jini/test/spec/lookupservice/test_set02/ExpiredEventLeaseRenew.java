@@ -116,7 +116,7 @@ public class ExpiredEventLeaseRenew extends QATestRegistrar {
    }
 
     public synchronized void run() throws Exception {
-	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000, this);
+	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000, 0, this);
 	doLeaseRenew();
     }
 

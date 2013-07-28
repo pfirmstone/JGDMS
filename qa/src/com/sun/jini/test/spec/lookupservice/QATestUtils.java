@@ -412,13 +412,14 @@ public class QATestUtils {
      *  @param deltaT time increment
      *  @exception TestException usually indicates a failure
      */
-    public static void computeDurAndWait(long baseT0, long deltaT, Object lock) throws Exception
+    public static void computeDurAndWait(long baseT0, long deltaT, long deltaTLimit, Object lock) throws Exception
     {
         long finishTime = baseT0 + deltaT;
         long dur = finishTime - System.currentTimeMillis();
 	if(dur > 0) {
             do {
                 synchronized (lock) { lock.wait(dur); }
+                if ( deltaTLimit > 0 && dur > deltaTLimit) throw new TestException("Waited too long, exceeded limit, possibly due to lock contention");
             } while (finishTime > System.currentTimeMillis()); // In case of spurious wakeup or notify.
 	} else {
             throw new TestException("Environment problem; this configuration"

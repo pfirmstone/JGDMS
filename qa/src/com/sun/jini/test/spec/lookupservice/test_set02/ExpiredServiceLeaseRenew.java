@@ -69,7 +69,7 @@ public class ExpiredServiceLeaseRenew extends QATestRegistrar {
 
     /** Executes the current QA test. */
     public synchronized void run() throws Exception {
-	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000, this);
+	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000, 0, this);
 	doLeaseRenew();
     }
 

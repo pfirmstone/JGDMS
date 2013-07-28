@@ -120,7 +120,7 @@ public class ExpiredLeaseMapCancel extends QATestRegistrar {
    }
 
     public synchronized void run() throws Exception {
-	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000, this);
+	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration + 1000, 0, this);
 	doLeaseMapCancel();
 	if (!leaseMap.isEmpty())
 	    throw new TestException("map is not empty");
