@@ -25,7 +25,7 @@ String passphrase="Insert passphrase here..."
  "net.jini:jsk-lib":"lib",
  "net.jini:jsk-dl":"lib-dl",
  "net.jini:jsk-resources":"lib",
- "net.jini:jsk-policy":"lib",
+ "net.jini:jsk-policy":"lib-ext",
  "net.jini.lookup:serviceui":"lib",
  "org.apache.river:fiddler":"lib",
  "org.apache.river:fiddler-dl":"lib-dl",
