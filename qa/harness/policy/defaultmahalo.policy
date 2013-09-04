@@ -9,3 +9,9 @@ grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-platform.jar" {
 grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
     permission java.security.AllPermission "", "";
 };
+
+grant {
+    //Needed since JDK7u25 appears to have made the proxy inaccessible.
+    permission java.lang.RuntimePermission
+        "accessClassInPackage.com.sun.proxy";
+};

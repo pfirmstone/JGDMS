@@ -216,7 +216,8 @@ testOverrideProviders=${testOverrideProviders} com.sun.jini.test.support.Multica
 com.sun.jini.qa.harness.globalvmargs=${com.sun.jini.qa.harness.globalvmargs},\
 -Dcom.sun.jini.test.home=${com.sun.jini.test.home},\
 -Dcom.sun.jini.test.port=${com.sun.jini.test.port},\
--Dcom.sun.jini.qa.harness.policies=<url: src/com/sun/jini/test/resources/jinitest.policy>
+-Dcom.sun.jini.qa.harness.policies=<url: src/com/sun/jini/test/resources/jinitest.policy>,\
+-Djava.rmi.server.useCodebaseOnly=false
 
 # make sure slave's use their local test home directory
 com.sun.jini.qa.harness.slaveOverrides=${com.sun.jini.qa.harness.slaveOverrides} com.sun.jini.test.home

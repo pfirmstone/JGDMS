@@ -63,6 +63,10 @@ grant codebase "file:${com.sun.jini.qa.home}${/}lib${/}qa1-io-marshalinputstream
 // needed by various proxies
 
 grant {
+    //Needed since JDK7u25 appears to have made the proxy inaccessible.
+    permission java.lang.RuntimePermission
+        "accessClassInPackage.com.sun.proxy";
+
     permission java.lang.RuntimePermission
         "accessClassInPackage.sun.util.logging.resources";
 
