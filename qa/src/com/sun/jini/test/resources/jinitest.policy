@@ -129,3 +129,12 @@ grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}mercury.jar" {
     permission com.sun.jini.start.SharedActivationPolicyPermission "file:${com.sun.jini.test.home}${/}src${/}com${/}sun${/}jini${/}test${/}impl${/}mahalo${/}bogusMahaloImpl.policy";
     permission com.sun.jini.start.SharedActivationPolicyPermission "jar:file:${com.sun.jini.qa.harness.testJar}!/com/sun/jini/test/impl/mahalo/bogusMahaloImpl.policy";
 };
+
+// JDK7u21 and higher try to disallow remote codebase and proxy usage.  This grant
+// un-does that.
+grant {
+    //Needed since JDK7u25 appears to have made the proxy inaccessible.
+    permission java.lang.RuntimePermission
+        "accessClassInPackage.com.sun.proxy";
+};
+

@@ -75,6 +75,22 @@ grant {
     permission java.io.FilePermission "${com.sun.jini.jsk.home}${/}lib${/}-", "read";
     permission java.io.FilePermission "${com.sun.jini.qa.home}${/}lib${/}-", "read";
     permission java.util.PropertyPermission "*", "read";
+
+    //Needed since JDK7u25 appears to have made the proxy inaccessible.
+    permission java.lang.RuntimePermission
+        "accessClassInPackage.com.sun.proxy";
+
+    permission java.lang.RuntimePermission
+        "accessClassInPackage.sun.util.logging.resources";
+
+    permission java.io.FilePermission
+	"${com.sun.jini.jsk.home}${/}lib${/}-", "read";
+
+    permission java.io.FilePermission
+	"${com.sun.jini.qa.home}${/}lib${/}-", "read";
+
+    permission java.util.PropertyPermission
+        "*", "read";
 };
 
 // needed by some io tests
