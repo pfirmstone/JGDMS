@@ -124,9 +124,16 @@ confirm_continue "Please Update repo state and then re-run this script."
 ant release
 
 test_tar_release
+
+cd $SRC_DIR
 test_zip_release
 
+cd $SRC_DIR
 sign_all
+
+cd $SRC_DIR
 rat_report
+
+cd $SRC_DIR
 upload_all gtrasuk@people.apache.org:~/public_html/river/$VERSION
 
