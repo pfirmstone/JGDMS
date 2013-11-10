@@ -108,7 +108,7 @@ function confirm_continue {
 	[[ 'n' = $CONTINUE || 'N' = $CONTINUE ]] && echo $QUIT_MSG
 }
 
-VERSION=2.2.1
+VERSION=2.2.2
 SRC_DIR=$(pwd)
 RAT_HOME=$HOME/java_libs/apache-rat-0.8
 
@@ -128,4 +128,5 @@ test_zip_release
 
 sign_all
 rat_report
-upload_all gtrasuk@people.apache.org:~/public_html/river/2.2.1-rc2
+upload_all gtrasuk@people.apache.org:~/public_html/river/$VERSION
+
