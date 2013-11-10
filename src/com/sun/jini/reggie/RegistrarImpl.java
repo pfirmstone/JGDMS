@@ -34,11 +34,11 @@ import com.sun.jini.proxy.MarshalledWrapper;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
 import com.sun.jini.start.LifeCycle;
-import org.apache.river.api.util.Commission;
 import com.sun.jini.thread.InterruptedStatusThread;
+import com.sun.jini.thread.ReadersPriorityWriter;
 import com.sun.jini.thread.ReadersWriter;
-import com.sun.jini.thread.ReadyState;
 import com.sun.jini.thread.ReadersWriter.ConcurrentLockException;
+import com.sun.jini.thread.ReadyState;
 import com.sun.jini.thread.TaskManager;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -69,27 +69,24 @@ import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import java.util.Collection;
-import java.util.LinkedList;
-import java.util.SortedMap;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.ConcurrentSkipListMap;
 import javax.net.ServerSocketFactory;
 import javax.net.SocketFactory;
 import javax.security.auth.Subject;
@@ -137,6 +134,7 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.util.Commission;
 
 /**
  * Base server-side implementation of a lookup service, subclassed by
@@ -314,7 +312,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     private final Thread snapshotter;
 
     /** Concurrent object to control read and write access */
-    private final ReadersWriter concurrentObj = new ReadersWriter();
+    private final ReadersWriter concurrentObj = new ReadersPriorityWriter();
     /** Object for synchronizing with the service expire thread */
     private final Object serviceNotifier = new Object();
     /** Object for synchronizing with the event expire thread */
