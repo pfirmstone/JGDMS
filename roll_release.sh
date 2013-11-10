@@ -108,7 +108,7 @@ function confirm_continue {
 	[[ 'n' = $CONTINUE || 'N' = $CONTINUE ]] && echo $QUIT_MSG
 }
 
-VERSION=2.2.1
+VERSION=2.2.2
 SRC_DIR=$(pwd)
 RAT_HOME=$HOME/java_libs/apache-rat-0.8
 
@@ -124,8 +124,16 @@ confirm_continue "Please Update repo state and then re-run this script."
 ant release
 
 test_tar_release
+
+cd $SRC_DIR
 test_zip_release
 
+cd $SRC_DIR
 sign_all
+
+cd $SRC_DIR
 rat_report
-upload_all gtrasuk@people.apache.org:~/public_html/river/2.2.1-rc2
+
+cd $SRC_DIR
+upload_all gtrasuk@people.apache.org:~/public_html/river/$VERSION
+
