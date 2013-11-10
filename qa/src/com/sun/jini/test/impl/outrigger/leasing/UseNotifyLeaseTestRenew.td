@@ -4,4 +4,4 @@ include0=../outrigger.properties
 
 com.sun.jini.test.share.exact=true
 com.sun.jini.test.share.renew=2
-com.sun.jini.test.share.callbackWait=4000
+#com.sun.jini.test.share.callbackWait=10000

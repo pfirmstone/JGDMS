@@ -53,6 +53,15 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
      *
      * <DT>-callbackWait <var>int</var><DD> Number of milliseconds we
      * will wait for the event to fire before giving up.  Defaults to 2000
+     * 
+     * The original test defaulted to 2 seconds waiting for an event notification
+     * before giving up, under some circumstances this time period is
+     * insufficient and tests assume the object isn't there.  Most lease durations
+     * are 60 seconds, this increase in wait interval doesn't 
+     * appear to be problematic, nor is there anything in the standards that suggest
+     * such a short wait period is required.  The additional time will ensure
+     * that network latency and gc events don't cause the test to fail incorrectly
+     * assuming the object is no longer available.
      *
      * <DT>-verbose<DD> If set test will print a message before writing
      * an entry into the space
@@ -63,7 +72,7 @@ public class UseNotifyLeaseTest extends LeaseUsesTestBase {
         super.parse();
         synchronized (this){
             // Get values from property file for this test.
-            callbackWait = getConfig().getLongConfigVal("com.sun.jini.test.share.callbackWait", 2000);
+            callbackWait = getConfig().getLongConfigVal("com.sun.jini.test.share.callbackWait", 10000);
             verbose = getConfig().getBooleanConfigVal("com.sun.jini.test.share.verbose", false);
 
             // Log out test options.
