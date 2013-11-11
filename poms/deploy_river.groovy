@@ -14,7 +14,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-String version = "2.2.1"
+String version = "2.2.2
 String rootDir = ".."
 String repositoryId="apache.releases.https"
 String repositoryURL="https://repository.apache.org/service/local/staging/deploy/maven2"

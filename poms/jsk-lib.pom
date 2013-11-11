@@ -20,7 +20,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>net.jini</groupId>
     <artifactId>jsk-lib</artifactId>
-    <version>2.2.1</version>
+    <version>2.2.2</version>
     <url>http://river.apache.org</url>
     <description>This artifact contains the River utility APIs that are not tied to a specific service implementation.</description>
 
@@ -40,7 +40,7 @@
         <dependency>
             <groupId>net.jini</groupId>
             <artifactId>jsk-platform</artifactId>
-            <version>2.2.1</version>
+            <version>2.2.2</version>
         </dependency>
     </dependencies>
 
