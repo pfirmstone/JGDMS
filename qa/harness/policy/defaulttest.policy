@@ -81,6 +81,7 @@ grant {
     permission java.io.FilePermission "${com.sun.jini.jsk.home}${/}lib${/}-", "read";
     permission java.io.FilePermission "${com.sun.jini.qa.home}${/}lib${/}-", "read";
     permission java.util.PropertyPermission "*", "read";
+    permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
 };
 
 // needed by some io tests
