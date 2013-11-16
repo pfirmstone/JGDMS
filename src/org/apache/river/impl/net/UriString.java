@@ -505,7 +505,15 @@ public class UriString {
         }
         // TODO: query and fragment normalisation.
         try {
-            return new URI(scheme, uri.getUserInfo(), host, uri.getPort(), path, uri.getQuery(), uri.getFragment());
+            // Patch contributed by Shawn Ellis
+            URI result;
+            String schemeSpecificPart = uri.getSchemeSpecificPart();
+            if (! schemeSpecificPart.startsWith("/")) {
+                result = new URI(scheme, schemeSpecificPart, uri.getFragment());
+            } else {
+                result = new URI(scheme, uri.getRawUserInfo(), host, uri.getPort(), path, uri.getQuery(), uri.getFragment());
+            }
+                return result;
         } catch (URISyntaxException e){
             //Somethings gone horribly wrong!  Normalisation failed.
             logger.log(Level.SEVERE, "Normalisation failed: {0}", e.getMessage());

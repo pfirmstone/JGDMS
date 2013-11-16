@@ -126,4 +126,15 @@ public class UriStringTest {
 //        String result = UriString.fixWindowsURI(uri);
 //        assertEquals(expResult, result);
 //    }
+
+    @Test
+    public void testNormalisationWithSchemeSpecificPart()
+	throws URISyntaxException {
+
+	URI url = new URI("jar:file:/home/user/files.war!/WEB-INF/classes");
+	URI expected = new URI("jar:file:/home/user/files.war!/WEB-INF/classes");
+	URI result = UriString.normalisation(url);
+
+	assertEquals(expected.toString(), result.toString());
+}
 }
