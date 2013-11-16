@@ -39,6 +39,7 @@ import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.start.LifeCycle;
 import org.apache.river.api.util.Commission;
 import com.sun.jini.thread.InterruptedStatusThread;
+import com.sun.jini.thread.ReadersPriorityWriter;
 import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadersWriter.ConcurrentLockException;
 import com.sun.jini.thread.ReadyState;
@@ -273,7 +274,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     /** The admin proxy of this server */
     private /*final*/ volatile MailboxAdminProxy mailboxAdminProxy;
     /** Concurrent object (lock) to control read and write access */
-    private final ReadersWriter concurrentObj = new ReadersWriter();
+    private final ReadersWriter concurrentObj = new ReadersPriorityWriter();
     /** Map from <code>Uuid</code> to <code>ServiceRegistration</code> */
     // HashMap is unsynchronized, but we are performing external
     // synchronization via the <code>concurrentObj</code> field. 

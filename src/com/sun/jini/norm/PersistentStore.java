@@ -31,6 +31,7 @@ import com.sun.jini.norm.lookup.SubStore;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
 import com.sun.jini.system.FileSystem;
+import com.sun.jini.thread.ReadersPriorityWriter;
 import com.sun.jini.thread.ReadersWriter;
 
 /**
@@ -57,7 +58,7 @@ class PersistentStore {
      * snapshot thread the writer since for us mutation is the
      * non-exclusive operation.
      */
-    final private ReadersWriter mutatorLock = new ReadersWriter();
+    final private ReadersWriter mutatorLock = new ReadersPriorityWriter();
 
     /**
      * Thread local that tracks if (and how many times) the current thread
