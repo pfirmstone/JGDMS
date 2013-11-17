@@ -48,6 +48,7 @@ import org.apache.river.api.net.Uri;
  * is returned, this reduces the 
  * 
  * @author Peter Firmstone
+ * @since 3.0.0
  */
 class PermissionGrantBuilderImp extends PermissionGrantBuilder implements
         Serializable{

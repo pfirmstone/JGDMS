@@ -17,7 +17,8 @@
 
 /**
 * @author Alexey V. Varlamov
-* @version $Revision$
+* @author Peter Firmstone.
+* @since 3.0.0
 */
 
 package org.apache.river.api.security;
@@ -59,10 +60,10 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
 /**
  * This is a basic loader of policy files. It delegates lexical analysis to 
  * a pluggable scanner and converts received tokens to a set of 
- * {@link org.apache.river.security.PermissionGrant PermissionGrant's}. 
+ * {@link org.apache.river.api.security.PermissionGrant PermissionGrant's}. 
  * For details of policy format, which should be identical to Sun's Java Policy
  * files see the 
- * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile default policy description}.
+ * {@link org.apache.river.api.security.ConcurrentPolicyFile default policy description}.
  * <br>
  * For ordinary uses, this class has just one public method <code>parse()</code>, 
  * which performs the main task.
@@ -72,8 +73,8 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
  * This implementation is effectively thread-safe, as it has no field references 
  * to data being processed (that is, passes all the data as method parameters).
  * 
- * @see org.apache.river.imp.security.policy.se.ConcurrentPolicyFile
- * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
+ * @see org.apache.river.api.security.ConcurrentPolicyFile
+ * @see org.apache.river.api.security.DefaultPolicyScanner
  * @see org.apache.river.api.security.PermissionGrant
  */
 class DefaultPolicyParser implements PolicyParser {
@@ -83,7 +84,7 @@ class DefaultPolicyParser implements PolicyParser {
 
     /** 
      * Default constructor, 
-     * {@link org.apache.river.imp.security.policy.util.DefaultPolicyScanner DefaultPolicyScanner} 
+     * {@link org.apache.river.api.security.DefaultPolicyScanner DefaultPolicyScanner} 
      * is used. 
      */
     DefaultPolicyParser() {
@@ -100,7 +101,7 @@ class DefaultPolicyParser implements PolicyParser {
     /**
      * This is the main business method. It manages loading process as follows:
      * the associated scanner is used to parse the stream to a set of 
-     * {@link org.apache.river.imp.security.policy.util.DefaultPolicyScanner.GrantEntry composite tokens},
+     * {@link org.apache.river.api.security.DefaultPolicyScanner.GrantEntry composite tokens},
      * then this set is iterated and each token is translated to a PermissionGrant.
      * Semantically invalid tokens are ignored, the same as void PermissionGrant's.
      * <br>
@@ -182,7 +183,7 @@ class DefaultPolicyParser implements PolicyParser {
      * of the GrantEntry
      * @see DefaultPolicyScanner.PrincipalEntry
      * @see DefaultPolicyScanner.PermissionEntry
-     * @see org.apache.river.imp.security.policy.util.PolicyUtils
+     * @see org.apache.river.api.security.PolicyUtils
      */
     PermissionGrant resolveGrant(DefaultPolicyScanner.GrantEntry ge,
             KeyStore ks, Properties system, boolean resolve) throws Exception {

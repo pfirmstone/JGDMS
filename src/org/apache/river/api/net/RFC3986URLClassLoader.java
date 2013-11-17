@@ -91,7 +91,7 @@ import org.apache.river.impl.Messages;
  * <li>Use different domain names to ensure separation of proxy classes that 
  * otherwise utilise identical jar files</li>
  * </ol>
- * 
+ * @since 3.0.0
  */
 public class RFC3986URLClassLoader extends java.net.URLClassLoader {
     

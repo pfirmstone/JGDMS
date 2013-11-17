@@ -40,7 +40,7 @@ import net.jini.lookup.DiscoveryAdmin;
  *  expected set of member groups.
  *
  *  @see net.jini.lookup.DiscoveryAdmin
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.TestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

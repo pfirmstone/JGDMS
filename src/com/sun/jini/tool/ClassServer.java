@@ -19,7 +19,6 @@ package com.sun.jini.tool;
 
 import com.sun.jini.logging.Levels;
 import com.sun.jini.start.LifeCycle;
-import org.apache.river.api.util.Commission;
 import java.io.BufferedInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -50,6 +49,7 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.api.util.Commission;
 
 /**
  * A simple HTTP server, for serving up JAR and class files.
@@ -115,7 +115,7 @@ import java.util.logging.Logger;
  * This server can be run directly from the 
  * {@linkplain #main command line}
  * or as a nonactivatable service under the 
- * {@linkplain com.sun.jini.start Service Starter}.
+ * {@linkplain com.sun.jini.start.ServiceStarter}.
  * <p>
  * An example of running directly from the command line is:
  * <blockquote><pre>
@@ -339,7 +339,7 @@ public class ClassServer extends Thread implements Commission {
      * option.
      * 
      * If constructed by {@link com.sun.jini.start.ServiceStarter},
-     * {@link Starter#start() }, is called automatically, otherwise {@link #start()}
+     * {@link Commission#start() }, is called automatically, otherwise {@link #start()}
      * must be called manually after construction.
      *
      * @param args command line options
@@ -349,7 +349,7 @@ public class ClassServer extends Thread implements Commission {
      * understood
      * @throws NullPointerException if <code>args</code> or any element
      * of <code>args</code> is <code>null</code>
-     * @see Starter
+     * @see Commission
      */
     public ClassServer(String[] args, LifeCycle lifeCycle) throws IOException {
 	this(new Initializer(lifeCycle, args));

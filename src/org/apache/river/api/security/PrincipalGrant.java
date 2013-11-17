@@ -21,31 +21,20 @@ package org.apache.river.api.security;
 import java.io.InvalidObjectException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
-import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
-import java.security.AccessController;
-import java.security.AllPermission;
-import java.security.CodeSigner;
 import java.security.CodeSource;
 import java.security.Permission;
 import java.security.Principal;
-import java.security.PrivilegedAction;
 import java.security.ProtectionDomain;
 import java.security.UnresolvedPermission;
 import java.security.cert.Certificate;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.ConcurrentModificationException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
-import java.util.TreeSet;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  *
@@ -174,39 +163,6 @@ class PrincipalGrant extends PermissionGrant implements Serializable{
         return false;
     }
       
-    /**
-     * Utility Method, really belongs somewhere else, but CodeSource subclasses use it.
-     * @param codeSource
-     * @return
-     * @deprecated  will be removed when CodeSource based grants are removed.
-     */
-    @Deprecated
-    CodeSource normalizeCodeSource(CodeSource codeSource) {
-        if (codeSource == null ) return null;
-        URI codeSourceURI = null;
-        try {
-            codeSourceURI = PolicyUtils.normalizeURL(codeSource.getLocation());
-        } catch (URISyntaxException ex) {
-            ex.printStackTrace(System.err);
-        }
-        CodeSource result = codeSource;
-        try {
-            if ( codeSourceURI != null && codeSourceURI.toURL() != codeSource.getLocation()) {
-                // URL was normalized - recreate codeSource with new URL
-                CodeSigner[] signers = codeSource.getCodeSigners();
-                if (signers == null) {
-                    result = new CodeSource(codeSourceURI.toURL(), codeSource
-                            .getCertificates());
-                } else {
-                    result = new CodeSource(codeSourceURI.toURL(), signers);
-                }
-            }
-        } catch (MalformedURLException ex) {
-            ex.printStackTrace(System.err);
-        }
-        return result;
-    } 
-    
     /* Dynamic grant's and file policy grant's have different semantics,
      * this class was originally abstract, it might be advisable to make it so
      * again.

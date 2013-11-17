@@ -55,6 +55,7 @@ import java.util.logging.Logger;
  * @see DistributePermission
  * @see Serializable
  * @see Externalizable
+ * @since 3.0.0
  */
 public final class SerialReflectionFactory implements Externalizable {
     private static final long serialVersionUID = 1L;

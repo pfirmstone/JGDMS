@@ -34,7 +34,7 @@ import java.rmi.RemoteException;
 /** This class is used to test that service lease renewal works as expected for
  *  N (currently N = 5) successive lease renewal attempts.
  *
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.TestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

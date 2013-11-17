@@ -739,7 +739,7 @@ public class LookupServices {
      *  instances of <code>LookupLocator</code> need to be constructed with
      *  meaningful state.
      * @param indx
-     * @return 
+     * @return LookupLocator
      * @throws TestException  
      */
     public LookupLocator getTestLocator(int indx) throws TestException {
@@ -957,7 +957,7 @@ public class LookupServices {
      *  This method can be used to cause various discovered/discarded/changed
      *  events to be sent by the discovery helper utility.
      * @param alternate
-     * @return  
+     * @return List containing LocatorGroupsPair
      */
    public List<LocatorGroupsPair> replaceMemberGroups(boolean alternate) {
         List<LocatorGroupsPair> locGroupsList = new ArrayList<LocatorGroupsPair>(genMap.size());
@@ -1004,7 +1004,7 @@ public class LookupServices {
      *  the associated lookup service is paired with the given set of groups.
     * @param nReplacements
     * @param newGroups 
-    * @return  
+    * @return List containing LocatorGroupsPair
     */
    public List<LocatorGroupsPair> replaceMemberGroups(int nReplacements,
                                            String[] newGroups)

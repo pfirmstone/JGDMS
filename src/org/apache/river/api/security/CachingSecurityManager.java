@@ -23,7 +23,7 @@ package org.apache.river.api.security;
  * AccessControlContexts.
  * 
  * @author Peter Firmstone.
- * @since 2.2.1
+ * @since 3.0.0
  */
 public interface CachingSecurityManager {
 

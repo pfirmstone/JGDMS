@@ -36,7 +36,7 @@ import java.rmi.RemoteException;
  *  service can no longer be successfully looked up after the service
  *  item's lease has expired.
  *
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.TestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

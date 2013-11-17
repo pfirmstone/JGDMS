@@ -43,7 +43,7 @@ import java.lang.reflect.InvocationTargetException;
  *  verified against the expected set of attributes.
  *
  *  @see net.jini.admin.JoinAdmin
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.TestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

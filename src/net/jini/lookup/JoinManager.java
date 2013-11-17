@@ -2522,7 +2522,7 @@ public class JoinManager {
      * @param leaseMgr
      * @param discoveryMgr
      * @param serviceProxy
-     * @return
+     * @return Conf
      * @throws IOException
      * @throws NullPointerException
      * @throws IllegalArgumentException 
@@ -2549,7 +2549,7 @@ public class JoinManager {
      * @param leaseMgr
      * @param discoveryMgr
      * @param serviceProxy
-     * @return
+     * @return Conf
      * @throws IOException
      * @throws ConfigurationException
      * @throws NullPointerException

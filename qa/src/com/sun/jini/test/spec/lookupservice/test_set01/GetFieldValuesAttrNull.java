@@ -61,7 +61,7 @@ import java.rmi.RemoteException;
  *  array of field value objects that is returned is then compared against 
  *  the expected set of field value objects. 
  *
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.TestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

@@ -37,8 +37,9 @@ import java.security.ProtectionDomain;
  * Delegates can be enabled at runtime by using the DelegateSecurityManager,
  * but only for code that utilises delegates.
  * 
- * @see DelegatePermission.
+ * @see DelegatePermission
  * @author Peter Firmstone
+ * @since 3.0.0
  */
 public class DelegateSecurityManager extends CombinerSecurityManager {
 

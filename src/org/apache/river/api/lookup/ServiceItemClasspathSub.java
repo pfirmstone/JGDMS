@@ -54,7 +54,7 @@ import net.jini.core.lookup.ServiceItem;
  * by calling #getServiceItem().
  * </p>
  * @author Peter Firmstone.
- * @since 2.2.1
+ * @since 3.0.0
  */
 public abstract class ServiceItemClasspathSub extends ServiceItem{
     private static final long SerialVersionUID = 1L;

@@ -162,9 +162,7 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
     private final Policy basePolicy; // refresh protected by transactionWriteLock
     // DynamicPolicy grant's for Proxy's.
     private final Collection<PermissionGrant> dynamicPolicyGrants;
-    private final boolean basePolicyIsDynamic; // Don't use cache if true.
-    private final boolean revokeable;
-    private final boolean basePolicyIsRemote;
+    private final boolean revocable;
     
     private final boolean loggable;
     // do something about some domain permissions for this domain so we can 
@@ -223,19 +221,15 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
         dynamicPolicyGrants = Collections.newSetFromMap(new ConcurrentHashMap<PermissionGrant,Boolean>(64));
         loggable = logger.isLoggable(Level.FINEST);
         if (basePolicy instanceof DynamicPolicy) {
-            DynamicPolicy dp = (DynamicPolicy) basePolicy;
-            basePolicyIsDynamic = dp.grantSupported();
             if (basePolicy instanceof RevocablePolicy ) {
                 RevocablePolicy rp = (RevocablePolicy) basePolicy;
-                revokeable = rp.revokeSupported();
+                revocable = rp.revokeSupported();
             } else {
-                revokeable = false;
+                revocable = false;
             }
         } else {
-            basePolicyIsDynamic = false;
-            revokeable = revoke.equals(tRue);
+            revocable = revoke.equals(tRue);
         }
-        basePolicyIsRemote = basePolicy instanceof RemotePolicy ?true: false;
         policyPermissions = basePolicy.getPermissions(policyDomain);
         policyPermissions.setReadOnly();
     }
@@ -255,19 +249,15 @@ public class DynamicPolicyProvider extends AbstractPolicy implements
         dynamicPolicyGrants = Collections.newSetFromMap(new ConcurrentHashMap<PermissionGrant,Boolean>(64));
         loggable = logger.isLoggable(Level.FINEST);
          if (basePolicy instanceof DynamicPolicy) {
-            DynamicPolicy dp = (DynamicPolicy) basePolicy;
-            basePolicyIsDynamic = dp.grantSupported();
             if (basePolicy instanceof RevocablePolicy ) {
                 RevocablePolicy rp = (RevocablePolicy) basePolicy;
-                revokeable = rp.revokeSupported();
+                revocable = rp.revokeSupported();
             } else {
-                revokeable = false;
+                revocable = false;
             }
         } else {
-            basePolicyIsDynamic = false;
-            revokeable = true;
+            revocable = true;
         }
-        basePolicyIsRemote = basePolicy instanceof RemotePolicy ?true: false;
         policyPermissions = basePolicy.getPermissions(policyDomain);
         policyPermissions.setReadOnly();
     }
@@ -328,7 +318,7 @@ Put the policy providers and all referenced classes in the bootstrap class loade
 //    private void ensureDependenciesResolved() 
 
     public boolean revokeSupported() {
-        return revokeable;
+        return revocable;
     }
 
     @Override

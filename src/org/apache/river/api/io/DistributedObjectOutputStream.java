@@ -23,8 +23,12 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 
 /**
- *
+ * DistributedObjectOutputStream replaces @ref{Distributed} instances
+ * in the OutputStream with a SerialReflectionFactory that recreates the 
+ * Distributed Object during unmarshalling.
+ * 
  * @author peter
+ * @since 3.0.0
  */
 public class DistributedObjectOutputStream extends ObjectOutputStream {
     

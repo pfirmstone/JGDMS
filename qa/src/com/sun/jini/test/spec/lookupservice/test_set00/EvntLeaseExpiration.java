@@ -42,7 +42,7 @@ import java.util.Vector;
 /** This class is used to test that all event notifications cease to be
  *  delivered after all event leases have expired.
  *
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.TestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

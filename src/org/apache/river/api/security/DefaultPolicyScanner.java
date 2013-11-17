@@ -17,7 +17,7 @@
 
 /**
 * @author Alexey V. Varlamov
-* @version $Revision$
+* @since 3.0.0
 */
 
 package org.apache.river.api.security;
@@ -71,7 +71,7 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
  * This implementation is effectively thread-safe, as it has no field references
  * to data being processed (that is, passes all the data as method parameters).
  * 
- * @see org.apache.harmony.security.fortress.DefaultPolicyParser
+ * @see org.apache.river.api.security.DefaultPolicyParser
  */
 class DefaultPolicyScanner {
     
@@ -414,10 +414,10 @@ class DefaultPolicyScanner {
 
     /**
      * Compound token representing <i>keystore </i> clause. See policy format
-     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
+     * {@link org.apache.river.api.security.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
+     * @see org.apache.river.api.security.DefaultPolicyParser
+     * @see org.apache.river.api.security.DefaultPolicyScanner
      */
     static class KeystoreEntry {
 
@@ -464,10 +464,10 @@ class DefaultPolicyScanner {
 
     /**
      * Compound token representing <i>grant </i> clause. See policy format
-     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
+     * {@link org.apache.river.api.security.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
+     * @see org.apache.river.api.security.DefaultPolicyParser
+     * @see org.apache.river.api.security.DefaultPolicyScanner
      */
     static class GrantEntry {
 
@@ -552,10 +552,10 @@ class DefaultPolicyScanner {
     /**
      * Compound token representing <i>principal </i> entry of a <i>grant </i>
      * clause. See policy format
-     * {@link org.apache.river.imp.security.policy.se.ConcurrentPolicyFile description}for details.
+     * {@link org.apache.river.api.security.ConcurrentPolicyFile description}for details.
      * 
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyParser
-     * @see org.apache.river.imp.security.policy.util.DefaultPolicyScanner
+     * @see org.apache.river.api.security.DefaultPolicyParser
+     * @see org.apache.river.api.security.DefaultPolicyScanner
      */
     static class PrincipalEntry {
 

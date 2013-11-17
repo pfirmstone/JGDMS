@@ -32,6 +32,7 @@ import java.util.logging.Logger;
  * 
  * @author Peter Firmstone.
  */
+@Deprecated
 public class UriString {
     
     private static Logger logger = Logger.getLogger("org.apache.river.impl.net");
@@ -131,7 +132,7 @@ public class UriString {
      * 
      * @param array
      * @param character
-     * @return 
+     * @return index
      */
     public static int index(char [] array, char character){
         int l = array.length;
@@ -150,7 +151,7 @@ public class UriString {
      * No normalisation or platform specific changes are performed.
      * 
      * @param str
-     * @return
+     * @return encoded String.
      * @throws URISyntaxException  
      */
     public static String escapeIllegalCharacters(String str) throws URISyntaxException {
@@ -268,7 +269,7 @@ public class UriString {
      * @param path -
      *            file path.
      * @return - the resulting URI.
-     * @throw URISyntaxException
+     * @throws URISyntaxException
      */
     private static URI filePathToURI(String path) throws URISyntaxException {
         if (File.separatorChar == '\\') {

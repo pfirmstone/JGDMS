@@ -94,6 +94,7 @@ package org.apache.river.api.io;
  * converted to {@link net.jini.io.MarshalledInstance} before un-marshaling.
  * <p>
  * @author Peter Firmstone.
+ * @since 3.0.0
  */
 public interface Distributed {
     

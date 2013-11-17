@@ -75,7 +75,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @version 0.5 2012/04/18
  * 
  * @author Peter Firmstone
- * @since 2.2.1
+ * @since 3.0.0
  * @serial permsMap
  */
 final class ConcurrentPermissions extends PermissionCollection 

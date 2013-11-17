@@ -60,7 +60,7 @@ class RegistrarEvent extends ServiceEvent {
      * @param handback the client handback
      * @param serviceID the serviceID of the serviceItem that triggered the event
      * @param transition the transition that triggered the event
-     * @param serviceItem the new state of the serviceItem, or null if deleted
+     * @param item the new state of the serviceItem, or null if deleted
      */
     public RegistrarEvent(Object source,
 			  long eventID,

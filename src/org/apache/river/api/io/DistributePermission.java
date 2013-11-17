@@ -26,6 +26,7 @@ import java.security.BasicPermission;
  * @author peter
  * @see SerialReflectionFactory
  * @see ObjectOutput
+ * @since 3.0.0
  */
 public class DistributePermission  extends BasicPermission{
     private static final long serialVersionUID = 1L;

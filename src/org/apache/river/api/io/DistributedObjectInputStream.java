@@ -23,8 +23,11 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 
 /**
- *
- * @author 
+ * DistributedObjectInputStream, an extension to Java serialization that allows
+ * for immutable and safely constructed objects
+ * 
+ * @author Peter.
+ * @since 3.0.0
  */
 public class DistributedObjectInputStream extends ObjectInputStream {
     

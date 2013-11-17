@@ -49,7 +49,7 @@ import java.util.Comparator;
  * FilePermissionCollection.
  * 
  * @author Peter Firmstone.
- * @since 2.2.1
+ * @since 3.0.0
  */
 public class PermissionComparator implements Comparator<Permission>, Serializable {
     private static final long serialVersionUID = 1L;

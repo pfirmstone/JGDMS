@@ -577,7 +577,7 @@ public final class Security {
      * @param action  The code to be run as the Subject.
      * @return   The value returned by the PrivilegedAction's run() method.
      * @throws  NullPointerException if action is null;
-     * 
+     * @since 3.0.0
      */
     public static <T> T doAs(final Subject subject,
 			final PrivilegedAction<T> action) {
@@ -613,7 +613,7 @@ public final class Security {
      * is package private and can only be accessed through SubjectDomainCombiner
      * public methods.
      * <p>
-     * If a policy provider is installed that recognises SubjectDomain, then
+     * If a policy provider is installed that recognizes SubjectDomain, then
      * Subjects who's principals are mutated are effective immediately.
      * <p>
      * No AuthPermission is required to call this method.
@@ -623,6 +623,7 @@ public final class Security {
      * @return   The value returned by the PrivilegedAction's run() method.
      * @throws  NullPointerException if action is null;
      * @throws PrivilegedActionException 
+     * @since 3.0.0
      */
     public static <T> T doAs(final Subject subject,
 			final PrivilegedExceptionAction<T> action)
@@ -1191,6 +1192,7 @@ public final class Security {
      * Extends and overrides SubjectDomainCombiner, to allow untrusted code
      * to run as a Subject, without injecting Principals into the ProtectionDomain
      * of untrusted code.
+     * @since 3.0.0
      */
     private static class DistributedSubjectCombiner extends SubjectDomainCombiner {
         

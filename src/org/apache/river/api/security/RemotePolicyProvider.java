@@ -47,6 +47,7 @@ import org.apache.river.api.common.Beta;
 
 /**
  * @author Peter Firmstone
+ * @since 3.0.0
  */
 @Beta
 public class RemotePolicyProvider extends AbstractPolicy implements RemotePolicy,

@@ -21,7 +21,6 @@ package org.apache.river.api.security;
 import java.net.URL;
 import java.util.Collection;
 import java.util.Properties;
-import org.apache.river.api.security.PermissionGrant;
 
 /**
  * Parser of policy syntax.
@@ -32,6 +31,7 @@ import org.apache.river.api.security.PermissionGrant;
  * @see ConcurrentPolicyFile
  * 
  * @author Peter Firmstone
+ * @since 3.0.0
  */
 public interface PolicyParser {
 

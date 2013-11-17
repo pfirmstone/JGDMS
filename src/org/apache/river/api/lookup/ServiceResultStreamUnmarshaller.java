@@ -19,20 +19,18 @@
 package org.apache.river.api.lookup;
 
 import java.io.IOException;
-import java.security.CodeSource;
-import org.apache.river.api.lookup.ServiceItemClasspathSub;
-import org.apache.river.api.util.ResultStream;
 import net.jini.core.lookup.*;
+import org.apache.river.api.util.ResultStream;
 
 /**
  * Add this to the ResultStream filter chain
- * {@link StreamServiceRegistrar#lookup(ServiceTemplate, Class[], int)}
+ * {@link StreamServiceRegistrar#lookup(ServiceTemplate, Class[], int, int)}
  * to getServiceItem any ServiceItemClasspathSub's in the stream, prior to 
  * proxy verification, or applying constraints.
  * 
  * @author Peter Firmstone.
- * @since 2.1.1
- * @see ServiceItemClasspathSub.
+ * @since 3.0.0
+ * @see ServiceItemClasspathSub
  * @see StreamServiceRegistrar
  */
 public class ServiceResultStreamUnmarshaller implements ResultStream<ServiceItem> {

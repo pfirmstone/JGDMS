@@ -542,31 +542,20 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
     }//end class DiscoveryTask
 
     /**
-     * Creates an instance of this class (<code>LookupLocatorDiscovery</code>),
-     * with an initial array of <code>LookupLocator</code>s to be managed.
-     * For each managed <code>LookupLocator</code>, unicast discovery is
-     * performed to obtain a <code>ServiceRegistrar</code> proxy for that
-     * lookup service.
-     * 
-     * @param locators the locators to discover
-     * 
-     * @throws java.lang.NullPointerException input array contains at least
-     *         one <code>null</code> element
+     * Creates an instance of this class
      */
-    public AbstractLookupLocatorDiscovery() {
+    AbstractLookupLocatorDiscovery() {
         this(initEmptyConfig());
     }//end constructor
 
     /**
-     * Constructs a new lookup locator discovery object, set to discover the
-     * given set of locators, and having the given <code>Configuration</code>.
+     * Constructs a new lookup locator discovery object, having the given
+     * <code>Configuration</code>.
      * <p>
      * For each managed <code>LookupLocator</code>, unicast discovery is
      * performed to obtain a <code>ServiceRegistrar</code> proxy for that
      * lookup service.
      * 
-     * @param locators the locators to discover
-     *
      * @param config   an instance of <code>Configuration</code>, used to
      *                 obtain the objects needed to configure the current
      *                 instance of this class
@@ -575,11 +564,10 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
      *         occurred while retrieving an item from the given
      *         <code>Configuration</code>
      * 
-     * @throws java.lang.NullPointerException input array contains at least
-     *         one <code>null</code> element or <code>null</code> is input
+     * @throws java.lang.NullPointerException <code>null</code> is input
      *         for the configuration
      */
-    public AbstractLookupLocatorDiscovery(Configuration config)
+    AbstractLookupLocatorDiscovery(Configuration config)
                                                 throws ConfigurationException
     {
         this(init(config));

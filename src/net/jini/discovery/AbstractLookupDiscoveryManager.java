@@ -784,68 +784,18 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
     }//end class GroupDiscoveryListener
 
     /** 
-     * Constructs an instance of this class, using the given 
-     * <code>Configuration</code>, that will organize and manage all
-     * discovery-related activities on behalf of the client or service
-     * that instantiates this class.
-     * <p>
-     * If <code>null</code> (<code>DiscoveryGroupManagement.ALL_GROUPS</code>)
-     * is input to the <code>groups</code> parameter, then attempts will be
-     * made via group discovery to discover all lookup services located within
-     * range of the entity that constructs this class. If the empty array
-     * (<code>DiscoveryGroupManagement.NO_GROUPS</code>) is input to that
-     * parameter, no group discovery will be performed until the set of
-     * groups to discover is populated.
-     * <p>
-     * If an empty array or a <code>null</code> reference is input to the
-     * <code>locators</code> parameter, no locator discovery will be performed
-     * until the set of locators to discover is populated.
-     *
-     * @param groups   <code>String</code> array, none of whose elements may
-     *                 be <code>null</code>, consisting of the names of the
-     *                 groups whose members are lookup services the client
-     *                 or service wishes to discover.
-     * @param locators array of instances of <code>LookupLocator</code>, none
-     *                 of whose elements may be <code>null</code>, and in
-     *                 which each element corresponds to a specific lookup
-     *                 service the client or service wishes to discover via
-     *                 locator discovery.
-     * @param listener a reference to <code>DiscoveryListener</code> object
-     *                 that will be notified when a targeted lookup service
-     *                 is discovered or discarded.
-     *
-     * @param config   an instance of <code>Configuration</code>, used to
-     *                 obtain the objects needed to configure the current
-     *                 instance of this class
-     *
-     * @throws java.io.IOException because construction of this class may
-     *         initiate the discovery process, which can throw an
-     *         <code>IOException</code> when socket allocation occurs.
-     *
-     * @throws net.jini.config.ConfigurationException indicates an exception
-     *         occurred while retrieving an item from the given
-     *         <code>Configuration</code>
-     *
-     * @throws java.lang.NullPointerException this exception occurs when
-     *         either one or more of the elements of the <code>groups</code>
-     *         parameter is <code>null</code>, or one or more elements of
-     *         the <code>locators</code> parameter is <code>null</code>, or
-     *         when <code>null</code> is input for the configuration.
-     *
-     * @see net.jini.core.discovery.LookupLocator
-     * @see net.jini.discovery.DiscoveryListener
-     * @see net.jini.config.Configuration
+     * Constructs an instance of this class
      */
     AbstractLookupDiscoveryManager(  DiscoveryListener listener,
                                   LookupDiscovery lookup,
                                   LookupLocatorDiscovery locator)
     {
-        /* Initiate the discovery process */
-            if(listener != null) listeners.add(listener);
-            /* Configure for group discovery */
-            lookupDisc = lookup;
-            /* Configure for locator discovery */
-            locatorDisc = locator;
+        /* Prepare the discovery process */
+        if(listener != null) listeners.add(listener);
+        /* Configure for group discovery */
+        lookupDisc = lookup;
+        /* Configure for locator discovery */
+        locatorDisc = locator;
     }//end constructor
 
     /**

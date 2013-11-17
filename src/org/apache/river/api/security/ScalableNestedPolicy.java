@@ -29,6 +29,7 @@ import java.util.List;
  * an order that avoids unnecessary reverse DNS calls for example.
  * 
  * @author Peter Firmstone
+ * @since 3.0.0
  */
 public interface ScalableNestedPolicy {
     

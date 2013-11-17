@@ -88,6 +88,7 @@ import org.apache.river.api.security.DefaultPolicyScanner.PermissionEntry;
  * tied to the serialized form, instead serialization proxy's are used.
  * 
  * @author Peter Firmstone
+ * @since 3.0.0
  */
 public final class DelegatePermission extends Permission{
     private static final long serialVersionUID = 1L;

@@ -17,8 +17,8 @@
 
 /**
 * @author Alexey V. Varlamov
- * @author Peter Firmstone
-* @version $Revision$
+* @author Peter Firmstone
+* @since 3.0.0
 */
 
 package org.apache.river.api.security;
@@ -230,7 +230,7 @@ import org.apache.river.api.net.Uri;
      * @param path -
      *            file path.
      * @return - the resulting URI.
-     * @throw URISyntaxException
+     * @throws URISyntaxException
      */
     static URI filePathToURI(String path) throws URISyntaxException {
         if (File.separatorChar == '\\' && path != null){
@@ -249,7 +249,7 @@ import org.apache.river.api.net.Uri;
      * Instances of this interface are intended for resolving  
      * generalized expansion expressions, of the form ${{protocol:data}}. 
      * Such functionality is applicable to security policy files, for example.
-     * @see org.apache.harmony.security.PolicyUtils#expandGeneral(String, GeneralExpansionHandler)
+     * @see org.apache.river.api.security.PolicyUtils#expandGeneral(String, GeneralExpansionHandler)
      */
     static interface GeneralExpansionHandler {
 

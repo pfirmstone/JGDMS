@@ -21,8 +21,18 @@ package com.sun.jini.phoenix;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.rmi.activation.ActivationException;
+import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationGroupDesc;
 import java.rmi.activation.ActivationGroupID;
+import java.rmi.activation.ActivationMonitor;
+import java.rmi.activation.ActivationSystem;
+import java.rmi.server.UnicastRemoteObject;
+import javax.security.auth.Subject;
+import javax.security.auth.login.LoginContext;
+import net.jini.config.Configuration;
+import net.jini.export.Exporter;
+import net.jini.export.ProxyAccessor;
+import net.jini.security.ProxyPreparer;
 
 /**
  * The default activation group implementation for phoenix.  Instances of

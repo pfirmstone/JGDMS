@@ -18,9 +18,10 @@
 package org.apache.river.api.lookup;
 
 import java.io.IOException;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.core.lookup.ServiceTemplate;
 import net.jini.core.lookup.ServiceItem;
+import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.core.lookup.ServiceRegistration;
+import net.jini.core.lookup.ServiceTemplate;
 import org.apache.river.api.util.ResultStream;
 
 /**
@@ -45,7 +46,7 @@ import org.apache.river.api.util.ResultStream;
  * @see ServiceRegistrar
  * @see ServiceRegistration
  * @author Peter Firmstone
- * @since 2.2.1
+ * @since 3.0.0
  */
 public interface StreamServiceRegistrar extends ServiceRegistrar{
 
@@ -72,11 +73,11 @@ public interface StreamServiceRegistrar extends ServiceRegistrar{
      * @return ResultStream containing ServiceItem's
      * @throws java.io.IOException 
      * @see ServiceItem
-     * @see ServiceClasspathSubItem
+     * @see ServiceItemClasspathSub
      * @see ResultStream
      * @see ServiceResultStreamFilter
-     * @see ResultStreamUnmarshaller
-     * @since 2.3.0
+     * @see ServiceResultStreamUnmarshaller
+     * @since 3.0.0
      */
     ResultStream lookup(ServiceTemplate tmpl, Class[] entryClasses,
             int maxBatchSize, int limit)  throws IOException;

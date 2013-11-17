@@ -21,7 +21,7 @@ package org.apache.river.api.util;
 /**
  * Interface definition of the facade pattern.
  * @author Peter Firmstone.
- * @since 2.3.0
+ * @since 3.0.0
  */
 public interface Facade<T> {
     /**
@@ -42,7 +42,7 @@ public interface Facade<T> {
      * an IllegalArgumentException.
      * 
      * @param o
-     * @return
+     * @return true if equal
      */
     @Override
     public boolean equals(Object o);

@@ -37,7 +37,7 @@ import net.jini.lookup.DiscoveryAdmin;
  *  set of group members was indeed modified in the Registrar.
  *
  *  @see net.jini.lookup.DiscoveryAdmin
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.TestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

@@ -19,10 +19,6 @@
 package org.apache.river.api.security;
 
 import org.apache.river.impl.Messages;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
 import java.util.Properties;
 import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
 
@@ -45,6 +41,7 @@ import org.apache.river.api.security.PolicyUtils.ExpansionFailedException;
  * is completed, so initially should be stored in an unsorted Collection.
  * 
  * @author Peter Firmstone.
+ * @since 3.0.0
  */
 class Segment implements Comparable {
     private Segment previous;
@@ -143,11 +140,10 @@ class Segment implements Comparable {
      * Segments the current String by find Properties between the START_MARK and
      * END_MARK and replacing them with their values, splitting them into separate
      * Strings (that remain encapsulated in the Segment) if regex is non null.
-     * @param START_MART
+     * @param START_MARK
      * @param END_MARK
-     * @param splitter
+     * @param regex
      * @param p
-     * @return 
      */
     public void divideAndReplace(String START_MARK, String END_MARK,
             String regex, Properties p) throws ExpansionFailedException{

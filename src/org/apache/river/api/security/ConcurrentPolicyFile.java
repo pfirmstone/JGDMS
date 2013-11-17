@@ -21,7 +21,7 @@
   * 
   * @author Alexey V. Varlamov
   * @author Peter Firmstone
-  * @version $Revision$
+  * @since 3.0.0
   */
 
 package org.apache.river.api.security;

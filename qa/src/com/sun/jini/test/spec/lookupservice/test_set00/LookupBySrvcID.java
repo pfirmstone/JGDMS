@@ -33,7 +33,7 @@ import java.rmi.RemoteException;
 /** This class is used to test that every service item registered with
  *  the Lookup service can be successfully looked up using only its service ID.
  *
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.TestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

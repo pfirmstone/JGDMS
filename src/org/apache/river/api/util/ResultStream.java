@@ -28,6 +28,7 @@ import java.io.IOException;
  * by returning a null value.
  * 
  * @author Peter Firmstone
+ * @since 3.0.0
  */
 public interface ResultStream<T> {
     /**

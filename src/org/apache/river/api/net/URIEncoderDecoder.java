@@ -37,6 +37,7 @@ import org.apache.river.impl.Messages;
  * application/x-www-form-urlencoded} MIME content type. It contains helper
  * methods used by the URI class, and performs encoding and decoding in a
  * slightly different way than {@code URLEncoder} and {@code URLDecoder}.
+ * @since 3.0.0
  */
 class URIEncoderDecoder {
 

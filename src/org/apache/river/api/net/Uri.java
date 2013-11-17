@@ -49,6 +49,7 @@ import org.apache.river.impl.Messages;
  * 
  * IPv6 and IPvFuture host addresses must be enclosed in square brackets as per 
  * RFC3986.
+ * @since 3.0.0
  */
 public final class Uri implements Comparable<Uri> {
 
@@ -918,7 +919,7 @@ public final class Uri implements Comparable<Uri> {
      * The Uri is normalised according to RFC3986.
      * 
      * @param unescapedString
-     * @return 
+     * @return an RFC3986 compliant Uri.
      */
     public static Uri escapeAndCreate(String unescapedString) throws URISyntaxException{
         return new Uri(quoteComponent(unescapedString, allLegalUnescaped));
@@ -930,7 +931,7 @@ public final class Uri implements Comparable<Uri> {
      * 
      * The escape character % is not re-encoded.
      * @param nonCompliantEscapedString 
-     * @return 
+     * @return an RFC3986 compliant Uri.
      */
     public static Uri parseAndCreate(String nonCompliantEscapedString) throws URISyntaxException{
         return new Uri(quoteComponent(nonCompliantEscapedString, allLegal));

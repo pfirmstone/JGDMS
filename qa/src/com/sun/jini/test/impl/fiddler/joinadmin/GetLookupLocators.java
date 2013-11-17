@@ -46,7 +46,7 @@ import com.sun.jini.qa.harness.Test;
  *
  *
  * @see com.sun.jini.qa.harness.QAConfig
- * @see com.sun.jini.qa.harness.QATest
+ * @see com.sun.jini.qa.harness.TestEnvironment
  */
 public class GetLookupLocators extends AbstractBaseTest {
 

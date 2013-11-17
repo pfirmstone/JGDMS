@@ -36,7 +36,7 @@ import java.rmi.RemoteException;
  *  is re-registered, we should still be able to successfully lookup all 
  *  services in the Lookup Service.
  *
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.TestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

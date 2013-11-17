@@ -76,6 +76,7 @@ import org.cliffc.high_scale_lib.NonBlockingHashMap;
  * @see AccessControlContext
  * 
  * @author Peter Firmstone
+ * @since 3.0.0
  */
 public class CombinerSecurityManager 
 extends SecurityManager implements CachingSecurityManager {
@@ -568,7 +569,7 @@ extends SecurityManager implements CachingSecurityManager {
      * Enables customisation of permission check.
      * @param pd
      * @param p
-     * @return
+     * @return true if ProtectionDomain pd has Permission p.
      */
     protected boolean checkPermission(ProtectionDomain pd, Permission p){
         return pd.implies(p);

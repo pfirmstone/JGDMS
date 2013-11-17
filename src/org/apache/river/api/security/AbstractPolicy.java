@@ -43,6 +43,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * A common superclass with utility methods for policy providers.
  * 
  * @author Peter Firmstone.
+ * @since 3.0.0
  */
 public abstract class AbstractPolicy extends Policy {
     protected final Permission umbrella = new UmbrellaGrantPermission();
@@ -62,7 +63,6 @@ public abstract class AbstractPolicy extends Policy {
      * PermissionGrant implementation was mutable.
      *
      * @param grants
-     * @return map of checked grants.
      */
     protected final void checkCallerHasGrants(Collection<PermissionGrant> grants) throws SecurityException {
         Iterator<PermissionGrant> grantsItr = grants.iterator();
@@ -104,7 +104,7 @@ public abstract class AbstractPolicy extends Policy {
      * @param concurrencyLevel
      * @param unresolvedCapacity  Capacity of Map used to store 
      * UnresolvedPermission instances
-     * @return
+     * @return PermissionCollection
      * @throws IllegalArgumentException if the initial capacity is
      * negative or the load factor or concurrencyLevel are
      * nonpositive.

@@ -25,6 +25,7 @@ import org.apache.river.api.common.Beta;
  * syntax, allow a ProxyVerifier to grant these permissions dynamically.
  * 
  * @author peter
+ * @since 3.0.0
  */
 @Beta
 public interface CodeSourceRequiredPermissions {

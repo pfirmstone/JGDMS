@@ -43,6 +43,7 @@ import javax.security.auth.Subject;
  * 
  * Single Thread use only.
  * @author Peter Firmstone.
+ * @since 3.0.0
  * @see PermissionGrant
  */
 public abstract class PermissionGrantBuilder {
@@ -89,7 +90,7 @@ public abstract class PermissionGrantBuilder {
      * CodeSource that has the Certificates and URI RFC3986 location as specified.
      * <p>
      * The outcome of URI comparison is similar to 
-     * {@link CodeSource.implies(CodeSource)}.
+     * {@link CodeSource#implies(CodeSource)}.
      * <p>
      * DNS lookup is avoided for security and performance reasons,
      * DNS is not authenticated and therefore cannot be trusted.  Doing so,
@@ -208,7 +209,7 @@ public abstract class PermissionGrantBuilder {
      * The URI will be added to the PermissionGrant, multiple may be specified by
      * calling multiple times.
      * 
-     * @param uri - RFC3986 compliant URI or null.
+     * @param path - RFC3986 compliant URI or null.
      * @return 
      */
     public abstract PermissionGrantBuilder uri(String path);
@@ -226,7 +227,7 @@ public abstract class PermissionGrantBuilder {
     /**
      * Sets the Certificate[] a CodeSource must have to receive the PermissionGrant.
      * @param certs
-     * @return 
+     * @return a PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder certificates(Certificate[] certs);
     /**
@@ -234,13 +235,13 @@ public abstract class PermissionGrantBuilder {
      * the PermissionGrant.
      * 
      * @param pals
-     * @return 
+     * @return a PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder principals(Principal[] pals);
     /**
      * Specifies Permission's to be granted.
      * @param perm
-     * @return 
+     * @return a PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder permissions(Permission[] perm);
     /**
@@ -270,7 +271,7 @@ public abstract class PermissionGrantBuilder {
     /**
      * 
      * @param domain
-     * @return
+     * @return a PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder setDomain(WeakReference<ProtectionDomain> domain);
 }

@@ -347,8 +347,6 @@ public abstract class DynamicPolicyProviderTestBase extends AbstractTestBase {
      *
      * @param pd the ProtectionDomain or null.
      * @param p  permissions granted earlier or null.
-     * @param dynamicallyGranted   This indicates that these permissions 
-     * have been dynamically granted.
      * If the policy being tested supports revoking 
      * permissions, dynamically granted permissions passed in must not be present, as this
      * will remove the ability to revoke the permissions as they will become

@@ -77,7 +77,7 @@ public class EventRegistration implements java.io.Serializable {
     /**
      * Constructs an <tt>EventRegistration</tt> object.
      * 
-     * Immutable since 2.3.0
+     * Immutable since 3.0.0
      *
      * @param eventID  a <tt>long</tt> representing the event identifier
      * @param source   an <tt>Object</tt> representing the event source

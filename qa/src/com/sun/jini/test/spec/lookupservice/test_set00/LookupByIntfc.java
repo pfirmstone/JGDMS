@@ -36,7 +36,7 @@ import java.rmi.RemoteException;
  *  interfaces it implements (excluding the universally-implemented
  *  Serializable interface).
  *
- *  @see com.sun.jini.qa.harness.QATest
+ *  @see com.sun.jini.qa.harness.TestEnvironment
  *  @see com.sun.jini.test.spec.lookupservice.QATestRegistrar
  *  @see com.sun.jini.test.spec.lookupservice.QATestUtils
  */

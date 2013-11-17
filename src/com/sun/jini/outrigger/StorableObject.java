@@ -44,7 +44,7 @@ public interface StorableObject<T> {
     /**
      * Restore the persistent fields and return new instance.
      * @param in
-     * @return
+     * @return new object instance.
      * @throws IOException
      * @throws ClassNotFoundException  
      */

@@ -25,8 +25,8 @@ import java.util.StringTokenizer;
 import org.apache.river.impl.Messages;
 
 /**
- *
- * 
+ * UriParser for parsing RFC3986 compliant URI strings.
+ * @since 3.0.0
  */
 final class UriParser {
     

@@ -1061,7 +1061,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      * 
      * @throws an IOException if isPreferredResource throws an IOException.
      * 
-     * @since 2.3.0
+     * @since 3.0.0
      **/
     public Enumeration<URL> getResources(String name) throws IOException{
         return (isPreferredResource(name, false) ?

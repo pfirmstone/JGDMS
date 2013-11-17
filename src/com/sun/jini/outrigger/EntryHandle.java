@@ -173,7 +173,6 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      *
      * @see #hashFor(EntryRep,int)
      * @see #descFor(EntryRep,int)
-     * @see EntryHandleHashDesc
      * @return long[4] containing the hash, bitsPerField, fieldsInHash and mask
      * in that order.
      */
@@ -243,7 +242,7 @@ class EntryHandle extends BaseHandle implements LeaseDesc, Transactable {
      * as part of the overall hash for the entry.  The last 32 bytes of
      * the field value are used (or fewer if there are fewer).
      *
-     * @see #hashFor(EntryRep,int,EntryHandleHashDesc)
+     * @see #hashFor(EntryRep,int)
      */
     static long hashForField(EntryRep rep, int field) {
 	MarshalledInstance v = rep.value(field);

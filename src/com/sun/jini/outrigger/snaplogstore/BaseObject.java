@@ -38,7 +38,7 @@ class BaseObject<T extends StorableObject<T>> implements StoredObject<T>, Serial
     static final long serialVersionUID = -400804064969360164L;
 
     /**
-     * @serialField 
+     * @serialField containing a binary blob.
      */
     private final byte[]	blob;
 
@@ -65,15 +65,15 @@ class BaseObject<T extends StorableObject<T>> implements StoredObject<T>, Serial
     
     /**
      * Added to enable the serial form to be modified
-     * in a backward compatible manner (if necessary) with 2.3.0 and later.  
+     * in a backward compatible manner (if necessary) with 3.0.0 and later.  
      * Modified serial form would be a breaking change for versions
-     * prior to 2.3.0 
+     * prior to 3.0.0 
      * 
      * @serialData 
      * @param ois
      * @throws IOException
      * @throws ClassNotFoundException 
-     * @since 2.3.0
+     * @since 3.0.0
      */
     private void readObject(ObjectInputStream ois) throws IOException, ClassNotFoundException {
         ois.defaultReadObject();

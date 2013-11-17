@@ -21,6 +21,7 @@ package org.apache.river.api.security;
 import java.io.IOException;
 import net.jini.security.GrantPermission;
 import net.jini.security.policy.UmbrellaGrantPermission;
+import org.apache.river.api.common.Beta;
 
 /**
  * <p>
@@ -82,12 +83,13 @@ import net.jini.security.policy.UmbrellaGrantPermission;
  * parse standard java format policy file's, to create PermissionGrant's.
  * </p>
  * @author Peter Firmstone
- * @since 2.2.1
+ * @since 3.0.0
  * @see GrantPermission
  * @see UmbrellaGrantPermission
  * @see PolicyParser
  * @see PolicyPermission
  */
+@Beta
 public interface RemotePolicy {
     /**
      * Replaces the existing RemotePolicy's PermissionGrant's.

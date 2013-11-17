@@ -67,6 +67,7 @@ import javax.security.auth.Subject;
  * @see org.apache.river.api.security.ConcurrentPolicyFile
  * 
  * @author Peter Firmstone
+ * @since 3.0.0
  */
 public interface SubjectDomain {
     

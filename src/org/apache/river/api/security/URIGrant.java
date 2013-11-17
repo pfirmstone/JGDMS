@@ -36,8 +36,9 @@ import java.util.logging.Logger;
 import org.apache.river.api.net.Uri;
 
 /**
- *
+ * RFC3986 URI PermissionGrant
  * @author Peter Firmstone
+ * @since 3.0.0
  */
 class URIGrant extends CertificateGrant {
     private static final long serialVersionUID = 1L;

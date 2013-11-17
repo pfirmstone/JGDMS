@@ -70,7 +70,7 @@ import org.apache.river.api.security.PermissionGrantBuilderImp.NullPermissionGra
  * of service by an attacker that can access an acting {@link java.security.Policy}
  * 
  * @author Peter Firmstone
- * @since 2.2.1
+ * @since 3.0.0
  */
 public abstract class PermissionGrant {
     /*
@@ -171,7 +171,9 @@ public abstract class PermissionGrant {
      * call in our constructor is to Object constructor.
      * 
      * @param decorated
-     * @return 
+     * @return true if caller has privileges and decorated isn't privileged.
+     * @throws AccessControlException
+     * @throws IllegalArgumentException
      */
     private static boolean checkInvariants(PermissionGrant decorated) {
         PD_GUARD.checkGuard(null);
@@ -227,8 +229,8 @@ public abstract class PermissionGrant {
      * calls getPermissions.
      *
      * @param pd ProtectionDomain
-     * @return
-     * @see RevokeableDynamicPolicy
+     * @return true if implies.
+     * @see RevocablePolicy
      */
     public abstract boolean implies(ProtectionDomain pd);  
     /**
@@ -247,15 +249,15 @@ public abstract class PermissionGrant {
     /**
      * Checks if this PermissionGrant applies to the passed in CodeSource
      * and Principal's.
-     * @param cs
-     * @return 
+     * @param codeSource
+     * @return true if implies.
      */
     public abstract boolean implies(CodeSource codeSource, Principal[] pal);
 
     /**
      * Returns an unmodifiable Collection of permissions defined by this
      * PermissionGrant, which may be empty, but not null.
-     * @return
+     * @return Collection containing Permission objects.
      */
     public final Collection<Permission> getPermissions(){
         if (decorated != null) return decorated().getPermissions();
@@ -265,6 +267,7 @@ public abstract class PermissionGrant {
     /**
      * Returns true if this PermissionGrant defines no Permissions, or if
      * a PermissionGrant was made to a ProtectionDomain that no longer exists.
+     * @return true if void.
      */
     public abstract boolean isVoid();
     
@@ -272,7 +275,7 @@ public abstract class PermissionGrant {
      * Provide a PermissionGrantBuilder, suitable for
      * producing a new PermissionGrant.
      * 
-     * @return
+     * @return PermissionGrantBuilder
      */
     public abstract PermissionGrantBuilder getBuilderTemplate();
 
