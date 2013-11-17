@@ -1,4 +1,4 @@
 Manifest-Version: 1.0
-Class-Path: jsk-resources.jar high-scale-lib.jar reference-collections-1.0.1.jar
+Class-Path: jsk-resources.jar high-scale-lib.jar custard-apple-1.0.3.jar
 Implementation-Vendor: Apache Software Foundation
 Implementation-Version: 2.2.0
