@@ -35,8 +35,8 @@ import javax.security.auth.Subject;
  * <p>
  * However in a distributed system, because code trust and Subject's are 
  * separate concerns, methods have been provided in 
- * {@link net.jini.security.Security} to prepend a <code>ProtectionDomain</code>
- * to the stack instead of injecting Principal's into all ProtectionDomain's on 
+ * {@link net.jini.security.Security} to push a <code>SubjectDomain</code>
+ * onto the stack instead of injecting Principal's into all ProtectionDomain's on 
  * the stack, this avoids mistakenly elevating privileges of less trusted
  * code, if present on a call stack at the time the doAs subject method is called.
  * <p>
