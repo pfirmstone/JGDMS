@@ -204,7 +204,7 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
 
                 /*
                  * Check for late expiration against preTime
-                 * postTime - slop elemnates overflow problems when
+                 * postTime - slop eliminates overflow problems when
                  * expTime == FOREVER
                  */
                 if (stillThere && (preTime - slop > expTime)) {
