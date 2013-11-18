@@ -23,6 +23,7 @@ import java.util.Iterator;
 import java.util.List;
 
 import com.sun.jini.qa.harness.TestException;
+import java.util.concurrent.CopyOnWriteArrayList;
 import net.jini.space.JavaSpace05;
 import net.jini.core.transaction.Transaction;
 
@@ -36,8 +37,8 @@ public class TakeTest05 extends JavaSpaceTest {
 
     private final long MAX_ENTRIES = 5;
 
-    private ArrayList templates = new ArrayList();
-    private ArrayList expectedResult = new ArrayList();
+    private List templates = new CopyOnWriteArrayList();
+    private List expectedResult = new CopyOnWriteArrayList();
 
     private SimpleEntry sampleEntry1 = new SimpleEntry("TestEntry #1", 1);
     private SimpleEntry sampleEntry2 = new SimpleEntry("TestEntry #2", 2);
@@ -151,8 +152,8 @@ public class TakeTest05 extends JavaSpaceTest {
         reset();
 
 
-        ArrayList entriesToAdd = new ArrayList();
-        ArrayList leasesToAdd = new ArrayList();
+        List entriesToAdd = new CopyOnWriteArrayList();
+        List leasesToAdd = new CopyOnWriteArrayList();
 
         /*
          * Taking unavailable entry.
@@ -197,8 +198,8 @@ public class TakeTest05 extends JavaSpaceTest {
                                           instantTime);
         Thread jsWriterThread2 = new Thread(jsWriter2);
 
-        ArrayList entryToAdd = new ArrayList();
-        ArrayList leaseToAdd = new ArrayList();
+        List entryToAdd = new CopyOnWriteArrayList();
+        List leaseToAdd = new CopyOnWriteArrayList();
         entryToAdd.add(sampleEntry3);
         leaseToAdd.add(new Long(leaseForeverTime));
 
