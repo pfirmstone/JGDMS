@@ -17,16 +17,15 @@
  */
 package com.sun.jini.test.spec.javaspace.conformance;
 
+import com.sun.jini.qa.harness.TestException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
-
-import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.qa.harness.QAConfig;
-import net.jini.space.JavaSpace05;
+import java.util.concurrent.CopyOnWriteArrayList;
 import net.jini.core.transaction.Transaction;
 import net.jini.core.transaction.TransactionException;
+import net.jini.space.JavaSpace05;
 
 /**
  * TransactionTakeTest05 tests JavaSpace05.take method
@@ -39,12 +38,12 @@ public class TransactionTakeTest05 extends TransactionTest {
 
     private final long MAX_ENTRIES = 5;
 
-    private ArrayList templates = new ArrayList();
-    private ArrayList expectedResult = new ArrayList();
+    private final List templates = new CopyOnWriteArrayList();
+    private final List expectedResult = new CopyOnWriteArrayList();
 
-    private SimpleEntry sampleEntry1 = new SimpleEntry("TestEntry #1", 1);
-    private SimpleEntry sampleEntry2 = new SimpleEntry("TestEntry #2", 2);
-    private SimpleEntry sampleEntry3 = new SimpleEntry("TestEntry #1", 2);
+    private final SimpleEntry sampleEntry1 = new SimpleEntry("TestEntry #1", 1);
+    private final SimpleEntry sampleEntry2 = new SimpleEntry("TestEntry #2", 2);
+    private final SimpleEntry sampleEntry3 = new SimpleEntry("TestEntry #1", 2);
 
     /**
      * This method asserts that for take operation:<br>
@@ -171,8 +170,8 @@ public class TransactionTakeTest05 extends TransactionTest {
         txn.commit();
         reset();
 
-        ArrayList entriesToAdd = new ArrayList();
-        ArrayList leasesToAdd = new ArrayList();
+        List entriesToAdd = new CopyOnWriteArrayList();
+        List leasesToAdd = new CopyOnWriteArrayList();
 
         /*
          * Taking unavailable entry.
@@ -221,8 +220,8 @@ public class TransactionTakeTest05 extends TransactionTest {
                                           instantTime);
         Thread jsWriterThread2 = new Thread(jsWriter2);
 
-        ArrayList entryToAdd = new ArrayList();
-        ArrayList leaseToAdd = new ArrayList();
+        List entryToAdd = new CopyOnWriteArrayList();
+        List leaseToAdd = new CopyOnWriteArrayList();
         entryToAdd.add(sampleEntry3);
         leaseToAdd.add(new Long(leaseForeverTime));
 
