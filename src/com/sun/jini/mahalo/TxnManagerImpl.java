@@ -558,7 +558,7 @@ class TxnManagerImpl /*extends RemoteServer*/
             try {
                 str = serverTransaction(tr);
                 TxnManagerTransaction existed = txns.putIfAbsent(Long.valueOf(str.id), txntr);
-                /* This should never happen, but in the unprobable event we get a collision */
+                /* This should never happen, but in the improbable event we get a collision */
                 if (existed == null){ 
                     todoPut = false;
                     expMgr.register(txntr);
@@ -721,7 +721,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
 	// txntr.commit does expiration check
 	txntr.commit(waitFor);
-        txns.remove(Long.valueOf(id));
+        txns.remove(Long.valueOf(id), txntr); // Only removed if commit doesn't throw exception.
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
@@ -809,7 +809,7 @@ class TxnManagerImpl /*extends RemoteServer*/
             if (t instanceof Error) throw (Error) t;
             if (t instanceof RuntimeException) throw (RuntimeException) t;
         }
-	txns.remove(Long.valueOf(id));
+	txns.remove(Long.valueOf(id), txntr);
 
 	if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
@@ -1202,9 +1202,10 @@ class TxnManagerImpl /*extends RemoteServer*/
 	     * their expirations are irrelevant. Therefore, any recovered
 	     * transactions are effectively lease.FOREVER. 
 	     */
+            
+            TxnManagerTransaction existed = txns.putIfAbsent(key, tmt);
+            if (existed != null) tmt = existed;
 	}
-
-	txns.put(key, tmt);
 
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.exiting(TxnManagerImpl.class.getName(), 
