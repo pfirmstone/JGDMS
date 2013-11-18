@@ -72,6 +72,7 @@ import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.ProxyPreparer;
 import net.jini.url.httpmd.HttpmdUtil;
+import org.apache.river.api.net.RFC3986URLClassLoader;
 
 /**
  * This class represents the environment for tests running in
@@ -441,7 +442,7 @@ public class QAConfig implements Serializable {
 	    }
 	    try {
 		URL testJarURL = testJarFile.getCanonicalFile().toURI().toURL();
-		testLoader = new URLClassLoader(new URL[]{testJarURL},
+		testLoader = new RFC3986URLClassLoader(new URL[]{testJarURL},
 						getClass().getClassLoader());
 	    } catch (Exception e) {
 		throw new TestException("Failed to create test loader", e);
