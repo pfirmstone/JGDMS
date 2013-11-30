@@ -26,6 +26,8 @@ import java.rmi.RemoteException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
+import net.jini.id.Uuid;
+import org.apache.river.api.util.ID;
 
 /**
  * A base class for implementing lease objects.  This class takes care of
@@ -43,14 +45,18 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
 
     /**
      * The lease expiration, in local absolute time.
+     * 
+     * This field has been made volatile to ensure visibility, since
+     * synchronized access isn't guaranteed to be performed
+     * by overriding classes.
      */
-    protected transient long expiration;
+    protected volatile transient long expiration;
     /**
      * Serialization format for the expiration.
      *
      * @serial
      */
-    protected int serialFormat = Lease.DURATION;
+    protected volatile int serialFormat = Lease.DURATION;
 
     /** Construct a relative-format lease. */
     protected AbstractLease(long expiration) {
@@ -58,12 +64,12 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
     }
 
     /** Return the lease expiration. */
-    public synchronized long getExpiration() {
+    public long getExpiration() {
 	return expiration;
     }
 
     /** Return the serialization format for the expiration. */
-    public synchronized int getSerialFormat() {
+    public int getSerialFormat() {
 	return serialFormat;
     }
 
@@ -71,9 +77,7 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
     public void setSerialFormat(int format) {
 	if (format != Lease.DURATION && format != Lease.ABSOLUTE)
 	    throw new IllegalArgumentException("invalid serial format");
-	synchronized (this) {
-	    serialFormat = format;
-	}
+        serialFormat = format;
     }
 
     /** Renew the lease for a duration relative to now. */
@@ -83,11 +87,8 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
 	long exp = doRenew(duration) + System.currentTimeMillis();
 	// We added two positive numbers, so if the result is negative
 	// we must have overflowed, so use Long.MAX_VALUE
-	if (exp < 0) 
-	    exp = Long.MAX_VALUE;
-	synchronized (this) {
-	    expiration = exp;
-	}
+	if (exp < 0) exp = Long.MAX_VALUE;
+        expiration = exp;
     }
 
     /**
@@ -104,10 +105,8 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
     private void writeObject(ObjectOutputStream stream) throws IOException {
 	int format;
 	long val;
-	synchronized (this) {
 	    format = serialFormat;
 	    val = expiration;
-	}
 	if (format == Lease.DURATION) {
 	    long exp = val;
 	    val -= System.currentTimeMillis();
@@ -126,7 +125,7 @@ public abstract class AbstractLease implements Lease, java.io.Serializable {
      *
      * @throws InvalidObjectException unconditionally
      */
-    private void readObjectNoData() throws InvalidObjectException {
+    private synchronized void readObjectNoData() throws InvalidObjectException {
 	throw new InvalidObjectException("no data in stream");
     }
 

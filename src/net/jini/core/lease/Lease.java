@@ -56,14 +56,14 @@ public interface Lease {
      * object from one address space to another (via an RMI call) where
      * it cannot be assumed that the address spaces have synchronized clocks.
      */
-    int DURATION = 1;
+    final int DURATION = 1;
 
     /**
      * The serialized form of the lease will contain the time of expiration
      * stored as an absolute time, represented in terms of milliseconds since
      * the beginning of the epoch.
      */
-    int ABSOLUTE = 2;
+    final int ABSOLUTE = 2;
 
     /**
      * Returns a <code>long</code> that indicates the time that the
@@ -138,7 +138,7 @@ public interface Lease {
      *
      * @return the created <tt>LeaseMap</tt> object
      */
-    LeaseMap createLeaseMap(long duration);
+    LeaseMap<? extends Lease, Long> createLeaseMap(long duration);
 
     /**
      * Returns a boolean indicating whether or not the lease given as a

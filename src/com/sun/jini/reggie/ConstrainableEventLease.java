@@ -79,7 +79,7 @@ final class ConstrainableEventLease
     /**
      * Creates a constraint-aware lease map.
      */
-    public LeaseMap createLeaseMap(long duration) {
+    public LeaseMap<? extends Lease,Long> createLeaseMap(long duration) {
 	return new ConstrainableRegistrarLeaseMap(this, duration);
     }
 

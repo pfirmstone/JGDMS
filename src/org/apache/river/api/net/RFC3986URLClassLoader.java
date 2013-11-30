@@ -814,6 +814,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      * @param url
      *            the URL which is to add.
      */
+    @Override
     protected void addURL(URL url) {
         try {
             originalUrls.add(url);
@@ -904,43 +905,43 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      *            the code source object whose permissions have to be known.
      * @return the list of permissions according to the code source object.
      */
-    @Override
-    protected PermissionCollection getPermissions(final CodeSource codesource) {
-        PermissionCollection pc = super.getPermissions(codesource);
-        URL u = codesource.getLocation();
-        if (u.getProtocol().equals("jar")) { //$NON-NLS-1$
-            try {
-                // Create a URL for the resource the jar refers to
-                u = ((JarURLConnection) u.openConnection()).getJarFileURL();
-            } catch (IOException e) {
-                // This should never occur. If it does continue using the jar
-                // URL
-            }
-        }
-        if (u.getProtocol().equals("file")) { //$NON-NLS-1$
-            String path = u.getFile();
-            String host = u.getHost();
-            if (host != null && host.length() > 0) {
-                path = "//" + host + path; //$NON-NLS-1$
-            }
-
-            if (File.separatorChar != '/') {
-                path = path.replace('/', File.separatorChar);
-            }
-            if (isDirectory(u)) {
-                pc.add(new FilePermission(path + "-", "read")); //$NON-NLS-1$ //$NON-NLS-2$
-            } else {
-                pc.add(new FilePermission(path, "read")); //$NON-NLS-1$
-            }
-        } else {
-            String host = u.getHost();
-            if (host.length() == 0) {
-                host = "localhost"; //$NON-NLS-1$
-            }
-            pc.add(new SocketPermission(host, "connect, accept")); //$NON-NLS-1$
-        }
-        return pc;
-    }
+//    @Override
+//    protected PermissionCollection getPermissions(final CodeSource codesource) {
+//        PermissionCollection pc = super.getPermissions(codesource);
+//        URL u = codesource.getLocation();
+//        if (u.getProtocol().equals("jar")) { //$NON-NLS-1$
+//            try {
+//                // Create a URL for the resource the jar refers to
+//                u = ((JarURLConnection) u.openConnection()).getJarFileURL();
+//            } catch (IOException e) {
+//                // This should never occur. If it does continue using the jar
+//                // URL
+//            }
+//        }
+//        if (u.getProtocol().equals("file")) { //$NON-NLS-1$
+//            String path = u.getFile();
+//            String host = u.getHost();
+//            if (host != null && host.length() > 0) {
+//                path = "//" + host + path; //$NON-NLS-1$
+//            }
+//
+//            if (File.separatorChar != '/') {
+//                path = path.replace('/', File.separatorChar);
+//            }
+//            if (isDirectory(u)) {
+//                pc.add(new FilePermission(path + "-", "read")); //$NON-NLS-1$ //$NON-NLS-2$
+//            } else {
+//                pc.add(new FilePermission(path, "read")); //$NON-NLS-1$
+//            }
+//        } else {
+//            String host = u.getHost();
+//            if (host.length() == 0) {
+//                host = "localhost"; //$NON-NLS-1$
+//            }
+//            pc.add(new SocketPermission(host, "connect, accept")); //$NON-NLS-1$
+//        }
+//        return pc;
+//    }
 
     /**
      * Returns the search list of this {@code URLClassLoader}.

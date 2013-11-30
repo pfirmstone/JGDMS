@@ -17,22 +17,21 @@
  */
 package com.sun.jini.fiddler;
 
-import com.sun.jini.lease.AbstractLeaseMap;
 import com.sun.jini.proxy.ConstrainableProxyUtil;
-
-import net.jini.id.Uuid;
-
+import java.lang.reflect.Method;
+import java.rmi.RemoteException;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMap;
 import net.jini.core.lease.LeaseMapException;
-
-import java.lang.reflect.Method;
-import java.rmi.RemoteException;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Iterator;
+import net.jini.id.Uuid;
+import org.apache.river.impl.lease.AbstractLeaseMap;
 
 /**
  * When clients request a registration with the Fiddler implementation of
@@ -52,7 +51,7 @@ import java.util.Iterator;
  * @author Sun Microsystems, Inc.
  *
  */
-class FiddlerLeaseMap extends AbstractLeaseMap {
+class FiddlerLeaseMap extends AbstractLeaseMap<FiddlerLease> {
 
     /**
      * The reference to the back-end server of the lookup discovery service
@@ -117,9 +116,10 @@ class FiddlerLeaseMap extends AbstractLeaseMap {
      *                 is the "mapped" value corresponding to the lease key.
      */
     private FiddlerLeaseMap(Fiddler server, FiddlerLease lease, long duration){
-        super(lease, duration);
+        super();
         this.server = server;
         this.serverID = lease.getServerID();
+        put(lease, duration);
     }//end constructor
 
     /**
@@ -166,37 +166,44 @@ class FiddlerLeaseMap extends AbstractLeaseMap {
      *         may or may not have been renewed successfully.
      */
     public void renewAll() throws LeaseMapException, RemoteException {
-        int size = map.size();
-        if (size == 0) {
-            return;
+        if (isEmpty()) return;
+        List<FiddlerLease> keys = new LinkedList<FiddlerLease>();
+        List<Uuid> registrationIDs = new LinkedList<Uuid>();
+        List<Uuid> leaseIDs = new LinkedList<Uuid>();
+        List<Long> durations = new LinkedList<Long>();
+        Iterator<Entry<FiddlerLease,Long>> it = entrySet().iterator();
+        while (it.hasNext()){
+            Entry<FiddlerLease,Long> e = it.next();
+            FiddlerLease ls = e.getKey();
+            keys.add(ls);
+            registrationIDs.add(ls.getRegistrationID());
+            leaseIDs.add(ls.getLeaseID());
+            durations.add(e.getValue());
         }
-        Uuid[] registrationIDs = new Uuid[size];
-        Uuid[] leaseIDs = new Uuid[size];
-        long[] durations = new long[size];
+        long [] dur = new long[durations.size()];
         int i = 0;
-        for (Iterator iter = map.entrySet().iterator(); iter.hasNext(); i++) {
-            Map.Entry e = (Map.Entry)iter.next();
-            FiddlerLease ls = (FiddlerLease)e.getKey();
-            registrationIDs[i] = ls.getRegistrationID();
-            leaseIDs[i] = ls.getLeaseID();
-            durations[i] = ((Long)e.getValue()).longValue();
+        for (Iterator<Long> durIt = durations.iterator(); durIt.hasNext(); i++){
+            dur[i] = durIt.next().intValue();
         }
-        FiddlerRenewResults results = server.renewLeases(registrationIDs,
-                                                         leaseIDs,
-                                                         durations);
+        FiddlerRenewResults results = server.renewLeases(
+                registrationIDs.toArray(new Uuid[registrationIDs.size()]),
+                leaseIDs.toArray(new Uuid[leaseIDs.size()]),
+                dur
+                );
         long now = System.currentTimeMillis();
-        HashMap emap = (results.exceptions != null) ?
-                         new HashMap(2 * results.exceptions.length + 1) : null;
+        HashMap<Lease,Exception> emap = (results.exceptions != null) ?
+                         new HashMap<Lease,Exception>(2 * results.exceptions.length + 1) : null;
         i = 0;
         int j = 0;
-        for (Iterator iter = map.entrySet().iterator(); iter.hasNext(); i++) {
-            Map.Entry e = (Map.Entry)iter.next();
+        for (Iterator<FiddlerLease> iter = keys.iterator(); iter.hasNext(); i++) {
+            FiddlerLease e = iter.next();
             long duration = results.durations[i];
             if (duration >= 0) {
-                ((FiddlerLease)e.getKey()).setExpiration(duration + now);
+                // Mutation of volatile field
+                e.setExpiration(duration + now);
             } else {
-                emap.put(e.getKey(), results.exceptions[j++]);
-                iter.remove();
+                emap.put(e, results.exceptions[j++]);
+                remove(e);
             }
         }
         if (emap != null) {
@@ -223,30 +230,32 @@ class FiddlerLeaseMap extends AbstractLeaseMap {
      *         may or may not have been cancelled successfully.
      */
     public void cancelAll() throws LeaseMapException, RemoteException {
-        int size = map.size();
-        if (size == 0) {
-            return;
-        }
-        Uuid[] registrationIDs = new Uuid[size];
-        Uuid[] leaseIDs = new Uuid[size];
+        if( isEmpty()) return;
+        List<FiddlerLease> leases = new LinkedList<FiddlerLease>();
+        List<Uuid> registrationIDs = new LinkedList<Uuid>();
+        List<Uuid> leaseIDs = new LinkedList<Uuid>();
         int i = 0;
-        for (Iterator iter = map.keySet().iterator(); iter.hasNext(); i++) {
-            FiddlerLease ls = (FiddlerLease)iter.next();
-            registrationIDs[i] = ls.getRegistrationID();
-            leaseIDs[i] = ls.getLeaseID();
+        for (Iterator<FiddlerLease> iter = keySet().iterator(); iter.hasNext(); i++) {
+            FiddlerLease ls = iter.next();
+            leases.add(ls);
+            registrationIDs.add(ls.getRegistrationID());
+            leaseIDs.add(ls.getLeaseID());
         }
-        Exception[] exceptions = server.cancelLeases(registrationIDs,leaseIDs);
+        Exception[] exceptions = server.cancelLeases(
+                registrationIDs.toArray(new Uuid[registrationIDs.size()]),
+                leaseIDs.toArray(new Uuid[leaseIDs.size()])
+                );
         if (exceptions == null) {
             return;
         }
         i = 0;
-        HashMap emap = new HashMap(13);
-        for (Iterator iter = map.keySet().iterator(); iter.hasNext(); i++) {
-            FiddlerLease ls = (FiddlerLease)iter.next();
+        Map<Lease,Exception> emap = new HashMap<Lease,Exception>(13);
+        for (Iterator<FiddlerLease> iter = leases.iterator(); iter.hasNext(); i++) {
+            FiddlerLease ls = iter.next();
             Exception ex = exceptions[i];
             if (ex != null) {
                 emap.put(ls, ex);
-                iter.remove();
+                remove(ls);
             }
         }
         throw new LeaseMapException("lease cancellation failures", emap);

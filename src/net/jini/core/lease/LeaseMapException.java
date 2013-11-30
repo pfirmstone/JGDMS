@@ -141,9 +141,9 @@ public class LeaseMapException extends LeaseException {
         StringBuilder sb = new StringBuilder(1024);
         sb.append(super.getMessage());
         sb.append(ret);
-        Iterator<Map.Entry<Lease,Exception>> it = exceptionMap.entrySet().iterator();
+        Iterator<Entry<Lease,Exception>> it = exceptionMap.entrySet().iterator();
         while (it.hasNext()){
-            Entry<Lease,Exception> entry = it.next();
+            Entry<? extends Lease,Exception> entry = it.next();
             sb.append(lease);
             sb.append(entry.getKey());
             sb.append(exception);

@@ -30,6 +30,7 @@ import net.jini.id.Uuid;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import com.sun.jini.lease.AbstractLease;
+import org.apache.river.api.util.ID;
 
 /**
  * Basic implementation of <code>net.jini.core.lease.Lease</code> that works
@@ -40,7 +41,7 @@ import com.sun.jini.lease.AbstractLease;
  * @see Landlord
  * @since 2.0
  */
-public class LandlordLease extends AbstractLease implements ReferentUuid {
+public class LandlordLease extends AbstractLease implements ReferentUuid, ID<Uuid> {
     static final long serialVersionUID = 2L;
 
     /**
@@ -167,13 +168,11 @@ public class LandlordLease extends AbstractLease implements ReferentUuid {
 
     /** Set the expiration. */
     void setExpiration(long expiration) {
-        synchronized (this){
             this.expiration = expiration;
-        }
     }
 
     // inherit doc comment
-    public LeaseMap createLeaseMap(long duration) {
+    public LeaseMap<? extends Lease,Long> createLeaseMap(long duration) {
 	return new LandlordLeaseMap(landlord, landlordUuid, this, duration);
     }
 
@@ -211,5 +210,10 @@ public class LandlordLease extends AbstractLease implements ReferentUuid {
     private void readObjectNoData() throws InvalidObjectException {
 	throw new 
 	    InvalidObjectException("LandlordLease should always have data");
+    }
+
+    @Override
+    public Uuid identity() {
+        return cookie;
     }
 }

@@ -524,7 +524,7 @@ class ClientLeaseWrapper implements Lease, Serializable {
     }
 
     // Inherit java doc from super type
-    public LeaseMap createLeaseMap(long duration) {
+    public LeaseMap<Lease, Long> createLeaseMap(long duration) {
 	if (isDeformed()) {
 	    return new DeformedClientLeaseMapWrapper(this, duration);
 	} else {

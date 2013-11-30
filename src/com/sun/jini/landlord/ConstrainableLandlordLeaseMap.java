@@ -56,11 +56,17 @@ final public class ConstrainableLandlordLeaseMap extends LandlordLeaseMap {
     ConstrainableLandlordLeaseMap(Landlord landlord, Uuid landlordUuid, 
 				  LandlordLease lease, long duration) 
     {
-	super(landlord, landlordUuid, lease, duration);
-	if (!(landlord instanceof RemoteMethodControl))
+	super(chLandlord(landlord), landlordUuid, lease, duration);
+	
+    }
+    
+    private static Landlord chLandlord(Landlord landlord) throws ClassCastException {
+        if (!(landlord instanceof RemoteMethodControl))
 	    throw new ClassCastException("landlord must implement " +
 					 "RemoteMethodControl");
+        return landlord;
     }
+
 
     // doc inherited from super
     public boolean canContainKey(Object key) {

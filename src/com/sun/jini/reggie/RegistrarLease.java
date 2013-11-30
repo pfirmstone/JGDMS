@@ -29,6 +29,7 @@ import net.jini.core.lookup.ServiceID;
 import net.jini.id.ReferentUuid;
 import net.jini.id.ReferentUuids;
 import net.jini.id.Uuid;
+import org.apache.river.api.util.ID;
 
 /**
  * The base class for lease proxies.
@@ -36,7 +37,7 @@ import net.jini.id.Uuid;
  * @author Sun Microsystems, Inc.
  *
  */
-abstract class RegistrarLease extends AbstractLease implements ReferentUuid {
+abstract class RegistrarLease extends AbstractLease implements ReferentUuid, ID<Uuid> {
 
     private static final long serialVersionUID = 2L;
 
@@ -70,7 +71,7 @@ abstract class RegistrarLease extends AbstractLease implements ReferentUuid {
     }
 
     /** Creates a lease map. */
-    public LeaseMap createLeaseMap(long duration) {
+    public LeaseMap<? extends Lease,Long> createLeaseMap(long duration) {
 	return new RegistrarLeaseMap(this, duration);
     }
 
@@ -122,17 +123,16 @@ abstract class RegistrarLease extends AbstractLease implements ReferentUuid {
     ServiceID getRegistrarID() {
 	return registrarID;
     }
+    
+    public Uuid identity(){
+        return leaseID;
+    }
 
     /** Returns the service ID, or the event ID as a Long. */
     abstract Object getRegID();
 
     /** Returns the type of the lease. */
     abstract String getLeaseType();
-
-    /** Sets the expiration. */
-    void setExpiration(long expiration) {
-	this.expiration = expiration;
-    }
 
     /**
      * Writes the default serializable field values for this instance, followed
@@ -167,5 +167,9 @@ abstract class RegistrarLease extends AbstractLease implements ReferentUuid {
      */
     private void readObjectNoData() throws ObjectStreamException {
 	throw new InvalidObjectException("no data");
+    }
+
+    void setExpiration(long expiration) {
+        this.expiration = expiration;
     }
 }

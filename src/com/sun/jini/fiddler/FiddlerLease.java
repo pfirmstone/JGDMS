@@ -37,6 +37,7 @@ import java.io.InvalidObjectException;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.rmi.RemoteException;
+import org.apache.river.api.util.ID;
 
 /**
  * When the Fiddler implementation of the lookup discovery service grants
@@ -51,7 +52,7 @@ import java.rmi.RemoteException;
  *
  */
 class FiddlerLease extends AbstractLease 
-                   implements ReferentUuid
+                   implements ReferentUuid, ID<Uuid>
 {
 
     private static final long serialVersionUID = 2L;
@@ -179,7 +180,7 @@ class FiddlerLease extends AbstractLease
      *
      * @see net.jini.core.lease.Lease#createLeaseMap
      */
-    public LeaseMap createLeaseMap(long duration) {
+    public LeaseMap<FiddlerLease,Long> createLeaseMap(long duration) {
         return FiddlerLeaseMap.createLeaseMap(this, duration);
     }
 
@@ -256,19 +257,6 @@ class FiddlerLease extends AbstractLease
      */
     Uuid getLeaseID() {
         return leaseID;
-    }
-
-    /**
-     * Replaces the current value of the <code>expiration</code> field 
-     * (defined in the <code>AbstractLease</code> super class) with the
-     * value contained in the input parameter. The value contained in the
-     * <code>expiration</code> field represents the absolute (non-relative)
-     * time (in milliseconds) at which the current lease will expire.
-     *
-     * @param expiration the new value of the <code>expiration</code> field
-     */
-    void setExpiration(long expiration) {
-        this.expiration = expiration;
     }
 
     /**
@@ -420,6 +408,14 @@ class FiddlerLease extends AbstractLease
                                          +"deserialize FiddlerLease instance");
     }//end readObjectNoData
 
+    public Uuid identity() {
+        return leaseID;
+    }
+
+    void setExpiration(long expiration) {
+        this.expiration = expiration;
+    }
+
     /** The constrainable version of the class <code>FiddlerLease</code>. 
      *  <p>
      *  When a client obtains an instance of this proxy class, the client
@@ -491,7 +487,7 @@ class FiddlerLease extends AbstractLease
      * @since 2.0
      */
     static final class ConstrainableFiddlerLease extends FiddlerLease
-                                                 implements RemoteMethodControl
+                                                 implements RemoteMethodControl, ID<Uuid>
     {
         static final long serialVersionUID = 2L;
 
@@ -682,6 +678,12 @@ class FiddlerLease extends AbstractLease
                                                         server,
                                                         methodMapArray);
         }//end readObject
+
+        public void setExpiration(long expiration) {
+            synchronized (this) {
+                this.expiration = expiration;
+            }
+        }
 
     }//end class ConstrainableFiddlerLease
 

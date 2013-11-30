@@ -17,16 +17,18 @@
  */
 package com.sun.jini.landlord;
 
-import com.sun.jini.lease.AbstractLeaseMap;
 import java.rmi.RemoteException;
 import java.util.Map;
 import java.util.Iterator;
 import java.util.HashMap;
 import java.util.ConcurrentModificationException;
+import java.util.LinkedList;
+import java.util.List;
 import net.jini.core.lease.Lease;
 import net.jini.core.lease.LeaseMapException;
 import net.jini.id.Uuid;
 import net.jini.id.ReferentUuid;
+import org.apache.river.impl.lease.AbstractLeaseMap;
 
 /**
  * Implementation of <code>LeaseMap</code> for <code>LandlordLease</code>.
@@ -69,16 +71,32 @@ public class LandlordLeaseMap extends AbstractLeaseMap {
     LandlordLeaseMap(Landlord landlord, Uuid landlordUuid, Lease lease,
 		     long duration) 
     {
-	super(new HashMap(), lease, duration);
+        // Constructor Exception attack not possible, exceptions thrown 
+        // prior to super object creation.
+	this(checkLandlord(landlord), checkLandlordUuid(landlordUuid), checkLease(lease));
+        put(lease, duration); // Guaranteed not to throw an exception.
+    }
+    
+    static Lease checkLease(Lease lease) throws ClassCastException{
         if (!(lease instanceof LandlordLease)) throw 
                 new ClassCastException("Lease must be of type LandlordLease");
-	if (landlord == null)
-	    throw new NullPointerException("Landlord must be non-null");
-
-	if (landlordUuid == null)
+        return lease;
+    }
+    
+    static Uuid checkLandlordUuid(Uuid landlordUuid) throws NullPointerException{
+        if (landlordUuid == null)
 	    throw new NullPointerException("landlordUuid must be non-null");
-
-	this.landlord = landlord;
+        return landlordUuid;
+    }
+    
+    static Landlord checkLandlord( Landlord landlord) throws NullPointerException{
+        if (landlord == null)
+	    throw new NullPointerException("Landlord must be non-null");
+        return landlord;
+    }
+    
+    private LandlordLeaseMap(Landlord landlord, Uuid landlordUuid, Lease lease){
+        this.landlord = landlord;
 	this.landlordUuid = landlordUuid;
     }
 
@@ -94,23 +112,24 @@ public class LandlordLeaseMap extends AbstractLeaseMap {
     // inherit doc comment
     public void cancelAll() throws LeaseMapException, RemoteException {
         final Map rslt;
-	Uuid[] cookies;
-        LandlordLease[] leases;
-        synchronized (mapLock){
-            cookies = new Uuid[size()];
-            leases = new LandlordLease[cookies.length];
-            Iterator it = keySet().iterator();
-            for (int i = 0; it.hasNext(); i++) {
-                LandlordLease lease = (LandlordLease) it.next();
-                leases[i] = lease;
-                cookies[i] = lease.cookie();
-            }
-            rslt = landlord.cancelAll(cookies);
+	List<Uuid> cookies;
+        List<LandlordLease> leases;
+        cookies = new LinkedList<Uuid>();
+        leases = new LinkedList<LandlordLease>();
+        Iterator<LandlordLease> it = keySet().iterator();
+        for (int i = 0; it.hasNext(); i++) {
+            LandlordLease lease = (LandlordLease) it.next();
+            leases.add(lease);
+            cookies.add(lease.cookie());
         }
+        
+        Uuid[] cookiesA = cookies.toArray(new Uuid[cookies.size()]);
+        rslt = landlord.cancelAll(cookiesA);
 	if (rslt == null) {
 	    // Everything worked out, normal return
 	    return;
 	} else {
+            LandlordLease[] leasesA = leases.toArray(new LandlordLease[leases.size()]);
 	    // Some the leases could not be canceled, generate a
 	    // LeaseMapException
 	    
@@ -118,13 +137,14 @@ public class LandlordLeaseMap extends AbstractLeaseMap {
 	    // lease->exception map
 
 	    int origSize = rslt.size();
-	    for (int i = 0; i < cookies.length; i++) {
-		Object exception = rslt.remove(cookies[i]); 
+            int len = cookiesA.length;
+	    for (int i = 0; i < len; i++) {
+		Object exception = rslt.remove(cookiesA[i]); 
 		// remove harmless if not in map 
 
 		if (exception != null) {	     // if it was in map
-		    rslt.put(leases[i], exception);  // put back as lease
-		    remove(leases[i]);		     // remove from this map
+		    rslt.put(leasesA[i], exception);  // put back as lease
+		    remove(leasesA[i]);		     // remove from this map
 		}
 	    }
 
@@ -139,43 +159,47 @@ public class LandlordLeaseMap extends AbstractLeaseMap {
 
     // inherit doc comment
     public void renewAll() throws LeaseMapException, RemoteException {
-        Uuid[] cookies;
-	long[] extensions;
-	LandlordLease[] leases;
-        synchronized (mapLock){
-            cookies = new Uuid[size()];
-            extensions = new long[cookies.length];
-            leases = new LandlordLease[cookies.length];
-            Iterator it = keySet().iterator();
-            for (int i = 0; it.hasNext(); i++) {
-                LandlordLease lease = (LandlordLease) it.next();
-                leases[i] = lease;
-                cookies[i] = lease.cookie();
-                extensions[i] = ((Long) get(lease)).longValue();
-            }
+        List<Uuid> cookies;
+	List<Long> extensions;
+	List<LandlordLease> leases;
+        cookies = new LinkedList<Uuid>();
+        extensions = new LinkedList<Long>();
+        leases = new LinkedList<LandlordLease>();
+        Iterator it = keySet().iterator();
+        for (int i = 0; it.hasNext(); i++) {
+            LandlordLease lease = (LandlordLease) it.next();
+            leases.add(lease);
+            cookies.add(lease.cookie());
+            extensions.add(get(lease));
         }
+        long[] extensionsA = new long[extensions.size()];
+        Iterator<Long> ite = extensions.iterator();
+        for ( int i = 0; ite.hasNext(); i++){
+            extensionsA[i] = ite.next().longValue();
+        }
+        Uuid [] cookiesA = cookies.toArray(new Uuid[cookies.size()]);
+        LandlordLease [] leasesA = leases.toArray(new LandlordLease[leases.size()]);
 	long now = System.currentTimeMillis();
-	Landlord.RenewResults results = 
-	    landlord.renewAll(cookies, extensions);
-
+	Landlord.RenewResults results = landlord.renewAll(cookiesA, extensionsA);
 	Map bad = null;
 	int d = 0;
-	for (int i = 0; i < cookies.length; i++) {
+        int len = cookiesA.length;
+	for (int i = 0; i < len; i++) {
 	    if (results.granted[i] != -1) {
 		long newExp = now + results.granted[i];
 		if (newExp < 0) // Overflow, set to Long.MAX_VALUE
 		    newExp = Long.MAX_VALUE;
 		    
-		leases[i].setExpiration(newExp);
+		leasesA[i].setExpiration(newExp);
 	    } else {
 		if (bad == null) {
 		    bad = new HashMap(results.denied.length +
 				      results.denied.length / 2);
 		}
-		Object badTime = remove(leases[i]);   // remove from this map
+		Object badTime = remove(leasesA[i]);   // remove from this map
 		if (badTime == null)		      // better be in there
 		    throw new ConcurrentModificationException();
-		bad.put(leases[i], results.denied[d++]);// add to "bad" map
+		bad.put(leasesA[i], results.denied[d++]);// add to "bad" map
 	    }
 	}
 
