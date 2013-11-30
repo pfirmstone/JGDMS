@@ -35,6 +35,7 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.export.Exporter;
 import net.jini.jrmp.JrmpExporter;
+import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  * A container for nonactivatable services. This class is the
@@ -72,7 +73,7 @@ class NonActivatableGroupImpl {
 	origErr = System.err;
 	System.setErr(System.out);
 	if (System.getSecurityManager() == null) {
-	    System.setSecurityManager(new java.rmi.RMISecurityManager());
+	    System.setSecurityManager(new CombinerSecurityManager());
 	}
 	group = new GroupImpl();
 	try {
