@@ -744,6 +744,7 @@
             <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="${jskplatform.exclude}"/>
             <arg line="-skip net.jini.lookup.entry.EntryBeans"/>
             <arg path="${build.classes.dir}/com/sun/jini/admin"/>
@@ -754,6 +755,7 @@
             <arg path="${build.classes.dir}/net/jini/event"/>
             <arg path="${build.classes.dir}/net/jini/lookup/entry"/>
             <arg path="${build.classes.dir}/net/jini/space"/>
+            <arg path="${build.classes.dir}/org/apache/river/impl/lease/"/>
             <arg value="com.sun.jini.jeri.internal.http.HttpParseException"/>
             <arg value="com.sun.jini.landlord.ConstrainableLandlordLease"/>
             <arg value="com.sun.jini.landlord.ConstrainableLandlordLeaseMap"/>
@@ -792,6 +794,7 @@
             <arg value="-files"/>
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
+            <arg line="-in org.apache.river"/>
             <arg line="${jskplatform.exclude}"/>
             <arg path="${build.classes.dir}/com/sun/jini/admin"/>
             <arg path="${build.classes.dir}/com/sun/jini/config"/>
@@ -805,6 +808,7 @@
             <arg path="${build.classes.dir}/com/sun/jini/thread"/>
             <arg path="${build.classes.dir}/com/sun/jini/system"/> <!--qa suite dep-->
             <arg path="${build.classes.dir}/net/jini"/>
+            <arg path="${build.classes.dir}/org/apache/river/impl/lease"/>
             <arg value="com.sun.jini.logging.Levels"/>
             <arg value="com.sun.jini.phoenix.ActivationAdmin"/>
             <arg value="com.sun.jini.start.LifeCycle"/>
