@@ -17,92 +17,102 @@
  */
 package com.sun.jini.thread;
 
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+
 /**
  * An Object to control the concurrent state.  Allows multiple readers or
- * a single writer.  Waiting writers have priority over new readers.
- * Waiting priority writers have priority over waiting regular writers.
+ * a single writer.
+ * Waiting priority writers have priority over waiting regular writers and 
+ * waiting readers.
  * A single thread cannot hold a lock more than once.
  *
  * @author Sun Microsystems, Inc.
  *
  */
 public class ReadersWriter {
-    /** The number of active readers */
-    private int activeReaders = 0;
-    /** The number of waiting writers (both regular and priority) */
-    private int waitingWriters = 0;
-    /** The number of waiting priority writers */
-    private int waitingPriorityWriters = 0;
-    /** True if there is an active writer */
-    private boolean activeWriter = false;
+    private int waitingWriters;
+    private final AtomicInteger waitingPriorityWriters;
+    private final ReadWriteLock lock;
+    private final Lock readLock;
+    private final Lock writeLock;
+    private final Condition waitingPriorityWriter;
+    private final Condition waitingWriter;
 
-    public ReadersWriter() {}
+    public ReadersWriter() {
+        super();
+        lock = new ReentrantReadWriteLock();
+        readLock = lock.readLock();
+        writeLock = lock.writeLock();
+        waitingPriorityWriter = writeLock.newCondition();
+        waitingWriter = writeLock.newCondition();
+        waitingWriters = 0;
+        waitingPriorityWriters = new AtomicInteger();
+    }
 
     /** Obtain a read lock.  Multiple concurrent readers allowed. */
-    public synchronized void readLock() {
-	while (activeWriter || waitingWriters != 0) {
-	    try {
-		wait();
-	    } catch (InterruptedException e) {
-		throw new ConcurrentLockException(
-				       "read lock interrupted in thread");
-	    }
-	}
-	activeReaders++;
+    public void readLock() {
+	// Stop new readers from obtaining read lock if priority writer
+        // is waiting for current readers to finish.  Prevents writer lock 
+        // starvation.
+        while (waitingPriorityWriters.get() > 0){
+            try {
+                Thread.sleep(50L);
+            } catch (InterruptedException ex) {
+                // reestablish interrupted status.
+                Thread.currentThread().interrupt();
+            }
+        }
+        readLock.lock();
     }
 
     /** Release a read lock. */
-    public synchronized void readUnlock() {
-	activeReaders--;
-	if (activeReaders == 0)
-	    notifyAll();
+    public void readUnlock() {
+	readLock.unlock();
     }
 
     /** Obtain a regular write lock.  Only a single writer allowed at once. */
-    public synchronized void writeLock() {
-	while (activeWriter ||
-	       activeReaders != 0 ||
-	       waitingPriorityWriters != 0)
-	{
-	    try {
-		waitingWriters++;
-		try {
-		    wait();
-		} finally {
-		    waitingWriters--;
-		}
-	    } catch (InterruptedException e) {
-		throw new ConcurrentLockException(
-				      "write lock interrupted in thread");
-	    }
-	}
-	activeWriter = true;
+    public void writeLock() {
+	writeLock.lock();
+        while (waitingPriorityWriters.get() > 0)
+        {
+            try {
+                waitingWriters++;
+                try {
+                    waitingPriorityWriter.signal();
+                    waitingWriter.await();
+                } finally {
+                    waitingWriters--;
+                }
+            } catch (InterruptedException e) {
+                throw new ConcurrentLockException(
+                                      "write lock interrupted in thread");
+            }
+        }
     }
 
     /** Obtain a priority write lock.  Only a single writer allowed at once. */
-    public synchronized void priorityWriteLock() {
-	while (activeWriter || activeReaders != 0) {
-	    try {
-		waitingWriters++;
-		waitingPriorityWriters++;
-		try {
-		    wait();
-		} finally {
-		    waitingWriters--;
-		    waitingPriorityWriters--;
-		}
-	    } catch (InterruptedException e) {
-		throw new ConcurrentLockException(
-				      "write lock interrupted in thread");
-	    }
-	}
-	activeWriter = true;
+    public void priorityWriteLock() {
+	waitingPriorityWriters.getAndIncrement();
+        try {
+            writeLock.lock();
+        } finally {
+            waitingPriorityWriters.getAndDecrement();
+        }
     }
 
     /** Release a (regular or priority) write lock. */
-    public synchronized void writeUnlock() {
-	activeWriter = false;
-	notifyAll();
+    public void writeUnlock() {
+	// should be in a locked state or an exception will be thrown.
+        try {
+            if (waitingPriorityWriters.get() > 0) waitingPriorityWriter.signal();
+            else if (waitingWriters > 0) waitingWriter.signal();
+        } finally {
+            writeLock.unlock();
+        }
     }
 
     /**

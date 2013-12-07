@@ -35,7 +35,6 @@ import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
 import com.sun.jini.start.LifeCycle;
 import com.sun.jini.thread.InterruptedStatusThread;
-import com.sun.jini.thread.ReadersPriorityWriter;
 import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadersWriter.ConcurrentLockException;
 import com.sun.jini.thread.ReadyState;
@@ -312,7 +311,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     private final Thread snapshotter;
 
     /** Concurrent object to control read and write access */
-    private final ReadersWriter concurrentObj = new ReadersPriorityWriter();
+    private final ReadersWriter concurrentObj = new ReadersWriter();
     /** Object for synchronizing with the service expire thread */
     private final Object serviceNotifier = new Object();
     /** Object for synchronizing with the event expire thread */

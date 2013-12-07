@@ -299,7 +299,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
     private static final Set<ClassLoader> localLoaders;
     static {
         Set<Referrer<ClassLoader>> internal = Collections.newSetFromMap(new ConcurrentHashMap<Referrer<ClassLoader>,Boolean>());
-        localLoaders = RC.set(internal, Ref.WEAK_IDENTITY, 100L);
+        localLoaders = RC.set(internal, Ref.WEAK_IDENTITY, 10000L);
 	AccessController.doPrivileged(new PrivilegedAction<ClassLoader>() {
 	    public ClassLoader run() {
 		for (ClassLoader loader = ClassLoader.getSystemClassLoader();
@@ -393,7 +393,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	this.requireDlPerm = requireDlPerm;
         ConcurrentMap<Referrer<ClassLoader>,Referrer<PermissionCollection>> inter =
                 new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<PermissionCollection>>();
-        classLoaderPerms = RC.concurrentMap(inter, Ref.WEAK_IDENTITY, Ref.STRONG, 200L, 200L);
+        classLoaderPerms = RC.concurrentMap(inter, Ref.WEAK_IDENTITY, Ref.STRONG, 5000L, 5000L);
 	initialized = true;
     }
 

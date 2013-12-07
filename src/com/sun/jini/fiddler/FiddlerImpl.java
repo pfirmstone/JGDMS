@@ -37,7 +37,6 @@ import com.sun.jini.start.LifeCycle;
 import org.apache.river.api.util.Commission;
 
 import com.sun.jini.thread.InterruptedStatusThread;
-import com.sun.jini.thread.ReadersPriorityWriter;
 import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadersWriter.ConcurrentLockException;
 import com.sun.jini.thread.ReadyState;
@@ -280,7 +279,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
     private final SnapshotThread snapshotThread;
 
     /** Concurrent object to control read and write access */
-    private final ReadersWriter concurrentObj = new ReadersPriorityWriter();
+    private final ReadersWriter concurrentObj = new ReadersWriter();
     /** Object for synchronizing with the registration expire thread */
     private final Object leaseExpireThreadSyncObj = new Object();
     /** Object on which the snapshot-taking thread will synchronize */

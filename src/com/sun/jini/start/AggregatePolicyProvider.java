@@ -110,7 +110,7 @@ public class AggregatePolicyProvider
     private final ConcurrentMap<ClassLoader,Policy> subPolicyChildClassLoaderCache =
             RC.concurrentMap(
             new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<Policy>>(),
-            Ref.WEAK_IDENTITY, Ref.STRONG, 1000L, 0L);
+            Ref.WEAK_IDENTITY, Ref.STRONG, 10000L, 0L);
     private final ReadWriteLock rwl = new ReentrantReadWriteLock();
     private final Lock lock = rwl.writeLock();
     private final Lock readLock = rwl.readLock(); // stop access to subPolicyChildClassLoaderCache while write in progress.

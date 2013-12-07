@@ -1085,6 +1085,11 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      * Returns an URL that will be checked if it contains the class or resource.
      * If the file component of the URL is not a directory, a Jar URL will be
      * created.
+     * 
+     * We need to modify this implementation to allow URLStreamHandlerFactory's
+     * to use custom caching, such as the per ClassLoader caching used by
+     * Apache Geronimo.  This would be very useful as it allows services
+     * to upgrade themselves by reloading and replacing their proxy's.
      *
      * @return java.net.URL a test URL
      */
