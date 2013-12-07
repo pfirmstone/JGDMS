@@ -34,7 +34,7 @@ import java.io.PrintStream;
 public class MultihomedClientTest implements LegacyTest {
 
     private String command = System.getProperty("java.home") + File.separator
-        + "bin" + File.separator + "java ";
+        + "bin" + File.separator + "java";
     private QAConfig config = null;
 
     public Test construct(QAConfig config) {
@@ -44,6 +44,9 @@ public class MultihomedClientTest implements LegacyTest {
 
     public void run() throws Exception {
         StringBuffer buff = new StringBuffer(command);
+        buff.insert(0, '"');
+        buff.append('"');
+        buff.append(' ');
         appendProperties(buff);
         buff.append("com.sun.jini.test.impl.reggie.Driver");
         System.out.println(buff);
