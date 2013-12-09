@@ -42,13 +42,13 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      *
      * @serial
      */
-    protected ServiceID serviceID;
+    protected final ServiceID serviceID;
     /**
      * One of ServiceRegistrar.TRANSITION_*MATCH_*MATCH.
      *
      * @serial
      */
-    protected int transition;
+    protected final int transition;
 
     /**
      * Simple constructor.

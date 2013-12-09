@@ -17,6 +17,9 @@
  */
 package com.sun.jini.reggie;
 
+import au.net.zeus.collection.RC;
+import au.net.zeus.collection.Ref;
+import au.net.zeus.collection.Referrer;
 import com.sun.jini.config.Config;
 import com.sun.jini.constants.ThrowableConstants;
 import com.sun.jini.constants.VersionConstants;
@@ -37,7 +40,7 @@ import com.sun.jini.start.LifeCycle;
 import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadersWriter.ConcurrentLockException;
-import com.sun.jini.thread.ReadyState;
+//import com.sun.jini.thread.ReadyState;
 import com.sun.jini.thread.TaskManager;
 import java.io.DataInputStream;
 import java.io.IOException;
@@ -74,6 +77,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -82,8 +86,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
+import java.util.Set;
 import java.util.SortedMap;
 import java.util.TreeMap;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.Executor;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.net.ServerSocketFactory;
@@ -266,7 +278,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     /** Generator for service IDs */
     private final UuidGenerator serviceIdGenerator;
     /** Event ID */
-    private volatile long eventID = 0;
+    private long eventID = 0; // protected by concurrentObj
     /** Random number generator for use in lookup */
     private final Random random = new Random();
 
@@ -280,7 +292,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     private final ProxyPreparer recoveredLocatorPreparer;
 
     /** ArrayList of pending EventTasks */
-    private final Collection<EventTask> newNotifies = new LinkedList<EventTask>();
+//    private final Collection<EventTask> newNotifies = new LinkedList<EventTask>();
 
     /** Current maximum service lease duration granted, in milliseconds. */
     private long maxServiceLease;
@@ -296,7 +308,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     /** Manager for joining other lookup services */
     private volatile JoinManager joiner;
     /** Task manager for sending events and discovery responses */
-    private final TaskManager tasker;
+//    private final TaskManager tasker;
+    private final ThreadPoolExecutor eventNotifierExec;
+    private final ThreadPoolExecutor discoveryResponseExec;
     /** Service lease expiration thread */
     private final Thread serviceExpirer;
     /** Event lease expiration thread */
@@ -380,7 +394,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     private final ClientSubjectChecker unicastDiscoverySubjectChecker;
 
     /** Lock protecting startup and shutdown */
-    private final ReadyState ready = new ReadyState();
+    //private final ReadyState ready = new ReadyState();
     
     // Not required after start is called.
     private String unicastDiscoveryHost;
@@ -498,7 +512,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
         multicastInterfacesSpecified = init.multicastInterfacesSpecified;
         resourceIdGenerator = init.resourceIdGenerator;
         serviceIdGenerator = init.serviceIdGenerator;
-        tasker = init.tasker;
+//        tasker = init.tasker;
         unexportTimeout = init.unexportTimeout;
         unexportWait = init.unexportWait;
         objectServiceType = init.objectServiceType;
@@ -509,6 +523,32 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
         multicastAnnouncementConstraints = init.multicastAnnouncementConstraints;
         unicastDiscoveryConstraints = init.unicastDiscoveryConstraints;
         context = init.context;
+        // Set up Executor to perform remote event notifications, this will
+        // naturally shutdown when Reggie terminates.
+        // Make this a tunable property.
+        double blocking_coefficient = 0.9; // 0 CPU intensive to 0.9 IO intensive
+        int numberOfCores = Runtime.getRuntime().availableProcessors();
+        int poolSizeLimit = (int) (numberOfCores / ( 1 - blocking_coefficient));
+        ThreadPoolExecutor exec = new ThreadPoolExecutor(
+            1, 
+            poolSizeLimit, 
+            15L, 
+            TimeUnit.MINUTES, 
+            new LinkedBlockingQueue()
+        );
+//        exec.allowCoreThreadTimeOut(true);
+        eventNotifierExec = exec;
+        // Set up Executor to perform discovery responses, this will naturally
+        // shutdown when Reggie terminates.
+        exec = new ThreadPoolExecutor(
+                1, 
+                poolSizeLimit, 
+                15L, 
+                TimeUnit.MINUTES, 
+                new LinkedBlockingQueue()
+        );
+//        exec.allowCoreThreadTimeOut(true);
+        discoveryResponseExec = exec;
         
         ReliableLog log = null;
         Thread serviceExpirer = null;
@@ -1550,7 +1590,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
          * @see RegistrarImpl.LocalLogHandler#applyUpdate
 	 */
 	public void apply(RegistrarImpl regImpl) {
-	    regImpl.memberGroups = groups;
+            regImpl.concurrentObj.writeLock();
+            try {
+                regImpl.memberGroups = groups;
+            } finally {
+                regImpl.concurrentObj.writeUnlock();
+            }
 	}
     }
 
@@ -2013,30 +2058,32 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     }
 
     /** An event to be sent, and the listener to send it to. */
-    private final class EventTask implements TaskManager.Task {
+    private static final class EventTask implements Runnable {
 
 	/** The event registration */
-	public final EventReg reg;
+	private final EventReg reg;
 	/** The sequence number of this event */
-	public final long seqNo;
+	private final long seqNo;
 	/** The service id */
-	public final ServiceID sid;
+	private final ServiceID sid;
 	/** The new state of the item, or null if deleted */
-	public final Item item;
+	private final Item item;
 	/** The transition that fired */
-	public final int transition;
+	private final int transition;
+        
+        private final RegistrarProxy proxy;
+        private final Registrar registrar;
 
 	/** Simple constructor, except increments reg.seqNo. */
-	public EventTask(EventReg reg,
-			 ServiceID sid,
-			 Item item,
-			 int transition)
+	public EventTask(EventReg reg, ServiceID sid, Item item, int transition, RegistrarProxy proxy, Registrar registrar)
 	{
 	    this.reg = reg;
 	    seqNo = reg.incrementAndGetSeqNo();
 	    this.sid = sid;
 	    this.item = item;
 	    this.transition = transition;
+            this.proxy = proxy;
+            this.registrar = registrar;
 	}
 
 	/** Send the event */
@@ -2066,7 +2113,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 		     */
 		    logger.log(Level.INFO, "exception sending event", e);
 		    try {
-			cancelEventLease(reg.eventID, reg.leaseID);
+			registrar.cancelEventLease(reg.eventID, reg.leaseID);
 		    } catch (UnknownLeaseException ee) {
 			logger.log(
 			    Levels.HANDLED,
@@ -2083,28 +2130,39 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	}
 
 	/** Keep events going to the same listener ordered. */
-	public boolean runAfter(List tasks, int size) {
-	    for (int i = size; --i >= 0; ) {
-		Object obj = tasks.get(i);
-		if (obj instanceof EventTask &&
-		    reg.listener.equals(((EventTask)obj).reg.listener))
-		    return true;
-	    }
-	    return false;
-	}
+//	public boolean runAfter(List tasks, int size) {
+//	    for (int i = size; --i >= 0; ) {
+//		Object obj = tasks.get(i);
+//		if (obj instanceof EventTask &&
+//		    reg.listener.equals(((EventTask)obj).reg.listener))
+//		    return true;
+//	    }
+//	    return false;
+//	}
     }
 
     /** Task for decoding multicast request packets. */
-    private final class DecodeRequestTask implements TaskManager.Task {
-
+    private static final class DecodeRequestTask implements Runnable {
+        /* Keeps a record of AddressTasks for at least 5 minutes
+         * to avoid DOS attacks.
+         */
+        private static final Set<AddressTask> executedTasks =
+                RC.set(new ConcurrentSkipListSet<Referrer<AddressTask>>(
+                        RC.comparator(new AddressTaskComparator())), 
+                        Ref.TIME,
+                        5000L);
 	/** The multicast packet to decode */
 	private final DatagramPacket datagram;
 	/** The decoder for parsing the packet */
 	private final Discovery decoder;
+        private final RegistrarImpl reggie;
 
-	public DecodeRequestTask(DatagramPacket datagram, Discovery decoder) {
+	public DecodeRequestTask(
+                DatagramPacket datagram, Discovery decoder, RegistrarImpl reggie) 
+        {
 	    this.datagram = datagram;
 	    this.decoder = decoder;
+            this.reggie = reggie;
 	}
 
 	/**
@@ -2120,8 +2178,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	    try {
 		req = decoder.decodeMulticastRequest(
 		    datagram,
-		    multicastRequestConstraints.getUnfulfilledConstraints(),
-		    multicastRequestSubjectChecker, true);
+		    reggie.multicastRequestConstraints.getUnfulfilledConstraints(),
+		    reggie.multicastRequestSubjectChecker, true);
 	    } catch (Exception e) {
 		if (!(e instanceof InterruptedIOException) &&
 		    logger.isLoggable(Levels.HANDLED))
@@ -2139,8 +2197,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 		return;
 	    }
 	    String[] groups = req.getGroups();
-	    if ((groups.length == 0 || overlap(memberGroups, groups)) &&
-		indexOf(req.getServiceIDs(), myServiceID) < 0)
+	    if ((groups.length == 0 || overlap(reggie.memberGroups, groups)) &&
+		indexOf(req.getServiceIDs(), reggie.myServiceID) < 0)
 	    {
 		try {
 		    req.checkConstraints();
@@ -2160,32 +2218,51 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 		    }
 		    return;
 		}
-		tasker.addIfNew(new AddressTask(req.getHost(), req.getPort()));
+		AddressTask task = 
+                        new AddressTask(req.getHost(), req.getPort(), reggie);
+                if (executedTasks.add(task)) task.run();
 	    }
-	}
-
-	/** No ordering */
-	public boolean runAfter(List tasks, int size) {
-	    return false;
 	}
     }
 
+    private static class AddressTaskComparator implements Comparator<AddressTask>{
+
+        @Override
+        public int compare(AddressTask o1, AddressTask o2) {
+            return o1.compareTo(o2);
+        }
+        
+    }
     /** Address for unicast discovery response. */
-    private final class AddressTask implements TaskManager.Task {
+    private static final class AddressTask implements Runnable, Comparable<AddressTask> {
 
 	/** The address */
-	public final String host;
+	private final String host;
 	/** The port */
-	public final int port;
+	private final int port;
+        
+        private final RegistrarImpl reggie;
+                
+        private final int hash;
+        
 
 	/** Simple constructor */
-	public AddressTask(String host, int port) {
+	public AddressTask(
+                String host, int port, RegistrarImpl reggie) 
+        {
+            this.reggie = reggie;
 	    this.host = host;
 	    this.port = port;
-	}
+            int hash = 3;
+            hash = 37 * hash + (this.host != null ? this.host.hashCode() : 0);
+            hash = 37 * hash + this.port;
+            this.hash = hash;
+        }
 
+	/** Two tasks are equal if they have the same address and port */
+        @Override
 	public int hashCode() {
-	    return host.hashCode();
+	    return hash;
 	}
 
 	/** Two tasks are equal if they have the same address and port */
@@ -2217,7 +2294,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 		    }
 		}
 	        long deadline = DiscoveryConstraints.process(
-	            rawUnicastDiscoveryConstraints).getConnectionDeadline(
+	            reggie.rawUnicastDiscoveryConstraints).getConnectionDeadline(
 	                Long.MAX_VALUE);
 		long now = System.currentTimeMillis();
 		if (deadline <= now)
@@ -2265,19 +2342,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	    }
 	}
 
-	/** No ordering */
-	public boolean runAfter(List tasks, int size) {
-	    return false;
-	}
-
         /** attempt a connection to multicast request client */
         private void attemptResponse(InetSocketAddress addr, int timeout) 
             throws Exception 
         {
-            Socket s = socketFactory.createSocket();
+            Socket s = reggie.socketFactory.createSocket();
             try {
                 s.connect(addr, timeout);
-                respond(s);
+                reggie.respond(s);
             } finally {
                 try {
                     s.close();
@@ -2286,23 +2358,35 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
                 }
             }
         }
+
+        @Override
+        public int compareTo(AddressTask o) {
+            int hostCompare = host.compareTo(o.host);
+            if ( hostCompare == -1) return -1;
+            if ( hostCompare == 1) return 1;
+            if (port < o.port) return -1;
+            if (port > o.port) return 1;
+            return 0;
+        }
     }
 
     /** Socket for unicast discovery response. */
-    private final class SocketTask implements TaskManager.Task {
+    private static final class SocketTask implements Runnable {
 
 	/** The socket */
 	public final Socket socket;
+        public final RegistrarImpl reggie;
 
 	/** Simple constructor */
-	public SocketTask(Socket socket) {
+	public SocketTask(Socket socket, RegistrarImpl reggie) {
 	    this.socket = socket;
+            this.reggie = reggie;
 	}
 
 	/** Process a unicast discovery request */
 	public void run() {
 	    try {
-		respond(socket);
+		reggie.respond(socket);
 	    } catch (Exception e) {
 	        if (logger.isLoggable(Levels.HANDLED)) {
 		    logThrow(
@@ -2317,11 +2401,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 			e);
 		}
 	    }
-	}
-
-	/** No ordering */
-	public boolean runAfter(List tasks, int size) {
-	    return false;
 	}
     }
 
@@ -2465,7 +2544,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	    multicaster.interrupt();
 	    announcer.interrupt();
 	    snapshotter.interrupt();
-	    tasker.terminate();
+//	    tasker.terminate();
+            eventNotifierExec.shutdown();
+            List<Runnable> cancelledTasks = discoveryResponseExec.shutdownNow();
 	    joiner.terminate();
 	    discoer.terminate();
 	    try {
@@ -2477,7 +2558,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 		snapshotter.join();
 	    } catch (InterruptedException e) {
 	    }
-	    closeRequestSockets(tasker.getPending());
+	    closeRequestSockets(cancelledTasks);
 	    if (log != null) {
 		log.deletePersistentStore();
 		logger.finer("deleted persistence directory");
@@ -2511,7 +2592,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	/** Multicast socket to receive packets */
 	private final MulticastSocket socket;
 	/** Interfaces for which configuration failed */
-	private final List<NetworkInterface> failedInterfaces = new ArrayList<NetworkInterface>();
+	private final List<NetworkInterface> failedInterfaces;
 
 	/**
 	 * Create a high priority daemon thread.  Set up the socket now
@@ -2520,10 +2601,12 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	public MulticastThread() throws IOException {
 	    super("multicast request");
 	    setDaemon(true);
+            List<NetworkInterface> failedInterfaces = new ArrayList<NetworkInterface>();
 	    if (multicastInterfaces != null && multicastInterfaces.length == 0)
 	    {
 		requestAddr = null;
 		socket = null;
+                this.failedInterfaces = failedInterfaces;
 		return;
 	    }
 	    requestAddr = Constants.getRequestAddress();
@@ -2559,6 +2642,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 			"exception enabling default interface", e);
 		}
 	    }
+            this.failedInterfaces = failedInterfaces;
 	}
 
 	public void run() {
@@ -2606,7 +2690,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 			throw new DiscoveryProtocolException(null, e);
 		    }
 		    multicastRequestConstraints.checkProtocolVersion(pv);
-		    tasker.add(new DecodeRequestTask(dgram, getDiscovery(pv)));
+		    discoveryResponseExec.execute(
+                            new DecodeRequestTask(
+                                    dgram, 
+                                    getDiscovery(pv), 
+                                    RegistrarImpl.this
+                            )
+                    );
 
 		    buf = new byte[buf.length];
 		    dgram = new DatagramPacket(buf, buf.length);
@@ -2626,7 +2716,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	    socket.close();
 	}
 
-	public synchronized void interrupt() {
+	public void interrupt() {
 	    // close socket to interrupt MulticastSocket.receive operation
 	    if (socket != null)
 	        socket.close();
@@ -2708,7 +2798,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 			}
 			break;
 		    }
-		    tasker.add(new SocketTask(socket));
+		    discoveryResponseExec.execute(new SocketTask(socket, RegistrarImpl.this));
 		} catch (InterruptedIOException e) {
 		    break;
 		} catch (Exception e) {
@@ -2730,7 +2820,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 	 * can't be used as a workaround, because it also doesn't work
 	 * on all platforms.
 	 */
-	public synchronized void interrupt() {
+	public void interrupt() {
 	    try {
                 Socket s = socketFactory.createSocket(InetAddress.getLocalHost(), port);
                 s.close();
@@ -2998,7 +3088,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public Object getServiceProxy() throws NoSuchObjectException {
-	ready.check();
+//	ready.check();
 	return proxy;
     }
 
@@ -3010,7 +3100,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public TrustVerifier getProxyVerifier() throws NoSuchObjectException {
-	ready.check();
+//	ready.check();
 	return new ProxyVerifier(myRef, myServiceID);
     }
 
@@ -3018,7 +3108,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public ServiceRegistration register(Item nitem, long leaseDuration)
         throws NoSuchObjectException
     {	
-        ready.check(); // Don't wait while holding write lock.
+//        ready.check(); // Don't wait while holding write lock.
 	concurrentObj.writeLock();
 	try {
 	    ServiceRegistration reg = registerDo(nitem, leaseDuration);
@@ -3038,7 +3128,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     // This method's javadoc is inherited from an interface of this class
     public MarshalledWrapper lookup(Template tmpl) throws NoSuchObjectException
     {	
-        ready.check();
+//        ready.check();
 	concurrentObj.readLock();
 	try {
 	    return lookupDo(tmpl);
@@ -3051,7 +3141,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public Matches lookup(Template tmpl, int maxMatches)
 	throws NoSuchObjectException
     {	
-        ready.check();
+//        ready.check();
 	concurrentObj.readLock();
 	try {
 	    return lookupDo(tmpl, maxMatches);
@@ -3068,7 +3158,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 				    long leaseDuration)
 	throws RemoteException
     {	
-        ready.check(); // Don't wait while holding write lock.
+//        ready.check(); // Don't wait while holding write lock.
 	concurrentObj.writeLock();
 	try {
 	    EventRegistration reg = notifyDo(
@@ -3092,7 +3182,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public EntryClassBase[] getEntryClasses(Template tmpl)
         throws NoSuchObjectException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.readLock();
 	try {
 	    return getEntryClassesDo(tmpl);
@@ -3105,7 +3195,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public Object[] getFieldValues(Template tmpl, int setIndex, int field)
         throws NoSuchObjectException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.readLock();
 	try {
 	    return getFieldValuesDo(tmpl, setIndex, field);
@@ -3118,7 +3208,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public ServiceTypeBase[] getServiceTypes(Template tmpl, String prefix)
         throws NoSuchObjectException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.readLock();
 	try {
 	    return getServiceTypesDo(tmpl, prefix);
@@ -3129,13 +3219,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public LookupLocator getLocator() throws NoSuchObjectException {
-	ready.check();
+//	ready.check();
 	return myLocator;
     }
 
     // This method's javadoc is inherited from an interface of this class
     public Object getAdmin() throws NoSuchObjectException {
-	ready.check();
+//	ready.check();
 	return AdminProxy.getInstance(myRef, myServiceID);
     }
 
@@ -3145,7 +3235,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 			      EntryRep[] attrSets)
 	throws NoSuchObjectException, UnknownLeaseException
     {
-        ready.check();// Don't wait while holding write lock.
+//        ready.check();// Don't wait while holding write lock.
 	concurrentObj.writeLock();
 	try {
 	    if (serviceID.equals(myServiceID))
@@ -3165,7 +3255,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 				 EntryRep[] attrSets)
 	throws NoSuchObjectException, UnknownLeaseException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    if (serviceID.equals(myServiceID))
@@ -3185,7 +3275,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 			      EntryRep[] attrSets)
 	throws NoSuchObjectException, UnknownLeaseException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    if (serviceID.equals(myServiceID))
@@ -3202,7 +3292,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public void cancelServiceLease(ServiceID serviceID, Uuid leaseID)
 	throws NoSuchObjectException, UnknownLeaseException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    cancelServiceLeaseDo(serviceID, leaseID);
@@ -3225,7 +3315,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 				  long renewDuration)
 	throws NoSuchObjectException, UnknownLeaseException
     {	
-        ready.check();
+//        ready.check();
 	concurrentObj.priorityWriteLock();
 	try {
 	    return renewServiceLeaseDo(serviceID, leaseID, renewDuration);
@@ -3239,7 +3329,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public void cancelEventLease(long eventID, Uuid leaseID)
 	throws NoSuchObjectException, UnknownLeaseException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    cancelEventLeaseDo(eventID, leaseID);
@@ -3259,7 +3349,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public long renewEventLease(long eventID, Uuid leaseID, long renewDuration)
 	throws NoSuchObjectException, UnknownLeaseException
     {	
-        ready.check();
+//        ready.check();
 	concurrentObj.priorityWriteLock();
 	try {
 	    return renewEventLeaseDo(eventID, leaseID, renewDuration);
@@ -3275,7 +3365,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 				    long[] renewDurations)
         throws NoSuchObjectException
     {	
-        ready.check();
+//        ready.check();
 	concurrentObj.priorityWriteLock();
 	try {
 	    return renewLeasesDo(regIDs, leaseIDs, renewDurations);
@@ -3289,7 +3379,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public Exception[] cancelLeases(Object[] regIDs, Uuid[] leaseIDs)
         throws NoSuchObjectException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    Exception[] exceptions = cancelLeasesDo(regIDs, leaseIDs);
@@ -3321,7 +3411,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public Entry[] getLookupAttributes() throws NoSuchObjectException {
-        ready.check();
+//        ready.check();
 	concurrentObj.readLock();
 	try {
 	    /* no need to clone, never modified once created */
@@ -3333,7 +3423,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public void addLookupAttributes(Entry[] attrSets) throws RemoteException {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    EntryRep[] attrs = EntryRep.toEntryRep(attrSets, true);
@@ -3354,7 +3444,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 				       Entry[] attrSets)
 	throws RemoteException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    EntryRep[] tmpls = EntryRep.toEntryRep(attrSetTemplates, false);
@@ -3373,7 +3463,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public String[] getLookupGroups() throws NoSuchObjectException {
-        ready.check();
+//        ready.check();
 	concurrentObj.readLock();
 	try {
 	    /* no need to clone, never modified once created */
@@ -3385,7 +3475,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public void addLookupGroups(String[] groups) throws NoSuchObjectException {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    DiscoveryGroupManagement dgm = (DiscoveryGroupManagement) discoer;
@@ -3411,7 +3501,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public void removeLookupGroups(String[] groups)
 	throws NoSuchObjectException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    DiscoveryGroupManagement dgm = (DiscoveryGroupManagement) discoer;
@@ -3431,7 +3521,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public void setLookupGroups(String[] groups) throws NoSuchObjectException {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    DiscoveryGroupManagement dgm = (DiscoveryGroupManagement) discoer;
@@ -3456,7 +3546,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public LookupLocator[] getLookupLocators() throws NoSuchObjectException {
-        ready.check();
+//        ready.check();
 	concurrentObj.readLock();
 	try {
 	    /* no need to clone, never modified once created */
@@ -3470,11 +3560,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public void addLookupLocators(LookupLocator[] locators)
 	throws RemoteException
     {	
-	ready.check();
+//	ready.check();
 	locators = prepareLocators(locators, locatorPreparer, false);
 	concurrentObj.writeLock();
 	try {
-	    ready.check();	    
+//	    ready.check();	    
 	    DiscoveryLocatorManagement dlm = 
 		(DiscoveryLocatorManagement) discoer;
 	    dlm.addLocators(locators);
@@ -3495,11 +3585,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public void removeLookupLocators(LookupLocator[] locators)
 	throws RemoteException
     {	
-    	ready.check();
+//    	ready.check();
     	locators = prepareLocators(locators, locatorPreparer, false);
 	concurrentObj.writeLock();
 	try {
-	    ready.check();	    
+//	    ready.check();	    
 	    DiscoveryLocatorManagement dlm = 
 		(DiscoveryLocatorManagement) discoer;
 	    dlm.removeLocators(locators);
@@ -3520,11 +3610,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public void setLookupLocators(LookupLocator[] locators)
 	throws RemoteException
     {
-    	ready.check();
+//    	ready.check();
     	locators = prepareLocators(locators, locatorPreparer, false);
 	concurrentObj.writeLock();
 	try {
-	    ready.check();
+//	    ready.check();
 	    DiscoveryLocatorManagement dlm = 
 		(DiscoveryLocatorManagement) discoer;
 	    dlm.setLocators(locators);
@@ -3543,7 +3633,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public void addMemberGroups(String[] groups) throws NoSuchObjectException {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    for (int i = 0; i < groups.length; i++) {
@@ -3569,7 +3659,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     public void removeMemberGroups(String[] groups)
 	throws NoSuchObjectException
     {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    for (int i = 0; i < groups.length; i++) {
@@ -3594,7 +3684,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public String[] getMemberGroups() throws NoSuchObjectException {
-        ready.check();
+//        ready.check();
 	concurrentObj.readLock();
 	try {
 	    /* no need to clone, never modified once created */
@@ -3606,7 +3696,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public void setMemberGroups(String[] groups) throws NoSuchObjectException {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    memberGroups = (String[])removeDups(groups);
@@ -3627,7 +3717,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public int getUnicastPort() throws NoSuchObjectException {
-        ready.check();
+//        ready.check();
 	concurrentObj.readLock();
 	try {
 	    return unicastPort;
@@ -3638,7 +3728,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public void setUnicastPort(int port) throws IOException,RemoteException {
-        ready.check();
+//        ready.check();
 	concurrentObj.writeLock();
 	try {
 	    if (port == unicastPort)
@@ -3682,7 +3772,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     // This method's javadoc is inherited from an interface of this class
     public void destroy() throws RemoteException {
-        ready.check();
+//        ready.check();
 	concurrentObj.priorityWriteLock();
 	try {
 	    logger.info("starting Reggie shutdown");
@@ -3699,7 +3789,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 		    throw e;
 		}
 	    }
-	    ready.shutdown();	    
+//	    ready.shutdown();	    
 	    new DestroyThread().start();
 	} finally {
 	    concurrentObj.writeUnlock();
@@ -4603,7 +4693,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     }
 
     /** Close any sockets that were sitting in the task queue. */
-    private void closeRequestSockets(ArrayList tasks) {
+    private void closeRequestSockets(List tasks) {
 	for (int i = tasks.size(); --i >= 0; ) {
 	    Object obj = tasks.get(i);
 	    if (obj instanceof SocketTask) {
@@ -4647,7 +4737,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
          boolean multicastInterfacesSpecified;
          UuidGenerator resourceIdGenerator;
          UuidGenerator serviceIdGenerator;
-         TaskManager tasker;
+//         TaskManager tasker;
          long unexportTimeout;
          long unexportWait;
          ServiceType objectServiceType;
@@ -4850,9 +4940,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
             this.serviceIdGenerator = (UuidGenerator) Config.getNonNullEntry(
                 config, COMPONENT, "serviceIdGenerator", UuidGenerator.class,
                 u);
-            this.tasker = (TaskManager) Config.getNonNullEntry(
-                config, COMPONENT, "taskManager", TaskManager.class,
-                new TaskManager(50, 1000 * 15, 1.0F));
+//            this.tasker = (TaskManager) Config.getNonNullEntry(
+//                config, COMPONENT, "taskManager", TaskManager.class,
+//                new TaskManager(50, 1000 * 15, 1.0F));
             this.unexportTimeout = Config.getLongEntry(
                    config, COMPONENT, "unexportTimeout", 20000L,
                    0, Long.MAX_VALUE);
@@ -4986,7 +5076,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
             unicastDiscoveryHost = null;
             context = null;
             concurrentObj.writeUnlock();
-            ready.ready();
+//            ready.ready();
         }
     
     }
@@ -5749,15 +5839,18 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     {
 	if (item != null)
 	    item = copyItem(item);
-	newNotifies.add(new EventTask(reg, sid, item, transition));
+	eventNotifierExec.execute(new EventTask(reg, sid, item, transition, proxy, this));
     }
 
     /** Queue all pending EventTasks for processing by the task manager. */
     private void queueEvents() {
-	if (!newNotifies.isEmpty()) {
-	    tasker.addAll(newNotifies);
-	    newNotifies.clear();
-	}
+//	if (!newNotifies.isEmpty()) {
+//	    Iterator<EventTask> i = newNotifies.iterator();
+//            while (i.hasNext()){
+//                eventNotifierExec.execute(i.next());
+//            }
+//	    newNotifies.clear();
+//	}
     }
 
     /** Generate a new service ID */

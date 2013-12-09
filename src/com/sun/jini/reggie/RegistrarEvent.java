@@ -42,7 +42,7 @@ class RegistrarEvent extends ServiceEvent {
      *
      * @serial
      */
-    private Object serviceItem;
+    private volatile Object serviceItem;
     /**
      * The service ID of the serviceItem that triggered the event.  This field is used
      * instead of the inherited serviceID field (which is set to null) and is
