@@ -86,7 +86,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
     }
 
     /** The event handler for the services registered by this class */
-    private static BasicListener listener;
+    private BasicListener listener;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current QA test.

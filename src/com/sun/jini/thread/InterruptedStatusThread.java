@@ -26,14 +26,27 @@ package com.sun.jini.thread;
  */
 public class InterruptedStatusThread extends Thread {
     
+    /**
+     * A Runnable task can implement this to be interrupted if something
+     * special needs to be done to cause the Runnable to notice it's been
+     * interrupted.
+     * 
+     * @since 3.0.0
+     */
+    public interface Interruptable {
+        public void interrupt();
+    }
+    
     /** true if thread has been interrupted */
     private boolean interrupted = false;
 
+    private final Interruptable task;
     /**
      * Constructs a new <code>InterruptedStatusThread</code> object.
      */
     public InterruptedStatusThread() {
 	super();
+        task = null;
     }
 
     /**
@@ -42,6 +55,8 @@ public class InterruptedStatusThread extends Thread {
      */
     public InterruptedStatusThread(Runnable target) {
 	super(target);
+        if (target instanceof Interruptable) task = (Interruptable) target;
+        else task = null;
     }
 
     /**
@@ -51,6 +66,8 @@ public class InterruptedStatusThread extends Thread {
      */
     public InterruptedStatusThread(Runnable target, String name) {
 	super(target, name);
+        if (target instanceof Interruptable) task = (Interruptable) target;
+        else task = null;
     }
 
     /**
@@ -59,6 +76,7 @@ public class InterruptedStatusThread extends Thread {
      */
     public InterruptedStatusThread(String name) {
 	super(name);
+        task = null;
     }
 
     /**
@@ -68,6 +86,8 @@ public class InterruptedStatusThread extends Thread {
      */
     public InterruptedStatusThread(ThreadGroup group, Runnable target) {
 	super(group, target);
+        if (target instanceof Interruptable) task = (Interruptable) target;
+        else task = null;
     }
 
     /**
@@ -80,6 +100,8 @@ public class InterruptedStatusThread extends Thread {
 				   Runnable target, 
 				   String name) {
 	super(group, target, name);
+        if (target instanceof Interruptable) task = (Interruptable) target;
+        else task = null;
     }
 
     /**
@@ -95,6 +117,8 @@ public class InterruptedStatusThread extends Thread {
 				   String name,
 				   long stackSize) {
 	super(group, target, name, stackSize);
+        if (target instanceof Interruptable) task = (Interruptable) target;
+        else task = null;
     }
 
     /**
@@ -104,11 +128,13 @@ public class InterruptedStatusThread extends Thread {
      */
     public InterruptedStatusThread(ThreadGroup group, String name) {
 	super(group, name);
+        task = null;
     }
 
     // inherit javadoc
     public synchronized void interrupt() {
 	interrupted = true;
+        if (task != null) task.interrupt();
 	super.interrupt();
     }
 
