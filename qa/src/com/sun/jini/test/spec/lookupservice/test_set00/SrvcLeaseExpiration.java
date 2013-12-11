@@ -121,7 +121,7 @@ public class SrvcLeaseExpiration extends QATestRegistrar {
 
 	logger.log(Level.FINE, "Waiting " + (leaseDuration*2) + 
 			  " milliseconds for service leases to expire.");
-	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration*2, 0, this);
+	QATestUtils.computeDurAndWait(leaseStartTime, leaseDuration*2, this);
 
 	logger.log(Level.FINE, "Checking that no services can be found.");
 	doLookupNoMatch();

@@ -187,7 +187,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
 	    logger.log(Level.FINE, "\n**** Start trial #" + i + "****");
 	    logger.log(Level.FINE, "Waiting 3/4 of lease duration time.");
 	    numEvnt = 0;
-	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime, 0, this);
+	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime, this);
 	    logger.log(Level.FINE, "Renewing leases ...");
 	    leaseStartTime = QATestUtils.getCurTime();
 	    QATestUtils.doRenewLease(evntLeases, leaseDuration);
@@ -197,7 +197,7 @@ public class MultipleEvntLeaseRenewals extends QATestRegistrar {
 				     leaseStartTime + leaseDuration);
 	    logger.log(Level.FINE, "Waiting 1/2 of the lease duration time.");
 	    QATestUtils.computeDurAndWait(leaseStartTime, 
-					  halfDurationTime, 0, this);
+					  halfDurationTime, this);
 
 	    String transitionText = null;
 	    int transition;

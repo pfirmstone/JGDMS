@@ -134,7 +134,7 @@ public class MultipleSrvcLeaseRenewals extends QATestRegistrar {
 	for(int i =0; i<loopCount; i++) {
 	    logger.log(Level.FINE, "\n**** Start trial #" + i + "****");
 	    logger.log(Level.FINE, "Waiting 3/4 of lease duration time.");
-	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime, leaseDuration, this);
+	    QATestUtils.computeDurAndWait(leaseStartTime, leaseWaitTime, this);
 	    leaseStartTime = QATestUtils.getCurTime();
 	    logger.log(Level.FINE, "Renewing leases ...");
 	    QATestUtils.doRenewLease(srvcLeases, leaseDuration);
@@ -144,7 +144,7 @@ public class MultipleSrvcLeaseRenewals extends QATestRegistrar {
 				     leaseStartTime + leaseDuration);
 	    logger.log(Level.FINE, "Waiting 1/2 of the lease duration time.");
 	    QATestUtils.computeDurAndWait(leaseStartTime, 
-					  halfDurationTime, leaseDuration, this);
+					  halfDurationTime, this);
 	    logger.log(Level.FINE, "Asserting that each service proxy " +
 			      "can still be found.");
 	    QATestUtils.doLookup(srvcItems, srvcIDTmpls, proxy ); 
