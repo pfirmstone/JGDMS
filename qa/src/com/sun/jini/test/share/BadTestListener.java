@@ -15,7 +15,7 @@ import net.jini.discovery.DiscoveryEvent;
  * handling methods throws an exception.
  */
 public class BadTestListener implements DiscoveryChangeListener {
-    protected Logger logger;
+    protected final Logger logger;
 
     public BadTestListener(Logger logger) {
         this.logger = logger;

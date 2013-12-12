@@ -170,54 +170,53 @@ public class DiscoveryProtocolSimulator {
     /** Port for unicast discovery */
     private int unicastPort = 0;
     /** The locator to send */
-    private LookupLocator lookupLocator = null;
+    private volatile LookupLocator lookupLocator = null;
     /** The member groups to send */
     private String[] memberGroups = {};
 
     /** Thread to receive/process multicast requests from client or service */
-    MulticastThread multicastRequestThread;
+    volatile MulticastThread multicastRequestThread;
     /** Thread to receive/process unicast requests from client or service */
-    UnicastThread unicastRequestThread;
+    volatile UnicastThread unicastRequestThread;
     /** Thread to send multicast announcements to from client or service */
-    AnnounceThread multicastAnnouncementThread;
+    volatile AnnounceThread multicastAnnouncementThread;
 
     /** Task manager for sending events and discovery responses */
     private final TaskManager taskMgr = new TaskManager(10, 1000 * 15, 1.0f);
 
     /** Proxy for the "fake" lookup service that is sent */
-    private LookupSimulatorProxyInterface lookupProxy;
+    private volatile LookupSimulatorProxyInterface lookupProxy;
     /** The service ID to assign to the lookup service that is sent */
-    private ServiceID lookupServiceID = null;
+    private volatile ServiceID lookupServiceID = null;
 
     /** Socket timeout for unicast discovery request processing */
     private int unicastTimeout =
 	Integer.getInteger("com.sun.jini.reggie.unicastTimeout",
 			   1000 * 60).intValue();
     /* For synchronization, instead of ReadersWriter locks used by reggie */
-    private Object lockNAnnouncements = new Object();
-    private Object lockLookupProxy    = new Object();
-    private Object lockLookupLocator  = new Object();
-    private Object lockMemberGroups   = new Object();
+    private final Object lockNAnnouncements = new Object();
+    private final Object lockLookupLocator  = new Object();
+    private final Object lockMemberGroups   = new Object();
 
     /* new fields taken from the davis reggie */
 
     /** Network interfaces to use for multicast discovery */
-    private NetworkInterface[] multicastInterfaces;
+    private volatile NetworkInterface[] multicastInterfaces;
     /** Flag indicating whether network interfaces were explicitly specified */
-    private boolean multicastInterfacesSpecified;
-    private Discovery protocol2;
+    private volatile boolean multicastInterfacesSpecified;
+    private volatile Discovery protocol2;
     /** Constraints specified for incoming multicast requests */
-    private DiscoveryConstraints multicastRequestConstraints;
+    private volatile DiscoveryConstraints multicastRequestConstraints;
     /** Constraints specified for outgoing multicast announcements */
-    private DiscoveryConstraints multicastAnnouncementConstraints;
+    private volatile DiscoveryConstraints multicastAnnouncementConstraints;
     /** Constraints specified for handling unicast discovery */
-    private DiscoveryConstraints unicastDiscoveryConstraints;
+    private volatile DiscoveryConstraints unicastDiscoveryConstraints;
     /** Client subject checker to apply to incoming multicast requests */
-    private ClientSubjectChecker multicastRequestSubjectChecker;
+    private volatile ClientSubjectChecker multicastRequestSubjectChecker;
     /** Client subject checker to apply to unicast discovery attempts */
-    private ClientSubjectChecker unicastDiscoverySubjectChecker;
+    private volatile ClientSubjectChecker unicastDiscoverySubjectChecker;
     /** Interval to wait in between sending multicast announcements */
-    private long multicastAnnouncementInterval = 1000 * 60 * 2;
+    private volatile long multicastAnnouncementInterval = 1000 * 60 * 2;
 
     
     public DiscoveryProtocolSimulator(QAConfig config, String[] memberGroups, int unicastPort, LookupSimulatorProxyInterface proxy)
@@ -317,9 +316,7 @@ public class DiscoveryProtocolSimulator {
     }//end getNAnnouncementsSent
 
     public ServiceRegistrar getLookupProxy() {
-        synchronized(lockLookupProxy) {
-            return lookupProxy;
-        }//end sync
+        return lookupProxy;
     }//end getLookupProxy
 
     public LookupLocator getLookupLocator() {
@@ -468,17 +465,17 @@ public class DiscoveryProtocolSimulator {
 	}
 
 	/** True if thread has been interrupted */
-	private boolean interrupted = false;
+	private volatile boolean interrupted = false;
 
 	/* This is a workaround for Thread.interrupt not working on
 	 * MulticastSocket.receive on all platforms.
 	 */
-	public synchronized void interrupt() {
+	public void interrupt() {
 	    interrupted = true;
 	    socket.close();
 	}
 
-	public synchronized boolean isInterrupted() {
+	public boolean isInterrupted() {
 	    return interrupted;
 	}
 
@@ -515,10 +512,12 @@ public class DiscoveryProtocolSimulator {
 			    multicastRequestConstraints.
 				getUnfulfilledConstraints(),
 			    multicastRequestSubjectChecker);
-		    if ((req.getGroups().length != 0 &&
-			 !overlap(memberGroups, req.getGroups())) ||
-			indexOf(req.getServiceIDs(), lookupServiceID) >= 0)
-			continue;
+                    synchronized (lockMemberGroups){
+                        if ((req.getGroups().length != 0 &&
+                             !overlap(memberGroups, req.getGroups())) ||
+                            indexOf(req.getServiceIDs(), lookupServiceID) >= 0)
+                            continue;
+                    }
 		    logger.log(Level.FINE, "Received valid multicast for " + lookupLocator);
 		    taskMgr.addIfNew(
 			new AddressTask(InetAddress.getByName(req.getHost()),
@@ -542,9 +541,9 @@ public class DiscoveryProtocolSimulator {
     /** Unicast discovery request thread code. */
     private class UnicastThread extends Thread {
 	/** Server socket to accepts connections on. */
-	private ServerSocket listen;
+	private final ServerSocket listen;
 	/** Listen port */
-	public int port;
+	public final int port;
 
 	/**
 	 * Create a daemon thread.  Set up the socket now rather than in run,
@@ -553,6 +552,7 @@ public class DiscoveryProtocolSimulator {
 	public UnicastThread(int port) throws IOException {
 	    super("unicast request");
 	    setDaemon(true);
+            ServerSocket listen = null;
 	    if (port == 0) {
 		try {
 		    listen = new ServerSocket(Constants.discoveryPort);
@@ -565,17 +565,18 @@ public class DiscoveryProtocolSimulator {
 		listen = new ServerSocket(port);
 	    }
 	    this.port = listen.getLocalPort();
+            this.listen = listen;
 	}
 
 	/** True if thread has been interrupted */
-	private boolean interrupted = false;
+	private volatile boolean interrupted = false;
 
 	/* This is a workaround for Thread.interrupt not working on
 	 * ServerSocket.accept on all platforms.  ServerSocket.close
 	 * can't be used as a workaround, because it also doesn't work
 	 * on all platforms.
 	 */
-	public synchronized void interrupt() {
+	public void interrupt() {
 	    interrupted = true;
 	    try {
 		(new Socket(InetAddress.getLocalHost(), port)).close();
@@ -583,7 +584,7 @@ public class DiscoveryProtocolSimulator {
 	    }
 	}
 
-	public synchronized boolean isInterrupted() {
+	public boolean isInterrupted() {
 	    return interrupted;
 	}
 
@@ -621,17 +622,17 @@ public class DiscoveryProtocolSimulator {
 	/** Multicast socket to send packets on */
 	private final MulticastSocket socket;
 
-	private boolean interrupted = false;
+	private volatile boolean interrupted = false;
 
 	/* This is a workaround for Thread.interrupt not working due
 	 * to the logging system sometimes throwing away InterruptedIOException
 	 */
-	public synchronized void interrupt() {
+	public void interrupt() {
 	    interrupted = true;
 	    super.interrupt();
 	}
 
-	public synchronized boolean isInterrupted() {
+	public boolean isInterrupted() {
 	    return interrupted;
 	}
 
@@ -653,14 +654,19 @@ public class DiscoveryProtocolSimulator {
 	    }
 	}
 
-	public synchronized void run() {
+	public void run() {
 	    if (multicastInterfaces != null && multicastInterfaces.length == 0)
 	    {
 		return;
 	    }
 	    try {
-		while (!isInterrupted() && announce(memberGroups)) {
-		    wait(multicastAnnouncementInterval);
+		while (!isInterrupted()) {
+                    synchronized (lockMemberGroups){
+                        if (!announce(memberGroups)) break;
+                    }
+                    synchronized (this){
+                        wait(multicastAnnouncementInterval);
+                    }
 		}
 	    } catch (InterruptedException e) {
 	    }
@@ -1067,7 +1073,9 @@ public class DiscoveryProtocolSimulator {
         }
         thisInetAddress = InetAddress.getByName(host);
         unicastRequestThread = new UnicastThread(unicastPort);
-        lookupLocator = QAConfig.getConstrainedLocator(host, unicastRequestThread.port);
+        synchronized (lockLookupLocator){
+            lookupLocator = QAConfig.getConstrainedLocator(host, unicastRequestThread.port);
+        }
         /* start an activatable lookup service simulation */
         if (lookupServiceID == null) {
             lookupServiceID = lookupProxy.getServiceID();

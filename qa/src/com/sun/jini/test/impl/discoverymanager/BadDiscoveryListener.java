@@ -58,7 +58,7 @@ import com.sun.jini.test.spec.discoverymanager.Discovered;
  */
 public class BadDiscoveryListener extends Discovered {
 
-    protected LookupListener newListener = new LookupListener();;
+    protected final LookupListener newListener = new LookupListener();;
 
     /**
      * Executes the current test by doing the following:

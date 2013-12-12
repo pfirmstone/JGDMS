@@ -47,7 +47,7 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    private ServiceRegistrar[] regs;
+    private volatile ServiceRegistrar[] regs;
 
     /**
      * Map from the registrars of this event to the groups in which each
@@ -55,7 +55,7 @@ public class DiscoveryEvent extends EventObject {
      *
      * @serial
      */
-    private Map groups;
+    private volatile Map groups;
 
     /**
      * Construct a new <code>DiscoveryEvent</code> object, with the given

@@ -31,13 +31,13 @@ import net.jini.core.lookup.ServiceID;
 public class MulticastRequest {
 
     /** The client host. */
-    protected String host;
+    private final String host;
     /** The client listen port. */
-    protected int port;
+    private final int port;
     /** The groups of interest. */
-    protected String[] groups;
+    private final String[] groups;
     /** The IDs of known lookup services. */
-    protected ServiceID[] serviceIDs;
+    private final ServiceID[] serviceIDs;
 
     /**
      * Creates a new <code>MulticastRequest</code> instance containing the

@@ -41,8 +41,6 @@ import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.InterruptedStatusThread.Interruptable;
 import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadersWriter.ConcurrentLockException;
-//import com.sun.jini.thread.ReadyState;
-import com.sun.jini.thread.TaskManager;
 import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -76,13 +74,11 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
@@ -92,11 +88,8 @@ import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
-import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.ConcurrentSkipListSet;
-import java.util.concurrent.Executor;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -195,19 +188,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     private static final EntryRep[] emptyAttrs = {};
 
     /** Proxy for myself */
-    private volatile RegistrarProxy proxy;
+    private RegistrarProxy proxy;
     /** Exporter for myself */
-    private volatile Exporter serverExporter;
+    private volatile Exporter serverExporter; // accessed without lock from DestroyThread
     /** Remote reference for myself */
-    private volatile Registrar myRef;
+    private Registrar myRef;
     /** Our service ID */
-    private volatile ServiceID myServiceID;
+    private volatile ServiceID myServiceID; // accessed without lock from DecodeRequestTask
     /** Our activation id, or null if not activatable */
     private final ActivationID activationID;
     /** Associated activation system, or null if not activatable */
     private final ActivationSystem activationSystem;
     /** Our LookupLocator */
-    private volatile LookupLocator myLocator;
+    private volatile LookupLocator myLocator; // accessed without lock from Announce
     /** Our login context, for logging out */
     private final LoginContext loginContext;
     /** Shutdown callback object, or null if no callback needed */
@@ -311,7 +304,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     /** Manager for discovering other lookup services */
     private final DiscoveryManagement discoer;
     /** Manager for joining other lookup services */
-    private volatile JoinManager joiner;
+    private volatile JoinManager joiner; // accessed without lock from DestroyThread
     /** Task manager for sending events and discovery responses */
 //    private final TaskManager tasker;
     private final ThreadPoolExecutor eventNotifierExec;
@@ -321,7 +314,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     /** Event lease expiration thread */
     private final Thread eventExpirer;
     /** Unicast discovery request packet receiving thread */
-    private volatile Thread unicaster;
+    private volatile Thread unicaster; // accessed without lock from DestroyThread
     private volatile Unicast unicast;
     /** Multicast discovery request packet receiving thread */
     private final Thread multicaster;
@@ -362,7 +355,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     /** Port for unicast discovery */
     private volatile int unicastPort;
     /** The groups we are a member of */
-    private volatile String[] memberGroups;
+    private volatile String[] memberGroups; // accessed from DecodeRequestTask and Announce
     /** The groups we should join */
     private volatile String[] lookupGroups;
     /** The locators of other lookups we should join */
@@ -2127,14 +2120,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     /** Task for decoding multicast request packets. */
     private static final class DecodeRequestTask implements Runnable {
-        /* Keeps a record of AddressTasks for at least 5 minutes
+        /* Keeps a record of AddressTasks for up to 5 seconds
          * to avoid DOS attacks.
          */
         private static final Set<AddressTask> executedTasks =
                 RC.set(new ConcurrentSkipListSet<Referrer<AddressTask>>(
                         RC.comparator(new AddressTaskComparator())), 
                         Ref.TIME,
-                        5000L);
+                        3000L);
 	/** The multicast packet to decode */
 	private final DatagramPacket datagram;
 	/** The decoder for parsing the packet */
@@ -3078,19 +3071,34 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     // This method's javadoc is inherited from an interface of this class
     public Object getServiceProxy() throws NoSuchObjectException {
 //	ready.check();
-	return proxy;
+        concurrentObj.readLock();
+        try {
+            return proxy;
+        } finally {
+            concurrentObj.readUnlock();
+        }
     }
 
     // This method's javadoc is inherited from an interface of this class
     public Object getProxy() {
 	/** locally-called method - no need to check initialization state */
-	return myRef;
+        concurrentObj.readLock();
+        try {
+            return myRef;
+        } finally {
+            concurrentObj.readUnlock();
+        }
     }
 
     // This method's javadoc is inherited from an interface of this class
     public TrustVerifier getProxyVerifier() throws NoSuchObjectException {
 //	ready.check();
-	return new ProxyVerifier(myRef, myServiceID);
+        concurrentObj.readLock();
+        try {
+            return new ProxyVerifier(myRef, myServiceID);
+        } finally {
+            concurrentObj.readUnlock();
+        }
     }
 
     // This method's javadoc is inherited from an interface of this class
@@ -3209,13 +3217,23 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
     // This method's javadoc is inherited from an interface of this class
     public LookupLocator getLocator() throws NoSuchObjectException {
 //	ready.check();
-	return myLocator;
+        concurrentObj.readLock();
+        try {
+            return myLocator;
+        } finally {
+            concurrentObj.readUnlock();
+        }
     }
 
     // This method's javadoc is inherited from an interface of this class
     public Object getAdmin() throws NoSuchObjectException {
 //	ready.check();
-	return AdminProxy.getInstance(myRef, myServiceID);
+        concurrentObj.readLock();
+        try {
+            return AdminProxy.getInstance(myRef, myServiceID);
+        } finally {
+            concurrentObj.readUnlock();
+        }
     }
 
     // This method's javadoc is inherited from an interface of this class
