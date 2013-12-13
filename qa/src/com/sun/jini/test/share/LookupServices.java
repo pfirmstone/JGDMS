@@ -447,10 +447,10 @@ public class LookupServices {
             /* Skip over remote lookups and lookups already started to the
              * indices of the additional local lookups
              */
-            int n0 = nRemoteLookupServices + nAddRemoteLookupServices
-                                           + lookupsStarted.size();
-            int n1 = n0 + nAddLookupServices;
             synchronized (lock){
+                int n0 = nRemoteLookupServices + nAddRemoteLookupServices
+                                               + lookupsStarted.size();
+                int n1 = n0 + nAddLookupServices;
                 for(int i=n0;i<n1;i++) {
                     int j = i-n0;
                     LocatorGroupsPair pair = addLookupsToStart.get(j);
@@ -960,7 +960,7 @@ public class LookupServices {
      * @return List containing LocatorGroupsPair
      */
    public List<LocatorGroupsPair> replaceMemberGroups(boolean alternate) {
-        List<LocatorGroupsPair> locGroupsList = new ArrayList<LocatorGroupsPair>(genMap.size());
+        List<LocatorGroupsPair> locGroupsList = new LinkedList<LocatorGroupsPair>();
         Iterator iter = genMap.keySet().iterator();
         for(int i=0;iter.hasNext();i++) {
             /* Replace the member groups of the current lookup service */
@@ -1009,7 +1009,7 @@ public class LookupServices {
    public List<LocatorGroupsPair> replaceMemberGroups(int nReplacements,
                                            String[] newGroups)
    {
-        List<LocatorGroupsPair> locGroupsList = new ArrayList<LocatorGroupsPair>(genMap.size());
+        List<LocatorGroupsPair> locGroupsList = new LinkedList<LocatorGroupsPair>();
         Iterator iter = genMap.keySet().iterator();
         for(int i=0;iter.hasNext();i++) {
             Object generator = iter.next();
@@ -1189,7 +1189,7 @@ public class LookupServices {
                                  boolean alternate,
                                  int discardType)
     {
-        if(genMap.size() > 0) {
+        if(!genMap.isEmpty()) {
             logger.log(Level.FINE, "replacing member groups for each lookup service ...");
 	    Iterator iter = genMap.keySet().iterator();
 
@@ -1826,10 +1826,12 @@ public class LookupServices {
   
     /** Returns the proxy to each lookup service started (already prepared)*/
     protected ServiceRegistrar[] getLookupProxies() {
-        ServiceRegistrar[] proxies = new ServiceRegistrar[genMap.size()];
-	Iterator iter = genMap.keySet().iterator();
-        for(int i=0;iter.hasNext();i++) {
-            Object curObj = iter.next();
+        Set proxySet = genMap.keySet();
+        Object [] proxyArray = proxySet.toArray();
+        int l = proxyArray.length;
+        ServiceRegistrar[] proxies = new ServiceRegistrar[l];
+        for(int i=0;i<l;i++) {
+            Object curObj = proxyArray[i];
             if(curObj instanceof DiscoveryProtocolSimulator) {
                 proxies[i]
                       = ((DiscoveryProtocolSimulator)curObj).getLookupProxy();
@@ -1910,14 +1912,15 @@ public class LookupServices {
      *  correctly (a discarded event should not be expected for a lookup
      *  service that couldn't be discarded).
      */
-    protected ArrayList pingAndDiscard(ServiceRegistrar[] proxies,
+    protected List pingAndDiscard(ServiceRegistrar[] proxies,
                                        DiscoveryManagement dm,
                                        LookupListener listener)
     {
-        ArrayList proxiesToDiscard      = new ArrayList(1);
-        ArrayList locGroupsNotDiscarded = new ArrayList(1);
+        List proxiesToDiscard      = new LinkedList();
+        List locGroupsNotDiscarded = new LinkedList();
         /* Determine proxies to discard and proxies that cannot be discarded */
-        for(int i=0;i<proxies.length;i++) {
+        int l = proxies.length;
+        for(int i=0;i<l;i++) {
             LocatorGroupsPair curPair
                       = (LocatorGroupsPair)regsToLocGroupsMap.get(proxies[i]);
             try {
