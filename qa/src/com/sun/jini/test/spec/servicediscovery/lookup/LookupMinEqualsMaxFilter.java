@@ -77,8 +77,10 @@ public class LookupMinEqualsMaxFilter extends LookupMinEqualsMax {
         for(int i=0;i<maxMatches;i++) {
             if( (i%2) == 0 ) nEvenSrvcs++;
         }
-        maxMatches = nEvenSrvcs;
-        minMatches = maxMatches;
+        synchronized (this){
+            maxMatches = nEvenSrvcs;
+            minMatches = maxMatches;
+        }
         return this;
     }//end construct
 

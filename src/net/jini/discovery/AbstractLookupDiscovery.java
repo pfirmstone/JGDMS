@@ -300,6 +300,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                         try {
                             pendingNotifies.wait();
                         } catch (InterruptedException ex) {
+                            Thread.currentThread().interrupt(); // restore
                             break;
                         }
 		    }//endif

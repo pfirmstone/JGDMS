@@ -28,6 +28,7 @@ import java.rmi.server.RemoteObject;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.lookup.ServiceID;
@@ -81,19 +82,19 @@ class Item implements Serializable, Cloneable {
      *
      * @serial
      */
-    public ServiceType serviceType;
+    public final ServiceType serviceType;
     /**
      * The codebase of the service object.
      *
      * @serial
      */
-    public String codebase;
+    public final String codebase;
     /**
      * ServiceItem.service as a MarshalledWrapper.
      *
      * @serial
      */
-    public MarshalledWrapper service;
+    public final MarshalledWrapper service;
     /**
      * ServiceItem.attributeSets converted to EntryReps.
      *
@@ -128,6 +129,19 @@ class Item implements Serializable, Cloneable {
 	}
 	attributeSets = EntryRep.toEntryRep(item.attributeSets, true);
     }
+    
+    Item(ServiceID serviceID,
+            ServiceType serviceType,
+            String codebase,
+            MarshalledWrapper service,
+            EntryRep [] attrSets)
+    {
+        this.serviceID = serviceID;
+        this.serviceType = serviceType;
+        this.codebase = codebase;
+        this.service = service;
+        attributeSets = attrSets;
+    }
 
     /**
      * Convert back to a ServiceItem.  If the service object cannot be
@@ -151,24 +165,19 @@ class Item implements Serializable, Cloneable {
      * Deep clone.  This is really only needed in the server,
      * but it's very convenient to have here.
      */
+    @Override
     public Object clone() {
-	try { 
-	    Item item = (Item)super.clone();
-	    EntryRep[] attrSets = (EntryRep[])item.attributeSets.clone();
+	    EntryRep[] attrSets = (EntryRep[])attributeSets.clone();
 	    for (int i = attrSets.length; --i >= 0; ) {
 		attrSets[i] = (EntryRep)attrSets[i].clone();
 	    }
-	    item.attributeSets = attrSets;
-	    return item;
-	} catch (CloneNotSupportedException e) { 
-	    throw new InternalError();
-	}
+	    return new Item(serviceID, serviceType, codebase, service, attrSets);
     }
 
     /**
      * Converts an ArrayList of Item to an array of ServiceItem.
      */
-    public static ServiceItem[] toServiceItem(ArrayList reps)
+    public static ServiceItem[] toServiceItem(List reps)
     {
 	ServiceItem[] items = null;
 	if (reps != null) {

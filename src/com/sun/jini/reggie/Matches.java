@@ -20,6 +20,7 @@ package com.sun.jini.reggie;
 import java.io.Serializable;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
+import java.util.List;
 import net.jini.core.lookup.ServiceMatches;
 
 /**
@@ -43,16 +44,16 @@ class Matches implements Serializable {
      *
      * @serial
      */
-    public ArrayList items;
+    private final List items;
     /**
      * ServiceMatches.totalMatches
      *
      * @serial
      */
-    public int totalMatches;
+    private final int totalMatches;
 
     /** Simple constructor. */
-    public Matches(ArrayList items, int totalMatches) {
+    public Matches(List items, int totalMatches) {
 	this.items = items;
 	this.totalMatches = totalMatches;
     }

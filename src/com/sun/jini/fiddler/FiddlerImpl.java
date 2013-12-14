@@ -128,6 +128,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -281,9 +283,9 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
     /** Concurrent object to control read and write access */
     private final ReadersWriter concurrentObj = new ReadersWriter();
     /** Object for synchronizing with the registration expire thread */
-    private final Object leaseExpireThreadSyncObj = new Object();
+    private final Condition leaseExpireThreadSyncObj;
     /** Object on which the snapshot-taking thread will synchronize */
-    private final Object snapshotThreadSyncObj = new Object();
+    private final Condition snapshotThreadSyncObj;
 
     /** Reliable log object to hold persistent state of the service.
      *  This object is also used as a flag: non-null ==> persistent service
@@ -480,6 +482,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
     }//end non-activatable constructor
     
     FiddlerImpl(FiddlerInit i, LifeCycle lifeCycle){
+        this.snapshotThreadSyncObj = concurrentObj.newCondition();
+        this.leaseExpireThreadSyncObj = concurrentObj.newCondition();
         this.lifeCycle = lifeCycle;
         discoveryMgr = i.discoveryMgr;
         listenerPreparer = i.listenerPreparer;
@@ -2260,9 +2264,10 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
 
         private FiddlerImpl fiddler;
         /** Create a daemon thread */
-        public LeaseExpireThread() {
+        public LeaseExpireThread(FiddlerImpl fiddler) {
             super("lease expire");
             setDaemon(true);
+            this.fiddler = fiddler;
         }//end constructor
         
         /**
@@ -2337,12 +2342,14 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
                         }
                     }//end while
                     try {
-                        fiddler.concurrentObj.writerWait(fiddler.leaseExpireThreadSyncObj,
-                                                 (fiddler.minExpiration - curTime));
-                    } catch (ConcurrentLockException e) {
+                        fiddler.leaseExpireThreadSyncObj.await(
+                                fiddler.minExpiration - curTime,
+                                TimeUnit.MILLISECONDS);
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();// restore
                         return;
                     }
-                }//end while
+                }//end while            
             } finally {
                 fiddler.concurrentObj.writeUnlock();
             }
@@ -2422,37 +2429,37 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
             try {
                 while (!hasBeenInterrupted()) {
                     try {
-                        fiddler.concurrentObj.readerWait(fiddler.snapshotThreadSyncObj,
-                                                 Long.MAX_VALUE);
-                        try {
-                            fiddler.log.snapshot();
-                            fiddler.logFileSize = 0;
-                        } catch (Exception e) {
-                            if (hasBeenInterrupted())  return;
-                            /* If taking the snapshot fails for any reason,
-                             * then register an ERROR status attribute (along
-                             * with a Comment attribute describing the nature
-                             * of the problem) to all lookup services with
-                             * which this service is registered. 
-                             *
-                             * Administrative clients, as well as clients that
-                             * use this service should have registered for
-                             * notification of the existence of this attribute.
-	                     */
-                            String eStr = "Failure while taking a snapshot of "
-                                          +"the service state";
-                            problemLogger.log(Level.INFO, eStr, e);
-                            Entry[] errorAttrs
-                                    = new Entry[]
-                                        { new FiddlerStatus(StatusType.ERROR),
-                                          new Comment(eStr)
-                                        };
-                            fiddler.joinMgr.addAttributes(errorAttrs,true);
-                        }
-                    } catch (ConcurrentLockException e) {
+                        fiddler.snapshotThreadSyncObj.await();
+                    } catch (InterruptedException ex) {
+                        Thread.currentThread().interrupt();// restore
                         return;
                     }
-                }//end while
+                    try {
+                        fiddler.log.snapshot();
+                        fiddler.logFileSize = 0;
+                    } catch (Exception e) {
+                        if (hasBeenInterrupted())  return;
+                        /* If taking the snapshot fails for any reason,
+                         * then register an ERROR status attribute (along
+                         * with a Comment attribute describing the nature
+                         * of the problem) to all lookup services with
+                         * which this service is registered. 
+                         *
+                         * Administrative clients, as well as clients that
+                         * use this service should have registered for
+                         * notification of the existence of this attribute.
+                         */
+                        String eStr = "Failure while taking a snapshot of "
+                                      +"the service state";
+                        problemLogger.log(Level.INFO, eStr, e);
+                        Entry[] errorAttrs
+                                = new Entry[]
+                                    { new FiddlerStatus(StatusType.ERROR),
+                                      new Comment(eStr)
+                                    };
+                        fiddler.joinMgr.addAttributes(errorAttrs,true);
+                    }
+                }//end while           
             } finally {
                 fiddler.concurrentObj.readUnlock();
             }
@@ -5328,7 +5335,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
                 ((DiscoveryGroupManagement)joinMgrLDM).setGroups(thisServicesGroups);
 
                 /* start up all the daemon threads */
-                leaseExpireThread.setFiddler(FiddlerImpl.this);
                 leaseExpireThread.start();
                 if(log != null) {
                     snapshotThread.setFiddler(FiddlerImpl.this);
@@ -5552,7 +5558,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
 	/* See if the expire thread needs to wake up earlier */
 	if (expiration < minExpiration) {
 	    minExpiration = expiration;
-	    concurrentObj.waiterNotify(leaseExpireThreadSyncObj);
+            leaseExpireThreadSyncObj.signal();
+//	    concurrentObj.waiterNotify(leaseExpireThreadSyncObj);
 	}
         FiddlerLease regLease =
                    FiddlerLease.createLease
@@ -6255,7 +6262,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
         /* see if the expire thread needs to wake up earlier */
         if (newExpiration < minExpiration) {
             minExpiration = newExpiration;
-            concurrentObj.waiterNotify(leaseExpireThreadSyncObj);
+            leaseExpireThreadSyncObj.signal();
         }//endif
         return newExpiration;
     }//end renewLeaseInt
@@ -6450,7 +6457,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
         removeRegistration(regInfo);
         /* wake up thread if this might be the (only) earliest time */
         if (regInfo.leaseExpiration == minExpiration) {
-            concurrentObj.waiterNotify(leaseExpireThreadSyncObj);
+            leaseExpireThreadSyncObj.signal();
         }//endif
     }//end cancelLeaseDo
 
@@ -6980,7 +6987,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commissio
                 int snapshotSize = registrationByID.size();
                 if ((float)logFileSize >= snapshotWt*((float)snapshotSize)) {
                     /* take snapshot */
-                    concurrentObj.waiterNotify(snapshotThreadSyncObj);
+                    snapshotThreadSyncObj.signal();
+//                    concurrentObj.waiterNotify(snapshotThreadSyncObj);
                 }//endif
             }//endif
         } catch (Exception e) {

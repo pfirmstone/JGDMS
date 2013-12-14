@@ -286,7 +286,7 @@ class FiddlerInit {
              * rather than in the constructor, before the login. This must
              * be done so that the threads will have the correct subject.
              */
-            leaseExpireThread = new FiddlerImpl.LeaseExpireThread();
+            leaseExpireThread = new FiddlerImpl.LeaseExpireThread(null);
             if(log != null) snapshotThread = new FiddlerImpl.SnapshotThread();
         } catch(Throwable e) {
             cleanupInitFailure();

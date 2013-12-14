@@ -66,7 +66,9 @@ public class LookupMinMaxNoBlock extends LookupMinEqualsMax {
         testDesc = "multiple service lookup employing -- template, "
                    +"blocking, more than minMatches available, should "
                    +"return without blocking";
-        minMatches = 1;//guarantee acceptable # is less than # available
+        synchronized (this){
+            minMatches = 1;//guarantee acceptable # is less than # available
+        }
         return this;
     }//end construct
 

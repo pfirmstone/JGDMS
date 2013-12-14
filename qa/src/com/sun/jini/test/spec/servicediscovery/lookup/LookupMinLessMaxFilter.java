@@ -72,9 +72,11 @@ public class LookupMinLessMaxFilter extends LookupMinLessMax {
         super.construct(config);
         testDesc = "multiple service lookup employing -- template, filter, "
                    +"blocking, minMatches < maxMatches";
-        maxMatches = countSrvcsByVal(maxMatches);
-        minMatches = countSrvcsByVal(minMatches);
-        if((minMatches+1) < maxMatches)  minMatches = minMatches+1;
+        synchronized (this){
+            maxMatches = countSrvcsByVal(maxMatches);
+            minMatches = countSrvcsByVal(minMatches);
+            if((minMatches+1) < maxMatches)  minMatches = minMatches+1;
+        }
         return this;
     }//end construct
 

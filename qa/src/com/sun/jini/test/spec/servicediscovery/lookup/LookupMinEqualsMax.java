@@ -31,6 +31,8 @@ import java.util.ArrayList;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.Test;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * With respect to the <code>lookup</code> method defined by the 
@@ -258,11 +260,8 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
 	/* Delay to allow all of the services to finish registering */
 	DiscoveryServiceUtil.delayMS(regCompletionDelay);
 	/* populate the expected info after lookup to prevent delay */
-	ArrayList expectedSrvcs 
-	    = new ArrayList(getExpectedServiceList().size());
-	for(int i=0;i<getExpectedServiceList().size();i++) {
-	    expectedSrvcs.add(getExpectedServiceList().get(i));
-	}//end loop
+	List expectedSrvcs 
+	    = new ArrayList(getExpectedServiceList());
 	/* Modify the list based on whether or not a filter exists */
 	if(    (firstStageFilter != null)
 	       && (firstStageFilter instanceof ServiceItemFilter) )
@@ -378,7 +377,7 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
     }//end verifyBlocking
 
     private void verifyServiceItems(ServiceItem[] srvcItems,
-				    ArrayList     expectedSrvcs,
+				    List     expectedSrvcs,
 				    int           nExpectedSrvcs,
 				    long          waitDur,
 				    long          actualBlockTime)

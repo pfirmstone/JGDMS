@@ -97,6 +97,7 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
@@ -277,7 +278,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     /** Map from <code>Uuid</code> to <code>ServiceRegistration</code> */
     // HashMap is unsynchronized, but we are performing external
     // synchronization via the <code>concurrentObj</code> field. 
-    private final HashMap<Uuid,ServiceRegistration> regByID; 
+    private final Map<Uuid,ServiceRegistration> regByID; 
     /**
      * Identity map of <tt>ServiceRegistration</tt>, ordered by lease 
      * expiration. This is a parallel data structure to <code>regByID</code>.
@@ -1637,7 +1638,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 //Remove registrations from internal structures.
                 removeRegistration(regs[i].getCookie(), regs[i]);
                 // Notify any associated iterations so they can return early
-                concurrentObj.waiterNotify(regs[i].getIteratorNotifier());            
+                regs[i].getIteratorCondition().signal();           
                 if(adminLogger.isLoggable(Level.FINEST)) {
                     adminLogger.log(Level.FINEST, 
                         "Iterator for reg {0} notified",
@@ -2120,7 +2121,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    eventLogFactory.iterator(uuid, 
 	        getEventLogPath(persistenceDirectory, uuid)):
 	    eventLogFactory.iterator(uuid);
-        ServiceRegistration reg = new ServiceRegistration(uuid, iter);
+        ServiceRegistration reg = new ServiceRegistration(uuid, iter, concurrentObj.newCondition());
         Lease l = null;
         try {
 	    Result r = 
@@ -2265,7 +2266,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	        concurrentObj.waiterNotify(expirationNotifier);
 	    }
             // Notify any pending iterations
-            concurrentObj.waiterNotify(reg.getIteratorNotifier());            
+            reg.getIteratorCondition().signal();          
             if(expirationLogger.isLoggable(Level.FINEST)) {
                 expirationLogger.log(Level.FINEST, "Iterator notified");
             }
@@ -2382,7 +2383,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         ServiceRegistration reg = getServiceRegistration(uuid); 
         
         // Notify any pending iterations
-        concurrentObj.waiterNotify(reg.getIteratorNotifier());            
+        reg.getIteratorCondition().signal();          
         if(expirationLogger.isLoggable(Level.FINEST)) {
             expirationLogger.log(Level.FINEST, "Iterator notified");
         }
@@ -2640,7 +2641,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         }
         
         // Notify any pending iterations
-        concurrentObj.waiterNotify(reg.getIteratorNotifier());            
+        reg.getIteratorCondition().signal();            
         if(expirationLogger.isLoggable(Level.FINEST)) {
             expirationLogger.log(Level.FINEST, "Iterator notified");
         }
@@ -2739,13 +2740,13 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                             "No available events. Attempting to wait for "
                             + waitFor + " milliseconds.");
                     }   
-                    try {
-                        concurrentObj.writerWait(
-                                reg.getIteratorNotifier(), waitFor);
-                    } catch (ConcurrentLockException cle) {
-                        // Communication thread interrupted so just return
-                        return new ArrayList(0);
-                    }
+                   try {
+                       reg.getIteratorCondition().await(timeout, TimeUnit.MILLISECONDS);
+                   } catch (InterruptedException ex) {
+                       Thread.currentThread().interrupt(); // restore
+                       // Communication thread interrupted so just return
+                       return new ArrayList(0);
+                   }
                     validateIterator(regId, iterId);
                 }
             } while((System.currentTimeMillis() < endTime) && (events.size() == 0));
@@ -2862,7 +2863,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                 receiveLogger.log(Level.FINEST, "Notifier notified");
             }
 	} else if (reg.getRemoteEventIteratorID() != null) {
-	    concurrentObj.waiterNotify(reg.getIteratorNotifier());            
+            reg.getIteratorCondition().signal();         
             if(receiveLogger.isLoggable(Level.FINEST)) {
                 receiveLogger.log(Level.FINEST, "Iterator notified");
             }
@@ -3714,7 +3715,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
                        // At this point the associated registration has been 
                        // removed from regByID, so any pending thread 
                        // should just return with a NoSuchObjectException.
-                        concurrentObj.waiterNotify(regs[i].getIteratorNotifier());            
+                       regs[i].getIteratorCondition().signal();         
                         if(expirationLogger.isLoggable(Level.FINEST)) {
                             expirationLogger.log(Level.FINEST, "Iterator notified");
                         }
@@ -3832,7 +3833,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 			// Otherwise remove expired registration
                         removeRegistration((Uuid)reg.getCookie(), reg);
                         // Notify any pending iterations
-                        concurrentObj.waiterNotify(reg.getIteratorNotifier());            
+                        reg.getIteratorCondition().signal();         
                         if(expirationLogger.isLoggable(Level.FINEST)) {
                             expirationLogger.log(Level.FINEST, "Iterator notified");
                         }
@@ -4764,7 +4765,12 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
         MarshalledObject[] marshalledAttrs
                                     = (MarshalledObject[])stream.readObject();
 	lookupAttrs = unmarshalAttributes(marshalledAttrs);
-	HashMap<Uuid, ServiceRegistration> regByID = (HashMap<Uuid, ServiceRegistration>)stream.readObject();
+	Map<Uuid, ServiceRegistration> regByID = (HashMap<Uuid, ServiceRegistration>)stream.readObject();
+        Iterator<ServiceRegistration> it = regByID.values().iterator();
+        while(it.hasNext()){
+            ServiceRegistration reg = it.next();
+            if (reg != null) reg.setCondition(concurrentObj.newCondition());
+        }
         this.regByID.clear();
         this.regByID.putAll(regByID);
 	if (recoveryLogger.isLoggable(Level.FINEST)) {

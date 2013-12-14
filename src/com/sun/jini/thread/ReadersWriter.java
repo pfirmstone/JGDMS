@@ -52,6 +52,14 @@ public class ReadersWriter {
         waitingWriters = 0;
         waitingPriorityWriters = new AtomicInteger();
     }
+    
+    /**
+     * Condition for use with writeLock()
+     * @return 
+     */
+    public Condition newCondition(){
+        return writeLock.newCondition();
+    }
 
     /** Obtain a read lock.  Multiple concurrent readers allowed. */
     public void readLock() {
@@ -140,7 +148,9 @@ public class ReadersWriter {
      * notified by notifier, then obtain a regular write lock again.
      * Throws ConcurrentLockException if the thread gets interrupted;
      * in that case, the write lock is still held.
+     * @deprecated use newCondition() and {@link Condition} instead
      */
+    @Deprecated
     public void writerWait(Object notifier, long time) {
 	try {
 	    synchronized (notifier) {

@@ -81,8 +81,10 @@ public class LookupMinLessMax extends LookupMinEqualsMax {
 		       "additional services to register -- "
 		       +getnAddServices());
         }//endif
-        maxMatches = getnServices()+getnAddServices()-1;
-        minMatches = getnServices()+1;
+        synchronized (this){
+            maxMatches = getnServices()+getnAddServices()-1;
+            minMatches = getnServices()+1;
+        }
         return this;
     }//end construct
 

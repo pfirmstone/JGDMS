@@ -34,6 +34,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.Condition;
 
 import net.jini.core.event.RemoteEventListener;
 
@@ -52,10 +53,14 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
 
     private static final long serialVersionUID = 2L;
 
-    /** Unique identifier object */
+    /** Unique identifier object 
+     * @serialField 
+     */
     private final Uuid cookie;
 
-    /** The current expiration for this registration */
+    /** The current expiration for this registration
+     * @serialField 
+     */
     private volatile long expiration = 0;
     
     /** The prepared, client-provided notification target. */
@@ -70,7 +75,9 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
     // the rest of the objects in the stream will be fine.
     private transient RemoteEventListener preparedEventTarget = null; 
 
-    /** The marshalled form of the client-provided notification target. */
+    /** The marshalled form of the client-provided notification target.
+     * @serialField 
+     */
     private MarshalledObject marshalledEventTarget = null; 
 
     /** Event log iterator. */
@@ -95,12 +102,14 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      * whenever a target listener is (re)set on the assumption that an
      * active (re)set will provide a new/better target listener that might
      * be able to handle these events.
+     * @serialField 
      */
     private final Map unknownEvents = new ConcurrentHashMap();
 
     /** 
      * Unique identifier object for the currently enabled 
      * (client-side) remote event iterator.
+     * @serialField 
      */
     private Uuid remoteEventIteratorID;
     
@@ -109,15 +118,19 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
      * Has to be a serializable object versus just a plain Object.
      * 
      * WTF?  Never use a String lock!!!
-     * 
+     * @serialField 
      */
-    private final Object iteratorNotifier = new Lock();
+    private final Object iteratorNotifier;
+    
+    private transient volatile Condition iteratorCondition;
 
 
     /** Convenience constructor */
-    public ServiceRegistration(Uuid cookie, EventLogIterator eventIterator) {
+    public ServiceRegistration(Uuid cookie, EventLogIterator eventIterator, Condition iteratorCondition) {
         this.cookie = cookie;
         this.eventIterator = eventIterator;
+        this.iteratorCondition = iteratorCondition;
+        this.iteratorNotifier = null;
     }
 
     // inherit javadoc from parent
@@ -133,6 +146,18 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
     // inherit javadoc from parent
     public Uuid getCookie() {
 	return cookie;
+    }
+    
+    /**
+     * For use after deserialization only.
+     * @param iteratorCondition 
+     */
+    void setCondition(Condition iteratorCondition){
+        this.iteratorCondition = iteratorCondition;
+    }
+    
+    public Condition getIteratorCondition(){
+        return iteratorCondition;
     }
 
     /** 
@@ -171,15 +196,6 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
     /** Get the remote iterator id */
     public synchronized Uuid getRemoteEventIteratorID() {
 	return remoteEventIteratorID;
-    }
-    
-    /** 
-     * Get the remote iterator notifier object. This is used to coordinate
-     * notifications between event delivery and event reception via the
-     * iterator.
-     */
-    public Object getIteratorNotifier() {
-	return iteratorNotifier;
     }
     
     /** Set the remote iterator id */
