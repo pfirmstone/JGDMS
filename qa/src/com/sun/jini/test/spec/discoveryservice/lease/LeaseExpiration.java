@@ -190,7 +190,7 @@ public class LeaseExpiration extends AbstractBaseTest {
     private static final long N_SECS = 30;
     private final long duration = N_SECS*1000;
     private MarshalledObject handback = null;
-    private boolean eventReceived = false;
+    private volatile boolean eventReceived = false;
     private final Object eventLock = new Object();
 
     /** Constructs and returns the duration values (in milliseconds) to 

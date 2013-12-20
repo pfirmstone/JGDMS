@@ -60,7 +60,7 @@ import com.sun.jini.start.LifeCycle;
 import net.jini.security.proxytrust.ServerProxyTrust;
 
 import com.sun.jini.config.Config;
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
 import java.security.AccessControlContext;
 import java.security.AccessController;
 import net.jini.export.Exporter;
@@ -101,7 +101,7 @@ import net.jini.jeri.tcp.TcpServerEndpoint;
 public class LookupSimulatorImpl implements LookupSimulator, 
 					    ServerProxyTrust,
 					    ProxyAccessor,
-                                            Commission
+                                            Startable
 {
     private static Logger logger = Logger.getLogger("com.sun.jini.harness.test");
     private MethodConstraints locatorConstraints;

@@ -20,7 +20,7 @@ package com.sun.jini.test.impl.start;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import com.sun.jini.start.LifeCycle;
 import com.sun.jini.start.ServiceProxyAccessor;
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -57,7 +57,7 @@ import javax.security.auth.login.LoginException;
 
 
 public class BadServiceProxyAccessorImpl 
-    implements BadServiceProxyAccessor, ProxyAccessor, Commission
+    implements BadServiceProxyAccessor, ProxyAccessor, Startable
 {
     private Object serverStub;
     private AccessControlContext context;

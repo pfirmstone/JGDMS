@@ -37,7 +37,7 @@ import com.sun.jini.reliableLog.ReliableLog;
 import com.sun.jini.reliableLog.LogException;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.start.LifeCycle;
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
 import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadersWriter.ConcurrentLockException;
@@ -157,7 +157,7 @@ See recoverSnapshot() for exact details of what gets retrieved.
 */
 
 class MailboxImpl implements MailboxBackEnd, TimeConstants, 
-    ServerProxyTrust, ProxyAccessor, Commission
+    ServerProxyTrust, ProxyAccessor, Startable
  
 {
 

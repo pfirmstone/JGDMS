@@ -18,7 +18,7 @@
 
 package com.sun.jini.start;
 
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
 import java.io.IOException;
 import java.rmi.MarshalledObject;
 import java.rmi.Remote;
@@ -192,7 +192,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
  *
  */
 public class SharedGroupImpl implements Remote, 
-       SharedGroupBackEnd, ServerProxyTrust, ProxyAccessor, Commission {
+       SharedGroupBackEnd, ServerProxyTrust, ProxyAccessor, Startable {
     
     /** Component name for configuration entries */
     static final String START_PACKAGE = "com.sun.jini.start";

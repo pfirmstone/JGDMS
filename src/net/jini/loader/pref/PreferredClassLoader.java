@@ -958,7 +958,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      *
      * @throws ClassNotFoundException if the class could not be found
      **/
-    protected synchronized Class loadClass(String name, boolean resolve)
+    protected Class loadClass(String name, boolean resolve)
 	throws ClassNotFoundException
     {
 	// First, check if the class has already been loaded
@@ -975,16 +975,18 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 		    ")", e);
 	    }
 	    if (preferred) {
-		c = findClass(name);
-		if (resolve) {
-		    resolveClass(c);
-		}
-		return c;
+                synchronized (this){
+                    // Double check again in case the class has been loaded.
+                    c = findLoadedClass(name);
+                    if (c == null){
+                        c = findClass(name);
+                        if (resolve) resolveClass(c);
+                    }
+                }
 	    } else {
 		return super.loadClass(name, resolve);
 	    }
 	}
-
 	return c;
     }
 	

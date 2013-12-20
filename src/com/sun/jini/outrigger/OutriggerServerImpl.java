@@ -31,7 +31,7 @@ import com.sun.jini.landlord.LocalLandlord;
 import com.sun.jini.landlord.LeaseFactory;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.start.LifeCycle;
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
 
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -151,7 +151,7 @@ import net.jini.core.transaction.server.TransactionConstants;
  */
 public class OutriggerServerImpl 
     implements OutriggerServer, TimeConstants, LocalLandlord, Recover,
-	       ServerProxyTrust, Commission
+	       ServerProxyTrust, Startable
 {	
     /**
      * Component name we use to find items in the configuration and loggers.

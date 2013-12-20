@@ -24,7 +24,7 @@ import com.sun.jini.landlord.LeaseFactory;
 import com.sun.jini.landlord.LeasePeriodPolicy;
 import com.sun.jini.landlord.LeasedResource;
 import com.sun.jini.landlord.FixedLeasePeriodPolicy;
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
@@ -69,7 +69,7 @@ import net.jini.core.lease.LeaseMapException;
 import net.jini.export.ProxyAccessor;
 
 public class TestGeneratorImpl 
-    implements TestGenerator, Landlord, TimeConstants, ProxyAccessor, Commission
+    implements TestGenerator, Landlord, TimeConstants, ProxyAccessor, Startable
 {
 
     private static Logger logger = Logger.getLogger("com.sun.jini.qa.harness");

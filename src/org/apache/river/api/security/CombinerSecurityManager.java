@@ -50,6 +50,7 @@ import net.jini.security.SecurityContext;
 import au.net.zeus.collection.RC;
 import au.net.zeus.collection.Ref;
 import au.net.zeus.collection.Referrer;
+import org.apache.river.impl.thread.NamedThreadFactory;
 import org.cliffc.high_scale_lib.NonBlockingHashMap;
 
 /**
@@ -145,6 +146,7 @@ extends SecurityManager implements CachingSecurityManager {
         executor = 
                 new ThreadPoolExecutor(numberOfCores, poolSizeLimit, 20L, 
                 TimeUnit.SECONDS, new SynchronousQueue<Runnable>(), 
+                new NamedThreadFactory("CombinerSecurityManager", true),
                 new ThreadPoolExecutor.CallerRunsPolicy());
         permCompare = RC.comparator(new PermissionComparator());
         threadContext = new ThreadLocal<SecurityContext>();

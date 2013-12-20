@@ -583,10 +583,7 @@ class DefaultPolicyScanner {
         
         public String toString(){
             String newline = "\n";
-            int l = getKlass() == null? 0 : getKlass().length();
-            l = l + getName() == null? 0 : getName().length();
-            l = l + 4;
-            StringBuffer sb = new StringBuffer(l);
+            StringBuilder sb = new StringBuilder(100);
             if ( getKlass() != null ) sb.append(getKlass()).append(newline);
             if ( getName() != null ) sb.append(getName()).append(newline);
             return sb.toString();

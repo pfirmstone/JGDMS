@@ -27,7 +27,7 @@ package org.apache.river.api.util;
  * @see net.jini.export.Exporter
  * @since 3.0.0
  */
-public interface Commission {
+public interface Startable {
     /**
      * Called after construction, this method enables objects to delay
      * starting threads or exporting until after construction is complete, 

@@ -18,7 +18,7 @@
 package com.sun.jini.test.impl.mercury;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import com.sun.jini.start.LifeCycle;
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -56,7 +56,7 @@ import net.jini.event.MailboxPullRegistration;
 import net.jini.event.InvalidIteratorException;
 
 public class TestPullListenerImpl 
-    implements TestPullListener, ProxyAccessor, ServerProxyTrust, Commission
+    implements TestPullListener, ProxyAccessor, ServerProxyTrust, Startable
 {
     private final Map events = new HashMap();
 

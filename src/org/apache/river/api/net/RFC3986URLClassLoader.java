@@ -29,6 +29,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.ObjectStreamException;
 import java.io.UnsupportedEncodingException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.net.HttpURLConnection;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
@@ -91,6 +93,11 @@ import org.apache.river.impl.Messages;
  * <li>Use different domain names to ensure separation of proxy classes that 
  * otherwise utilise identical jar files</li>
  * </ol>
+ * <p>
+ * The locking strategy of this ClassLoader is by default, the standard 
+ * ClassLoader strategy.  This ClassLoader is also thread safe, so can use
+ * a Parallel loading / synchronization strategy if the platform supports it.
+ * <p>
  * @since 3.0.0
  */
 public class RFC3986URLClassLoader extends java.net.URLClassLoader {
@@ -100,7 +107,27 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      * initialization time.  It may contain malformed URLs.
      */
     private final static boolean uri;
+    
+    private final static Logger logger = Logger.getLogger(RFC3986URLClassLoader.class.getName());
+    
     static {
+        try {
+            Method registerAsParallelCapable = 
+                    ClassLoader.class.getDeclaredMethod(
+                            "registerAsParallelCapable", new Class[0]);
+            registerAsParallelCapable.setAccessible(true);
+            registerAsParallelCapable.invoke(null, new Object [0]);
+        } catch (NoSuchMethodException ex) {
+            logger.log(Level.INFO, "Platform doesn't support parallel class loading", ex);
+        } catch (SecurityException ex) {
+            logger.log(Level.INFO, "Insufficient permission to enable parallel class loading, disabled", ex);
+        } catch (IllegalAccessException ex) {
+            logger.log(Level.SEVERE, "Unable to invoke parallel class loading", ex);
+        } catch (IllegalArgumentException ex) {
+            logger.log(Level.SEVERE, "Unable to invoke parallel class loading", ex);
+        } catch (InvocationTargetException ex) {
+            logger.log(Level.SEVERE, "Unable to invoke parallel class loading", ex);
+        }
         String codebaseAnnotationProperty = null;
 	String prop = AccessController.doPrivileged(
            new GetPropertyAction("net.jini.loader.codebaseAnnotation"));
@@ -112,8 +139,6 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
         else uri = true;
     }
     
-    private final static Logger logger = Logger.getLogger(RFC3986URLClassLoader.class.getName());
-
     private final List<URL> originalUrls; // Copy on Write
 
     private final List<URL> searchList; // Synchronized
@@ -124,11 +149,10 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
 
     private final URLStreamHandlerFactory factory;
 
-    private final AccessControlContext currentContext;
+    private final AccessControlContext creationContext;
 
     private static class SubURLClassLoader extends RFC3986URLClassLoader {
         // The subclass that overwrites the loadClass() method
-        private boolean checkingPackageAccess = false;
 
         SubURLClassLoader(URL[] urls, AccessControlContext context) {
             super(urls, ClassLoader.getSystemClassLoader(), null, context);
@@ -153,18 +177,18 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
          *             If the class could not be found.
          */
         @Override
-        protected synchronized Class<?> loadClass(String className,
-                                                  boolean resolveClass) throws ClassNotFoundException {
+        protected Class<?> loadClass(String className, boolean resolveClass) 
+                throws ClassNotFoundException 
+        {
+            /* Synchronization or locking isn't necessary here, ClassLoader
+             * has it's own locking scheme, which is likely to change depending
+             * on concurrency or multi thread strategies.
+             */ 
             SecurityManager sm = System.getSecurityManager();
-            if (sm != null && !checkingPackageAccess) {
+            if (sm != null) {
                 int index = className.lastIndexOf('.');
-                if (index > 0) { // skip if class is from a default package
-                    try {
-                        checkingPackageAccess = true;
+                if (index != -1) { // skip if class is from a default package
                         sm.checkPackageAccess(className.substring(0, index));
-                    } finally {
-                        checkingPackageAccess = false;
-                    }
                 }
             }
             return super.loadClass(className, resolveClass);
@@ -173,7 +197,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
 
     private static class IndexFile {
 
-        private final HashMap<String, ArrayList<URL>> map;
+        private final HashMap<String, List<URL>> map;
         //private URLClassLoader host;
 
 
@@ -187,7 +211,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                         + parentURLString + "/"; //$NON-NLS-1$
                 is = jf.getInputStream(indexEntry);
                 in = new BufferedReader(new InputStreamReader(is, "UTF8"));
-                HashMap<String, ArrayList<URL>> pre_map = new HashMap<String, ArrayList<URL>>();
+                HashMap<String, List<URL>> pre_map = new HashMap<String, List<URL>>();
                 // Ignore the 2 first lines (index version)
                 if (in.readLine() == null) return null;
                 if (in.readLine() == null) return null;
@@ -206,11 +230,11 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                         if ("".equals(line)) {
                             break;
                         }
-                        ArrayList<URL> list;
+                        List<URL> list;
                         if (pre_map.containsKey(line)) {
                             list = pre_map.get(line);
                         } else {
-                            list = new ArrayList<URL>();
+                            list = new LinkedList<URL>();
                             pre_map.put(line, list);
                         }
                         list.add(jar);
@@ -254,13 +278,13 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             return parentURL;
         }
 
-        public IndexFile(HashMap<String, ArrayList<URL>> map) {
+        public IndexFile(HashMap<String,List<URL>> map) {
             // Don't need to defensively copy map, it's created for and only
             // used here.
             this.map = map;
         }
 
-        ArrayList<URL> get(String name) {
+        List<URL> get(String name) {
             synchronized (map){
                 return map.get(name);
             }
@@ -284,7 +308,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             this.loader = loader;
         }
 
-        void findResources(String name, ArrayList<URL> resources) {
+        void findResources(String name, List<URL> resources) {
             URL res = findResource(name);
             if (res != null && !resources.contains(res)) {
                 resources.add(res);
@@ -323,8 +347,18 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                 String packageDotName = packageName.replace('/', '.');
                 Package packageObj = loader.getPackage(packageDotName);
                 if (packageObj == null) {
-                    loader.definePackage(packageDotName, null, null,
-                            null, null, null, null, null);
+                    try {
+                        loader.definePackage(packageDotName, null, null,
+                                            null, null, null, null, null);
+                    } catch (IllegalArgumentException e){
+                        // Already exists, this is in case of concurrent access
+                        // which is very unlikely.
+                        packageObj = loader.getPackage(packageDotName);
+                        if (packageObj.isSealed()) {
+                            throw new SecurityException(Messages
+                                    .getString("luni.A1")); //$NON-NLS-1$
+                        }
+                    }
                 } else {
                     if (packageObj.isSealed()) {
                         throw new SecurityException(Messages
@@ -332,8 +366,11 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                     }
                 }
             }
-            if (uri) return loader.defineClass(origName, clBuf, 0, clBuf.length, new UriCodeSource(codeSourceUrl, (Certificate[]) null, null));
-            return loader.defineClass(origName, clBuf, 0, clBuf.length, new CodeSource(codeSourceUrl, (Certificate[]) null));
+            // The package is defined and isn't sealed, safe to define class.
+            if (uri) return loader.defineClass(origName, clBuf, 0, clBuf.length,
+                    new UriCodeSource(codeSourceUrl, (Certificate[]) null, null));
+            return loader.defineClass(origName, clBuf, 0, clBuf.length,
+                    new CodeSource(codeSourceUrl, (Certificate[]) null));
         }
 
         URL findResource(String name) {
@@ -407,7 +444,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
         }
 
         @Override
-        void findResources(String name, ArrayList<URL> resources) {
+        void findResources(String name, List<URL> resources) {
             URL res = findResourceInOwn(name);
             if (res != null && !resources.contains(res)) {
                 resources.add(res);
@@ -417,11 +454,11 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                 // only keep the directory part of the resource
                 // as index.list only keeps track of directories and root files
                 String indexedName = (pos > 0) ? name.substring(0, pos) : name;
-                ArrayList<URL> urls = index.get(indexedName);
+                List<URL> urls = index.get(indexedName);
                 if (urls != null) {
                     synchronized (urls){
                         urls.remove(url);
-                        urls = (ArrayList<URL>) urls.clone(); // Defensive copy to avoid sync
+                        urls = new ArrayList<URL>(urls); // Defensive copy to avoid sync
                     }
                     for (URL url : urls) {
                         URLHandler h = getSubHandler(url);
@@ -451,7 +488,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                 }
             }
             if (index != null) {
-                ArrayList<URL> urls;
+                List<URL> urls;
                 if (packageName == null) {
                     urls = index.get(name);
                 } else {
@@ -460,7 +497,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                 if (urls != null) {
                     synchronized (urls){
                         urls.remove(url);
-                        urls = (ArrayList<URL>) urls.clone(); // Defensive copy.
+                        urls = new ArrayList<URL>(urls); // Defensive copy.
                     }
                     for (URL url : urls) {
                         URLHandler h = getSubHandler(url);
@@ -542,11 +579,11 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                 // only keep the directory part of the resource
                 // as index.list only keeps track of directories and root files
                 String indexedName = (pos > 0) ? name.substring(0, pos) : name;
-                ArrayList<URL> urls = index.get(indexedName);
+                List<URL> urls = index.get(indexedName);
                 if (urls != null) {
                     synchronized (urls){
                         urls.remove(url);
-                        urls = (ArrayList<URL>) urls.clone(); // Defensive copy.
+                        urls = new ArrayList<URL>(urls); // Defensive copy.
                     }
                     for (URL url : urls) {
                         URLHandler h = getSubHandler(url);
@@ -834,14 +871,14 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      */
     @Override
     public Enumeration<URL> findResources(final String name) throws IOException {
-        ArrayList<URL> result = AccessController.doPrivileged(
-                new PrivilegedAction<ArrayList<URL>>() {
-                    public ArrayList<URL> run() {
-                        ArrayList<URL> results = new ArrayList<URL>();
+        List<URL> result = AccessController.doPrivileged(
+                new PrivilegedAction<List<URL>>() {
+                    public List<URL> run() {
+                        List<URL> results = new LinkedList<URL>();
                         findResourcesImpl(name, results);
                         return results;
                     }
-                }, currentContext);
+                }, creationContext);
         SecurityManager sm;
         int length = result.size();
         if (length > 0 && (sm = System.getSecurityManager()) != null) {
@@ -860,7 +897,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
         return Collections.enumeration(result);
     }
 
-    void findResourcesImpl(String name, ArrayList<URL> result) {
+    void findResourcesImpl(String name, List<URL> result) {
         if (name == null) {
             return;
         }
@@ -1040,7 +1077,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
         super(searchUrls, parent, factory);  // ClassLoader protectes against finalizer attack.
         this.factory = factory;
         // capture the context of the thread that creates this URLClassLoader
-        currentContext = context;
+        creationContext = context;
         int nbUrls = searchUrls.length;
         List<URL> originalUrls = new ArrayList<URL>(nbUrls);
         handlerList = new ArrayList<URLHandler>(nbUrls);
@@ -1059,6 +1096,9 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
      * Tries to locate and load the specified class using the known URLs. If the
      * class could be found, a class object representing the loaded class will
      * be returned.
+     * 
+     * The locking and synchronization strategy of this method is the 
+     * responsibility of the caller.
      *
      * @param clsName
      *            the name of the class which has to be found.
@@ -1074,7 +1114,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
                     public Class<?> run() {
                         return findClassImpl(clsName);
                     }
-                }, currentContext);
+                }, creationContext);
         if (cls != null) {
             return cls;
         }
@@ -1130,7 +1170,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             public URL run() {
                 return findResourceImpl(name);
             }
-        }, currentContext);
+        }, creationContext);
         SecurityManager sm;
         if (result != null && (sm = System.getSecurityManager()) != null) {
             try {

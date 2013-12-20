@@ -49,7 +49,7 @@ import java.util.jar.JarFile;
 import java.util.jar.Manifest;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
 
 /**
  * A simple HTTP server, for serving up JAR and class files.
@@ -162,7 +162,7 @@ import org.apache.river.api.util.Commission;
  * @author Sun Microsystems, Inc.
  *
  */
-public class ClassServer extends Thread implements Commission {
+public class ClassServer extends Thread implements Startable {
     /** Default HTTP port */
     private static int DEFAULT_PORT = 8080;
     /** Default directory to serve files from on non-Windows OS */
@@ -349,7 +349,7 @@ public class ClassServer extends Thread implements Commission {
      * understood
      * @throws NullPointerException if <code>args</code> or any element
      * of <code>args</code> is <code>null</code>
-     * @see Commission
+     * @see Startable
      */
     public ClassServer(String[] args, LifeCycle lifeCycle) throws IOException {
 	this(new Initializer(lifeCycle, args));

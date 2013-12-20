@@ -34,7 +34,7 @@ import com.sun.jini.reliableLog.ReliableLog;
 import com.sun.jini.reliableLog.LogHandler;
 
 import com.sun.jini.start.LifeCycle;
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
 
 import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadersWriter;
@@ -168,7 +168,7 @@ import java.util.logging.Logger;
  *
  * @author Sun Microsystems, Inc.
  */
-class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Commission {
+class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable {
 
     /* Name of this component; used in config entry retrieval and the logger.*/
     static final String COMPONENT_NAME = "com.sun.jini.fiddler";

@@ -145,7 +145,8 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * Base server-side implementation of a lookup service, subclassed by
@@ -158,7 +159,7 @@ import org.apache.river.api.util.Commission;
  * @author Sun Microsystems, Inc.
  *
  */
-class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commission {
+class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Startable {
 
     /** Maximum minMax lease duration for both services and events */
     private static final long MAX_LEASE = 1000L * 60 * 60 * 24 * 365 * 1000;
@@ -531,7 +532,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
             poolSizeLimit, 
             15L, 
             TimeUnit.MINUTES, 
-            new LinkedBlockingQueue()
+            new LinkedBlockingQueue(),
+            new NamedThreadFactory("Reggie_Event_Notifier", true)   
         );
         eventNotifierExec = exec;
         // Set up Executor to perform discovery responses
@@ -540,7 +542,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
                 poolSizeLimit, 
                 15L, 
                 TimeUnit.MINUTES, 
-                new LinkedBlockingQueue()
+                new LinkedBlockingQueue(),
+                new NamedThreadFactory("Reggie_Discovery_Response", true)
         );
         discoveryResponseExec = exec;
         
@@ -2105,7 +2108,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
 
     /** Task for decoding multicast request packets. */
     private static final class DecodeRequestTask implements Runnable {
-        /* Keeps a record of recent AddressTasksto avoid DOS attacks. */
+        /* Keeps a record of recent AddressTasksto avoid DOS attacks. 
+         * 
+         * Recommended period between discovery multicast requests is 5 sec.
+         */
         private static final Set<AddressTask> executedTasks;
         static {
             Comparator<Referrer<AddressTask>> comparator = RC.comparator(new AddressTaskComparator());
@@ -2113,7 +2119,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Commi
                 RC.set(new ConcurrentSkipListSet<Referrer<AddressTask>>(
                         comparator), 
                         Ref.TIME,
-                        3500L);
+                        2000L);
         }
 	/** The multicast packet to decode */
 	private final DatagramPacket datagram;

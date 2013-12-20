@@ -18,7 +18,7 @@
 
 package com.sun.jini.start;
 
-import org.apache.river.api.util.Commission;
+import org.apache.river.api.util.Startable;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
@@ -471,15 +471,15 @@ public class ActivateWrapper implements Remote, Serializable {
 		constructor.setAccessible(true);
 		impl =
 		    constructor.newInstance(new Object[]{id, desc.data});
-                if (impl instanceof Commission) {
-                    ((Commission) impl).start();
+                if (impl instanceof Startable) {
+                    ((Startable) impl).start();
                 } else {
                     logger.log( Level.SEVERE,
                         "Service {0} doesn''t implement {1} {2} {3} {4} {5} {6}", 
                         new Object []
                             {
                                 impl.getClass().getCanonicalName(),
-                                Commission.class.getCanonicalName(),
+                                Startable.class.getCanonicalName(),
                                 "this service is likely to suffer from race",
                                 "conditions caused by export performed during", 
                                 "construction, or threads started while ''this''",
