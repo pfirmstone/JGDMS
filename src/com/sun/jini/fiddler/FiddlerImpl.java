@@ -115,6 +115,7 @@ import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 
 import java.security.PrivilegedExceptionAction;
@@ -499,8 +500,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
         taskMgr = i.taskMgr;
         activationSystem = i.activationSystem;
         serverExporter = i.serverExporter;
-        leaseExpireThread = i.leaseExpireThread;
-        snapshotThread = i.snapshotThread;
         logHandler = i.logHandler;
         activationID = i.activationID;
         // These three fields are used by the Starter.start() implementation.
@@ -508,6 +507,26 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
         config = i.config;
         context = i.context;
         loginContext = i.loginContext;
+        leaseExpireThread = AccessController.doPrivileged(
+            new PrivilegedAction<LeaseExpireThread>(){
+                @Override
+                public LeaseExpireThread run() {
+                    return new LeaseExpireThread(FiddlerImpl.this);
+                }
+                    
+            }, context);
+        if (log != null){
+            snapshotThread = AccessController.doPrivileged(
+                new PrivilegedAction<SnapshotThread>(){
+                    @Override
+                    public SnapshotThread run() {
+                        return new SnapshotThread(FiddlerImpl.this);
+                    }
+
+                }, context);
+        } else {
+            snapshotThread = null;
+        }
     }
     /* ************************** END Constructors ************************* */
 
@@ -575,7 +594,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
          *  currently discovered lookup service(s).
          *  @serial
          */
-        public HashMap discoveredRegsMap;
+        public final HashMap discoveredRegsMap;
         /** The managed set containing the names of the groups whose
          *  members are the lookup services the lookup discovery service
          *  should attempt to discover for the current registration.
@@ -2262,24 +2281,15 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      */
     static class LeaseExpireThread extends InterruptedStatusThread {
 
-        private FiddlerImpl fiddler;
+        private final FiddlerImpl fiddler;
         /** Create a daemon thread */
         public LeaseExpireThread(FiddlerImpl fiddler) {
             super("lease expire");
             setDaemon(true);
             this.fiddler = fiddler;
         }//end constructor
-        
-        /**
-         * This can only be called prior to the thread starting, otherwise it
-         * blocks until the thread finishes executing.
-         * @param fiddler 
-         */
-        synchronized void setFiddler(FiddlerImpl fiddler){
-            this.fiddler = fiddler;
-        }
 
-        public synchronized void run() {
+        public void run() {
             try {
                 fiddler.concurrentObj.writeLock();
             } catch (ConcurrentLockException e) {
@@ -2402,25 +2412,16 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      * be treated as a reader process.
      */
     static class SnapshotThread extends InterruptedStatusThread {
-        private FiddlerImpl fiddler;
+        private final FiddlerImpl fiddler;
         
         /** Create a daemon thread */
-        public SnapshotThread() {
+        public SnapshotThread(FiddlerImpl fiddler) {
             super("snapshot thread");
             setDaemon(true);
-        }
-        
-        /**
-         * Due to synchronization this can only be set prior to this thread
-         * starting.
-         * 
-         * @param fiddler 
-         */
-        synchronized void setFiddler(FiddlerImpl fiddler){
             this.fiddler = fiddler;
         }
 
-        public synchronized void run() {
+        public void run() {
             try {
                 fiddler.concurrentObj.readLock();
             } catch (ConcurrentLockException e) {
@@ -5337,7 +5338,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                 /* start up all the daemon threads */
                 leaseExpireThread.start();
                 if(log != null) {
-                    snapshotThread.setFiddler(FiddlerImpl.this);
                     snapshotThread.start();
                 }
                 logInfoStartup();

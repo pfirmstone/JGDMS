@@ -155,6 +155,7 @@ public class LeaseExpiration extends AbstractBaseTest {
             }
             synchronized(eventLock) {
                 eventReceived = true;
+                eventLock.notifyAll();
             }
         }
     }//end class ServiceEventListener
@@ -190,7 +191,7 @@ public class LeaseExpiration extends AbstractBaseTest {
     private static final long N_SECS = 30;
     private final long duration = N_SECS*1000;
     private MarshalledObject handback = null;
-    private volatile boolean eventReceived = false;
+    private boolean eventReceived = false;
     private final Object eventLock = new Object();
 
     /** Constructs and returns the duration values (in milliseconds) to 
@@ -301,24 +302,32 @@ public class LeaseExpiration extends AbstractBaseTest {
         long nSecsWait = ( (nSecsLookupDiscovery > (actualDur/1000)) ?
                             nSecsLookupDiscovery : (actualDur/1000) );
         /* Give the event time to arrive */
-        int i = 0;
-        if(!eventReceived) {
-        for(i=1;i<nSecsWait;i++) {
-                DiscoveryServiceUtil.delayMS(1000);
-                if(eventReceived) break;
-            }
-        }//endif
-        if(eventReceived) {
-            logger.log(Level.FINE, 
-                              "first discovery event received after "
-                              +i+" second(s)");
-        } else {
-            throw new TestException(
-                             " -- waited "+i+" seconds, but no discovery "
-                             +"event received for the first lookup "
-                             +"service started");
-        }//endif
-
+        long startTime = System.currentTimeMillis();
+        long finishWait = nSecsWait * 1000;
+        long waitDuration = 0L;
+        synchronized (eventLock){
+            if(!eventReceived) {
+                while (waitDuration < finishWait) {
+                    try {
+                        eventLock.wait(1000);
+                        waitDuration = System.currentTimeMillis() - startTime;
+                        if(eventReceived) break;
+                    } catch (InterruptedException e){
+                        Thread.currentThread().interrupt();// restore
+                    }
+                }
+            }//endif
+            if(eventReceived) {
+                logger.log(Level.FINE, 
+                                  "first discovery event received after "
+                                  +waitDuration/1000+" second(s)");
+            } else {
+                throw new TestException(
+                                 " -- waited "+waitDuration/1000+" seconds, but no discovery "
+                                 +"event received for the first lookup "
+                                 +"service started");
+            }//endif
+        }
         /* Start another lookup belonging to same group(s) as first */
         logger.log(Level.FINE, 
                           "starting a new lookup service");
@@ -338,22 +347,29 @@ public class LeaseExpiration extends AbstractBaseTest {
                           "  lookup MemberGroup(s) = "
                           +GroupsUtil.toCommaSeparatedStr(memberGroups1));
         /* Give the event time to arrive */
-        i = 0;
-        if(!eventReceived) {
-        for(i=1;i<nSecsWait;i++) {
-                DiscoveryServiceUtil.delayMS(1000);
-                if(eventReceived) break;
-            }
-        }//endif
-        if(eventReceived) {
-            logger.log(Level.FINE, 
-               "second discovery event received after "+i+" second(s)");
-        } else {
-            throw new TestException(
-                             " -- waited "+i+" seconds, but no discovery "
-                             +"event received for the second lookup "
-                             +"service started");
-        }//endif
+        startTime = System.currentTimeMillis();
+        synchronized (eventLock){
+            if(!eventReceived) {
+                while (waitDuration < finishWait) {
+                    try {
+                        eventLock.wait(1000);
+                        waitDuration = System.currentTimeMillis() - startTime;
+                        if(eventReceived) break;
+                    } catch (InterruptedException e){
+                        Thread.currentThread().interrupt();// restore
+                    }
+                }
+            }//endif
+            if(eventReceived) {
+                logger.log(Level.FINE, 
+                   "second discovery event received after "+waitDuration/1000+" second(s)");
+            } else {
+                throw new TestException(
+                                 " -- waited "+waitDuration/1000+" seconds, but no discovery "
+                                 +"event received for the second lookup "
+                                 +"service started");
+            }//endif
+        }
         /* Remove the lease from the renewal manager so it can expire */
         try {
             lrm.remove(lease);
@@ -369,7 +385,7 @@ public class LeaseExpiration extends AbstractBaseTest {
         logger.log(Level.FINE, 
                               "waiting for lease expiration ...");
         boolean leaseExpired = false;
-        for(i=0;i<N_CYCLES_WAIT_EXPIRATION;i++) {
+        for(int i=0;i<N_CYCLES_WAIT_EXPIRATION;i++) {
             DiscoveryServiceUtil.delayMS(2*actualDur);
             /* Verify the lease has expired by trying to renew the lease */
             try {
@@ -409,22 +425,29 @@ public class LeaseExpiration extends AbstractBaseTest {
                           "  lookup MemberGroup(s) = "
                           +GroupsUtil.toCommaSeparatedStr(memberGroups2));
         /* Give the event time to arrive */
-        i = 0;
-        if(!eventReceived) {
-        for(i=1;i<nSecsWait;i++) {
-                DiscoveryServiceUtil.delayMS(1000);
-                if(eventReceived) break;
-            }
-        }//endif
-        if(eventReceived) {
-            throw new TestException(
-                                 " -- last discovery event received after "
-                                 +i+" second(s)");
-        } else {
-            logger.log(Level.FINE, 
-                           "no events received after "+i+" second(s)");
+        startTime = System.currentTimeMillis();
+        synchronized (eventLock){
+            if(!eventReceived) {
+                while (waitDuration < finishWait) {
+                    try {
+                        eventLock.wait(1000);
+                        waitDuration = System.currentTimeMillis() - startTime;
+                        if (eventReceived) break;
+                    } catch (InterruptedException e){
+                        Thread.currentThread().interrupt();// restore
+                    }
+                }
+            }//endif
+            if(eventReceived) {
+                throw new TestException(
+                                     " -- last discovery event received after "
+                                     +waitDuration/1000+" second(s)");
+            } else {
+                logger.log(Level.FINE, 
+                               "no events received after "+waitDuration/1000+" second(s)");
 
-        }//endif
+            }//endif
+        }
     }//end run
 
 } //end class LeaseExpiration

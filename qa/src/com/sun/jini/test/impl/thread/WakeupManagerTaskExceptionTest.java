@@ -46,15 +46,20 @@ public class WakeupManagerTaskExceptionTest extends AbstractThreadTest {
         final boolean result[] = new boolean[]{false};
         manager.schedule(goodTaskTime, new Runnable() {
             public void run() {
-                result[0] = true;
+                // This happens in another thread
+                synchronized (result){
+                    result[0] = true;
+                }
             }
         });
         while (System.currentTimeMillis() < goodTaskTime + 10) {
             Thread.sleep((goodTaskTime+10)-System.currentTimeMillis());
         }
-        if (!result[0]) {
-            throw new TestException("A task that throws a runtime exception"
-                + " prevents other tasks from running");
+        synchronized (result){
+            if (!result[0]) {
+                throw new TestException("A task that throws a runtime exception"
+                    + " prevents other tasks from running");
+            }
         }
     }
 }

@@ -73,8 +73,6 @@ class FiddlerInit {
     TaskManager taskMgr;
     ActivationSystem activationSystem;
     Exporter serverExporter;
-    LeaseExpireThread leaseExpireThread;
-    SnapshotThread snapshotThread;
     LocalLogHandler logHandler;
     ActivationID activationID = null;
     // These three fields are used by the Starter.start() implementation.
@@ -281,13 +279,6 @@ class FiddlerInit {
                                           +"retrieving service's exporter",
                                           e);
             }
-
-            /* Create the following threads here, after a possible JAAS login,
-             * rather than in the constructor, before the login. This must
-             * be done so that the threads will have the correct subject.
-             */
-            leaseExpireThread = new FiddlerImpl.LeaseExpireThread(null);
-            if(log != null) snapshotThread = new FiddlerImpl.SnapshotThread();
         } catch(Throwable e) {
             cleanupInitFailure();
             handleActivatableInitThrowable(e);
