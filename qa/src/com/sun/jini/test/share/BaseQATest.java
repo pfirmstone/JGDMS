@@ -1638,7 +1638,13 @@ abstract public class BaseQATest extends QATestEnvironment {
                     }//endif
                 }//endif(nEventsReceived == nEventsExpected)
                 try {
-                    listener.wait(1000); // Wait for discovery for up to 1000 ms.
+                    long startTime = System.currentTimeMillis();
+                    long finishTime = startTime + 1000;
+                    long remain = 1000;
+                    do {
+                        listener.wait(remain); // Wait for discovery for 1000 ms.
+                        remain = finishTime - System.currentTimeMillis();
+                    } while (remain > 0); //To avoid spurious wakeup
                 } catch (InterruptedException ex) {
                     throw new TestException("Interrupted while waiting for discovery", ex);
                 }
@@ -1794,7 +1800,13 @@ abstract public class BaseQATest extends QATestEnvironment {
                     }//endif
                 }//endif(nEventsReceived == nEventsExpected)
                 try {
-                    listener.wait(1000);
+                    long startTime = System.currentTimeMillis();
+                    long finishTime = startTime + 1000;
+                    long remain = 1000;
+                    do {
+                        listener.wait(remain); // Wait for discovery for 1000 ms.
+                        remain = finishTime - System.currentTimeMillis();
+                    } while (remain > 0); //To avoid spurious wakeup
                 } catch (InterruptedException ex) {
                     throw new TestException("Test interrupted while waiting for discard", ex);
                 }
@@ -1948,10 +1960,17 @@ abstract public class BaseQATest extends QATestEnvironment {
                     }//endif
                 }//endif(nEventsReceived == nEventsExpected)
                 try {
-                    listener.wait(1000);
+                    long startTime = System.currentTimeMillis();
+                    long finishTime = startTime + 1000;
+                    long remain = 1000;
+                    do {
+                        listener.wait(remain); // Wait for discovery for 1000 ms.
+                        remain = finishTime - System.currentTimeMillis();
+                    } while (remain > 0); //To avoid spurious wakeup
                 } catch (InterruptedException ex) {
                     throw new TestException("Test interrupted while waiting for change event", ex);
                 }
+                // can't do this anymore because we need to release sync first.
                 //DiscoveryServiceUtil.delayMS(1000);
                 showCompInfo = false;//display comparison info only when i = 0
             }//end loop(iLoop)

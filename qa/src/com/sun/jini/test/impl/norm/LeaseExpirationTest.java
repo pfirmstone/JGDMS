@@ -360,12 +360,13 @@ public class LeaseExpirationTest extends TestBase implements Test {
 	    if (count != 0) 
 		return false;
 
-	    final long now = System.currentTimeMillis();
+	    long now = System.currentTimeMillis();
 	    synchronized (this) {
-		if (setExpiration > now) {
+		while (setExpiration > now) {
 		    logger.log(Level.INFO, "Waiting for " + (setExpiration - now) 
                         + " ms for set lease to expire");
 		    wait(setExpiration - now);
+                    now = System.currentTimeMillis();
                 }
 	    }
 	    return true;

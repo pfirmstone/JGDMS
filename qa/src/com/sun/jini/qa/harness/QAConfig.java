@@ -2213,7 +2213,7 @@ public class QAConfig implements Serializable {
             if (fqHostName.contains(nxdomain)) return hostName;
             return fqHostName;
 	} catch (UnknownHostException ignore) {
-            logger.severe("InetAddress threw unknown host exception: " + hostName);
+            logger.info("InetAddress threw unknown host exception: " + hostName);
 	}
 	return hostName;
     }

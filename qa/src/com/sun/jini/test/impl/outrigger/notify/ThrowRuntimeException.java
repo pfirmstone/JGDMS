@@ -196,14 +196,16 @@ public class ThrowRuntimeException extends TestBase implements Test {
          */
         long listener1Rcvd;
         synchronized (listener1) {
-
+            long duration = wait;
+            long finish = System.currentTimeMillis() + duration;
+            
             // Did it already happen?
             listener1Rcvd = listener1.lastEvent();
 
-            if (listener1Rcvd < ev1) {
+            while (listener1Rcvd < ev1) {
 
                 // No, wait
-                listener1.wait(wait);
+                listener1.wait(duration);
                 listener1Rcvd = listener1.lastEvent();
 
                 if (listener1Rcvd < 0) {
@@ -214,6 +216,8 @@ public class ThrowRuntimeException extends TestBase implements Test {
                             "First listener received too many events");
                 }
                 logger.log(Level.INFO, "Received correct event");
+                duration = finish - System.currentTimeMillis();
+                if (duration <= 0) break;
             }
         }
 
@@ -254,12 +258,14 @@ public class ThrowRuntimeException extends TestBase implements Test {
 
         // Wait for event and check to see if it is the right one
         synchronized (listener2) {
-
+            long duration = wait;
+            long finish = System.currentTimeMillis() + duration;
+            
             // Did it already happen?
-            if (listener2.lastEvent() < ev1) {
+            while (listener2.lastEvent() < ev1) {
 
                 // No wait
-                listener2.wait(wait);
+                listener2.wait(duration);
 
                 if (listener2.lastEvent() < 0) {
                     throw new TestException(
@@ -268,6 +274,8 @@ public class ThrowRuntimeException extends TestBase implements Test {
                     throw new TestException(
                             "Second listener received too many events");
                 }
+                duration = finish - System.currentTimeMillis();
+                if (duration <= 0) break;
             }
         }
         logger.log(Level.INFO, "2nd handler received correct event");

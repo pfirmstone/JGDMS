@@ -816,11 +816,12 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                     sleep(multicastAnnouncementInterval);
                     long curTime = System.currentTimeMillis();
                     synchronized (registrars) {
-                        /* can't modify regInfo while iterating over it, 
-                         * so clone it
+                        /* Previously regInfo was cloned to avoid synchronizing
+                         * this was changed to a simple synchronized block during code
+                         * auditing as it appeared like an unnecessary 
+                         * performance optimisation that risked atomicity.
                          */
-                        HashMap<ServiceID,AnnouncementInfo> regInfoClone = (HashMap<ServiceID,AnnouncementInfo>) regInfo.clone();
-                        Set<Map.Entry<ServiceID,AnnouncementInfo>> eSet = regInfoClone.entrySet();
+                        Set<Map.Entry<ServiceID,AnnouncementInfo>> eSet = regInfo.entrySet();
                         for(Iterator<Map.Entry<ServiceID,AnnouncementInfo>> itr = eSet.iterator(); itr.hasNext(); ) {
                             Map.Entry<ServiceID,AnnouncementInfo> pair   = itr.next();
                             ServiceID srvcID = pair.getKey();

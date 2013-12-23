@@ -218,7 +218,12 @@ public class MuxClientTest extends AbstractMuxTest {
     private Socket getConnection() throws InterruptedException {
         if (s==null) {
             synchronized (lock) {
-                lock.wait(2 * getTimeout());
+                long duration = 2 * getTimeout();
+                long finish = System.currentTimeMillis() + duration;
+                do {
+                    lock.wait(duration);
+                    duration = finish - System.currentTimeMillis();
+                } while ( s == null && duration > 0);
             }
         }
         Socket temp = s;

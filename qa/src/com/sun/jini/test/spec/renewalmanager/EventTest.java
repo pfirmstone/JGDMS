@@ -356,7 +356,11 @@ public class EventTest extends QATestEnvironment implements Test {
 	synchronized (this) {
 	    if (null == (failedComponet = hadEarlyFailure(leases))) {
 		// let run() propogate InterruptedException
-		wait(waitUntil - System.currentTimeMillis());
+                long duration = waitUntil - System.currentTimeMillis();
+                do {
+                    wait(duration);
+                    duration = waitUntil - System.currentTimeMillis();
+                } while (duration > 0);
 		failedComponet = hadEarlyFailure(leases);
 	    }
 	}
