@@ -48,6 +48,11 @@
     <target name="hudson-ci-settings" description="provide default settings" >
         <echoproperties />
     </target>
+    
+    <target name="hudson-jtreg" description="hudson jtreg build target" depends="diagnostics,hudson-qa-settings,all.clean,all.build" >
+        <ant dir="qa" target="jtreg" inheritall="false">
+        </ant>
+    </target>
 
     <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,hudson-qa-settings,all.clean,qa.run" />
     
