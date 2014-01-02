@@ -575,8 +575,9 @@ public class LookupServices {
                 if(debugsync) logger.log(Level.FINE,
                                   "     BaseQATest.startLookup - "
                                   +"sync on lookupList --> released");
+                genMap.put( lookupProxy, memberGroups );
             }//end sync(lookupList)
-            genMap.put( lookupProxy, memberGroups );
+            
             /* Force non-unique groups for manual tests */
             if(    (testType == BaseQATest.MANUAL_TEST_REMOTE_COMPONENT)
                 || (testType == BaseQATest.MANUAL_TEST_LOCAL_COMPONENT) ) 
@@ -605,7 +606,7 @@ public class LookupServices {
             }
         }
         regsToLocGroupsMap.put(lookupProxy,locGroupsPair);
-
+        
         LocatorsUtil.displayLocator(lookupLocator,
                                     "  locator",Level.FINE);
         String displayGroups = GroupsUtil.toCommaSeparatedStr(memberGroups);

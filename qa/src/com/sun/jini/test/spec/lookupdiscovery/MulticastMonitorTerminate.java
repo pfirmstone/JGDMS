@@ -105,10 +105,14 @@ public class MulticastMonitorTerminate extends Discovered {
          * examines the contents of those maps. So we don't want those
          * maps to change until setLookupsToDiscover returns.
          */
-        synchronized(mainListener) {
+        LookupListener mainListener = this.mainListener;
+        mainListener.lock.lock();
+        try {
             terminateAllLookups();//cause discard events to be sent
             mainListener.setLookupsToDiscover(new java.util.ArrayList(1));
-        }//end sync(mainListener)
+        } finally {
+            mainListener.lock.unlock();
+        }
         waitForDiscard(mainListener);
     }//end run
 

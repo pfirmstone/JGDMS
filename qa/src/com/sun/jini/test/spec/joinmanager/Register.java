@@ -23,6 +23,7 @@ import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
+import java.util.List;
 
 import net.jini.lookup.JoinManager;
 
@@ -74,8 +75,9 @@ public class Register extends AbstractBaseTest {
         /* Verify that the lookups were discovered */
         logger.log(Level.FINE, "verifying the lookup "
                                         +"service(s) are discovered ...");
-        mainListener.setLookupsToDiscover(getLookupsStarted(),
-                                          toGroupsArray(getLookupsStarted()));
+        List<LocatorGroupsPair> lookupsStarted = getLookupsStarted();
+        mainListener.setLookupsToDiscover(lookupsStarted,
+                                          toGroupsArray(lookupsStarted));
         waitForDiscovery(mainListener);
         verifyJoin();
         logger.log(Level.FINE, "join manager successfully registered "

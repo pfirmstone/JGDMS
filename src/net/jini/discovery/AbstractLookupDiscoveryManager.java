@@ -21,11 +21,18 @@ package net.jini.discovery;
 import com.sun.jini.logging.Levels;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
@@ -72,14 +79,23 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
      *  Note that this set is shared across threads; therefore, when
      *  accessing or modifying the contents of this set, the appropriate
      *  synchronization must be applied.
+     * 
+     *  A list is used instead of a Set, because hashCode and equals are 
+     *  remote calls.  However we need to avoid duplicates and since this 
+     *  requires list traversal using remote method calls during add, 
+     *  we need a lock to prevent concurrent additions.  Removal while an
+     *  add operation is in progress would be acceptable, since the worst
+     *  case scenario is the iterator snapshot would contain the removed
+     *  ProxyReg.
      */
-    private final ArrayList discoveredSet = new ArrayList(1); // sync(discoveredSet)
+    private final List<ProxyReg> discoveredSet = new CopyOnWriteArrayList<ProxyReg>(); // sync(discoveredSet)
+    private final Lock discoveredSetAddLock = new ReentrantLock();
     /** Contains the instances of <code>DiscoveryListener</code> that clients
      *  register with the <code>LookupDiscoveryManager</code>. The elements
      *  of this set receive discovered events, discarded events and, when
      *  appropriate, changed events.
      */
-    private final ArrayList listeners = new ArrayList(1); // sync(listeners)
+    private final Set<DiscoveryListener> listeners = Collections.newSetFromMap(new ConcurrentHashMap<DiscoveryListener,Boolean>());
     /** The <code>LookupDiscovery</code> utility used to manage the group
      *  discovery mechanism. Note that this object cannot be accessed outside
      *  of this <code>LookupDiscoveryManager</code>.
@@ -155,7 +171,7 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
          *  value of <code>true</code> in this flag is equivalent to a
          *  communication discard.
          */
-        public boolean commDiscard = false; // sync(discoveredSet)
+        public boolean commDiscard = false; // sync(this)
         /** Integer restricted to the values 0, 1, 2, and 3. Each value 
          *  represents a bit (or set of bits) that, when set, indicates the
          *  mechanism (group discovery, locator discovery, or both) through
@@ -381,22 +397,26 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
 	public void discovered(DiscoveryEvent e) {
             ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
-            HashMap discoveredGroupsMap = new HashMap(proxys.length);
-	    for(int i=0; i<proxys.length; i++) {
-                synchronized(discoveredSet) {
-                    ProxyReg reg = findReg(proxys[i]);
-                    if(reg == null) {//newly discovered, send event
-                        reg = new ProxyReg(proxys[i],
-                                          (String[])(groupsMap.get(proxys[i])),
-                                           FROM_LOCATOR);
-                        addDiscoveredSet(reg);
-                        discoveredGroupsMap.put(proxys[i],
-                                                groupsMap.get(proxys[i]));
-                    } else {//previously discovered, update bit, send no event
-                        reg.addFrom(FROM_LOCATOR);
-                    }//endif
-                }//end sync(discoveredSet)
-	    }//end loop
+            int len = proxys.length;
+            HashMap discoveredGroupsMap = new HashMap(len);
+            discoveredSetAddLock.lock();
+            try {
+                for(int i=0; i<len; i++) {
+                        ProxyReg reg = findReg(proxys[i]);
+                        if(reg == null) {//newly discovered, send event
+                            reg = new ProxyReg(proxys[i],
+                                              (String[])(groupsMap.get(proxys[i])),
+                                               FROM_LOCATOR);
+                            discoveredSet.add(reg);
+                            discoveredGroupsMap.put(proxys[i],
+                                                    groupsMap.get(proxys[i]));
+                        } else {//previously discovered, update bit, send no event
+                            reg.addFrom(FROM_LOCATOR);
+                        }//endif
+                }//end loop
+            } finally {
+                discoveredSetAddLock.unlock();
+            }
             /* Will send notification only if map is non-empty from above */
             notifyListener(discoveredGroupsMap, DISCOVERED);
 	}//end discovered
@@ -483,9 +503,9 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
 	public void discarded(DiscoveryEvent e) {
 	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
-            HashMap discardedGroupsMap = new HashMap(proxys.length);
-	    for(int i=0; i<proxys.length; i++) {
-                synchronized(discoveredSet) {
+            int len = proxys.length;
+            HashMap discardedGroupsMap = new HashMap(len);
+	    for(int i=0; i<len; i++) {
                     ProxyReg reg = findReg(proxys[i]);
                     if(reg != null) {
                         String[] newGroups = (String[])groupsMap.get
@@ -494,25 +514,17 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
                             /* Locator discovery only, always send discarded */
                             discardedGroupsMap.put(reg.proxy,newGroups);
                         } else {//group and loc discovery
-                            if( reg.commDiscard ) {//unreachable, send later
-                                reg.discard();//discard from LookupDiscovery
-                            }//endif
+                            synchronized (reg){
+                                if( reg.commDiscard ) {//unreachable, send later
+                                    reg.discard();//discard from LookupDiscovery
+                                }//endif
+                            }
                         }//endif
                     }//endif(reg != null)
-                }//end sync(discoveredSet)
             }//end loop
             /* Will send notification only if map is non-empty from above */
             notifyListener(discardedGroupsMap, DISCARDED);
 	}//end discarded
-
-        /* Convenience method that adds the given <code>ProxyReg</code> 
-         * instance to the managed set of discovered registrars.
-         */
-	void addDiscoveredSet(ProxyReg reg) {
-	    synchronized(discoveredSet) {
-		discoveredSet.add(reg);
-	    }
-	}//end addDiscoveredSet
 
         /* Convenience method that first attempts to unset the bit in the
          * discovery mechanism flag of the given ProxyReg based on the value
@@ -529,11 +541,7 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
          */
 	boolean removeDiscoveredSet(ProxyReg reg, int from) {
 	    boolean bret = reg.removeFrom(from);
-	    if(bret) {
-		synchronized(discoveredSet) {
-		    discoveredSet.remove(reg);
-		}//end sync
-	    }//endif
+	    if (bret) discoveredSet.remove(reg);
 	    return bret;
 	}//end removeDiscoveredSet
     }//end class LocatorDiscoveryListener
@@ -568,16 +576,18 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
 	public void discovered(DiscoveryEvent e) {
             ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
-            HashMap discoveredGroupsMap = new HashMap(proxys.length);
-            HashMap changedGroupsMap    = new HashMap(proxys.length);
-	    for(int i=0; i<proxys.length; i++) {
-                synchronized(discoveredSet) {
+            int len = proxys.length;
+            HashMap discoveredGroupsMap = new HashMap(len);
+            HashMap changedGroupsMap    = new HashMap(len);
+            discoveredSetAddLock.lock();
+            try {
+                for(int i=0; i<len; i++) {
                     ProxyReg reg = findReg(proxys[i]);
                     if(reg == null) {//newly discovered, send discovered event
                         reg = new ProxyReg(proxys[i],
                                           (String[])(groupsMap.get(proxys[i])),
                                            FROM_GROUP);
-                        addDiscoveredSet(reg);
+                        discoveredSet.add(reg);
                         discoveredGroupsMap.put(proxys[i],
                                                 groupsMap.get(proxys[i]));
                     } else {//previously discovered by group, by loc or by both
@@ -591,8 +601,10 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
                             changedGroupsMap.put(reg.proxy,newGroups);
                         }//endif
                     }//endif
-                }//end sync(discoveredSet)
-	    }//end loop
+                }//end loop
+            } finally {
+                discoveredSetAddLock.unlock();
+            }
             /* Will send notification only if map is non-empty from above */
             notifyListener(discoveredGroupsMap, DISCOVERED);
             notifyListener(changedGroupsMap, CHANGED);
@@ -723,10 +735,10 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
 	public void discarded(DiscoveryEvent e) {
 	    ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
-            HashMap discardedGroupsMap = new HashMap(proxys.length);
-            HashMap changedGroupsMap   = new HashMap(proxys.length);
-	    for(int i=0; i<proxys.length; i++) {
-                synchronized(discoveredSet) {
+            int len = proxys.length;
+            HashMap discardedGroupsMap = new HashMap(len);
+            HashMap changedGroupsMap   = new HashMap(len);
+	    for(int i=0; i<len; i++) {
                     ProxyReg reg = findReg(proxys[i]);
                     if(reg != null) {
                         String[] newGroups = (String[])groupsMap.get
@@ -747,7 +759,6 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
                             }//endif(stillInterested or not)
                         }//endif(removeDiscoveredSet ==> group or group & loc)
                     }//endif(reg != null)
-                }//end sync(discoveredSet)
             }//end loop
             /* Will send notification only if map is non-empty from above */
             notifyListener(discardedGroupsMap, DISCARDED);
@@ -766,17 +777,16 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
             /* update the groups of each changed registrar */
             ServiceRegistrar[] proxys = (ServiceRegistrar[])e.getRegistrars();
             Map groupsMap = e.getGroups();
-            HashMap changedGroupsMap = new HashMap(proxys.length);
-	    for(int i=0; i<proxys.length; i++) {
-                synchronized(discoveredSet) {
-                    ProxyReg reg = findReg(proxys[i]);
-                    if(reg != null) {//previously discovered
-                        String[] newGroups = (String[])groupsMap.get
-                                                                   (reg.proxy);
-                        reg.setMemberGroups(newGroups);
-                        changedGroupsMap.put(reg.proxy,newGroups);
-                    }//endif
-                }//end sync(discoveredSet)
+            int len = proxys.length;
+            HashMap changedGroupsMap = new HashMap(len);
+	    for(int i=0; i<len; i++) {
+                ProxyReg reg = findReg(proxys[i]);
+                if(reg != null) {//previously discovered
+                    String[] newGroups = (String[])groupsMap.get
+                                                               (reg.proxy);
+                    reg.setMemberGroups(newGroups);
+                    changedGroupsMap.put(reg.proxy,newGroups);
+                }//endif
             }//end loop
             /* Will send notification only if map is non-empty from above */
             notifyListener(changedGroupsMap, CHANGED);
@@ -1081,23 +1091,15 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
         if(listener == null) {
             throw new NullPointerException("can't add null listener");
         }
-        // Unsynchronized access to discoveredSet, was this to avoid deadlock?
-        // I've cloned it, it wasn't likely to get an up to date copy without sync anyway.
-        ArrayList discoveredSetClone;
-        synchronized (discoveredSet){
-            discoveredSetClone = new ArrayList(discoveredSet);
-        }
-        HashMap groupsMap = new HashMap(discoveredSetClone.size());
-	synchronized(listeners) {
-            if(!listeners.contains(listener)) {
-                listeners.add(listener);
-            }
-            if(discoveredSetClone.isEmpty()) return;
-	    for(int i=0; i< discoveredSetClone.size(); i++) {
-                ProxyReg reg = (ProxyReg)discoveredSetClone.get(i);
-                groupsMap.put(reg.proxy,reg.getMemberGroups());
-	    }
-	}
+        
+        listeners.add(listener);
+        if (discoveredSet.isEmpty()) return;
+        HashMap groupsMap = new HashMap(discoveredSet.size());
+        Iterator<ProxyReg> it = discoveredSet.iterator();
+        while (it.hasNext()){
+            ProxyReg reg = it.next();
+            groupsMap.put(reg.proxy,reg.getMemberGroups());
+        } 
         notifyListener(listener, groupsMap, DISCOVERED);
     }
 
@@ -1115,9 +1117,7 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
      * @see #addDiscoveryListener
      */
     public void removeDiscoveryListener(DiscoveryListener listener) {
-	synchronized(listeners) {
-	    listeners.remove(listener);
-	}
+        listeners.remove(listener);
     }
 
     /**
@@ -1133,19 +1133,14 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
      * @see net.jini.discovery.DiscoveryManagement#removeDiscoveryListener
      */
     public ServiceRegistrar[] getRegistrars() {
-	ArrayList proxySet = new ArrayList(1);;
-	synchronized(discoveredSet) {
-	    int k = 0;
-	    Iterator iter = discoveredSet.iterator();
-	    while(iter.hasNext()) {
-		ProxyReg reg = (ProxyReg)iter.next();
-		if(!reg.isDiscarded())
-		    proxySet.add(reg.proxy);
-	    }
-	}
-	ServiceRegistrar[] ret = new ServiceRegistrar[proxySet.size()];
-	proxySet.toArray(ret);
-	return ret;
+	List<ServiceRegistrar> proxySet = new LinkedList<ServiceRegistrar>();
+        Iterator<ProxyReg> iter = discoveredSet.iterator();
+        while(iter.hasNext()) {
+            ProxyReg reg = iter.next();
+            if(!reg.isDiscarded())
+                proxySet.add(reg.proxy);
+        }
+	return proxySet.toArray(new ServiceRegistrar[proxySet.size()]);
     }
 
     /**
@@ -1166,10 +1161,10 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
         if(proxy == null) return;
 	ProxyReg reg = findReg(proxy);
 	if(reg != null) {
-            synchronized(discoveredSet) {
-	        reg.discard();
+            synchronized (reg){
+                reg.discard();
                 reg.commDiscard = true;
-            }//end sync(discoveredSet)
+            }
         }//endif
     }//end discard
 
@@ -1184,9 +1179,7 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
      * @see net.jini.discovery.DiscoveryManagement#terminate
      */
     public void terminate() {
-	synchronized(listeners) {
-	    listeners.clear();
-	}
+        listeners.clear();
 	lookupDisc.terminate();
 	locatorDisc.terminate();
     }
@@ -1218,14 +1211,12 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
 
 
     private ProxyReg findReg(ServiceRegistrar proxy) {
-	synchronized(discoveredSet) {
-	    Iterator iter = discoveredSet.iterator();
-	    while(iter.hasNext()) {
-		ProxyReg reg =(ProxyReg)iter.next();
-		if(reg.proxy.equals(proxy))
-		    return reg;
-	    }
-	}
+        Iterator iter = discoveredSet.iterator();
+        while(iter.hasNext()) {
+            ProxyReg reg =(ProxyReg)iter.next();
+            if(reg.proxy.equals(proxy))
+                return reg;
+        }
 	return null;
     }
 
@@ -1240,13 +1231,9 @@ abstract class AbstractLookupDiscoveryManager implements DiscoveryManagement,
      */
     private void notifyListener(Map groupsMap, int eventType) {
 	if(groupsMap.isEmpty()) return;
-	ArrayList notifies;
-	synchronized(listeners) {
-	    notifies = (ArrayList)listeners.clone();
-	}
-	Iterator iter = notifies.iterator();
+	Iterator<DiscoveryListener> iter = listeners.iterator();
 	while(iter.hasNext()) {
-	    DiscoveryListener l = (DiscoveryListener)iter.next();
+	    DiscoveryListener l = iter.next();
 	    try {
                 notifyListener(l, groupsMap, eventType);
 	    } catch (Throwable t) {

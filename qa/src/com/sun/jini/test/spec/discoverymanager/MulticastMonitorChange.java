@@ -84,14 +84,18 @@ public class MulticastMonitorChange extends Discovered {
          * examines the contents of those maps. So we don't want those
          * maps to change until setLookupsToDiscover returns.
          */
-        synchronized(mainListener) {
+        LookupListener mainListener = this.mainListener;
+        mainListener.lock.lock();
+        try {
             /* Replace alternate groups to cause changed events */
             List locGroupsPairList = replaceMemberGroups(true);
             /* Set the expected changed event info */
             mainListener.setLookupsToDiscover(locGroupsPairList,
                                               locatorsToDiscover,
                                               groupsToDiscover);
-        }//end sync(mainListener)
+        } finally {
+            mainListener.lock.unlock();
+        }
         waitForChange((GroupChangeListener)mainListener);
     }//end run
 

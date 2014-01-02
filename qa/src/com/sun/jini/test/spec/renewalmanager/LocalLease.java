@@ -36,6 +36,8 @@ import net.jini.core.lease.LeaseDeniedException;
 import net.jini.core.lease.UnknownLeaseException;
 
 import com.sun.jini.test.share.OurAbstractLeaseMap;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 /**
  * A lease implementation that is completely local for use in some of the 
@@ -141,9 +143,15 @@ class LocalLease implements Lease {
     }
 
     // Inherit java doc from super type
-    public void cancel() throws RemoteException, UnknownLeaseException {
-	// Simulate blocking remote communications
-	Thread.yield();
+    public synchronized void cancel() throws RemoteException, UnknownLeaseException {
+        try {
+            // Simulate blocking remote communications
+            Thread.sleep(10000L);
+        } catch (InterruptedException ex) {
+            RemoteException e = new RemoteException();
+            e.initCause(ex);
+            throw e;
+        }
     }
 
     protected synchronized void renewWork(long duration) 

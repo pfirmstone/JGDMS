@@ -29,6 +29,7 @@ import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscovery;
 
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * This class verifies that the <code>LookupDiscovery</code> utility
@@ -55,9 +56,8 @@ import java.util.ArrayList;
  */
 public class ConstructorDups extends AbstractBaseTest {
 
-    protected ArrayList newLookups = new ArrayList(11);
-    protected String[] dupGroups = DiscoveryGroupManagement.NO_GROUPS;
-    protected LookupDiscovery newLD = null;
+    protected final ArrayList newLookups = new ArrayList(11);
+    protected volatile String[] dupGroups = DiscoveryGroupManagement.NO_GROUPS;
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the
@@ -66,16 +66,15 @@ public class ConstructorDups extends AbstractBaseTest {
     public Test construct(QAConfig sysConfig) throws Exception {
 	super.construct(sysConfig);
 	/* Create a set of groups to discover that contain duplicates */
-	int len1 = getAllLookupsToStart().size();
+        List<LocatorGroupsPair> lookupsToStart = getAllLookupsToStart();
+	int len1 = lookupsToStart.size();
 	int len2 = 2*len1;
 	for(int i=0;i<len1;i++) {
-	    LocatorGroupsPair pair
-		= (LocatorGroupsPair)getAllLookupsToStart().get(i);
+	    LocatorGroupsPair pair = lookupsToStart.get(i);
 	    newLookups.add(i,pair);
 	}//end loop
 	for(int i=len1;i<len2;i++) {
-	    LocatorGroupsPair pair
-		= (LocatorGroupsPair)getAllLookupsToStart().get(i-len1);
+	    LocatorGroupsPair pair = lookupsToStart.get(i-len1);
 	    newLookups.add(i,pair);
 	}//end loop
 	dupGroups = toGroupsArray(newLookups);

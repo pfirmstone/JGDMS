@@ -82,7 +82,9 @@ public class DiscardUnreachable extends Discovered {
          * are examined; so those maps shouldn't be allowed to change
          * they have been examined.
          */
-        synchronized(mainListener) {
+        LookupListener mainListener = this.mainListener;
+        mainListener.lock.lock();
+        try {
             logger.log(Level.FINE, "terminating each lookup service ...");
             /* Stop announcements & destroy all lookups started in construct */
             terminateAllLookups();
@@ -95,7 +97,9 @@ public class DiscardUnreachable extends Discovered {
                                                              mainListener);
             /* Set the expected discard event info */
             mainListener.setLookupsToDiscover(locGroupsNotDiscarded);
-        }//end sync(mainListener)
+        } finally {
+            mainListener.lock.unlock();
+        }
         waitForDiscard(mainListener);
     }
 }

@@ -40,7 +40,6 @@ import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadersWriter.ConcurrentLockException;
 import com.sun.jini.thread.ReadyState;
-import com.sun.jini.thread.TaskManager;
 
 import net.jini.activation.ActivationExporter;
 import net.jini.activation.ActivationGroup;
@@ -129,6 +128,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.logging.Level;
@@ -274,8 +274,8 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
     private final DiscoveryManagement joinMgrLDM;
     /** Manager for discovering and registering with lookup services */
     private JoinManager joinMgr;
-    /** Task manager for sending remote discovery events */
-    private final TaskManager taskMgr;
+    /** Executor for sending remote discovery events */
+    private final ExecutorService executorService;
     /** Registration lease expiration thread */
     private final LeaseExpireThread leaseExpireThread;
     /** Snapshot-taking thread */
@@ -497,7 +497,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
         log = i.log;
         joinMgrLDM = i.joinMgrLDM;
         leaseMax = i.leaseMax;
-        taskMgr = i.taskMgr;
+        executorService = i.executorService;
         activationSystem = i.activationSystem;
         serverExporter = i.serverExporter;
         logHandler = i.logHandler;
@@ -557,13 +557,13 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             super();
         }
         public void discovered(DiscoveryEvent event) {
-            taskMgr.add(new DiscoveredEventTask(event));
+            executorService.execute(new DiscoveredEventTask(event));
         }
         public void discarded(DiscoveryEvent event) {
-            taskMgr.add(new DiscardedEventTask(event));
+            executorService.execute(new DiscardedEventTask(event));
         }
         public void changed(DiscoveryEvent event) {
-            taskMgr.add(new ChangedEventTask(event));
+            executorService.execute(new ChangedEventTask(event));
         }
     }//end class LookupDiscoveryListener
 
@@ -876,7 +876,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  discovered, and will send the appropriate remote discovery event to
      *  the registration's listener.
      */
-    private final class NewRegistrationTask implements TaskManager.Task {
+    private final class NewRegistrationTask implements Runnable {
         /** The data structure record corresponding to the new registration */
         public final RegistrationInfo regInfo;
         /** Constructs an instance of this class and stores the registration
@@ -902,20 +902,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             }
         }//end run
 
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class NewRegistrationTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -929,7 +915,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  appropriate <code>RemoteDiscoveryEvent</code> should be sent; and
      *  then sends that event.
      */
-    private final class DiscoveredEventTask implements TaskManager.Task {
+    private final class DiscoveredEventTask implements Runnable {
         /** The local event sent by the discovery manager. */
         public final DiscoveryEvent event;
         /** Constructs an instance of this class and stores the event*/
@@ -987,20 +973,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             }
         }//end run
 
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class DiscoveredEventTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -1015,7 +987,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  registrations the appropriate <code>RemoteDiscoveryEvent</code>
      *  should be sent; and then sends that event.
      */
-    private final class DiscardedEventTask implements TaskManager.Task {
+    private final class DiscardedEventTask implements Runnable {
         /** The local event sent by the discovery manager. */
         public final DiscoveryEvent event;
         /** Constructs an instance of this class and stores the event*/
@@ -1160,21 +1132,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             return discardedRegs;
         }//end maybeSendDiscardedEvent
 
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
-
     }//end class DiscardedEventTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -1187,7 +1144,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  if successfully removed, will build and send a remote discarded event
      *  to the registration's listener.
      */
-    private final class DiscardRegistrarTask implements TaskManager.Task {
+    private final class DiscardRegistrarTask implements Runnable {
         /** Data structure record corresponding to the registration that has
          *  requested to have one of its discovered registrars discarded
          */
@@ -1231,21 +1188,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                 concurrentObj.writeUnlock();
             }
         }//end run
-
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class DiscardRegistrarTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -1264,7 +1206,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  will be sent to each active registration that has lost interest
      *  in any of the registrars of the event.
      */
-    private final class ChangedEventTask implements TaskManager.Task {
+    private final class ChangedEventTask implements Runnable {
         /** The local event sent by the discovery manager. */
         public final DiscoveryEvent event;
         /** Constructs an instance of this class and stores the event*/
@@ -1413,22 +1355,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             }//endif
             return discardedRegs;
         }//end maybeSendDiscardedEvent
-
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
-
     }//end class ChangedEventTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -1437,7 +1363,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  a registration has requested the augmentation of the set of groups
      *  that currently will be discovered for it.
      */
-    private final class AddGroupsTask implements TaskManager.Task {
+    private final class AddGroupsTask implements Runnable {
         /** Data structure record of the registration that made the request */
         public final RegistrationInfo regInfo;
         /** The group set with which to replace the registration's old set */
@@ -1523,20 +1449,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             return newGroupSet;
         }//end addRegInfoGroups
 
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class AddGroupsTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -1545,7 +1457,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  a registration has requested the replacement of the set of groups
      *  that currently will be discovered for it.
      */
-    private final class SetGroupsTask implements TaskManager.Task {
+    private final class SetGroupsTask implements Runnable {
         /** Data structure record of the registration that made the request */
         public final RegistrationInfo regInfo;
         /** The group set with which to replace the registration's old set */
@@ -1657,21 +1569,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                 (regInfo.groups).addAll(newGroups);
             }//end if (groups == DiscoveryGroupManagement.ALL_GROUPS)
         }//end setRegInfoGroups
-
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class SetGroupsTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -1680,7 +1577,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  a registration has requested the removal of a set of groups from
      *  the current set of groups to discover for it.
      */
-    private final class RemoveGroupsTask implements TaskManager.Task {
+    private final class RemoveGroupsTask implements Runnable {
         /** Data structure record of the registration that made the request */
         public final RegistrationInfo regInfo;
         /** The groups to remove from the registration's old set */
@@ -1736,20 +1633,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             (regInfo.groups).removeAll(removeSet);
         }//end setRegInfoGroups
 
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class RemoveGroupsTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -1758,7 +1641,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  a registration has requested the augmentation of the set of locators
      *  that currently will be discovered for it.
      */
-    private final class AddLocatorsTask implements TaskManager.Task {
+    private final class AddLocatorsTask implements Runnable {
         /** Data structure record of the registration that made the request */
         public final RegistrationInfo regInfo;
         /** The locator set with which to replace the registration's old set */
@@ -1844,21 +1727,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             }//endif
             return newLocSet;
         }//end addRegInfoLocators
-
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class AddLocatorsTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -1867,7 +1735,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  a registration has requested the replacement of the set of locators
      *  that currently will be discovered for it.
      */
-    private final class SetLocatorsTask implements TaskManager.Task {
+    private final class SetLocatorsTask implements Runnable {
         /** Data structure record of the registration that made the request */
         public final RegistrationInfo regInfo;
         /** The locator set with which to replace the registration's old set */
@@ -1982,20 +1850,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             (regInfo.locators).addAll(newLocSet);
         }//end setRegInfoLocators
 
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class SetLocatorsTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -2004,7 +1858,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  a registration has requested the removal of a set of locators
      *  from the current set of locators to discover for it.
      */
-    private final class RemoveLocatorsTask implements TaskManager.Task {
+    private final class RemoveLocatorsTask implements Runnable {
         /** Data structure record of the registration that made the request */
         public final RegistrationInfo regInfo;
         /** The locators to remove from the registration's old set */
@@ -2069,21 +1923,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             }//end loop
             (regInfo.locators).removeAll(removeSet);
         }//end removeRegInfoLocators
-
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class RemoveLocatorsTask
 
     /** This class represents a <code>Task</code> object that is placed
@@ -2095,7 +1934,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      *  making the remote call to the registration's listener within a
      *  synchronization block.
      */
-    private final class SendEventTask implements TaskManager.Task {
+    private final class SendEventTask implements Runnable {
         /** Data structure record corresponding to registration to get event */
         public final RegistrationInfo     regInfo;
         /** The remote event to send to the given registration's listener */
@@ -2148,21 +1987,6 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                 }//end switch
             }//end try
         }//end run
-
-        /** This method returns true if the current instance of this class
-         *  must be run after at least one task in the input task list with
-         *  an index less than the <code>size</code> parameter (size may be
-         *  less than tasks.size()).
-         *  <p>
-         *  Note that using List.get will be more efficient than List.iterator.
-         *
-         *  @param tasks the tasks to consider.  A read-only List, with all
-         *         elements being an instanceof Task.
-         *  @param size elements with index less than size should be considered
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
     }//end class SendEventTask
 
     /**
@@ -2537,7 +2361,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
 	    /* all daemons must terminate before deleting persistent store */
 	    leaseExpireThread.interrupt();
 	    if(log != null) snapshotThread.interrupt();
-	    taskMgr.terminate();
+	    executorService.shutdown();
 	    joinMgr.terminate();
             joinMgrLDM.terminate();
             discoveryMgr.terminate();
@@ -4394,7 +4218,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                  * send a remote discarded event, but don't ask the discovery
                  * manager to discard the registrar.
                  */
-                taskMgr.add(new DiscardRegistrarTask(regInfo,registrar));
+                executorService.execute(new DiscardRegistrarTask(regInfo,registrar));
             }//endif
         } finally {
             concurrentObj.writeUnlock();
@@ -5371,9 +5195,9 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             } catch(Throwable t) { }
         }//endif
 
-        if(taskMgr != null)  {
+        if(executorService != null)  {
             try {
-                taskMgr.terminate();
+                executorService.shutdown();
             } catch(Throwable t) { }
         }//endif
 
@@ -5554,7 +5378,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
         logInfoRegistration("\nadded registration:  registrationID = ",regID);
         addLogRecord(new RegistrationGrantedLogObj(regInfo));
         /* Queue task for sending a discovered event */
-        taskMgr.add(new NewRegistrationTask(regInfo));
+        executorService.execute(new NewRegistrationTask(regInfo));
 	/* See if the expire thread needs to wake up earlier */
 	if (expiration < minExpiration) {
 	    minExpiration = expiration;
@@ -5671,7 +5495,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      * @see net.jini.discovery.LookupDiscoveryRegistration#addGroups
      */
     private void addGroupsDo(RegistrationInfo regInfo, String[] groups) {
-        taskMgr.add(new AddGroupsTask(regInfo,groups));
+        executorService.execute(new AddGroupsTask(regInfo,groups));
     }//end addGroupsDo
 
     /**
@@ -5721,7 +5545,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      * @see net.jini.discovery.LookupDiscoveryRegistration#setGroups
      */
     private void setGroupsDo(RegistrationInfo regInfo, String[] groups) {
-        taskMgr.add(new SetGroupsTask(regInfo,groups));
+        executorService.execute(new SetGroupsTask(regInfo,groups));
     }//end setGroupsDo
 
     /**
@@ -5770,7 +5594,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
      * @see net.jini.discovery.LookupDiscoveryRegistration#removeGroups
      */
     private void removeGroupsDo(RegistrationInfo regInfo, String[] groups) {
-        taskMgr.add(new RemoveGroupsTask(regInfo,groups));
+        executorService.execute(new RemoveGroupsTask(regInfo,groups));
     }//end removeGroupsDo
 
     /**
@@ -5936,7 +5760,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
     private void addLocatorsDo(RegistrationInfo regInfo,
                                LookupLocator[]  locators)
     {
-        taskMgr.add(new AddLocatorsTask(regInfo,locators));
+        executorService.execute(new AddLocatorsTask(regInfo,locators));
     }//end addLocatorsDo
 
     /**
@@ -5989,7 +5813,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
     private void setLocatorsDo(RegistrationInfo regInfo,
                                LookupLocator[]  locators)
     {
-        taskMgr.add(new SetLocatorsTask(regInfo,locators));
+        executorService.execute(new SetLocatorsTask(regInfo,locators));
     }//end setLocatorsDo
 
     /**
@@ -6041,7 +5865,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
     private void removeLocatorsDo(RegistrationInfo regInfo,
                                   LookupLocator[]  locators)
     {
-        taskMgr.add(new RemoveLocatorsTask(regInfo,locators));
+        executorService.execute(new RemoveLocatorsTask(regInfo,locators));
     }//end removeLocatorsDo
 
     /**
@@ -6810,7 +6634,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
     private void queueEvent(RegistrationInfo regInfo,
                            RemoteDiscoveryEvent event)
     {
-        taskMgr.add(new SendEventTask(regInfo,event));
+        executorService.execute(new SendEventTask(regInfo,event));
     }//end queueEvent
     /* END Private Event-Related Methods ----------------------------------- */
 

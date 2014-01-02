@@ -21,7 +21,6 @@ import com.sun.jini.constants.TxnConstants;
 import com.sun.jini.constants.ThrowableConstants;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.thread.RetryTask;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 
 import java.io.IOException;
@@ -33,6 +32,7 @@ import java.util.WeakHashMap;
 import java.util.Iterator;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
@@ -166,7 +166,7 @@ class TxnMonitorTask extends RetryTask
      * Create a new TxnMonitorTask.
      */
     TxnMonitorTask(Txn txn, TxnMonitor monitor,
-		   TaskManager manager, WakeupManager wakeupMgr) {
+		   ExecutorService manager, WakeupManager wakeupMgr) {
 	super(manager, wakeupMgr);
 	this.txn = txn;
 	this.monitor = monitor;
@@ -209,14 +209,6 @@ class TxnMonitorTask extends RetryTask
             }
         
 	return nextQuery.get();
-    }
-
-    /**
-     * We can run in parallel with any task, so just return
-     * <CODE>false</CODE>.  
-     */
-    public boolean runAfter(java.util.List tasks, int size) {
-	return false;
     }
 
     /**

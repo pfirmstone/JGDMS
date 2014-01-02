@@ -77,17 +77,10 @@ public class SetGroupsReplaceSome extends Discovered {
     public void run() throws Exception {
         super.run();
         setNewGroups(getInitLookupsToStart(),alternateReplacement);
-        /* Must sync on listener since Discovered/Discarded/Changed Map
-         * will change as events arrive, and setLookupsToDiscover
-         * examines the contents of those maps. So we don't want those
-         * maps to change until setLookupsToDiscover returns.
-         */
-        synchronized(mainListener) {
-            /* Set the expected discarded event info */
-            mainListener.setLookupsToDiscover(getInitLookupsToStart(),
-                                              locatorsToDiscover,
-                                              newGroupsToDiscover);
-        }//end sync(mainListener)
+        /* Set the expected discarded event info */
+        mainListener.setLookupsToDiscover(getInitLookupsToStart(),
+                                          locatorsToDiscover,
+                                          newGroupsToDiscover);
         logger.log(Level.FINE, "set new groups to discover -- ");
         if((newGroupsToDiscover != null)&&(newGroupsToDiscover.length<=0)){
             logger.log(Level.FINE, "   NO_GROUPS");

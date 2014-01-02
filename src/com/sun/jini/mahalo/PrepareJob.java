@@ -121,7 +121,7 @@ class PrepareJob extends Job implements TransactionConstants {
      * @see com.sun.jini.mahalo.Job
      * @see com.sun.jini.thread.TaskManager.Task
      */
-    Object doWork(TaskManager.Task who, Object param) {
+    Object doWork(Runnable who, Object param) {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(PrepareJob.class.getName(),
                 "doWork", new Object[] {who, param});
@@ -239,9 +239,9 @@ class PrepareJob extends Job implements TransactionConstants {
      * Creates the <code>TaskManager.Task</code>s necessary to
      * inform participants to vote.
      */
-    TaskManager.Task[] createTasks() {
+    Runnable[] createTasks() {
         int length = handles.length;
-	TaskManager.Task[] tmp = new TaskManager.Task[length];
+	Runnable[] tmp = new Runnable[length];
 
 	for (int i = 0; i < length; i++) {
 	    tmp[i] = 

@@ -32,7 +32,7 @@ import java.io.PrintStream;
  * 
  */
 public class MultihomedClientTest implements LegacyTest {
-
+    
     private String command = System.getProperty("java.home") + File.separator
         + "bin" + File.separator + "java ";
     private QAConfig config = null;

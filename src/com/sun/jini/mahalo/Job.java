@@ -19,11 +19,6 @@ package com.sun.jini.mahalo;
 
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
@@ -76,7 +71,7 @@ abstract class Job {
      * @param who The task which is performing the work
      * @param param A parameter used in performing the work
      */
-    boolean performWork(TaskManager.Task who, Object param)
+    boolean performWork(Runnable who, Object param)
         throws JobException
     {
 	Integer tmp = tasks.get(who);
@@ -112,7 +107,7 @@ abstract class Job {
      * @param who The task for which the number of attempts
      *		  is inquired
      */
-    int attempt(TaskManager.Task who) throws JobException {
+    int attempt(Runnable who) throws JobException {
 	Integer tmp = tasks.get(who);
 	if (tmp == null) throw new UnknownTaskException();
 	int rank = tmp.intValue();
@@ -131,7 +126,7 @@ abstract class Job {
      * @param param A parameter used to do the work
      *
      */
-    abstract Object doWork(TaskManager.Task who, Object param)
+    abstract Object doWork(Runnable who, Object param)
 	throws JobException;
 
     /**
@@ -139,14 +134,14 @@ abstract class Job {
      * <code>PartialResult</code> objects necessary for the
      * solution to the original problem. 
      */
-    abstract TaskManager.Task[] createTasks();
+    abstract Runnable[] createTasks();
 
 
     /**
      * Schedules tasks for execution
      */
     public void scheduleTasks() {
-	TaskManager.Task[] tmp = createTasks();
+	Runnable[] tmp = createTasks();
 	if (tmp != null) {
             int length = tmp.length;
             if (logger.isLoggable(Level.FINEST)) {
@@ -271,7 +266,7 @@ abstract class Job {
      * Tasks which perform work on behalf of the <code>Job</code>
      * report in that they are done using this method.
      */
-    private void reportDone(TaskManager.Task who, Object param)
+    private void reportDone(Runnable who, Object param)
 	throws JobException
     {
 	if (param == null) throw new NullPointerException("param must be non-null");
@@ -337,7 +332,7 @@ abstract class Job {
 	//Remove and interrupt all tasks
         int l = vals.length;
 	for (int i = 0; i < l; i++) {
-	    TaskManager.Task t = (TaskManager.Task) vals[i];
+	    Runnable t = (Runnable) vals[i];
 	    pool.remove(t);
 	}
 

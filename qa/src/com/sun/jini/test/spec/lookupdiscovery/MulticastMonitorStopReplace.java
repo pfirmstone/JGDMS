@@ -97,7 +97,9 @@ public class MulticastMonitorStopReplace extends Discovered {
          * examines the contents of those maps. So we don't want those
          * maps to change until setLookupsToDiscover returns.
          */
-        synchronized(mainListener) {
+        LookupListener mainListener = this.mainListener;
+        mainListener.lock.lock();
+        try {
             stopAnnouncements();
             /* Replace current groups with new groups to cause discards */
             List locGroupsPairList = replaceMemberGroups();
@@ -105,7 +107,9 @@ public class MulticastMonitorStopReplace extends Discovered {
             mainListener.setLookupsToDiscover
                                      (locGroupsPairList,
                                       toGroupsArray(getInitLookupsToStart()));
-        }//end sync(mainListener)
+        } finally {
+            mainListener.lock.unlock();
+        }
         waitForDiscard(mainListener);
     }//end run
 

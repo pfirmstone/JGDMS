@@ -30,9 +30,13 @@ import net.jini.space.JavaSpace;
 import com.sun.jini.constants.ThrowableConstants;
 import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.RetryTask;
 import com.sun.jini.thread.WakeupManager;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * The notifier thread.  This thread is responsible for notifying
@@ -62,7 +66,7 @@ class Notifier implements com.sun.jini.constants.TimeConstants {
 	new WakeupManager(new WakeupManager.ThreadDesc(null, true));
     
     /** pending notifications tasks */
-    private final TaskManager pending;
+    private final ExecutorService pending;
 
     private final static int	MAX_ATTEMPTS = 10;	// max times to retry
 
@@ -92,9 +96,12 @@ class Notifier implements com.sun.jini.constants.TimeConstants {
 
 	this.recoveredListenerPreparer = recoveredListenerPreparer;
 
-	pending = (TaskManager)Config.getNonNullEntry(config,
-	    OutriggerServerImpl.COMPONENT_NAME, "notificationsTaskManager", 
-	    TaskManager.class, new TaskManager());
+	pending = Config.getNonNullEntry(config,
+	    OutriggerServerImpl.COMPONENT_NAME, "notificationsExecutorService", 
+	    ExecutorService.class, 
+            new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue<Runnable>()), 
+            new NamedThreadFactory("OutriggerServerImpl Notifier", false));
     }
 
     /**
@@ -103,7 +110,7 @@ class Notifier implements com.sun.jini.constants.TimeConstants {
      * the constructor completed.
      */
     void terminate() {
-	pending.terminate();
+	pending.shutdown();
 	wakeupMgr.stop();	
 	wakeupMgr.cancelAll();	
     }
@@ -117,7 +124,7 @@ class Notifier implements com.sun.jini.constants.TimeConstants {
      * <code>null</code>
      */
     void enqueueDelivery(EventSender sender) {
-	pending.add(new NotifyTask(sender));
+	pending.execute(new NotifyTask(sender));
     }
 
     /*
@@ -241,18 +248,6 @@ class Notifier implements com.sun.jini.constants.TimeConstants {
 	    }
 
 	    return successful;
-	}
-
-	public boolean runAfter(java.util.List list, int max) {
-//	    for (int i = 0; i < max; i++) {
-//		Object task = list.get(i);
-//		if (task instanceof NotifyTask) {
-//		    NotifyTask nt = (NotifyTask)task;
-//		    if (sender.runAfter(nt.sender))
-//			return true;
-//		}
-//	    }
-	    return false;
 	}
 
 	/** Log a failed delivery attempt */

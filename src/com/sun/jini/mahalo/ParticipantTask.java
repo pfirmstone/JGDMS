@@ -17,7 +17,6 @@
  */
 package com.sun.jini.mahalo;
 
-import com.sun.jini.logging.Levels;
 import com.sun.jini.thread.RetryTask;
 import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;

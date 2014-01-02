@@ -27,12 +27,13 @@ import java.rmi.*;
 import com.sun.jini.test.share.TestParticipant;
 import com.sun.jini.test.share.TxnManagerTestOpcodes;
 import com.sun.jini.test.share.TxnTestUtils;
+import com.sun.jini.thread.TaskManager.Task;
 
 
 /**
  */
 public abstract class RandomStressTask extends RetryTask
-        implements TxnManagerTestOpcodes {
+        implements TxnManagerTestOpcodes, Task {
     private static final boolean DEBUG = false;
     private TransactionManager mgr;
     protected Transaction.Created cr;

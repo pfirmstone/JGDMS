@@ -69,7 +69,9 @@ public class MulticastMonitorReplaceNone extends Discovered {
          * examines the contents of those maps. So we don't want those
          * maps to change until setLookupsToDiscover returns.
          */
-        synchronized(mainListener) {
+        LookupListener mainListener = this.mainListener;
+        mainListener.lock.lock();
+        try {
             /* Replace all groups with NO_GROUPS to generate events */
             List locGroupsPairList = replaceMemberGroups
                                       (DiscoveryGroupManagement.NO_GROUPS);
@@ -77,7 +79,9 @@ public class MulticastMonitorReplaceNone extends Discovered {
             mainListener.setLookupsToDiscover(locGroupsPairList,
                                               locatorsToDiscover,
                                               groupsToDiscover);
-        }//end sync(mainListener)
+        } finally {
+            mainListener.lock.unlock();
+        }
         waitForDiscard(mainListener);
         logger.log(Level.FINE, 
 		   "discarded events arrived as expected, "

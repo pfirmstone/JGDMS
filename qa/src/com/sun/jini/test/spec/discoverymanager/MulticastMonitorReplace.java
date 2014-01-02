@@ -79,14 +79,18 @@ public class MulticastMonitorReplace extends Discovered {
          * examines the contents of those maps. So we don't want those
          * maps to change until setLookupsToDiscover returns.
          */
-        synchronized(mainListener) {
+        LookupListener mainListener = this.mainListener;
+        mainListener.lock.lock();
+        try {
             /* Replace all groups to cause discarded/changed events */
             List locGroupsPairList = replaceMemberGroups(false);
             /* Set the expected changed event info */
             mainListener.setLookupsToDiscover(locGroupsPairList,
                                               locatorsToDiscover,
                                               groupsToDiscover);
-        }//end sync(mainListener)
+        } finally {
+            mainListener.lock.unlock();
+        }
         waitForDiscard(mainListener);
         logger.log(Level.FINE, 
 		   "discarded events arrived as expected, "

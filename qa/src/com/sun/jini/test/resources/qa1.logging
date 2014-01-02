@@ -39,7 +39,7 @@ handlers = java.util.logging.ConsoleHandler
 # level setting (set below) to limit messages printed to
 # the console.
 
-.level = INFO
+.level = FINE
 
 ############################################################
 # Handler specific properties: formatters and logger levels
@@ -105,7 +105,7 @@ java.util.logging.FileHandler.level = INFO
 
 # For Everything
 sun.rmi.level = CONFIG
-net.jini.level = CONFIG
+net.jini.level = FINE
 org.apache.river.level = CONFIG
 com.sun.jini.level = CONFIG
 
@@ -184,9 +184,9 @@ com.sun.jini.discovery.level = SEVERE
 # For the Helper Utilities
 net.jini.discovery.LookupDiscovery.level = SEVERE
 net.jini.discovery.LookupLocatorDiscovery.level = SEVERE
-net.jini.lookup.JoinManager.level = SEVERE
+net.jini.lookup.JoinManager.level = FINE
 net.jini.lookup.ServiceDiscoveryManager.level = SEVERE
-net.jini.lease.LeaseRenewalManager.level = SEVERE
+net.jini.lease.LeaseRenewalManager.level = FINEST
 
 # For Thread Pool Utilities
 com.sun.jini.thread.RetryTask.level = SEVERE

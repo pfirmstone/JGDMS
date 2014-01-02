@@ -43,7 +43,6 @@ import com.sun.jini.thread.ReadersWriter;
 import com.sun.jini.thread.ReadersWriter.ConcurrentLockException;
 import com.sun.jini.thread.ReadyState;
 import com.sun.jini.thread.RetryTask;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
@@ -97,6 +96,9 @@ import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Random;
 import java.util.TreeMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import javax.security.auth.Subject;
@@ -122,6 +124,7 @@ import net.jini.event.MailboxPullRegistration;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.lookup.JoinManager;
 import net.jini.discovery.LookupDiscovery;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * <tt>MailboxImpl</tt> implements the server side of the event 
@@ -2905,7 +2908,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
          * <code>TaskManager</code> that will be handling the 
 	 * notification tasks 
          */
-        private final TaskManager	taskManager;	
+        private final ExecutorService	taskManager;	
 
         /** wakeup manager for <code>NotifyTask</code> */
         private final WakeupManager wakeupMgr =
@@ -2925,9 +2928,11 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
          */
         Notifier(Configuration config) throws ConfigurationException {
     	    super("Notifier");
-    	    taskManager = (TaskManager)Config.getNonNullEntry(config,
-	        MERCURY, "notificationsTaskManager",
-	        TaskManager.class, new TaskManager());
+    	    taskManager = Config.getNonNullEntry(config,
+	        MERCURY, "notificationsExecutorService",
+	        ExecutorService.class, new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue<Runnable>(), 
+                    new NamedThreadFactory("EventTypeGenerator", false)));
 //TODO - defer TaskManager() creation to catch block of getEntry()
     	    //start();
         }
@@ -2977,7 +2982,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 				// Create and schedule a event delivery task
     	                        NotifyTask t = 
 				    new NotifyTask(taskManager, wakeupMgr, uuid);
-    	                        taskManager.add(t);
+    	                        taskManager.execute(t);
     	                        // Put registration onto active list
     	                        activeReg.put(uuid, t);
     	                        // Remove registration from pending list
@@ -3026,7 +3031,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 		    }
 		    wakeupMgr.stop();
 		    wakeupMgr.cancelAll();
-    	            taskManager.terminate();
+    	            taskManager.shutdownNow();
 		} 
                 if (deliveryLogger.isLoggable(Level.FINEST)) {
                     deliveryLogger.log(Level.FINEST,
@@ -3072,7 +3077,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     	/**
     	 * Create an object to represent an event notification task.
     	 */
-    	NotifyTask(TaskManager tm, WakeupManager mgr, Uuid regID) {
+    	NotifyTask(ExecutorService tm, WakeupManager mgr, Uuid regID) {
     	    super(tm, mgr);
     	    this.regID = regID;
     	}
@@ -3472,17 +3477,6 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 
     	    return succeeded;
     	}
-    
-        /**
-         * Return <code>true</code> if this task needs to runAfter any
-         * of the tasks in the provided list and <code>false</code>
-         * otherwise.  The notifier thread ensures that there should only
-         * be one task per registration, so this method just returns
-         * false.
-         */
-    	public boolean runAfter(java.util.List list, int max) {
-    	    return false;
-       	}
     }
 
 

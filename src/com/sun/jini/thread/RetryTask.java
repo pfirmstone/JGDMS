@@ -62,10 +62,12 @@ import com.sun.jini.constants.TimeConstants;
  * @see WakeupManager
  */
 import com.sun.jini.thread.WakeupManager.Ticket;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public abstract class RetryTask implements TaskManager.Task, TimeConstants {
+public abstract class RetryTask implements Runnable, TimeConstants {
     private final TaskManager	  manager;	// the TaskManager for this task
+    private final ExecutorService executor;
     private volatile RetryTime	  retry;	// the retry object for this task
     private volatile boolean	  cancelled;	// have we been cancelled?
     private volatile boolean	  complete;	// have we completed successfully?
@@ -102,9 +104,29 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
      */
     public RetryTask(TaskManager manager, WakeupManager wakeupManager) {
 	this.manager = manager;
+        this.executor = null;
         this.wakeup = wakeupManager;
         attempt = new AtomicInteger();
 	reset();
+    }
+    
+    /**
+     * Create a new <code>RetryTask</code> that will be scheduled with
+     * the given executor service, and which will perform retry scheduling 
+     * using the given wakeup manager.
+     * 
+     * TaskManager's Task.runAfter() is not called when using
+     * this constructor.
+     * 
+     * @param executor
+     * @param wakeupManager 
+     */
+    public RetryTask(ExecutorService executor, WakeupManager wakeupManager){
+        this.manager = null;
+        this.executor = executor;
+        this.wakeup = wakeupManager;
+        attempt = new AtomicInteger();
+        reset();
     }
 
     /**
@@ -241,7 +263,7 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
     /**
      * Reset values for a new use of this task.
      */
-    public void reset() {
+    public final void reset() {
 	cancel();		// remove from the wakeup queue
 	startTime = System.currentTimeMillis();
 	cancelled = false;
@@ -262,7 +284,8 @@ public abstract class RetryTask implements TaskManager.Task, TimeConstants {
 	 */
 	public void run() {
             ticket = null;
-	    manager.add(RetryTask.this);
+	    if (manager != null ) manager.add(RetryTask.this);
+            if (executor != null) executor.submit(RetryTask.this);
 	}
     };
 }

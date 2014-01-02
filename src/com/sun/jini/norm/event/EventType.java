@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.io.Serializable;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -33,8 +32,8 @@ import net.jini.security.ProxyPreparer;
 import com.sun.jini.constants.ThrowableConstants;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.thread.RetryTask;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
+import java.util.concurrent.ExecutorService;
 
 /**
  * Representation of an event type the supports a single registrant.
@@ -167,7 +166,7 @@ public class EventType implements Serializable {
      *        as part of the event
      * @throws IOException if listener cannot be serialized
      */
-    public synchronized void setListener(RemoteEventListener listener, 
+    public final synchronized void setListener(RemoteEventListener listener, 
 					 MarshalledObject    handback)
         throws IOException
     {
@@ -272,7 +271,7 @@ public class EventType implements Serializable {
      * <p>
      * @param seqNum value for the last sequence number
      */
-    public synchronized void setLastSequenceNumber(long seqNum) {
+    public final synchronized void setLastSequenceNumber(long seqNum) {
 	lastSeqNum = seqNum;
     }
 
@@ -325,9 +324,9 @@ public class EventType implements Serializable {
 	if (!haveListener())
 	    return lastSeqNum;
 	
-	final TaskManager mgr = generator.getTaskManager();
+	final ExecutorService mgr = generator.getTaskManager();
 	final WakeupManager wMgr = generator.getWakeupManager();
-	mgr.add(new SendTask(mgr, wMgr, factory, lastSeqNum));
+	mgr.execute(new SendTask(mgr, wMgr, factory, lastSeqNum));
 	
 	return lastSeqNum;
     }
@@ -412,7 +411,7 @@ public class EventType implements Serializable {
 	 *                     to create the event to be sent
 	 * @param seqNum      the sequence number of the event
 	 */
-	private SendTask(TaskManager taskManager, WakeupManager wakeupManager,
+	private SendTask(ExecutorService taskManager, WakeupManager wakeupManager,
 			 EventFactory eventFactory, long seqNum)
 	{
 	    super(taskManager, wakeupManager);
@@ -491,10 +490,5 @@ public class EventType implements Serializable {
 	    
 	}
 
-	// Inherit java doc from super type
-	public boolean runAfter(List tasks, int size) {
-	    // We don't need to run these tasks in any particular order
-	    return false;
-	}
     }
 }

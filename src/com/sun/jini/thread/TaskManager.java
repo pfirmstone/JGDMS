@@ -78,7 +78,7 @@ public class TaskManager {
 	Logger.getLogger("com.sun.jini.thread.TaskManager");
 
     /** Active and pending tasks */
-    protected final ArrayList tasks = new ArrayList(); //sync on this
+    protected final ArrayList<Runnable> tasks = new ArrayList<Runnable>(); //sync on this
     /** Index of the first pending task; all earlier tasks are active */
     protected int firstPending = 0;//sync on this
     /** Read-only view of tasks */
@@ -128,7 +128,7 @@ public class TaskManager {
     }
 
     /** Add a new task. */
-    public synchronized void add(Task t) {
+    public synchronized void add(Runnable t) {
 	tasks.add(t);
 	boolean poke = true;
 	while (threads.size() < maxThreads && needThread()) {
@@ -170,13 +170,13 @@ public class TaskManager {
 	if (max < bound)
 	    return false;
 	max--;
-	if (runAfter((Task)tasks.get(max), max))
+	if (runAfter(tasks.get(max), max))
 	    return false;
 	int ready = firstPending + 1;
 	if (ready > bound)
 	    return true;
 	for (int i = firstPending; i < max; i++) {
-	    if (!runAfter((Task)tasks.get(i), i)) {
+	    if (!runAfter(tasks.get(i), i)) {
 		ready++;
 		if (ready > bound)
 		    return true;
@@ -188,9 +188,12 @@ public class TaskManager {
     /**
      * Returns t.runAfter(i), or false if an exception is thrown.
      */
-    private boolean runAfter(Task t, int i) {
+    private boolean runAfter(Runnable t, int i) {
 	try {
-	    return t.runAfter(roTasks, i);
+            if (t instanceof Task)
+                return ((Task)t).runAfter(roTasks, i);
+            else 
+                return false;
 	} catch (Throwable tt) {
 	    try {
 		logger.log(Level.WARNING, "Task.runAfter exception", tt);
@@ -205,7 +208,7 @@ public class TaskManager {
      * is used, not the equals method.  Returns true if the task was
      * removed.
      */
-    public synchronized boolean removeIfPending(Task t) {
+    public synchronized boolean removeIfPending(Runnable t) {
 	return removeTask(t, firstPending);
     }
 
@@ -215,7 +218,7 @@ public class TaskManager {
      * but do not wait for the thread to terminate.  Object identity (==) is
      * used, not the equals method.  Returns true if the task was removed.
      */
-    public synchronized boolean remove(Task t) {
+    public synchronized boolean remove(Runnable t) {
 	return removeTask(t, 0);
     }
 
@@ -223,7 +226,7 @@ public class TaskManager {
      * Remove a task if it has index >= min.  If it is active and not being
      * executed by the calling thread, interrupt the thread executing the task.
      */
-    private boolean removeTask(Task t, int min) {
+    private boolean removeTask(Runnable t, int min) {
 	for (int i = tasks.size(); --i >= min; ) {
 	    if (tasks.get(i) == t) {
 		tasks.remove(i);
@@ -272,7 +275,7 @@ public class TaskManager {
     private class TaskThread extends Thread {
 
 	/** The task being run, if any */
-	public Task task = null; // sync access on TaskManager.this
+	public Runnable task = null; // sync access on TaskManager.this
 
 	public TaskThread() {
 	    super("task");
@@ -288,23 +291,23 @@ public class TaskManager {
 	private boolean takeTask() {
 	    int size = tasks.size();
 	    for (int i = firstPending; i < size; i++) {
-		Task t = (Task)tasks.get(i);
-		if (!runAfter(t, i)) {
-		    if (i > firstPending) {
-			tasks.remove(i);
-			tasks.add(firstPending, t);
-		    }
-		    firstPending++;
-		    task = t;
-		    return true;
-		}
+		Runnable t = tasks.get(i);
+                if (!runAfter(t, i)) {
+                    if (i > firstPending) {
+                        tasks.remove(i);
+                        tasks.add(firstPending, t);
+                    }
+                    firstPending++;
+                    task = t;
+                    return true;
+                }
 	    }
 	    return false;
 	}
 
 	public void run() {
 	    while (true) {
-                Task tsk = null;
+                Runnable tsk = null;
 		synchronized (TaskManager.this) {
 		    if (terminated)
 			return;

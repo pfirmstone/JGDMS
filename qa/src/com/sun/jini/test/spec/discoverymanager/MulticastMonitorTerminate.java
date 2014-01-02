@@ -72,7 +72,9 @@ public class MulticastMonitorTerminate extends Discovered {
          * are examined; so those maps shouldn't be allowed to change
          * they have been examined.
          */
-        synchronized(mainListener) {
+        LookupListener mainListener = this.mainListener;
+        mainListener.lock.lock();
+        try {
             terminateAllLookups();//cause discard events to be sent
             /* Since passive discards will NOT occur for those lookups
              * that were discovered by only locator discovery, the 
@@ -84,7 +86,9 @@ public class MulticastMonitorTerminate extends Discovered {
                                     filterListByGroups(getInitLookupsToStart(),
                                                        groupsToDiscover);
             mainListener.setDiscardEventInfo(discoveredByGroupsList);
-        }//end sync(mainListener)
+        } finally {
+            mainListener.lock.unlock();
+        }
         waitForDiscard(mainListener);
     }//end run
 

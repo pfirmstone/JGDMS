@@ -18,7 +18,6 @@
 package com.sun.jini.outrigger;
 
 import com.sun.jini.config.Config;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 
 import net.jini.config.Configuration;
@@ -27,8 +26,13 @@ import net.jini.config.ConfigurationException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * This class provides a driver for monitoring the state of transactions
@@ -80,7 +84,7 @@ class TxnMonitor implements Runnable {
     /**
      * The manager for <code>TxnMonitorTask</code> objects.
      */
-    private final TaskManager taskManager;
+    private final ExecutorService taskManager;
 
     /**
      * The space we belong to.  Needed for aborts.
@@ -111,9 +115,12 @@ class TxnMonitor implements Runnable {
 	    throw new NullPointerException("space must be non-null");
 	this.space = space;
 
-	taskManager = (TaskManager)Config.getNonNullEntry(config,
+	taskManager = Config.getNonNullEntry(config,
 	    OutriggerServerImpl.COMPONENT_NAME, "txnMonitorTaskManager", 
-	    TaskManager.class, new TaskManager());
+	    ExecutorService.class, 
+            new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue<Runnable>(), 
+                    new NamedThreadFactory("OutriggerServerImpl TxnMonitor", false)));
 
         ourThread = new Thread(this, "TxnMonitor");
 	ourThread.setDaemon(true);
@@ -128,7 +135,7 @@ class TxnMonitor implements Runnable {
     }
 
     public void destroy() {
-        taskManager.terminate();
+        taskManager.shutdown();
 	wakeupMgr.stop();	
 
 	synchronized (this) {
@@ -230,7 +237,7 @@ class TxnMonitor implements Runnable {
 
 	    task = new TxnMonitorTask(txn, this, taskManager, wakeupMgr);
 	    txn.monitorTask(task);
-	    taskManager.add(task);  // add it after we've set it in the txn
+	    taskManager.execute(task);  // add it after we've set it in the txn
 	}
 	return task;
     }

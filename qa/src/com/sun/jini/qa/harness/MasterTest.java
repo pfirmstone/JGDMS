@@ -347,9 +347,9 @@ class MasterTest {
     private static class AutotRequestHandler implements Runnable {
 
 	public void run() {
+            ServerSocket socket = null;
 	    try {
-		ServerSocket socket = 
-		    new ServerSocket(InboundAutotRequest.PORT);
+		socket = new ServerSocket(InboundAutotRequest.PORT);
 		while (true) {
 		    Socket requestSocket = socket.accept();
 		    logger.log(Level.FINER, "Got an external request");
@@ -374,7 +374,11 @@ class MasterTest {
 		}
 	    } catch (Throwable e) {
 		logger.log(Level.SEVERE, "Unexpected exception", e);
-	    }
+	    } finally {
+                try {
+                    socket.close();
+                } catch (IOException ex) {/*Ignore*/}
+            }
 	}
     }
 }

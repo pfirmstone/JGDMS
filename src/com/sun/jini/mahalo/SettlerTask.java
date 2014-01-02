@@ -23,7 +23,6 @@ import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
-import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.transaction.TransactionException;
@@ -70,15 +69,6 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
 					    "txnmgr must be non-null");
 	this.txnmgr = txnmgr;
 	this.tid = tid;
-    }
-
-    /**
-     * Inherit doc comment from supertype.
-     *
-     * @see com.sun.jini.thread.RetryTask
-     */
-    public boolean runAfter(List list, int max) {
-        return false;
     }
 
     public boolean tryOnce() {

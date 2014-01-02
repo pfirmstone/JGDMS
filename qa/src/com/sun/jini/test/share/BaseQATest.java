@@ -41,15 +41,21 @@ import net.jini.core.lookup.ServiceRegistrar;
 
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 
 /**
@@ -211,10 +217,21 @@ abstract public class BaseQATest extends QATestEnvironment {
     public static class LocatorGroupsPair {
         private final LookupLocator locator;
         private final String[]      groups;
+        private final int hash;
         public LocatorGroupsPair(LookupLocator locator, String[] groups) {
             this.locator = locator;
             this.groups  = groups;
+            int hash = 7;
+            hash = 89 * hash + (this.locator != null ? this.locator.hashCode() : 0);
+            hash = 89 * hash + Arrays.deepHashCode(this.groups);
+            this.hash = hash;
         }//end constructor
+
+        @Override
+        public int hashCode() {
+            return hash;
+        }
+        
         public boolean equals(Object obj) {
             if(this == obj) return true;
             if( !(obj instanceof LocatorGroupsPair) ) return false;
@@ -278,19 +295,30 @@ abstract public class BaseQATest extends QATestEnvironment {
      *  not to proceed.
      */
     protected class LookupListener implements DiscoveryListener {
-        public LookupListener(){ }
-        private final Map<LookupLocator,String[]> discoveredMap = new HashMap<LookupLocator,String[]>(11);
-        private final Map<LookupLocator,String[]> discardedMap  = new HashMap<LookupLocator,String[]>(11);
+        
+        public final Lock lock;
+        public final Condition discovered;
+        public final Condition discarded;
+        private final Map<LookupLocator,String[]> discoveredMap;
+        private final Map<LookupLocator,String[]> discardedMap;
 
-        private final Map<LookupLocator,String[]> expectedDiscoveredMap = new HashMap<LookupLocator,String[]>(11);
-        private final Map<LookupLocator,String[]> expectedDiscardedMap  = new HashMap<LookupLocator,String[]>(11);
+        private final Map<LookupLocator,String[]> expectedDiscoveredMap;
+        private final Map<LookupLocator,String[]> expectedDiscardedMap;
+        public LookupListener(){
+            lock = new ReentrantLock();
+            discovered = lock.newCondition();
+            discarded = lock.newCondition();
+            discoveredMap = new HashMap<LookupLocator,String[]>(11);
+            discardedMap  = new HashMap<LookupLocator,String[]>(11);
+            expectedDiscoveredMap = new HashMap<LookupLocator,String[]>(11);
+            expectedDiscardedMap  = new HashMap<LookupLocator,String[]>(11);
+        }
+        
         
         Set<Map.Entry<LookupLocator,String[]>> getDiscovered(){
-            synchronized(this){
                 Set<Map.Entry<LookupLocator,String[]>> disc = new HashSet<Map.Entry<LookupLocator,String[]>>(discoveredMap.size());
                 disc.addAll(discoveredMap.entrySet());
                 return disc;
-            }
         }
         
         /**
@@ -301,17 +329,13 @@ abstract public class BaseQATest extends QATestEnvironment {
          * @return 
          */
         void updateDiscovered(LookupLocator l, String[] groups){
-            synchronized(this){
                 discardedMap.remove(l);
                 discoveredMap.put(l, groups);
-                this.notifyAll();
-            }
+                discovered.signalAll();
         }
         
         int discoveredCount(){
-            synchronized(this){
                 return discoveredMap.size();
-            }
         }
 
         /** Returns the locators of the lookups from discoveredMap, which
@@ -319,11 +343,14 @@ abstract public class BaseQATest extends QATestEnvironment {
          *  as well as the lookups that have already been discovered.
          */
         public LookupLocator[] getDiscoveredLocators() {
-            synchronized(this) {
+            lock.lock();
+            try {
                 Set kSet = discoveredMap.keySet();
                 return ((LookupLocator[])(kSet).toArray
                                             (new LookupLocator[kSet.size()]));
-            }//end sync(this)
+            } finally {
+                lock.unlock();
+            }
         }//end getDiscoveredLocators
 
         /** Returns the locators that are expected to be discovered, but which
@@ -335,7 +362,8 @@ abstract public class BaseQATest extends QATestEnvironment {
          *  have not yet been discovered.
          */
         public LookupLocator[] getUndiscoveredLocators() {
-            synchronized(this) {
+            lock.lock();
+            try {
                 Set dSet = discoveredMap.keySet();
                 Set eSet = expectedDiscoveredMap.keySet();
                 ArrayList uLocsList = new ArrayList(eSet.size());
@@ -346,46 +374,61 @@ abstract public class BaseQATest extends QATestEnvironment {
                 }//end loop
                 return ((LookupLocator[])(uLocsList).toArray
                                        (new LookupLocator[uLocsList.size()]));
-            }//end sync(this)
+            } finally {
+                lock.unlock();
+            }
         }//end getUndiscoveredLocators
 
         public void clearAllEventInfo() {
-            synchronized(this) {
+            lock.lock();
+            try {
                 discoveredMap.clear();
                 discardedMap.clear();
                 expectedDiscoveredMap.clear();
                 expectedDiscardedMap.clear();
-            }//end sync(this)
+            } finally {
+                lock.unlock();
+            }
         }//end clearAllEventInfo
 
         public void clearDiscoveryEventInfo() {
-            synchronized(this) {
+            lock.lock();
+            try {
                 discoveredMap.clear();
                 expectedDiscoveredMap.clear();
-            }//end sync(this)
+            } finally {
+                lock.unlock();
+            }
         }//end clearDiscoveryEventInfo
 
         public void clearDiscardEventInfo() {
-            synchronized(this) {
+            lock.lock();
+            try {
                 discardedMap.clear();
                 expectedDiscardedMap.clear();
-            }//end sync(this)
+            } finally {
+                lock.unlock();
+            }
         }//end clearDiscardEventInfo
 
         /** Use this method to set the contents of the discoveredMap to a
          *  specific set of values.
          */
         public void setDiscoveredMap(List locGroupsList) {
-            synchronized(this) {
+            Iterator it = locGroupsList.iterator();
+            lock.lock();
+            try {
                 discoveredMap.clear();
                 discardedMap.clear();
-                for(int i=0;i<locGroupsList.size();i++) {
-                    LocatorGroupsPair pair =
-                                      (LocatorGroupsPair)locGroupsList.get(i);
+                while (it.hasNext()) {
+                    LocatorGroupsPair pair = (LocatorGroupsPair)it.next();
                     discoveredMap.put(pair.getLocator(), pair.getGroups());
                 }//end loop
-                this.notifyAll();
-            }//end sync(this)
+                discovered.signalAll();
+                discarded.signalAll();
+            } finally {
+                lock.unlock();
+            }
         }//end setDiscoveredMap
 
         /** Use this method to set the contents of both the discoveredMap
@@ -393,23 +436,25 @@ abstract public class BaseQATest extends QATestEnvironment {
          * @param locGroupsList list containing LocatorGroupsPair to be set.
          */
         public void setDiscardEventInfo(List<LocatorGroupsPair> locGroupsList) {
-            synchronized(this) {
+            Iterator<LocatorGroupsPair> it = locGroupsList.iterator();
+            lock.lock();
+            try {
                 discoveredMap.clear();
                 discardedMap.clear();
-                synchronized (locGroupsList){
-                    int l = locGroupsList.size();
-                    for(int i=0;i<l;i++) {
-                        LocatorGroupsPair pair = locGroupsList.get(i);
-                        /* Have to set discoveredMap so that discarded() method
-                         * will place discarded lookup in the discardedMap when
-                         * the discarded event arrives.
-                         */
-                        discoveredMap.put(pair.getLocator(), pair.getGroups());
-                        expectedDiscardedMap.put(pair.getLocator(), pair.getGroups());
-                    }//end loop
+                while (it.hasNext()){
+                    LocatorGroupsPair pair = it.next();
+                    /* Have to set discoveredMap so that discarded() method
+                     * will place discarded lookup in the discardedMap when
+                     * the discarded event arrives.
+                     */
+                    discoveredMap.put(pair.getLocator(), pair.getGroups());
+                    expectedDiscardedMap.put(pair.getLocator(), pair.getGroups());
                 }
-                this.notifyAll();
-            }//end sync(this)
+                discovered.signalAll();
+                discarded.signalAll();
+            } finally {
+                lock.unlock();
+            }
         }//end clearDiscardEventInfo
 
         /** This method should be called whenever the lookups this listener
@@ -444,40 +489,38 @@ abstract public class BaseQATest extends QATestEnvironment {
                                          LookupLocator[] locatorsToDiscover,
                                          String[] groupsToDiscover)
         {
-            synchronized(this) {
-                LookupLocator[] locators = toLocatorArray(locGroupsList);
-                boolean discoverAll = discoverAllLookups(locGroupsList,
-                                                   groupsToDiscover);
-                /* The input ArrayList contains (locator,groups) pairs that
-                 * represent the locator and current member groups of lookup
-                 * services that have been started. Those lookup services 
-                 * that satisfy one or both of the following conditions
-                 * either are expected to be discovered, or have already been
-                 * discovered:
-                 *   - the lookup's corresponding locator is referenced in the
-                 *     locatorsToDiscover parameter
-                 *   - the lookup's current member groups consist of one or
-                 *     more of the groups referenced in the groupsToDiscover
-                 *     parameter
-                 * The (locator,groups) pairs from the ArrayList that
-                 * correspond to such lookup services are placed in the set
-                 * that contains information related to the lookup services
-                 * that are expected to be discovered.
-                 */
-                synchronized (locGroupsList){
-                    int l = locGroupsList.size();
-                    for(int i=0;i<l;i++) {
-                        LocatorGroupsPair pair =
-                                          (LocatorGroupsPair)locGroupsList.get(i);
-                        LookupLocator curLoc    = pair.getLocator();
-                        String[]      curGroups = pair.getGroups();
-                        if(    discoverByLocators(curLoc,locatorsToDiscover)
-                            || discoverAll
-                            || discoverByGroups(curGroups,groupsToDiscover) )
-                        {
-                            expectedDiscoveredMap.put(curLoc,curGroups);
-                        }//endif
-                    }//end loop
+            LookupLocator[] locators = toLocatorArray(locGroupsList);
+            boolean discoverAll = discoverAllLookups(locGroupsList,
+                                               groupsToDiscover);
+            /* The input ArrayList contains (locator,groups) pairs that
+             * represent the locator and current member groups of lookup
+             * services that have been started. Those lookup services 
+             * that satisfy one or both of the following conditions
+             * either are expected to be discovered, or have already been
+             * discovered:
+             *   - the lookup's corresponding locator is referenced in the
+             *     locatorsToDiscover parameter
+             *   - the lookup's current member groups consist of one or
+             *     more of the groups referenced in the groupsToDiscover
+             *     parameter
+             * The (locator,groups) pairs from the ArrayList that
+             * correspond to such lookup services are placed in the set
+             * that contains information related to the lookup services
+             * that are expected to be discovered.
+             */
+            Iterator it = locGroupsList.iterator();
+            lock.lock();
+            try {
+                while (it.hasNext()){
+                    LocatorGroupsPair pair = (LocatorGroupsPair)it.next();
+                    LookupLocator curLoc    = pair.getLocator();
+                    String[]      curGroups = pair.getGroups();
+                    if(    discoverByLocators(curLoc,locatorsToDiscover)
+                        || discoverAll
+                        || discoverByGroups(curGroups,groupsToDiscover) )
+                    {
+                        expectedDiscoveredMap.put(curLoc,curGroups);
+                    }//endif
                 }
                 /* The input ArrayList contains (locator,groups) pairs that
                  * represent the locator and current member groups of lookup
@@ -681,7 +724,9 @@ abstract public class BaseQATest extends QATestEnvironment {
                     expectedDiscardedMap.remove(loc);
                     expectedDiscoveredMap.put(loc,memberGroups);
                 }//end loop
-            }//end sync(this)
+            } finally {
+                lock.unlock();
+            }
         }//end setLookupsToDiscover
 
 //        /** Returns all of the groups (duplicates removed), across all lookup
@@ -710,7 +755,8 @@ abstract public class BaseQATest extends QATestEnvironment {
                 logger.log(Level.FINE, " discovery event received "
                                   +"-- "+regs.length+" lookup(s)");
                 Map groupsMap = evnt.getGroups();
-                synchronized(this) {
+                lock.lock();
+                try{ 
                     boolean oneDiscovered = false;
                     List<ServiceRegistrar> lusList = getLookupListSnapshot
                                      ("BaseQATest$LookupListenter.discovered");
@@ -797,7 +843,9 @@ abstract public class BaseQATest extends QATestEnvironment {
                               " number of currently discovered lookup(s) = "
                               +discoveredMap.size());
                     }
-                }//end sync(this)
+                } finally {
+                    lock.unlock();
+                }
             } else {//(regs == null)
                 logger.log(Level.FINE, " discovery event received "
                                   +"-- event.getRegistrars() returned NULL");
@@ -811,8 +859,10 @@ abstract public class BaseQATest extends QATestEnvironment {
                 logger.log(Level.FINE, " discard event received "
                                   +"-- "+regs.length+" lookup(s)");
                 Map groupsMap = evnt.getGroups();
-                synchronized(this) {
-                    for(int i=0;i<regs.length;i++) {
+                lock.lock();
+                try {
+                    int len = regs.length;
+                    for(int i=0;i<len;i++) {
                         /* Can't make a remote call to retrieve the locator
                          * of the discarded registrar like what was done when
                          * the registrar was discovered (since it may be down) 
@@ -838,8 +888,10 @@ abstract public class BaseQATest extends QATestEnvironment {
                     logger.log(Level.FINE,
                               " number of currently discovered lookup(s) = "
                               +discoveredMap.size());
-                    this.notifyAll();
-                }//end sync(this)
+                    discarded.signalAll();
+                } finally {
+                    lock.unlock();
+                }
             } else {//(regs == null)
                 logger.log(Level.FINE, " discard event received "
                                   +"-- event.getRegistrars() returned NULL");
@@ -860,24 +912,34 @@ abstract public class BaseQATest extends QATestEnvironment {
     protected class GroupChangeListener extends LookupListener
                                         implements DiscoveryChangeListener
     {
-        public GroupChangeListener(){ }
-
-        private final Map<LookupLocator,String[]> changedMap = new HashMap<LookupLocator,String[]>(11);
-        private final Map<LookupLocator,String[]> expectedChangedMap = new HashMap<LookupLocator,String[]>(11);
+        private final Map<LookupLocator,String[]> changedMap;
+        private final Map<LookupLocator,String[]> expectedChangedMap;
+        private final Condition changed;
+        public GroupChangeListener(){
+            changed = lock.newCondition();
+            changedMap = new HashMap<LookupLocator,String[]>(11);
+            expectedChangedMap = new HashMap<LookupLocator,String[]>(11);
+        }
 
         public void clearAllEventInfo() {
-            synchronized(this) {
+            lock.lock();
+            try {
                 super.clearAllEventInfo();
                 changedMap.clear();
                 expectedChangedMap.clear();
-            }//end sync(this)
+            } finally {
+                lock.unlock();
+            }
         }//end clearAllEventInfo
 
         public void clearChangeEventInfo() {
-            synchronized(this) {
+            lock.lock();
+            try {
                 changedMap.clear();
                 expectedChangedMap.clear();
-            }//end sync(this)
+            } finally {
+                lock.unlock();
+            }
         }//end clearChangeEventInfo
 
         /** This method should be called whenever the lookups this listener
@@ -903,7 +965,8 @@ abstract public class BaseQATest extends QATestEnvironment {
                                          LookupLocator[] locatorsToDiscover,
                                          String[] groupsToDiscover)
         {
-            synchronized(this) {
+            lock.lock();
+            try {
                 super.setLookupsToDiscover(locGroupsList,
                                            locatorsToDiscover,
                                            groupsToDiscover);
@@ -987,7 +1050,9 @@ abstract public class BaseQATest extends QATestEnvironment {
                         continue;
                     }//endif(discoveredByGroup)
                 }//end loop
-            }//end sync(this)
+            } finally {
+                lock.unlock();
+            }
         }//end setLookupsToDiscover
 
         public void changed(DiscoveryEvent evnt) {
@@ -997,7 +1062,8 @@ abstract public class BaseQATest extends QATestEnvironment {
                 logger.log(Level.FINE, " change event received "
                                   +"-- "+regs.length+" lookup(s)");
                 Map groupsMap = evnt.getGroups();
-                synchronized(this) {
+                lock.lock();
+                try {
                     boolean oneChanged = false;
                     List<ServiceRegistrar> regList = getLookupListSnapshot
                                         ("BaseQATest$LookupListenter.changed");
@@ -1032,8 +1098,10 @@ abstract public class BaseQATest extends QATestEnvironment {
                                " number of currently discovered lookup(s) = "
                                +discoveredCount());
                     }
-                    this.notifyAll();
-                }//end sync(this)
+                    changed.signalAll();
+                } finally {
+                    lock.unlock();
+                }
             } else {//(regs == null)
                 logger.log(Level.FINE, " change event received "
                                   +"-- event.getRegistrars() returned NULL");
@@ -1180,15 +1248,13 @@ abstract public class BaseQATest extends QATestEnvironment {
      *  containing instances of <code>LocatorGroupsPair</code>.
      */
     public static LookupLocator[] toLocatorArray(List list) {
-        synchronized (list){
-            int l = list.size();
-            LookupLocator[] locArray = new LookupLocator[l];
-            for(int i=0;i<l;i++) {
-                LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
-                locArray[i] = pair.getLocator();
-            }//end loop
-            return locArray;
+        Iterator it = list.iterator();
+        List<LookupLocator> locators = new LinkedList<LookupLocator>();
+        while (it.hasNext()){
+            LocatorGroupsPair pair = (LocatorGroupsPair) it.next();
+            locators.add(pair.getLocator());
         }
+        return locators.toArray(new LookupLocator[locators.size()]);
     }//end toLocatorArray
 
     /** Returns an array of group names in which each element of the
@@ -1301,16 +1367,14 @@ abstract public class BaseQATest extends QATestEnvironment {
          * groups to discover, then we do not want to discover all of the
          * lookups
          */
-        synchronized (list){
-            int l = list.size();
-            for(int i=0;i<l;i++) {
-                LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
-                String[] curMemberGroups = pair.getGroups();
-                if( !discoverByGroups(curMemberGroups,groupsToDiscover) ) {
-                    return false;
-                }//endif
-            }//end loop
-        }
+        int l = list.size();
+        for(int i=0;i<l;i++) {
+            LocatorGroupsPair pair = (LocatorGroupsPair)list.get(i);
+            String[] curMemberGroups = pair.getGroups();
+            if( !discoverByGroups(curMemberGroups,groupsToDiscover) ) {
+                return false;
+            }//endif
+        }//end loop
         return true;
     }//end discoverAllLookups
 
@@ -1543,9 +1607,13 @@ abstract public class BaseQATest extends QATestEnvironment {
         boolean discoveryComplete = false;
         boolean showCompInfo = true;//turn this off after 1st pass thru loop
 	Map discoveredClone = null;
-        synchronized (listener){
+        long milliSecondsToWait = nSecsToWait1*1000;
+        long duration = 0L;
+        long startTime = System.currentTimeMillis();
+        listener.lock.lock();
+        try {
         iLoop:
-            for(int i=0;i<nSecsToWait1;i++) {
+            while(duration<milliSecondsToWait) {
                 Map discoveredMap = listener.discoveredMap;
                 Map expectedDiscoveredMap = listener.expectedDiscoveredMap;
 
@@ -1605,7 +1673,7 @@ abstract public class BaseQATest extends QATestEnvironment {
                 }//endif(displayOn)
                 /* nEventsReceived == nEventsExpected for this listener? */
                 if(discoveredMap.size() == expectedDiscoveredMap.size()) {
-                    if(i == (nSecsToWait1-1)) {
+                    if( (milliSecondsToWait -1000L < duration) && (duration < milliSecondsToWait)) {
                         logger.log(Level.FINE,
                                "   events expected ("
                                +expectedDiscoveredMap.size()+") == events "
@@ -1623,13 +1691,13 @@ abstract public class BaseQATest extends QATestEnvironment {
                         discoveryComplete = true;
                         break iLoop;
                     } else {
-                        if(i == (nSecsToWait1-1)) {
+                        if((milliSecondsToWait -1000L < duration) && (duration < milliSecondsToWait)) {
                             logger.log(Level.FINE,
                                               "   not all lookups equal");
                         }//endif
                     }//endif
                 } else {//(nEventsReceived != nEventsExpected)
-                    if(i == (nSecsToWait1-1)) {
+                    if((milliSecondsToWait -1000L < duration) && (duration < milliSecondsToWait)) {
                         logger.log(Level.FINE,
                                               "   events expected ("
                                               +expectedDiscoveredMap.size()
@@ -1638,13 +1706,8 @@ abstract public class BaseQATest extends QATestEnvironment {
                     }//endif
                 }//endif(nEventsReceived == nEventsExpected)
                 try {
-                    long startTime = System.currentTimeMillis();
-                    long finishTime = startTime + 1000;
-                    long remain = 1000;
-                    do {
-                        listener.wait(remain); // Wait for discovery for 1000 ms.
-                        remain = finishTime - System.currentTimeMillis();
-                    } while (remain > 0); //To avoid spurious wakeup
+                    listener.discovered.await(1000L, TimeUnit.MILLISECONDS); // Wait for discovery for 1000 ms.
+                    duration = System.currentTimeMillis() - startTime;
                 } catch (InterruptedException ex) {
                     throw new TestException("Interrupted while waiting for discovery", ex);
                 }
@@ -1652,9 +1715,12 @@ abstract public class BaseQATest extends QATestEnvironment {
                 showCompInfo = false;//display comparison info only when i = 0
             }//end loop(iLoop)
 
-        }//end sync(listener)
+        } finally {
+            listener.lock.unlock();
+        }
         logger.log(Level.FINE, " DISCOVERY wait period complete");
-        synchronized(listener) {
+        listener.lock.lock();
+        try {
             if(!discoveryComplete) {
                 throw new TestException("discovery failed -- "
                                          +"waited "+nSecsToWait1
@@ -1670,9 +1736,11 @@ abstract public class BaseQATest extends QATestEnvironment {
                               +" discovery event(s) expected, "
                               +listener.discoveredMap.size()
                               +" discovery event(s) received");
+        } finally {
+            listener.lock.unlock();
+        }
         
     }//end waitForDiscovery
-    } // end sync (listener)
     /** Common code shared by each test that needs to wait for discarded
      *  events from the discovery helper utility, and verify that the
      *  expected discarded events have indeed arrived.
@@ -1707,7 +1775,8 @@ abstract public class BaseQATest extends QATestEnvironment {
         boolean discardComplete = false;
         boolean showCompInfo = true;//turn this off after 1st pass thru loop
 	Map discardedClone = null;
-        synchronized (listener){
+        listener.lock.lock();
+        try {
             iLoop:
             for(int i=0;i<nSecsToWait1;i++) {
                 Map discardedMap = listener.discardedMap;
@@ -1804,7 +1873,7 @@ abstract public class BaseQATest extends QATestEnvironment {
                     long finishTime = startTime + 1000;
                     long remain = 1000;
                     do {
-                        listener.wait(remain); // Wait for discovery for 1000 ms.
+                        listener.discarded.await(remain, TimeUnit.MILLISECONDS); // Wait for discovery for 1000 ms.
                         remain = finishTime - System.currentTimeMillis();
                     } while (remain > 0); //To avoid spurious wakeup
                 } catch (InterruptedException ex) {
@@ -1813,9 +1882,12 @@ abstract public class BaseQATest extends QATestEnvironment {
                 //DiscoveryServiceUtil.delayMS(1000);
                 showCompInfo = false;//display comparison info only when i = 0
             }//end loop(iLoop)
-        }//end sync(listener)
+        } finally {
+            listener.lock.unlock();
+        }
         logger.log(Level.FINE, " DISCARD wait period complete");
-        synchronized(listener) {
+        listener.lock.lock();
+        try {
             if(!discardComplete) {
                 throw new TestException("discard failed -- "
                                          +"waited "+nSecsToWait1
@@ -1831,7 +1903,9 @@ abstract public class BaseQATest extends QATestEnvironment {
                               +" discard event(s) expected, "
                               +listener.discardedMap.size()
                               +" discard event(s) received");
-        }//end sync(listener)
+        } finally {
+            listener.lock.unlock();
+        }
     }//end waitForDiscard
 
     /** Common code shared by each test that needs to wait for changed
@@ -1868,7 +1942,8 @@ abstract public class BaseQATest extends QATestEnvironment {
         boolean changeComplete = false;
         boolean showCompInfo = true;//turn this off after 1st pass thru loop
 	Map changedClone = null;
-        synchronized (listener){
+        listener.lock.lock();
+        try {
         iLoop:
             for(int i=0;i<nSecsToWait1;i++) {
                 Map changedMap = listener.changedMap;
@@ -1964,7 +2039,7 @@ abstract public class BaseQATest extends QATestEnvironment {
                     long finishTime = startTime + 1000;
                     long remain = 1000;
                     do {
-                        listener.wait(remain); // Wait for discovery for 1000 ms.
+                        listener.changed.await(remain, TimeUnit.MILLISECONDS); // Wait for discovery for 1000 ms.
                         remain = finishTime - System.currentTimeMillis();
                     } while (remain > 0); //To avoid spurious wakeup
                 } catch (InterruptedException ex) {
@@ -1974,9 +2049,12 @@ abstract public class BaseQATest extends QATestEnvironment {
                 //DiscoveryServiceUtil.delayMS(1000);
                 showCompInfo = false;//display comparison info only when i = 0
             }//end loop(iLoop)
-        }//end sync(listener)
+        } finally {
+            listener.lock.unlock();
+        }
         logger.log(Level.FINE, " CHANGE wait period complete");
-        synchronized(listener) {
+        listener.lock.lock();
+        try {
             if(!changeComplete) {
                 throw new TestException("change failed -- "
                                          +"waited "+nSecsToWait1
@@ -1992,7 +2070,9 @@ abstract public class BaseQATest extends QATestEnvironment {
                               +" change event(s) expected, "
                               +listener.changedMap.size()
                               +" change event(s) received");
-        }//end sync(listener)
+        } finally {
+            listener.lock.unlock();
+        }
     }//end waitForChange
 
     /** Given two locator-to-groups mappings, this method compares both

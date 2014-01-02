@@ -17,40 +17,10 @@
  */
 package net.jini.discovery;
 
-import com.sun.jini.config.Config;
-import com.sun.jini.discovery.Discovery;
-import com.sun.jini.discovery.DiscoveryConstraints;
-import com.sun.jini.discovery.UnicastResponse;
-import com.sun.jini.discovery.internal.MultiIPDiscovery;
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
-import com.sun.jini.thread.RetryTask;
-import com.sun.jini.thread.TaskManager;
-import com.sun.jini.thread.WakeupManager;
-import java.io.IOException;
-import java.lang.reflect.Method;
-import java.net.InetAddress;
-import java.net.Socket;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.Map;
-import java.util.Set;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
-import net.jini.config.EmptyConfiguration;
-import net.jini.config.NoSuchEntryException;
-import net.jini.core.constraint.InvocationConstraints;
-import net.jini.core.constraint.MethodConstraints;
-import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
-import net.jini.core.lookup.ServiceRegistrar;
-import net.jini.security.BasicProxyPreparer;
-import net.jini.security.ProxyPreparer;
 
 /**
  * This class encapsulates the functionality required of an entity that

@@ -78,17 +78,10 @@ public class RemoveGroupsSome extends Discovered {
     public void run() throws Exception {
         super.run();
         setGroupsToRemove(getInitLookupsToStart(),alternateRemoval);
-        /* Must sync on listener since Discovered/Discarded/Changed Map
-         * will change as events arrive, and setLookupsToDiscover
-         * examines the contents of those maps. So we don't want those
-         * maps to change until setLookupsToDiscover returns.
-         */
-        synchronized(mainListener) {
-            /* Set the expected discarded event info */
-            mainListener.setLookupsToDiscover(getInitLookupsToStart(),
-                                              locatorsToDiscover,
-                                              newGroupsToDiscover);
-        }//end sync(mainListener)
+        /* Set the expected discarded event info */
+        mainListener.setLookupsToDiscover(getInitLookupsToStart(),
+                                          locatorsToDiscover,
+                                          newGroupsToDiscover);
         logger.log(Level.FINE, "remove groups to discover -- ");
         if((groupsToRemove != null) && (groupsToRemove.length<=0)) {
             logger.log(Level.FINE, "   NO_GROUPS");

@@ -17,11 +17,15 @@
  */
 package com.sun.jini.norm.event;
 
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * Factory class for <code>EventType</code> objects.  All
@@ -46,14 +50,17 @@ public class EventTypeGenerator implements Serializable {
     /**
      * Task manager used to send events
      */
-    private transient TaskManager taskManager = new TaskManager();
+    private transient ExecutorService taskManager = 
+            new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue<Runnable>(), 
+                    new NamedThreadFactory("EventTypeGenerator", false));
 
     /**
      * Wakeup manager used by the event sending tasks to schedule 
      * retries.
      */
     private transient WakeupManager wakeupManager = 
-	new WakeupManager(new WakeupManager.ThreadDesc(null, true));
+	new WakeupManager(new WakeupManager.ThreadDesc(null, false));
 
     /**
      * Create a new <code>EventType</code> object.  The event ID for
@@ -111,7 +118,7 @@ public class EventTypeGenerator implements Serializable {
      * Return the task manager that <code>EventType</code> objects created
      * by this generator should use to send their events.
      */
-    TaskManager getTaskManager() {
+    ExecutorService getTaskManager() {
 	return taskManager;
     }
 
@@ -128,7 +135,7 @@ public class EventTypeGenerator implements Serializable {
      * associated with this generator.
      */
     public void terminate() {
-	taskManager.terminate();
+	taskManager.shutdown();
 	wakeupManager.stop();
 	wakeupManager.cancelAll();
     }
@@ -144,7 +151,9 @@ public class EventTypeGenerator implements Serializable {
 	// fill in the object from the stream 
 	in.defaultReadObject();
 
-	taskManager = new TaskManager();
+	taskManager = new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue<Runnable>(), 
+                    new NamedThreadFactory("EventTypeGenerator", true));
 	wakeupManager = 
 	    new WakeupManager(new WakeupManager.ThreadDesc(null, true));    
     }

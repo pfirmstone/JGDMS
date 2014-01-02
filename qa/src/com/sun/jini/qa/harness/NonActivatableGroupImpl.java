@@ -94,10 +94,10 @@ class NonActivatableGroupImpl {
 	private Object proxy;
 
 	/** the groups exporter */
-	private final Exporter exporter;
+	private Exporter exporter;
 
 	/** store service references here to ensure no GC interference */
-	private final ArrayList serviceList = new ArrayList();
+	private ArrayList serviceList = new ArrayList();
 
 	/**
 	 * Construct a <code>NonActivatableGroup</code>. Instances export themselves

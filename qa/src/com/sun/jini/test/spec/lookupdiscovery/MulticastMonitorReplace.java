@@ -98,7 +98,9 @@ public class MulticastMonitorReplace extends Discovered {
          * examines the contents of those maps. So we don't want those
          * maps to change until setLookupsToDiscover returns.
          */
-        synchronized(listenerToUse) {
+        LookupListener listenerToUse = this.listenerToUse;
+        listenerToUse.lock.lock();
+        try {
             List locGroupsPairList = null;
             /* Replace current groups with new groups to cause discards */
             if(replacementGroups == null) {//use unique generated groups
@@ -111,7 +113,9 @@ public class MulticastMonitorReplace extends Discovered {
             listenerToUse.setLookupsToDiscover
                                      (locGroupsPairList,
                                       toGroupsArray(getInitLookupsToStart()));
-        }//end sync(listenerToUse)
+        } finally {
+            listenerToUse.lock.unlock();
+        }
         waitForDiscard(listenerToUse);
     }//end run
 

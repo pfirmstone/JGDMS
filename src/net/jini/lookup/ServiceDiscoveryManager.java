@@ -21,6 +21,7 @@ import com.sun.jini.logging.Levels;
 import com.sun.jini.lookup.entry.LookupAttributes;
 import com.sun.jini.proxy.BasicProxyTrustVerifier;
 import com.sun.jini.thread.TaskManager;
+import com.sun.jini.thread.TaskManager.Task;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
@@ -605,7 +606,7 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 public class ServiceDiscoveryManager {
 
     /** Class for implementing register/lookup/notify/dropProxy/discard tasks*/
-    private static abstract class CacheTask implements TaskManager.Task {
+    private static abstract class CacheTask implements Runnable {
         protected final ProxyReg reg;
         protected volatile long thisTaskSeqN;
         public CacheTask(ProxyReg reg, long seqN) {
@@ -617,14 +618,6 @@ public class ServiceDiscoveryManager {
             if(this.reg == null) return false;
             return (this.reg).equals(reg);
         }//end isFromProxy
-        /** Returns true if current instance must be run after task(s) in
-         *  task manager queue.
-         *  @param tasks the tasks to consider.
-         *  @param size elements with index less than size are considered.
-         */
-        public boolean runAfter(List tasks, int size) {
-            return false;
-        }//end runAfter
 
         /** Returns the ProxyReg associated with this task (if any). */
         public ProxyReg getProxyReg() {
@@ -643,7 +636,7 @@ public class ServiceDiscoveryManager {
      *  corresponding to a particular serviceID associated with a particular
      *  lookup service.
      */
-    private static abstract class ServiceIdTask extends CacheTask {
+    private static abstract class ServiceIdTask extends CacheTask implements Task {
         protected final ServiceID thisTaskSid;
         ServiceIdTask(ServiceID srvcId, ProxyReg reg, long seqN) {
             super(reg, seqN);
@@ -666,7 +659,7 @@ public class ServiceDiscoveryManager {
          */
         public boolean runAfter(List tasks, int size) {
             for(int i=0; i<size; i++) {
-                TaskManager.Task t = (TaskManager.Task)tasks.get(i);
+                Runnable t = (Runnable) tasks.get(i);
                 //Compare only instances of this task class
                 if( !(t instanceof ServiceIdTask) )  continue;
                 ServiceID otherTaskSid = ((ServiceIdTask)t).getServiceID();
@@ -1001,7 +994,7 @@ public class ServiceDiscoveryManager {
 	}//end class LookupCacheImpl.RegisterListenerTask
 
 	/** This class requests a "snapshot" of the given registrar's state.*/
-        private final class LookupTask extends CacheTask {
+        private final class LookupTask extends CacheTask implements Task {
 	    private final EventReg eReg;
             public LookupTask(ProxyReg reg, long seqN, EventReg eReg) {
                 super(reg, seqN);
@@ -1104,7 +1097,7 @@ public class ServiceDiscoveryManager {
                         }//endif
                     }//endif
                 }//end loop
-                return super.runAfter(tasks, size);
+                return false;
             }//end runAfter
 
 	}//end class LookupCacheImpl.LookupTask
@@ -1239,13 +1232,13 @@ public class ServiceDiscoveryManager {
              */
             public boolean runAfter(List tasks, int size) {
                 for(int i=0; i<size; i++) {
-                    CacheTask t = (CacheTask)tasks.get(i);
+                    Runnable t = (Runnable)tasks.get(i);
                     if(   t instanceof RegisterListenerTask
                        || t instanceof LookupTask )
                     {
-                        ProxyReg otherReg = t.getProxyReg();
+                        ProxyReg otherReg = ((CacheTask)t).getProxyReg();
                         if( reg.equals(otherReg) ) {
-                            if(thisTaskSeqN > t.getSeqN()) return true;
+                            if(thisTaskSeqN > ((CacheTask)t).getSeqN()) return true;
                         }//endif
                     }//endif
                 }//end loop
@@ -1260,7 +1253,7 @@ public class ServiceDiscoveryManager {
          *  a filter retry on an item in which the cache's filter initially
          *  returned indefinite.
          */
-        private final class ServiceDiscardTimerTask implements TaskManager.Task
+        private final class ServiceDiscardTimerTask implements Runnable
         {
             private final ServiceID serviceID;
 	    private final long endTime;
@@ -1367,14 +1360,6 @@ public class ServiceDiscoveryManager {
                 logger.finest("ServiceDiscoveryManager - "
                               +"ServiceDiscardTimerTask completed");
             }//end run
-            /** Returns true if current instance must be run after task(s) in
-             *  task manager queue.
-             *  @param tasks the tasks to consider.
-             *  @param size elements with index less than size are considered.
-             */
-            public boolean runAfter(List tasks, int size) {
-                return false;
-            }//end runAfter
         }//end class LookupCacheImpl.ServiceDiscardTimerTask
 
 	/** Task class used to asynchronously process the service state
@@ -1932,7 +1917,7 @@ public class ServiceDiscoveryManager {
          *  when the given ProxyReg has been discarded.
 	 */
 	private void removeUselessTask(ProxyReg reg) {
-            ArrayList pendingTasks = cacheTaskMgr.getPending();
+            List pendingTasks = cacheTaskMgr.getPending();
             for(int i=0;i<pendingTasks.size();i++) {
                 CacheTask t = (CacheTask)pendingTasks.get(i);
                 if(t.isFromProxy(reg)) cacheTaskMgr.remove(t);
@@ -1945,7 +1930,7 @@ public class ServiceDiscoveryManager {
         private void terminateTaskMgr(TaskManager taskMgr) {
             synchronized(taskMgr) {
                 /* Remove all pending tasks */
-                ArrayList pendingTasks = taskMgr.getPending();
+                List pendingTasks = taskMgr.getPending();
                 for(int i=0;i<pendingTasks.size();i++) {
                     taskMgr.remove((TaskManager.Task)pendingTasks.get(i));
                 }//end loop
@@ -3250,6 +3235,7 @@ public class ServiceDiscoveryManager {
             LookupCacheImpl cache = (LookupCacheImpl)iter.next();
             cache.terminate();
         }//end loop
+        leaseRenewalMgr.close();
     }//end terminate
 
     /**

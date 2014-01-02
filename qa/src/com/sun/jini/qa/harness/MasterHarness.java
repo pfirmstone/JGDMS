@@ -211,7 +211,7 @@ class MasterHarness {
 	}
 	config = new QAConfig(args);
 	keepaliveThread = new Thread(new KeepAlivePort(), "Keepalive");
-	keepaliveThread.setDaemon(true);
+	keepaliveThread.setDaemon(false);
 	keepaliveThread.start();
 	try {
 	    Thread.sleep(1000);
@@ -224,7 +224,7 @@ class MasterHarness {
 		Class.forName("com.sun.jini.qa.harness.MergedPolicyProvider");
 	    if (policyClass.getClassLoader().getParent() != null) {
 		outStream.println("MergedPolicyprovider must be "
-				+ "installed in an extensions directory");
+				+ "installed in an extensions ClassLoader");
 		System.exit(1);
 	    }
 	} catch (Exception e) {
@@ -249,10 +249,11 @@ class MasterHarness {
     private class KeepAlivePort implements Runnable {
 
 	public void run() {
+            ServerSocket socket = null;
 	    ArrayList socketList = new ArrayList(); // keep references
 	    try {
                 SocketAddress add = new InetSocketAddress(KEEPALIVE_PORT);
-		ServerSocket socket = new ServerSocket();
+		socket = new ServerSocket();
 //                if (!socket.getReuseAddress()) socket.setReuseAddress(true);
                 socket.bind(add);
 		while (true) {
@@ -262,8 +263,12 @@ class MasterHarness {
 		outStream.println("Problem with KEEPALIVE_PORT:" + KEEPALIVE_PORT );
 		outStream.println("Unexpected exception:");
 		e.printStackTrace(outStream);
+	    } finally {
+                try {
+                    socket.close();
+                } catch (IOException ex) {/*Ignore*/}
 		System.exit(1);
-	    }
+            }
 	}
     }
 

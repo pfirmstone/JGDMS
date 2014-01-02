@@ -94,10 +94,14 @@ public class MulticastMonitorStop extends Discovered {
          * changes the contents of those maps. So we don't want those
          * maps to change due to events until clearAllEventInfo returns.
          */
-        synchronized(mainListener) {
+        LookupListener mainListener = this.mainListener;
+        mainListener.lock.lock();
+        try {
             stopAnnouncements();
             mainListener.clearAllEventInfo();//expect no discard events
-        }//end sync(mainListener)
+        } finally {
+            mainListener.lock.unlock();
+        }
         waitForDiscard(mainListener);
     }//end run
 

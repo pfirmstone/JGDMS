@@ -132,7 +132,7 @@ class PrepareAndCommitJob extends Job implements TransactionConstants {
      * @see com.sun.jini.mahalo.Job
      * @see com.sun.jini.thread.TaskManager.Task
      */
-    Object doWork(TaskManager.Task who, Object param) {
+    Object doWork(Runnable who, Object param) {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(PrepareAndCommitJob.class.getName(), 
 	        "doWork", new Object[] {who, param});
@@ -259,8 +259,8 @@ class PrepareAndCommitJob extends Job implements TransactionConstants {
      * Creates the <code>TaskManager.Task</code>s necessary to
      * inform participants to vote and roll-forward/back.
      */
-    TaskManager.Task[] createTasks() {
-	TaskManager.Task[] tmp = new TaskManager.Task[1];
+    Runnable[] createTasks() {
+	Runnable[] tmp = new Runnable[1];
 
 	tmp[0] = new ParticipantTask(getPool(), getMgr(), this, handle);
 

@@ -122,7 +122,7 @@ class CommitJob extends Job implements TransactionConstants {
      * @see com.sun.jini.mahalo.Job
      * @see com.sun.jini.thread.TaskManager.Task
      */
-    Object doWork(TaskManager.Task who, Object param) {
+    Object doWork(Runnable who, Object param) {
         ParticipantHandle handle = (ParticipantHandle)param;
         TransactionParticipant par = null;
 
@@ -236,8 +236,8 @@ class CommitJob extends Job implements TransactionConstants {
      * Creates the <code>TaskManager.Task</code>s necessary to
      * inform participants to roll-back.
      */
-    TaskManager.Task[] createTasks() {
-	TaskManager.Task[] tmp = new TaskManager.Task[handles.length];
+    Runnable[] createTasks() {
+	Runnable[] tmp = new Runnable[handles.length];
 
 	for (int i = 0; i < handles.length; i++) {
 	    tmp[i] = 

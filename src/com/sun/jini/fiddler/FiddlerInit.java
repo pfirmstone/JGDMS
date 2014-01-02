@@ -19,11 +19,8 @@
 package com.sun.jini.fiddler;
 
 import com.sun.jini.config.Config;
-import com.sun.jini.fiddler.FiddlerImpl.LeaseExpireThread;
 import com.sun.jini.fiddler.FiddlerImpl.LocalLogHandler;
-import com.sun.jini.fiddler.FiddlerImpl.SnapshotThread;
 import com.sun.jini.reliableLog.ReliableLog;
-import com.sun.jini.thread.TaskManager;
 import java.io.IOException;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroup;
@@ -32,6 +29,10 @@ import java.rmi.activation.ActivationSystem;
 import java.rmi.server.ExportException;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import javax.security.auth.login.LoginContext;
 import net.jini.activation.ActivationExporter;
@@ -51,6 +52,7 @@ import net.jini.jeri.ServerEndpoint;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * Initialization common to all modes in which instances of this service
@@ -70,7 +72,7 @@ class FiddlerInit {
     ReliableLog log = null;
     DiscoveryManagement joinMgrLDM;
     long leaseMax;
-    TaskManager taskMgr;
+    ExecutorService executorService;
     ActivationSystem activationSystem;
     Exporter serverExporter;
     LocalLogHandler logHandler;
@@ -189,20 +191,17 @@ class FiddlerInit {
                                            FiddlerImpl.MAX_LEASE, 0, Long.MAX_VALUE);
 
             /* Get a general-purpose task manager for this service */
-            taskMgr = (TaskManager)Config.getNonNullEntry
-                                              (config,
-                                               FiddlerImpl.COMPONENT_NAME,
-                                               "taskManager",
-                                               TaskManager.class,
-                                               new TaskManager(10,1000*15,1.0f) );
+            executorService = Config.getNonNullEntry(config,
+                                             FiddlerImpl.COMPONENT_NAME,
+                                             "executorService",
+                                             ExecutorService.class,
+                                             new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new NamedThreadFactory("Fiddler Executor", false)) );
             /* Get the discovery manager to pass to this service's join manager. */
             try {
-                joinMgrLDM  = 
-                    (DiscoveryManagement)Config.getNonNullEntry
-                                                      (config,
-                                                       FiddlerImpl.COMPONENT_NAME,
-                                                       "discoveryManager",
-                                                       DiscoveryManagement.class);
+                joinMgrLDM = Config.getNonNullEntry(config,
+                                                    FiddlerImpl.COMPONENT_NAME,
+                                                    "discoveryManager",
+                                                    DiscoveryManagement.class);
                 if( joinMgrLDM instanceof DiscoveryGroupManagement ) {
                     String[] groups0 =
                                ((DiscoveryGroupManagement)joinMgrLDM).getGroups();
@@ -292,9 +291,9 @@ class FiddlerInit {
      * terminates any threads that may have been started, etc.
      */
     private void cleanupInitFailure() {
-        if(taskMgr != null)  {
+        if(executorService != null)  {
             try {
-                taskMgr.terminate();
+                executorService.shutdown();
             } catch(Throwable t) { }
         }//endif
         

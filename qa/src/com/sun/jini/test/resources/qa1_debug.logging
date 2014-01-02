@@ -39,7 +39,7 @@ handlers = java.util.logging.ConsoleHandler
 # level setting (set below) to limit messages printed to
 # the console.
 
-.level = INFO
+.level = FINE
 
 ############################################################
 # Handler specific properties: formatters and logger levels

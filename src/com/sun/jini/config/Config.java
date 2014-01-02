@@ -86,8 +86,8 @@ public class Config {
      * @see #getNonNullEntry(Configuration, String, String, Class, Object,
      *      Object) 
      */
-    public static Object getNonNullEntry(Configuration config,
-	    String component, String name, Class type)
+    public static <T> T getNonNullEntry(Configuration config,
+	    String component, String name, Class<T> type)
 	throws ConfigurationException
     {
 	return getNonNullEntry(config, component, name, type,
@@ -128,8 +128,8 @@ public class Config {
      * @see #getNonNullEntry(Configuration, String, String, Class, Object,
      *      Object) 
      */
-    public static Object getNonNullEntry(Configuration config,
-	    String component, String name, Class type, Object defaultValue)
+    public static <T> T getNonNullEntry(Configuration config,
+	    String component, String name, Class<T> type, Object defaultValue)
 	throws ConfigurationException
     {
 	return getNonNullEntry(config, component, name, type, defaultValue,
@@ -177,15 +177,15 @@ public class Config {
      * @see #getNonNullEntry(Configuration, String, String, Class, Object,
      *      Object) 
      */
-    public static Object getNonNullEntry(Configuration config,
-	    String component, String name, Class type, Object defaultValue,
+    public static <T> T getNonNullEntry(Configuration config,
+	    String component, String name, Class<T> type, Object defaultValue,
 	    Object data)
 	throws ConfigurationException
     {
 	if (defaultValue == null) 
 	    throw new NullPointerException("defaultValue cannot be null");
 
-	final Object result = config.getEntry(component, name, type,
+	final T result = (T) config.getEntry(component, name, type,
 					      defaultValue, data);
 
 	if (result == null) {

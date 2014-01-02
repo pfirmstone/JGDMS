@@ -37,7 +37,7 @@ public class RegisterAttributes extends Register {
      * <p>
      *   Verifies that the test service input to the join manager constructor
      *   is registered with all lookup services the join manager is configured
-     *   to discover (through its <code>DiscoveryManagemen</code>t instance);
+     *   to discover (through its <code>DiscoveryManagement</code> instance);
      *   additionally, verifies that the test service's corresponding set of 
      *   attributes are associated with the test service in each lookup service
      *   in which that test service is registered.

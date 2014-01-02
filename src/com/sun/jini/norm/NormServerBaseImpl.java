@@ -1577,6 +1577,7 @@ abstract class NormServerBaseImpl
 	expMgr.terminate();
 	generator.terminate();
 	lrm.clear();
+        lrm.close();
 
 	logger.log(Level.FINEST, "Independent threads interrupted");
 
