@@ -25,11 +25,11 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Queue;
 import java.util.Random;
+import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -43,7 +43,9 @@ import java.util.logging.Logger;
 import org.apache.river.api.util.Startable;
 
 /**
- * The intent of this Executor is to groups tasks into synchronous queues.
+ * The intent of this Executor is to share a single thread pool among tasks with
+ * dependencies that prevent them running concurrently.
+ * 
  * @author peter
  */
 public class SynchronousExecutors implements Startable {
@@ -89,31 +91,44 @@ public class SynchronousExecutors implements Startable {
         distributorThread.interrupt();
     }
     
-    public <T> ExecutorService newExecutor(){
-        QueueWrapper que = new QueueWrapper<T>(new LinkedBlockingQueue<Callable<T>>());
-        ExecutorService serv = new SynchronousExecutor<T>(que, distributorWaiting, distributorLock, workToDo, pool);
+    /**
+     * The ExecutorService returned, supports a subset of ExecutorService
+     * methods, the intent of this executor is to serialize the execution
+     * of tasks, it is up to the BlockingQueue or caller to ensure order, only 
+     * one task will execute at a time, that task will be retried if it fails,
+     * using a back off strategy of 1, 5 and 10 seconds, followed by 1, 1 and 5
+     * minutes thereafter forever, no other task will execute until the task
+     * at the head of the queue is completed successfully.
+     * 
+     * Tasks submitted must implement Callable, Runnable is not supported.
+     * 
+     * @param <T>
+     * @param queue
+     * @return 
+     */
+    public <T> ExecutorService newSerialExecutor(BlockingQueue<Callable<T>> queue){
+        QueueWrapper que = new QueueWrapper<T>(queue);
+        ExecutorService serv = new SerialExecutor<T>(que, distributorWaiting, distributorLock, workToDo);
         addQueue(que);
         return serv;
     }
     
-    private static class SynchronousExecutor<T> implements ExecutorService {
+    private static class SerialExecutor<T> implements ExecutorService {
         
         QueueWrapper<T> queue;
         AtomicBoolean waiting;
         final Lock lock;
         final Condition workToDo;
-        final ScheduledExecutorService pool;
 
-        SynchronousExecutor(QueueWrapper<T> queue, AtomicBoolean waiting, Lock lock, Condition cond, ScheduledExecutorService pool){
+        SerialExecutor(QueueWrapper<T> queue, AtomicBoolean waiting, Lock lock, Condition cond){
             this.queue = queue;
             this.waiting = waiting;
             this.lock = lock;
             workToDo = cond;
-            this.pool = pool;
         }
         @Override
         public void shutdown() {
-            throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+            
         }
 
         @Override
@@ -139,7 +154,7 @@ public class SynchronousExecutors implements Startable {
         @Override
         public <T> Future<T> submit(Callable<T> task) {
             if (task == null) throw new NullPointerException("task cannot be null");
-            Task t = new Task<T>(task, queue, lock, workToDo, pool);
+            Task t = new Task<T>(task, queue, lock, workToDo);
             if (queue.offer(t)){
                 if (waiting.get() && !queue.stalled){
                     lock.lock();
@@ -350,18 +365,16 @@ public class SynchronousExecutors implements Startable {
         private final Lock executorLock;
         private final Condition waiting;
         private final Condition resultAwait;
-        private final ScheduledExecutorService exec;
         private int attempt;
         private volatile long retryTime;
         
-        Task(Callable<T> c, QueueWrapper wrapper, Lock executorLock, Condition distributorWaiting, ScheduledExecutorService exec){
+        Task(Callable<T> c, QueueWrapper wrapper, Lock executorLock, Condition distributorWaiting){
             task = c;
             queue = wrapper;
             this.waiting = distributorWaiting;
             resultAwait = queue.lock.newCondition();
             attempt = 0;
             this.executorLock = executorLock;
-            this.exec = exec;
         }
         
         /**
