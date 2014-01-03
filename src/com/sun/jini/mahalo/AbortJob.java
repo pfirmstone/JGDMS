@@ -18,7 +18,6 @@
 package com.sun.jini.mahalo;
 
 import com.sun.jini.mahalo.log.ClientLog;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 
 import java.rmi.activation.ActivateFailedException;
@@ -30,6 +29,7 @@ import java.rmi.ConnectIOException;
 import java.rmi.AccessException;
 import java.rmi.ConnectException;
 import java.util.Iterator;
+import java.util.concurrent.ExecutorService;
  
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -81,7 +81,7 @@ class AbortJob extends Job implements TransactionConstants {
      * @see com.sun.jini.mahalo.log.ClientLog
      * @see net.jini.core.transaction.server.TransactionParticipant
      */
-    public AbortJob(Transaction tr, TaskManager pool,
+    public AbortJob(Transaction tr, ExecutorService pool,
 		      WakeupManager wm, ClientLog log,
 		      ParticipantHandle[] handles) {
 	super(pool, wm);

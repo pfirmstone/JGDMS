@@ -41,12 +41,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
@@ -62,6 +65,8 @@ import net.jini.core.discovery.LookupLocator;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.impl.thread.ExtensibleExecutorService;
+import org.apache.river.impl.thread.ExtensibleExecutorService.RunnableFutureFactory;
 import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
@@ -109,7 +114,6 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
      *  <code>ExecutorService</code>.
      */
     private final ExecutorService discoveryExecutor;
-    private final Set<RetryTask> discoveryTasks;
     /** Wakeup manager for the discovery tasks. For any locator, after
      *  an initial failure to discover the locator, the task used to
      *  perform all future discovery attempts is managed by this
@@ -332,9 +336,6 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
                             DiscoveryTask task = new DiscoveryTask(LocatorReg.this,
 				discoveryExecutor, discoveryWakeupMgr);
 			    discoveryExecutor.submit(task);
-                            synchronized (discoveryTasks){
-                                discoveryTasks.add(task);
-                            }
 			}
 		    }
 		);
@@ -342,9 +343,6 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
                 DiscoveryTask task = new DiscoveryTask(this,
 			discoveryExecutor, discoveryWakeupMgr);
 		discoveryExecutor.submit(task);
-                synchronized (discoveryTasks){
-                    discoveryTasks.add(task);
-                }
 	    }
 	}
 	
@@ -586,10 +584,27 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
     
     private AbstractLookupLocatorDiscovery(Initializer init){
         registrarPreparer = init.registrarPreparer;
-        discoveryExecutor = init.discoveryTaskMgr;
-        discoveryTasks = Collections.newSetFromMap(new WeakHashMap<RetryTask,Boolean>());
+        discoveryExecutor = new ExtensibleExecutorService(
+                init.discoveryTaskMgr,
+                new FutureFactory()
+        );
         discoveryWakeupMgr = init.discoveryWakeupMgr;
         initialUnicastDelayRange = init.initialUnicastDelayRange.longValue();
+    }
+    
+    private static class FutureFactory implements RunnableFutureFactory {
+
+        @Override
+        public <T> RunnableFuture<T> newTaskFor(Runnable r, T value) {
+            if (r instanceof RunnableFuture) return (RunnableFuture<T>) r;
+            return new FutureTask<T>(r, value);
+        }
+
+        @Override
+        public <T> RunnableFuture<T> newTaskFor(Callable<T> c) {
+            return new FutureTask<T>(c); 
+        }
+        
     }
 
     /**
@@ -1178,22 +1193,12 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
         }//endif
         /* Cancel/remove pending tasks from the task manager and terminate */
         if(discoveryExecutor != null) {
-            synchronized (discoveryTasks){
-                Iterator<RetryTask> it = discoveryTasks.iterator();
-                while (it.hasNext()){
-                    it.next().cancel();//cancel wakeup ticket
-                }
-            }
             List<Runnable> pendingTasks = discoveryExecutor.shutdownNow();
             Iterator<Runnable> ir = pendingTasks.iterator();
             while (ir.hasNext()){
                 Runnable pendingTask = ir.next();
-                if (pendingTask instanceof RetryTask){
-                    ((RetryTask) pendingTask).cancel();//cancel wakeup ticket
-                    System.err.println("Cancelled RetryTask");
-                } else if (pendingTask instanceof Future) {
-                    ((Future) pendingTask).cancel(true);
-                    System.err.println("Task not instanceof RetryTask: " + pendingTask);
+                if (pendingTask instanceof Future) {
+                    ((Future) pendingTask).cancel(false);
                 }
             }
         }//endif

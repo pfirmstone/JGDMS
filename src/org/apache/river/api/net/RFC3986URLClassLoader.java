@@ -118,15 +118,15 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
             registerAsParallelCapable.setAccessible(true);
             registerAsParallelCapable.invoke(null, new Object [0]);
         } catch (NoSuchMethodException ex) {
-            logger.log(Level.INFO, "Platform doesn't support parallel class loading", ex);
+            logger.log(Level.FINEST, "Platform doesn't support parallel class loading", ex);
         } catch (SecurityException ex) {
-            logger.log(Level.INFO, "Insufficient permission to enable parallel class loading, disabled", ex);
+            logger.log(Level.FINEST, "Insufficient permission to enable parallel class loading, disabled", ex);
         } catch (IllegalAccessException ex) {
-            logger.log(Level.INFO, "Unable to invoke parallel class loading", ex);
+            logger.log(Level.FINEST, "Unable to invoke parallel class loading", ex);
         } catch (IllegalArgumentException ex) {
-            logger.log(Level.INFO, "Unable to invoke parallel class loading", ex);
+            logger.log(Level.FINEST, "Unable to invoke parallel class loading", ex);
         } catch (InvocationTargetException ex) {
-            logger.log(Level.INFO, "Unable to invoke parallel class loading", ex);
+            logger.log(Level.FINEST, "Unable to invoke parallel class loading", ex);
         }
         String codebaseAnnotationProperty = null;
 	String prop = AccessController.doPrivileged(

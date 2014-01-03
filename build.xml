@@ -814,6 +814,8 @@
             <arg path="${build.classes.dir}/com/sun/jini/system"/> <!--qa suite dep-->
             <arg path="${build.classes.dir}/net/jini"/>
             <arg path="${build.classes.dir}/org/apache/river/impl/lease"/>
+            <arg path="${build.classes.dir}/org/apache/river/impl/thread"/>
+            <arg path="${build.classes.dir}/org/apache/river/impl"/>
             <arg value="com.sun.jini.logging.Levels"/>
             <arg value="com.sun.jini.phoenix.ActivationAdmin"/>
             <arg value="com.sun.jini.start.LifeCycle"/>

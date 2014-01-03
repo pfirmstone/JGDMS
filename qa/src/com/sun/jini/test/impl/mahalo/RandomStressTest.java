@@ -220,7 +220,7 @@ public class RandomStressTest extends TxnManagerTest {
 		if (alltasks[i] == null) {
 		    continue;
 		}
-		boolean done = alltasks[i].complete();
+		boolean done = alltasks[i].isDone();
 
 		if (DEBUG) {
 		    logger.log(Level.INFO, 

@@ -17,11 +17,13 @@
  */
 package com.sun.jini.mahalo;
 
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
+import java.util.Iterator;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicIntegerArray;
 import java.util.logging.Level;
@@ -36,31 +38,30 @@ import java.util.logging.Logger;
  *
  */
 abstract class Job {
-    private final TaskManager pool;
+    private final ExecutorService pool;
     private final WakeupManager wm;
     private final AtomicInteger pend;
     final ConcurrentMap<Integer,Object> results;
     volatile AtomicIntegerArray attempts = null;
-    private final ConcurrentMap<Object,Integer> tasks;  //used to maintain account
+    private final ConcurrentMap<Runnable,Integer> tasks;  //used to maintain account
 					//of the tasks for which
 					//the job is responsible
                                         // sync on tasks.
-
     static final Logger logger = TxnManagerImpl.participantLogger;
     
     /**
      * Create the <code>Job</code> object giving it the
-     * <code>TaskManager</code> responsible for the pool of
+     * <code>ExecutorService</code> responsible for the pool of
      * threads which perform the necessary work.
      *
-     * @param pool the <code>TaskManager</code> which provides the threads
+     * @param pool the <code>ExecutorService</code> which provides the threads
      */
-    public Job(TaskManager pool, WakeupManager wm) {
+    Job(ExecutorService pool, WakeupManager wm) {
         this.wm = wm;
 	this.pool = pool;
         pend = new AtomicInteger(-1);
         results = new ConcurrentHashMap<Integer,Object>();
-        tasks = new ConcurrentHashMap<Object,Integer>();
+        tasks = new ConcurrentHashMap<Runnable,Integer>();
     }
 
 
@@ -101,7 +102,7 @@ abstract class Job {
 
 
     /**
-     * Given a <code>TaskManager.Task</code>, this method
+     * Given a <code>Runnable</code>, this method
      * returns the current number of attempts it has made.
      * 
      * @param who The task for which the number of attempts
@@ -140,35 +141,36 @@ abstract class Job {
     /**
      * Schedules tasks for execution
      */
-    public void scheduleTasks() {
+    public final void scheduleTasks() {
 	Runnable[] tmp = createTasks();
-	if (tmp != null) {
-            int length = tmp.length;
-            if (logger.isLoggable(Level.FINEST)) {
-                logger.log(Level.FINEST,
-                    "Job:scheduleTasks with {0} tasks",
-                    Integer.valueOf(length));
-            }
- 
-            results.clear();
-            attempts = new AtomicIntegerArray(length);
-            setPending(length);
-            
-            for (int i = 0; i < length; i++) {
-
-		//Record the position if each
-		//task for later use when assembling
-		//the partial results
-                tasks.put(tmp[i],Integer.valueOf(i));
-                attempts.set(i,0);
-                pool.add(tmp[i]);
+        synchronized (this){
+            if (tmp != null) {
+                int length = tmp.length;
                 if (logger.isLoggable(Level.FINEST)) {
                     logger.log(Level.FINEST,
-                        "Job:scheduleTasks added {0} to thread pool",
-                        tmp[i]);
+                        "Job:scheduleTasks with {0} tasks",
+                        Integer.valueOf(length));
+                }
+
+                results.clear();
+                tasks.clear();
+                attempts = new AtomicIntegerArray(length);
+                setPending(length);
+
+                for (int i = 0; i < length; i++) {
+                    //Record the position if each
+                    //task for later use when assembling
+                    //the partial results
+                    tasks.put(tmp[i],Integer.valueOf(i));
+                    attempts.set(i,0);
+                    pool.submit(tmp[i], (Object) null);
+                    if (logger.isLoggable(Level.FINEST)) {
+                        logger.log(Level.FINEST,
+                            "Job:scheduleTasks added {0} to thread pool",
+                            tmp[i]);
+                    }
                 }
             }
-
         }
     }
 
@@ -222,9 +224,7 @@ abstract class Job {
                     "Job:setPending notifying, pending = {0}",
 		    Integer.valueOf(pend.get()));
             }
-            synchronized (this){
-                notifyAll();
-            }
+            notifyAll();
 	}
     }
 
@@ -245,11 +245,11 @@ abstract class Job {
 
 
     /**
-     * Returns a reference to the <code>TaskManager</code> which
+     * Returns a reference to the <code>ExecutorService</code> which
      * supplies the threads used to executed tasks created by
      * this <code>Job</code>
      */
-    protected TaskManager getPool() {
+    protected ExecutorService getPool() {
 	return pool;
     }
 
@@ -324,20 +324,16 @@ abstract class Job {
      * Halt all of the work being performed  by
      * the <code>Job</code>
      */
-    public void stop() {
-	Set s = tasks.keySet();
-        Object[] vals = s.toArray();
-        tasks.clear();
-
-	//Remove and interrupt all tasks
-        int l = vals.length;
-	for (int i = 0; i < l; i++) {
-	    Runnable t = (Runnable) vals[i];
-	    pool.remove(t);
-	}
-
+    public final synchronized void stop() {
+	Set<Runnable> s = tasks.keySet();
+        Iterator<Runnable> it = s.iterator();
+        while (it.hasNext()){
+            Runnable r = it.next();
+            if (r instanceof Future) ((Future)r).cancel(false);
+        }
 	//Erase record of tasks, results and the
 	//counting mechanism
+        tasks.clear();
         setPending(-1);
         results.clear();
     }

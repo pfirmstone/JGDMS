@@ -18,9 +18,9 @@
 package com.sun.jini.mahalo;
 
 import com.sun.jini.thread.RetryTask;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.transaction.server.TransactionParticipant;
@@ -32,7 +32,6 @@ import net.jini.core.transaction.server.TransactionParticipant;
  * @author Sun Microsystems, Inc.
  *
  * @see TransactionParticipant
- * @see TaskManager
  */
 class ParticipantTask extends RetryTask {
     final ParticipantHandle handle;
@@ -52,7 +51,7 @@ class ParticipantTask extends RetryTask {
      *               <code>TransactionParticipant</code> with which
      *               this task interacts.
      */
-    public ParticipantTask(TaskManager manager, WakeupManager wm,
+    public ParticipantTask(ExecutorService manager, WakeupManager wm,
 				Job myjob, ParticipantHandle handle) {
 	super(manager, wm);
 	this.myjob = myjob;

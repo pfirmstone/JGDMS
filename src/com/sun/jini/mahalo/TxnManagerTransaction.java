@@ -36,6 +36,7 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.Vector;
+import java.util.concurrent.ExecutorService;
 import net.jini.core.lease.UnknownLeaseException;
 
 import net.jini.core.transaction.CannotAbortException;
@@ -71,8 +72,18 @@ import net.jini.security.ProxyPreparer;
 class TxnManagerTransaction
     implements TransactionConstants, TimeConstants, LeasedResource
 {
-    static final long serialVersionUID = -2088463193687796098L;
-
+    /* Serialization was removed to address Sun Bug ID:4912745
+     * The bug has since been removed from the sun database by Oracle.
+     * 
+     * While this class implemented Serializable in Jini 2.0 some of its
+     * instance variables were not serializable.
+     * 
+     * Serialization was required for Replication, perhaps Distributed would
+     * be more suited to replication since it doesn't share the limitations
+     * of serialization.
+     *
+     * static final long serialVersionUID = -2088463193687796098L;
+     */
    /*
     * Table of valid state transitions which a
     * TransactionManager may make.
@@ -180,7 +191,7 @@ class TxnManagerTransaction
     *
     * @serial
     */
-    private final TaskManager threadpool;
+    private final ExecutorService threadpool;
 
     /**
      * @serial
@@ -265,7 +276,7 @@ class TxnManagerTransaction
      *			unsettled.
      */
     TxnManagerTransaction(TransactionManager mgr, LogManager logmgr, long id,
-        TaskManager threadpool, WakeupManager wm, TxnSettler settler,
+        ExecutorService threadpool, WakeupManager wm, TxnSettler settler,
 	Uuid uuid) 
     {
 	if (logmgr == null)

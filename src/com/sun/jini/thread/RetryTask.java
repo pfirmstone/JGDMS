@@ -62,10 +62,18 @@ import com.sun.jini.constants.TimeConstants;
  * @see WakeupManager
  */
 import com.sun.jini.thread.WakeupManager.Ticket;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public abstract class RetryTask implements Runnable, TimeConstants {
+/**
+ *
+ * @param <V>
+ */
+public abstract class RetryTask<V> implements RunnableFuture<V>, TimeConstants {
     private final TaskManager	  manager;	// the TaskManager for this task
     private final ExecutorService executor;
     private volatile RetryTime	  retry;	// the retry object for this task
@@ -226,19 +234,22 @@ public abstract class RetryTask implements Runnable, TimeConstants {
      * unless a subclass overrides this to do so.  Any override of this
      * method should invoke <code>super.cancel()</code>.
      */
-    public void cancel() {
+    @Override
+    public boolean cancel(boolean mayInterruptIfRunning) {
 	cancelled = true;
         Ticket ticket = this.ticket;
 	if (ticket != null) wakeup.cancel(ticket);
         synchronized (this) {
             notifyAll();		// see waitFor()
         }
+        return true;
     }
 
     /**
      * Return <code>true</code> if <code>cancel</code> has been invoked.
      */
-    public boolean cancelled() {
+    @Override
+    public boolean isCancelled() {
 	return cancelled;
     }
 
@@ -246,25 +257,41 @@ public abstract class RetryTask implements Runnable, TimeConstants {
      * Return <code>true</code> if <code>tryOnce</code> has returned
      * successfully.
      */
-    public boolean complete() {
+    @Override
+    public boolean isDone() {
 	return complete;
     }
 
-    public boolean waitFor() throws InterruptedException {
+    public boolean waitFor(long duration) throws InterruptedException {
         
             while (!cancelled && !complete)
                 synchronized (this){
-                    wait();
+                    if (duration == 0 )wait();
+                    else wait(duration);
                 }
             return complete;
         
+    }
+    
+    @Override
+    public V get() throws InterruptedException, ExecutionException {
+        waitFor(0L);
+        return null;
+    }
+    
+    @Override
+    public V get(long time, TimeUnit unit) throws InterruptedException, 
+            ExecutionException, TimeoutException
+    {
+        waitFor(unit.toMillis(time));
+        return null;
     }
 
     /**
      * Reset values for a new use of this task.
      */
     public final void reset() {
-	cancel();		// remove from the wakeup queue
+	cancel(false);		// remove from the wakeup queue
 	startTime = System.currentTimeMillis();
 	cancelled = false;
 	complete = false;

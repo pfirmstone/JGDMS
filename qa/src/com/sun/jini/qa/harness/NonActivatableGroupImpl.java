@@ -34,6 +34,10 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.export.Exporter;
+import net.jini.jeri.BasicILFactory;
+import net.jini.jeri.BasicJeriExporter;
+import net.jini.jeri.InvocationLayerFactory;
+import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.jrmp.JrmpExporter;
 import org.apache.river.api.security.CombinerSecurityManager;
 
@@ -104,7 +108,7 @@ class NonActivatableGroupImpl {
 	 * at construction time using a <code>JrmpExporter</code>.
 	 */
 	public GroupImpl() {
-            this (new JrmpExporter());
+            this (new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory()));
 	    export();
 	}
         

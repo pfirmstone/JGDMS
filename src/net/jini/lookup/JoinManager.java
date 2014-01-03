@@ -2648,7 +2648,7 @@ public class JoinManager {
         synchronized(proxyReg.taskList) {
             if(proxyReg.proxyRegTask != null) {
                 taskMgr.remove(proxyReg.proxyRegTask);
-                proxyReg.proxyRegTask.cancel();//cancel retry in WakeupMgr
+                proxyReg.proxyRegTask.cancel(false);                
                 proxyReg.proxyRegTask = null;  //don't reuse because of seq#
             }//endif
             proxyReg.taskList.clear();
@@ -2671,7 +2671,7 @@ public class JoinManager {
             ArrayList pendingTasks = taskMgr.getPending();
             for(int i=0;i<pendingTasks.size();i++) {
                 RetryTask pendingTask = (RetryTask)pendingTasks.get(i);
-                pendingTask.cancel();//cancel wakeup ticket
+                pendingTask.cancel(false);                
                 taskMgr.remove(pendingTask);//remove from task mgr
             }//end loop
             /* Interrupt all active tasks, prepare taskMgr for GC. */

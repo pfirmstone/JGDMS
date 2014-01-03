@@ -30,6 +30,7 @@ import java.rmi.ConnectIOException;
 import java.rmi.AccessException;
 import java.rmi.ConnectException;
 import java.util.Iterator;
+import java.util.concurrent.ExecutorService;
 
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -78,7 +79,7 @@ class CommitJob extends Job implements TransactionConstants {
      * @see com.sun.jini.mahalo.log.ClientLog
      * @see net.jini.core.transaction.server.TransactionParticipant
      */
-    public CommitJob(Transaction tr, TaskManager pool,
+    public CommitJob(Transaction tr, ExecutorService pool,
 		      WakeupManager wm, ClientLog log,
 		      ParticipantHandle[] handles) {
 	super(pool, wm);

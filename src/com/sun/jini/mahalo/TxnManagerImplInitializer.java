@@ -40,6 +40,10 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
@@ -53,6 +57,7 @@ import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  *
@@ -75,9 +80,9 @@ class TxnManagerImplInitializer {
     LeasePeriodPolicy txnLeasePeriodPolicy = null;
     String persistenceDirectory = null;
     JoinStateManager joinStateManager = null;
-    TaskManager settlerpool = null;
+    ExecutorService settlerpool = null;
     WakeupManager settlerWakeupMgr = null;
-    TaskManager taskpool = null;
+    ExecutorService taskpool = null;
     WakeupManager taskWakeupMgr = null;
     Uuid topUuid = null;
     AccessControlContext context = null;
@@ -197,8 +202,34 @@ class TxnManagerImplInitializer {
         // Used by log recovery logic
         settlerWakeupMgr = new WakeupManager(new WakeupManager.ThreadDesc(null, true));
         taskWakeupMgr = new WakeupManager(new WakeupManager.ThreadDesc(null, true));
-        settlerpool = (TaskManager) Config.getNonNullEntry(config, TxnManager.MAHALO, "settlerPool", TaskManager.class, new TaskManager(settlerthreads, settlertimeout, settlerload));
-        taskpool = (TaskManager) Config.getNonNullEntry(config, TxnManager.MAHALO, "taskPool", TaskManager.class, new TaskManager(taskthreads, tasktimeout, taskload));
+        settlerpool = Config.getNonNullEntry(
+                config,
+                TxnManager.MAHALO, 
+                "settlerPool", 
+                ExecutorService.class,
+                new ThreadPoolExecutor(
+                    1,
+                    settlerthreads, 
+                    settlertimeout, 
+                    TimeUnit.MILLISECONDS, 
+                    new LinkedBlockingQueue<Runnable>(),
+                    new NamedThreadFactory("TxnMgr settlerPool", false)
+                )
+        );
+        taskpool = Config.getNonNullEntry(
+                config, 
+                TxnManager.MAHALO,
+                "taskPool",
+                ExecutorService.class, 
+                new ThreadPoolExecutor(
+                        1,
+                        taskthreads,
+                        tasktimeout,
+                        TimeUnit.MILLISECONDS,
+                        new LinkedBlockingQueue<Runnable>(),
+                        new NamedThreadFactory("TxnMgr taskPool", false)
+                )
+        );
         if (TxnManagerImpl.initLogger.isLoggable(Level.FINEST)) {
             TxnManagerImpl.initLogger.log(Level.FINEST, "Recovering state");
         }

@@ -2061,7 +2061,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	boolean exists = pendingReg.remove(regID);
 	NotifyTask task = (NotifyTask)activeReg.remove(regID);
 	if (task != null) { // cancel active task, if any
-	    task.cancel();
+	    task.cancel(false);
 	    if(deliveryLogger.isLoggable(Level.FINEST)) {
                 deliveryLogger.log(Level.FINEST, 
 		    "Cancelling active notification task for {0}", regID);
@@ -2488,7 +2488,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	boolean inPending = pendingReg.remove(uuid);  
 	NotifyTask task = (NotifyTask)activeReg.remove(uuid);
 	if (task != null) { // cancel active task, if any
-	    task.cancel();
+	    task.cancel(false);
 	    if(deliveryLogger.isLoggable(Level.FINEST)) {
                 deliveryLogger.log(Level.FINEST, 
 	            "Cancelling active notification task for {0}", uuid);

@@ -63,8 +63,13 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
 import java.util.Vector;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.FutureTask;
+import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -109,6 +114,8 @@ import net.jini.security.Security;
 import net.jini.security.SecurityContext;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
+import org.apache.river.impl.thread.ExtensibleExecutorService;
+import org.apache.river.impl.thread.ExtensibleExecutorService.RunnableFutureFactory;
 
 /**
  * An implementation of the Jini Transaction Specification.
@@ -159,10 +166,10 @@ class TxnManagerImpl /*extends RemoteServer*/
     /* TxnManagerTransaction objects.  Tasks on a given */
     /* TaskManager which create Tasks cannot be on the  */
     /* same TaskManager as their child Tasks.		*/
-    private final TaskManager settlerpool;
+    private final ExecutorService settlerpool;
     /** wakeup manager for <code>SettlerTask</code> */
     private final WakeupManager settlerWakeupMgr;
-    private final TaskManager taskpool;
+    private final ExecutorService taskpool;
     /** wakeup manager for <code>ParticipantTask</code> */
     private final WakeupManager taskWakeupMgr;
     /* Map of transaction ids are their associated, internal 
@@ -362,9 +369,17 @@ class TxnManagerImpl /*extends RemoteServer*/
                 txnLeasePeriodPolicy = init.txnLeasePeriodPolicy;
                 persistenceDirectory = init.persistenceDirectory;
                 joinStateManager = init.joinStateManager;
-                settlerpool = init.settlerpool;
+                settlerpool 
+                        = new ExtensibleExecutorService(
+                                init.settlerpool, 
+                                new FutureFactory()
+                        );
                 settlerWakeupMgr = init.settlerWakeupMgr;
-                taskpool = init.taskpool;
+                taskpool 
+                        = new ExtensibleExecutorService(
+                                init.taskpool,
+                                new FutureFactory()
+                        );
                 taskWakeupMgr = init.taskWakeupMgr;
                 topUuid = init.topUuid;
                 context = init.context;
@@ -911,7 +926,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 
 	    SettlerTask task = 
 	        new SettlerTask(settlerpool, settlerWakeupMgr, this, tid);
-	    settlerpool.add(task);
+	    settlerpool.execute(task);
 
             if (settleThread.hasBeenInterrupted()) 
 	        throw new InterruptedException("settleTxns interrupted");
@@ -1379,14 +1394,14 @@ class TxnManagerImpl /*extends RemoteServer*/
             if(destroyLogger.isLoggable(Level.FINEST)) {
 	        destroyLogger.log(Level.FINEST,"Terminating settlerpool.");
             }
-	    settlerpool.terminate();
+	    settlerpool.shutdown();
 	    settlerWakeupMgr.stop();
 	    settlerWakeupMgr.cancelAll();
 
             if(destroyLogger.isLoggable(Level.FINEST)) {
 	        destroyLogger.log(Level.FINEST,"Terminating taskpool.");
             }
-	    taskpool.terminate();
+	    taskpool.shutdown();
 	    taskWakeupMgr.stop();
             taskWakeupMgr.cancelAll();
 
@@ -1678,7 +1693,21 @@ class TxnManagerImpl /*extends RemoteServer*/
 	         initLogger.log(Level.FINEST, "Terminating settlerpool.");
              }
 	     try {
-                settlerpool.terminate();
+                settlerpool.shutdown();
+                try {
+                    if (!settlerpool.awaitTermination(1, TimeUnit.MINUTES)){
+                        if(initLogger.isLoggable(Level.FINEST)) {
+                             initLogger.log(Level.FINEST, 
+                                 "Termination of settlerpool timed out after 1 minute.");
+                         }
+                    };
+                } catch (InterruptedException e){
+                    Thread.currentThread().interrupt();// restore interrupt.
+                    if(initLogger.isLoggable(Level.FINEST)) {
+                         initLogger.log(Level.FINEST, 
+                             "Thread interrupted while waiting for orderly settlerPool termination.");
+                     }
+                }
 	        if (settlerWakeupMgr != null)  {
                     if(initLogger.isLoggable(Level.FINEST)) {
 	                 initLogger.log(Level.FINEST, 
@@ -1700,7 +1729,7 @@ class TxnManagerImpl /*extends RemoteServer*/
 	        initLogger.log(Level.FINEST,"Terminating taskpool.");
 	     }
 	     try {
-                taskpool.terminate();
+                taskpool.shutdown();
 	        if (taskWakeupMgr != null)  {
                     if(initLogger.isLoggable(Level.FINEST)) {
 	                 initLogger.log(Level.FINEST,
@@ -1820,5 +1849,21 @@ class TxnManagerImpl /*extends RemoteServer*/
     private Long getLeaseTid(Uuid uuid) {
 	// Extract the txn id from the lower bits of the uuid
         return Long.valueOf(uuid.getLeastSignificantBits());
+    }
+    
+    private static class FutureFactory implements RunnableFutureFactory{
+
+        @Override
+        public <T> RunnableFuture<T> newTaskFor(Runnable r, T value) {
+            if (r instanceof RunnableFuture) return (RunnableFuture<T>) r;
+            return new FutureTask<T>(r, value);
+        }
+
+        @Override
+        public <T> RunnableFuture<T> newTaskFor(Callable<T> c) {
+            if (c instanceof RunnableFuture) return (RunnableFuture<T>) c;
+            return new FutureTask<T>(c);
+        }
+        
     }
 }

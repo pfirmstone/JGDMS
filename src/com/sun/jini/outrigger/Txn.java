@@ -478,8 +478,7 @@ class Txn implements TransactableMgr, TransactionConstants, StorableObject<Txn>,
      */
     private void cleanup() {
 	if (monitorTask != null)
-	    monitorTask.cancel();	// stop doing this
-    }
+	    monitorTask.cancel(false);	    }
 
     // -----------------------------------
     //  Methods required by StorableObject

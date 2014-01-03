@@ -23,6 +23,7 @@ import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.transaction.TransactionException;
@@ -37,7 +38,7 @@ import net.jini.core.transaction.server.TransactionManager;
  *
  */
 
-public class SettlerTask extends RetryTask implements TransactionConstants {
+class SettlerTask extends RetryTask implements TransactionConstants {
     private final long tid;
     private final TransactionManager txnmgr;
 
@@ -60,7 +61,7 @@ public class SettlerTask extends RetryTask implements TransactionConstants {
      * 
      * @param tid transaction ID
      */
-    public SettlerTask(TaskManager manager, WakeupManager wm,
+    SettlerTask(ExecutorService manager, WakeupManager wm,
 			    TransactionManager txnmgr, long tid) {
 	super(manager, wm);
 

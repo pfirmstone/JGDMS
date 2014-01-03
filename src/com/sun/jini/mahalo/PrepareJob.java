@@ -23,6 +23,7 @@ import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 import java.rmi.RemoteException;
 import java.util.Iterator;
+import java.util.concurrent.ExecutorService;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.transaction.Transaction;
@@ -77,7 +78,7 @@ class PrepareJob extends Job implements TransactionConstants {
      * @see com.sun.jini.mahalo.log.ClientLog
      * @see net.jini.core.transaction.server.TransactionParticipant
      */
-    public PrepareJob(Transaction tr, TaskManager pool,
+    public PrepareJob(Transaction tr, ExecutorService pool,
 		      WakeupManager wm, ClientLog log,
 		      ParticipantHandle[] handles) {
 	super(pool, wm);

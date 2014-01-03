@@ -332,7 +332,7 @@ class MailboxImplInit {
                         MailboxImpl.NotifyTask task = activeReg.remove(uuid);
                         if (task != null) {
                             // cancel active task, if any
-                            task.cancel();
+                            task.cancel(false);
                             if (MailboxImpl.deliveryLogger.isLoggable(Level.FINEST)) {
                                 MailboxImpl.deliveryLogger.log(Level.FINEST, "Cancelling active notification task for {0}", uuid);
                             }
