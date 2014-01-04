@@ -90,6 +90,7 @@ import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -306,8 +307,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     /** Manager for joining other lookup services */
     private volatile JoinManager joiner; // accessed without lock from DestroyThread
     /** Executors for sending events and discovery responses */
-    private final ThreadPoolExecutor eventNotifierExec;
-    private final ThreadPoolExecutor discoveryResponseExec;
+    private final ExecutorService eventNotifierExec;
+    private final ExecutorService discoveryResponseExec;
     /** Service lease expiration thread */
     private final Thread serviceExpirer;
     /** Event lease expiration thread */
@@ -523,30 +524,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         multicastAnnouncementConstraints = init.multicastAnnouncementConstraints;
         unicastDiscoveryConstraints = init.unicastDiscoveryConstraints;
         context = init.context;
-        // Set up Executor to perform remote event notifications
-        double blocking_coefficient = 0.9; // 0 CPU intensive to 0.9 IO intensive
-        int numberOfCores = Runtime.getRuntime().availableProcessors();
-        int poolSizeLimit = (int) (numberOfCores / ( 1 - blocking_coefficient));
-        ThreadPoolExecutor exec = new ThreadPoolExecutor(
-            1, 
-            poolSizeLimit, 
-            15L, 
-            TimeUnit.MINUTES, 
-            new LinkedBlockingQueue(),
-            new NamedThreadFactory("Reggie_Event_Notifier", true)   
-        );
-        eventNotifierExec = exec;
-        // Set up Executor to perform discovery responses
-        exec = new ThreadPoolExecutor(
-                1, 
-                poolSizeLimit, 
-                15L, 
-                TimeUnit.MINUTES, 
-                new LinkedBlockingQueue(),
-                new NamedThreadFactory("Reggie_Discovery_Response", true)
-        );
-        discoveryResponseExec = exec;
-        
+        eventNotifierExec = init.eventNotifierExec;
+        discoveryResponseExec = init.discoveryResponseExec;
         ReliableLog log = null;
         Thread serviceExpirer = null;
         Thread eventExpirer = null;
@@ -4720,6 +4699,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
          String unicastDiscoveryHost;
          Configuration config;
          AccessControlContext context;
+         ExecutorService eventNotifierExec;
+         ExecutorService discoveryResponseExec;
         
         
         
@@ -4905,6 +4886,39 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             this.serviceIdGenerator = (UuidGenerator) Config.getNonNullEntry(
                 config, COMPONENT, "serviceIdGenerator", UuidGenerator.class,
                 u);
+            // Set up Executor to perform remote event notifications
+            double blocking_coefficient = 0.9; // 0 CPU intensive to 0.9 IO intensive
+            int numberOfCores = Runtime.getRuntime().availableProcessors();
+            int poolSizeLimit = (int) (numberOfCores / ( 1 - blocking_coefficient));
+            this.eventNotifierExec = Config.getNonNullEntry(
+                config, 
+                COMPONENT, 
+                "eventNotifierExecutor",
+                ExecutorService.class, 
+                new ThreadPoolExecutor(
+                    1, 
+                    poolSizeLimit, 
+                    15L, 
+                    TimeUnit.MINUTES, 
+                    new LinkedBlockingQueue(),
+                    new NamedThreadFactory("Reggie_Event_Notifier", true)   
+                )
+            );
+            // Set up Executor to perform discovery responses
+            this.discoveryResponseExec = Config.getNonNullEntry(
+                config, 
+                COMPONENT, 
+                "discoveryResponseExecutor", 
+                ExecutorService.class, 
+                new ThreadPoolExecutor(
+                    1, 
+                    poolSizeLimit, 
+                    15L, 
+                    TimeUnit.MINUTES, 
+                    new LinkedBlockingQueue(),
+                    new NamedThreadFactory("Reggie_Discovery_Response", true)
+                ) 
+            );
             this.unexportTimeout = Config.getLongEntry(
                    config, COMPONENT, "unexportTimeout", 20000L,
                    0, Long.MAX_VALUE);
