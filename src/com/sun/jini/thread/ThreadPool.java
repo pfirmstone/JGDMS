@@ -190,14 +190,14 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
                 if (t instanceof RuntimeException){
                     if (t instanceof SecurityException){
                         // ignore it will be logged.
-                    } else if (t instanceof InterruptedException) {
-                        // If we've caught an interrupt, we need to make sure it's
-                        // set so the while loop stops.
-                        Thread.currentThread().interrupt();
                     } else {
                         // Ignorance of RuntimeException is generally bad, bail out.
                         throw (RuntimeException) t;
                     }
+                } else if (t instanceof InterruptedException) {
+                    // If we've caught an interrupt, we need to make sure it's
+                    // set so the while loop stops.
+                    Thread.currentThread().interrupt();
                 }
             }
         }

@@ -186,7 +186,7 @@ public class Config {
 	    throw new NullPointerException("defaultValue cannot be null");
 
 	final T result = (T) config.getEntry(component, name, type,
-					      defaultValue, data);
+					      (T) defaultValue, data);
 
 	if (result == null) {
 	    if (logger.isLoggable(Level.FINE)) {

@@ -62,28 +62,34 @@ import com.sun.jini.constants.TimeConstants;
  * @see WakeupManager
  */
 import com.sun.jini.thread.WakeupManager.Ticket;
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import org.apache.river.api.util.FutureObserver;
+import org.apache.river.api.util.FutureObserver.ObservableFuture;
 
 /**
  *
  * @param <V>
  */
-public abstract class RetryTask<V> implements RunnableFuture<V>, TimeConstants {
+public abstract class RetryTask<V> implements RunnableFuture<V>, ObservableFuture<V>, TimeConstants {
     private final TaskManager	  manager;	// the TaskManager for this task
     private final ExecutorService executor;
-    private volatile RetryTime	  retry;	// the retry object for this task
+    private RetryTime	  retry;	// the retry object for this task
     private volatile boolean	  cancelled;	// have we been cancelled?
-    private volatile boolean	  complete;	// have we completed successfully?
+    private boolean	  complete;	// have we completed successfully?
     private volatile Ticket	  ticket;	// the WakeupManager ticket
-    private volatile long	  startTime;	// the time when we were created or 
-                                        //   last reset
+    private final long	  startTime;	// the time when we were created 
     private final AtomicInteger attempt;	// the current attempt number
     private final WakeupManager wakeup;       // WakeupManager for retry scheduling
+    private final List<FutureObserver<V>> listeners;
 
     /**
      * Default delay backoff times.  These are converted from
@@ -115,7 +121,8 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, TimeConstants {
         this.executor = null;
         this.wakeup = wakeupManager;
         attempt = new AtomicInteger();
-	reset();
+        listeners = new ArrayList<FutureObserver<V>>();
+        startTime = System.currentTimeMillis();
     }
     
     /**
@@ -134,7 +141,19 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, TimeConstants {
         this.executor = executor;
         this.wakeup = wakeupManager;
         attempt = new AtomicInteger();
-        reset();
+        listeners = new ArrayList<FutureObserver<V>>();
+        startTime = System.currentTimeMillis();
+    }
+    
+    public boolean addObserver(FutureObserver<V> listener){
+        synchronized (this){
+            if (cancelled) return false;
+            if (complete) {
+                listener.futureCompleted(this);
+                return false;
+            }
+            return listeners.add(listener);
+        }
     }
 
     /**
@@ -156,8 +175,6 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, TimeConstants {
      */
     public void run() {		// avoid retry if cancelled
         if (cancelled) return;			// do nothing
-	
-
 	boolean success = false;
         try {
             success = tryOnce();
@@ -175,20 +192,25 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, TimeConstants {
                     new Object[]{this, 
                         Long.valueOf(at - System.currentTimeMillis())});
             }
-
-            if (retry == null)	// only create it if we need to
-                retry = new RetryTime();
-            ticket = wakeup.schedule(at, retry);
+            RetryTime time = null;
+            synchronized (this){
+                // only create it if we need to
+                if (retry == null) retry = new RetryTime();	            
+                time = retry;
+            }
+            ticket = wakeup.schedule(at, time);
         } else {
-            complete = true;
             // Notify was here, however I noticed that during some tests,
             // the wakeup manager task was scheduled after cancelling.
-             synchronized (this){
+            synchronized (this){
+                complete = true;
                 notifyAll();	
+                Iterator<FutureObserver<V>> it = listeners.iterator();
+                while (it.hasNext()){
+                it.next().futureCompleted(this);
+                }
             } // see waitFor()
         }
-       
-	
     }
 
     /**
@@ -236,11 +258,16 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, TimeConstants {
      */
     @Override
     public boolean cancel(boolean mayInterruptIfRunning) {
-	cancelled = true;
+        
         Ticket ticket = this.ticket;
-	if (ticket != null) wakeup.cancel(ticket);
+        if (ticket != null) wakeup.cancel(ticket);
         synchronized (this) {
+            cancelled = true;
             notifyAll();		// see waitFor()
+            Iterator<FutureObserver<V>> it = listeners.iterator();
+            while (it.hasNext()){
+                it.next().futureCompleted(this);
+            }
         }
         return true;
     }
@@ -259,17 +286,22 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, TimeConstants {
      */
     @Override
     public boolean isDone() {
-	return complete;
+        synchronized (this){
+            return complete;
+        }
     }
 
     public boolean waitFor(long duration) throws InterruptedException {
-        
-            while (!cancelled && !complete)
-                synchronized (this){
-                    if (duration == 0 )wait();
-                    else wait(duration);
-                }
+        if (cancelled) throw new CancellationException("RetryTask was cancelled");
+        synchronized (this){
+            // Moved inside sync block to make check atomic
+            while (!cancelled && !complete) {
+                if (duration == 0 )wait();
+                else wait(duration);
+            }
             return complete;
+        }
+            
         
     }
     
@@ -288,16 +320,10 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, TimeConstants {
     }
 
     /**
-     * Reset values for a new use of this task.
+     * Reset values for a new use of this task, smells of object pooling
+     * reset method removed.
      */
-    public final void reset() {
-	cancel(false);		// remove from the wakeup queue
-	startTime = System.currentTimeMillis();
-	cancelled = false;
-	complete = false;
-	ticket = null;
-	attempt.set(0);
-    }
+    
 
     /**
      * This is the runnable class for the <code>WakeupManager</code>,

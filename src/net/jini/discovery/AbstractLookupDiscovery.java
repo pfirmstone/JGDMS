@@ -1372,19 +1372,19 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
         DiscoveryConstraints multicastAnnouncementConstraints;
         InvocationConstraints rawUnicastDiscoveryConstraints;
         ExecutorService executor;
-        Integer multicastRequestMax;
-        Long multicastRequestInterval;
-        Long finalMulticastRequestInterval;
+        int multicastRequestMax;
+        long multicastRequestInterval;
+        long finalMulticastRequestInterval;
         String multicastRequestHost;
         NetworkInterface [] nics;
         int nicsToUse;
-        Integer nicRetryInterval;
-        Long multicastAnnouncementInterval;
-        Long unicastDelayRange;
+        int nicRetryInterval;
+        long multicastAnnouncementInterval;
+        long unicastDelayRange;
         List<Ticket> tickets;
         WakeupManager discoveryWakeupMgr;
         boolean isDefaultWakeupMgr;
-        Long initialMulticastRequestDelayRange;
+        long initialMulticastRequestDelayRange;
         
         private Initializer(Configuration config) throws ConfigurationException,
                 UnsupportedConstraintException, UnknownHostException, SocketException
@@ -1434,19 +1434,19 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 
             /* Multicast request-related configuration items */
             multicastRequestMax
-             = ( (Integer)config.getEntry
+             = ( config.getEntry
                                  (COMPONENT_NAME,
                                   "multicastRequestMax",
                                   int.class,
                                   Integer.valueOf(7) ) ).intValue();
             multicastRequestInterval
-             = ( (Long)config.getEntry
+             = ( config.getEntry
                                 (COMPONENT_NAME,
                                 "multicastRequestInterval",
                                 long.class,
                                 Long.valueOf(5000L) ) ).longValue();
             finalMulticastRequestInterval
-             = ( (Long)config.getEntry
+             = ( config.getEntry
                           (COMPONENT_NAME,
                            "finalMulticastRequestInterval",
                            long.class,
@@ -1454,7 +1454,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
             String multicastRequestHost;
             try {
                 multicastRequestHost
-                 = (String) Config.getNonNullEntry(config,
+                 = Config.getNonNullEntry(config,
                                                    COMPONENT_NAME,
                                                    "multicastRequestHost",
                                                    String.class);
@@ -1503,14 +1503,14 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
             this.nicsToUse = nicsToUse;
 
             nicRetryInterval
-             = ( (Integer)config.getEntry
+             = ( config.getEntry
                                     (COMPONENT_NAME,
                                      "multicastInterfaceRetryInterval",
                                      int.class,
                                      Integer.valueOf(5*60*1000) ) ).intValue();
             /* Multicast announcement-related configuration items */
             multicastAnnouncementInterval
-             = ( (Long)config.getEntry
+             = ( config.getEntry
                           (COMPONENT_NAME,
                            "multicastAnnouncementInterval",
                            long.class,

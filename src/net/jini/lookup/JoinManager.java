@@ -54,6 +54,7 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -2529,7 +2530,7 @@ public class JoinManager {
         /* Task manager */
         TaskManager taskMgr;
         try {
-            taskMgr = (TaskManager)config.getEntry(COMPONENT_NAME,
+            taskMgr = config.getEntry(COMPONENT_NAME,
                                                    "taskManager",
                                                    TaskManager.class);
         } catch(NoSuchEntryException e) { /* use default */
@@ -2538,7 +2539,7 @@ public class JoinManager {
         /* Wakeup manager */
         WakeupManager wakeupMgr;
         try {
-            wakeupMgr = (WakeupManager)config.getEntry(COMPONENT_NAME,
+            wakeupMgr = config.getEntry(COMPONENT_NAME,
                                                        "wakeupManager",
                                                        WakeupManager.class);
         } catch(NoSuchEntryException e) { /* use default */
@@ -2546,7 +2547,7 @@ public class JoinManager {
                                     (new WakeupManager.ThreadDesc(null,true));
         }
         /* Max number of times to re-schedule tasks in thru wakeup manager */
-        Integer maxNRetries = ((Integer)config.getEntry
+        Integer maxNRetries = (config.getEntry
                                         (COMPONENT_NAME,
                                          "wakeupRetries",
                                          int.class,
@@ -2562,7 +2563,7 @@ public class JoinManager {
                 leaseMgr = new LeaseRenewalManager(config);
             }
         }//endif
-        Long renewalDuration = ((Long)config.getEntry
+        Long renewalDuration = (config.getEntry
                                       (COMPONENT_NAME,
                                        "maxLeaseDuration",
                                        long.class,
@@ -2578,7 +2579,7 @@ public class JoinManager {
 	if(discoveryMgr == null) {
 	    bCreateDiscMgr = true;
             try {
-                discoveryMgr = (DiscoveryManagement)config.getEntry
+                discoveryMgr = config.getEntry
                                                  (COMPONENT_NAME,
                                                   "discoveryManager",
                                                   DiscoveryManagement.class);
