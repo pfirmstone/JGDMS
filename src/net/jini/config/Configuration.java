@@ -170,7 +170,7 @@ public interface Configuration {
     <T> T getEntry(String component,
 		    String name,
 		    Class<T> type,
-		    T defaultValue)
+		    Object defaultValue)
 	throws ConfigurationException;
 
     /**
@@ -230,7 +230,7 @@ public interface Configuration {
     <T> T getEntry(String component,
 		    String name,
 		    Class<T> type,
-		    T defaultValue,
+		    Object defaultValue,
 		    Object data)
 	throws ConfigurationException;
 }

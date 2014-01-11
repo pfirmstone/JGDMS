@@ -657,7 +657,7 @@ public class WakeupManager {
 		    } catch (Throwable t) {
                         t.printStackTrace(System.out);
                         if (t instanceof Error) throw (Error) t;
-                        if (t instanceof RuntimeException) throw (RuntimeException) t;
+//                        if (t instanceof RuntimeException) throw (RuntimeException) t;
 			try {
 			    logger.log(Level.WARNING, 
 				       "task thread creation exception", t);
