@@ -98,7 +98,7 @@ public class LeaseExpiration extends AbstractBaseTest {
 						 ServerProxyTrust,
 						 Serializable 
     {
-        private final Exporter exporter;
+        private Exporter exporter;
         private Object proxy;
         
         public ServiceEventListener() throws RemoteException {
@@ -163,7 +163,7 @@ public class LeaseExpiration extends AbstractBaseTest {
     /** Convenience class for monitoring the lease with the lookup discovery
      *  service.
      */
-    public class LRMListener implements LeaseListener {
+    public static class LRMListener implements LeaseListener {
         public LRMListener() {
             super();
         }

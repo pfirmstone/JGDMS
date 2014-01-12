@@ -2087,31 +2087,21 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     /** Task for decoding multicast request packets. */
     private static final class DecodeRequestTask implements Runnable {
-        /* Keeps a record of recent AddressTasksto avoid DOS attacks. 
-         * 
-         * Recommended period between discovery multicast requests is 5 sec.
-         */
-        private static final Set<AddressTask> executedTasks;
-        static {
-            Comparator<Referrer<AddressTask>> comparator = RC.comparator(new AddressTaskComparator());
-            executedTasks =
-                RC.set(new ConcurrentSkipListSet<Referrer<AddressTask>>(
-                        comparator), 
-                        Ref.TIME,
-                        2000L);
-        }
 	/** The multicast packet to decode */
 	private final DatagramPacket datagram;
 	/** The decoder for parsing the packet */
 	private final Discovery decoder;
         private final RegistrarImpl reggie;
+        /* Ensures that no duplicate AddressTask is running */
+        private final Set<AddressTask> runningTasks;
 
 	public DecodeRequestTask(
-                DatagramPacket datagram, Discovery decoder, RegistrarImpl reggie) 
+                DatagramPacket datagram, Discovery decoder, RegistrarImpl reggie, Set<AddressTask> runningTasks) 
         {
 	    this.datagram = datagram;
 	    this.decoder = decoder;
             this.reggie = reggie;
+            this.runningTasks = runningTasks;
 	}
 
 	/**
@@ -2169,19 +2159,17 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		}
 		AddressTask task = 
                         new AddressTask(req.getHost(), req.getPort(), reggie);
-                if (executedTasks.add(task)) task.run();
+                if (runningTasks.add(task)) {
+                    try {
+                        task.run();
+                    } finally {
+                        runningTasks.remove(task);
+                    }
+                }
 	    }
 	}
     }
 
-    private static class AddressTaskComparator implements Comparator<AddressTask>{
-
-        @Override
-        public int compare(AddressTask o1, AddressTask o2) {
-            return o1.compareTo(o2);
-        }
-        
-    }
     /** Address for unicast discovery response. */
     private static final class AddressTask implements Runnable, Comparable<AddressTask> {
 
@@ -2539,6 +2527,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	/** Interfaces for which configuration failed */
 	private final List<NetworkInterface> failedInterfaces;
         
+        private final Set<AddressTask> runningTasks;
+        
         private volatile boolean interrupted = false;
 
 	/**
@@ -2546,6 +2536,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 * rather than in run, so that we get any exception up front.
 	 */
 	public Multicast(RegistrarImpl reggie) throws IOException {
+            this.runningTasks = new ConcurrentSkipListSet<AddressTask>();
             this.reggie = reggie;
             List<NetworkInterface> failedInterfaces = new ArrayList<NetworkInterface>();
 	    if (reggie.multicastInterfaces != null && reggie.multicastInterfaces.length == 0)
@@ -2641,7 +2632,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                             new DecodeRequestTask(
                                     dgram, 
                                     reggie.getDiscovery(pv), 
-                                    reggie
+                                    reggie,
+                                    runningTasks
                             )
                     );
 

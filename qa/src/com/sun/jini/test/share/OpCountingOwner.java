@@ -101,7 +101,7 @@ public class OpCountingOwner extends BasicLeaseOwner {
      */
     public void batchCancel()  {
 	++batchCancelCalls;
-	batchCancel();
+	super.batchCancel(); // Changed to call super on 12th Jan 2014 to avoid infinite recursion
     }
 
     /**

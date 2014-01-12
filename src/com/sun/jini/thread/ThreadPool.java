@@ -20,15 +20,10 @@ package com.sun.jini.thread;
 
 import com.sun.jini.action.GetLongAction;
 import java.security.AccessController;
-import java.util.Queue;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.locks.Condition;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -117,7 +112,6 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
     private final AtomicInteger threadCount;
     private final AtomicInteger waitingThreads;
     private final int delayFactor;
-    private static final int numberOfCores = Runtime.getRuntime().availableProcessors();
     
     ThreadPool(ThreadGroup threadGroup){
         this(threadGroup, 10);

@@ -197,7 +197,9 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
 
 		    if (!isAcceptable(lease))
 			throw new TestException("Renewed lease had an improper duration");
-		    renewals--;
+                    synchronized (this){
+                        renewals--;
+                    }
 		} else if (renewals == 0 && cancel) {
 		    cancel();
 		    // If we are here the cancel worked, need to break

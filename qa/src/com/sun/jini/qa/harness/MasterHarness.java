@@ -1069,7 +1069,7 @@ class MasterHarness {
      * detected, the input stream is absorbed by this filter and used
      * to construct a <code>TestResult</code> object.
      */
-    private class TestResultFilter implements Pipe.Filter {
+    private static class TestResultFilter implements Pipe.Filter {
 
 	byte[] inputBuffer = new byte[STATUS_TOKEN.length()];
 	byte[] statusBytes = STATUS_TOKEN.getBytes();

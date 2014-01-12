@@ -334,8 +334,11 @@ public class ActivationSystemAdmin
 	    logger.log(Level.FINEST, 
 		       "activation death delayed " + delay + " seconds");
 	    try {
-		Thread.sleep(delay * 1000);
+                // Changed from sleep to wait because of synchronization
+                // TODO: call in loop and check condition.
+		wait(delay * 1000);
 	    } catch (InterruptedException ignore) {
+                Thread.currentThread().interrupt();
 	    }
 	}
 	actSystem.shutdown();

@@ -76,9 +76,11 @@ import java.util.Set;
  */
 public class SetLocatorsReplaceAll extends SetLocatorsReplaceSome {
 
-    protected volatile LookupLocator[] newLocatorsToDiscover = new LookupLocator[0];
-    protected volatile Map locatorsMap = new HashMap(1);
-    protected volatile HashSet proxiesReplaced = new HashSet(11);
+    // Two fields weren't used at all, the other, commented out below,
+    // obscured a superclass field that was used during the test run.
+    // the field below was only ever set and never used, which
+    // appeared to be a mistake. - P. Firmstone 12th Jan 2014.
+//    protected volatile Map locatorsMap = new HashMap(1);
 
     /** Performs actions necessary to prepare for execution of the 
      *  current test (refer to the description of this method in the

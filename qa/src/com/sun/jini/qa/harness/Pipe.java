@@ -228,7 +228,7 @@ class Pipe implements Runnable {
     }
 
     /** A default implementation of the <code>Filter</code> interface */
-    private class NullFilter implements Filter {
+    private static class NullFilter implements Filter {
 	public byte[] filterInput(byte b) {
 	    return new byte[]{b};
 	}

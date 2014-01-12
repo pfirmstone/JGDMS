@@ -23,6 +23,8 @@ import java.io.InputStream;
 
 /**
  * Utility class to receive a message within a given period of time.
+ * 
+ * TODO: This class appears to be dead code, it's not directly used by other classes.
  */
 public class TimedReceiveTask {
 

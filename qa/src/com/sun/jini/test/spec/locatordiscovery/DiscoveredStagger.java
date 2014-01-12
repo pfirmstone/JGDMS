@@ -23,6 +23,7 @@ import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.LookupServices;
+import java.util.List;
 import net.jini.core.discovery.LookupLocator;
 
 /**
@@ -102,14 +103,15 @@ public class DiscoveredStagger extends AbstractBaseTest {
             lookupsThread = lookups.staggeredStartThread(next);
             /* Re-configure LookupLocatorDiscovery to discover given locators*/
             logger.log(Level.FINE, "change LookupLocatorDiscovery to discover -- ");
+            List<LocatorGroupsPair> allLookupsToStart = getAllLookupsToStart();
             LookupLocator[] locatorsToDiscover
-                                          = toLocatorArray(getAllLookupsToStart());
+                                          = toLocatorArray(allLookupsToStart);
             for(int i=0;i<locatorsToDiscover.length;i++) {
                 logger.log(Level.FINE, "    "+locatorsToDiscover[i]);
             }//end loop
             locatorDiscovery.setLocators(locatorsToDiscover);
             /* Add the given listener to the LookupLocatorDiscovery utility */
-            mainListener.setLookupsToDiscover(getAllLookupsToStart());
+            mainListener.setLookupsToDiscover(allLookupsToStart);
             locatorDiscovery.addDiscoveryListener(mainListener);
             /* Start remaining lookup services in a time-staggered fashion */
             lookupsThread.start();

@@ -149,7 +149,10 @@ class RemoteServiceAdmin extends AbstractServiceAdmin implements Admin {
      * @throws TestException of the call to the slave fails.
      */
     public boolean killVM() throws TestException {
-	SlaveRequest request = new KillVMRequest(serviceRef);
+	SlaveRequest request = null;
+        synchronized (this){
+            request = new KillVMRequest(serviceRef);
+        }
 	Boolean b = (Boolean) SlaveTest.call(hostname, request);
 	return b.booleanValue();
     }
@@ -180,8 +183,10 @@ class RemoteServiceAdmin extends AbstractServiceAdmin implements Admin {
      * @return the result of the accessor call
      */
     private Object callAccessor(String accessorName) {
-	SlaveRequest request = new AdminAccessorRequest(accessorName, 
-							 serviceRef);
+	SlaveRequest request = null;
+        synchronized (this){
+            request = new AdminAccessorRequest(accessorName, serviceRef);
+        }
 	try {
 	    return SlaveTest.call(hostname, request);
 	} catch (Exception e) {

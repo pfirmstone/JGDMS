@@ -3176,7 +3176,7 @@ public class ServiceDiscoveryManager {
                     duration = cache.getLeaseDuration();
                 }//end loop
             }//end sync(cacheListener)
-            return sm;
+            return null; // Make it clear we're returning null.
         } finally {
             if(cache != null) terminator.terminate(cache);
         }
