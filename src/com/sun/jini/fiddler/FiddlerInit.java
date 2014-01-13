@@ -190,12 +190,13 @@ class FiddlerInit {
                                            "leaseMax",
                                            FiddlerImpl.MAX_LEASE, 0, Long.MAX_VALUE);
 
-            /* Get a general-purpose task manager for this service */
+            /* Get a general-purpose task manager for this service 
+             * LinkedBlockingQueue is unbounded for that reason*/
             executorService = Config.getNonNullEntry(config,
                                              FiddlerImpl.COMPONENT_NAME,
                                              "executorService",
                                              ExecutorService.class,
-                                             new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new NamedThreadFactory("Fiddler Executor", false)) );
+                                             new ThreadPoolExecutor(10,10,15,TimeUnit.SECONDS, new LinkedBlockingQueue<Runnable>(), new NamedThreadFactory("Fiddler Executor", false)) );
             /* Get the discovery manager to pass to this service's join manager. */
             try {
                 joinMgrLDM = Config.getNonNullEntry(config,

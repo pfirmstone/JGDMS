@@ -2930,9 +2930,16 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     	    super("Notifier");
     	    taskManager = Config.getNonNullEntry(config,
 	        MERCURY, "notificationsExecutorService",
-	        ExecutorService.class, new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, 
-                    new LinkedBlockingQueue<Runnable>(), 
-                    new NamedThreadFactory("EventTypeGenerator", false)));
+	        ExecutorService.class, 
+                new ThreadPoolExecutor(
+                    10,
+                    10, /* Ignored */
+                    15,
+                    TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
+                    new NamedThreadFactory("EventTypeGenerator", false)
+                )
+            );
 //TODO - defer TaskManager() creation to catch block of getEntry()
     	    //start();
         }

@@ -99,9 +99,15 @@ class Notifier implements com.sun.jini.constants.TimeConstants {
 	pending = Config.getNonNullEntry(config,
 	    OutriggerServerImpl.COMPONENT_NAME, "notificationsExecutorService", 
 	    ExecutorService.class, 
-            new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, 
-                    new LinkedBlockingQueue<Runnable>()), 
-            new NamedThreadFactory("OutriggerServerImpl Notifier", false));
+            new ThreadPoolExecutor(
+                10,
+                10, /* Ignored */
+                15,
+                TimeUnit.SECONDS, 
+                new LinkedBlockingQueue<Runnable>(), /* Unbounded queue */
+                new NamedThreadFactory("OutriggerServerImpl Notifier", false)
+            )
+        );
     }
 
     /**

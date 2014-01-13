@@ -927,7 +927,7 @@ public class ServiceDiscoveryManager {
      * 
      * @param <T> 
      */
-    public static final class FutureTaskSeqNo<T> extends FutureTask<T> 
+    public static final class FutureTaskSeqNo<T> extends FutureTask<T> implements Comparable<FutureTaskSeqNo>
     {
         private final long seqNo;
 
@@ -944,27 +944,12 @@ public class ServiceDiscoveryManager {
             else seqNo = -1;
         }
 
-        private long getSeqNo()
-        {
-            return seqNo;
-        }
-    }
-
-    /**
-     * Comparator for PriorityBlockingQueue used in cacheExecutorService
-     * provided by configuration.
-     */
-    public static final class FutureComparator implements Comparator<FutureTaskSeqNo> {
-
         @Override
-        public int compare(FutureTaskSeqNo o1, FutureTaskSeqNo o2) {
-            long one = o1.getSeqNo();
-            long two = o2.getSeqNo();
-            if (one < two) return -1;
-            if (one > two) return 1;
+        public int compareTo(FutureTaskSeqNo o) {
+            if (seqNo < o.seqNo) return -1;
+            if (seqNo > o.seqNo) return 1;
             return 0;
         }
-
     }
     
     /** Internal implementation of the LookupCache interface. Instances of
@@ -2293,11 +2278,11 @@ public class ServiceDiscoveryManager {
             } catch(ConfigurationException e) { /* use default */
                 cacheTaskMgr =
                         new ThreadPoolExecutor(
-                                1, 
-                                10, 
+                                10, /* Min Threads */
+                                10, /* Ignored */
                                 15, 
                                 TimeUnit.SECONDS,
-                                new PriorityBlockingQueue(100, new FutureComparator()),
+                                new PriorityBlockingQueue(100), /* Unbounded */
                                 new NamedThreadFactory(
                                         "SDM lookup cache",
                                         false
@@ -2320,17 +2305,17 @@ public class ServiceDiscoveryManager {
             } catch(ConfigurationException e) { /* use default */
                 serviceDiscardTimerTaskMgr = 
 //                        new TaskManager(10,(15*1000),1.0f);
-                        new ThreadPoolExecutor(
-                                1, 
-                                10,
-                                15,
-                                TimeUnit.SECONDS,
-                                new LinkedBlockingQueue<Runnable>(),
-                                new NamedThreadFactory(
-                                        "SDM discard timer",
-                                        false
-                                )
-                        );
+                    new ThreadPoolExecutor(
+                            10, /* Min Threads */
+                            10, /* Ignored */
+                            15,
+                            TimeUnit.SECONDS,
+                            new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
+                            new NamedThreadFactory(
+                                "SDM discard timer",
+                                false
+                            )
+                    );
             }
             // Moved here from constructor to avoid publishing this reference
             lookupListenerProxy = lookupListener.export();

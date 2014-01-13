@@ -716,10 +716,15 @@ public class LeaseRenewalManager {
      */
     public LeaseRenewalManager() {
         leaseRenewalExecutor = 
-            new ThreadPoolExecutor(1,11,15,TimeUnit.SECONDS, 
-                    new SynchronousQueue<Runnable>(), 
+            new ThreadPoolExecutor(
+                    1,  /* min threads */
+                    11, /* max threads */
+                    15,
+                    TimeUnit.SECONDS, 
+                    new SynchronousQueue<Runnable>(), /* Queue has no capacity */
                     new NamedThreadFactory("LeaseRenewalManager",true),
-                    new CallerRunsPolicy());
+                    new CallerRunsPolicy()
+            );
     }
 
     /**
@@ -746,11 +751,20 @@ public class LeaseRenewalManager {
 	    config, LRM, "roundTripTime",
 	    renewalRTT, 1, Long.MAX_VALUE);
 	leaseRenewalExecutor = Config.getNonNullEntry(
-	    config, LRM, "executorService", ExecutorService.class,
-                new ThreadPoolExecutor(1,11,15,TimeUnit.SECONDS, 
-                    new SynchronousQueue<Runnable>(), 
+            config, 
+            LRM, 
+            "executorService", 
+            ExecutorService.class,
+            new ThreadPoolExecutor(
+                    1,  /* Min Threads */
+                    11, /* Max Threads */
+                    15,
+                    TimeUnit.SECONDS, 
+                    new SynchronousQueue<Runnable>(), /* No capacity */
                     new NamedThreadFactory("LeaseRenewalManager",false),
-                    new CallerRunsPolicy()) );
+                    new CallerRunsPolicy()
+            ) 
+        );
     }
 
     /**
@@ -778,10 +792,15 @@ public class LeaseRenewalManager {
 			       long desiredExpiration,
 			       LeaseListener listener)
     {
-        leaseRenewalExecutor = new ThreadPoolExecutor(1,11,15,TimeUnit.SECONDS, 
-                    new SynchronousQueue<Runnable>(), 
-                    new NamedThreadFactory("LeaseRenewalManager",true),
-                    new CallerRunsPolicy());
+        leaseRenewalExecutor = new ThreadPoolExecutor(
+                1,  /* Min Threads */
+                11, /* Max Threads */
+                15,
+                TimeUnit.SECONDS, 
+                new SynchronousQueue<Runnable>(), /* No Capacity */
+                new NamedThreadFactory("LeaseRenewalManager",true),
+                new CallerRunsPolicy()
+        );
 	renewUntil(lease, desiredExpiration, listener);
     }
 

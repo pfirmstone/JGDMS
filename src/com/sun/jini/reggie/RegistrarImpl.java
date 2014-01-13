@@ -17,9 +17,6 @@
  */
 package com.sun.jini.reggie;
 
-import au.net.zeus.collection.RC;
-import au.net.zeus.collection.Ref;
-import au.net.zeus.collection.Referrer;
 import com.sun.jini.config.Config;
 import com.sun.jini.constants.ThrowableConstants;
 import com.sun.jini.constants.VersionConstants;
@@ -92,6 +89,7 @@ import java.util.TreeSet;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -2011,9 +2009,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    reg = null;
 	}
     }
-
+    
     /** An event to be sent, and the listener to send it to. */
-    private static final class EventTask implements Runnable {
+    private static final class EventTask implements Runnable, Comparable<EventTask> {
 
 	/** The event registration */
 	private final EventReg reg;
@@ -2028,9 +2026,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         
         private final RegistrarProxy proxy;
         private final Registrar registrar;
+        /* the time of the event */
+        private final long now;
 
 	/** Simple constructor, except increments reg.seqNo. */
-	public EventTask(EventReg reg, ServiceID sid, Item item, int transition, RegistrarProxy proxy, Registrar registrar)
+	public EventTask(EventReg reg, ServiceID sid, Item item, int transition, RegistrarProxy proxy, Registrar registrar, long now)
 	{
 	    this.reg = reg;
 	    seqNo = reg.incrementAndGetSeqNo();
@@ -2039,6 +2039,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    this.transition = transition;
             this.proxy = proxy;
             this.registrar = registrar;
+            this.now = now;
 	}
 
 	/** Send the event */
@@ -2083,6 +2084,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		}
 	    }
 	}
+
+        /**
+         * This is inconsistent with Object.equals, it is simply intended to
+         * order tasks by priority.
+         * @param o
+         * @return 
+         */
+        @Override
+        public int compareTo(EventTask o) {
+            if (this.now < o.now) return -1;
+            if (this.now > o.now) return 1;
+            return 0;
+        }
     }
 
     /** Task for decoding multicast request packets. */
@@ -4888,11 +4902,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 "eventNotifierExecutor",
                 ExecutorService.class, 
                 new ThreadPoolExecutor(
-                    1, 
                     poolSizeLimit, 
+                    poolSizeLimit, /* Ignored */
                     15L, 
                     TimeUnit.MINUTES, 
-                    new LinkedBlockingQueue(),
+                    new PriorityBlockingQueue(poolSizeLimit * 4), /* Unbounded Ordered Queue */
                     new NamedThreadFactory("Reggie_Event_Notifier", true)   
                 )
             );
@@ -4903,11 +4917,11 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 "discoveryResponseExecutor", 
                 ExecutorService.class, 
                 new ThreadPoolExecutor(
-                    1, 
                     poolSizeLimit, 
+                    poolSizeLimit, /* Ignored */
                     15L, 
                     TimeUnit.MINUTES, 
-                    new LinkedBlockingQueue(),
+                    new LinkedBlockingQueue(), /* Unbounded Queue */
                     new NamedThreadFactory("Reggie_Discovery_Response", true)
                 ) 
             );
@@ -5789,30 +5803,27 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		 (pre == null || !matchItem(reg.tmpl, pre)) &&
 		 (post != null && matchItem(reg.tmpl, post)))
 	    pendingEvent(reg, sid, post,
-			 ServiceRegistrar.TRANSITION_NOMATCH_MATCH);
+			 ServiceRegistrar.TRANSITION_NOMATCH_MATCH, now);
 	else if ((reg.transitions &
 		  ServiceRegistrar.TRANSITION_MATCH_NOMATCH) != 0 &&
 		 (pre != null && matchItem(reg.tmpl, pre)) &&
 		 (post == null || !matchItem(reg.tmpl, post)))
 	    pendingEvent(reg, sid, post,
-			 ServiceRegistrar.TRANSITION_MATCH_NOMATCH);
+			 ServiceRegistrar.TRANSITION_MATCH_NOMATCH, now);
 	else if ((reg.transitions &
 		  ServiceRegistrar.TRANSITION_MATCH_MATCH) != 0 &&
 		 (pre != null && matchItem(reg.tmpl, pre)) &&
 		 (post != null && matchItem(reg.tmpl, post)))
 	    pendingEvent(reg, sid, post,
-			 ServiceRegistrar.TRANSITION_MATCH_MATCH);
+			 ServiceRegistrar.TRANSITION_MATCH_MATCH, now);
     }
 
     /** Add a pending EventTask for this event registration. */
-    private void pendingEvent(EventReg reg,
-			      ServiceID sid,
-			      Item item,
-			      int transition)
+    private void pendingEvent(EventReg reg, ServiceID sid, Item item, int transition, long now)
     {
 	if (item != null)
 	    item = copyItem(item);
-	eventNotifierExec.execute(new EventTask(reg, sid, item, transition, proxy, this));
+	eventNotifierExec.execute(new EventTask(reg, sid, item, transition, proxy, this, now));
     }
 
     /** Generate a new service ID */

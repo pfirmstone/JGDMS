@@ -451,23 +451,6 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  */
 public class JoinManager {
     
-    /**
-     * executorService requires a PriorityBlockingQueue, this is the 
-     * comparator for that queue.
-     */
-    public static class ExecutorQueueComparator implements Comparator {
-
-        @Override
-        public int compare(Object o1, Object o2) {
-            int one = ((ProxyRegTask)o1).getSeqN();
-            int two = ((ProxyRegTask)o2).getSeqN();
-            if (one < two) return -1;
-            if (one > two) return 1;
-            return 0;
-        }
-        
-    }
-
     /** Implementation Note:
      *
      *  This class executes a number of tasks asynchronously. Each task is
@@ -590,7 +573,7 @@ public class JoinManager {
      */
 
     /** Abstract base class from which all of the task classes are derived. */
-    private class ProxyRegTask extends RetryTask {
+    private class ProxyRegTask extends RetryTask implements Comparable<ProxyRegTask> {
         private final long[] sleepTime = { 5*1000, 10*1000, 15*1000,
                                           20*1000, 25*1000, 30*1000 };
         // volatile fields only mutated while synchronized on proxyReg.taskList
@@ -764,6 +747,13 @@ public class JoinManager {
                        "JoinManager - failure, will retry later", e);
             return false;//try this task again later
         }//end stopTrying
+
+        @Override
+        public int compareTo(ProxyRegTask o) {
+            if (seqN < o.seqN) return -1;
+            if (seqN > o.seqN) return 1;
+            return 0;
+        }
     }//end class ProxyRegTask
 
     /** Abstract base class from which all the sub-task classes are derived. */
@@ -2586,12 +2576,12 @@ public class JoinManager {
                                        ExecutorService.class);
         } catch(NoSuchEntryException e) { /* use default */
             taskMgr = new ThreadPoolExecutor(
-                    1,
-                    MAX_N_TASKS,
-                    15,
-                    TimeUnit.SECONDS,
-                    new PriorityBlockingQueue(100, new ExecutorQueueComparator()),
-                    new NamedThreadFactory("JoinManager executor thread", false)
+                MAX_N_TASKS, 
+                MAX_N_TASKS, /* Ignored */
+                15,
+                TimeUnit.SECONDS,
+                new PriorityBlockingQueue(100), /* Unbounded Queue */
+                new NamedThreadFactory("JoinManager executor thread", false)
             );
         }
         /* Wakeup manager */

@@ -224,20 +224,21 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
                      * REMIND: What if the task changed this thread's
                      * priority? or context class loader?
                      * 
-                     * thread.setName is not thread safe.
+                     * thread.setName is not thread safe, so may not reflect
+                     * most up to date state
                      */
                     try {
                         waitingThreads.getAndIncrement();
                         task = null;
                         task = queue.poll(idleTimeout, TimeUnit.MILLISECONDS);
                         waitingThreads.getAndDecrement();
-//                        thread.setName(NewThreadAction.NAME_PREFIX + task);
+                        thread.setName(NewThreadAction.NAME_PREFIX + task);
                         if (task != null) {
                             task.run();
                         } else {
                             break; //Timeout or spurious wakeup.
                         }
-//                         thread.setName(NewThreadAction.NAME_PREFIX + "Idle");
+                         thread.setName(NewThreadAction.NAME_PREFIX + "Idle");
                     } catch (InterruptedException e){
                         waitingThreads.getAndDecrement();
                         thread.interrupt();

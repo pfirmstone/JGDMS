@@ -51,9 +51,14 @@ public class EventTypeGenerator implements Serializable {
      * Task manager used to send events
      */
     private transient ExecutorService taskManager = 
-            new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, 
-                    new LinkedBlockingQueue<Runnable>(), 
-                    new NamedThreadFactory("EventTypeGenerator", false));
+            new ThreadPoolExecutor(
+                    10,
+                    10, /* Ignored */
+                    15,
+                    TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue<Runnable>(), /* Unbounded queue */
+                    new NamedThreadFactory("EventTypeGenerator", false)
+            );
 
     /**
      * Wakeup manager used by the event sending tasks to schedule 
@@ -151,9 +156,14 @@ public class EventTypeGenerator implements Serializable {
 	// fill in the object from the stream 
 	in.defaultReadObject();
 
-	taskManager = new ThreadPoolExecutor(1,10,15,TimeUnit.SECONDS, 
-                    new LinkedBlockingQueue<Runnable>(), 
-                    new NamedThreadFactory("EventTypeGenerator", true));
+	taskManager = new ThreadPoolExecutor(
+                    10,
+                    10, /* Ignored */
+                    15,
+                    TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
+                    new NamedThreadFactory("EventTypeGenerator", true)
+        );
 	wakeupManager = 
 	    new WakeupManager(new WakeupManager.ThreadDesc(null, true));    
     }

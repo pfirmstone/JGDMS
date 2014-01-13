@@ -208,11 +208,11 @@ class TxnManagerImplInitializer {
                 "settlerPool", 
                 ExecutorService.class,
                 new ThreadPoolExecutor(
-                    1,
-                    settlerthreads, 
+                    settlerthreads,
+                    settlerthreads, /* Ignored */
                     settlertimeout, 
                     TimeUnit.MILLISECONDS, 
-                    new LinkedBlockingQueue<Runnable>(),
+                    new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
                     new NamedThreadFactory("TxnMgr settlerPool", false)
                 )
         );
@@ -222,11 +222,11 @@ class TxnManagerImplInitializer {
                 "taskPool",
                 ExecutorService.class, 
                 new ThreadPoolExecutor(
-                        1,
                         taskthreads,
+                        taskthreads, /* Ignored */
                         tasktimeout,
                         TimeUnit.MILLISECONDS,
-                        new LinkedBlockingQueue<Runnable>(),
+                        new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
                         new NamedThreadFactory("TxnMgr taskPool", false)
                 )
         );

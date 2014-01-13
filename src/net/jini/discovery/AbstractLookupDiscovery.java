@@ -1425,10 +1425,13 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
                         "executorService", ExecutorService.class);
             } catch (NoSuchEntryException e) { /* use default */
                 executorServ =
-                    new ThreadPoolExecutor(1, MAX_N_TASKS ,
-                              15L, TimeUnit.SECONDS,
-                              new LinkedBlockingQueue<Runnable>(),
-                              new NamedThreadFactory("LookupDiscovery", false));
+                    new ThreadPoolExecutor(
+                        MAX_N_TASKS, 
+                        MAX_N_TASKS, /* Ignored */
+                        15L, TimeUnit.SECONDS,
+                        new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
+                        new NamedThreadFactory("LookupDiscovery", false)
+                    );
             }
             this.executor = executorServ;
 
