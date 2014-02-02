@@ -38,14 +38,14 @@ import java.util.logging.Level;
 /**
 * This test attempts to simulate the following race condition that
  * can occur between an instance of LookupTask and an instance of 
- * DropProxyRegTask:
+ * ProxyRegDropTask:
  *
  * - 1 LUS {L0}
  * - 1 services {s0}, to be registered in L0
  * - 1 cache C0 with template matching s0
  *
  * This test attempts to simulate the race that appears to be possible
- * between the NotifyEventTask and the DropProxyRegTask. This test 
+ * between the NotifyEventTask and the ProxyRegDropTask. This test 
  * starts lookup L0 and creates cache C0. It then registers s0 with L0
  * to generate a NOMATCH_MATCH event and ultimately initiate an instance
  * of NotifyEventTask. Suppose that before NotifyEventTask can modify the
@@ -65,7 +65,7 @@ import java.util.logging.Level;
  *                          o s0 registered with L0
  *                          o L0 sends NO_MATCH_MATCH
  *
- *          NotifyEventTask                       DropProxyRegTask
+ *          NotifyEventTask                       ProxyRegDropTask
  *   -----------------------------     ----------------------------------------
  *   o task0 determine s0 is "new"
  *   o sleep for n seconds
@@ -78,7 +78,7 @@ import java.util.logging.Level;
  *
  * The result is that serviceIdMap should be empty and L0 should not be 
  * in proxyRegSet. But if NotifyEventTask is too slow in processing the
- * new s0, DropProxyRegTask will have nothing to process and so the
+ * new s0, ProxyRegDropTask will have nothing to process and so the
  * serviceIdMap will not be empty, and the serviceRemoved event that should
  * have been sent because the [s0,L0] pair was removed from the serviceIdMap
  * is never sent.
@@ -160,7 +160,7 @@ public class NotifyEventDropProxyTaskRace extends AbstractBaseTest {
      *  
      *  1. Create a cache to initiate the RegisterListenerTask/LookupTask combo
      *  2. Destroy the lookup service so it won't be re-discovered
-     *  3. Discard the lookup service to initiate the DropProxyRegTask
+     *  3. Discard the lookup service to initiate the ProxyRegDropTask
      */
     protected void applyTestDef() throws Exception {
 	lus = (ldm.getRegistrars())[0];

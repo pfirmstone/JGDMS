@@ -1,4 +1,4 @@
-com.sun.jini.qa.harness.verifier=com.sun.jini.qa.harness.SkipTestVerifier
+#com.sun.jini.qa.harness.verifier=com.sun.jini.qa.harness.SkipTestVerifier
 include0=../servicediscovery.properties
 testClass=LookupDropProxyTaskRace
 testCategories=servicediscovery,servicediscovery_impl,servicediscoveryevent,implservicediscovery,implservicediscoveryevent

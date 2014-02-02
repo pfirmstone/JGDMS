@@ -1036,7 +1036,7 @@ public class JoinManager {
      *  should be registered.
      */
     private class ProxyReg implements FutureObserver{
-       
+
         /** Class that is registered as a listener with this join manager's
          *  lease renewal manager. That lease renewal manager manages the
          *  lease granted to this join manager's associated service by the

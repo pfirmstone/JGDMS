@@ -80,16 +80,27 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedMap;
 import java.util.SortedSet;
 import java.util.TreeMap;
 import java.util.TreeSet;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
+import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.PriorityBlockingQueue;
+import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -139,13 +150,20 @@ import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lookup.JoinManager;
+import net.jini.lookup.ServiceDiscoveryManager;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.util.FutureObserver;
+import org.apache.river.api.util.FutureObserver.ObservableFuture;
 import org.apache.river.api.util.Startable;
+import org.apache.river.impl.thread.ExtensibleExecutorService;
+import org.apache.river.impl.thread.ExtensibleExecutorService.RunnableFutureFactory;
 import org.apache.river.impl.thread.NamedThreadFactory;
+import org.apache.river.impl.thread.ObservableFutureTask;
+import org.apache.river.impl.thread.SynchronousExecutors;
 
 /**
  * Base server-side implementation of a lookup service, subclassed by
@@ -305,7 +323,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     /** Manager for joining other lookup services */
     private volatile JoinManager joiner; // accessed without lock from DestroyThread
     /** Executors for sending events and discovery responses */
-    private final ExecutorService eventNotifierExec;
+    private final SynchronousExecutors eventNotifierExec;
+    private final Map<EventReg,ExecutorService> eventTaskMap;
+//    private final EventTaskQueue eventTaskQueue;
     private final ExecutorService discoveryResponseExec;
     /** Service lease expiration thread */
     private final Thread serviceExpirer;
@@ -398,6 +418,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private Configuration config;
     private Exception constructionException;
     private AccessControlContext context;
+    
 
     /**
      * Constructs RegistrarImpl based on a configuration obtained using the
@@ -522,8 +543,27 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         multicastAnnouncementConstraints = init.multicastAnnouncementConstraints;
         unicastDiscoveryConstraints = init.unicastDiscoveryConstraints;
         context = init.context;
-        eventNotifierExec = init.eventNotifierExec;
-        discoveryResponseExec = init.discoveryResponseExec;
+        eventNotifierExec = new SynchronousExecutors(init.scheduledExecutor);
+                
+//                new ExtensibleExecutorService(init.executor,
+//            new RunnableFutureFactory(){
+//
+//                @Override
+//                public <T> RunnableFuture<T> newTaskFor(Runnable r, T value) {
+//                     if (r instanceof ObservableFutureTask) return (RunnableFuture<T>) r;
+//                     return new ObservableFutureTask(r, value);
+//                }
+//
+//                @Override
+//                public <T> RunnableFuture<T> newTaskFor(Callable<T> c) {
+//                    if (c instanceof ObservableFutureTask) return (RunnableFuture<T>) c;
+//                    return new ObservableFutureTask(c);
+//                }
+//
+//            });
+//        eventTaskQueue = new EventTaskQueue(eventNotifierExec);
+        eventTaskMap = new TreeMap<EventReg,ExecutorService>();
+        discoveryResponseExec = init.executor;
         ReliableLog log = null;
         Thread serviceExpirer = null;
         Thread eventExpirer = null;
@@ -2010,8 +2050,110 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	}
     }
     
+//    private static class DependencyLinker implements FutureObserver {
+//        private final ExecutorService executor;
+//        private final ObservableFuture precedent;
+//        private final FutureTask dependant;
+//
+//        public DependencyLinker(ExecutorService ex, ObservableFuture precedent, FutureTask dep) {
+//            executor = ex;
+//            this.precedent = precedent;
+//            dependant = dep;
+//        }
+//
+//        public synchronized void register() {
+//            precedent.addObserver(this);
+//        }
+//
+//        @Override
+//        public synchronized void futureCompleted(Future e) {
+//            if (precedent.equals(e)) executor.submit(dependant);
+//        }
+//
+//    }
+//     /**
+//     * 
+//     */
+//    static final class EventTaskWrapper extends ObservableFutureTask 
+//    {
+//        private final EventTask task;
+//
+//        private EventTaskWrapper(Runnable r, Object result) {
+//            super(r, result);
+//            if (r instanceof EventTask) task = (EventTask) r;
+//            else task = null;
+//        }
+//
+//        private EventTaskWrapper(Callable c)
+//        {
+//            super(c);
+//            task = null;
+//        }
+//        
+//        private EventTask getTask(){
+//            return task;
+//        }
+//    }
+//    
+//    private static class EventTaskWrapperComparator 
+//        implements Comparator<EventTaskWrapper> {
+//
+//        @Override
+//        public int compare(EventTaskWrapper o1, EventTaskWrapper o2) {
+//            EventTask t1 = o1.getTask();
+//            EventTask t2 = o2.getTask();
+//            if (t1.seqNo < t2.seqNo) return -1;
+//            if (t1.seqNo > t2.seqNo) return 1;
+//            return 0;
+//        }
+//        
+//    }
+//    
+//    private static final class EventTaskQueue implements FutureObserver {
+//        // CacheTasks pending completion.
+//        private final List<EventTaskWrapper> pending;
+//        private final ExecutorService executor;
+//        
+//        private EventTaskQueue(ExecutorService e){
+//            this.pending = new ArrayList<EventTaskWrapper>(200);
+//            executor = e;
+//        }
+//        
+//        private EventTaskWrapper submit(EventTask t){
+//            EventTaskWrapper future = new EventTaskWrapper(t, null);
+//            EventTaskWrapper precedent = null;
+//            synchronized (pending){
+//                pending.add(future);
+//                future.addObserver(this);
+//                Iterator<EventTaskWrapper> it = pending.iterator();
+//                while (it.hasNext()){
+//                    EventTaskWrapper w = it.next();
+//                    EventTask c = w.getTask();
+//                    if (t.dependsOn(c)) {
+//                        precedent = w;
+//                        break;
+//                    }
+//                }
+//            }
+//            if (precedent == null){
+//                executor.submit(future);
+//            } else {
+//                DependencyLinker linker = new DependencyLinker(executor, precedent, future);
+//                linker.register();
+//            }
+//            return future;
+//        }
+//
+//        @Override
+//        public void futureCompleted(Future e) {
+//            synchronized (pending){
+//                pending.remove(e);
+//            }
+//        }
+//    }
+//    
     /** An event to be sent, and the listener to send it to. */
-    private static final class EventTask implements Runnable, Comparable<EventTask> {
+    private static final class EventTask implements Callable<Boolean>, Comparable<EventTask> {
 
 	/** The event registration */
 	private final EventReg reg;
@@ -2043,7 +2185,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	}
 
 	/** Send the event */
-	public void run() {
+	public Boolean call() throws Exception {
 	    if (logger.isLoggable(Level.FINE)) {
 		logger.log(
 		    Level.FINE,
@@ -2054,6 +2196,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		reg.listener.notify(new RegistrarEvent(proxy, reg.eventID,
 						       seqNo, reg.handback,
 						       sid, transition, item));
+                return Boolean.TRUE;
 	    } catch (Throwable e) {
 		switch (ThrowableConstants.retryable(e)) {
 		case ThrowableConstants.BAD_OBJECT:
@@ -2082,9 +2225,21 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 			    e);
 		    }
 		}
+                return Boolean.FALSE;
 	    }
 	}
-
+        
+        /** Keep events going to the same listener ordered. 
+         * Returns a positive integer if depends, 0 if 
+         * no dependency exists and a negative integer if 
+         * precedes.
+         */
+	public boolean dependsOn(EventTask obj) {
+            if (obj == null) return false;
+            if (reg.listener.equals(obj.reg.listener)) return true;
+	    return false;
+	}
+        
         /**
          * This is inconsistent with Object.equals, it is simply intended to
          * order tasks by priority.
@@ -4242,6 +4397,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	Long id = Long.valueOf(reg.eventID);
 	eventByID.put(id, reg);
 	eventByTime.put(reg, reg);
+        eventTaskMap.put(reg, eventNotifierExec.newSerialExecutor(new PriorityBlockingQueue()) );
 	if (reg.tmpl.serviceID != null) {
 	    Object val = subEventByService.get(reg.tmpl.serviceID);
 	    if (val == null)
@@ -4274,6 +4430,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	Long id = Long.valueOf(reg.eventID);
 	eventByID.remove(id);
 	eventByTime.remove(reg);
+        eventTaskMap.remove(reg);
 	if (reg.tmpl.serviceID != null) {
 	    Object val = subEventByService.get(reg.tmpl.serviceID);
 	    if (val == reg) {
@@ -4705,8 +4862,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
          String unicastDiscoveryHost;
          Configuration config;
          AccessControlContext context;
-         ExecutorService eventNotifierExec;
-         ExecutorService discoveryResponseExec;
+         ExecutorService executor;
+         ScheduledExecutorService scheduledExecutor;
         
         
         
@@ -4896,22 +5053,18 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
             double blocking_coefficient = 0.9; // 0 CPU intensive to 0.9 IO intensive
             int numberOfCores = Runtime.getRuntime().availableProcessors();
             int poolSizeLimit = (int) (numberOfCores / ( 1 - blocking_coefficient));
-            this.eventNotifierExec = Config.getNonNullEntry(
+            this.scheduledExecutor = Config.getNonNullEntry(
                 config, 
                 COMPONENT, 
                 "eventNotifierExecutor",
-                ExecutorService.class, 
-                new ThreadPoolExecutor(
-                    poolSizeLimit, 
-                    poolSizeLimit, /* Ignored */
-                    15L, 
-                    TimeUnit.MINUTES, 
-                    new PriorityBlockingQueue(poolSizeLimit * 4), /* Unbounded Ordered Queue */
+                ScheduledExecutorService.class, 
+                new ScheduledThreadPoolExecutor(
+                    1,
                     new NamedThreadFactory("Reggie_Event_Notifier", true)   
                 )
             );
             // Set up Executor to perform discovery responses
-            this.discoveryResponseExec = Config.getNonNullEntry(
+            this.executor = Config.getNonNullEntry(
                 config, 
                 COMPONENT, 
                 "discoveryResponseExecutor", 
@@ -5029,6 +5182,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     unicaster.start();
                     multicaster.start();
                     announcer.start();
+                    eventNotifierExec.start();
 
                     /* Shutdown hook so reggie sends a final announcement
                      * packet if VM is terminated.  If reggie is terminated
@@ -5823,7 +5977,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     {
 	if (item != null)
 	    item = copyItem(item);
-	eventNotifierExec.execute(new EventTask(reg, sid, item, transition, proxy, this, now));
+        // Should never be null.
+	eventTaskMap.get(reg).submit(new EventTask(reg, sid, item, transition, proxy, this, now));
     }
 
     /** Generate a new service ID */

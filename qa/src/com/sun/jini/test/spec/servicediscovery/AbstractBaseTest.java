@@ -240,8 +240,8 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
      * or changed.
      */
     public static class SrvcListener implements ServiceDiscoveryListener {
-        private QAConfig util;
-        private String classname;
+        private final QAConfig util;
+        private final String classname;
         private int nAdded   = 0;
         private int nRemoved = 0;
         private int nChanged = 0;
@@ -253,24 +253,27 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
 	public void serviceAdded(ServiceDiscoveryEvent event) {
             ServiceItem srvcItem = event.getPostEventServiceItem();
             ServiceID srvcID = srvcItem.serviceID;
-            logger.log(Level.FINE, "{0} -- serviceAdded()-{1}-{2}", new Object[]{nAdded, srvcItem.service, srvcID});
             synchronized(lock) {
+                logger.log(Level.FINE, "{0} -- serviceAdded()-{1}-{2}", 
+                        new Object[]{nAdded, srvcItem.service, srvcID});
                 nAdded++;
             }
 	}//end serviceAdded
 	public void serviceRemoved(ServiceDiscoveryEvent event) {
             ServiceItem srvcItem = event.getPreEventServiceItem();
             ServiceID srvcID = srvcItem.serviceID;
-            logger.log(Level.FINE, "{0} -- serviceRemoved()-{1}-{2}", new Object[]{nRemoved, srvcItem.service, srvcID});
             synchronized(lock) {
+                logger.log(Level.FINE, "{0} -- serviceRemoved()-{1}-{2}", 
+                        new Object[]{nRemoved, srvcItem.service, srvcID});
                 nRemoved++;
             }
 	}//end serviceRemoved
 	public void serviceChanged(ServiceDiscoveryEvent event) {
             ServiceItem srvcItem = event.getPreEventServiceItem();
             ServiceID srvcID = srvcItem.serviceID;
-            logger.log(Level.FINE, "{0} -- serviceChanged()-{1}-{2}", new Object[]{nChanged, srvcItem.service, srvcID});
             synchronized(lock) {
+                logger.log(Level.FINE, "{0} -- serviceChanged()-{1}-{2}", 
+                        new Object[]{nChanged, srvcItem.service, srvcID});
                 nChanged++;
             }
 	}//end serviceChanged

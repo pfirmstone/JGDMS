@@ -38,7 +38,7 @@ import java.util.logging.Level;
 /**
  * This test attempts to simulate the following race condition that
  * can occur between an instance of LookupTask and an instance of 
- * DropProxyRegTask:
+ * ProxyRegDropTask:
  *
  * - 1 LUS {L0}
  * - 1 service s0 registered in L0
@@ -48,18 +48,18 @@ import java.util.logging.Level;
  * waits a few seconds after the cache is created because if L0 is discarded
  * too quickly, L0 will be removed from the proxyRegSet before LookupTask
  * has a chance to begin any processing. After the wait period is up,
- * L0 is discarded; which initiates the DropProxyRegTask. The race occurs
+ * L0 is discarded; which initiates the ProxyRegDropTask. The race occurs
  * as follows:
- *          LookupTask                       DropProxyRegTask
+ *          LookupTask                       ProxyRegDropTask
  *   ----------------------------   ----------------------------------------
  *   o determine s0 is "new"
  *   o sleep for n seconds          o remove L0 from proxyRegSet
  *                                  o serviceIdMap is empty, do nothing else
  *   o add new s0 to serviceIdMap
  *
- * The result is that serviceIdMap should NOT be empty when DropProxyRegTask
+ * The result is that serviceIdMap should NOT be empty when ProxyRegDropTask
  * encounters it. But if LookupTask is too slow in adding s0 to the map,
- * DropProxyRegTask will have nothing to remove, and so will return without
+ * ProxyRegDropTask will have nothing to remove, and so will return without
  * modifying serviceIdMap. But when LookupTask returns, s0 will be contained
  * in serviceIdMap; even though it shouldn't.
  *
@@ -153,7 +153,7 @@ public class LookupDropProxyTaskRace extends AbstractBaseTest {
      *  
      *  1. Create a cache to initiate the RegisterListenerTask/LookupTask combo
      *  2. Set groups and locators so the lookup service won't be re-discovered
-     *  3. Discard the lookup service to initiate the DropProxyRegTask
+     *  3. Discard the lookup service to initiate the ProxyRegDropTask
      */
     protected void applyTestDef() throws Exception {
         int nLookupServices = getLookupServices().getnLookupServices();

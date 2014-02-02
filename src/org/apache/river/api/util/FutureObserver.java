@@ -39,4 +39,21 @@ public interface FutureObserver<T> extends EventListener {
         public boolean addObserver(FutureObserver<T> observer);
     }
     
+    public interface Subscriber<T> {
+    
+        /**
+         * Prior to completion, if a Future sets off additional
+         * ObservableFuture tasks, these may be recommended for 
+         * Subscribers to Observe.
+         * 
+         * @param e
+         */
+        public void reccommendedViewing(ObservableFuture<T> e);
+    }
+    
+    public interface Subscribeable<T>{
+        
+        public void subscribe(Subscriber<T> subscriber);
+    }
+    
 }

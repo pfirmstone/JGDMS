@@ -24,7 +24,9 @@ import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.FutureTask;
 import org.apache.river.api.util.FutureObserver;
+import org.apache.river.api.util.FutureObserver.Subscribeable;
 import org.apache.river.api.util.FutureObserver.ObservableFuture;
+import org.apache.river.api.util.FutureObserver.Subscriber;
 
 /**
  *
@@ -37,13 +39,20 @@ public class ObservableFutureTask<T> extends FutureTask<T> implements Observable
     public ObservableFutureTask(Callable<T> callable) {
         super(callable);
         listeners = new LinkedList<FutureObserver<T>>();
+        if (callable instanceof Subscribeable){
+            ((Subscribeable<T>) callable).subscribe(new FutureSubscriber(listeners));
+        }
     }
     
     public ObservableFutureTask(Runnable r, T result){
         super(r,result);
         listeners = new LinkedList<FutureObserver<T>>();
+        if (r instanceof Subscribeable){
+            ((Subscribeable<T>) r).subscribe(new FutureSubscriber(listeners));
+        }
     }
     
+    @Override
     protected void done() {
         done = true;
         synchronized (listeners){
@@ -63,6 +72,28 @@ public class ObservableFutureTask<T> extends FutureTask<T> implements Observable
         }
         synchronized (listeners){
             return listeners.add(l);
+        }
+    }
+    
+    private static final class FutureSubscriber<T> implements Subscriber<T> {
+        /* Shared list of subscribers */
+        public final List<FutureObserver<T>> listeners;
+        
+        FutureSubscriber(List<FutureObserver<T>> listeners){
+            this.listeners = listeners;
+        }
+        @Override
+        public void reccommendedViewing(ObservableFuture<T> e) {
+            synchronized (listeners){
+                Iterator<FutureObserver<T>> it = listeners.iterator();
+                while (it.hasNext()){
+                    FutureObserver<T> future = it.next();
+                    if (future instanceof Subscriber){
+                        Subscriber<T> subscriber = (Subscriber<T>) future;
+                        subscriber.reccommendedViewing(e);
+                    }
+                }
+            }
         }
     }
 }
