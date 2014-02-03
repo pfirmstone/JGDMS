@@ -12,6 +12,7 @@ import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.RunnableFuture;
 import org.apache.river.api.util.FutureObserver;
 
 /**
@@ -21,9 +22,9 @@ import org.apache.river.api.util.FutureObserver;
 public class DependencyLinker implements FutureObserver {
     private final ExecutorService executor;
     private final List<ObservableFuture> tasks;
-    private final FutureTask dependant;
+    private final RunnableFuture dependant;
 
-    public DependencyLinker(ExecutorService ex, List<ObservableFuture> tasks, FutureTask dep) {
+    public DependencyLinker(ExecutorService ex, List<ObservableFuture> tasks, RunnableFuture dep) {
         executor = ex;
         this.tasks = new ArrayList<ObservableFuture>(tasks);
         dependant = dep;

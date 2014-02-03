@@ -1022,7 +1022,7 @@ public class ServiceDiscoveryManager {
                 CacheTask t = w.getTask();
                 if(t.isFromProxy(reg)) {
                     w.cancel(true); // Also causes task to be removed
-    }
+                }
             }//end loop
 	}//end LookupCacheImpl.removeUselessTask
     }
