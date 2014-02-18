@@ -984,6 +984,11 @@ public class ServiceDiscoveryManager {
             CacheTaskWrapper future = new CacheTaskWrapper(t, null);
             pending.offer(future);
             future.addObserver(this);
+            try {
+                Thread.sleep(100L); //Brief sleep to allow deps to find each other.
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt(); // restore.
+            }
             if (t.hasDeps()) {
                 List<ObservableFuture> deps = new ArrayList<ObservableFuture>();
                 Iterator<CacheTaskWrapper> it = pending.iterator();

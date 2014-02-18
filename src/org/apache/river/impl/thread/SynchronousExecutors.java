@@ -440,17 +440,20 @@ public class SynchronousExecutors implements Startable {
                 reschedule = true;
                 throw e;
             } finally {
-                if (reschedule) {
-                    attempt++;
-                    queue.peek = null; // set peek to null to unblock queue.
-                    executorLock.lock();
-                    try {
-                        waiting.signalAll();
-                    } finally {
-                        executorLock.unlock();
+                try {
+                    if (reschedule) {
+                        attempt++;
+                        queue.peek = null; // set peek to null to unblock queue.
+                        executorLock.lock();
+                        try {
+                            waiting.signalAll();
+                        } finally {
+                            executorLock.unlock();
+                        }
                     }
+                } finally {
+                    queue.lock.unlock();
                 }
-                queue.lock.unlock();
             }
         }
 

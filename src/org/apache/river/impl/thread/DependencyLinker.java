@@ -31,9 +31,14 @@ public class DependencyLinker implements FutureObserver {
     }
 
     public synchronized void register() {
-        Iterator<ObservableFuture> it = tasks.iterator();
-        while (it.hasNext()) {
-            it.next().addObserver(this);
+        for (int i = 0; i < tasks.size(); i++){
+            ObservableFuture f = null;
+            try {
+                f = tasks.get(i);
+            } catch (IndexOutOfBoundsException e){
+                continue;
+            }
+            if (f != null) f.addObserver(this);
         }
     }
 

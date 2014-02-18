@@ -68,10 +68,11 @@ public class ReRegisterGoodEquals extends AbstractBaseTest {
      */
     public Test construct(QAConfig config) throws Exception {
         super.construct(config);
-        testDesc = ""+getnLookupServices()+" lookup service(s), "+getnServices()
+        int nServices = getnServices();
+        testDesc = ""+getnLookupServices()+" lookup service(s), " + nServices
                        +" service(s) with well-defined equals() method";
-        nAddedExpected   = getnServices()*2;
-        nRemovedExpected = nAddedExpected-getnServices();
+        nAddedExpected   = nServices*2;
+        nRemovedExpected = nAddedExpected-nServices;
         testServiceType  = AbstractBaseTest.TEST_SERVICE;
         return this;
     }//end construct

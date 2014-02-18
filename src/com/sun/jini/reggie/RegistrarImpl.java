@@ -544,24 +544,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         unicastDiscoveryConstraints = init.unicastDiscoveryConstraints;
         context = init.context;
         eventNotifierExec = new SynchronousExecutors(init.scheduledExecutor);
-                
-//                new ExtensibleExecutorService(init.executor,
-//            new RunnableFutureFactory(){
-//
-//                @Override
-//                public <T> RunnableFuture<T> newTaskFor(Runnable r, T value) {
-//                     if (r instanceof ObservableFutureTask) return (RunnableFuture<T>) r;
-//                     return new ObservableFutureTask(r, value);
-//                }
-//
-//                @Override
-//                public <T> RunnableFuture<T> newTaskFor(Callable<T> c) {
-//                    if (c instanceof ObservableFutureTask) return (RunnableFuture<T>) c;
-//                    return new ObservableFutureTask(c);
-//                }
-//
-//            });
-//        eventTaskQueue = new EventTaskQueue(eventNotifierExec);
         eventTaskMap = new TreeMap<EventReg,ExecutorService>();
         discoveryResponseExec = init.executor;
         ReliableLog log = null;
@@ -2049,109 +2031,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    reg = null;
 	}
     }
-    
-//    private static class DependencyLinker implements FutureObserver {
-//        private final ExecutorService executor;
-//        private final ObservableFuture precedent;
-//        private final FutureTask dependant;
-//
-//        public DependencyLinker(ExecutorService ex, ObservableFuture precedent, FutureTask dep) {
-//            executor = ex;
-//            this.precedent = precedent;
-//            dependant = dep;
-//        }
-//
-//        public synchronized void register() {
-//            precedent.addObserver(this);
-//        }
-//
-//        @Override
-//        public synchronized void futureCompleted(Future e) {
-//            if (precedent.equals(e)) executor.submit(dependant);
-//        }
-//
-//    }
-//     /**
-//     * 
-//     */
-//    static final class EventTaskWrapper extends ObservableFutureTask 
-//    {
-//        private final EventTask task;
-//
-//        private EventTaskWrapper(Runnable r, Object result) {
-//            super(r, result);
-//            if (r instanceof EventTask) task = (EventTask) r;
-//            else task = null;
-//        }
-//
-//        private EventTaskWrapper(Callable c)
-//        {
-//            super(c);
-//            task = null;
-//        }
-//        
-//        private EventTask getTask(){
-//            return task;
-//        }
-//    }
-//    
-//    private static class EventTaskWrapperComparator 
-//        implements Comparator<EventTaskWrapper> {
-//
-//        @Override
-//        public int compare(EventTaskWrapper o1, EventTaskWrapper o2) {
-//            EventTask t1 = o1.getTask();
-//            EventTask t2 = o2.getTask();
-//            if (t1.seqNo < t2.seqNo) return -1;
-//            if (t1.seqNo > t2.seqNo) return 1;
-//            return 0;
-//        }
-//        
-//    }
-//    
-//    private static final class EventTaskQueue implements FutureObserver {
-//        // CacheTasks pending completion.
-//        private final List<EventTaskWrapper> pending;
-//        private final ExecutorService executor;
-//        
-//        private EventTaskQueue(ExecutorService e){
-//            this.pending = new ArrayList<EventTaskWrapper>(200);
-//            executor = e;
-//        }
-//        
-//        private EventTaskWrapper submit(EventTask t){
-//            EventTaskWrapper future = new EventTaskWrapper(t, null);
-//            EventTaskWrapper precedent = null;
-//            synchronized (pending){
-//                pending.add(future);
-//                future.addObserver(this);
-//                Iterator<EventTaskWrapper> it = pending.iterator();
-//                while (it.hasNext()){
-//                    EventTaskWrapper w = it.next();
-//                    EventTask c = w.getTask();
-//                    if (t.dependsOn(c)) {
-//                        precedent = w;
-//                        break;
-//                    }
-//                }
-//            }
-//            if (precedent == null){
-//                executor.submit(future);
-//            } else {
-//                DependencyLinker linker = new DependencyLinker(executor, precedent, future);
-//                linker.register();
-//            }
-//            return future;
-//        }
-//
-//        @Override
-//        public void futureCompleted(Future e) {
-//            synchronized (pending){
-//                pending.remove(e);
-//            }
-//        }
-//    }
-//    
+
     /** An event to be sent, and the listener to send it to. */
     private static final class EventTask implements Callable<Boolean>, Comparable<EventTask> {
 

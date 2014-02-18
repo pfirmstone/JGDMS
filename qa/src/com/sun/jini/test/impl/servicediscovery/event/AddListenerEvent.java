@@ -32,6 +32,7 @@ import java.util.logging.Level;
 
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
+import com.sun.jini.test.share.LookupServices;
 
 /**
  * This class verifies that bug 4712396 has been fixed. As stated in the
@@ -62,8 +63,8 @@ public class AddListenerEvent extends AbstractBaseTest {
     protected SDMListener[] sdmListener = new SDMListener[nListeners];
 
     public static class SDMListener extends AbstractBaseTest.SrvcListener {
-        String testName;
-        int listenerIndx;
+        final String testName;
+        final int listenerIndx;
         public SDMListener(QAConfig config, String classname, int listenerIndx) {
             super(config,classname);
             this.testName = classname;
@@ -117,9 +118,10 @@ public class AddListenerEvent extends AbstractBaseTest {
      */
     protected void applyTestDef() throws Exception {
 	/* Register new proxies */
-        int nServices = getLookupServices().getnServices();
-        int nAttributes = getLookupServices().getnAttributes();
-        int nSecsServiceDiscovery = getLookupServices().getnSecsServiceDiscovery();
+        LookupServices lookupServices = getLookupServices();
+        int nServices = lookupServices.getnServices();
+        int nAttributes = lookupServices.getnAttributes();
+        int nSecsServiceDiscovery = lookupServices.getnSecsServiceDiscovery();
 	registerServices(0,nServices,nAttributes,testServiceType);
 	/* Create a cache for the service that was registered; register
              * the first listener to receive service discovery events.
