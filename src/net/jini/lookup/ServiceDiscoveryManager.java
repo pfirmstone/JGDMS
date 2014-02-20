@@ -1560,6 +1560,19 @@ public class ServiceDiscoveryManager {
                         curDur = endTime-System.currentTimeMillis();
                     }//end loop
                 }//end sync
+                cache.taskQueue.submit(new ServiceDiscardRetryFilterTask(cache, serviceID, null, cache.taskSeqN.incrementAndGet()));
+            }//end run
+        }//end class LookupCacheImpl.ServiceDiscardTimerTask
+        
+        private static class ServiceDiscardRetryFilterTask extends ServiceIdTask {
+            private final LookupCacheImpl cache;
+            ServiceDiscardRetryFilterTask(LookupCacheImpl cache, ServiceID srvcId, ProxyReg reg, long seqN) {
+                super(srvcId, reg, seqN);
+                this.cache = cache;
+            }
+
+            @Override
+            public void run() {
                 /* The thread was not interrupted, time expired.
                  *
                  * If the service ID is still contained in the serviceIdMap,
@@ -1582,7 +1595,7 @@ public class ServiceDiscoveryManager {
                  * event was already sent when the service was originally
                  * discarded.
                  */
-                ServiceItemReg itemReg = cache.serviceIdMap.get(serviceID);
+                ServiceItemReg itemReg = cache.serviceIdMap.get(thisTaskSid);
                 if(itemReg != null) {
                     ServiceItem item = null;
                     ServiceItem filteredItem = null;
@@ -1603,7 +1616,7 @@ public class ServiceDiscoveryManager {
                             if( cache.sdm.filterPassFail(filteredItem,cache.filter) ) {
                                 cache.addFilteredItemToMap(item,filteredItem);
                             } else {//'quietly' remove the item
-                                cache.removeServiceIdMapSendNoEvent(serviceID, itemReg);
+                                cache.removeServiceIdMapSendNoEvent(thisTaskSid, itemReg);
                                 return;
                             }//endif
                         }//endif
