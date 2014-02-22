@@ -2759,19 +2759,30 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	public Unicast(RegistrarImpl reggie, int port) throws IOException {
             this.reggie = reggie;
             ServerSocket listen = null;
+            boolean ephemeral = false;
             if (port == 0) {
 		try {
 		    listen = reggie.serverSocketFactory.createServerSocket(Constants.discoveryPort);
+                    port = Constants.discoveryPort;
 		} catch (IOException e) {
 		    logger.log(
 			Levels.HANDLED, "failed to bind to default port", e);
 		}
 	    }
 	    if (listen == null) {
-                listen = reggie.serverSocketFactory.createServerSocket(port);
+                try {
+                    listen = reggie.serverSocketFactory.createServerSocket(port);
+                } catch (IOException e){
+                    logger.log(Level.INFO, "failed to bind to port " + port, e);
+                    listen = reggie.serverSocketFactory.createServerSocket(0);
+                    ephemeral = true;
+                    port = listen.getLocalPort();
+                    logger.log(Level.INFO, "bound to ephemeral port {0}", port);
+                }
 	    }
             this.listen = listen;
-	    this.port = listen.getLocalPort();
+	    this.port = port;
+            if (ephemeral) reggie.unicastPort = port;
         }
 
 	public void run() {
