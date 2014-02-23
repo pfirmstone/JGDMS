@@ -227,6 +227,10 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
           * 
           * The limits were changed to allow 300 milliseconds to elapse after the 
           * wait period completes.
+          *
+          * The limits were changed to allow 500 milliseconds to elapse after the
+          * wait period completes. - 23rd February 2014 P. Firmstone.  After
+          * some tests on Solaris failed because they were 9ms overdue.
           * 
           * In addtion Item number 3 below states:
           * 
@@ -344,7 +348,7 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
 				  +waitDur+" millisecond(s), actual "
 				  +"block = "+(actualBlockTime)
 				  +" millisecond(s)");
-	    } else if(waitError>300) {
+	    } else if(waitError>500) {
 		throw new TestException(" -- exceeded requested block "
 				  +"time -- requested block = "
 				  +waitDur+" millisecond(s), actual "
@@ -353,7 +357,7 @@ public class LookupMinEqualsMax extends AbstractBaseTest {
 	    }//endif
 	} else { //(nExpectedSrvcs>=minMatches)
 	    /* Blocking time will likely be less than the full wait period */
-	    if(waitError > 300) {
+	    if(waitError > 500) {
 		throw new TestException(" -- blocked longer than expected "
 				  +"-- requested block = "
 				  + waitDur +" millisecond(s), actual "
