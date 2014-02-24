@@ -17,6 +17,7 @@
  */
 package com.sun.jini.reggie;
 
+import com.sun.jini.action.GetPropertyAction;
 import com.sun.jini.config.Config;
 import com.sun.jini.constants.ThrowableConstants;
 import com.sun.jini.constants.VersionConstants;
@@ -67,6 +68,7 @@ import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
@@ -146,6 +148,7 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.net.Uri;
 import org.apache.river.api.util.Startable;
 import org.apache.river.impl.thread.NamedThreadFactory;
 import org.apache.river.impl.thread.SynchronousExecutors;
@@ -2729,6 +2732,24 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 
     /** Unicast discovery request thread code. */
     private static class Unicast implements Runnable, Interruptable {
+        private static final Boolean arbitraryPort;
+        
+        static {
+            arbitraryPort = AccessController.doPrivileged(
+                new PrivilegedAction<Boolean>(){
+
+                    @Override
+                    public Boolean run() {
+                        return Boolean.valueOf(
+                            Boolean.getBoolean(
+                                "net.jini.core.lookup.ServiceRegistrar.portAbitraryIfInUse"
+                            )
+                        );
+                    }
+                
+                }
+            );
+        }
         private final RegistrarImpl reggie;
 	/** Server socket to accepts connections on. */
 	private final ServerSocket listen;
@@ -2759,12 +2780,14 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     listen = reggie.serverSocketFactory.createServerSocket(port);
                 } catch (IOException e){
                     logger.log(Level.INFO, "failed to bind to port " + port, e);
-                    listen = reggie.serverSocketFactory.createServerSocket(0);
-                    ephemeral = true;
+                    if (arbitraryPort){
+                        listen = reggie.serverSocketFactory.createServerSocket(0);
+                        ephemeral = true;
+                    }
                 }
 	    }
             port = listen.getLocalPort();
-            logger.log(Level.INFO, "bound to ephemeral port {0}", port);
+            logger.log(Level.INFO, "Reggie Unicast Discovery listening on port {0}", port);
             this.listen = listen;
 	    this.port = port;
             if (ephemeral) reggie.unicastPort = port;
