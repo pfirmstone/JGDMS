@@ -2783,6 +2783,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     if (arbitraryPort){
                         listen = reggie.serverSocketFactory.createServerSocket(0);
                         ephemeral = true;
+                    } else {
+                        throw e;
                     }
                 }
 	    }
