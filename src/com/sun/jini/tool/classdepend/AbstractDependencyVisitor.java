@@ -37,6 +37,7 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.signature.SignatureReader;
 import org.objectweb.asm.signature.SignatureVisitor;
@@ -45,14 +46,17 @@ import org.objectweb.asm.signature.SignatureVisitor;
  * 
  * 
  */
-abstract class AbstractDependencyVisitor extends AbstractVisitor {
+abstract class AbstractDependencyVisitor extends ClassVisitor {
 
-    AbstractDependencyVisitor() { }
+    AbstractDependencyVisitor() {
+        super(Opcodes.ASM5);
+    }
 
     abstract protected void addName(String name);
 
     /* -- ClassVisitor -- */
 
+    @Override
     public void visit(int version, int access, String name, String signature,
 		      String superName, String[] interfaces)
     {
@@ -62,13 +66,18 @@ abstract class AbstractDependencyVisitor extends AbstractVisitor {
 	} else {
 	    addSignature(signature);
 	}
+        super.visit(version, access, name, signature, superName, interfaces);
     }
     
+    @Override
     public AnnotationVisitor visitAnnotation(String desc, boolean visible) {
 	addDesc(desc);
-	return this;
+	AnnotationVisitor ann = super.visitAnnotation(desc, visible);
+        if (ann != null) return new AnnotationVisit(Opcodes.ASM5, ann);
+        return null;
     }
 
+    @Override
     public FieldVisitor visitField(int access, String name, String desc,
 				   String signature, Object value)
     {
@@ -80,9 +89,10 @@ abstract class AbstractDependencyVisitor extends AbstractVisitor {
 	if (value instanceof Type) {
             addType((Type) value);
         }
-	return this;
+	return super.visitField(access, name, desc, signature, value);
     }
     
+    @Override
     public MethodVisitor visitMethod(int access, String name, String desc,
 				     String signature, String[] exceptions)
     {
@@ -92,9 +102,10 @@ abstract class AbstractDependencyVisitor extends AbstractVisitor {
             addSignature(signature);
         }
         addNames(exceptions);
-        return this;
+        return new MethodVisit(Opcodes.ASM5, super.visitMethod(api, desc, desc, desc, exceptions));
     }
 
+    @Override
     public void visitInnerClass(String name, String outerName,
 				String innerName, int access)
     {
@@ -102,116 +113,12 @@ abstract class AbstractDependencyVisitor extends AbstractVisitor {
          * Yes the old ClassDep tool includes them */
         addNameInternal(outerName);
 	addNameInternal(name);
+        super.visitInnerClass(name, outerName, innerName, access);
     }
 
-    /* -- MethodVisitor -- */
+   /* -- Utilities -- */
 
-    public AnnotationVisitor visitParameterAnnotation(int parameter,
-						      String desc,
-						      boolean visible)
-    {
-        addDesc(desc);
-        return this;
-    }
-
-    public void visitTypeInsn(int opcode, String desc) {
-        if (desc.charAt(0) == '[') {
-            addDesc(desc);
-        } else {
-            addNameInternal(desc);
-	}
-    }
-
-    public void visitFieldInsn(int opcode, String owner, String name,
-			       String desc)
-    {
-        addNameInternal(owner);
-        addDesc(desc);
-    }
-    
-    String pattern = "^\\[{0,2}L{0,1}(\\w+[/.]{1}[\\w$\\d/.]+);{0,1}$";
-    Pattern arrayOfObjects = Pattern.compile(pattern);
-    public void visitMethodInsn(int opcode, String owner, String name,
-				String desc)
-    {
-        /* This filters out Generic's and primitive owners.
-         *
-         * Also when the owner is an array, containing Objects and
-         * the method name is clone(), (I think it's got something to do
-         * with cloning array's, this must be a new java 5 language feature
-         * I tested 1.4 code without this ever occurring)      
-         * we can't get the Object's type
-         * using Type.getType(owner) due to the nature of 
-         * the ASM Core API requiring bytecode be read sequentially.
-         * This only occurs with clone() which returns java.lang.Object
-         */
-        Matcher match = arrayOfObjects.matcher(owner);
-        while (match.find()){
-            String object = match.group(1);
-            addNameInternal(object);
-        } 
-        addMethodDesc(desc);
-    }
-
-    public void visitLdcInsn(Object cst) {
-        if (cst instanceof Type) {
-            addType((Type) cst);
-	}
-    }
-
-    public void visitMultiANewArrayInsn(String desc, int dims) {
-        addDesc(desc);
-    }
-
-    public void visitLocalVariable(String name, String desc, String signature,
-				   Label start, Label end, int index)
-    {
-	if (signature != null) {
-	    addTypeSignature(signature);
-	}
-    }
-
-    public void visitTryCatchBlock(Label start, Label end, Label handler,
-				   String type)
-    {
-        addNameInternal(type);
-    }
-
-    /* -- AnnotationVisitor -- */
-
-    public void visit(String name, Object value) {
-        if (value instanceof Type) {
-            addType((Type) value);
-	}
-    }
-
-    public void visitEnum(String name, String desc, String value) {
-        addDesc(desc);
-    }
-
-    public AnnotationVisitor visitAnnotation(String name, String desc) {
-        addDesc(desc);
-        return this;
-    }
-
-    /* -- SignatureVisitor -- */
-
-    public void visitTypeVariable(String name) {
-        /* XXX: Need to do something? */
-        //System.out.println(name);
-    }
-
-    public void visitClassType(String name) {
-        addNameInternal(name);
-    }
-
-    public void visitInnerClassType(String name) {
-        // This is not a fully qualified class name, ignore.
-    }
-
-    /* -- Utilities -- */
-
-    private void addNameInternal(String name) {
+    private  void addNameInternal(String name) {
         if (name != null) {
 	    addName(name.replace('/', '.'));
 	}
@@ -252,10 +159,171 @@ abstract class AbstractDependencyVisitor extends AbstractVisitor {
     }
 
     private void addSignature(String signature) {
-	new SignatureReader(signature).accept(this);
+	new SignatureReader(signature).accept(new SignatureVisit(Opcodes.ASM5));
     }
 
     private void addTypeSignature(String signature) {
-	new SignatureReader(signature).acceptType(this);
+	new SignatureReader(signature).acceptType(new SignatureVisit(Opcodes.ASM5));
+    }
+    
+    /**
+     * Annotations
+     */
+    private class AnnotationVisit extends AnnotationVisitor {
+
+        public AnnotationVisit(int i, AnnotationVisitor av) {
+            super(i, av);
+        }
+        
+        @Override
+        public void visit(String name, Object value) {
+            if (value instanceof Type) {
+                addType((Type) value);
+            }
+            super.visit(name, value);
+        }
+
+        @Override
+        public void visitEnum(String name, String desc, String value) {
+            addDesc(desc);
+            super.visitEnum(name,desc,value);
+        }
+        
+        @Override
+        public AnnotationVisitor visitAnnotation(String name, String desc) {
+            addDesc(desc);
+            AnnotationVisitor ann = super.visitAnnotation(name, desc);
+            if (ann != null) return new AnnotationVisit( Opcodes.ASM5, ann);
+            return null;
+        }
+        
+    }
+    
+    /**
+     * MethodVisit delegates to encapsulated MethodVisitor as well as
+     * recording dependencies.
+     */
+    private class MethodVisit extends MethodVisitor {
+
+        public MethodVisit(int i, MethodVisitor mv) {
+            super(i, mv);
+        }
+        
+        @Override
+        public AnnotationVisitor visitParameterAnnotation(int parameter,
+                                                  String desc,
+                                                  boolean visible)
+        {
+            addDesc(desc);
+            AnnotationVisitor ann = super.visitParameterAnnotation(parameter, desc, visible);
+            if (ann != null) return new AnnotationVisit(Opcodes.ASM5, ann );
+            return null;
+        }
+        @Override
+        public void visitTypeInsn(int opcode, String desc) {
+            if (desc.charAt(0) == '[') {
+                addDesc(desc);
+            } else {
+                addNameInternal(desc);
+            }
+            super.visitTypeInsn(opcode, desc);
+        }
+
+        @Override
+        public void visitFieldInsn(int opcode, String owner, String name,
+                                   String desc)
+        {
+            addNameInternal(owner);
+            addDesc(desc);
+            super.visitFieldInsn(opcode, owner, name, desc);
+        }
+
+        String pattern = "^\\[{0,2}L{0,1}(\\w+[/.]{1}[\\w$\\d/.]+);{0,1}$";
+        Pattern arrayOfObjects = Pattern.compile(pattern);
+        @Override
+        public void visitMethodInsn(int opcode, String owner, String name,
+                                    String desc, boolean itf)
+        {
+            /* This filters out Generic's and primitive owners.
+             *
+             * Also when the owner is an array, containing Objects and
+             * the method name is clone(), (I think it's got something to do
+             * with cloning array's, this must be a new java 5 language feature
+             * I tested 1.4 code without this ever occurring)      
+             * we can't get the Object's type
+             * using Type.getType(owner) due to the nature of 
+             * the ASM Core API requiring bytecode be read sequentially.
+             * This only occurs with clone() which returns java.lang.Object
+             */
+            Matcher match = arrayOfObjects.matcher(owner);
+            while (match.find()){
+                String object = match.group(1);
+                addNameInternal(object);
+            } 
+            addMethodDesc(desc);
+            super.visitMethodInsn(opcode, owner, name, desc, itf);
+        }
+
+        @Override
+        public void visitLdcInsn(Object cst) {
+            if (cst instanceof Type) {
+                addType((Type) cst);
+            }
+            super.visitLdcInsn(cst);
+        }
+
+        @Override
+        public void visitMultiANewArrayInsn(String desc, int dims) {
+            addDesc(desc);
+            super.visitMultiANewArrayInsn(desc,dims);
+        }
+
+        @Override
+        public void visitLocalVariable(String name, String desc, String signature,
+                                       Label start, Label end, int index)
+        {
+            if (signature != null) {
+                addTypeSignature(signature);
+            }
+            super.visitLocalVariable(name, desc, signature, start, end, index);
+        }
+
+        @Override
+        public void visitTryCatchBlock(Label start, Label end, Label handler,
+                                       String type)
+        {
+            addNameInternal(type);
+            super.visitTryCatchBlock(start, end, handler, type);
+        }
+    }
+    
+    /**
+     * Signatures
+     */
+    private class SignatureVisit extends SignatureVisitor {
+
+        public SignatureVisit(int i) {
+            super(i);
+        }
+        
+        @Override
+        public void visitTypeVariable(String name) {
+            /* XXX: Need to do something? */
+            //System.out.println(name);
+            super.visitTypeVariable(name);
+        }
+        
+        @Override
+        public void visitClassType(String name) { 
+            addNameInternal(name);
+            super.visitClassType(name);
+        }
+        
+        @Override
+        public void visitInnerClassType(String name) {
+            // This is not a fully qualified class name, ignore.
+            super.visitInnerClassType(name);
+        }
+        
     }
 }

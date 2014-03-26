@@ -126,8 +126,8 @@
     </path>
 
     <fileset id="asm.jars" dir="${root}/dep-libs/asm">
-        <include name="asm-3.2.jar" />
-        <include name="asm-commons-3.2.jar" />
+        <include name="asm-5.0.1.jar" />
+        <include name="asm-commons-5.0.1.jar" />
     </fileset>
 
     <fileset id="velocity.jars" dir="${root}/dep-libs/velocity">
