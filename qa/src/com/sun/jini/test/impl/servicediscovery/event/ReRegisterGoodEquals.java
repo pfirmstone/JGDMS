@@ -48,7 +48,7 @@ import com.sun.jini.qa.harness.TestException;
 public class ReRegisterGoodEquals extends AbstractBaseTest {
 
     protected LookupCache cache;
-    protected int testServiceType;
+    protected volatile int testServiceType;
 
     protected int nAddedExpected   = 0;
     protected int nRemovedExpected = 0;

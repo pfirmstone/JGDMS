@@ -131,7 +131,7 @@ class MasterHarness {
     public final static int KEEPALIVE_PORT=10004;
 
     /** the output stream for this VM's output */
-    private PrintStream outStream = System.out;
+    private volatile PrintStream outStream = System.out;
 
     /** the pipe for collecting stderr output from the test vm */
     private Pipe errPipe; 
@@ -143,7 +143,7 @@ class MasterHarness {
     private final static int MAXTESTCOUNT = 100;
 
     /** the command line arguments */
-    private String[] args;
+    private final String[] args;
 
     /** the list of test categories to run. If null, all categories are run. */
     private List categories;
@@ -158,7 +158,7 @@ class MasterHarness {
     private InputForwarder forwarder;
 
     /** the set of tests to run */
-    private TestList testList;
+    private final TestList testList;
 
     /** the list of categories to exclude from testing */
     private List xCategories;
@@ -167,7 +167,7 @@ class MasterHarness {
     private List xTestNames;
 
     /** the configuration object for this test run */
-    private QAConfig config = null;
+    private final QAConfig config;
 
     /**
      * boolean controlling whether to read from stdin
@@ -175,7 +175,7 @@ class MasterHarness {
     boolean doInputBind;
 
     /** a reference to the keep-alive thread */
-    private Thread keepaliveThread;
+    private final Thread keepaliveThread;
 
     /** the category map, cached if non-null */
     private HashMap categoryMap = null;
@@ -997,7 +997,7 @@ class MasterHarness {
     private class InputForwarder implements Runnable {
 
         OutputStream out;
-	Object outLock = new Object();
+	final Object outLock = new Object();
 
 	/**
 	 * Set the output stream to forward bytes to.
