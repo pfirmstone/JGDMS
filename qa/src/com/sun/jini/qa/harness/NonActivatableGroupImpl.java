@@ -105,7 +105,7 @@ class NonActivatableGroupImpl {
 
 	/**
 	 * Construct a <code>NonActivatableGroup</code>. Instances export themselves
-	 * at construction time using a <code>JrmpExporter</code>.
+	 * at construction time using a <code>BasicJeriExporter</code>.
 	 */
 	public GroupImpl() {
             this (new BasicJeriExporter(TcpServerEndpoint.getInstance(0), new BasicILFactory()));
@@ -222,9 +222,11 @@ class NonActivatableGroupImpl {
 	    try {
 		Thread.sleep(2000);
 	    } catch (InterruptedException e) {
-	    }
-	    exporter.unexport(true);
-	    System.exit(0);
+                this.interrupt();
+	    } finally {
+                exporter.unexport(true);
+                System.exit(0);
+            }
 	}
     }
 }

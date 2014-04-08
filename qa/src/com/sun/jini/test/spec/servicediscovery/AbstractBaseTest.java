@@ -129,7 +129,7 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
     public static class TestService implements Serializable, Administrable,
                                                TestServiceInterface
     {
-        public int i;
+        public final int i;
         public TestService(int i) {
             this.i = i;
         }//end constructor
@@ -319,10 +319,10 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
      * or an exception occurs related to a service lease.
      */
     public class ExpirationListener implements DesiredExpirationListener {
-        private QAConfig util;
-        private String classname;
+        private final QAConfig util;
+        private final String classname;
         private int nExpired = 0;
-        private Object lock  = new Object();
+        private final Object lock  = new Object();
         public ExpirationListener(QAConfig util, String classname) {
             this.util = util;
             this.classname = classname;
