@@ -179,8 +179,8 @@
     </target>
 
     <target name="compile" depends="copy-resources" description="Build classes">
-        <property name="qa.source" value="5" />
-        <property name="qa.target" value="jsr14" />
+        <property name="qa.source" value="6" />
+        <property name="qa.target" value="6" />
         <javac-cmd source="${qa.source}" target="${qa.target}" source.dir="${src.dir}" dest.dir="${build.classes.dir}">
             <classpath refid="river.jars"/>
             <compilerarg value="-J-Xmx128m" />
