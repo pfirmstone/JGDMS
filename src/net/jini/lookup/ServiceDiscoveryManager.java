@@ -901,12 +901,15 @@ public class ServiceDiscoveryManager {
             hash = proxy.hashCode();
 	}//end constructor
 
-	public boolean equals(Object obj) {
+        @Override
+
+        public boolean equals(Object obj) {
 	    if (obj instanceof ProxyReg){
 		return getProxy().equals(((ProxyReg)obj).getProxy());
 	    } else return false;
 	}//end equals
 
+        @Override
 	public int hashCode() {
 	    return hash;
 	}//end hashCode
@@ -1256,10 +1259,11 @@ public class ServiceDiscoveryManager {
                     }
                 }//end loop
                 /* 2. Handle "new" and "old" items from the given lookup */
-                for(int i=0; i<(matches.items).length; i++) {
+                int l = (matches.items).length;
+                for(int i=0; i<l; i++) {
                     /* Skip items with null service field (Bug 4378751) */
                     if( (matches.items[i]).service == null )  continue;
-                    if (Thread.currentThread().isInterrupted()) continue; // skip
+//                    if (Thread.currentThread().isInterrupted()) continue; // skip
                     CacheTask t = 
                                 new NewOldServiceTask(
                                         reg,
@@ -1371,8 +1375,8 @@ public class ServiceDiscoveryManager {
                     UnmapProxyTask t = 
                             new UnmapProxyTask(
                                     reg,
-                                                          itemReg,
-                                                          srvcID,
+                                    itemReg,
+                                    srvcID,
                                     getSeqN(),
                                     cache);
                     ObservableFuture task = cache.taskQueue.submit(t);
@@ -1466,10 +1470,8 @@ public class ServiceDiscoveryManager {
                  * because the primary if-block will be unintentionally
                  * entered due to the null service field in the ServiceItem.
                  */
-                if( ((item != null) && (item.service == null))
-                        || Thread.currentThread().isInterrupted()) {
-                    return;
-                }//endif
+                if( ((item != null) && (item.service == null))) return;
+                
                 /* Handle the event by the transition type, and by whether
                  * the associated ServiceItem is an old, previously discovered
                  * item, or a newly discovered item.
@@ -1477,7 +1479,8 @@ public class ServiceDiscoveryManager {
 		if(transition == ServiceRegistrar.TRANSITION_MATCH_NOMATCH) {
                     cache.handleMatchNoMatch(reg.getProxy(), sid);
                 } else {//(transition == NOMATCH_MATCH or MATCH_MATCH)
-                    ObservableFuture task = cache.taskQueue.submit(new NewOldServiceTask(reg, item,
+                    ObservableFuture task = cache.taskQueue.submit(
+                        new NewOldServiceTask(reg, item,
                        (transition == ServiceRegistrar.TRANSITION_MATCH_MATCH),
                                                thisTaskSeqN, cache));
                     synchronized (this){
@@ -1658,8 +1661,13 @@ public class ServiceDiscoveryManager {
                             ServiceItemReg replacementItemReg = new ServiceItemReg(itemReg, itemReg.getProxy(), itemReg.item, itemReg.filteredItem, false);
                             replaced = cache.serviceIdMap.replace(thisTaskSid, itemReg, replacementItemReg);
                             if (replaced) break;
-                            itemReg = cache.serviceIdMap.get(thisTaskSid);
-                            if (!itemReg.isDiscarded()) return;
+                            ServiceItemReg existed = cache.serviceIdMap.putIfAbsent(thisTaskSid, replacementItemReg);
+                            if (existed != null){
+                                if (!existed.isDiscarded()) return;
+                                itemReg = existed;
+                            } else {
+                                break; // Added
+                            }
                         }
                     }
                     cache.addServiceNotify(itemToSend);
@@ -1757,11 +1765,11 @@ public class ServiceDiscoveryManager {
                 if(previouslyDiscovered) {//a. old, previously discovered item
                     // If it didn't get replaced the added sync is reentrant,
                     // otherwise we sync again in case it did get replaced.
-                    cache.itemMatchMatchChange(thisTaskSid,
+                    cache.itemMatchMatchChange(thisTaskSid, itemReg,
                                     reg.getProxy(), srvcItem, matchMatchEvent);
                 } else {//b. newly discovered item
                     ServiceItem newFilteredItem =
-                                  cache.filterMaybeDiscard(srvcItem, false);
+                        cache.filterMaybeDiscard(thisTaskSid, itemReg, srvcItem, false);
                     if(newFilteredItem != null) {
                         cache.addServiceNotify(newFilteredItem);
                     }//endif
@@ -1830,7 +1838,7 @@ public class ServiceDiscoveryManager {
                     }
                 }//endif
 		if(proxy != null) {
-                        cache.itemMatchMatchChange(thisTaskSid, proxy, item, false);
+                        cache.itemMatchMatchChange(thisTaskSid, itemReg, proxy, item, false);
 		}//endif
                 if (notify) cache.removeServiceNotify(item);
                 logger.finest("ServiceDiscoveryManager - UnmapProxyTask "
@@ -2349,46 +2357,29 @@ public class ServiceDiscoveryManager {
          *  This method applies the filter only after the above comparisons
          *  and determinations have been completed.
          */
-	private void itemMatchMatchChange(ServiceID srvcID, ServiceRegistrar proxy, ServiceItem newItem, boolean matchMatchEvent)
+	private void itemMatchMatchChange(
+                ServiceID srvcID, 
+                ServiceItemReg itemReg, 
+                ServiceRegistrar proxy, 
+                ServiceItem newItem, 
+                boolean matchMatchEvent)
         {
             /* Save the pre-event state. Update the post-event state after
              * applying the filter.
              */    
-            ServiceItemReg itemReg;
             ServiceItem oldItem;
             ServiceItem oldFilteredItem;
             boolean notifyServiceRemoved;
             boolean attrsChanged = false;
             boolean versionChanged = false;
             ServiceRegistrar proxyChanged = null;
-            itemReg = serviceIdMap.get(srvcID);
-
-            ADD_IF_ABSENT: if (itemReg == null){
-                ProxyReg reg = new ProxyReg(proxy);
-                if( !eventRegMap.containsKey(reg) ) return;
-                /* reg must have been discarded, simply return */ 
-                itemReg = new ServiceItemReg( proxy, newItem );
-                ServiceItemReg existed = serviceIdMap.putIfAbsent(srvcID, itemReg);
-                if (existed != null){
-                    itemReg = existed; 
-
-                    break ADD_IF_ABSENT;
-                } else {
-                    // We just added it.
-                    ServiceItem newFilteredItem =
-                                  filterMaybeDiscard(newItem, false);
-                    if(newFilteredItem != null) {
-                        addServiceNotify(newFilteredItem);
-                    }//endif
-                    return;
-                }
-            }
             TRACK_CHANGE: while (true){
                 oldItem = itemReg.item;
                 oldFilteredItem = itemReg.filteredItem;
                 notifyServiceRemoved = !itemReg.isDiscarded();
                 if(itemReg.proxyNotUsedToTrackChange(proxy, newItem)) { // not tracking
-                    if(matchMatchEvent || notifyServiceRemoved) return;
+                    if(matchMatchEvent) return;
+                    if(notifyServiceRemoved) return;
                     proxyChanged = proxy; // start tracking instead
                 }//endif
                 if(!notifyServiceRemoved) {
@@ -2400,6 +2391,9 @@ public class ServiceDiscoveryManager {
                         if (replaced) break; // Common case.
                         itemReg = serviceIdMap.get(srvcID);
                         if (itemReg == null){ // Very low probability
+                            ProxyReg reg = new ProxyReg(proxy);
+                            if( !eventRegMap.containsKey(reg) ) return;
+                            /* reg must have been discarded, simply return */ 
                             itemReg = new ServiceItemReg( proxy, newItem );
                             ServiceItemReg existed = serviceIdMap.putIfAbsent(srvcID, itemReg);
                             if (existed != null){
@@ -2408,7 +2402,7 @@ public class ServiceDiscoveryManager {
                             } else {
                                 // We just added it.
                                 ServiceItem newFilteredItem =
-                                              filterMaybeDiscard(newItem, false);
+                                    filterMaybeDiscard(srvcID, itemReg, newItem, false);
                                 if(newFilteredItem != null) {
                                     addServiceNotify(newFilteredItem);
                                 }//endif
@@ -2443,7 +2437,7 @@ public class ServiceDiscoveryManager {
             }//endif
             /* Now apply the filter, and send events if appropriate */
             ServiceItem newFilteredItem =
-		filterMaybeDiscard(newItem, notifyServiceRemoved);
+		filterMaybeDiscard(srvcID, itemReg, newItem, notifyServiceRemoved);
             if(newFilteredItem != null) {
                 /* Passed the filter, okay to send event(s). */
                 if(attrsChanged) changeServiceNotify(newFilteredItem,
@@ -2668,7 +2662,8 @@ public class ServiceDiscoveryManager {
          *  <code>ServiceItemReg</code> element of the
          *  <code>serviceIdMap</code> is left unchanged.
 	 */
-  	private ServiceItem filterMaybeDiscard(ServiceItem item, boolean sendEvent)
+  	private ServiceItem filterMaybeDiscard(ServiceID srvcID,
+                ServiceItemReg itemReg, ServiceItem item, boolean sendEvent)
         {
             if( (item == null) || (item.service == null) ) return null;
             if(filter == null) {
@@ -2682,8 +2677,6 @@ public class ServiceDiscoveryManager {
             boolean pass = filter.check(filteredItem);
             /* Handle filter fail */
             if(!pass) {
-                ServiceID srvcID = item.serviceID;
-                ServiceItemReg itemReg = serviceIdMap.get(srvcID);
                 boolean notify = false;
                 ServiceItem oldFilteredItem = null;
                 if(itemReg != null) {
@@ -2804,7 +2797,7 @@ public class ServiceDiscoveryManager {
                     }//endif
                 }//endif
                 if (itemRegProxy != null) {
-                    itemMatchMatchChange(srvcID, itemRegProxy, newItem, false);
+                    itemMatchMatchChange(srvcID, itemReg, itemRegProxy, newItem, false);
                 } else if (notify){
                     removeServiceNotify(filteredItem);
                 }
@@ -2839,7 +2832,8 @@ public class ServiceDiscoveryManager {
     /* Contains all of the discovered lookup services (ServiceRegistrar). */
     private final Set<ProxyReg> proxyRegSet;
     /* Contains all of the DiscoveryListener's employed in lookup discovery. */
-    private final List<DiscoveryListener> listeners;
+    // Dead code
+//    private final List<DiscoveryListener> listeners;
     /* Random number generator for use in lookup. */
     private final Random random = new Random();
     /* Contains all of the instances of LookupCache that are requested. */
@@ -2897,9 +2891,10 @@ public class ServiceDiscoveryManager {
 	    while(iter.hasNext()) {
 		ProxyReg reg = iter.next();
 		cacheAddProxy(reg);
-                synchronized (listeners){
-                    if(!listeners.isEmpty()) listenerDiscovered(reg.getProxy(), listeners);
-                }
+                // Dead code
+//                synchronized (listeners){
+//                    if(!listeners.isEmpty()) listenerDiscovered(reg.getProxy(), listeners);
+//                }
 	    }//end loop
 	}//end DiscMgrListener.discovered
 
@@ -2922,11 +2917,13 @@ public class ServiceDiscoveryManager {
 	    while(iter.hasNext()) {
 		dropProxy(iter.next());
             }//end loop
-            if (!drops.isEmpty()){
-                synchronized (listeners){
-                    listenerDropped(drops, listeners);
-                }
-            }
+            // Dead code
+//            if (!drops.isEmpty()){
+//                synchronized (listeners){
+//                    listenerDropped(drops, listeners);
+//                }
+//            }
+            // End Dead code
 	}//end DiscMgrListener.discarded
         
         /** Discards a ServiceRegistrar through the discovery manager.*/
@@ -3205,7 +3202,8 @@ public class ServiceDiscoveryManager {
     private ServiceDiscoveryManager(Initializer init){
         this.proxyRegSet = Collections.newSetFromMap(new ConcurrentHashMap<ProxyReg,Boolean>());
         this.caches = new ArrayList<LookupCache>(32);
-        this.listeners = new ArrayList<DiscoveryListener>(32);
+        // Dead code
+//        this.listeners = new ArrayList<DiscoveryListener>(32);
         thisConfig = init.thisConfig;
         registrarPreparer = init.registrarPreparer;
         eventLeasePreparer = init.eventLeasePreparer;
@@ -3221,39 +3219,38 @@ public class ServiceDiscoveryManager {
     }
 
     /** Sends discarded event to each listener waiting for discarded lookups.*/
-    private void listenerDropped(List<ProxyReg> drops, List<DiscoveryListener> notifies) {
-	listenerDropped(convert(drops), notifies);
-    }//end listenerDropped
+    // Begin dead code
+//    private void listenerDropped(List<ProxyReg> drops, List<DiscoveryListener> notifies) {
+//	listenerDropped(convert(drops), notifies);
+//    }//end listenerDropped
 
     /** Sends discarded event to each listener waiting for discarded lookups.*/
-    private void listenerDropped(ServiceRegistrar[] proxys, List<DiscoveryListener> notifies){
-	Iterator<DiscoveryListener> iter = notifies.iterator();
-	while (iter.hasNext()) {
-	    DiscoveryEvent evt = new DiscoveryEvent
-                                        ( this, proxys.clone());
-	    iter.next().discarded(evt);
-	}//end loop
-    }//end listenerDropped
+//    private void listenerDropped(ServiceRegistrar[] proxys, List<DiscoveryListener> notifies){
+//        DiscoveryEvent evt = new DiscoveryEvent(this, proxys);
+//	Iterator<DiscoveryListener> iter = notifies.iterator();
+//	while (iter.hasNext()) {
+//	    iter.next().discarded(evt);
+//	}//end loop
+//    }//end listenerDropped
     
-    private ServiceRegistrar [] convert(List<ProxyReg> drops){
-        int l = drops.size();
-        ServiceRegistrar [] proxys = new ServiceRegistrar[l];
-        for (int i = 0; i < l; i++){
-            proxys[i] = drops.get(i).getProxy();
-        }
-        return proxys;
-    }
+//    private ServiceRegistrar [] convert(List<ProxyReg> drops){
+//        int l = drops.size();
+//        ServiceRegistrar [] proxys = new ServiceRegistrar[l];
+//        for (int i = 0; i < l; i++){
+//            proxys[i] = drops.get(i).getProxy();
+//        }
+//        return proxys;
+//    }
 
     /** Sends discovered event to each listener listening for new lookups. */
-    private void listenerDiscovered(ServiceRegistrar proxy, List<DiscoveryListener> notifies){
-	Iterator<DiscoveryListener> iter = notifies.iterator();
-	while (iter.hasNext()) {
-	    DiscoveryEvent evt = new DiscoveryEvent
-                                        ( this,
-                                          new ServiceRegistrar[]{proxy} );
-	    iter.next().discovered(evt);
-	}//end loop
-    }//end listenerDiscovered
+//    private void listenerDiscovered(ServiceRegistrar proxy, List<DiscoveryListener> notifies){
+//        DiscoveryEvent evt = new DiscoveryEvent( this, new ServiceRegistrar[]{proxy} );
+//	Iterator<DiscoveryListener> iter = notifies.iterator();
+//	while (iter.hasNext()) {
+//	    iter.next().discovered(evt);
+//	}//end loop
+//    }//end listenerDiscovered
+    // End Dead code
 
     /** Returns array of ServiceRegistrar created from the proxyRegSet */
     private ServiceRegistrar[] buildServiceRegistrar() {
