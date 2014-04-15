@@ -54,6 +54,7 @@ import java.util.jar.Manifest;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import org.apache.river.api.net.RFC3986URLClassLoader;
 
 /**
  * Tool used to generate the preferred class information for downloadable JAR
@@ -307,19 +308,8 @@ import java.util.regex.Pattern;
 public class PreferredListGen {
 
     /** remember classes processed to avoid redundant work or loops */
-    private final Collection seen = new HashSet();
-    {
-	seen.add("int"); // mark primitives as already seen or stack traces fly
-	seen.add("long");
-	seen.add("float");
-	seen.add("double");
-	seen.add("short");
-	seen.add("void");
-	seen.add("char");
-	seen.add("byte");
-	seen.add("boolean");
-    }
-
+    private final Collection seen;
+    
     /* 
      * NOTE: the Boolean class is used extensively to represent the three
      *       possible states of a preferred value of true/false/undefined
@@ -327,44 +317,43 @@ public class PreferredListGen {
      */
 
     /** Boolean equivalent of true */
-    private Boolean TRUE = new Boolean(true);
+    private final Boolean TRUE;
 
     /** Boolean equivalent of false */
-    private Boolean FALSE = new Boolean(false);
+    private final Boolean FALSE;
 
     /** the names of proxies supplied by the -proxy option */
-    private final Collection proxies = new HashSet();
+    private final Collection proxies;
 
     /** the set of classes to report based on the -tell options */
-    private final Collection tells = new HashSet();
+    private final Collection tells;
 
     /** the first JAR in the set of files loaded via the -jar option */
     private File targetJar;
 
     /** replace the first JAR with a copy containing the preferred list */
-    private boolean replaceJar = true;
+    private boolean replaceJar;
 
     /** print the preferred list, only meaningful with the -jar option */
-    private boolean printResults = false;
+    private boolean printResults;
 
     /** ordered list of JAR files names specified by the -jar options */
-    private final Collection jarList = new ArrayList();
+    private final Collection jarList;
 
     /** the classpath specified by the -cp option */
     private String classpath;
 
     /** the ordered graph containing the JAR class info */
-    private final Graph listGraph = new Graph();
+    private final Graph listGraph;
 
     /** if true, use defaultToForce for default, otherwise optimize */
-    private boolean forceDefault = false;
+    private boolean forceDefault;
 
     /** the default preference value to force */
-    private boolean defaultToForce = false;
+    private boolean defaultToForce;
 
     /** the class loader for resolving class names */
-    private ClassLoader loader = 
-	(ClassLoader) getClass().getClassLoader();
+    private ClassLoader loader;
 
     /** I18N resource bundle */
     private static ResourceBundle resources;
@@ -373,21 +362,21 @@ public class PreferredListGen {
     private static boolean resinit = false;
 
     /** union of the entries in all JAR files for -api/-impl existence check */
-    private HashSet jarEntries = new HashSet();
+    private final HashSet jarEntries;
 
     /** loaded JAR names, to avoid infinite loops due to circular definitions */
-    private HashSet jarFiles = new HashSet();
+    private final HashSet jarFiles;
 
     /** if true, non-public roots are allowed */
-    private boolean keepNonPublicRoots = false;
+    private boolean keepNonPublicRoots;
 
     /** if true, load JARs without preferred lists directly into listGraph */
-    private boolean doMerge = true;
+    private boolean doMerge;
 
     /**
      * Get the strings from our resource localization bundle.
      */
-    private static String getString(String key, Object v1, Object v2, Object v3) {
+    private synchronized static String getString(String key, Object v1, Object v2, Object v3) {
         String fmt = "no text found: \"" + key + "\"";
 	if (!resinit) {
 	    try {
@@ -455,6 +444,32 @@ public class PreferredListGen {
      * @param args the command line arguments
      */
     private PreferredListGen(String[] args) {
+        this.FALSE = Boolean.FALSE;
+        this.TRUE = Boolean.TRUE;
+        this.doMerge = true;
+        this.keepNonPublicRoots = false;
+        this.jarFiles = new HashSet();
+        this.jarEntries = new HashSet();
+        this.loader = getClass().getClassLoader();
+        this.defaultToForce = false;
+        this.forceDefault = false;
+        this.forceDefault = false;
+        this.listGraph = new Graph();
+        this.jarList = new ArrayList();
+        this.printResults = false;
+        this.replaceJar = true;
+        this.tells = new HashSet();
+        this.proxies = new HashSet();
+        this.seen = new HashSet();
+        seen.add("int"); // mark primitives as already seen or stack traces fly
+	seen.add("long");
+	seen.add("float");
+	seen.add("double");
+	seen.add("short");
+	seen.add("void");
+	seen.add("char");
+	seen.add("byte");
+	seen.add("boolean");
 	if (args.length == 0) {
 	    throw new IllegalArgumentException(getString("preflistgen.noargs"));
 	}
@@ -506,6 +521,32 @@ public class PreferredListGen {
      * preferred list.
      */
     public PreferredListGen() {
+        this.doMerge = true;
+        this.keepNonPublicRoots = false;
+        this.jarFiles = new HashSet();
+        this.jarEntries = new HashSet();
+        this.loader = (ClassLoader) getClass().getClassLoader();
+        this.defaultToForce = false;
+        this.forceDefault = false;
+        this.forceDefault = false;
+        this.listGraph = new Graph();
+        this.jarList = new ArrayList();
+        this.printResults = false;
+        this.replaceJar = true;
+        this.tells = new HashSet();
+        this.proxies = new HashSet();
+        this.FALSE = Boolean.FALSE;
+        this.TRUE = Boolean.TRUE;
+        this.seen = new HashSet();
+	seen.add("int"); // mark primitives as already seen or stack traces fly
+	seen.add("long");
+	seen.add("float");
+	seen.add("double");
+	seen.add("short");
+	seen.add("void");
+	seen.add("char");
+	seen.add("byte");
+	seen.add("boolean");
     }
 
     /**
@@ -516,7 +557,7 @@ public class PreferredListGen {
      *
      * @param printResults if <code>true</code>, print the preferred list
      */
-    public void setPrint(boolean printResults) {
+    public final synchronized void setPrint(boolean printResults) {
 	this.printResults = printResults;
     }
 
@@ -528,7 +569,7 @@ public class PreferredListGen {
      * @param keepNonPublicRoots if <code>true</code>, non-public root classes
      *        are retained
      */
-    public void setKeepNonPublicRoots(boolean keepNonPublicRoots) {
+    public final synchronized void setKeepNonPublicRoots(boolean keepNonPublicRoots) {
 	this.keepNonPublicRoots = keepNonPublicRoots;
     }
 
@@ -545,7 +586,7 @@ public class PreferredListGen {
      *
      * @param doMerge if <code>true</code>, perform the merge
      */
-    public void setMerge(boolean doMerge) {
+    public final synchronized void setMerge(boolean doMerge) {
 	this.doMerge = doMerge;
     }
 
@@ -555,7 +596,7 @@ public class PreferredListGen {
      *
      * @param replaceJar if <code>true</code>, update the target JAR file
      */
-    public void setReplaceJar(boolean replaceJar) {
+    public final synchronized void setReplaceJar(boolean replaceJar) {
 	this.replaceJar = replaceJar;
     }
 
@@ -566,7 +607,7 @@ public class PreferredListGen {
      *
      * @param jarName the name of the JAR file to add to the set.
      */
-    public void addJar(String jarName) {
+    public final void addJar(String jarName) {
 	jarList.add(jarName);
     }
 
@@ -578,7 +619,7 @@ public class PreferredListGen {
      *
      * @param tellName the name of the JAR file to add to the tell set.
      */
-    public void addTell(String tellName) {
+    public final void addTell(String tellName) {
 	String tellClass = fileToClass(tellName);
 	tells.add(tellClass);
     }
@@ -607,7 +648,7 @@ public class PreferredListGen {
      * @throws IllegalArgumentException if <code>implName</code> does not match
      *         any of the criteria above.
      */
-    public void addImpl(String implName) {
+    public final void addImpl(String implName) {
 	listGraph.initialize(implName, true, null); // preferred 
     }
 
@@ -635,7 +676,7 @@ public class PreferredListGen {
      * @throws IllegalArgumentException if <code>apiName</code> does not match
      *         any of the criteria above.
      */
-    public void addApi(String apiName) {
+    public final void addApi(String apiName) {
 	listGraph.initialize(apiName, false, null); // not preferred
     }
 
@@ -647,7 +688,7 @@ public class PreferredListGen {
      *
      * @param def the default value to use for the list
      */
-    public void setDefault(boolean def) {
+    public final synchronized void setDefault(boolean def) {
 	forceDefault = true;
 	defaultToForce = def;
     }
@@ -659,7 +700,7 @@ public class PreferredListGen {
      *
      * @param path the classpath for the classes to include in the analysis
      */
-    public void setClasspath(String path) {
+    public final synchronized void setClasspath(String path) {
 	this.classpath = path;
     }
 	
@@ -669,7 +710,7 @@ public class PreferredListGen {
      *
      * @param proxy the name of the proxy class
      */
-    public void addProxy(String proxy) {
+    public final void addProxy(String proxy) {
 	proxies.add(proxy);
     }
 
@@ -708,7 +749,7 @@ public class PreferredListGen {
      * @throws IllegalArgumentException if the JAR file does not exist
      *         or is a directory
      */
-    private void loadJar(File jar) throws IOException {
+    private synchronized void loadJar(File jar) throws IOException {
 	if (jarFiles.contains(jar)) {
 	    return; // short-circuit circular definitions
 	}
@@ -1079,8 +1120,8 @@ public class PreferredListGen {
      *         <li>if any component in the classpath does not exist 
      *         </ul>
      */
-    public void compute() throws IOException {
-	if (jarList.size() == 0) {
+    public synchronized void compute() throws IOException {
+	if (jarList.isEmpty()) {
 	    throw new IllegalArgumentException(getString("preflistgen.nojars"));
 	}
         ArrayList list = new ArrayList();
@@ -1107,7 +1148,7 @@ public class PreferredListGen {
 	    if (cl != null) {
 		cl = cl.getParent(); // the extension classloader
 	    }
-	    loader = new URLClassLoader(urls, cl);
+	    loader = new RFC3986URLClassLoader(urls, cl);
 	}
 	loadJars();
 	Collection roots = getRoots();
@@ -1158,9 +1199,7 @@ public class PreferredListGen {
 		addProxyRoot(proxyClass, roots);
 	    } catch (ClassNotFoundException e) {
 		String msg = getString("preflistgen.badproxyclass", proxy);
-		IllegalArgumentException iae = new IllegalArgumentException(msg);
-		iae.initCause(e);
-		throw iae;
+		throw new IllegalArgumentException(msg, e);
 	    }
         }
 	return roots;
@@ -1200,7 +1239,8 @@ public class PreferredListGen {
 	    return;
 	}
 	Class[] parents = intFace.getInterfaces();
-	for (int i = 0; i < parents.length; i++) {
+        int l = parents.length;
+	for (int i = 0; i < l; i++) {
 	    addIfPublic(parents[i], roots);
 	}
     }
@@ -1236,7 +1276,7 @@ public class PreferredListGen {
      *
      * @throws IOException if an error occurs updating the target JAR file.
      */
-    public void generatePreferredList(PrintWriter writer) throws IOException {
+    public synchronized void generatePreferredList(PrintWriter writer) throws IOException {
 	if (writer == null && printResults) {
 	    writer = new PrintWriter(System.out);
 	}
@@ -1244,7 +1284,7 @@ public class PreferredListGen {
 	if (!tells.isEmpty()) {
 	    return;
         }
-	StringBuffer sb = new StringBuffer();
+	StringBuilder sb = new StringBuilder();
 	sb.append("PreferredResources-Version: 1.0");
 	sb.append(newLine);
 	Collection entries = new TreeSet();
@@ -1383,7 +1423,10 @@ public class PreferredListGen {
 	} catch (IOException e) {
 	    print("preflistgen.ioproblem", e.getMessage());
 	    e.printStackTrace();
-	}
+	} catch (Error e){
+            print("preflistgen.error", e.getMessage());
+	    e.printStackTrace();
+        }
 	System.exit(1);
     }
 
@@ -1397,21 +1440,21 @@ public class PreferredListGen {
      private class PrefData implements Comparable { 
 
 	 /** the preferred list entry name string */
-	 String name; 
+	 final String name; 
 
 	 /** the preferred value for this entry */
-	 boolean preferred;
+	 final boolean preferred;
 
 	 /** the sourceJar, used when merging two graphs */
-	 File sourceJar;
+	 final File sourceJar;
 
 	PrefData(String name, boolean preferred) {
-	    this.name = name;
-	    this.preferred = preferred;
+	    this(name, preferred , null);
 	}
 
 	PrefData(String name, boolean preferred, File sourceJar) {
-	    this(name, preferred);
+            this.name = name;
+	    this.preferred = preferred;
 	    this.sourceJar = sourceJar;
 	}
 
@@ -1479,27 +1522,32 @@ public class PreferredListGen {
 	String name;
 
 	/** the set of child nodes of this node */
-	HashSet nodes = new HashSet();
+	HashSet nodes;
 
 	/** the preferred state, only meaningful to leaf (class) nodes */
-	boolean preferred = true;
+	boolean preferred;
 
 	/** the parent of this node, or null for the root node */
 	Graph parent;
 
 	/** the type of the node */
-	int type = INHERIT;
+	int type;
 
 	/** the preferred value implied for child nodes */
 	Boolean impliedPref = null;
 
 	/** the source JAR causing creation of this node, or null */
-	File sourceJar = null;
+	File sourceJar;
 
 	/**
 	 * Create the root node of the graph, setting implied pref to TRUE
 	 */
 	Graph() {
+            this.type = INHERIT;
+            this.sourceJar = null;
+            this.parent = null;
+            this.preferred = true;
+            this.nodes = new HashSet();
 	    name = "";
 	    impliedPref = TRUE;
 	    type = DEFAULT;
@@ -1522,6 +1570,8 @@ public class PreferredListGen {
 	 *        through the -api or -impl options
 	 */
 	Graph(Graph parent, String name, int type, File sourceJar) {
+            this.type = INHERIT;
+            this.nodes = new HashSet();
 	    if (type != CLASS && type != RESOURCE) {
 		throw new IllegalStateException("type must be CLASS or "
 					        + "RESOURCE");
@@ -1580,6 +1630,9 @@ public class PreferredListGen {
 	      boolean preferred, 
 	      File sourceJar) 
 	{
+            this.type = INHERIT;
+            this.preferred = true;
+            this.nodes = new HashSet();
 	    if (type == INHERIT) {
 		throw new IllegalStateException("Cannot create a preference "
 					        + "node of type INHERIT");
@@ -1593,7 +1646,7 @@ public class PreferredListGen {
 		if (type == CLASS || type == RESOURCE) {
 		    this.preferred = preferred;
 		} else {
-		    impliedPref = new Boolean(preferred);
+		    impliedPref = Boolean.valueOf(preferred);
 		}
 	    } else {
 		this.name = name.substring(0, firstDot);
@@ -1659,7 +1712,7 @@ public class PreferredListGen {
 	 *
 	 * @param roots the collection to add to
 	 */
-	void addRoots(Collection roots) {
+	synchronized void addRoots(Collection roots) {
 	    if (type == CLASS && sourceJar == null) {
 	        String entryName = getFullName() + ".class";
 	        if (!jarEntries.contains(entryName)) {
@@ -1690,7 +1743,7 @@ public class PreferredListGen {
 	 * and all child nodes recursively. If this is a leaf node,
 	 * do nothing.
 	 */
-	void reset() {
+	synchronized void reset() {
 	    if (type != CLASS && type != RESOURCE) {
 		type = INHERIT;
 		impliedPref = null;
@@ -1711,9 +1764,9 @@ public class PreferredListGen {
 	 *
 	 * @return the implied preferred value
 	 */
-	boolean impliedChildPref() {
+	synchronized boolean impliedChildPref() {
 	    if (type == NAMESPACE || type == DEFAULT) {
-		if (impliedPref == null) {
+		if (!(impliedPref instanceof Boolean)) {
 		    throw new IllegalStateException("impliedPref is null");
 		}
 		return impliedPref.booleanValue();
@@ -1732,11 +1785,11 @@ public class PreferredListGen {
 	 *
 	 * @return the implied preferred value
 	 */
-	boolean childPref() {
+	synchronized boolean childPref() {
 	    if (type == NAMESPACE || type == DEFAULT || type == PKG) {
 		if (impliedPref == null) {
 		    throw new IllegalStateException("impliedPref is null");
-		}
+	    }
 		return impliedPref.booleanValue();
 	    }
 	    if (parent == null) {
@@ -1752,12 +1805,12 @@ public class PreferredListGen {
 	 * @param value the default preferred value, which may be 
 	 *        <code>null</code> to indicate that no default is defined
 	 */
-	void setDefaultPref(boolean value) {
+	synchronized void setDefaultPref(boolean value) {
 	    if (name.length() > 0) {
 		throw new IllegalStateException("must set default on root");
 	    }
 	    type = DEFAULT;
-	    impliedPref = new Boolean(value);
+	    impliedPref = Boolean.valueOf(value);
 	}
 
 	// inherit javadoc
@@ -1777,7 +1830,7 @@ public class PreferredListGen {
 	 * @param type the node type, must be CLASS or RESOURCE
 	 * @param sourceJar the JAR file causing this class or resource to be added
 	 */
-	void add(String name, int type, File sourceJar) {
+	synchronized void add(String name, int type, File sourceJar) {
 	    if (type != CLASS && type != RESOURCE) {
 		throw new IllegalStateException("type must be CLASS or "
 						+ "RESOURCE");
@@ -1814,7 +1867,7 @@ public class PreferredListGen {
 	 * @param name the name of the node to test for
          * @return true if the node is found
 	 */
-	boolean contains(String name) {
+	synchronized boolean contains(String name) {
 	    String nodeName;
 	    String childName = null;
 	    int firstDot = name.indexOf(".");
@@ -1848,7 +1901,7 @@ public class PreferredListGen {
 	 * @param name the dot-separate name
 	 * @return true if the node is frozen
 	 */
-	boolean isFrozen(String name) {
+	synchronized boolean isFrozen(String name) {
 	    String nodeName;
 	    String childName = null;
 	    int firstDot = name.indexOf(".");
@@ -1899,7 +1952,7 @@ public class PreferredListGen {
 	 * 
 	 * @param name the name of the child node to add
 	 */
-	void addWithPreference(String name, 
+	synchronized void addWithPreference(String name, 
 			       int type, 
 			       boolean preferred, 
 			       File sourceJar) 
@@ -1925,7 +1978,7 @@ public class PreferredListGen {
 			    this.preferred = preferred;
 			}
 		    } else {
-			impliedPref = new Boolean(preferred);
+			impliedPref = Boolean.valueOf(preferred);
 		    }
 		}
 		return;
@@ -1972,7 +2025,7 @@ public class PreferredListGen {
 	 *              <code>false</code> if the values don't match and
 	 *              the node is frozen and force is false.
   	 */
-	boolean setPreferred(String name, boolean value, boolean force) {
+	synchronized boolean setPreferred(String name, boolean value, boolean force) {
 	    if (name == null) {
 		if (type != CLASS && type != RESOURCE) {
 		    throw new IllegalStateException("only leaf node preferred"
@@ -2010,7 +2063,7 @@ public class PreferredListGen {
 	 * @param value the preferred value to search for
 	 * @return the number of leaf nodes having the given value
 	 */
-	int countPreferred(boolean value) {
+	synchronized int countPreferred(boolean value) {
 	    if (type == CLASS || type == RESOURCE) { // leaf 
 		return (value == preferred) ? 1 : 0;
 	    } else {
@@ -2036,7 +2089,7 @@ public class PreferredListGen {
 	 * @return the number of leaf nodes having preferred values which differ
          *         from that implied by its ancestors
 	 */
-	int countImpliedFailures() {
+	synchronized int countImpliedFailures() {
 	    if (type == CLASS || type == RESOURCE) { // leaf 
 		if (type == CLASS) {
 		    Graph outer = getOuter();
@@ -2062,7 +2115,7 @@ public class PreferredListGen {
 	 * @return the number of leaf nodes which have this node
 	 *         as an ancestor.
 	 */
-	int countLeafNodes() {
+	synchronized int countLeafNodes() {
 	    int total = 0;
 	    Iterator it = nodes.iterator();
 	    while (it.hasNext()) {
@@ -2103,7 +2156,7 @@ public class PreferredListGen {
 	 * value. If there is no outer class corresponding to the inner class,
 	 * this node is retained. Call this method on all children.
 	 */
-	void markStaleInnerClasses() {
+	synchronized void markStaleInnerClasses() {
 	    if (type == CLASS) {
 		Graph outer = getOuter();
 		if (outer != null) {
@@ -2128,7 +2181,7 @@ public class PreferredListGen {
 	 * @return the graph for the outer class, or <code>null</code> if this is
 	 *         not a nested class, or if the outer class is not in the graph
 	 */
-	Graph getOuter() {
+	final synchronized Graph getOuter() {
 	    if (type != CLASS) {
 		throw new IllegalStateException("Attempt to get outer of a non-class");
 	    }
@@ -2144,7 +2197,7 @@ public class PreferredListGen {
 	/**
 	 * Recursively remove child nodes of type STALE.
 	 */
-	void deleteStaleNodes() {
+	synchronized void deleteStaleNodes() {
 	    for (Iterator it = nodes.iterator(); it.hasNext(); ) {
 		Graph g = (Graph) it.next();
 		if (g.type == STALE) {
@@ -2178,7 +2231,7 @@ public class PreferredListGen {
 	 *
 	 * @return <code>true</code> if all a the nodes are leaf nodes
 	 */
-	boolean containsLeavesOnly() {
+	synchronized boolean containsLeavesOnly() {
 	    Iterator it = nodes.iterator();
 	    while (it.hasNext()) {
 		Graph g = (Graph) it.next();
@@ -2189,7 +2242,7 @@ public class PreferredListGen {
 	    return true;
 	}
 
-	void addLeaves(Collection leaves) {
+	synchronized void addLeaves(Collection leaves) {
 	    if (type == CLASS) { 
 		leaves.add(new PrefData(getFullName() + ".class", 
 					preferred, 
@@ -2208,7 +2261,7 @@ public class PreferredListGen {
 	    return;
 	}
 	
-	void merge(Graph g) {
+	synchronized void merge(Graph g) {
 	    Collection leaves = new HashSet();
 	    g.addLeaves(leaves);
 	    Iterator it = leaves.iterator();
@@ -2252,7 +2305,7 @@ public class PreferredListGen {
 	 * </ul>
 	 * 
 	 */
-	void addEntries(Collection entries) {
+	synchronized void addEntries(Collection entries) {
 	    if (parent == null) {
 		Iterator it = nodes.iterator();
 		while (it.hasNext()) {
@@ -2374,7 +2427,7 @@ public class PreferredListGen {
 	 * @param pref the node's implied preference value
 	 * @return the number of entries generated by children
 	 */
-	int countEntries(int type, Boolean pref) {
+	synchronized int countEntries(int type, Boolean pref) {
 	    HashSet test = new HashSet();
 	    this.type = type;
 	    impliedPref = pref;

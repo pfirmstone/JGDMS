@@ -48,6 +48,7 @@ import com.sun.jini.start.SharedActivatableServiceDescriptor;
 import com.sun.jini.start.SharedActivationGroupDescriptor;
 
 import com.sun.jini.tool.envcheck.Reporter.Message;
+import org.apache.river.api.net.RFC3986URLClassLoader;
 
 /**
  * Tool used to perform validity checks on the run-time environment of a client
@@ -536,7 +537,7 @@ public class EnvCheck {
 	if (pluginJarList.size() > 0) {
 	    URL[] urls = 
 		(URL[]) pluginJarList.toArray(new URL[pluginJarList.size()]);
-	    pluginLoader = new URLClassLoader(urls, pluginLoader);
+	    pluginLoader = new RFC3986URLClassLoader(urls, pluginLoader);
 	}
 	loadPlugins();
 	parseArgs(cmdLine);

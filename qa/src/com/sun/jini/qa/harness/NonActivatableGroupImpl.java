@@ -86,7 +86,10 @@ class NonActivatableGroupImpl {
 	    os.flush();
 	} catch (IOException e) {
 	    throw new RuntimeException("WriteObject failed", e);
-	}
+	} catch (Throwable e){
+            e.printStackTrace();
+            System.exit(1);
+        }
     }
 
     /**

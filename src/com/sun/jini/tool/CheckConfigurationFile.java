@@ -48,6 +48,7 @@ import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationFile;
 import net.jini.config.ConfigurationProvider;
+import org.apache.river.api.net.RFC3986URLClassLoader;
 
 /**
  * Checks the format of the source for a {@link ConfigurationFile}. The source
@@ -384,7 +385,7 @@ public class CheckConfigurationFile  {
 		    return false;
 		}
 	    }
-	    loader = URLClassLoader.newInstance(urls, loader);
+	    loader = RFC3986URLClassLoader.newInstance(urls, loader);
 	}
 	Properties entries = null;
 	if (entriesPath != null) {

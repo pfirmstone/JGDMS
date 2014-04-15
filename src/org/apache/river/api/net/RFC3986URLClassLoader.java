@@ -685,7 +685,7 @@ public class RFC3986URLClassLoader extends java.net.URLClassLoader {
         private final String prefix;
 
         public URLFileHandler(URL url, RFC3986URLClassLoader loader) {
-            super(url, null);
+            super(url, loader);
             String baseFile = url.getFile();
             String host = url.getHost();
             int hostLength = 0;

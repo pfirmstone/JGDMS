@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.StringTokenizer;
 import java.util.regex.Pattern;
+import org.apache.river.api.net.RFC3986URLClassLoader;
 
 /**
  * Provides a utility for computing which classes are depended on by a set of
@@ -226,11 +227,11 @@ public class ClassDepend {
 	ClassLoader parent = system.getParent();
 	loader = (systemClasspath.equals(classpath))
 	    ? system
-	    : new URLClassLoader(getClasspathURLs(classpath), parent);
+	    : new RFC3986URLClassLoader(getClasspathURLs(classpath), parent);
 	packageClasses = new PackageClasses(classpath);
 	platformLoader = (platform == null)
 	    ? parent
-	    : new URLClassLoader(getClasspathURLs(platform), parent);
+	    : new RFC3986URLClassLoader(getClasspathURLs(platform), parent);
         //System.out.println(platformLoader.toString());
     }
 
