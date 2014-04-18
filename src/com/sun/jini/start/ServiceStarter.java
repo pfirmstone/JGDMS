@@ -42,6 +42,7 @@ import javax.security.auth.login.LoginException;
 import javax.security.auth.Subject;
 
 import com.sun.jini.action.GetIntegerAction;
+import org.apache.river.api.security.CombinerSecurityManager;
 
 /** 
  * This class provides the main routine for starting shared groups,
@@ -303,7 +304,7 @@ public class ServiceStarter {
      */
     synchronized static void ensureSecurityManager() {
         if (System.getSecurityManager() == null) {
-            System.setSecurityManager(new RMISecurityManager());
+            System.setSecurityManager(new CombinerSecurityManager());
         }
     }
 

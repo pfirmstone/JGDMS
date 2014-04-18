@@ -42,6 +42,7 @@ import java.rmi.NoSuchObjectException;
 import java.util.Vector;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 
 /** This class is used to verify that after using templates containing only 
  *  attributes with all non-Null fields to request event notification, and 
@@ -68,12 +69,12 @@ public class NotifyOnEntryAttrAddNonNull extends QATestRegistrar {
         public void notify(RemoteEvent ev) {
             ServiceEvent srvcEvnt = (ServiceEvent)ev;
             synchronized (NotifyOnEntryAttrAddNonNull.this){
-                evntVec.addElement(srvcEvnt);
+                evntVec.add(srvcEvnt);
                 try {
                     QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
                                           (srvcEvnt.getRegistrationObject().get());
 
-                    receivedTuples.addElement(new QATestUtils.SrvcAttrTuple
+                    receivedTuples.add(new QATestUtils.SrvcAttrTuple
                                                        (srvcItems,tmplAttrs,
                                                         tuple.getSrvcObj(),
                                                         tuple.getAttrObj(),
@@ -88,9 +89,9 @@ public class NotifyOnEntryAttrAddNonNull extends QATestRegistrar {
     }
 
     protected QATestUtils.SrvcAttrTuple[][][] state;
-    protected Vector expectedTuples = new Vector();
-    protected Vector receivedTuples = new Vector();
-    protected Vector evntVec = new Vector();
+    protected List expectedTuples = new Vector();
+    protected List receivedTuples = new Vector();
+    protected List<ServiceEvent> evntVec = new Vector<ServiceEvent>();
 
     private ServiceItem[] srvcItems;
     private ServiceItem[] srvcsForEquals;

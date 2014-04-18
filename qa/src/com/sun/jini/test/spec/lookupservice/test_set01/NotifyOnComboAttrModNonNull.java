@@ -42,6 +42,7 @@ import java.rmi.NoSuchObjectException;
 import java.util.Vector;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.List;
 
 /** This class is used to verify that after using templates containing a 
  *  combination of service types and attributes with Non-Null fields to
@@ -69,11 +70,11 @@ public class NotifyOnComboAttrModNonNull extends QATestRegistrar {
 	    try {
                 ServiceEvent srvcEvnt = (ServiceEvent)ev;
                 synchronized (NotifyOnComboAttrModNonNull.this){
-                evntVec.addElement(srvcEvnt);
+                evntVec.add(srvcEvnt);
                     QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
                                           (srvcEvnt.getRegistrationObject().get());
 
-                    receivedTuples.addElement(new QATestUtils.SrvcAttrTuple
+                    receivedTuples.add(new QATestUtils.SrvcAttrTuple
                                                        (srvcItems,modAttrs,
                                                         tuple.getSrvcObj(),
                                                         tuple.getAttrObj(),
@@ -89,9 +90,9 @@ public class NotifyOnComboAttrModNonNull extends QATestRegistrar {
 
     protected QATestUtils.SrvcAttrTuple[][][] oldState;
     protected QATestUtils.SrvcAttrTuple[][][] newState;
-    protected final Vector expectedTuples = new Vector();
-    protected final Vector receivedTuples = new Vector();
-    protected final Vector evntVec = new Vector();
+    protected final List expectedTuples = new Vector();
+    protected final List receivedTuples = new Vector();
+    protected final List<ServiceEvent> evntVec = new Vector<ServiceEvent>();
 
     private ServiceItem[] srvcItems;
     private ServiceItem[] srvcsForEquals;

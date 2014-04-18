@@ -29,11 +29,13 @@ import java.rmi.RemoteException;
 import java.rmi.server.ExportException;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.BlockingQueue;
@@ -41,10 +43,12 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -59,6 +63,7 @@ import net.jini.core.entry.Entry;
 import net.jini.core.event.EventRegistration;
 import net.jini.core.event.RemoteEvent;
 import net.jini.core.event.RemoteEventListener;
+import net.jini.core.event.UnknownEventException;
 import net.jini.core.lease.Lease;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceID;
@@ -1057,6 +1062,28 @@ public class ServiceDiscoveryManager {
 	}//end LookupCacheImpl.removeUselessTask
     }
     
+    private static class RemoteEventComparator implements Comparator<RemoteEvent>{
+
+        @Override
+        public int compare(RemoteEvent o1, RemoteEvent o2) {
+            boolean Null1 = o1 == null;
+            boolean Null2 = o2 == null;
+            if (Null1 && Null2) return 0;
+            if (Null1 && !Null2) return -1;
+            if (!Null1 && Null2) return 1;
+            long eventID1 = o1.getID();
+            long eventID2 = o2.getID();
+            if (eventID1 < eventID2) return -1;
+            if (eventID1 > eventID2) return 1;
+            long seq1 = o1.getSequenceNumber();
+            long seq2 = o2.getSequenceNumber();
+            if (seq1 < seq2) return -1;
+            if (seq1 > seq2) return 1;
+            return 0;
+        }
+
+    }
+    
     /** Internal implementation of the LookupCache interface. Instances of
      *  this class are used in the blocking versions of lookup() and are
      *  returned by createLookupCache.
@@ -1070,7 +1097,16 @@ public class ServiceDiscoveryManager {
         private final class LookupListener implements RemoteEventListener,
                                                       ServerProxyTrust
         {
+            /* Buffer to avoid unnecessary lookup task calls, used for
+             * reordering out of order events. */
+            private final BlockingQueue<RemoteEvent> eventQueue;
+            
 	    public LookupListener() {
+                this.eventQueue = 
+                        new PriorityBlockingQueue<RemoteEvent>(
+                                11,
+                                new RemoteEventComparator()
+                        );
             }//end constructor
             
             // Moved export from constructor and LookupCacheImpl constructor
@@ -1079,16 +1115,31 @@ public class ServiceDiscoveryManager {
                 return (RemoteEventListener)lookupListenerExporter.export(this);
             }
 
-	    public void notify(RemoteEvent evt) {
-		ServiceEvent theEvent = (ServiceEvent)evt;
+            @Override
+	    public void notify(RemoteEvent evt) throws UnknownEventException,
+                    java.rmi.RemoteException {
+                if (!(evt instanceof ServiceEvent)) throw 
+                    new UnknownEventException("ServiceEvent required,not: " 
+                            + evt.toString());
+                eventQueue.offer(evt);
+                ServiceEvent theEvent = null;
+                try {
+                    Thread.sleep(200L);
+                    theEvent = (ServiceEvent) eventQueue.poll();
+                } catch (InterruptedException ex) {
+                    // Restore Interrupt.
+                    Thread.currentThread().interrupt();
+                    if (theEvent == null) throw new RemoteException(
+                        "RemoteEventListener interrupted while processing event"
+                    );
+                }
 		notifyServiceMap( theEvent.getSource(),
 				  theEvent.getID(),
 				  theEvent.getSequenceNumber(),
 				  theEvent.getServiceID(),
 				  theEvent.getServiceItem(),
 				  theEvent.getTransition() );
-	    }//end notify
-
+	    }
             /** Returns a <code>TrustVerifier</code> which can be used to
              *  verify that a given proxy to this listener can be trusted.
              */

@@ -499,6 +499,7 @@ public abstract class AbstractILFactory implements InvocationLayerFactory {
      * <p>A subclass should override this method if it adds instance state
      * that affects equality.
      **/
+    @Override
     public boolean equals(Object obj) {
 	return (obj == this ||
 		(obj != null &&

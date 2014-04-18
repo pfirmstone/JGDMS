@@ -41,6 +41,7 @@ import java.rmi.StubNotFoundException;
 import java.rmi.NoSuchObjectException;
 import java.util.Vector;
 import java.io.IOException;
+import java.util.List;
 
 /** This class is used to verify that after using templates containing only 
  *  a service ID to request notification of MATCH_MATCH|MATCH_NOMATCH events,
@@ -61,11 +62,11 @@ public class NotifyOnAttrMod extends QATestRegistrar {
         /** Method called remotely by lookup to handle the generated event. */
         public void notify(RemoteEvent ev) {
             ServiceEvent srvcEvnt = (ServiceEvent)ev;
-            evntVec.addElement(srvcEvnt);
+            evntVec.add(srvcEvnt);
         }
     }
 
-    protected final Vector evntVec = new Vector();
+    protected final List<ServiceEvent> evntVec = new Vector<ServiceEvent>();
 
     private ServiceItem[] srvcItems ;
     private ServiceRegistration[] srvcRegs ;

@@ -42,6 +42,8 @@ import java.lang.reflect.InvocationTargetException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QATestEnvironment;
+import java.util.Collections;
+import java.util.List;
 
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -453,10 +455,12 @@ public class QATestUtils {
      *  have arrived. The test in this method depends on the semantics of 
      *  event-notification. That is, it will use the fact that if the events
      *  were generated for each service class in sequence (which they were),
-     *  then the events will arrive in the same sequence. This means we can
-     *  expect, when examining the event corresponding to index i, that the
-     *  serviceID returned in the ServiceEvent should correspond to the i_th
-     *  service registered. If it does not, then failure is declared.
+     *  although the events may arrive out of order, they can be arranged
+     *  back into the same sequence using RemoteEventComparator. 
+     *  This means we can expect, when examining the event corresponding 
+     *  to index i, that the serviceID returned in the ServiceEvent should 
+     *  correspond to the i_th service registered. If it does not,
+     *  remote events are missing and failure is declared.
      *
      *  This method is currently employed by the following test classes:
      *
@@ -465,36 +469,37 @@ public class QATestUtils {
      *                  NotifyOnAttrDel
      *                  NotifyOnSrvcLeaseExpiration
      *
-     *  @param eventVector vector containing the events to test
+     *  @param events vector containing the events to test
      *  @param nExpectedEvnts number of events expected
      *  @param expectedTransition the expected event transition
      *  @param serviceRegs array of ServiceRegistrations of each service
      *  @exception TestException usually indicates a failure
      */
-    public static void verifyEventVector(Vector eventVector,
+    public static void verifyEventVector(List<ServiceEvent> events,
                                          int nExpectedEvnts,
                                          int expectedTransition,
                                          ServiceRegistration[] serviceRegs)
                                                          throws Exception
     {
         ServiceEvent evnt = null;
-        if (eventVector.size() != nExpectedEvnts) {
+        if (events.size() != nExpectedEvnts) {
             throw new TestException("# of Events Received ("+
-                                             eventVector.size()+
+                                             events.size()+
                                              ") != # of Events Expected ("+
                                              nExpectedEvnts+")");
 	} else {
+            Collections.sort(events, new RemoteEventComparator());
             ServiceID evntSrvcID;
             ServiceID expdSrvcID;
             ServiceID handbackSrvcID;
-	    for(int i=0; i<eventVector.size(); i++) {
-                evnt = (ServiceEvent)eventVector.elementAt(i);
+	    for(int i=0; i<events.size(); i++) {
+                evnt = (ServiceEvent)events.get(i);
                 if (evnt == null) {
                     throw new TestException
                              ("null Event returned from Vector at element "+i);
 	   	} else {
                     if (evnt.getTransition() != expectedTransition) {
-			dumpEventIDs(eventVector, serviceRegs);
+			dumpEventIDs(events, serviceRegs);
                         throw new TestException("Unexpected Transition returned ("+
 						evnt.getTransition()+")");
 		    } else {
@@ -521,18 +526,18 @@ public class QATestUtils {
 		}
 	    }
 	}
-	verifyEventItems(eventVector);
+	verifyEventItems(events);
     }
 
-    public static void dumpEventIDs(Vector eventVector,
+    public static void dumpEventIDs(List<ServiceEvent> events,
                                     ServiceRegistration[] serviceRegs)
     {
         ServiceEvent evnt = null;
 	ServiceID evntSrvcID;
 	ServiceID expdSrvcID;
 	ServiceID handbackSrvcID;
-	for(int i=0; i<eventVector.size(); i++) {
-	    evnt = (ServiceEvent)eventVector.elementAt(i);
+	for(int i=0; i<events.size(); i++) {
+	    evnt = (ServiceEvent)events.get(i);
 	    evntSrvcID = evnt.getServiceID();
 	    expdSrvcID = serviceRegs[i].getServiceID();
 	    System.out.println("Expected ID = " + expdSrvcID + ", received ID = " + evntSrvcID);
@@ -549,23 +554,24 @@ public class QATestUtils {
      *  event with the same service ID, as that means the state of
      *  the item recorded in the event was subsequently changed again.
      *
-     *  @param eventVector vector containing the events to test
+     *  @param events List containing the events to test
      *  @exception TestException usually indicates a failure
      */
-    public static void verifyEventItems(Vector eventVector)
+    public static void verifyEventItems(List<ServiceEvent> events)
 	throws Exception
     {
-	ServiceTemplate tmpl = new ServiceTemplate(null, null, null);
+        Collections.sort(events, new RemoteEventComparator());
+	ServiceTemplate tmpl;
     outer:
-	for (int i = 0; i < eventVector.size(); i++) {
-	    ServiceEvent evnt = (ServiceEvent)eventVector.elementAt(i);
-	    for (int j = i + 1; j < eventVector.size(); j++) {
-		ServiceEvent oevnt = (ServiceEvent)eventVector.elementAt(j);
+	for (int i = 0; i < events.size(); i++) {
+	    ServiceEvent evnt = (ServiceEvent)events.get(i);
+	    for (int j = i + 1; j < events.size(); j++) {
+		ServiceEvent oevnt = (ServiceEvent)events.get(j);
 		if (evnt.getServiceID().equals(oevnt.getServiceID()))
 		    continue outer;
 	    }
 	    ServiceItem item = evnt.getServiceItem();
-	    tmpl.serviceID = evnt.getServiceID();
+	    tmpl = new ServiceTemplate(evnt.getServiceID(), null, null);
 	    ServiceRegistrar proxy = (ServiceRegistrar)evnt.getSource();
 	    proxy = (ServiceRegistrar) 
 		    QAConfig.getConfig().prepare("test.reggiePreparer",
@@ -1189,14 +1195,12 @@ public class QATestUtils {
                                          ServiceTemplate[][] template,
                                          SrvcAttrTuple[][][] preEventState,
                                          SrvcAttrTuple[][][] postEventState,
-                                         Vector tuples)
+                                         List tuples)
                                                         throws Exception
     {
         int i=0;
         int j=0;
-        int n=0;
-        SrvcAttrTuple tmplTuple;
-        Vector srvcSupers = new Vector();
+        SrvcAttrTuple tmplTuple;;
 	int s0 = getSrvcIndx(srvcObj,srvcItems);
 	int nAttrs = preEventState[0].length;
 	int trans;
@@ -1222,7 +1226,7 @@ public class QATestUtils {
 				    (postEventState[s0][j][i]);
 				newSrvcIndx = ((s0/nSrvcsPerClass)*nSrvcsPerClass)
 				    -(nSrvcsPerClass*i);
-				tuples.addElement(new SrvcAttrTuple
+				tuples.add(new SrvcAttrTuple
 				    (srvcsForEquals,attrs,
 				     srvcItems[newSrvcIndx].service,
 				     attrs[j][0],
@@ -1242,7 +1246,7 @@ public class QATestUtils {
 				newSrvcIndx = ((s0/nSrvcsPerClass)*nSrvcsPerClass)
 				    -(nSrvcsPerClass*i);
 
-				tuples.addElement(new SrvcAttrTuple
+				tuples.add(new SrvcAttrTuple
 				    (srvcsForEquals,attrs,
 				     srvcItems[newSrvcIndx].service,
 				     attrs[j][0],
@@ -1271,7 +1275,7 @@ public class QATestUtils {
 				    newSrvcIndx =((s0/nSrvcsPerClass)*nSrvcsPerClass)
 					-(nSrvcsPerClass*i);
 
-				    tuples.addElement(new SrvcAttrTuple
+				    tuples.add(new SrvcAttrTuple
 					(srvcsForEquals,attrs,
 					 srvcItems[newSrvcIndx].service,
 					 attrs[j][0],
@@ -1323,7 +1327,7 @@ public class QATestUtils {
                                          Entry[][] attrs,
                                          ServiceTemplate[] template,
                                          SrvcAttrTuple[][][] state,
-                                         Vector tuples)
+                                         List tuples)
                                                         throws Exception
     {
         int trans = ServiceRegistrar.TRANSITION_NOMATCH_MATCH;
@@ -1335,7 +1339,7 @@ public class QATestUtils {
                     Object stateAttr = (state[i][j][0]).getAttrObj();
                     if (stateAttr != null) {
                         if (attrsMatch(stateAttr,tmplAttr,true)) {
-                            tuples.addElement(new SrvcAttrTuple
+                            tuples.add(new SrvcAttrTuple
                                                (srvcsForEquals,attrs,
                                                 (state[i][j][0]).getSrvcObj(),
                                                 stateAttr,
@@ -1356,7 +1360,7 @@ public class QATestUtils {
      *  @param showTime true/false: write elapsed time to standard output
      *  @exception TestException usually indicates a failure
      */
-    public static void verifyEventTuples(Vector receivedTuples, Vector expectedTuples, long maxWaitTime, boolean showTime, Object lock)
+    public static void verifyEventTuples(List receivedTuples, List expectedTuples, long maxWaitTime, boolean showTime, Object lock)
                                                          throws Exception
     {
         int i,j;
@@ -1602,8 +1606,8 @@ public class QATestUtils {
      *  set of received events (this method is shared by the overloaded 
      *  versions of the method verifyEventTuples)
      */
-    private static void verifyEventTupleContent(Vector  receivedTuples,
-                                                Vector  expectedTuples)
+    private static void verifyEventTupleContent(List  receivedTuples,
+                                                List  expectedTuples)
                                                          throws Exception
     {
         int i,j;
@@ -1615,7 +1619,7 @@ public class QATestUtils {
              */
            for(j=0;j<expectedTuples.size();j++) {
                 if((receivedTuples.get(i)).equals(expectedTuples.get(j))) {
-                    expectedTuples.removeElementAt(j);
+                    expectedTuples.remove(j);
                     continue iLoop;
 		}
 	    }

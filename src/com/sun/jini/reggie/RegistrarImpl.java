@@ -17,7 +17,6 @@
  */
 package com.sun.jini.reggie;
 
-import com.sun.jini.action.GetPropertyAction;
 import com.sun.jini.config.Config;
 import com.sun.jini.constants.ThrowableConstants;
 import com.sun.jini.constants.VersionConstants;
@@ -148,7 +147,6 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
-import org.apache.river.api.net.Uri;
 import org.apache.river.api.util.Startable;
 import org.apache.river.impl.thread.NamedThreadFactory;
 import org.apache.river.impl.thread.SynchronousExecutors;
@@ -397,9 +395,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     private final long unexportWait;
     /** Client subject checker to apply to unicast discovery attempts */
     private final ClientSubjectChecker unicastDiscoverySubjectChecker;
-
-    /** Lock protecting startup and shutdown */
-    //private final ReadyState ready = new ReadyState();
     
     // Not required after start is called.
     private String unicastDiscoveryHost;
@@ -4960,7 +4955,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 "eventNotifierExecutor",
                 ScheduledExecutorService.class, 
                 new ScheduledThreadPoolExecutor(
-                    1,
+                    poolSizeLimit,
                     new NamedThreadFactory("Reggie_Event_Notifier", true)   
                 )
             );
