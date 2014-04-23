@@ -227,11 +227,11 @@ public class ClassDepend {
 	ClassLoader parent = system.getParent();
 	loader = (systemClasspath.equals(classpath))
 	    ? system
-	    : new RFC3986URLClassLoader(getClasspathURLs(classpath), parent);
+	    : new URLClassLoader(getClasspathURLs(classpath), parent);
 	packageClasses = new PackageClasses(classpath);
 	platformLoader = (platform == null)
 	    ? parent
-	    : new RFC3986URLClassLoader(getClasspathURLs(platform), parent);
+	    : new URLClassLoader(getClasspathURLs(platform), parent);
         //System.out.println(platformLoader.toString());
     }
 
