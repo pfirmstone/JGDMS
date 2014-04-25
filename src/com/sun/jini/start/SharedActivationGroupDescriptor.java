@@ -41,6 +41,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Logger;
 import java.util.Properties;
+import net.jini.io.MarshalledInstance;
 
 /**
  * Class used to create a shared activation group. 
@@ -402,7 +403,7 @@ public class SharedActivationGroupDescriptor
             oos = new ObjectOutputStream(
                 new BufferedOutputStream(
                     new FileOutputStream(cookieFile)));
-            oos.writeObject(new MarshalledObject(obj));
+            oos.writeObject(new MarshalledInstance(obj).convertToMarshalledObject());
             oos.flush();
 //TODO - file sync?
 	} catch (IOException e) {
@@ -436,7 +437,7 @@ public class SharedActivationGroupDescriptor
                       new BufferedInputStream(
                          new FileInputStream(cookieFile)));
             MarshalledObject mo = (MarshalledObject)ois.readObject();
-	    obj = (ActivationGroupID)mo.get();
+	    obj = (ActivationGroupID) new MarshalledInstance(mo).get(false);
         } finally {
             if (ois != null) ois.close();
         }

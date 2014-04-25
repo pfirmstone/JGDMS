@@ -55,6 +55,7 @@ import com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -204,7 +205,7 @@ public class LoadProxyClassesClassNotFoundException extends AbstractTestBase {
          * 2) ten times do the following:
          * - get name of non-existent interface via
          *   Util.getRandomInterface()
-         * - invoke RMIClassLoader.loadProxyClass method passing:
+         * - invoke ClassLoading.loadProxyClass method passing:
          *   codebase - string representation of url to qa1-loader-pref.jar
          *              file
          *   interfaces - string array of non-existent interface name (so
@@ -218,12 +219,12 @@ public class LoadProxyClassesClassNotFoundException extends AbstractTestBase {
             String[] in = { name };
 
             try {
-                classLoaded = RMIClassLoader.loadProxyClass(cb, in, parent);
+                classLoaded = ClassLoading.loadProxyClass(cb, in, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Expect ClassNotFoundException
                 String msg = ""
-                           + "\nRMIClassLoader.loadProxyClass(" + cb + ", "
-                           + in[0] + ", defaultLoader)\n"
+                           + "\nClassLoading.loadProxyClass(" + cb + ", "
+                           + in[0] + ", defaultLoader, false, null)\n"
                            + "  throws " + e.toString() + " as expected";
                 logger.log(Level.FINE, msg);
                 continue;
@@ -231,14 +232,14 @@ public class LoadProxyClassesClassNotFoundException extends AbstractTestBase {
                 // Do not expect MalformedURLException.
                 // Tests case with expected MalformedURLException
                 // is LoadProxyClassesMalformedURLException
-                message += "\nRMIClassLoader.loadProxyClass(" + cb + ", "
-                         + in[0] + ", defaultLoader)\n"
+                message += "\nClassLoading.loadProxyClass(" + cb + ", "
+                         + in[0] + ", defaultLoader, false, null)\n"
                          + "  throws: " + me.toString() + "\n"
                          + "  expected: ClassNotFoundException";
                 break;
             }
-            message += "\nRMIClassLoader.loadProxyClass(" + cb + ", "
-                     + in[0] + ", defaultLoader)\n"
+            message += "\nClassLoader.loadProxyClass(" + cb + ", "
+                     + in[0] + ", defaultLoader, false, null)\n"
                      + "  returns: " + classLoaded.toString() + "\n"
                      + "  expected: ClassNotFoundException";
             break;

@@ -36,6 +36,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.io.MarshalledInstance;
 
 /**
  * Class used to launch shared, activatable services. 
@@ -614,7 +615,7 @@ public class SharedActivatableServiceDescriptor
         try {
             /* Create the ActivateWrapper descriptor for the desired service */
             MarshalledObject params = 
-	        new MarshalledObject(getServerConfigArgs());
+	        new MarshalledInstance(getServerConfigArgs()).convertToMarshalledObject();
             ActivateWrapper.ActivateDesc adesc =
                 new ActivateWrapper.ActivateDesc(
                     getImplClassName(),

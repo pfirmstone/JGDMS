@@ -6,6 +6,6 @@ loader.requireDlPerm=true
 loader.annotator=true
 loader.classAnnotator=QATestClassAnnotation
 loader.codebase="Any_invalid_url"
-testjvmargs=-Djava.rmi.server.RMIClassLoaderSpi=com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider
+testjvmargs=-Dnet.jini.loader.ClassLoading.provider=com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider
 com.sun.jini.qa.harness.runkitserver=false 
 com.sun.jini.qa.harness.runjiniserver=false

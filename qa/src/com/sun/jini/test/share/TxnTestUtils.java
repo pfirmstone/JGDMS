@@ -18,17 +18,13 @@
 
 package com.sun.jini.test.share;
 
-import com.sun.jini.mahalo.*;
-import net.jini.core.lease.*;
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
- 
-import java.io.*;
-import java.rmi.*;
-import java.util.*;
+import java.rmi.RemoteException;
+import java.util.Random;
+import net.jini.core.transaction.Transaction;
+import net.jini.core.transaction.TransactionException;
 
 public class TxnTestUtils {
-    private static final boolean DEBUG = true;
+    private static final boolean DEBUG = false;
 
     public static TestParticipant[] createParticipants(int howMany)
 	throws RemoteException
@@ -56,7 +52,8 @@ public class TxnTestUtils {
     public static void setBulkBehavior(int how, TestParticipant[] parts)
 	throws RemoteException
     {
-	for (int i = 0; i < parts.length; i++) {
+        int l = parts.length;
+	for (int i = 0; i < l; i++) {
 	    parts[i].setBehavior(how);
 	}
     }
@@ -65,7 +62,8 @@ public class TxnTestUtils {
 					TestParticipant[] parts)
 	throws RemoteException, TransactionException
     {
-	for (int i = 0; i < parts.length; i++) {
+        int l = parts.length;
+	for (int i = 0; i < l; i++) {
 	    if (DEBUG) {
 		System.out.println("TxnTestUtils: doBulkBehavior: instructing" +
 				    "Participant(" + (i+1) + ")" );

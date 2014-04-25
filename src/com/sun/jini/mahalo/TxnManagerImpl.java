@@ -104,6 +104,7 @@ import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
+import net.jini.io.MarshalledInstance;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -252,7 +253,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         // data.get IOException and ClassNotFoundException are safe from 
         // finalizer attack, because it happens
         // before implicit call to super() Object.
-        this((String[])data.get(), activationID, true, new Object[] {activationID, data} );
+        this((String[]) new MarshalledInstance(data).get(false), activationID, true, new Object[] {activationID, data} );
     }
     
 

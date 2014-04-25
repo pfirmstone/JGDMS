@@ -17,3 +17,4 @@
 #*/
 
 net.jini.loader.pref.PreferredClassProvider
+net.jini.loader.pref.RequireDlPermProvider

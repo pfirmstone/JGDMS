@@ -52,6 +52,7 @@ import com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -233,11 +234,13 @@ public class LoadClasses extends AbstractTestBase {
         /*
          * 2) for each preferred/non-preferred class do the following:
          *    - invoke Class.forName method passing system class loader,
-         *    - invoke RMIClassLoader.loadClass method passing:
+         *    - invoke ClassLoading.loadClass method passing:
          *        codebase - string representation of url to
          *                   qa1-loader-pref.jar
          *        name - name of preferred/non-preferred class
          *        parent - ClassLoader.getSystemClassLoader()
+         *        verifyCodebaseIntegrity - false
+         *        verifierLoader - null
          *    - verify that returned classes are equals for non-preferred
          *      classes and are not equals for preferred classes.
          */
@@ -249,13 +252,13 @@ public class LoadClasses extends AbstractTestBase {
 
             try {
                 classDefault = Class.forName(name, false, parent);
-                classPreferred = RMIClassLoader.loadClass(cb, name, parent);
+                classPreferred = ClassLoading.loadClass(cb, name, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
                 // Tests case with expected ClassNotFoundException
                 // is LoadClassesClassNotFoundException
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: " + (pref ? str1 : str2);
                 throw new TestException(message);
@@ -263,8 +266,8 @@ public class LoadClasses extends AbstractTestBase {
                 // Do not expect MalformedURLException.
                 // Tests case with expected MalformedURLException
                 // is LoadClassesMalformedURLException
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + me.toString() + "\n"
                          + "  expected: " + (pref ? str1 : str2);
                 throw new TestException(message);
@@ -282,15 +285,15 @@ public class LoadClasses extends AbstractTestBase {
             boolean returned = classDefault.equals(classPreferred);
 
             if (expected != returned) {
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "\nClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  returned: " + (expected ? str1 : str2) + "\n"
                          + "  expected: " + (expected ? str2 : str1);
                 throw new TestException(message);
             } else {
                 String msg = ""
-                           + "RMIClassLoader.loadClass(" + cb + ", "
-                           + name + ", defaultLoader)\n"
+                           + "ClassLoading.loadClass(" + cb + ", "
+                           + name + ", defaultLoader, false, null)\n"
                            + "  returned " + (expected ? str2 : str1)
                            + "  as expected";
                 logger.log(Level.FINE, msg);
@@ -307,6 +310,8 @@ public class LoadClasses extends AbstractTestBase {
          *                       qa1-loader-pref.jar
          *            name - name of class
          *            parent - ClassLoader.getSystemClassLoader()
+         *            verifyCodebaseIntegrity - false
+         *            verifierLoader - null
          *       - verify that returned classes are equals for all classes
          */
         for (int item = 0; item < Util.listLocalClasses.length; item++) {
@@ -316,13 +321,13 @@ public class LoadClasses extends AbstractTestBase {
 
             try {
                 classDefault = Class.forName(name, false, parent);
-                classPreferred = RMIClassLoader.loadClass(cb, name, parent);
+                classPreferred = ClassLoading.loadClass(cb, name, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
                 // Tests case with expected ClassNotFoundException
                 // is LoadClassesClassNotFoundException
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: returned class";
                 throw new TestException(message);
@@ -330,8 +335,8 @@ public class LoadClasses extends AbstractTestBase {
                 // Do not expect MalformedURLException.
                 // Tests case with expected MalformedURLException
                 // is LoadClassesMalformedURLException
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + me.toString() + "\n"
                          + "  expected: returned class";
                 throw new TestException(message);
@@ -348,15 +353,15 @@ public class LoadClasses extends AbstractTestBase {
             boolean returned = classDefault.equals(classPreferred);
 
             if (!returned) {
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "\nClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  returned:" + str1 + "\n"
                          + "  expected:" + str2;
                 throw new TestException(message);
             } else {
                 String msg = ""
-                           + "RMIClassLoader.loadClass(" + cb + ", "
-                           + name + ", defaultLoader)\n"
+                           + "ClassLoading.loadClass(" + cb + ", "
+                           + name + ", defaultLoader, false, null)\n"
                            + "  returned " + str2
                            + "  as expected";
                 logger.log(Level.FINE, msg);

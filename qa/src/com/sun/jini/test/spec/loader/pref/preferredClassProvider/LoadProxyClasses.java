@@ -55,6 +55,7 @@ import com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -220,7 +221,7 @@ public class LoadProxyClasses extends AbstractTestBase {
 
         /*
          * 2) for each interface do the following:
-         *   - invoke RMIClassLoader.loadClass method passing:
+         *   - invoke ClassLoading.loadClass method passing:
          *     codebase - string representation of url to
          *                qa1-loader-pref.jar file
          *     name - name of interface
@@ -231,11 +232,11 @@ public class LoadProxyClasses extends AbstractTestBase {
          *     interfaces - string array of interface name (so that this
          *                  array has one element)
          *     defaultLoader - ClassLoader.getSystemClassLoader()
-         *   - verify that RMIClassLoader.loadProxyClass returns proxy class
-         *   - verify that class returned by RMIClassLoader.loadClass
+         *   - verify that ClassLoading.loadProxyClass returns proxy class
+         *   - verify that class returned by ClassLoading.loadClass
          *     method is assignable from class returned by
-         *     RMIClassLoader.loadProxyClass method
-         *   - verify that class returned by RMIClassLoader.loadProxyClass
+         *     ClassLoading.loadProxyClass method
+         *   - verify that class returned by ClassLoading.loadProxyClass
          *     has a PreferredClassLoader as class loader.
          */
         for (int item = 0; item < Util.listInterfaces.length; item++) {
@@ -245,38 +246,38 @@ public class LoadProxyClasses extends AbstractTestBase {
             String[] in = { name };
 
             try {
-                classDefault = RMIClassLoader.loadClass(cb, name, parent);
+                classDefault = ClassLoading.loadClass(cb, name, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "\nClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: " + name + " interface";
                 break;
             } catch (MalformedURLException me) {
                 // Do not expect MalformedURLException.
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "\nClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + me.toString() + "\n"
                          + "  expected: " + name + " interface";
                 break;
             } catch (SecurityException se) {
                 // Do not expect SecurityException.
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "\nClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + se.toString() + "\n"
                          + "  expected: " + name + " interface";
                 break;
             }
 
             try {
-                classLoaded = RMIClassLoader.loadProxyClass(cb, in, parent);
+                classLoaded = ClassLoading.loadProxyClass(cb, in, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
                 // Tests case with expected ClassNotFoundException
                 // is LoadProxyClassesClassNotFoundException
-                message += "\nRMIClassLoader.loadProxyClass(" + cb + ", "
-                         + in[0] + ", defaultLoader)\n"
+                message += "\nClassLoading.loadProxyClass(" + cb + ", "
+                         + in[0] + ", defaultLoader, false, null)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: proxy class";
                 break;
@@ -284,15 +285,15 @@ public class LoadProxyClasses extends AbstractTestBase {
                 // Do not expect MalformedURLException.
                 // Tests case with expected MalformedURLException
                 // is LoadProxyClassesMalformedURLException
-                message += "\nRMIClassLoader.loadProxyClass(" + cb + ", "
-                         + in[0] + ", defaultLoader)\n"
+                message += "\nClassLoading.loadProxyClass(" + cb + ", "
+                         + in[0] + ", defaultLoader, false, null)\n"
                          + "  throws: " + me.toString() + "\n"
                          + "  expected: proxy class";
                 break;
             } catch (SecurityException se) {
                 // Do not expect SecurityException.
-                message += "\nRMIClassLoader.loadProxyClass(" + cb + ", "
-                         + in[0] + ", defaultLoader)\n"
+                message += "\nClassLoading.loadProxyClass(" + cb + ", "
+                         + in[0] + ", defaultLoader, false, null)\n"
                          + "  throws: " + se.toString() + "\n"
                          + "  expected: proxy class";
                 break;
@@ -300,26 +301,26 @@ public class LoadProxyClasses extends AbstractTestBase {
             ClassLoader proxyLoader = classLoaded.getClassLoader();
 
             if (!Proxy.isProxyClass(classLoaded)) {
-                message += "\nRMIClassLoader.loadProxyClass(" + cb + ", "
-                         + in[0] + ", defaultLoader)\n"
+                message += "\nClassLoading.loadProxyClass(" + cb + ", "
+                         + in[0] + ", defaultLoader, false, null)\n"
                          + "  returned non-proxy class";
                 break;
             } else if (!classDefault.isAssignableFrom(classLoaded)) {
-                message += "\nRMIClassLoader.loadProxyClass(" + cb + ", "
-                         + in[0] + ", defaultLoader)\n"
+                message += "\nClassLoading.loadProxyClass(" + cb + ", "
+                         + in[0] + ", defaultLoader, false, null)\n"
                          + "  returned non-assignable class";
                 break;
             } else if (!(proxyLoader instanceof PreferredClassLoader)) {
-                message += "\nRMIClassLoader.loadProxyClass(" + cb + ", "
-                         + in[0] + ", defaultLoader)\n"
+                message += "\nClassLoading.loadProxyClass(" + cb + ", "
+                         + in[0] + ", defaultLoader, false, null)\n"
                          + "  has incorrect class loader: "
                          + proxyLoader.toString();
                 break;
             } else {
                 // classDefault is assignable from classLoaded
                 String msg = ""
-                           + "RMIClassLoader.loadProxyClass(" + cb + ", "
-                           + in[0] + ", defaultLoader)\n returned"
+                           + "ClassLoading.loadProxyClass(" + cb + ", "
+                           + in[0] + ", defaultLoader, false, null)\n returned"
                            + " assignable proxy class as expected\n";
                 logger.log(Level.FINE, msg);
             }

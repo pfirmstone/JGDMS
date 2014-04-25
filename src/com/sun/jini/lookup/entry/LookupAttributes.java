@@ -22,11 +22,11 @@ import net.jini.core.entry.Entry;
 import net.jini.lookup.entry.ServiceControlled;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.rmi.MarshalledObject;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.Arrays;
 import java.util.Comparator;
+import net.jini.io.MarshalledInstance;
 
 /**
  * Some simple utilities for manipulating lookup service attributes.
@@ -73,7 +73,7 @@ public class LookupAttributes {
      * arrays are not modified.
      * <p>
      * Note that attribute equality is defined in terms of 
-     * <code>MarshalledObject.equals</code> on field values.  The 
+     * <code>MarshalledInstance.equals</code> on field values.  The 
      * parameter arrays are not modified.
      * <p>
      * If the <code>checkSC</code> parameter is <code>true</code>,
@@ -329,7 +329,7 @@ public class LookupAttributes {
 
     /** 
      * Returns <code>true</code> if the two input objects are the same in
-     * <code>MarshalledObject</code> form, <code>false</code> otherwise.
+     * <code>MarshalledInstance</code> form, <code>false</code> otherwise.
      */
     private static boolean equal(Object o1, Object o2) {
 	if (o1 == o2)
@@ -348,7 +348,7 @@ public class LookupAttributes {
 	    c == Short.class)
 	    return o1.equals(o2);
 	try {
-	    return new MarshalledObject(o1).equals(new MarshalledObject(o2));
+	    return new MarshalledInstance(o1).equals(new MarshalledInstance(o2));
 	} catch (IOException ex) {
 	    throw new IllegalArgumentException("unexpected IOException");
 	}

@@ -21,6 +21,7 @@ package com.sun.jini.reggie;
 import com.sun.jini.start.LifeCycle;
 import java.rmi.MarshalledObject;
 import java.rmi.activation.ActivationID;
+import net.jini.io.MarshalledInstance;
 
 /**
  * Class for starting activatable and non-activatable persistent lookup
@@ -49,6 +50,6 @@ public class PersistentRegistrarImpl extends RegistrarImpl {
     PersistentRegistrarImpl(ActivationID activationID, MarshalledObject data)
 	throws Exception
     {
-	super((String[]) data.get(), activationID, true, null);
+	super((String[]) new MarshalledInstance(data).get(false), activationID, true, null);
     }
 }

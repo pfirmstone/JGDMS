@@ -25,6 +25,7 @@ import java.rmi.activation.ActivationGroupID;
 import java.rmi.server.RMIClassLoader;
 import java.util.Collections;
 import net.jini.io.MarshalInputStream;
+import net.jini.loader.ClassLoading;
 
 /**
  * This is the bootstrap code to start a virtual machine (VM) executing an
@@ -70,8 +71,8 @@ class ActivationGroupInit {
 	    ActivationGroupID id  = (ActivationGroupID)in.readObject();
 	    ActivationGroupDesc desc = (ActivationGroupDesc)in.readObject();
 	    long incarnation = in.readLong();
-	    Class cl = RMIClassLoader.loadClass(desc.getLocation(),
-						desc.getClassName());
+	    Class cl = ClassLoading.loadClass(desc.getLocation(),
+						desc.getClassName(), null, false, null);
 	    try {
 		Method create =
 		    cl.getMethod("createGroup",

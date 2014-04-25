@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.io.ObjectInputStream;
 import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEvent;
+import net.jini.io.MarshalledInstance;
 
 /**
  * This class provides the methods for reading <tt>RemoteEvent</tt>s from 
@@ -152,7 +153,7 @@ class EventReader {
 	    // Retrieve next event which was stored as a 
 	    // MarshalledObject and return its contents.
 	    MarshalledObject mo = (MarshalledObject)ein.readObject();
-	    return (RemoteEvent) mo.get();
+	    return (RemoteEvent) new MarshalledInstance(mo).get(false);
 	} finally {
 	    // Reset target stream to null
 	    sin.setInputStream(null);

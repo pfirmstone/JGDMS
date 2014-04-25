@@ -43,6 +43,7 @@ import net.jini.config.ConfigurationProvider;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.io.MarshalledInstance;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -235,7 +236,7 @@ public class SharedGroupImpl implements Remote,
         try {
             logger.entering(SharedGroupImpl.class.getName(), "SharedGroupImpl", 
                 new Object[] { activationID, data}); 
-            String[] configArgs = (String[])data.get();	
+            String[] configArgs = (String[]) new MarshalledInstance(data).get(false);	
             Configuration config = ConfigurationProvider.getInstance(configArgs);
             loginContext = (LoginContext) config.getEntry(
                 START_PACKAGE, "loginContext", LoginContext.class, null);

@@ -51,6 +51,7 @@ import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
+import net.jini.io.MarshalledInstance;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages
@@ -727,7 +728,8 @@ class JoinStateManager extends LogHandler {
          
         out.writeInt(attributes.length);
         for (int i=0; i<attributes.length; i++) {
-            out.writeObject(new MarshalledObject(attributes[i]));
+            out.writeObject(
+                new MarshalledInstance(attributes[i]).convertToMarshalledObject());
 	}
     }
  
@@ -751,7 +753,7 @@ class JoinStateManager extends LogHandler {
         for (int i=0; i<objectCount; i++) {
             try {
                 MarshalledObject mo = (MarshalledObject)in.readObject();
-                entries.add(mo.get());
+                entries.add(new MarshalledInstance(mo).get(false));
             } catch (IOException e) {
                 if(initlogger.isLoggable(Levels.HANDLED)) {
 	            initlogger.log(Levels.HANDLED, 

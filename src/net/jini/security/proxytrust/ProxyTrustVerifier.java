@@ -46,6 +46,7 @@ import net.jini.core.constraint.MethodConstraints;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.io.MarshalInputStream;
 import net.jini.io.ObjectStreamContext;
+import net.jini.loader.ClassLoading;
 import net.jini.security.SecurityContext;
 import net.jini.security.TrustVerifier;
 
@@ -513,7 +514,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	    return null;
 	}
 	final Class base = obj.getClass();
-	final String bcb = RMIClassLoader.getClassAnnotation(base);
+	final String bcb = ClassLoading.getClassAnnotation(base);
 	if (bcb == null || bcb.length() == 0) {
 	    return null;
 	}
@@ -530,7 +531,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 		    boolean proper = false;
 		    try {
 			t.setContextClassLoader(pcl);
-			proper = (RMIClassLoader.getClassLoader(bcb) == bcl);
+			proper = (ClassLoading.getClassLoader(bcb) == bcl);
 		    } catch (MalformedURLException e) {
 		    } finally {
 			t.setContextClassLoader(ccl);
@@ -631,7 +632,7 @@ public class ProxyTrustVerifier implements TrustVerifier {
 	}
 
 	private void writeAnnotation(final Class c) throws IOException {
-	    String cb = RMIClassLoader.getClassAnnotation(c);
+	    String cb = ClassLoading.getClassAnnotation(c);
 	    writeObject(cb);
 	    if (bcb.equals(cb)) {
 		AccessController.doPrivileged(new PrivilegedAction() {

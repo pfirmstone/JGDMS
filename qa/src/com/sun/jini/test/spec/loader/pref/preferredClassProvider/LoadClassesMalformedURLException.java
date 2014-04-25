@@ -52,6 +52,7 @@ import com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -190,7 +191,7 @@ import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
  *   for each preferred/non-preferred class do the following:
  *   <ol>
  *    <li>invoke Class.forName method passing system class loader</li>
- *    <li>invoke RMIClassLoader.loadClass method passing:</li>
+ *    <li>invoke ClassLoading.loadClass method passing:</li>
  *     <ul>
  *      <li>codebase - null or string that is set via properties file</li>
  *      <li>name - name of preferred/non-preferred class</li>
@@ -235,10 +236,12 @@ public class LoadClassesMalformedURLException extends AbstractTestBase {
 
         /*
          * 2) for each preferred/non-preferred class do the following:
-         *   - invoke RMIClassLoader.loadClass method passing:
+         *   - invoke ClassLoading.loadClass method passing:
          *     codebase - null or string that is set via properties file
          *     name - name of preferred/non-preferred class
          *     parent - ClassLoader.getSystemClassLoader()
+         *     verifyCodebaseIntegrity - false
+         *     verifierLoader - null
          *   - verify that MalformedURLException is thrown
          */
         for (int item = 0; item < Util.listClasses.length; item++) {
@@ -246,20 +249,20 @@ public class LoadClassesMalformedURLException extends AbstractTestBase {
             Class classPreferred = null;
 
             try {
-                classPreferred = RMIClassLoader.loadClass(cb, name, parent);
+                classPreferred = ClassLoading.loadClass(cb, name, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
                 // Tests case with expected ClassNotFoundException
                 // is LoadClassesClassNotFoundException
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "\nClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: MalformedURLException";
                 throw new TestException(message);
             } catch (MalformedURLException me) {
                 String msg = ""
-                           + "RMIClassLoader.loadClass(" + cb + ", "
-                           + name + ", defaultLoader)\n"
+                           + "ClassLoading.loadClass(" + cb + ", "
+                           + name + ", defaultLoader, false, null)\n"
                            + "  throws " + me.toString()
                            + "  as expected";
                 logger.log(Level.FINE, msg);
@@ -268,14 +271,14 @@ public class LoadClassesMalformedURLException extends AbstractTestBase {
                 // Do not expect SecurityException.
                 // Tests case with expected SecurityException
                 // is LoadClassesSecurityException
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "\nClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + sex.toString() + "\n"
                          + "  expected: MalformedURLException";
                 throw new TestException(message);
             }
-            message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                     + name + ", defaultLoader)\n"
+            message += "\nClassLoading.loadClass(" + cb + ", "
+                     + name + ", defaultLoader, false, null)\n"
                      + "  returned: " + classPreferred.toString() + "\n"
                      + "  expected: MalformedURLException";
             throw new TestException(message);
@@ -294,20 +297,20 @@ public class LoadClassesMalformedURLException extends AbstractTestBase {
             Class classPreferred = null;
 
             try {
-                classPreferred = RMIClassLoader.loadClass(cb, name, null);
+                classPreferred = ClassLoading.loadClass(cb, name, null, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
                 // Tests case with expected ClassNotFoundException
                 // is LoadClassesClassNotFoundException
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", null)\n"
+                message += "\nClassLoading.loadClass(" + cb + ", "
+                         + name + ", null, false, null)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: MalformedURLException";
                 throw new TestException(message);
             } catch (MalformedURLException me) {
                 String msg = ""
-                           + "RMIClassLoader.loadClass(" + cb + ", "
-                           + name + ", null)\n"
+                           + "ClassLoading.loadClass(" + cb + ", "
+                           + name + ", null, false, null)\n"
                            + "  throws " + me.toString()
                            + "  as expected";
                 logger.log(Level.FINE, msg);
@@ -316,14 +319,14 @@ public class LoadClassesMalformedURLException extends AbstractTestBase {
                 // Do not expect SecurityException.
                 // Tests case with expected SecurityException
                 // is LoadClassesSecurityException
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", null)\n"
+                message += "\nClassLoader.loadClass(" + cb + ", "
+                         + name + ", null, false, null)\n"
                          + "  throws: " + se.toString() + "\n"
                          + "  expected: MalformedURLException";
                 throw new TestException(message);
             }
-            message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                     + name + ", null)\n"
+            message += "\nClassLoader.loadClass(" + cb + ", "
+                     + name + ", null, false, null)\n"
                      + "  returned: " + classPreferred.toString() + "\n"
                      + "  expected: MalformedURLException";
             throw new TestException(message);

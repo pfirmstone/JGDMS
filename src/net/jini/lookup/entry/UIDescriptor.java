@@ -24,6 +24,7 @@ import java.io.IOException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import com.artima.lookup.util.ConsistentSet;
+import net.jini.io.MarshalledInstance;
 
 /**
  * <CODE>Entry</CODE> that enables a UI for a service to be associated
@@ -163,7 +164,7 @@ public class UIDescriptor extends AbstractEntry {
         ClassLoader original = currentThread.getContextClassLoader();
         try {
             currentThread.setContextClassLoader(parentLoader);
-            uiFactory = factory.get();
+            uiFactory = new MarshalledInstance(factory).get(false);
         }
         finally {
             currentThread.setContextClassLoader(original);

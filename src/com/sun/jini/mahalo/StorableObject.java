@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
+import net.jini.io.MarshalledInstance;
 
 
 /**
@@ -56,7 +57,7 @@ public class StorableObject implements java.io.Serializable {
     
     private static MarshalledObject toMO(Object obj) throws RemoteException{
 	try {
-            return new MarshalledObject(obj);
+            return new MarshalledInstance(obj).convertToMarshalledObject();
         } catch (RemoteException e){
 	    throw e;
         } catch (IOException e){
@@ -98,7 +99,7 @@ public class StorableObject implements java.io.Serializable {
     public Object get() throws RemoteException {
 	try {
 	    if (obj == null)
-		obj = bytes.get();
+		obj = new MarshalledInstance(bytes).get(false);
 	    return obj;
 	} catch (RemoteException e) {
 	    if (DEBUG)

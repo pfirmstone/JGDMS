@@ -133,6 +133,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Condition;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.io.MarshalledInstance;
 
 /**
  * This class is the server side of an implementation of the lookup
@@ -440,7 +441,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                                               LoginException,
                                               ClassNotFoundException
     {
-            this(init( (String[])data.get(), true /* persistent */, activationID ), null);
+            this(init( (String[]) new MarshalledInstance(data).get(false), true /* persistent */, activationID ), null);
     }//end activatable constructor
 
     /**
@@ -731,7 +732,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                 /* It doesn't contain it, try to marshal it */
                 MarshalledObject mReg = null;
                 try {
-                    mReg = new MarshalledObject(reg);
+                    mReg = new MarshalledInstance(reg).convertToMarshalledObject();
                 } catch(IOException e) { continue nextReg; } //failed, next reg
                 /* Succeeded, map registrar to its marshalled form */
                 discoveredRegsMap.put(reg,mReg);
@@ -784,7 +785,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
          */
         private void writeObject(ObjectOutputStream stream) throws IOException{
             stream.defaultWriteObject();
-            stream.writeObject(new MarshalledObject(listener));
+            stream.writeObject(new MarshalledInstance(listener).convertToMarshalledObject());
         }//end writeObject
 
         /** When this class is deserialized, this method is invoked. This
@@ -798,7 +799,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
             stream.defaultReadObject();
             MarshalledObject mo = (MarshalledObject)stream.readObject();
             try {
-                listener = (RemoteEventListener)mo.get();
+                listener = (RemoteEventListener) new MarshalledInstance(mo).get(false);
             } catch (Throwable e) {
                 problemLogger.log(Level.INFO, "problem recovering listener "
                                   +"for recovered registration", e);
@@ -4679,13 +4680,14 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
                                                     Entry[] attrs)
     {
         if(attrs == null) return new MarshalledObject[0];
-        ArrayList marshalledAttrs = new ArrayList();
+        List<MarshalledObject> marshalledAttrs = new ArrayList<MarshalledObject>();
         for(int i=0;i<attrs.length;i++) {
             /* Do not let an attribute problem prevent the service from
              * continuing to operate
              */
             try {
-                marshalledAttrs.add(new MarshalledObject(attrs[i]));
+                marshalledAttrs.add(
+                    new MarshalledInstance(attrs[i]).convertToMarshalledObject());
             } catch(Throwable e) {
                 if( problemLogger.isLoggable(Level.INFO) ) {
                     problemLogger.log(Level.INFO,
@@ -4721,7 +4723,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
              * continuing to operate
              */
             try {
-                attrs.add( (Entry)( marshalledAttrs[i].get() ) );
+                attrs.add( (Entry)( new MarshalledInstance(marshalledAttrs[i]).get(false) ) );
             } catch(Throwable e) {
                 if( problemLogger.isLoggable(Level.INFO) ) {
                     problemLogger.log(Level.INFO,
@@ -7983,7 +7985,7 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
         Object hb = null;
         if(handback != null) {
             try {
-                hb = handback.get();
+                hb = new MarshalledInstance(handback).get(false);
             } catch (ClassNotFoundException e) {
                 problemLogger.log(Levels.HANDLED,
                                   "ClassNotFoundException when "

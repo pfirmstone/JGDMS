@@ -63,8 +63,10 @@ import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.export.Exporter;
 import net.jini.export.ProxyAccessor;
+import net.jini.io.MarshalledInstance;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
+import net.jini.loader.ClassLoading;
 import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
@@ -380,7 +382,8 @@ abstract class AbstractActivationGroup extends ActivationGroup
     private static Configuration getConfiguration(MarshalledObject mobj)
 	throws ConfigurationException, IOException, ClassNotFoundException
     {
-	ActivationGroupData data = (ActivationGroupData) mobj.get();
+	ActivationGroupData data = (ActivationGroupData) 
+                new MarshalledInstance(mobj).get(false);
 	ClassLoader cl = AbstractActivationGroup.class.getClassLoader();
 	ClassLoader ccl = Thread.currentThread().getContextClassLoader();
 	if (!covers(cl, ccl)) {
@@ -644,7 +647,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
      * <p>Otherwise:
      *
      * <p>The class for the object is loaded by invoking {@link
-     * RMIClassLoader#loadClass(String,String) RMIClassLoader.loadClass}
+     * ClassLoading#loadClass}
      * passing the class location (obtained by invoking {@link
      * ActivationDesc#getLocation getLocation} on the activation
      * descriptor) and the class name (obtained by invoking {@link
@@ -720,8 +723,8 @@ abstract class AbstractActivationGroup extends ActivationGroup
 	    }
 
 	    String className = desc.getClassName();
-	    final Class cl = RMIClassLoader.loadClass(desc.getLocation(),
-						      className);
+	    final Class cl = ClassLoading.loadClass(desc.getLocation(),
+						      className, null, false, null);
 	    final Thread t = Thread.currentThread();
 	    final ClassLoader savedCcl = t.getContextClassLoader();
 	    final ClassLoader ccl =
@@ -1147,7 +1150,8 @@ abstract class AbstractActivationGroup extends ActivationGroup
 		} else {
 		    proxy = impl;
 		}
-		this.mobj = new MarshalledObject(proxy);
+		this.mobj = 
+                    new MarshalledInstance(proxy).convertToMarshalledObject();
 	    } catch (IOException e) {
 		throw new ActivationException(
 		    "failed to marshal remote object", e);

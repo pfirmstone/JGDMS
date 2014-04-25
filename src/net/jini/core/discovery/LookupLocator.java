@@ -35,6 +35,7 @@ import java.security.PrivilegedAction;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.ConstrainableLookupLocator;
 import net.jini.discovery.LookupLocatorDiscovery;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.api.net.Uri;
 
 /**
@@ -362,7 +363,8 @@ public class LookupLocator implements Serializable {
 	    ObjectInputStream istr =
 		new ObjectInputStream(sock.getInputStream());
 	    ServiceRegistrar registrar =
-		(ServiceRegistrar)((MarshalledObject)istr.readObject()).get();
+		(ServiceRegistrar) new MarshalledInstance(
+                        (MarshalledObject)istr.readObject()).get(false);
 	    for (int grpCount = istr.readInt(); --grpCount >= 0; ) {
 		istr.readUTF(); // ensure proper format, then discard
 	    }

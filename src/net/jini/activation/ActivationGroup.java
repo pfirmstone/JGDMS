@@ -27,6 +27,7 @@ import java.rmi.server.RMIClassLoader;
 import java.security.PrivilegedExceptionAction;
 import java.security.PrivilegedActionException;
 import net.jini.export.Exporter;
+import net.jini.loader.ClassLoading;
 import net.jini.security.Security;
 
 /**
@@ -129,7 +130,7 @@ public abstract class ActivationGroup
 	    Class cl = (Class) Security.doPrivileged(
 		new PrivilegedExceptionAction() {
 		    public Object run() throws Exception {
-			return RMIClassLoader.loadClass(location, className);
+			return ClassLoading.loadClass(location, className, null, false, null);
 		    }
 	    });
 	    return ActivationGroup.class.isAssignableFrom(cl);

@@ -25,6 +25,7 @@ import java.rmi.activation.ActivationException;
 import javax.security.auth.login.LoginException;
 import net.jini.config.ConfigurationException;
 import com.sun.jini.start.LifeCycle;
+import net.jini.io.MarshalledInstance;
 
 /**
  * <code>OutriggerServerWrapper</code> subclass for
@@ -61,7 +62,7 @@ class PersistentOutriggerImpl extends OutriggerServerWrapper {
 	throws IOException, ConfigurationException, LoginException,
 	       ActivationException, ClassNotFoundException
     {
-	super(activationID, (String[])data.get());
+	super(activationID, (String[]) new MarshalledInstance(data).get(false));
 	allowCalls();
     }
 

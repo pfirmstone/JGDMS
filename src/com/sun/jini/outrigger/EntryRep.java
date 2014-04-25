@@ -34,7 +34,6 @@ import java.lang.reflect.Modifier;
 import java.net.MalformedURLException;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
-import java.rmi.server.RMIClassLoader;
 import java.security.DigestOutputStream;
 import java.security.MessageDigest;
 import java.util.ArrayList;
@@ -238,7 +237,7 @@ class EntryRep implements StorableResource<EntryRep>, LeasedResource, Serializab
 	if (validate)
 	    ensureValidClass(realClass);
 	className = realClass.getName();
-	codebase = RMIClassLoader.getClassAnnotation(realClass);
+	codebase = ClassLoading.getClassAnnotation(realClass);
 
 	/*
 	 * Build up the per-field and superclass information through

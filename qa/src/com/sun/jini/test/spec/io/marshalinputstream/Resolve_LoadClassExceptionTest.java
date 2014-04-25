@@ -44,6 +44,7 @@ import java.util.ArrayList;
 import java.util.logging.Level;
 import java.lang.reflect.Proxy;
 import java.net.MalformedURLException;
+import net.jini.loader.ClassLoading;
 
 /**
  * <pre>
@@ -127,9 +128,9 @@ public class Resolve_LoadClassExceptionTest extends QATestEnvironment implements
         // transferObject field values
         File file = new File("test case");
         Object proxy = Proxy.newProxyInstance(
-                    RMIClassLoader.getClassLoader(codebase),
-                    new Class[] {RMIClassLoader.loadClass(
-                        codebase,interfaceName)},
+                    ClassLoading.getClassLoader(codebase),
+                    new Class[] {ClassLoading.loadClass(
+                        codebase,interfaceName, null, false, null)},
                     new BasicInvocationHandler(new FakeObjectEndpoint(),null));
 
         // callUseCodebaseAnnotations

@@ -36,6 +36,7 @@ import java.rmi.RemoteException;
 import java.rmi.MarshalException;
 import java.rmi.UnmarshalException;
 import java.lang.reflect.UndeclaredThrowableException;
+import net.jini.loader.ClassLoading;
 
 /**
  * <pre>
@@ -151,8 +152,8 @@ public class Get_ExceptionTest extends QATestEnvironment implements Test {
 
         String codebase = config.getStringConfigVal(
             "com.sun.jini.test.spec.io.util.fakeArgumentJar","Error");
-        Object fakeArg = RMIClassLoader.loadClass(codebase,
-            "com.sun.jini.test.spec.io.util.FakeArgument").newInstance();
+        Object fakeArg = ClassLoading.loadClass(codebase,
+            "com.sun.jini.test.spec.io.util.FakeArgument", null, false, null).newInstance();
         mi = new MarshalledInstance(fakeArg);
         try {
             mi.get(true);

@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.rmi.MarshalledObject;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.io.MarshalledInstance;
 
 /**
  * This class encapsulates the details of unmarshaling an incoming
@@ -57,7 +58,8 @@ public class IncomingUnicastResponse {
     {
 	ObjectInputStream istr = new ObjectInputStream(str);
 	registrar =
-	    (ServiceRegistrar)((MarshalledObject)istr.readObject()).get();
+	    (ServiceRegistrar) new MarshalledInstance(
+                    (MarshalledObject)istr.readObject()).get(false);
 	int grpCount = istr.readInt();
 	groups = new String[grpCount];
 	for (int i = 0; i < groups.length; i++) {

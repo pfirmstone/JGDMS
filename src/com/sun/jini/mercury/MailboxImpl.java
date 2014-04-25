@@ -124,6 +124,7 @@ import net.jini.event.MailboxPullRegistration;
 import net.jini.lookup.entry.ServiceInfo;
 import net.jini.lookup.JoinManager;
 import net.jini.discovery.LookupDiscovery;
+import net.jini.io.MarshalledInstance;
 import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
@@ -481,7 +482,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     MailboxImpl(ActivationID activationID, MarshalledObject data) 
 	throws Exception
     {
-        this((String[])data.get(), activationID, true, new Object[] {activationID, data} );
+        this((String[]) new MarshalledInstance(data).get(false), activationID, true, new Object[] {activationID, data} );
 //        if (operationsLogger.isLoggable(Level.FINER)) {
 //	    operationsLogger.entering(mailboxSourceClass, 
 //	        "MailboxImpl", 
@@ -3984,7 +3985,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    throws IOException
 	{
 	    stream.defaultWriteObject();
-	    stream.writeObject(new MarshalledObject(target));
+	    stream.writeObject(new MarshalledInstance(target).convertToMarshalledObject());
 	}
 
 	/**
@@ -3996,7 +3997,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
 	    stream.defaultReadObject();
 	    MarshalledObject mo = (MarshalledObject)stream.readObject();
 	    try {
-		target = (RemoteEventListener)mo.get();
+		target = (RemoteEventListener) new MarshalledInstance(mo).get(false);
 	    } catch (Throwable e) {
 		if (e instanceof Error &&
 		    !(e instanceof LinkageError ||
@@ -4548,7 +4549,8 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
              * working, so just ignore them.
              */
             try {
-                marshalledAttrs.add(new MarshalledObject(attrs[i]));
+                marshalledAttrs.add(
+                    new MarshalledInstance(attrs[i]).convertToMarshalledObject());
             } catch(Throwable e) {
 	        if (recoveryLogger.isLoggable(Levels.HANDLED)) {
                     recoveryLogger.log(Levels.HANDLED, 
@@ -4587,7 +4589,7 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
              * working, so just ignore them.
              */
             try {
-                attrs.add( (Entry)( marshalledAttrs[i].get() ) );
+                attrs.add( (Entry)( new MarshalledInstance(marshalledAttrs[i]).get(false) ) );
             } catch(Throwable e) {
 	        if (recoveryLogger.isLoggable(Levels.HANDLED)) {
                     recoveryLogger.log(Levels.HANDLED, 

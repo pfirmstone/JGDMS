@@ -52,6 +52,7 @@ import com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -208,6 +209,8 @@ public class LoadClassesClassNotFoundException extends AbstractTestBase {
          *    codebase - string representation of url to qa1-loader-pref.jar
          *    name - name of non-existent class
          *    parent - ClassLoader.getSystemClassLoader()
+         *    verifiyCodebaseIntegrity - false
+         *    verifierLoader - null
          *  - verify that ClassNotFoundException is thrown
          */
         for (int item = 0; item < 10; item++) {
@@ -215,11 +218,11 @@ public class LoadClassesClassNotFoundException extends AbstractTestBase {
             Class classPreferred = null;
 
             try {
-                classPreferred = RMIClassLoader.loadClass(cb, name, parent);
+                classPreferred = ClassLoading.loadClass(cb, name, parent, false, null);
             } catch (ClassNotFoundException e) {
                 String msg = ""
-                           + "RMIClassLoader.loadClass(" + cb + ", "
-                           + name + ", defaultLoader)\n"
+                           + "ClassLoading.loadClass(" + cb + ", "
+                           + name + ", defaultLoader, false, null)\n"
                            + "  throws " + e.toString()
                            + "  as expected";
                 logger.log(Level.FINE, msg);
@@ -228,8 +231,8 @@ public class LoadClassesClassNotFoundException extends AbstractTestBase {
                 // Do not expect MalformedURLException.
                 // Tests case with expected MalformedURLException
                 // is LoadClassesMalformedURLException
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + me.toString() + "\n"
                          + "  expected: ClassNotFoundException";
                 break;
@@ -237,14 +240,14 @@ public class LoadClassesClassNotFoundException extends AbstractTestBase {
                 // Do not expect SecurityException.
                 // Tests case with expected SecurityException
                 // is LoadClassesSecurityException
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + sex.toString() + "\n"
                          + "  expected: ClassNotFoundException";
                 break;
             }
-            message += "RMIClassLoader.loadClass(" + cb + ", "
-                     + name + ", defaultLoader)\n"
+            message += "ClassLoading.loadClass(" + cb + ", "
+                     + name + ", defaultLoader, false, null)\n"
                      + "  returned: " + classPreferred.toString() + "\n"
                      + "  expected: ClassNotFoundException";
             break;

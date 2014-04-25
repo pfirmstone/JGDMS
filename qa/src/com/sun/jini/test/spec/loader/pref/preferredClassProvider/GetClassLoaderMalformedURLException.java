@@ -52,6 +52,7 @@ import com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -178,14 +179,14 @@ public class GetClassLoaderMalformedURLException extends AbstractTestBase {
         cb = obtainMalformedCodebase();
 
         /*
-         * 3) call RMIClassLoader.getClassLoader method and verify that
+         * 3) call ClassLoading.getClassLoader method and verify that
          *    MalformedURLException is thrown.
          */
         try {
-            classLoader = RMIClassLoader.getClassLoader(cb);
+            classLoader = ClassLoading.getClassLoader(cb);
         } catch (MalformedURLException me) {
             // Expect MalformedURLException
-            String msg = "RMIClassLoader.getClassLoader(" + cb + ")\n"
+            String msg = "ClassLoading.getClassLoader(" + cb + ")\n"
                        + "  throws " + me.toString() + " as expected";
             logger.log(Level.FINEST, msg);
             pass = true;
@@ -193,7 +194,7 @@ public class GetClassLoaderMalformedURLException extends AbstractTestBase {
             // Do not expect SecurityException.
             // Tests case with expected SecurityException
             // is GetClassLoaderSecurityException
-            message += "RMIClassLoader.getClassLoader("
+            message += "ClassLoading.getClassLoader("
                      + cb + ")\n"
                      + "  throws: " + se.toString() + "\n"
                      + "  expected: MalformedURLException";
@@ -201,7 +202,7 @@ public class GetClassLoaderMalformedURLException extends AbstractTestBase {
         }
 
         if (!pass) {
-            message += "RMIClassLoader.getClassLoader("
+            message += "ClassLoading.getClassLoader("
                      + cb + ")\n"
                      + "  returned: " + classLoader.toString() + "\n"
                      + "  expected: MalformedURLException";

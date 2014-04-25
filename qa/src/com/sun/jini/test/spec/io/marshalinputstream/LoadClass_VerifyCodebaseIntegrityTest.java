@@ -105,11 +105,11 @@ public class LoadClass_VerifyCodebaseIntegrityTest extends QATestEnvironment imp
             "com.sun.jini.test.spec.io.util.fakeArgumentJar","Error");
 
         // loadClass values
-        Class fakeArg = RMIClassLoader.loadClass(codebase,
-            "com.sun.jini.test.spec.io.util.FakeArgument");
+        Class fakeArg = ClassLoading.loadClass(codebase,
+            "com.sun.jini.test.spec.io.util.FakeArgument", null, false, null);
         Class proxy = Proxy.getProxyClass(
-            RMIClassLoader.getClassLoader(codebase),
-            new Class[] {RMIClassLoader.loadClass(codebase,interfaceName)});
+            ClassLoading.getClassLoader(codebase),
+            new Class[] {ClassLoading.loadClass(codebase,interfaceName, null, false, null)});
 
         // providesIntegrity
         Boolean f = Boolean.FALSE;

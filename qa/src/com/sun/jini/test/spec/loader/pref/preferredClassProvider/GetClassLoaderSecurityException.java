@@ -52,6 +52,7 @@ import com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -90,7 +91,7 @@ import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
  *  <br><br>
  *
  *  {@link QATestPreferredClassProvider} should be configured as
- *  java.rmi.server.RMIClassLoaderSpi, so that RMIClassLoader.getClassLoader
+ *  java.rmi.server.RMIClassLoaderSpi, so that ClassLoading.getClassLoader
  *  calls QATestPreferredClassProvider.getClassLoader method.
  *  <br><br>
  *
@@ -145,7 +146,7 @@ import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
  *   java.rmi.server.RMIClassLoaderSpi
  *  </li>
  *  <li>
- *   call RMIClassLoader.getClassLoader method passing codebase to
+ *   call ClassLoading.getClassLoader method passing codebase to
  *   qa1-loader-pref.jar file and verify that SecurityException is thrown.
  *  </li>
  * </ol>
@@ -170,30 +171,30 @@ public class GetClassLoaderSecurityException extends AbstractTestBase {
         cb = Util.getUrlAddr(isHttp, config, port) + Util.PREFERREDJarFile;
 
         /*
-         * 2) call RMIClassLoader.getClassLoader method passing codebase to
+         * 2) call ClassLoading.getClassLoader method passing codebase to
          *    qa1-loader-pref.jar file  and verify that SecurityException is
          *    thrown.
          */
         try {
-            classLoader = RMIClassLoader.getClassLoader(cb);
+            classLoader = ClassLoading.getClassLoader(cb);
         } catch (MalformedURLException me) {
             // Do not expect MalformedURLException.
             // Tests case with expected MalformedURLException
             // is GetClassLoaderMalformedURLException
-            message += "RMIClassLoader.getClassLoader("
+            message += "ClassLoading.getClassLoader("
                      + cb + ")\n"
                      + "  throws: " + me.toString() + "\n"
                      + "  expected: SecurityException";
         } catch (SecurityException se) {
             // Expect SecurityException
-            String msg = "RMIClassLoader.getClassLoader(" + cb + ")\n"
+            String msg = "ClassLoading.getClassLoader(" + cb + ")\n"
                        + " throws " + se.toString() + " as expected";
             logger.log(Level.FINEST, msg);
             pass = true;
         }
 
         if (!pass) {
-            message += "RMIClassLoader.getClassLoader("
+            message += "ClassLoading.getClassLoader("
                      + cb + ")\n"
                      + "  returned: " + classLoader.toString() + "\n"
                      + "  expected: SecurityException";

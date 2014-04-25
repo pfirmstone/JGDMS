@@ -24,6 +24,7 @@ import java.io.Serializable;
 import java.rmi.MarshalledObject;
 
 import net.jini.core.event.RemoteEvent;
+import net.jini.io.MarshalledInstance;
 
 /**
  * The <code>EventID</code> class is used to represent a unique event
@@ -137,7 +138,7 @@ class EventID implements Serializable {
         throws IOException
     {
         stream.defaultWriteObject();
-        stream.writeObject(new MarshalledObject(source));
+        stream.writeObject(new MarshalledInstance(source).convertToMarshalledObject());
     }
 
     /**
@@ -156,7 +157,7 @@ class EventID implements Serializable {
         MarshalledObject mo = (MarshalledObject)stream.readObject();
 
         try {
-            source = mo.get();
+            source = new MarshalledInstance(mo).get(false);
         } catch (Throwable e) {
             if (e instanceof Error &&
                 !(e instanceof LinkageError ||

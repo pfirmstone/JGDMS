@@ -184,9 +184,13 @@ class Activation implements Serializable {
 	shutdownHook = new ShutdownHook();
 	Runtime.getRuntime().addShutdownHook(shutdownHook);
 	groupPreparer = getPreparer(config, "instantiatorPreparer");
-	groupData = new MarshalledObject(new ActivationGroupData((String[])
-	       config.getEntry(PHOENIX, "groupConfig",
-			       String[].class, configOptions)));
+	groupData = new MarshalledInstance(
+            new ActivationGroupData((String[]) config.getEntry(
+                    PHOENIX, 
+                    "groupConfig",
+                    String[].class,
+                    configOptions
+            ))).convertToMarshalledObject();
 	outputHandler = (GroupOutputHandler) config.getEntry(
 		PHOENIX, "groupOutputHandler", GroupOutputHandler.class,
 		new GroupOutputHandler() {

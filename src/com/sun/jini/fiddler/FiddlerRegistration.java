@@ -44,6 +44,7 @@ import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.util.ArrayList;
 import java.util.HashSet;
+import net.jini.io.MarshalledInstance;
 
 /**
  * This class is an implementation of the LookupDiscoveryRegistration
@@ -789,7 +790,8 @@ class FiddlerRegistration implements LookupDiscoveryRegistration,
                  */
                 MarshalledObject marshalledObj
                                  = (MarshalledObject)(marshalledRegs.get(i));
-                ServiceRegistrar reg = (ServiceRegistrar)(marshalledObj.get());
+                ServiceRegistrar reg = (ServiceRegistrar)(
+                        new MarshalledInstance(marshalledObj).get(false));
                 /* Success: record the un-marshalled element
                  *          delete the corresponding un-marshalled element
                  */

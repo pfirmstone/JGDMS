@@ -18,26 +18,145 @@
 
 package net.jini.loader;
 
+import au.net.zeus.collection.RC;
+import au.net.zeus.collection.Ref;
+import au.net.zeus.collection.Referrer;
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
 import java.rmi.server.RMIClassLoader;
+import java.rmi.server.RMIClassLoaderSpi;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.Iterator;
 import java.util.Map;
+import java.util.ServiceLoader;
 import java.util.WeakHashMap;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.FutureTask;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.security.Security;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * Provides static methods for loading classes using {@link
- * RMIClassLoader} with optional verification that the codebase URLs
+ * RMIClassLoaderSpi} with optional verification that the codebase URIs
  * used to load classes provide content integrity (see {@link
  * Security#verifyCodebaseIntegrity
  * Security.verifyCodebaseIntegrity}).
- *
+ * <p>
+ * Traditionally a class extending {@link RMIClassLoaderSpi} is determined by setting
+ * the system property "java.rmi.server.RMIClassLoaderSpi", or alternatively,
+ * {@link RMIClassLoaderSpi} may also be defined by {@link RMIClassLoader}
+ * using a provider visible to the {@link ClassLoader} returned by 
+ * {@link ClassLoader#getSystemClassLoader} with {@link ServiceLoader}.
+ * </p><p>
+ * As explained in River-336 this isn't always practical for IDE's or other 
+ * frameworks.  To solve River-336, ClassLoading now uses {@link ServiceLoader}
+ * to determine a {@link RMIClassLoaderSpi} provider, however unlike 
+ * {@link RMIClassLoader}, it uses ClassLoading's {@link ClassLoader#getResources} 
+ * instance to find providers.  So if ClassLoading is loaded by a framework 
+ * {@link ClassLoader}, resources will be selected from ClassLoaders reachable 
+ * from ClassLoading's own ClassLoader.
+ * </p><p>
+ * To define a new RMIClassLoaderSpi for River to utilize, create a file in
+ * your application jar file called:
+ * </p><p>
+ * META-INF/services/java.rmi.server.RMIClassLoaderSpi
+ * </p><p>
+ * This file should contain a single line with the fully qualified name of
+ * your RMIClassLoaderSpi implementation.
+ * </p><p>
+ * ClassLoading will iterate through all RMIClassLoaderSpi implementations found
+ * until it finds one defined by the system property:
+ * </p><p>
+ * System.getProperty("net.jini.loader.ClassLoading.provider");
+ * </p><p>
+ * If this System property is not defined, ClassLoading will load the first 
+ * provider found.
+ * </p><p>
+ * <h1>History</h1>
+ * <p>Gregg Wonderly originally reported River-336 and provided a patch
+ * containing a new CodebaseAccessClassLoader to replace {@link RMIClassLoader}, 
+ * later Sim Isjkes created RiverClassLoader that utilised ServiceLoader.
+ * Both implementations contained methods identical to {@link RMIClassLoaderSpi},
+ * however new implementations were required to extend new provider 
+ * implementations, creating a compatibility issue with existing implementations
+ * extending {@link RMIClassLoaderSpi}.  For backward compatibility with existing
+ * implementations, {@link RMIClassLoaderSpi} has been retained as the provider,
+ * avoiding the need to recompile client code.  
+ * </p><p>
+ * Instead, all that is required for utilization of existing service provider
+ * {@link RMIClassLoaderSpi} implementations is to set the system property
+ * "net.jini.loader.ClassLoading.provider".
+ * </p>
  * @author Sun Microsystems, Inc.
  * @since 2.0
  **/
 public final class ClassLoading {
+    private final static Logger logger = Logger.getLogger(ClassLoading.class.getName());
+    private static final RMIClassLoaderSpi provider;
+    
+    static {
+        provider = AccessController.doPrivileged(
+        new PrivilegedAction<RMIClassLoaderSpi>(){
+            @Override
+            public RMIClassLoaderSpi run() {
+               String providerClassName =
+                    System.getProperty("net.jini.loader.ClassLoading.provider");
+               ServiceLoader<RMIClassLoaderSpi> loader 
+                       = ServiceLoader.load(RMIClassLoaderSpi.class,
+                               ClassLoading.class.getClassLoader());
+                Iterator<RMIClassLoaderSpi> iter = loader.iterator();
+                RMIClassLoaderSpi firstSpi;
+                while ( iter.hasNext() ) {
+                    try {
+                        firstSpi = iter.next();
+                        if (firstSpi != null) {
+                            if (providerClassName == null) {
+                                logger.log(Level.CONFIG, "loaded: {0}", firstSpi.getClass().getName());
+                                return firstSpi;
+                            }
+                            if (!providerClassName.equals(firstSpi.getClass().getName()))
+                                continue;
+                            logger.log(Level.CONFIG, "loaded: {0}", providerClassName);
+                            return firstSpi;
+                        }
+                    } catch (Exception e) {
+                        logger.log( 
+                                Level.CONFIG, 
+                                "error loading RMIClassLoaderSpi: {0}",
+                                new Object[]{e}
+                        );
+                    }
+                }
+                if (providerClassName != null) logger.log(Level.CONFIG,
+                        "uable to find {0}" , providerClassName);
+                return null;
+            }
+        });
+    }
+    
+    /**
+     * loaderMap contains a list of single threaded ExecutorService's for
+     * each ClassLoader, used for loading classes and proxies to avoid 
+     * ClassLoader lock contention. An Entry is removed if the ClassLoader
+     * becomes weakly reachable, or the ExecutorService hasn't been used
+     * recently.
+     */
+    private static final ConcurrentMap<ClassLoader,ExecutorService> loaderMap 
+            = RC.concurrentMap(
+                new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<ExecutorService>>(),
+                Ref.WEAK_IDENTITY,
+                Ref.TIME,
+                10000L,
+                10000L
+            );
 
     /**
      * per-thread cache (weakly) mapping verifierLoader values to
@@ -47,12 +166,75 @@ public final class ClassLoading {
     private static final ThreadLocal perThreadCache = new ThreadLocal() {
 	protected Object initialValue() { return new WeakHashMap(); }
     };
+    
+        /**
+     * Returns a class loader that loads classes from the given codebase
+     * RFC3986 compliant URI path.
+     *
+     * <p>This method delegates to the
+     * {@link RMIClassLoaderSpi#getClassLoader(String)} method
+     * of the provider instance, passing <code>codebase</code> as the argument.
+     *
+     * <p>If there is a security manger, its <code>checkPermission</code>
+     * method will be invoked with a
+     * <code>RuntimePermission("getClassLoader")</code> permission;
+     * this could result in a <code>SecurityException</code>.
+     * The provider implementation of this method may also perform further
+     * security checks to verify that the calling context has permission to
+     * connect to all of the URIs in the codebase URI path.
+     *
+     * @param   codebase the list of URIs (space-separated) from which
+     * the returned class loader will load classes from, or <code>null</code>
+     *
+     * @return a class loader that loads classes from the given codebase URI
+     * path
+     *
+     * @throws  MalformedURLException if <code>codebase</code> is
+     * non-<code>null</code> and contains an non RFC3986 compliant URI, or
+     * if <code>codebase</code> is <code>null</code> and a provider-specific
+     * URL used to identify the class loader is invalid
+     *
+     * @throws  SecurityException if there is a security manager and the
+     * invocation of its <code>checkPermission</code> method fails, or
+     * if the caller does not have permission to connect to all of the
+     * URIs in the codebase URI path
+     * @since 3.0
+     */
+    public static ClassLoader getClassLoader(String codebase)
+        throws MalformedURLException, SecurityException
+    {
+        if (provider != null) return provider.getClassLoader(codebase);
+        return RMIClassLoader.getClassLoader(codebase);
+    }
+
+    /**
+     * Returns the annotation string (representing a location for
+     * the class definition as a single or space delimited list of
+     * RFC3986 compliant URI) that JERI will use to annotate the class
+     * descriptor when marshalling objects of the given class.
+     *
+     * <p>This method delegates to the
+     * {@link RMIClassLoaderSpi#getClassAnnotation(Class)} method
+     * of the provider instance, passing <code>cl</code> as the argument.
+     *
+     * @param   cl the class to obtain the annotation for
+     *
+     * @return  a string to be used to annotate the given class when
+     * it gets marshalled, or <code>null</code>
+     *
+     * @throws  NullPointerException if <code>cl</code> is <code>null</code>
+     * @since 3.0
+     */
+    public static String getClassAnnotation(Class<?> cl) {
+        if (provider != null) return provider.getClassAnnotation(cl);
+        return RMIClassLoader.getClassAnnotation(cl);
+    }
 
     /**
      * Loads a class using {@link
-     * RMIClassLoader#loadClass(String,String,ClassLoader)
-     * RMIClassLoader.loadClass}, optionally verifying that the
-     * codebase URLs provide content integrity.
+     * RMIClassLoaderSpi#loadClass(String,String,ClassLoader)}, 
+     * optionally verifying that the RFC3986 compliant
+     * codebase URIs provide content integrity.
      *
      * <p>If <code>verifyCodebaseIntegrity</code> is <code>true</code>
      * and <code>codebase</code> is not <code>null</code>, then this
@@ -72,19 +254,19 @@ public final class ClassLoading {
      * other exception, then this method throws that exception.
      *
      * <p>This method then invokes {@link
-     * RMIClassLoader#loadClass(String,String,ClassLoader)
-     * RMIClassLoader.loadClass} with <code>codebase</code> as the
+     * RMIClassLoaderSpi#loadClass(String,String,ClassLoader)
+     * RMIClassLoaderSpi.loadClass} with <code>codebase</code> as the
      * first argument (or <code>null</code> if in the previous step
      * <code>Security.verifyCodebaseIntegrity</code> was invoked and
      * it threw a <code>SecurityException</code>), <code>name</code>
      * as the second argument, and <code>defaultLoader</code> as the
-     * third argument.  If <code>RMIClassLoader.loadClass</code>
+     * third argument.  If <code>RMIClassLoaderSpi.loadClass</code>
      * throws a <code>ClassNotFoundException</code>, then this method
      * throws a <code>ClassNotFoundException</code>; if
-     * <code>RMIClassLoader.loadClass</code> throws any other
+     * <code>RMIClassLoaderSpi.loadClass</code> throws any other
      * exception, then this method throws that exception; otherwise,
      * this method returns the <code>Class</code> returned by
-     * <code>RMIClassLoader.loadClass</code>.
+     * <code>RMIClassLoaderSpi.loadClass</code>.
      *
      * @param codebase the list of URLs (separated by spaces) to load
      * the class from, or <code>null</code>
@@ -93,10 +275,10 @@ public final class ClassLoading {
      *
      * @param defaultLoader the class loader value (possibly
      * <code>null</code>) to pass as the <code>defaultLoader</code>
-     * argument to <code>RMIClassLoader.loadClass</code>
+     * argument to <code>RMIClassLoaderSpi.loadClass</code>
      *
      * @param verifyCodebaseIntegrity if <code>true</code>, verify
-     * that the codebase URLs provide content integrity
+     * that the RFC3986 compliant codebase URIs provide content integrity
      *
      * @param verifierLoader the class loader value (possibly
      * <code>null</code>) to pass to
@@ -108,17 +290,17 @@ public final class ClassLoading {
      *
      * @throws MalformedURLException if
      * <code>Security.verifyCodebaseIntegrity</code> or
-     * <code>RMIClassLoader.loadClass</code> throws a
+     * <code>RMIClassLoaderSpi.loadClass</code> throws a
      * <code>MalformedURLException</code>
      *
      * @throws ClassNotFoundException if
-     * <code>RMIClassLoader.loadClass</code> throws a
+     * <code>RMIClassLoaderSpi.loadClass</code> throws a
      * <code>ClassNotFoundException</code>
      *
      * @throws NullPointerException if <code>name</code> is
      * <code>null</code>
      **/
-    public static Class loadClass(String codebase,
+    public static Class<?> loadClass(String codebase,
 				  String name,
 				  ClassLoader defaultLoader,
 				  boolean verifyCodebaseIntegrity,
@@ -135,6 +317,8 @@ public final class ClassLoading {
 	    }
 	}
 	try {
+            if (provider != null) 
+                return provider.loadClass(codebase, name, defaultLoader);
 	    return RMIClassLoader.loadClass(codebase, name, defaultLoader);
 	} catch (ClassNotFoundException e) {
 	    if (verifyException != null) {
@@ -142,6 +326,7 @@ public final class ClassLoading {
 		throw new ClassNotFoundException(e.getMessage(),
 						 verifyException);
 	    } else {
+                e.fillInStackTrace();
 		throw e;
 	    }
 	}
@@ -149,9 +334,9 @@ public final class ClassLoading {
 
     /**
      * Loads a dynamic proxy class using {@link
-     * RMIClassLoader#loadProxyClass(String,String[],ClassLoader)
-     * RMIClassLoader.loadProxyClass}, optionally verifying that the
-     * codebase URLs provide content integrity.
+     * RMIClassLoaderSpi#loadProxyClass(String,String[],ClassLoader)},
+     * optionally verifying that the RFC3986 compliant
+     * codebase URIs provide content integrity.
      *
      * <p>If <code>verifyCodebaseIntegrity</code> is <code>true</code>
      * and <code>codebase</code> is not <code>null</code>, then this
@@ -171,20 +356,20 @@ public final class ClassLoading {
      * exception, then this method throws that exception.
      *
      * <p>This method invokes {@link
-     * RMIClassLoader#loadProxyClass(String,String[],ClassLoader)
-     * RMIClassLoader.loadProxyClass} with <code>codebase</code> as
+     * RMIClassLoaderSpi#loadProxyClass(String,String[],ClassLoader)} 
+     * with <code>codebase</code> as
      * the first argument (or <code>null</code> if in the previous
      * step <code>Security.verifyCodebaseIntegrity</code> was invoked
      * and it threw a <code>SecurityException</code>),
      * <code>interfaceNames</code> as the second argument, and
      * <code>defaultLoader</code> as the third argument.  If
-     * <code>RMIClassLoader.loadProxyClass</code> throws a
+     * <code>RMIClassLoaderSpi.loadProxyClass</code> throws a
      * <code>ClassNotFoundException</code>, then this method throws a
      * <code>ClassNotFoundException</code>; if
-     * <code>RMIClassLoader.loadProxyClass</code> throws any other
+     * <code>RMIClassLoaderSpi.loadProxyClass</code> throws any other
      * exception, then this method throws that exception; otherwise,
      * this method returns the <code>Class</code> returned by
-     * <code>RMIClassLoader.loadProxyClass</code>.
+     * <code>RMIClassLoaderSpi.loadProxyClass</code>.
      *
      * @param codebase the list of URLs (separated by spaces) to load
      * classes from, or <code>null</code>
@@ -209,18 +394,18 @@ public final class ClassLoading {
      *
      * @throws MalformedURLException if
      * <code>Security.verifyCodebaseIntegrity</code> or
-     * <code>RMIClassLoader.loadProxyClass</code> throws a
+     * <code>RMIClassLoaderSpi.loadProxyClass</code> throws a
      * <code>MalformedURLException</code>
      *
      * @throws ClassNotFoundException if
-     * <code>RMIClassLoader.loadProxyClass</code> throws a
+     * <code>RMIClassLoaderSpi.loadProxyClass</code> throws a
      * <code>ClassNotFoundException</code>
      *
      * @throws NullPointerException if <code>interfaceNames</code> is
      * <code>null</code> or if any element of
      * <code>interfaceNames</code> is <code>null</code>
      **/
-    public static Class loadProxyClass(String codebase,
+    public static Class<?> loadProxyClass(String codebase,
 				       String[] interfaceNames,
 				       ClassLoader defaultLoader,
 				       boolean verifyCodebaseIntegrity,
@@ -237,6 +422,8 @@ public final class ClassLoading {
 	    }
 	}
 	try {
+            if (provider != null) return 
+                provider.loadProxyClass(codebase, interfaceNames, defaultLoader);
 	    return RMIClassLoader.loadProxyClass(codebase, interfaceNames,
 						 defaultLoader);
 	} catch (ClassNotFoundException e) {
@@ -245,6 +432,7 @@ public final class ClassLoading {
 		throw new ClassNotFoundException(e.getMessage(),
 						 verifyException);
 	    } else {
+                e.fillInStackTrace();
 		throw e;
 	    }
 	}
@@ -293,6 +481,82 @@ public final class ClassLoading {
 	}
 	verifiedCodebases.put(codebase, new SoftReference(codebase));
 	return;
+    }
+    
+    /**
+     * Returns the {@code Class} object associated with the class or
+     * interface with the given string name, using the given class loader.
+     * 
+     * This method calls {@link Class#forName(String,boolean,ClassLoader)}, 
+     * from a Thread dedicated for each
+     * ClassLoader, avoiding contention for ClassLoader locks by thread
+     * confinement.  This provides a significant scalability benefit for
+     * JERI, without needing to resort to parallel ClassLoader locks, which 
+     * isn't part of the Java specification.
+     * 
+     * If loader is null, thread confinement is not used.
+     * 
+     * @param name       fully qualified name of the desired class
+     * @param initialize whether the class must be initialized
+     * @param loader     class loader from which the class must be loaded
+     * @return           class object representing the desired class
+     *
+     * @exception LinkageError if the linkage fails
+     * @exception ExceptionInInitializerError if the initialization provoked
+     *            by this method fails
+     * @exception ClassNotFoundException if the class cannot be located by
+     *            the specified class loader
+     * @see Class
+     * @since 3.0
+     */
+    public static Class<?> forName(String name, boolean initialize,
+                                   ClassLoader loader)
+        throws ClassNotFoundException
+    {
+        if (loader == null) return Class.forName(name, initialize, loader);
+        ExecutorService exec = loaderMap.get(loader);
+        if (exec == null){
+            exec = Executors.newSingleThreadExecutor(new NamedThreadFactory(loader.toString(),true));
+            ExecutorService existed = loaderMap.putIfAbsent(loader, exec);
+            if (existed != null){
+                exec = existed;
+            }
+        }
+        FutureTask<Class> future = new FutureTask(new GetClassTask(name, initialize, loader));
+        exec.submit(future);
+        try {
+            return future.get();
+        } catch (InterruptedException e){
+            e.fillInStackTrace();
+            throw new ClassNotFoundException("Interrupted, Unable to find Class: " + name, e);
+        } catch (ExecutionException e){
+            Throwable t = e.getCause();
+            if (t instanceof LinkageError) throw (LinkageError) t;
+            if (t instanceof ExceptionInInitializerError) 
+                throw (ExceptionInInitializerError) t;
+            if (t instanceof SecurityException) throw (SecurityException) t;
+            if (t instanceof ClassNotFoundException ) 
+                throw (ClassNotFoundException) t;
+            throw new ClassNotFoundException("Unable to find Class:" + name, t);
+        }
+    }
+    
+    private static class GetClassTask implements Callable<Class> {
+        private final String name;
+        private final boolean initialize;
+        private final ClassLoader loader;
+        
+        private GetClassTask(String name, boolean initialize, ClassLoader loader){
+            this.name = name;
+            this.initialize = initialize;
+            this.loader = loader;
+        }
+
+        @Override
+        public Class call() throws ClassNotFoundException {
+            return Class.forName(name, initialize, loader);
+        }
+        
     }
 
     private ClassLoading() { throw new AssertionError(); }

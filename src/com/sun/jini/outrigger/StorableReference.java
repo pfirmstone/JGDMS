@@ -23,6 +23,7 @@ import java.io.ObjectInput;
 import java.io.ObjectOutput;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
+import net.jini.io.MarshalledInstance;
 import net.jini.security.ProxyPreparer;
 
 /**
@@ -99,7 +100,7 @@ class StorableReference implements Externalizable {
 	 */
 
 	if (obj == null)
-	    obj = bytes.get();
+	    obj = new MarshalledInstance(bytes).get(false);
 
 	if (!prepared) {
 	    if (preparer != null)
@@ -117,7 +118,7 @@ class StorableReference implements Externalizable {
     public void writeExternal(ObjectOutput out) throws IOException {
 	synchronized (this) {
 	    if (bytes == null)
-		bytes = new MarshalledObject(obj);
+		bytes = new MarshalledInstance(obj).convertToMarshalledObject();
             out.writeObject(bytes);
 	}
     }

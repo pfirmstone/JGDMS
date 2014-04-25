@@ -41,6 +41,7 @@ import net.jini.security.ProxyPreparer;
 
 import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
+import net.jini.io.MarshalledInstance;
 
 /**
  * <code>JoinStateManager</code> provides a utility that manages
@@ -545,7 +546,8 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
          
         out.writeInt(attributes.length);
         for (int i=0; i<attributes.length; i++) {
-            out.writeObject(new MarshalledObject(attributes[i]));
+            out.writeObject(
+                new MarshalledInstance(attributes[i]).convertToMarshalledObject());
 	}
     }
  
@@ -568,7 +570,7 @@ class JoinStateManager implements StorableObject<JoinStateManager> {
         for (int i=0; i<objectCount; i++) {
             try {
                 MarshalledObject mo = (MarshalledObject)in.readObject();
-                entries.add(mo.get());
+                entries.add( new MarshalledInstance(mo).get(false));
             } catch (IOException e) {
 		logger.log(Level.INFO, "Encountered IOException recovering " +
                     "attribute, dropping attribute", e);

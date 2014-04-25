@@ -32,6 +32,7 @@ import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.export.Exporter;
+import net.jini.io.MarshalledInstance;
 import net.jini.jeri.BasicILFactory;
 import net.jini.jeri.BasicJeriExporter;
 import net.jini.jeri.tcp.TcpServerEndpoint;
@@ -117,7 +118,7 @@ class ActivatableNormServerImpl extends NormServerBaseImpl {
 	    if (activationID == null) {
 		throw new NullPointerException("activationID is null");
 	    }
-	    return (String[]) data.get();
+	    return (String[]) new MarshalledInstance(data).get(false);
 	} catch (Throwable e) {
 	    initFailed(e);
 	}

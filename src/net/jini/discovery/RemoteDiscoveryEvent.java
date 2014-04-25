@@ -23,7 +23,6 @@ import java.io.ObjectInputStream;
 import java.rmi.MarshalledObject;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
 
 import net.jini.core.event.RemoteEvent;
@@ -31,6 +30,8 @@ import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.io.MarshalledInstance;
 
 import com.sun.jini.proxy.MarshalledWrapper;
+import java.util.List;
+import net.jini.core.lookup.ServiceID;
 
 /**
  * Whenever the lookup discovery service discovers or discards a lookup
@@ -109,7 +110,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      *
      * @serial
      */
-    protected boolean discarded;
+    protected final boolean discarded;
 
     /**
      * List consisting of marshalled proxy objects where each proxy implements
@@ -137,7 +138,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      *
      * @serial
      */
-    protected ArrayList marshalledRegs;
+    private final List<MarshalledObject> marshalledRegs;
 
     /**
      * Array containing a subset of the set of proxies to the lookup
@@ -152,7 +153,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      *
      * @serial
      */
-    protected ServiceRegistrar[] regs;
+    private final ServiceRegistrar[] regs;
 
     /**
      * <code>Map</code> from the service IDs of the registrars of this event
@@ -160,7 +161,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      *
      * @serial
      */
-    protected Map groups;
+    private final Map<ServiceID,String> groups;
 
     /**
      * Flag related to the verification of codebase integrity. A value of
@@ -202,7 +203,7 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
                                 long seqNum,
                                 MarshalledObject handback,
                                 boolean discarded,
-                                Map groups)    throws IOException
+                                Map<ServiceRegistrar,String> groups)    throws IOException
     {
 	super(source, eventID, seqNum, handback);
 	this.discarded = discarded;
@@ -229,11 +230,12 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
              *
              * Drop any element that can't be serialized.
              */
-            this.groups = new HashMap(groups.size());
+            this.groups = new HashMap<ServiceID,String>(groups.size());
             this.marshalledRegs = new ArrayList(groups.size());
-            for(int i=0;i<registrars.length;i++) {
+            int l = registrars.length;
+            for(int i=0;i<l;i++) {
                 try {
-                    marshalledRegs.add(new MarshalledObject(registrars[i]));
+                    marshalledRegs.add(new MarshalledInstance(registrars[i]).convertToMarshalledObject());
                     (this.groups).put((registrars[i]).getServiceID(),
                                        groups.get(registrars[i]) );
 		} catch(IOException e) { /* drop if can't serialize */ }
@@ -324,8 +326,8 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
     public ServiceRegistrar[] getRegistrars() throws LookupUnmarshalException {
 	synchronized (marshalledRegs) {
             if( marshalledRegs.size() > 0 ) {
-                ArrayList unmarshalledRegs = new ArrayList();
-                ArrayList exceptions = unmarshalRegistrars(marshalledRegs,
+                List unmarshalledRegs = new ArrayList();
+                List exceptions = unmarshalRegistrars(marshalledRegs,
                                                            unmarshalledRegs);
                 /* Add the un-marshalled elements to the end of regs */
                 insertRegistrars(regs,unmarshalledRegs);
@@ -363,8 +365,8 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      *          the names of the groups in which the lookup service having
      *          the corresponding service ID is a member.
      */
-    public Map getGroups() {
-        return groups;
+    public Map<ServiceID,String> getGroups() {
+        return new HashMap<ServiceID,String>(groups);
     }//end getGroups
 
     /**
@@ -396,8 +398,8 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      *         result of attempts to unmarshal each element of the first
      *         argument to this method.
      */
-    private ArrayList unmarshalRegistrars(ArrayList marshalledRegs,
-                                          ArrayList unmarshalledRegs)
+    private List unmarshalRegistrars(List marshalledRegs,
+                                          List unmarshalledRegs)
     {
         ArrayList exceptions = new ArrayList();
        /* Try to un-marshal each element in marshalledRegs; verify codebase
@@ -450,11 +452,11 @@ public class RemoteDiscoveryEvent extends RemoteEvent {
      * 
      * @param regsArray array that will receive the new references.
      * 
-     * @param regsList ArrayList containing the ServiceRegistrar references
+     * @param regsList List containing the ServiceRegistrar references
      *        to place in regsArray input argument.
      */
     private static void insertRegistrars(ServiceRegistrar[] regsArray,
-                                         ArrayList regsList)
+                                         List regsList)
     {
         if((regsArray != null) && (regsList != null)) {
             int lenA = regsArray.length;

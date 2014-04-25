@@ -82,6 +82,7 @@ import java.lang.reflect.InvocationHandler;
 //java.net
 import java.net.URL;
 import java.net.URLClassLoader;
+import net.jini.loader.ClassLoading;
 
 public class IsTrustedObjectTest extends AbstractTrustVerifierTest {
 
@@ -165,7 +166,7 @@ public class IsTrustedObjectTest extends AbstractTrustVerifierTest {
                 + " context was not propagated");
         }
         Object proxy3 = Proxy.newProxyInstance(
-	    RMIClassLoader.getClassLoader(jarURL),
+	    ClassLoading.getClassLoader(jarURL),
 	    stub.getClass().getInterfaces(),
 	    Proxy.getInvocationHandler(stub));
         if (verifier.isTrustedObject(proxy3,ctx)){

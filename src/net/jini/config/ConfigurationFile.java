@@ -56,6 +56,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.export.Exporter;
+import net.jini.loader.ClassLoading;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.Security;
 
@@ -2333,7 +2334,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	throws ConfigurationException
     {
 	try {
-	    Class result = Class.forName(name, false, cl);
+	    Class result = ClassLoading.forName(name, false, cl);
 	    Class c = result;
 	    do {
 		if (!Modifier.isPublic(c.getModifiers())) {

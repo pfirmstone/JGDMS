@@ -23,6 +23,7 @@ import java.io.OutputStream;
 import java.io.SyncFailedException;
 import java.rmi.MarshalledObject;
 import net.jini.core.event.RemoteEvent;
+import net.jini.io.MarshalledInstance;
 
 /**
  * This class provides the interface for writing <tt>RemoteEvent</tt>s to 
@@ -158,7 +159,8 @@ class EventWriter {
 	    // should always be able to read MarshalledObject
 	    // but we might not be able to reconstruct a 
 	    // RemoteEvent object because of codebase problems).
-	    MarshalledObject mo = new MarshalledObject(ev);
+	    MarshalledObject mo = 
+                    new MarshalledInstance(ev).convertToMarshalledObject();
 	    eout.reset();
 	    eout.writeObject(mo);
 	    eout.flush();

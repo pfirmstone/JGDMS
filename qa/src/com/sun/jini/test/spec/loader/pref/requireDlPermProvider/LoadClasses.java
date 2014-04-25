@@ -47,6 +47,7 @@ import com.sun.jini.test.spec.loader.util.Util;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -194,7 +195,7 @@ public class LoadClasses extends AbstractTestBase {
         /*
          * 2) for each preferred/non-preferred class do the following:
          *    - invoke Class.forName method passing system class loader,
-         *    - invoke RMIClassLoader.loadClass method passing:
+         *    - invoke ClassLoading.loadClass method passing:
          *        codebase - string representation of url to
          *                   qa1-loader-pref.jar
          *        name - name of preferred/non-preferred class
@@ -210,18 +211,18 @@ public class LoadClasses extends AbstractTestBase {
 
             try {
                 classDefault = Class.forName(name, false, parent);
-                classPreferred = RMIClassLoader.loadClass(cb, name, parent);
+                classPreferred = ClassLoading.loadClass(cb, name, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: " + (pref ? str1 : str2);
                 throw new TestException(message);
             } catch (MalformedURLException me) {
                 // Do not expect MalformedURLException.
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + me.toString() + "\n"
                          + "  expected: " + (pref ? str1 : str2);
                 throw new TestException(message);
@@ -229,7 +230,7 @@ public class LoadClasses extends AbstractTestBase {
                 // Do not expect SecurityException.
                 // Tests case with expected SecurityException
                 // is LoadClassesSecurityException
-                message += "RMIClassLoader.loadClass(" + cb + ", "
+                message += "ClassLoading.loadClass(" + cb + ", "
                          + name + ", false, loader)\n"
                          + "  throws: " + sex.toString() + "\n"
                          + "  expected: " + (pref ? str1 : str2);
@@ -239,15 +240,15 @@ public class LoadClasses extends AbstractTestBase {
             boolean returned = classDefault.equals(classPreferred);
 
             if (expected != returned) {
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "\nClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  returned: " + (expected ? str1 : str2) + "\n"
                          + "  expected: " + (expected ? str2 : str1);
                 throw new TestException(message);
             } else {
                 String msg = ""
-                           + "RMIClassLoader.loadClass(" + cb + ", "
-                           + name + ", defaultLoader)\n"
+                           + "ClassLoading.loadClass(" + cb + ", "
+                           + name + ", defaultLoader, false, null)\n"
                            + "  returned " + (expected ? str2 : str1)
                            + "  as expected";
                 logger.log(Level.FINEST, msg);
@@ -273,18 +274,18 @@ public class LoadClasses extends AbstractTestBase {
 
             try {
                 classDefault = Class.forName(name, false, parent);
-                classPreferred = RMIClassLoader.loadClass(cb, name, parent);
+                classPreferred = ClassLoading.loadClass(cb, name, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: returned class";
                 throw new TestException(message);
             } catch (MalformedURLException me) {
                 // Do not expect MalformedURLException.
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + me.toString() + "\n"
                          + "  expected: returned class";
                 throw new TestException(message);
@@ -301,15 +302,15 @@ public class LoadClasses extends AbstractTestBase {
             boolean returned = classDefault.equals(classPreferred);
 
             if (!returned) {
-                message += "\nRMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "\nClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  returned:" + str1 + "\n"
                          + "  expected:" + str2;
                 throw new TestException(message);
             } else {
                 String msg = ""
-                           + "RMIClassLoader.loadClass(" + cb + ", "
-                           + name + ", defaultLoader)\n"
+                           + "ClassLoading.loadClass(" + cb + ", "
+                           + name + ", defaultLoader, false, null)\n"
                            + "  returned " + str2
                            + "  as expected";
                 logger.log(Level.FINEST, msg);

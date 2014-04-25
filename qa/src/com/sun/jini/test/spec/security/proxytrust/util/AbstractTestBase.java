@@ -48,6 +48,7 @@ import net.jini.constraint.BasicMethodConstraints;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.constraint.Integrity;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -235,7 +236,7 @@ public abstract class AbstractTestBase extends QATestEnvironment implements Test
 	try {
 	    return (RemoteMethodControl)
 		ProxyTrustUtil.newProxyInstance(
-			impl, ih, RMIClassLoader.getClassLoader(jarURL));
+			impl, ih, ClassLoading.getClassLoader(jarURL));
 	} catch (MalformedURLException e) {
 	    throw new AssertionError(e);
 	}
@@ -418,13 +419,13 @@ public abstract class AbstractTestBase extends QATestEnvironment implements Test
 	if (cl == null) {
 	    return false;
 	}
-	String cb = RMIClassLoader.getClassAnnotation(c);
+	String cb = ClassLoading.getClassAnnotation(c);
 	ClassLoader pl = cl.getParent();
 	Thread t = Thread.currentThread();
 	ClassLoader ccl = t.getContextClassLoader();
 	try {
 	    t.setContextClassLoader(pl);
-	    return cl == RMIClassLoader.getClassLoader(cb);
+	    return cl == ClassLoading.getClassLoader(cb);
 	} catch (MalformedURLException e) {
 	    return false;
 	} finally {

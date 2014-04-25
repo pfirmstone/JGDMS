@@ -26,14 +26,12 @@ import java.io.OutputStream;
 import java.rmi.MarshalledObject;
 import java.rmi.NoSuchObjectException;
 import java.rmi.RemoteException;
-import java.rmi.server.RMIClassLoader;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -44,12 +42,8 @@ import java.util.logging.Logger;
 import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 
-import net.jini.admin.Administrable;
-import net.jini.admin.JoinAdmin;
 import net.jini.config.Configuration;
-import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
-import net.jini.config.NoSuchEntryException;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
@@ -65,30 +59,23 @@ import net.jini.export.ProxyAccessor;
 import net.jini.id.ReferentUuid;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
-import net.jini.jeri.BasicILFactory;
-import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lease.LeaseRenewalEvent;
 import net.jini.lease.LeaseRenewalManager;
 import net.jini.lease.LeaseRenewalService;
 import net.jini.lease.LeaseRenewalSet;
 import net.jini.lookup.entry.ServiceInfo;
-import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.proxytrust.TrustEquivalence;
 
-import com.sun.jini.config.Config;
 import com.sun.jini.constants.ThrowableConstants;
 import com.sun.jini.constants.VersionConstants;
-import com.sun.jini.landlord.FixedLeasePeriodPolicy;
 import com.sun.jini.landlord.Landlord.RenewResults;
 import com.sun.jini.landlord.LandlordUtil;
 import com.sun.jini.landlord.LeaseFactory;
 import com.sun.jini.landlord.LeasePeriodPolicy;
 import com.sun.jini.landlord.LocalLandlord;
-import com.sun.jini.logging.Levels;
 import com.sun.jini.lookup.entry.BasicServiceType;
 import com.sun.jini.norm.event.EventType;
 import com.sun.jini.norm.event.EventTypeGenerator;
@@ -102,6 +89,7 @@ import org.apache.river.api.util.Startable;
 import com.sun.jini.thread.InterruptedStatusThread;
 import java.security.AccessControlContext;
 import java.security.AccessController;
+import net.jini.loader.ClassLoading;
 
 /**
  * Base class for implementations of NormServer.  Provides a complete
@@ -307,7 +295,7 @@ abstract class NormServerBaseImpl
 		       "Adding lease of class {0} with annotation {1}",
 		       new Object[] {
 			   leaseToRenew.getClass(),
-			   RMIClassLoader.getClassAnnotation(lc) });
+			   ClassLoading.getClassAnnotation(lc) });
 	}
 
 	// Add the lease to the set

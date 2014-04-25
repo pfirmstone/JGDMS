@@ -35,6 +35,7 @@ import java.io.File;
 import java.rmi.server.RMIClassLoader;
 import java.util.logging.Level;
 import java.lang.reflect.Proxy;
+import net.jini.loader.ClassLoading;
 
 /**
  * <pre>
@@ -98,12 +99,12 @@ public class Get_NormalTest extends QATestEnvironment implements Test {
 
         // storeObject field values
         File fakeFile = new File("fakeFile");
-        Object fakeArg = RMIClassLoader.loadClass(codebase,
-            "com.sun.jini.test.spec.io.util.FakeArgument").newInstance();
+        Object fakeArg = ClassLoading.loadClass(codebase,
+            "com.sun.jini.test.spec.io.util.FakeArgument", null, false, null).newInstance();
         Object proxy = Proxy.newProxyInstance(
-                    RMIClassLoader.getClassLoader(codebase),
-                    new Class[] {RMIClassLoader.loadClass(
-                        codebase,interfaceName)},
+                    ClassLoading.getClassLoader(codebase),
+                    new Class[] {ClassLoading.loadClass(
+                        codebase,interfaceName, null, false, null)},
                     new BasicInvocationHandler(new FakeObjectEndpoint(),null));
 
         // requestIntegrity

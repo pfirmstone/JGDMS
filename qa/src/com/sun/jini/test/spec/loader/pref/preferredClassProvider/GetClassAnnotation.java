@@ -56,6 +56,7 @@ import com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -217,17 +218,19 @@ public class GetClassAnnotation extends AbstractTestBase {
 
         /*
          * 3) for each preferred/non-preferred class do the following:
-         *  - invoke RMIClassLoader.loadClass method passing:
+         *  - invoke ClassLoading.loadClass method passing:
          *    codebase - string representation of url to qa1-loader-pref.jar
          *    name - name of preferred/non-preferred class
          *    parent - ClassLoader.getSystemClassLoader()
-         *  - call RMIClassLoader.getClassAnnotation() passing returned
+         *    verifyCodebaseIntegrity - false
+         *    verifierLoader - null
+         *  - call ClassLoading.getClassAnnotation() passing returned
          *    class
          *  - for non-preferred classes obtain expected annotation string
          *    from java.rmi.server.codebase property;
          *    for preferred classes obtain expected annotation string
          *    from default RMIClassLoader provider.
-         *  - verify that RMIClassLoader.getClassAnnotation() returned
+         *  - verify that ClassLoading.getClassAnnotation() returned
          *    expected string.
          */
         for (int item = 0; item < Util.listClasses.length; item++) {
@@ -236,13 +239,13 @@ public class GetClassAnnotation extends AbstractTestBase {
             Class cl = null;
 
             try {
-                cl = RMIClassLoader.loadClass(cb, name, parent);
+                cl = ClassLoading.loadClass(cb, name, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
                 // Tests case with expected ClassNotFoundException
                 // is LoadClassesClassNotFoundException
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: " + (pref ? str1 : str2);
                 break;
@@ -250,8 +253,8 @@ public class GetClassAnnotation extends AbstractTestBase {
                 // Do not expect MalformedURLException.
                 // Tests case with expected MalformedURLException
                 // is LoadClassesMalformedURLException
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + me.toString() + "\n"
                          + "  expected: " + (pref ? str1 : str2);
                 break;
@@ -259,13 +262,13 @@ public class GetClassAnnotation extends AbstractTestBase {
                 // Do not expect SecurityException.
                 // Tests case with expected SecurityException
                 // is LoadClassesSecurityException
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", false, defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", false, defaultLoader, false, null)\n"
                          + "  throws: " + sex.toString() + "\n"
                          + "  expected: " + (pref ? str1 : str2);
                 break;
             }
-            String returned = RMIClassLoader.getClassAnnotation(cl);
+            String returned = ClassLoading.getClassAnnotation(cl);
             String expected = null;
 
             if (!pref) {
@@ -283,14 +286,14 @@ public class GetClassAnnotation extends AbstractTestBase {
             if ((returned != null && expected == null) || (returned == null
                     && expected != null) || (returned != null
                     && !returned.equals(expected))) {
-                message += "RMIClassLoader.getClassAnnotation("
+                message += "ClassLoading.getClassAnnotation("
                          + cl.toString() + ")\n"
                          + "  returned: " + returned + "\n"
                          + "  expected: " + expected + "\n";
                 break;
             } else {
                 String msg = ""
-                           + "RMIClassLoader.getClassAnnotation("
+                           + "ClassLoading.getClassAnnotation("
                            + cl.toString() + ")\n"
                            + "  returned: " + returned
                            + "  as expected";

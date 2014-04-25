@@ -48,6 +48,7 @@ import com.sun.jini.config.Config;
 import com.sun.jini.logging.Levels;
 import com.sun.jini.reliableLog.LogHandler;
 import com.sun.jini.reliableLog.ReliableLog;
+import net.jini.io.MarshalledInstance;
 
 /**
  * Utility class that combines <code>JoinManager</code> with persistence.
@@ -412,7 +413,8 @@ public class JoinState extends LogHandler implements SubStore {
 	
 	out.writeInt(attributes.length);
 	for (int i=0; i<attributes.length; i++) {
-	    out.writeObject(new MarshalledObject(attributes[i]));
+	    out.writeObject(
+                new MarshalledInstance(attributes[i]).convertToMarshalledObject());
 	}
     }
 
@@ -434,7 +436,7 @@ public class JoinState extends LogHandler implements SubStore {
 	for (int i=0; i<objectCount; i++) {
 	    try {
 		MarshalledObject mo = (MarshalledObject) in.readObject();
-		entries.add(mo.get());
+		entries.add(new MarshalledInstance(mo).get(false));
 	    } catch (IOException e) {
 		logger.log(Level.INFO,
 			   "Problem recovering attribute -- discarding",

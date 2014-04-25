@@ -27,6 +27,7 @@ import com.sun.jini.qa.harness.QAConfig;
 // java.rmi
 import java.rmi.RemoteException;
 import java.rmi.server.RMIClassLoader;
+import net.jini.loader.ClassLoading;
 
 /**
  * This test ensures that different service instances in the same VM properly
@@ -72,9 +73,9 @@ public class CodebaseTest extends AbstractStartBaseTest {
         String expected_codebase2 = admin2.getCodebase();
 
         String proxy_codebase1 =
-            RMIClassLoader.getClassAnnotation(service1.getClass());
+            ClassLoading.getClassAnnotation(service1.getClass());
         String proxy_codebase2 =
-            RMIClassLoader.getClassAnnotation(service2.getClass());
+            ClassLoading.getClassAnnotation(service2.getClass());
 
         logger.log(Level.FINE, "expected codebase for test "
             + "service 1 proxy: " + expected_codebase1);
@@ -115,9 +116,9 @@ public class CodebaseTest extends AbstractStartBaseTest {
 
         // check codebases of loaded classes
         String loadClass_codebase1 =
-                RMIClassLoader.getClassAnnotation(object1.getClass());
+                ClassLoading.getClassAnnotation(object1.getClass());
         String loadClass_codebase2 =
-                RMIClassLoader.getClassAnnotation(object2.getClass());
+                ClassLoading.getClassAnnotation(object2.getClass());
 
         logger.log(Level.FINE, "expected codebase for test "
                 + "service 1 loaded class: " + expected_codebase1);

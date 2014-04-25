@@ -29,6 +29,7 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.util.Properties;
 import java.util.StringTokenizer;
+import net.jini.loader.ClassLoading;
 
 /**
  * The <code>TestDescription</code> is an object which describes a test;
@@ -439,7 +440,7 @@ public class TestDescription implements Serializable {
     String getCodebase() throws TestException {
         String codebase = config.getStringConfigVal("testCodebase", null);
 	if (codebase == null) {
-	    codebase = RMIClassLoader.getClassAnnotation(getClass());
+	    codebase = ClassLoading.getClassAnnotation(getClass());
 	}
 	return config.genIntegrityCodebase(codebase, null);
     }

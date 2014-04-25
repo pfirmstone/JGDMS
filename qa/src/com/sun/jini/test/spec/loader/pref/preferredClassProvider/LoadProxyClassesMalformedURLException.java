@@ -55,6 +55,7 @@ import com.sun.jini.test.spec.loader.util.QATestPreferredClassProvider;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -201,7 +202,7 @@ public class LoadProxyClassesMalformedURLException extends AbstractTestBase {
 
         /*
          * 3) for each interface do the following:
-         *  - invoke RMIClassLoader.loadProxyClass method passing:
+         *  - invoke ClassLoading.loadProxyClass method passing:
          *    codebase - string representation of invalid url
          *    interfaces - string array of interface name (so that this
          *                 array has one element)
@@ -214,12 +215,12 @@ public class LoadProxyClassesMalformedURLException extends AbstractTestBase {
             String[] in = { name };
 
             try {
-                classLoaded = RMIClassLoader.loadProxyClass(cb, in, parent);
+                classLoaded = ClassLoading.loadProxyClass(cb, in, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
                 // Tests case with expected ClassNotFoundException
                 // is LoadProxyClassesClassNotFoundException
-                message += "\nRMIClassLoader.loadProxyClass(" + cb + ", "
+                message += "\nClassLoading.loadProxyClass(" + cb + ", "
                          + in[0] + ", defaultLoader)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: MalformedURLException";
@@ -227,13 +228,13 @@ public class LoadProxyClassesMalformedURLException extends AbstractTestBase {
             } catch (MalformedURLException me) {
                 // Expect MalformedURLException
                 String msg = ""
-                           + "\nRMIClassLoader.loadProxyClass(" + cb + ", "
+                           + "\nClassLoading.loadProxyClass(" + cb + ", "
                            + in[0] + ", defaultLoader)\n"
                            + "  throws " + me.toString() + " as expected";
                 logger.log(Level.FINE, msg);
                 continue;
             }
-            message += "\nRMIClassLoader.loadProxyClass(" + cb + ", "
+            message += "\nClassLoading.loadProxyClass(" + cb + ", "
                      + in[0] + ", defaultLoader)\n"
                      + "  returned: " + classLoaded.toString() + "\n"
                      + "  expected: MalformedURLException";

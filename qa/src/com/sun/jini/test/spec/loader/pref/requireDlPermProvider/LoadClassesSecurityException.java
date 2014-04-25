@@ -47,6 +47,7 @@ import com.sun.jini.test.spec.loader.util.Util;
 
 // test base class
 import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
+import net.jini.loader.ClassLoading;
 
 
 /**
@@ -129,7 +130,7 @@ import com.sun.jini.test.spec.loader.pref.AbstractTestBase;
  *    </li>
  *    <li> for each preferred/non-preferred class do the following:
  *     <ol>
- *       <li> invoke RMIClassLoader.loadClass method passing:
+ *       <li> invoke ClassLoading.loadClass method passing:
  *         <ul>
  *          <li>codebase - string representation of url to
  *                         qa1-loader-pref.jar</li>
@@ -175,7 +176,7 @@ public class LoadClassesSecurityException extends AbstractTestBase {
 
         /*
          * 2) for each preferred/non-preferred class do the following:
-         *  - invoke RMIClassLoader.loadClass method passing:
+         *  - invoke ClassLoading.loadClass method passing:
          *    codebase - string representation of url to qa1-loader-pref.jar
          *    name - name of preferred/non-preferred class
          *    parent - ClassLoader.getSystemClassLoader()
@@ -192,18 +193,18 @@ public class LoadClassesSecurityException extends AbstractTestBase {
             Class classPreferred = null;
 
             try {
-                classPreferred = RMIClassLoader.loadClass(cb, name, parent);
+                classPreferred = ClassLoading.loadClass(cb, name, parent, false, null);
             } catch (ClassNotFoundException e) {
                 // Do not expect ClassNotFoundException.
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + e.toString() + "\n"
                          + "  expected: " + (pref ? str3 : str2);
                 break;
             } catch (MalformedURLException me) {
                 // Do not expect MalformedURLException.
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  throws: " + me.toString() + "\n"
                          + "  expected: " + (pref ? str3 : str2);
                 break;
@@ -211,14 +212,14 @@ public class LoadClassesSecurityException extends AbstractTestBase {
                 // Expect SecurityException for preferred classes only
                 if (pref) {
                     String msg = ""
-                               + "RMIClassLoader.loadClass(" + cb + ", "
-                               + name + ", defaultLoader)"
+                               + "ClassLoading.loadClass(" + cb + ", "
+                               + name + ", defaultLoader, false, null)"
                                + "  throws " + sex.toString()
                                + "  as expected";
                     logger.log(Level.FINEST, msg);
                 } else {
-                    message += "RMIClassLoader.loadClass(" + cb + ", "
-                             + name + ", defaultLoader)\n"
+                    message += "ClassLoading.loadClass(" + cb + ", "
+                             + name + ", defaultLoader, false, null)\n"
                              + "  returned: " + sex.toString() + "\n"
                              + "  expected: " + str2;
                     break;
@@ -227,15 +228,15 @@ public class LoadClassesSecurityException extends AbstractTestBase {
             }
 
             if (pref) {
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  returned: " + str1 + "\n"
                          + "  expected: " + str3;
                 break;
             } else {
                 String msg = ""
-                           + "RMIClassLoader.loadClass(" + cb + ", "
-                           + name + ", defaultLoader)\n"
+                           + "ClassLoading.loadClass(" + cb + ", "
+                           + name + ", defaultLoader, false, null)\n"
                            + "  returned " + str2
                            + "  as expected";
                 logger.log(Level.FINEST, msg);
@@ -268,8 +269,8 @@ public class LoadClassesSecurityException extends AbstractTestBase {
              * SecurityException for non-preferred classes only.
              */
             if (!classDefault.equals(classPreferred)) {
-                message += "RMIClassLoader.loadClass(" + cb + ", "
-                         + name + ", defaultLoader)\n"
+                message += "ClassLoading.loadClass(" + cb + ", "
+                         + name + ", defaultLoader, false, null)\n"
                          + "  returned: " + str1 + "\n"
                          + "  expected: " + str2;
                 break;

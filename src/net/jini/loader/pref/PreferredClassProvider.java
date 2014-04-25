@@ -54,6 +54,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import net.jini.loader.ClassAnnotation;
+import net.jini.loader.ClassLoading;
 import net.jini.loader.DownloadPermission;
 import org.apache.river.api.net.Uri;
 
@@ -576,7 +577,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	     urlsMatchLoaderAnnotation(codebaseURIs, defaultLoader)))
 	{
 	    try {
-		Class c = Class.forName(name, false, defaultLoader);
+		Class c = ClassLoading.forName(name, false, defaultLoader);
 		if (logger.isLoggable(Level.FINEST)) {
 		    logger.log(Level.FINEST, "class \"{0}\" found " +
 			"via defaultLoader, defined by {1}",
@@ -608,7 +609,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    !(codebaseLoader instanceof PreferredClassLoader))
 	{
 	    try {
-		Class c = Class.forName(name, false, defaultLoader);
+		Class c = ClassLoading.forName(name, false, defaultLoader);
 		if (logger.isLoggable(Level.FINEST)) {
 		    logger.log(Level.FINEST, "class \"{0}\" found " +
 			"via defaultLoader, defined by {1}",
@@ -659,7 +660,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	    }
 	    if (tryDL) {
 		try {
-		    Class c = Class.forName(name, false, defaultLoader);
+		    Class c = ClassLoading.forName(name, false, defaultLoader);
 		    if (logger.isLoggable(Level.FINEST)) {
 			logger.log(Level.FINEST, "class \"{0}\" found " +
 			    "via defaultLoader, defined by {1}",
@@ -676,7 +677,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 	 * context class loader as appropriate.
 	 */
 	try {
-	    Class c = Class.forName(name, false,
+	    Class c = ClassLoading.forName(name, false,
 				    (sm != null && secEx == null ?
 				     codebaseLoader : contextLoader));
 	    if (logger.isLoggable(Level.FINEST)) {
@@ -1427,7 +1428,7 @@ public class PreferredClassProvider extends RMIClassLoaderSpi {
 
 	for (int i = 0; i < interfaces.length; i++) {
 	    Class cl =
-		(classObjs[i] = Class.forName(interfaces[i], false, loader));
+		(classObjs[i] = ClassLoading.forName(interfaces[i], false, loader));
 		
 	    if (!Modifier.isPublic(cl.getModifiers())) {
 		ClassLoader current = getClassLoader(cl);

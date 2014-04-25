@@ -37,6 +37,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.locks.Condition;
 
 import net.jini.core.event.RemoteEventListener;
+import net.jini.io.MarshalledInstance;
 
 /**
  * The <tt>ServiceRegistration</tt> class serves as the server-side abstraction
@@ -189,7 +190,8 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
 	    marshalledEventTarget = null;
 	} else {
 	    preparedEventTarget = preparedTarget;
-	    marshalledEventTarget = new MarshalledObject(preparedTarget);
+	    marshalledEventTarget = 
+                new MarshalledInstance(preparedTarget).convertToMarshalledObject();
 	}
     }
     
@@ -229,7 +231,7 @@ class ServiceRegistration implements LeasedResource, Comparable, Serializable {
         synchronized (this){
             if (marshalledEventTarget != null) {
                 RemoteEventListener unprepared = 
-                    (RemoteEventListener)marshalledEventTarget.get();
+                    (RemoteEventListener) new MarshalledInstance(marshalledEventTarget).get(false);
                 preparedEventTarget = (RemoteEventListener)
                     targetPreparer.prepareProxy(unprepared);
             }

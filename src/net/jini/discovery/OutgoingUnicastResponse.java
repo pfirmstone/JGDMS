@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.rmi.MarshalledObject;
 import net.jini.core.lookup.ServiceRegistrar;
+import net.jini.io.MarshalledInstance;
 
 /**
  * Encapsulate the details of marshaling a unicast response.
@@ -52,7 +53,7 @@ public class OutgoingUnicastResponse {
 	throws IOException
     {
 	ObjectOutputStream ostr = new ObjectOutputStream(str);
-	ostr.writeObject(new MarshalledObject(reg));
+	ostr.writeObject(new MarshalledInstance(reg).convertToMarshalledObject());
 	ostr.writeInt(groups.length);
 	for (int i = 0; i < groups.length; i++) {
 	    ostr.writeUTF(groups[i]);

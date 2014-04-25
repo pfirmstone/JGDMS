@@ -54,6 +54,8 @@ import java.security.Security;
 import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import net.jini.io.MarshalledInstance;
+import net.jini.loader.ClassLoading;
 
 /**
  * A wrapper for activatable objects, providing separation of the import
@@ -395,7 +397,8 @@ public class ActivateWrapper implements Remote, Serializable {
             logger.entering(ActivateWrapper.class.getName(), 
 	        "ActivateWrapper", new Object[] { id, data });
 
-	    ActivateDesc desc = (ActivateDesc)data.get();
+	    ActivateDesc desc = (ActivateDesc)
+                    new MarshalledInstance(data).get(false);
 	    logger.log(Level.FINEST, "ActivateDesc: {0}", desc);
 
 	    Thread t = Thread.currentThread();
@@ -455,7 +458,7 @@ public class ActivateWrapper implements Remote, Serializable {
 	    }
 	
 	    boolean initialize = false;
-	    Class ac = Class.forName(desc.className, initialize, cl);
+	    Class ac = ClassLoading.forName(desc.className, initialize, cl);
  	    logger.log(Level.FINEST, "Obtained implementation class: {0}", ac);
 
 	    t.setContextClassLoader(cl);
@@ -547,7 +550,7 @@ public class ActivateWrapper implements Remote, Serializable {
 
 	MarshalledObject data;
 	try {
-	    data = new MarshalledObject(desc);
+	    data = new MarshalledInstance(desc).convertToMarshalledObject();
 	} catch (Exception e) {
             MarshalException me = 
 	        new MarshalException("marshalling ActivateDesc", e);

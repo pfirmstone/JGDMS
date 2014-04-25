@@ -34,6 +34,7 @@ import com.sun.jini.logging.Levels;
 import com.sun.jini.thread.RetryTask;
 import com.sun.jini.thread.WakeupManager;
 import java.util.concurrent.ExecutorService;
+import net.jini.io.MarshalledInstance;
 
 /**
  * Representation of an event type the supports a single registrant.
@@ -175,7 +176,8 @@ public class EventType implements Serializable {
 	if (listener == null) {
 	    clearListener();
 	} else {	    
-	    marshalledListener = new MarshalledObject(listener);
+	    marshalledListener = 
+                new MarshalledInstance(listener).convertToMarshalledObject();
 	    this.listener = listener;
 	    this.handback = handback;
 	}
@@ -206,7 +208,7 @@ public class EventType implements Serializable {
 	RemoteEventListener unpreparedListener = null;
 	try {
 	    unpreparedListener =
-		(RemoteEventListener) marshalledListener.get();
+		(RemoteEventListener) new MarshalledInstance(marshalledListener).get(false);
 	} catch (IOException e) {
 	    logger.log(Levels.HANDLED,
 		       "Problem unmarshalling listener -- will retry later",
