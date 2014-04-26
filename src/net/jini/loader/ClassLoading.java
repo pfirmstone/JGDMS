@@ -175,6 +175,7 @@ public final class ClassLoading {
             return true;
         } else if (providerName == null) {
             provider = null;
+            logger.log(Level.CONFIG, "loaded: java.rmi.server.RMIClassLoader");
         }
         return false;
     }

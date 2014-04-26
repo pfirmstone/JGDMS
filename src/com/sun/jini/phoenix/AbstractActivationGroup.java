@@ -224,7 +224,7 @@ abstract class AbstractActivationGroup extends ActivationGroup
     /** group is inactive */
     private static final int INACTIVE = 4;
     /** parameter types for activatable constructor */
-    private static Class[] paramTypes = {
+    private final static Class[] paramTypes = {
 	ActivationID.class, MarshalledObject.class
     };
 
@@ -382,8 +382,8 @@ abstract class AbstractActivationGroup extends ActivationGroup
     private static Configuration getConfiguration(MarshalledObject mobj)
 	throws ConfigurationException, IOException, ClassNotFoundException
     {
-	ActivationGroupData data = (ActivationGroupData) 
-                new MarshalledInstance(mobj).get(false);
+        /* mobj must be MarshalledObject unmarshalled */
+	ActivationGroupData data = (ActivationGroupData) mobj.get();
 	ClassLoader cl = AbstractActivationGroup.class.getClassLoader();
 	ClassLoader ccl = Thread.currentThread().getContextClassLoader();
 	if (!covers(cl, ccl)) {
