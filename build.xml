@@ -846,6 +846,7 @@
             <arg line="-in com.sun.jini"/>
             <arg line="-in net.jini"/>
             <arg line="-in org.apache.river"/>
+			<arg line="-out net.jini.lookup"/>
             <arg path="${build.classes.dir}/net/jini/activation"/>
             <arg path="${build.classes.dir}/net/jini/config"/>
             <arg path="${build.classes.dir}/net/jini/constraint"/>
