@@ -26,6 +26,7 @@ import java.net.MalformedURLException;
 import java.rmi.server.RMIClassLoader;
 import java.rmi.server.RMIClassLoaderSpi;
 import java.security.AccessController;
+import java.security.Guard;
 import java.security.PrivilegedAction;
 import java.util.Iterator;
 import java.util.Map;
@@ -65,7 +66,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  * from ClassLoading's own ClassLoader.
  * </p><p>
  * To define a new RMIClassLoaderSpi for River to utilize, create a file in
- * your application jar file called:
+ * your providers jar file called:
  * </p><p>
  * META-INF/services/java.rmi.server.RMIClassLoaderSpi
  * </p><p>
@@ -77,19 +78,26 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  * </p><p>
  * System.getProperty("net.jini.loader.ClassLoading.provider");
  * </p><p>
- * If this System property is not defined, ClassLoading will load the first 
- * provider found.
+ * If this System property is not defined, ClassLoading will load 
+ * <code>net.jini.loader.pref.PreferredClassProvider</code>, alternatively
+ * <code>java.rmi.server.RMIClassLoader</code> delegates all calls to {@link
+ * RMIClassLoader}.
+ * </p><p>
+ * If a provider is not found, it will not be updated.
  * </p><p>
  * <h1>History</h1>
  * <p>Gregg Wonderly originally reported River-336 and provided a patch
  * containing a new CodebaseAccessClassLoader to replace {@link RMIClassLoader}, 
- * later Sim Isjkes created RiverClassLoader that utilised ServiceLoader.
+ * later Sim Isjkes created RiverClassLoader that utilized ServiceLoader.
  * Both implementations contained methods identical to {@link RMIClassLoaderSpi},
  * however new implementations were required to extend new provider 
  * implementations, creating a compatibility issue with existing implementations
  * extending {@link RMIClassLoaderSpi}.  For backward compatibility with existing
  * implementations, {@link RMIClassLoaderSpi} has been retained as the provider,
- * avoiding the need to recompile client code.  
+ * avoiding the need to recompile client code.  The abilities of both
+ * implementations, to use ServiceLoader, or to define a provider using a method
+ * call have been retained, with the restriction that implementations are to be
+ * obtained via ServiceLoader.
  * </p><p>
  * Instead, all that is required for utilization of existing service provider
  * {@link RMIClassLoaderSpi} implementations is to set the system property
@@ -100,32 +108,55 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  **/
 public final class ClassLoading {
     private final static Logger logger = Logger.getLogger(ClassLoading.class.getName());
-    private static final RMIClassLoaderSpi provider;
+    private static volatile RMIClassLoaderSpi provider;
+    private static final Object lock = new Object();
+    private static final Guard permission = new RuntimePermission("setFactory");
     
     static {
-        provider = AccessController.doPrivileged(
+        provider(null, ClassLoading.class.getClassLoader());
+    }
+    
+    /**
+     * The current RMIClassLoaderSpi provider in use by ClassLoading.
+     * 
+     * @return currently installed Provider, may be null.
+     * @throws SecurityException if caller doesn't have RuntimePermission "getFactory"
+     */
+    public static RMIClassLoaderSpi getProvider(){
+        permission.checkGuard(null);
+        return provider;
+    }
+    
+    private static boolean provider(
+            final String providerName, 
+            final ClassLoader providerLoader)
+    {
+        RMIClassLoaderSpi newProvider = AccessController.doPrivileged(
         new PrivilegedAction<RMIClassLoaderSpi>(){
             @Override
             public RMIClassLoaderSpi run() {
-               String providerClassName =
-                    System.getProperty("net.jini.loader.ClassLoading.provider");
-               ServiceLoader<RMIClassLoaderSpi> loader 
-                       = ServiceLoader.load(RMIClassLoaderSpi.class,
-                               ClassLoading.class.getClassLoader());
+                String name = providerName;
+                if (name == null){
+                    name = System.getProperty(
+                            "net.jini.loader.ClassLoading.provider");
+                    if (name == null) {
+                        name = "net.jini.loader.pref.PreferredClassProvider";
+                    } else if ("java.rmi.server.RMIClassLoader".equals(name)){
+                        return null;
+                    }
+                }
+                ServiceLoader<RMIClassLoaderSpi> loader 
+                   = ServiceLoader.load(RMIClassLoaderSpi.class, providerLoader);
                 Iterator<RMIClassLoaderSpi> iter = loader.iterator();
-                RMIClassLoaderSpi firstSpi;
+                RMIClassLoaderSpi spi;
                 while ( iter.hasNext() ) {
                     try {
-                        firstSpi = iter.next();
-                        if (firstSpi != null) {
-                            if (providerClassName == null) {
-                                logger.log(Level.CONFIG, "loaded: {0}", firstSpi.getClass().getName());
-                                return firstSpi;
-                            }
-                            if (!providerClassName.equals(firstSpi.getClass().getName()))
+                        spi = iter.next();
+                        if (spi != null) {
+                            if (!name.equals(spi.getClass().getName()))
                                 continue;
-                            logger.log(Level.CONFIG, "loaded: {0}", providerClassName);
-                            return firstSpi;
+                            logger.log(Level.CONFIG, "loaded: {0}", name);
+                            return spi;
                         }
                     } catch (Exception e) {
                         logger.log( 
@@ -135,11 +166,40 @@ public final class ClassLoading {
                         );
                     }
                 }
-                if (providerClassName != null) logger.log(Level.CONFIG,
-                        "uable to find {0}" , providerClassName);
+                logger.log(Level.CONFIG, "uable to find {0}" , providerName);
                 return null;
             }
         });
+        if (newProvider != null) {
+            provider = newProvider;
+            return true;
+        } else if (providerName == null) {
+            provider = null;
+        }
+        return false;
+    }
+    
+    /**
+     * Installs a new RMIClassLoaderSpi provider with the ClassLoader 
+     * provided.
+     * 
+     * @param providerName fully defined class name of the provider, if null,
+     * a new provider instance will be determined by system properties.
+     * @param providerLoader The class loader to be used to load 
+     * provider-configuration files and provider classes, or null if the 
+     * system class loader (or, failing that, the bootstrap class loader) 
+     * is to be used.
+     * @return true if successful.
+     * @throws SecurityException if caller doesn't have RuntimePermission "getFactory"
+     */
+    public static boolean installNewProvider(
+            String providerName, 
+            ClassLoader providerLoader)
+    {
+        permission.checkGuard(null);
+        synchronized (lock){
+            return provider(providerName, providerLoader);
+        }
     }
     
     /**
