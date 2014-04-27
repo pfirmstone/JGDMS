@@ -17,6 +17,8 @@ grant {
     permission java.lang.RuntimePermission "setSecurityManager";
     permission java.lang.RuntimePermission "setIO";
     permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.lang.RuntimePermission "setFactory";
+    permission java.lang.RuntimePermission "getenv.SOUL";
     permission javax.security.auth.AuthPermission "createLoginContext.com.sun.jini.Test";
     permission javax.security.auth.AuthPermission "doAs";
 
@@ -61,6 +63,7 @@ grant {
     permission java.io.FilePermission "${java.io.tmpdir}${/}valid.prop", "read,write,delete"; 
     permission java.io.FilePermission "${java.io.tmpdir}${/}valid.prop1","read,write,delete"; 
     permission java.io.FilePermission "${java.io.tmpdir}${/}unexist.prop","read,write,delete"; 
+    permission java.io.FilePermission "${java.io.tmpdir}${/}broken.prop","read,write,delete";
 
     permission java.io.FilePermission "c:\\temp",             "read,write,delete"; 
     permission java.io.FilePermission "c:\\temp\\-",          "write,delete"; 

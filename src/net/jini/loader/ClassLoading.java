@@ -39,6 +39,9 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.Security;
@@ -166,7 +169,7 @@ public final class ClassLoading {
                         );
                     }
                 }
-                logger.log(Level.CONFIG, "uable to find {0}" , providerName);
+                logger.log(Level.CONFIG, "uable to find {0}" , name);
                 return null;
             }
         });
@@ -577,7 +580,15 @@ public final class ClassLoading {
         if (loader == null) return Class.forName(name, initialize, loader);
         ExecutorService exec = loaderMap.get(loader);
         if (exec == null){
-            exec = Executors.newSingleThreadExecutor(new NamedThreadFactory(loader.toString(),true));
+            exec = new ThreadPoolExecutor(
+                    1,
+                    1,
+                    0,
+                    TimeUnit.SECONDS,
+                    new LinkedBlockingQueue(),
+                    new NamedThreadFactory(loader.toString(),true),
+                    new ThreadPoolExecutor.CallerRunsPolicy()
+            );
             ExecutorService existed = loaderMap.putIfAbsent(loader, exec);
             if (existed != null){
                 exec = existed;
@@ -598,6 +609,7 @@ public final class ClassLoading {
             if (t instanceof SecurityException) throw (SecurityException) t;
             if (t instanceof ClassNotFoundException ) 
                 throw (ClassNotFoundException) t;
+            if (t instanceof NullPointerException) throw (NullPointerException) t;
             throw new ClassNotFoundException("Unable to find Class:" + name, t);
         }
     }
