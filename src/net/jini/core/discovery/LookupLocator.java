@@ -34,7 +34,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.ConstrainableLookupLocator;
-import net.jini.discovery.LookupLocatorDiscovery;
 import net.jini.io.MarshalledInstance;
 import org.apache.river.api.net.Uri;
 
@@ -53,7 +52,7 @@ import org.apache.river.api.net.Uri;
  * and enables the use of constraints.
  *
  * @since 1.0
- * @see LookupLocatorDiscovery
+ * @see net.jini.discovery.LookupLocatorDiscovery
  * @see ConstrainableLookupLocator
  */
 public class LookupLocator implements Serializable {
