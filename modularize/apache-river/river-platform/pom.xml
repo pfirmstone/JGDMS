@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"     
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <artifactId>river</artifactId>
+        <groupId>org.apache</groupId>
+        <version>3.0-SNAPSHOT</version>
+    </parent>
+    <groupId>org.apache.river</groupId>
+    <artifactId>river-platform</artifactId>
+    <name>Module :: River Platform</name>
+
+     <dependencies>       
+        
+		<dependency>
+            <groupId>org.codehaus.groovy</groupId>
+            <artifactId>groovy-all</artifactId>
+        </dependency>
+		
+		<dependency>
+			<groupId>au.net.Zeus</groupId> 
+			<artifactId>custard-apple</artifactId> 
+			<version>1.0.3</version>
+		</dependency>
+		
+		<dependency>
+		  <groupId>com.boundary</groupId>
+		  <artifactId>high-scale-lib</artifactId>
+		  <version>1.0.3</version>
+		</dependency>
+		
+    </dependencies>
+
+    <build>
+	    <plugins>            
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>2.2</version>
+                <configuration>
+                    <archive>                
+                        <manifestEntries>
+							<Implementation-Version>${project.version}</Implementation-Version>
+						    <Class-Path>river-resources.jar</Class-Path>
+						</manifestEntries>
+                    </archive>
+                </configuration>
+            </plugin> 
+
+			<plugin>
+			   <groupId>org.codehaus.gmaven</groupId>
+			   <artifactId>gmaven-plugin</artifactId>
+			   <configuration>
+			        <providerSelection>${gmavenProviderSelection}</providerSelection>
+			        <source/>
+			    </configuration>
+			    <executions>
+			        <execution>
+			            <goals>
+			                <goal>generateStubs</goal>
+			                <goal>compile</goal>
+			                <goal>generateTestStubs</goal>
+			                <goal>testCompile</goal>
+			            </goals>
+			        </execution>
+			    </executions>
+			    <dependencies>
+			        <dependency>
+			            <groupId>org.codehaus.groovy</groupId>
+			            <artifactId>groovy-all</artifactId>
+			            <version>${groovy.version}</version>
+		            </dependency>
+                </dependencies>
+            </plugin>						
+
+			 <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-source-plugin</artifactId>
+                <version>2.1.1</version>
+                <executions>
+                    <execution>
+                        <id>attach-sources</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>jar-no-fork</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+ 
+	    </plugins>
+    </build>
+    
+</project>

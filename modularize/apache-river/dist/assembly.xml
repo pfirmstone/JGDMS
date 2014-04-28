@@ -1,0 +1,57 @@
+<assembly>
+    <!-- We dont use the <id> element to avoid the extension to the directory
+         and zip name -->
+    <formats>
+        <format>dir</format>
+        <format>zip</format>
+    </formats>
+    <includeBaseDirectory>false</includeBaseDirectory>
+    <fileSets>        
+        <fileSet>
+            <directory>${basedir}/..</directory>
+            <includes>
+                <include>LICENSE</include>
+                <include>NOTICE</include>
+            </includes>
+            <outputDirectory>/</outputDirectory>
+        </fileSet>
+    </fileSets>
+
+    <dependencySets>
+        <!-- The lib directory are service implementation jars and their transitive requirements -->
+        <dependencySet>      
+			<useProjectArtifact>false</useProjectArtifact>      
+            <excludes>  
+	            <!-- exclude jline, this is brought in transitively because of groovy -->
+                <exclude>jline:*</exclude>              
+                <exclude>groovy:*</exclude> 
+                <exclude>org.apache.river:river-dl:jar</exclude>
+	            <exclude>org.apache.river.reggie:reggie-dl:jar</exclude>
+	            <exclude>org.apache.river.outrigger:outrigger-dl:jar</exclude>
+				<exclude>org.apache.river.mahalo:mahalo-dl:jar</exclude>
+				<exclude>org.apache.river.mercury:mercury-dl:jar</exclude>
+				<exclude>org.apache.river.norm:norm-dl:jar</exclude>				
+            </excludes>
+            <outputDirectory>lib</outputDirectory>
+	    <!--<outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>-->
+        </dependencySet>
+
+        <!-- All proxy and dl jars go into the lib-dl directory -->
+        <dependencySet>
+			<useProjectArtifact>false</useProjectArtifact>
+            <useStrictFiltering>true</useStrictFiltering>
+            <includes>
+                <include>org.apache.river:river-dl:jar</include>
+                <include>org.apache.river.reggie:reggie-dl:jar</include>
+                <include>org.apache.river.outrigger:outrigger-dl:jar</include>
+				<include>org.apache.river.mahalo:mahalo-dl:jar</include>
+				<include>org.apache.river.mercury:mercury-dl:jar</include>
+				<include>org.apache.river.norm:norm-dl:jar</include>								
+            </includes>
+            <outputDirectory>lib-dl</outputDirectory>
+	    <!--<outputFileNameMapping>${artifact.artifactId}.${artifact.extension}</outputFileNameMapping>-->
+        </dependencySet>
+
+    </dependencySets>
+
+</assembly>

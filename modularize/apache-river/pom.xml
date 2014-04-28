@@ -1,0 +1,285 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>org.apache</groupId>
+    <artifactId>river</artifactId>
+    <version>3.0-SNAPSHOT</version>
+    <packaging>pom</packaging>
+    <name>Apache River Project</name>
+    <description>Apache River Project</description>
+    <inceptionYear>2008</inceptionYear>
+    <url>http://incubator.apache.org/river/</url>
+
+    <licenses>
+        <license>
+            <name>Apache Software License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.txt</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <organization>
+        <name>Apache Software Foundation</name>
+        <url>http://www.apache.org</url>
+    </organization>
+
+    <issueManagement>
+        <system>JIRA</system>
+        <url>https://issues.apache.org/jira/browse/RIVER</url>
+    </issueManagement>
+
+    <scm>
+        <connection>scm:http://svn.apache.org/repos/asf/incubator/river/</connection>
+        <developerConnection>scm:http://svn.apache.org/repos/asf/incubator/river/</developerConnection>
+        <url>http://svn.apache.org/repos/asf/incubator/river/</url>
+    </scm>
+
+    <ciManagement>
+        <system>hudson</system>
+        <!-- FIX URL BELOW TO POINT TO HUDSON -->
+        <url>http://incubator.apache.org/river/</url>
+    </ciManagement>
+
+    <reporting>
+        <excludeDefaults>true</excludeDefaults>
+        <plugins>        
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-project-info-reports-plugin</artifactId>
+                <inherited>false</inherited>
+                <reportSets>
+                    <reportSet>
+                        <reports>
+                            <report>modules</report>
+                            <report>cim</report>
+                            <report>issue-tracking</report>
+                            <report>mailing-list</report>
+                            <report>license</report>
+                            <report>project-team</report>
+                            <report>scm</report>
+                            <report>index</report>
+                            <!--<report>findbugs</report>-->
+                        </reports>
+                        <configuration>
+                            <aggregate>true</aggregate>
+                        </configuration>
+                    </reportSet>
+                </reportSets>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-deploy-plugin</artifactId>
+                <version>2.2</version>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-javadoc-plugin</artifactId>
+                <version>2.5</version>
+                <inherited>false</inherited>
+                <configuration><aggregate>true</aggregate></configuration>
+                <reportSets>
+                    <reportSet>
+                        <id>aggregate</id>
+                        <configuration>
+                            <links>
+                                <link>http://java.sun.com/j2se/1.6.0/docs/api/</link>
+                                <link>https://hudson.apache.org/hudson/view/River/job/River-trunk/javadoc/api/index.html</link>
+                            </links>
+                            <detectLinks>true</detectLinks>
+                            <breakiterator>true</breakiterator>
+                            <top><![CDATA[<h2>Apache River Project ${pom.version} API Documentation</h2>]]></top>
+                            <footer><![CDATA[<i>Copyright &copy;, multiple authors.</i>]]></footer>
+                            <excludePackageNames></excludePackageNames>
+                        </configuration>
+                        <reports>
+                            <report>aggregate</report>
+                        </reports>
+                    </reportSet>
+                </reportSets>
+            </plugin>
+            <!--
+            <plugin>
+                <artifactId>maven-jxr-plugin</artifactId>
+                <inherited>false</inherited>
+                <configuration>
+                    <aggregate>true</aggregate>
+                </configuration>
+            </plugin>
+            -->
+        </plugins>
+    </reporting>
+
+    <mailingLists>
+        <mailingList>
+            <name>River User List</name>
+            <archive>river-dev@incubator.apache.org</archive>
+        </mailingList>
+        <mailingList>
+            <name>River Developer List</name>
+            <archive>river-dev@incubator.apache.org</archive>
+        </mailingList>
+        <mailingList>
+            <name>River Commits List</name>
+	        <archive>river-commits@incubator.apache.org</archive>
+        </mailingList>
+    </mailingLists>
+
+    <developers>
+        <developer>
+            <id>peter_firmstone</id>
+            <name>Peter Firmstone</name>
+            <email></email>
+            <roles>
+                <role>Developer</role>
+            </roles>
+            <timezone>-5</timezone>
+        </developer>
+        <!-- FILL IN THE REST OF YOUR DEVELOPERS -->
+    </developers>
+
+<!--
+    <distributionManagement>
+        <repository>
+            <id></id>
+            <name></name>
+            <url>scp://</url>
+        </repository>        
+    </distributionManagement>
+
+    <pluginRepositories>
+        <pluginRepository>
+            <id></id>
+            <url></url>
+        </pluginRepository>
+    </pluginRepositories>
+-->
+	
+    <repositories>
+		<!-- Required for the use of org.cliffc.high_scale_lib.NonBlockingHashMap in river-platform -->
+        <repository>
+		    <id>boundary-site</id>
+		    <url>http://maven.boundary.com/artifactory/repo</url>
+        </repository>
+		
+        <repository>
+		    <id>hashnot</id>
+		    <url>http://mvn.hashnot.com/content/groups/public</url>
+        </repository>
+		
+    </repositories>
+	
+    <dependencyManagement>
+        <dependencies>
+
+            <dependency>
+                <groupId>org.codehaus.groovy</groupId>
+                <artifactId>groovy-all</artifactId>
+                <version>${groovy.version}</version>
+            </dependency>
+
+            <dependency>
+                <groupId>org.codehaus.groovy.maven</groupId>
+                <artifactId>gmaven-plugin</artifactId>
+                <version>${gma}</version>
+            </dependency>
+           
+        </dependencies>
+
+    </dependencyManagement>
+
+    <build>
+		<pluginManagement>
+		    <plugins>
+		        <plugin>
+		            <groupId>org.apache.maven.plugins</groupId>
+		            <artifactId>maven-jar-plugin</artifactId>
+		            <version>2.3</version>
+		        </plugin>
+
+		        <plugin>
+		            <groupId>org.apache.maven.plugins</groupId>
+		            <artifactId>maven-surefire-plugin</artifactId>
+		            <version>2.13</version>
+		        </plugin>
+
+		        <plugin>
+		            <groupId>org.apache.maven.plugins</groupId>
+		            <artifactId>maven-failsafe-plugin</artifactId>
+		            <version>2.13</version>
+		        </plugin>
+
+		        <plugin>
+		            <groupId>org.apache.maven.plugins</groupId>
+		            <artifactId>maven-source-plugin</artifactId>
+		            <version>2.1.1</version>
+		        </plugin>
+
+		        <plugin>
+		            <groupId>org.codehaus.gmaven</groupId>
+		            <artifactId>gmaven-plugin</artifactId>
+		            <version>${gmaven.version}</version>
+	            </plugin>
+            </plugins>
+        </pluginManagement>
+
+        <plugins>
+            <plugin>
+                <artifactId>maven-site-plugin</artifactId>
+                <version>2.1.1</version>
+                <inherited>false</inherited>
+                <configuration>
+                    <locales>en</locales>
+                    <outputDirectory>${basedir}/docs</outputDirectory>
+                </configuration>
+            </plugin>
+			<plugin>
+                <artifactId>maven-compiler-plugin</artifactId>
+	            <version>2.3.2</version>
+	            <configuration>
+	                <source>1.6</source>
+		            <target>1.6</target>
+		            <optimize>true</optimize>
+		            <encoding>UTF-8</encoding>
+		            <meminitial>128m</meminitial>
+		            <maxmem>1024m</maxmem>
+		        </configuration>
+		    </plugin>
+		    <plugin>
+		        <artifactId>maven-resources-plugin</artifactId>
+			    <version>2.5</version>
+		    </plugin>
+        </plugins>
+    </build>
+	
+	<properties>
+	        <groovy.version>2.2.1</groovy.version>
+	        <gmaven.version>1.4</gmaven.version>
+	        <gmavenProviderSelection>2.0</gmavenProviderSelection>
+	        <junit.version>4.8.2</junit.version>
+	        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+	    </properties>
+
+    <modules>
+	    <module>river-platform</module> 
+        <module>river-start</module>
+        <module>river-lib</module>
+        <module>river-dl</module>
+        <module>river-services/outrigger/outrigger-dl</module>
+	    <module>river-services/outrigger/outrigger-service</module>
+	    <module>river-services/outrigger/outrigger-snaplogstore</module>
+		<module>river-services/reggie/reggie-dl</module>
+        <module>river-services/reggie/reggie-service</module>
+		<module>river-services/mahalo/mahalo-dl</module>
+        <module>river-services/mahalo/mahalo-service</module>
+		<module>river-services/mercury/mercury-dl</module>
+        <module>river-services/mercury/mercury-service</module>
+		<module>river-services/norm/norm-dl</module>
+        <module>river-services/norm/norm-service</module>
+        <module>dist</module>
+  </modules>
+    
+</project>

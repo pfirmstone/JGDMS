@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd"
+         xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+    <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <artifactId>river</artifactId>
+        <groupId>org.apache</groupId>
+        <version>3.0-SNAPSHOT</version>
+    </parent>
+	<groupId>org.apache.river</groupId>
+    <artifactId>dist</artifactId>
+    <name>River Distribution</name>
+    <packaging>pom</packaging>
+
+    <dependencies>
+       	<dependency>
+            <groupId>org.apache.river</groupId>
+            <artifactId>river-start</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.river.reggie</groupId>
+            <artifactId>reggie-service</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.river.outrigger</groupId>
+            <artifactId>outrigger-snaplogstore</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.river.mahalo</groupId>
+            <artifactId>mahalo-service</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+		
+        <dependency>
+            <groupId>org.apache.river.mercury</groupId>
+            <artifactId>mercury-service</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+		
+        <dependency>
+            <groupId>org.apache.river.norm</groupId>
+            <artifactId>norm-service</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+		
+    </dependencies>    
+
+    <build>
+        <plugins>
+            <plugin>
+                <artifactId>maven-assembly-plugin</artifactId>
+                <configuration>
+                    <descriptors>
+                        <descriptor>assembly.xml</descriptor>
+                    </descriptors>
+                    <finalName>apache-river-${project.version}</finalName>
+                    <appendAssemblyId>true</appendAssemblyId>
+                    <ignoreDirFormatExtensions>true</ignoreDirFormatExtensions>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>make-assembly</id>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>single</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+        </plugins>        
+    </build>        
+
+</project>
