@@ -768,6 +768,7 @@
             <arg value="com.sun.jini.landlord.LandlordLease"/>
             <arg value="com.sun.jini.landlord.LandlordLeaseMap"/>
             <arg value="com.sun.jini.landlord.LandlordProxyVerifier"/>
+			<arg value="com.sun.jini.landlord.LeasedResource"/>
             <arg value="com.sun.jini.logging.Levels"/>
             <arg value="com.sun.jini.lookup.entry.BasicServiceType"/>
             <arg value="com.sun.jini.resource.ServiceConfigurationError"/>
