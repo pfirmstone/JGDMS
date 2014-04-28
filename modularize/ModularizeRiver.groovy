@@ -1,5 +1,21 @@
 #!/usr/bin/env groovy
-
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one
+ * or more contributor license agreements.  See the NOTICE file
+ * distributed with this work for additional information
+ * regarding copyright ownership. The ASF licenses this file
+ * to you under the Apache License, Version 2.0 (the
+ * "License"); you may not use this file except in compliance
+ * with the License. You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
 import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
@@ -36,10 +52,12 @@ for(Map.Entry<String, String> entry : jarMap.entrySet()) {
     Enumeration zipEntries = zipFile.entries()
     while(zipEntries.hasMoreElements()) {
         ZipEntry zipEntry = (ZipEntry)zipEntries.nextElement()
-        if(zipEntry.getName().endsWith("MANIFEST.MF"))
+        if(zipEntry.getName().endsWith("MANIFEST.MF") ||
+           zipEntry.getName().endsWith("META-INF/")   ||
+           zipEntry.getName().endsWith("META-INF/services/"))
             continue
         if(jar.contains("jsk-resources")) {
-            println "\t${zipEntry.getName()}"
+            prepAndCopy(zipFile, zipEntry, src, target)
         } else {
             if(!zipEntry.getName().contains("\$") && !zipEntry.isDirectory()) {
                 if(jar.contains("jsk-platform")) {
@@ -96,9 +114,27 @@ void prepAndCopy(zipFile, zipEntry, src, target) {
                           zipEntry.getName().substring(0, zipEntry.getName().length()-"class".length()))
     } else if(zipEntry.getName().endsWith("PREFERRED.LIST")) {
         iStream = zipFile.getInputStream(zipEntry)
-        //println(iStream.text)
-        println("\t"+String.format("%s/src/main/resources/PREFERRED.LIST", target))
+        File preferredList = new File(String.format("%s/src/main/resources/PREFERRED.LIST", target))
+        File parent = preferredList.getParentFile()
+        parent.mkdirs()
+        def writer = preferredList.newWriter()
+        writer << iStream.text
+        writer.flush()
+        writer.close()
+        println("\tGenerated "+preferredList.path)
         iStream.close()
+        return
+    } else if(zipEntry.getName().startsWith("META-INF/services/")) {
+        String service = zipEntry.getName().substring("META-INF/services/".length())
+        File serviceResource = new File(String.format("%s/src/main/resources/services/%s", target, service))
+        File parent = serviceResource.getParentFile()
+        parent.mkdirs()
+        iStream = zipFile.getInputStream(zipEntry)
+        def writer = serviceResource.newWriter()
+        writer << iStream.text
+        writer.flush()
+        writer.close()
+        println("\tGenerated "+serviceResource.path)
         return
     } else {
         source = zipEntry.getName()

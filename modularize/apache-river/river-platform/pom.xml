@@ -12,7 +12,13 @@
     <artifactId>river-platform</artifactId>
     <name>Module :: River Platform</name>
 
-     <dependencies>       
+     <dependencies>  
+		 
+         <dependency>
+             <groupId>${project.groupId}</groupId>
+             <artifactId>river-resources</artifactId>
+             <version>${project.version}</version>
+         </dependency>     
         
 		<dependency>
             <groupId>org.codehaus.groovy</groupId>

@@ -266,6 +266,7 @@
     <modules>
 	    <module>river-platform</module> 
         <module>river-start</module>
+		<module>river-resources</module> 
         <module>river-lib</module>
         <module>river-dl</module>
         <module>river-services/outrigger/outrigger-dl</module>
