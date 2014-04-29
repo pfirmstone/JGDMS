@@ -18,20 +18,18 @@
 package com.sun.jini.test.impl.mahalo;
 
 import java.util.logging.Level;
-import com.sun.jini.mahalo.*;
-import net.jini.core.lease.*;
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
-import com.sun.jini.thread.*;
-import java.io.*;
-import java.rmi.*;
-import java.util.*;
 
 // Test harness specific classes
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.share.TxnManagerTest;
+import com.sun.jini.thread.WakeupManager;
+import java.util.Date;
+import java.util.Random;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import net.jini.core.transaction.server.TransactionManager;
 
 
 /**
@@ -69,7 +67,7 @@ public class RandomStressTest extends TxnManagerTest {
 
     // Another values.
     private volatile TransactionManager mgr = null;
-    private TaskManager threadpool = null;
+    private ExecutorService threadpool = null;
     private volatile WakeupManager wakeupManager = null;
     private volatile Random random;
     private volatile long seed = 0;
@@ -182,7 +180,8 @@ public class RandomStressTest extends TxnManagerTest {
                     + sleep_time);
         }
         random = new Random(seed);
-        threadpool = new TaskManager(threads, timeout, LOAD);
+        threadpool = Executors.newFixedThreadPool(threads);
+                //new TaskManager(threads, timeout, LOAD);
 	wakeupManager = new WakeupManager();
 
 	startTxnMgr();
@@ -198,7 +197,7 @@ public class RandomStressTest extends TxnManagerTest {
 	    if (task == null) {
 		throw new TestException("error creating a RandomStressTask");
 	    }
-	    threadpool.add(task);
+	    threadpool.submit(task);
 	    alltasks[i] = task;
 
 	    if (DEBUG) {

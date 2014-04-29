@@ -28,6 +28,7 @@ import com.sun.jini.test.share.TestParticipant;
 import com.sun.jini.test.share.TxnManagerTestOpcodes;
 import com.sun.jini.test.share.TxnTestUtils;
 import com.sun.jini.thread.TaskManager.Task;
+import java.util.concurrent.ExecutorService;
 
 
 /**
@@ -40,10 +41,9 @@ public abstract class RandomStressTask extends RetryTask
     protected ServerTransaction str;
     TestParticipant[] testparts;
 
-    public RandomStressTask(TaskManager threadpool, 
-        WakeupManager wakeupManager, TransactionManager mgr, int numParts) 
+    public RandomStressTask(ExecutorService executor, WakeupManager wakeupManager, TransactionManager mgr, int numParts) 
     {
-        super(threadpool, wakeupManager);
+        super(executor, wakeupManager);
 
         if (numParts <= 0) {
             throw new IllegalArgumentException("RandomStressTask: numParts "

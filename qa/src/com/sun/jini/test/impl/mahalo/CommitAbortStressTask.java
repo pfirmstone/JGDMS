@@ -16,26 +16,26 @@
  * limitations under the License.
  */
 package com.sun.jini.test.impl.mahalo;
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
-import com.sun.jini.mahalo.*;
-import com.sun.jini.mahalo.log.*;
-import com.sun.jini.thread.*;
-import java.util.*;
-import java.rmi.*;
+import com.sun.jini.thread.WakeupManager;
+import java.rmi.RemoteException;
+import java.util.concurrent.ExecutorService;
+import net.jini.core.transaction.CannotAbortException;
+import net.jini.core.transaction.CannotCommitException;
+import net.jini.core.transaction.TransactionException;
+import net.jini.core.transaction.UnknownTransactionException;
+import net.jini.core.transaction.server.TransactionManager;
 
 
 /**
  */
 public class CommitAbortStressTask extends RandomStressTask {
-    private int attempt;
+    private volatile int attempt;// thread confined
     private static final int MAX_ATTEMPTS = 5;
     private static final boolean DEBUG = false;
 
-    public CommitAbortStressTask(TaskManager threadpool, 
-	    WakeupManager wakeupManager, TransactionManager mgr, int numParts)
+    public CommitAbortStressTask(ExecutorService executor, WakeupManager wakeupManager, TransactionManager mgr, int numParts)
     {
-        super(threadpool, wakeupManager, mgr, numParts);
+        super(executor, wakeupManager, mgr, numParts);
     }
 
     /*

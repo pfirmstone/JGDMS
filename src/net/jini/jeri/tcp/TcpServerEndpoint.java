@@ -129,10 +129,51 @@ public final class TcpServerEndpoint implements ServerEndpoint {
     private static final boolean useNIO =		// default false
 	((Boolean) AccessController.doPrivileged(new GetBooleanAction(
 	    "com.sun.jini.jeri.tcp.useNIO"))).booleanValue();
+    
+    private static final InetAddress localAdd;
+    private static final UnknownHostException exception;
+    
+    static {
+        /* The following was originally in 
+         * enumerateListenEndpoints(ListenContext listenContext)
+         * however, InetAddress.getLocalHost() proved to be a hotspot in 
+         * mahalo RandomStressTests for test code, which was attempting to
+         * stress Mahalo, but this was futile, given the test CPU usage
+         * for the test itself was 10x Mahalo, which wasn't raising a sweat.
+         * - Peter Firmstone 28th April 2014
+         */
+        InetAddress localAddr = null;
+        UnknownHostException exc = null;
+        try {
+            localAddr = (InetAddress) AccessController.doPrivileged(
+                new PrivilegedExceptionAction() {
+                    public Object run() throws UnknownHostException {
+                        return InetAddress.getLocalHost();
+                    }
+                });
+        } catch (PrivilegedActionException e) {
+            try {
+                /*
+                * Only expose UnknownHostException thrown directly by
+                * InetAddress.getLocalHost if it would also be thrown
+                * in the caller's security context; otherwise, throw
+                * a new UnknownHostException without the host name.
+                */
+                InetAddress.getLocalHost();
+            } catch (UnknownHostException ex) {
+                exc = ex;
+            }
+            if (exc == null)
+                exc = new UnknownHostException("access to resolve local host denied");
+        }
+        
+        localAdd = localAddr;
+        exception = exc;
+    }
 
     /** name for local host to fill in to corresponding TcpEndpoints */
     private final String host;
-
+    
     /** the TCP port that this TcpServerEndpoint listens on */
     private final int port;
 
@@ -519,35 +560,17 @@ public final class TcpServerEndpoint implements ServerEndpoint {
 
 	String localHost = host;
 	if (localHost == null) {
-	    InetAddress localAddr;
-	    try {
-		localAddr = (InetAddress) AccessController.doPrivileged(
-		    new PrivilegedExceptionAction() {
-			public Object run() throws UnknownHostException {
-			    return InetAddress.getLocalHost();
-			}
-		    });
-	    } catch (PrivilegedActionException e) {
-		/*
-		 * Only expose UnknownHostException thrown directly by
-		 * InetAddress.getLocalHost if it would also be thrown
-		 * in the caller's security context; otherwise, throw
-		 * a new UnknownHostException without the host name.
-		 */
-		InetAddress.getLocalHost();
-		throw new UnknownHostException(
-		    "access to resolve local host denied");
-	    }
+	    if (exception != null) throw exception;
 	    SecurityManager sm = System.getSecurityManager();
 	    if (sm != null) {
 		try {
-		    sm.checkConnect(localAddr.getHostName(), -1);
+		    sm.checkConnect(localAdd.getHostName(), -1);
 		} catch (SecurityException e) {
 		    throw new SecurityException(
 			"access to resolve local host denied");
 		}
 	    }
-	    localHost = localAddr.getHostAddress();
+	    localHost = localAdd.getHostAddress();
 	}
 
 	LE listenEndpoint = new LE(); // REMIND: needn't be new?

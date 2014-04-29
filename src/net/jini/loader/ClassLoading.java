@@ -37,7 +37,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.FutureTask;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -63,10 +62,8 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  * As explained in River-336 this isn't always practical for IDE's or other 
  * frameworks.  To solve River-336, ClassLoading now uses {@link ServiceLoader}
  * to determine a {@link RMIClassLoaderSpi} provider, however unlike 
- * {@link RMIClassLoader}, it uses ClassLoading's {@link ClassLoader#getResources} 
- * instance to find providers.  So if ClassLoading is loaded by a framework 
- * {@link ClassLoader}, resources will be selected from ClassLoaders reachable 
- * from ClassLoading's own ClassLoader.
+ * {@link RMIClassLoader}, by default it uses ClassLoading's {@link ClassLoader#getResources} 
+ * instance to find providers.
  * </p><p>
  * To define a new RMIClassLoaderSpi for River to utilize, create a file in
  * your providers jar file called:
@@ -578,6 +575,10 @@ public final class ClassLoading {
         throws ClassNotFoundException
     {
         if (loader == null) return Class.forName(name, initialize, loader);
+        // Don't thread confine profiler ClassLoaders.
+        if (loader.toString().startsWith("javax.management.remote.rmi.RMIConnectionImpl") ) 
+            return Class.forName(name, initialize, loader);
+            
         ExecutorService exec = loaderMap.get(loader);
         if (exec == null){
             exec = new ThreadPoolExecutor(

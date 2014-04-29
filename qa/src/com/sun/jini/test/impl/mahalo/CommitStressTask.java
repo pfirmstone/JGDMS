@@ -23,19 +23,19 @@ import com.sun.jini.mahalo.log.*;
 import com.sun.jini.thread.*;
 import java.util.*;
 import java.rmi.*;
+import java.util.concurrent.ExecutorService;
 
 
 /**
  */
 public class CommitStressTask extends RandomStressTask {
-    private int attempt;
+    private volatile int attempt; //thread confined
     private static final int MAX_ATTEMPTS = 5;
     private static final boolean DEBUG = false;
 
-    public CommitStressTask(TaskManager threadpool, 
-	    WakeupManager wakeupManager, TransactionManager mgr, int numParts)
+    public CommitStressTask(ExecutorService executor, WakeupManager wakeupManager, TransactionManager mgr, int numParts)
     {
-        super(threadpool, wakeupManager, mgr, numParts);
+        super(executor, wakeupManager, mgr, numParts);
     }
 
     /*

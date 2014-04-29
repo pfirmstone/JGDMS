@@ -115,7 +115,9 @@ public abstract class RetryTask<V> implements RunnableFuture<V>, ObservableFutur
      * Create a new <code>RetryTask</code> that will be scheduled with
      * the given task manager, and which will perform retry scheduling 
      * using the given wakeup manager.
+     * @deprecated 
      */
+    @Deprecated
     public RetryTask(TaskManager manager, WakeupManager wakeupManager) {
 	this.manager = manager;
         this.executor = null;
