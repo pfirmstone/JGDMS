@@ -47,13 +47,13 @@
 		<dependency>
 			<groupId>au.net.Zeus</groupId> 
 			<artifactId>custard-apple</artifactId> 
-			<version>1.0.3</version>
+			<version>${custard.apple.version}</version>
 		</dependency>
 		
 		<dependency>
 		  <groupId>com.boundary</groupId>
 		  <artifactId>high-scale-lib</artifactId>
-		  <version>1.0.3</version>
+		  <version>${high.scale.lib.version}</version>
 		</dependency>
 		
     </dependencies>
@@ -68,7 +68,7 @@
                     <archive>                
                         <manifestEntries>
 							<Implementation-Version>${project.version}</Implementation-Version>
-						    <Class-Path>river-resources.jar</Class-Path>
+						    <Class-Path>river-resources-${project.version}.jar custard-apple-${custard.apple.version}.jar high-scale-lib-${high.scale.lib.version}.jar</Class-Path>
 						</manifestEntries>
                     </archive>
                 </configuration>
@@ -117,5 +117,10 @@
  
 	    </plugins>
     </build>
+
+    <properties>
+        <high.scale.lib.version>1.0.3</high.scale.lib.version>
+        <custard.apple.version>1.0.3</custard.apple.version>
+    </properties>
     
 </project>
