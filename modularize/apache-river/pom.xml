@@ -284,17 +284,11 @@
 		<module>river-resources</module> 
         <module>river-lib</module>
         <module>river-dl</module>
-        <module>river-services/outrigger/outrigger-dl</module>
-	    <module>river-services/outrigger/outrigger-service</module>
-	    <module>river-services/outrigger/outrigger-snaplogstore</module>
-		<module>river-services/reggie/reggie-dl</module>
-        <module>river-services/reggie/reggie-service</module>
-		<module>river-services/mahalo/mahalo-dl</module>
-        <module>river-services/mahalo/mahalo-service</module>
-		<module>river-services/mercury/mercury-dl</module>
-        <module>river-services/mercury/mercury-service</module>
-		<module>river-services/norm/norm-dl</module>
-        <module>river-services/norm/norm-service</module>
+        <module>river-services/outrigger</module>
+		<module>river-services/reggie</module>
+		<module>river-services/mahalo</module>
+		<module>river-services/mercury</module>
+		<module>river-services/norm</module>
         <module>dist</module>
   </modules>
     

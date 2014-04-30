@@ -18,22 +18,21 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
-        <groupId>org.apache.river</groupId>
-        <artifactId>outrigger</artifactId>
+        <groupId>org.apache</groupId>
+        <artifactId>river</artifactId>
         <version>3.0-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
     </parent>
 
-    <groupId>org.apache.river.outrigger</groupId>
-    <artifactId>outrigger-dl</artifactId>
+    <groupId>org.apache.river</groupId>
+    <artifactId>mercury</artifactId>
     <url>http://river.apache.org</url>
-    <name>Module :: Outrigger Service Download classes</name> 
-   
-	<dependencies>
-        <dependency>
-            <groupId>org.apache.river</groupId>
-            <artifactId>river-dl</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-    </dependencies>
+    <name>Module :: Mercury the Event Mailbox</name>
+    <packaging>pom</packaging>
+
+    <modules>
+        <module>mercury-dl</module>
+        <module>mercury-service</module>
+    </modules>
 
 </project>
