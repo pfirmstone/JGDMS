@@ -73,19 +73,21 @@ import net.jini.security.proxytrust.ServerProxyTrust;
 class Activation implements Serializable {
     private static final long serialVersionUID = -6825932652725866242L;
     private static final String PHOENIX = "com.sun.jini.phoenix";
-    private static ResourceBundle resources;
-    private static Logger logger = Logger.getLogger(PHOENIX);
+    private static final ResourceBundle resources;
+    private static final Logger logger = Logger.getLogger(PHOENIX);
     private static final int PHOENIX_PORT = 1198;
     private static final Object logLock = new Object();
     
     static {
+        ResourceBundle res = null;
         try {
-            resources = ResourceBundle.getBundle(
+            res = ResourceBundle.getBundle(
                 "com.sun.jini.phoenix.resources.phoenix");
         } catch (MissingResourceException mre) {
             logger.log( Level.CONFIG, "[missing resource file]", mre);
-            resources = null;
+            res = null;
         }
+        resources = res;
     }
 
     /** maps activation id uid to its respective group id */
@@ -194,6 +196,7 @@ class Activation implements Serializable {
 	outputHandler = (GroupOutputHandler) config.getEntry(
 		PHOENIX, "groupOutputHandler", GroupOutputHandler.class,
 		new GroupOutputHandler() {
+                    @Override
 		    public void handleOutput(ActivationGroupID id,
 					     ActivationGroupDesc desc,
 					     long incarnation,
@@ -323,6 +326,7 @@ class Activation implements Serializable {
 	ActivatorImpl() {
 	}
     
+        @Override
 	public MarshalledWrapper activate(ActivationID id, boolean force)
     	    throws ActivationException
 	{
@@ -330,6 +334,7 @@ class Activation implements Serializable {
 	    return getGroupEntry(uid).activate(uid, force);
 	}
 
+        @Override
 	public TrustVerifier getProxyVerifier() {
 	    return new ConstrainableAID.Verifier(activatorStub);
 	}
@@ -339,6 +344,7 @@ class Activation implements Serializable {
 	MonitorImpl() {
 	}
 	
+        @Override
 	public void inactiveObject(ActivationID id)
 	    throws UnknownObjectException
 	{
@@ -346,6 +352,7 @@ class Activation implements Serializable {
 	    getGroupEntry(uid).inactiveObject(uid);
 	}
     
+        @Override
 	public void activeObject(ActivationID id, MarshalledObject mobj)
     	    throws UnknownObjectException
 	{
@@ -353,6 +360,7 @@ class Activation implements Serializable {
 	    getGroupEntry(uid).activeObject(uid, mobj);
 	}
 	
+        @Override
 	public void inactiveGroup(ActivationGroupID id,
 				  long incarnation)
 	    throws UnknownGroupException
@@ -360,6 +368,7 @@ class Activation implements Serializable {
 	    getGroupEntry(id).inactiveGroup(incarnation, false);
 	}
 	
+        @Override
 	public TrustVerifier getProxyVerifier() {
 	    return new BasicProxyTrustVerifier(monitorStub);
 	}
@@ -370,6 +379,7 @@ class Activation implements Serializable {
 	}
 	
 	/** returns a ConstrainableAID */
+        @Override
 	public ActivationID registerObject(ActivationDesc desc)
 	    throws ActivationException
 	{
@@ -381,6 +391,7 @@ class Activation implements Serializable {
 	    }
 	}
 
+        @Override
 	public void unregisterObject(ActivationID id)
 	    throws ActivationException
 	{
@@ -388,6 +399,7 @@ class Activation implements Serializable {
 	    getGroupEntry(getGroupID(uid)).unregisterObject(uid, true);
 	}
 	
+        @Override
 	public ActivationGroupID registerGroup(ActivationGroupDesc desc)
 	    throws ActivationException
 	{
@@ -402,6 +414,7 @@ class Activation implements Serializable {
 	    return id;
 	}
 	
+        @Override
 	public ActivationMonitor activeGroup(ActivationGroupID id,
 					     ActivationInstantiator group,
 					     long incarnation)
@@ -412,6 +425,7 @@ class Activation implements Serializable {
 	    return monitorStub;
 	}
 	
+        @Override
 	public void unregisterGroup(ActivationGroupID id)
 	    throws ActivationException
 	{
@@ -423,6 +437,7 @@ class Activation implements Serializable {
 	    groupEntry.unregisterGroup(true);
 	}
 
+        @Override
 	public ActivationDesc setActivationDesc(ActivationID id,
 						ActivationDesc desc)
 	    throws ActivationException
@@ -435,6 +450,7 @@ class Activation implements Serializable {
 	    return getGroupEntry(uid).setActivationDesc(uid, desc, true);
 	}
 
+        @Override
 	public ActivationGroupDesc setActivationGroupDesc(
 						     ActivationGroupID id,
 						     ActivationGroupDesc desc)
@@ -443,6 +459,7 @@ class Activation implements Serializable {
 	    return getGroupEntry(id).setActivationGroupDesc(id, desc, true);
 	}
 
+        @Override
 	public ActivationDesc getActivationDesc(ActivationID id)
 	    throws UnknownObjectException
 	{
@@ -450,6 +467,7 @@ class Activation implements Serializable {
 	    return getGroupEntry(uid).getActivationDesc(uid);
 	}
 	      
+        @Override
 	public ActivationGroupDesc getActivationGroupDesc(ActivationGroupID id)
 	    throws UnknownGroupException
 	{
@@ -459,6 +477,7 @@ class Activation implements Serializable {
             }
 	}
 	
+        @Override
 	public void shutdown() {
 	    synchronized (Activation.this) {
 		if (!shuttingDown) {
@@ -468,6 +487,7 @@ class Activation implements Serializable {
 	    }
 	}
 
+        @Override
 	public Map<ActivationGroupID,ActivationGroupDesc> getActivationGroups() {
             Collection<GroupEntry> entries;
             synchronized (groupTable){
@@ -490,6 +510,7 @@ class Activation implements Serializable {
 	    
 	}
 
+        @Override
 	public Map<ActivationID,ActivationDesc> getActivatableObjects(ActivationGroupID id)
 	    throws UnknownGroupException
 	{
@@ -507,6 +528,7 @@ class Activation implements Serializable {
 	    return getGroupEntry(id).getActivatableObjects();
 	}
 	
+        @Override
 	public TrustVerifier getProxyVerifier() {
 	    return new BasicProxyTrustVerifier(systemStub);
 	}
@@ -526,6 +548,7 @@ class Activation implements Serializable {
 	 * Returns the single object if the specified name matches the single
 	 * name, otherwise throws NotBoundException.
 	 */
+        @Override
 	public Remote lookup(String name) throws NotBoundException {
 	    if (name.equals(NAME)) {
 		return systemStub;
@@ -534,21 +557,25 @@ class Activation implements Serializable {
 	}
 
 	/** Always throws SecurityException. */
+        @Override
 	public void bind(String name, Remote obj) {
 	    throw new SecurityException("read-only registry");
 	}
 
 	/** Always throws SecurityException. */
+        @Override
 	public void unbind(String name) {
 	    throw new SecurityException("read-only registry");
 	}
 
 	/** Always throws SecurityException. */
+        @Override
 	public void rebind(String name, Remote obj) {
 	    throw new SecurityException("read-only registry");
 	}
 
 	/** Returns a list containing the single name. */
+        @Override
 	public String[] list() {
 	    return new String[]{NAME};
 	}
@@ -572,6 +599,7 @@ class Activation implements Serializable {
 	    super("Shutdown");
 	}
 
+        @Override
 	public void run() {
 	    try {
 		long stop = System.currentTimeMillis() + unexportTimeout;
@@ -632,6 +660,7 @@ class Activation implements Serializable {
 	    super("Phoenix Shutdown Hook");
 	}
 
+        @Override
 	public void run() {
 	    synchronized (Activation.this) {
 		shuttingDown = true;
@@ -1062,6 +1091,7 @@ class Activation implements Serializable {
 		    try {
 			wait();
 		    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
 		    }
 		}
 	    }
@@ -1237,6 +1267,7 @@ class Activation implements Serializable {
 			// protect against premature return from wait
 		    } while (status == CREATING && now < stop);
 		} catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
 		}
 		terminate();
 		throw new ActivationException(
@@ -1252,37 +1283,42 @@ class Activation implements Serializable {
 	 * Waits for process termination and then restarts services.
 	 */
 	private class Watchdog extends Thread {
-	    private Process groupProcess = child;
-	    private long groupIncarnation = incarnation;
-	    private boolean canInterrupt = true;
-	    private boolean shouldQuit = false;
-	    private boolean shouldRestart = true;
+	    private final Process groupProcess = child;
+	    private final long groupIncarnation = incarnation;
+	    private volatile boolean canInterrupt = true;
+	    private volatile boolean shouldQuit = false;
+	    private volatile boolean shouldRestart = true;
 
 	    Watchdog() {
 		super("Watchdog-" + groupName + "-" + incarnation);
 		setDaemon(true);
 	    }
 
-	    public void run() {
-		if (shouldQuit) {
-		    return;
+            /**
+             * Prevent interruption if necessary.
+             */
+            @Override
+            public void interrupt(){
+                if (canInterrupt) super.interrupt();
 		}
+
+	    public void run() {
+		if (shouldQuit) return;
 		/*
 		 * Wait for the group to crash or exit.
 		 */
 		try {
 		    groupProcess.waitFor();
 		} catch (InterruptedException exit) {
+                    Thread.currentThread().interrupt();
 		    return;
 		}
-
+                boolean interrupted;
 		boolean restart = false;
 		synchronized (GroupEntry.this) {
-		    if (shouldQuit) {
-			return;
-		    }
+		    if (shouldQuit) return;
 		    canInterrupt = false;
-		    interrupted(); // clear interrupt bit
+		    interrupted = interrupted(); // clear interrupt bit
 		    /*
 		     * Since the group crashed, we should
 		     * reset the entry before activating objects
@@ -1298,10 +1334,9 @@ class Activation implements Serializable {
 		 * Activate those objects that require restarting
 		 * after a crash.
 		 */
-		if (restart) {
-		    restartServices();
+		if (restart) restartServices();
+                if (interrupted) interrupt();
 		}
-	    }
 
 	    /** 
 	     * Marks this thread as one that is no longer needed.
@@ -1310,10 +1345,8 @@ class Activation implements Serializable {
 	     */
 	    void dispose() {
 		shouldQuit = true;
-		if (canInterrupt) {
 		    interrupt();
 		}
-	    }
 
 	    /**
 	     * Marks this thread as no longer needing to restart objects.
@@ -1667,14 +1700,15 @@ class Activation implements Serializable {
     private static class LogGroupIncarnation extends LogRecord {
 
 	private static final long serialVersionUID = 4146872747377631897L;
-	private ActivationGroupID id;
-	private long inc;
+	private final ActivationGroupID id;
+	private final long inc;
 
 	LogGroupIncarnation(ActivationGroupID id, long inc) {
 	    this.id = id;
 	    this.inc = inc;
 	}
 
+        @Override
 	Object apply(Object state) {
 	    try {
 		GroupEntry entry = ((Activation) state).getGroupEntry(id);
@@ -1691,7 +1725,7 @@ class Activation implements Serializable {
     private static void usage() {
  	System.err.println(
 		    MessageFormat.format(getTextResource("phoenix.usage"),
-		    new String[] {Activation.class.getName()}));
+                            (Object[]) new String[] {Activation.class.getName()}));
 	System.exit(1);
     }
 
@@ -1701,7 +1735,8 @@ class Activation implements Serializable {
     }
 
     private static void bomb(String res, String val) {
-	bomb(MessageFormat.format(getTextResource(res), new String[] {val}));
+	bomb(MessageFormat.format(getTextResource(res),
+                (Object[]) new String[] {val}));
     }
 
     /**
@@ -1766,6 +1801,7 @@ class Activation implements Serializable {
 	    login.login();
 	}
 	PrivilegedExceptionAction<Activation> action = new PrivilegedExceptionAction<Activation>() {
+            @Override
 	    public Activation run() throws Exception {
 		if (stop) {
 		    assert starter == null;

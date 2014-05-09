@@ -57,24 +57,16 @@ class LRMEventListener extends InterruptedStatusThread
 	
     /**
      * Simple constructor
-     *
-     * @param server Object that will make the actual internal updates and
-     * schedule the sending of remote events
      */
-    LRMEventListener(NormServerBaseImpl server) {
-	super("LRM Event Listener");
-	setDaemon(true);
-	this.server = server;	
-    }
-    
     LRMEventListener() {
         super("LRM Event Listener");
-	setDaemon(true);
+	setDaemon(false);
     }
     
     /**
      * Set only once after construction.
-     * @param server 
+     * @param server Object that will make the actual internal updates and
+     * schedule the sending of remote events
      */
     void setServer(NormServerBaseImpl server){
         synchronized (this){

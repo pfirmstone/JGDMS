@@ -27,9 +27,6 @@ import net.jini.id.Uuid;
  * Logs expiration of leases and asynchronously persists them to disk.
  */
 class ExpirationOpQueue extends Thread {
-    /** <code>true</code> if we should stop */
-    private volatile boolean dead;
-
     /** The queue of expirations to log */
     private final LinkedList queue = new LinkedList();
 
@@ -64,27 +61,28 @@ class ExpirationOpQueue extends Thread {
     /**
      * Stop the queue
      */
-    synchronized void terminate() {
-	dead = true;
+    void terminate() {
+        interrupt();
+        synchronized (this){
 	notifyAll();
+    }
     }
 
     public void run() {
-	while (!dead) { // ok not to lock since it starts false
+	while (!Thread.currentThread().isInterrupted()) { // ok not to lock since it starts false
 	    try {
 		final Uuid cookie;
 		synchronized (this) { 
-		    while (!dead && queue.isEmpty()) {
+		    while (queue.isEmpty()) {
 			wait();
 		    }
-		    
-		    if (dead)
-			return;
-
 		    cookie = (Uuid)queue.removeFirst();
 		}
 		
 		server.cancelOp(cookie, true);
+	    } catch (InterruptedException e){
+                Thread.currentThread().interrupt(); // restore
+                return;
 	    } catch (Throwable t) {
 		try {
 		    logger.log(Level.INFO,

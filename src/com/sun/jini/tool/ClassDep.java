@@ -1319,22 +1319,25 @@ public class ClassDep {
      * for a list and description of the acceptable arguments.
      */
     public static void main(String[] args) {
-	if (args.length == 0) {
-	    usage();
-	    return;
-	}
-	ClassDep dep = new ClassDep();
-	//boolean files = false;
-	dep.setupOptions(args);
-	String[] vals = dep.compute();
-       
-	for (int i = 0; i < vals.length; i++) {
-	    if (dep.getFiles()) {
-                System.out.println(vals[i].replace('.', File.separatorChar) + ".class");
+        try {
+            if (args.length == 0) {
+                usage();
+                return;
             }
-	    else {
-		System.out.println(vals[i]);
-	}
+            ClassDep dep = new ClassDep();
+            //boolean files = false;
+            dep.setupOptions(args);
+            String[] vals = dep.compute();
+
+            for (int i = 0; i < vals.length; i++) {
+                if (dep.getFiles()) {
+                    System.out.println(vals[i].replace('.', File.separatorChar) + ".class");
+                } else {
+                    System.out.println(vals[i]);
+                }
+            }
+        } finally {
+            System.out.close();
+        }
     }
-		    }
-	}
+}

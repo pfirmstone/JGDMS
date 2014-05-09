@@ -9,9 +9,9 @@ include0=../outrigger.properties
 #com.sun.jini.qa.harness.verifier=com.sun.jini.qa.harness.SkipTestVerifier
 
 com.sun.jini.test.share.restart_wait=10000
-com.sun.jini.test.impl.outrigger.matching.StressTest.num_entries=10000
-com.sun.jini.test.impl.outrigger.matching.StressTest.num_readers=400
-com.sun.jini.test.impl.outrigger.matching.StressTest.num_writers=250
+com.sun.jini.test.impl.outrigger.matching.StressTest.num_entries=5000
+com.sun.jini.test.impl.outrigger.matching.StressTest.num_readers=100
+com.sun.jini.test.impl.outrigger.matching.StressTest.num_writers=25
 com.sun.jini.test.impl.outrigger.matching.StressTest.interleave=true
 com.sun.jini.test.impl.outrigger.matching.tryShutdown=1
 

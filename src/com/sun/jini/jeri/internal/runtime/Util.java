@@ -210,9 +210,9 @@ public class Util {
 	    } else if (type == long.class) {
 		return Long.valueOf(in.readLong());
 	    } else if (type == float.class) {
-		return new Float(in.readFloat());
+		return Float.valueOf(in.readFloat());
 	    } else if (type == double.class) {
-		return new Double(in.readDouble());
+		return Double.valueOf(in.readDouble());
 	    } else {
 		throw new AssertionError(
 		    "Unrecognized primitive type: " + type);

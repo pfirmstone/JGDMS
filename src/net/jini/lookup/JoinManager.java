@@ -48,7 +48,6 @@ import net.jini.core.lookup.ServiceRegistration;
 import java.io.IOException;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
@@ -58,7 +57,6 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
@@ -612,9 +610,10 @@ public class JoinManager {
          *  <code>WakeupManager</code> to be executed again at a later
          *  time, as indicated by the value returned by <code>retryTime</code>.
          */
+        @Override
         public boolean tryOnce() {
             while(true) {
-                JoinTask t = null;
+                JoinTask t;
                 synchronized(proxyReg.taskList) {
                     if(proxyReg.taskList.isEmpty()) {
                         proxyReg.proxyRegTask = null;
@@ -644,6 +643,7 @@ public class JoinManager {
          *  execution of this task should be made (after the previous
          *  attempt has failed).
          */
+        @Override
         public long retryTime() {
 	    long nextTryTime = System.currentTimeMillis() + sleepTime[tryIndx];
             synchronized (proxyReg.taskList){
@@ -841,6 +841,7 @@ public class JoinManager {
         /** Attempts to register this join manager's service with the lookup
          *  service referenced in this task's proxyReg field.
          */
+        @Override
         public void run() throws Exception {
             logger.finest("JoinManager - RegisterTask started");
             proxyReg.register(regAttrs);
@@ -882,6 +883,7 @@ public class JoinManager {
         /** Attempts to re-register this join manager's service with the
          *  lookup service referenced by the current instance of this class.
          */
+        @Override
         public void run() throws Exception {
             logger.finest("JoinManager - LeaseExpireNotifyTask started");
             if(joinSet.contains(proxyReg)) proxyReg.register(regAttrs);
@@ -944,6 +946,7 @@ public class JoinManager {
          *  <code>ServiceRegistration</code> that is referenced in the
          *  <code>proxyReg</code> data structure.
          */
+        @Override
         public void run() {
             logger.finest("JoinManager --> DiscardProxyTask started");
             Lease svcLease = proxyReg != null ? proxyReg.serviceLease : null;
@@ -997,6 +1000,7 @@ public class JoinManager {
          *  augmentation, replacement, or modification -- is dependent on the
          *  definition of the <code>doAttributes/code> method.
          */
+        @Override
         public void run() throws Exception {
             doAttributes(proxyReg);
 	}//end run
@@ -1022,6 +1026,7 @@ public class JoinManager {
 	}//end constructor
 
         /** Performs the actual attribute replacement work. */
+        @Override
         protected void doAttributes(ProxyReg proxyReg) throws Exception {
             logger.finest("JoinManager - SetAttributesTask started");
 	    proxyReg.setAttributes(attrSets);
@@ -1061,6 +1066,7 @@ public class JoinManager {
 	}//end constructor
 
         /** Performs the actual attribute modification work. */
+        @Override
         protected void doAttributes(ProxyReg proxyReg) throws Exception {
             logger.finest("JoinManager - ModifyAttributesTask started");
 	    proxyReg.modifyAttributes(attrSetTemplates, attrSets);
@@ -1172,6 +1178,7 @@ public class JoinManager {
          *  renewal event received by this listener.
          */
 	private class DiscLeaseListener implements LeaseListener {
+              @Override
   	    public void notify(LeaseRenewalEvent e) {
                 Throwable ex = e.getException();
 		if ( (ex == null) || (ex instanceof UnknownLeaseException) ) {
@@ -1291,8 +1298,8 @@ public class JoinManager {
         public void register(Entry[] srvcAttrs) throws Exception {
             if(proxy == null) throw new RuntimeException("proxy is null");
             /* The lookup service proxy was already prepared at discovery */
-            ServiceItem tmpSrvcItem = null;
-            ServiceItem item = null;
+            ServiceItem tmpSrvcItem;
+            ServiceItem item;
             srvcRegistration = null;
             //accessing serviceItem.serviceID
             item = serviceItem;
@@ -1416,6 +1423,7 @@ public class JoinManager {
 	}//end ProxyReg.fail
 
 	/** Returns true if the both objects' associated proxies are equal. */
+        @Override
 	public boolean equals(Object obj) {
 	    if (obj instanceof ProxyReg) {
 		return proxy.equals( ((ProxyReg)obj).proxy );
@@ -1425,6 +1433,7 @@ public class JoinManager {
 	}//end ProxyReg.equals
 
 	/** Returns the hash code of the proxy referenced in this class. */
+        @Override
 	public int hashCode() {
 	    return proxy.hashCode();
 	}//end hashCode
@@ -1434,6 +1443,7 @@ public class JoinManager {
     /* Listener class for discovery/discard notification of lookup services. */
     private class DiscMgrListener implements DiscoveryListener {
 	/* Invoked when new or previously discarded lookup is discovered. */
+        @Override
 	public void discovered(DiscoveryEvent e) {
 		ServiceRegistrar[] proxys
 				       = (ServiceRegistrar[])e.getRegistrars();
@@ -1474,6 +1484,7 @@ public class JoinManager {
 	}//end discovered
 
 	/* Invoked when previously discovered lookup is discarded. */
+        @Override
 	public void discarded(DiscoveryEvent e) {
             ServiceRegistrar[] proxys
                                   = (ServiceRegistrar[])e.getRegistrars();
@@ -2779,7 +2790,8 @@ public class JoinManager {
      */
     private void testForNullElement(Object[] a) {
         if(a == null) return;
-        for(int i=0;i<a.length;i++) {
+        int l = a.length;
+        for(int i=0;i<l;i++) {
             if(a[i] == null) {
                 throw new NullPointerException
                           ("input array contains at least one null element");

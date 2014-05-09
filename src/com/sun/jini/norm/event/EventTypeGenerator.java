@@ -162,9 +162,9 @@ public class EventTypeGenerator implements Serializable {
                     15,
                     TimeUnit.SECONDS, 
                     new LinkedBlockingQueue<Runnable>(), /* Unbounded Queue */
-                    new NamedThreadFactory("EventTypeGenerator", true)
+                    new NamedThreadFactory("EventTypeGenerator", false)
         );
 	wakeupManager = 
-	    new WakeupManager(new WakeupManager.ThreadDesc(null, true));    
+	    new WakeupManager(new WakeupManager.ThreadDesc(null, false));    
     }
 }

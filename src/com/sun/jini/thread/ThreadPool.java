@@ -21,7 +21,8 @@ package com.sun.jini.thread;
 import com.sun.jini.action.GetLongAction;
 import java.security.AccessController;
 import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.SynchronousQueue;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
@@ -109,9 +110,12 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
      * We should consider changing this to ensure that each task is executed in the
      * AccessControlContext of the calling thread, to avoid privilege escalation.
      */
-    private final AtomicInteger threadCount;
+    private final AtomicInteger workerCount;
     private final AtomicInteger waitingThreads;
     private final int delayFactor;
+    private final int numberOfThreads;
+    private final int availableProcessors;
+    private volatile boolean shutdown = false;
     
     ThreadPool(ThreadGroup threadGroup){
         this(threadGroup, 10);
@@ -121,44 +125,64 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
      * Creates a new thread group that executes tasks in threads of
      * the given thread group.
      */
-    ThreadPool(ThreadGroup threadGroup, int delayFactor) {
+    ThreadPool(final ThreadGroup threadGroup, int delayFactor) {
 	this.threadGroup = threadGroup;
-        queue = new SynchronousQueue<Runnable>(); //Non blocking queue.
-        threadCount = new AtomicInteger();
+        queue = new LinkedBlockingQueue<Runnable>();
+        workerCount = new AtomicInteger();
         waitingThreads = new AtomicInteger();
         this.delayFactor = delayFactor;
+        availableProcessors = Runtime.getRuntime().availableProcessors();
+        numberOfThreads = availableProcessors * 4;
+        
+//         Thread not started until after constructor completes
+//         this escaping occurs safely.
+        Runtime.getRuntime().addShutdownHook(new Thread ("ThreadPool destroy"){
+            public void run (){
+                try {
+                    // Allow two seconds prior to shutdown for other
+                    // processes to complete.
+                    Thread.sleep(2000L);
+                } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
+                }
+                shutdown = true;
+                Thread [] threads = new Thread [workerCount.get() + 1 ];
+                int count = threadGroup.enumerate(threads);
+                for (int i = 0; i < count; i++){
+                    threads [i].interrupt();
+                }
+            }
+        });
     }
 
     // This method must not block - Executor
     public void execute(Runnable runnable, String name) {
         if (runnable == null) return;
+        if (shutdown) throw new RejectedExecutionException("ThreadPool shutdown");
 	Runnable task = new Task(runnable, name);
         boolean accepted = false;
-        try {
-            // If there are no threads, maxDelay = 0;
-            // If the system is highly loaded, it takes longer for waiting
-            // threads to wake up and take the task, so this is designed to
-            // prevent a heavily loaded system from unnecessarily creating
-            // more threads, while also allowing threads to ramp up quickly
-//            long maxDelay = (threadCount.get() < 400 && waitingThreads.get() == 0) 
-//                    ? 0 : (waitingThreads.get() + 1 ) * (threadCount.get()/ numberOfCores);
-//            maxDelay = maxDelay * 700 * delayFactor;
-//            accepted = queue.offer(task, maxDelay, TimeUnit.MICROSECONDS);
-            accepted = queue.offer(task, waitingThreads.get() * delayFactor *  700, TimeUnit.MICROSECONDS);
-        } catch (InterruptedException ex) {
-            Logger.getLogger(ThreadPool.class.getName()).log(Level.SEVERE, "Calling thread interrupted", ex);
-            // restore interrupt.
-            Thread.currentThread().interrupt();
-        } finally {
-            if (!accepted){
-                Thread t = AccessController.doPrivileged(
-                    new NewThreadAction(threadGroup, new Worker(task), name, true));
-                t.start();
-                threadCount.incrementAndGet();
+        /* Startup ramps up very quickly because there are no waiting
+         * threads.
+         * 
+         * Tasks must not be allowed to build up in the queue, in case
+         * of dependencies.
+         */
+        int workers = workerCount.get();
+        if (workers < numberOfThreads
+                || (waitingThreads.get() < 1 && workers < queue.size() / 7)) { // need more threads or we get contention.
+            if (shutdown) {
+                throw new RejectedExecutionException("ThreadPool shutdown");
             }
+            Thread t = AccessController.doPrivileged(
+                    new NewThreadAction(threadGroup, new Worker(task), name, false));
+            t.start();
+            accepted = true;
+        } else {
+            accepted = queue.offer(task);
         }
     }
 
+    @Override
     public void execute(Runnable command) {
         execute(command, "com.sun.jini.thread.ThreadPool");
     }
@@ -214,6 +238,7 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 	}
 
 	public void run() {
+            workerCount.incrementAndGet();
             try {
                 Runnable task = first;
                 first = null; // For garbage collection.
@@ -228,10 +253,13 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
                      * most up to date state
                      */
                     try {
-                        waitingThreads.getAndIncrement();
                         task = null;
+                        waitingThreads.incrementAndGet();
+                        try {
                         task = queue.poll(idleTimeout, TimeUnit.MILLISECONDS);
-                        waitingThreads.getAndDecrement();
+                        } finally {
+                            waitingThreads.decrementAndGet();
+                        }
                         thread.setName(NewThreadAction.NAME_PREFIX + task);
                         if (task != null) {
                             task.run();
@@ -240,13 +268,12 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
                         }
                          thread.setName(NewThreadAction.NAME_PREFIX + "Idle");
                     } catch (InterruptedException e){
-                        waitingThreads.getAndDecrement();
                         thread.interrupt();
                         break;
                     }
                 }
             } finally {
-                threadCount.decrementAndGet();
+                workerCount.decrementAndGet();
             }
         }
     }

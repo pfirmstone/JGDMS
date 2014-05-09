@@ -623,7 +623,7 @@ public class SharedActivatableServiceDescriptor
                     ClassLoaderUtil.getCodebaseURLs(getExportCodebase()),
                     getPolicy(),
                     params);
-	    logger.finest("ActivateDesc: " + adesc);
+	    logger.log(Level.FINEST, "ActivateDesc: {0}", adesc);
             // Get hosting activation group
             gid = SharedActivationGroupDescriptor.restoreGroupID(
 		getSharedGroupLog());

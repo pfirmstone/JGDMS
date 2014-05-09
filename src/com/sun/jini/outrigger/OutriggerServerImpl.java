@@ -939,7 +939,7 @@ public class OutriggerServerImpl
 
             // Use this (trivially) in log recovery
             h.operationJournal = new OperationJournal(h.templates);
-            h.operationJournal.setDaemon(true);
+            h.operationJournal.setDaemon(false);
 
 
             if (persistent){
@@ -947,7 +947,7 @@ public class OutriggerServerImpl
                  * preparers for recovered proxies.
                  */
                 h.expirationOpQueue = new ExpirationOpQueue(this);
-                h.expirationOpQueue.setDaemon(true);
+                h.expirationOpQueue.setDaemon(false);
                 h.recoveredTransactionManagerPreparer = 
                     (ProxyPreparer)Config.getNonNullEntry(config, 
                         COMPONENT_NAME, "recoveredTransactionManagerPreparer", 
@@ -1006,13 +1006,13 @@ public class OutriggerServerImpl
 
             h.templateReaperThread = new TemplateReaper(reapingInterval);
             h.templateReaperThread.setPriority(reapingPriority);
-            h.templateReaperThread.setDaemon(true);
+            h.templateReaperThread.setDaemon(false);
             h.entryReaperThread = new EntryReaper(reapingInterval);
             h.entryReaperThread.setPriority(reapingPriority);
-            h.entryReaperThread.setDaemon(true);
+            h.entryReaperThread.setDaemon(false);
             h.contentsQueryReaperThread = new ContentsQueryReaper(reapingInterval);
             h.contentsQueryReaperThread.setPriority(reapingPriority);
-            h.contentsQueryReaperThread.setDaemon(true);
+            h.contentsQueryReaperThread.setDaemon(false);
             return h;
         
     }

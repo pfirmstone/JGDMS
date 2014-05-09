@@ -43,14 +43,21 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.ProtectionDomain;
 import java.security.cert.Certificate;
+import java.util.Collection;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.NavigableSet;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
 import org.apache.river.api.net.RFC3986URLClassLoader;
+import org.apache.river.api.security.PermissionComparator;
+import org.apache.river.api.security.PermissionGrant;
 
 /**
  * A class loader that supports preferred classes.
@@ -240,7 +247,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
     private final String exportAnnotation;
 
     /** permissions required to access loader through public API */
-    private final PermissionCollection permissions;
+    private final Collection<Permission> permissions;
 
     /** security context for loading classes and resources */
     private final AccessControlContext acc;
@@ -378,7 +385,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	/*
 	 * Precompute the permissions required to access the loader.
 	 */
-	permissions = new Permissions();
+	PermissionCollection permissions = new Permissions();
 	addPermissionsForURLs(urls, permissions, false);
         /*
          * If a preferred list exists relative to the first URL of this
@@ -435,6 +442,11 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
 	}
         exceptionWhileLoadingPreferred = except;
         preferredResources = pref;
+        this.permissions = new LinkedList<Permission>();
+        Enumeration<Permission> en = permissions.elements();
+        while(en.hasMoreElements()){
+            this.permissions.add(en.nextElement());
+    }
     }
 
     /**
@@ -1131,6 +1143,16 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
      */
     void checkPermissions() {
 	checkPermissions(permissions);
+    }
+
+    private void checkPermissions(Collection<Permission> permissions){
+        SecurityManager sm = System.getSecurityManager();
+	if (sm != null) {		// should never be null?
+	    Iterator<Permission> en = permissions.iterator();
+	    while (en.hasNext()) {
+		sm.checkPermission((Permission) en.next());
+	    }
+	}
     }
 
     /**

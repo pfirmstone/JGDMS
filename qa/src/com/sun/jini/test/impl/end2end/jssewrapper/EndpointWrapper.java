@@ -37,6 +37,7 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.ArrayList;
+import java.util.List;
 
 
 /**
@@ -118,8 +119,8 @@ public class EndpointWrapper implements Endpoint, Serializable, TrustEquivalence
     public static class WrapperIterator implements OutboundRequestIterator {
         private int index = 0;
         private int end = 0;
-        private InvocationConstraints constraints;
-        private ArrayList requests = new ArrayList();
+        private final InvocationConstraints constraints;
+        private final List requests = new ArrayList();
 
         public WrapperIterator(OutboundRequestIterator it,
             InvocationConstraints constraints ) {

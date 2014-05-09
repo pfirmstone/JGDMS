@@ -295,10 +295,10 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
      *  Only 1 instance of this thread is run.
      */
     private class Notifier extends Thread {
-	/** Create a daemon thread */
+	
 	public Notifier() {
 	    super("event listener notification");
-	    setDaemon(true);
+	    setDaemon(false);
 	}//end constructor
 
 	public void run() {
@@ -428,10 +428,9 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
          */
         private ArrayList<NetworkInterface> retryNics = null;
 
-	/** Create a daemon thread */
 	public AnnouncementListener() throws IOException {
 	    super("multicast discovery announcement listener");
-	    setDaemon(true);
+	    setDaemon(false);
 	    sock = new MulticastSocket(Constants.discoveryPort);
             switch(nicsToUse) {
                 case NICS_USE_ALL:
@@ -628,10 +627,9 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	/** Server socket for accepting connections */
 	public final ServerSocket serv;
 	
-	/** Create a daemon thread */
 	public ResponseListener() throws IOException {
 	    super("multicast discovery response listener");
-	    setDaemon(true);
+	    setDaemon(false);
 	    serv = new ServerSocket(0);
 	}//end constructor
 
@@ -709,12 +707,11 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 	private final String[] groups;
 	private final boolean delayFlag;
 
-	/** Create a daemon thread */
 	public Requestor(String[] groups, int port, boolean delayFlag)
 	    throws IOException
 	{
 	    super("multicast discovery request");
-	    setDaemon(true);
+	    setDaemon(false);
 	    sock = new MulticastSocket(Constants.discoveryPort);
 	    sock.setTimeToLive(
 		multicastRequestConstraints.getMulticastTimeToLive(
@@ -807,10 +804,10 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     private class AnnouncementTimerThread extends Thread {
         /* Number of interval to exceed for declaring announcements stopped */
         private static final long N_INTERVALS = 3;
-        /** Create a daemon thread */
+        
         public AnnouncementTimerThread() {
             super("multicast announcement timer");
-            setDaemon(true);
+            setDaemon(false);
         }
         public void run() {
             long timeThreshold = N_INTERVALS*multicastAnnouncementInterval;
@@ -2426,6 +2423,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
 			discoveryWakeupMgr.stop();
 		    }
 		}//end sync
+                if (notifierThread != null) notifierThread.interrupt();
 		return null;
 	    }//end run
 	});//end doPrivileged

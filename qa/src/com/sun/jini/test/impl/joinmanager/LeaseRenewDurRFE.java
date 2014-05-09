@@ -240,8 +240,10 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
      * service(s) as the TestService(s) just started, and which can be
      * accessed by the run() method.
      */
+    @Override
     public Test construct(QAConfig sysConfig) throws Exception {
         super.construct(sysConfig);
+        StringBuilder builder = new StringBuilder(500);
         System.setProperty("com.sun.jini.qa.harness.runactivation", "true");
         getManager().startService("activationSystem");
         /* set shared convenience variables */
@@ -252,36 +254,48 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 
         qaHome = sysConfig.getStringConfigVal("com.sun.jini.qa.home",
                                               "/vob/qa");
-        qaHarnessLib = qaHome+sep+"lib";
+        builder.append(qaHome).append(sep).append("lib");
+        qaHarnessLib = builder.toString();
+        builder.delete(0, builder.length());
         qaTestHome = sysConfig.getStringConfigVal("com.sun.jini.test.home",
                                                   "/vob/qa");
-        qaTestLib = qaTestHome+sep+"lib";
-
-        qaTest =qaTestHome+sep+"src"+sep+"com"+sep+"sun"+sep+"jini"+sep+"test";
-        qaSpec = qaTest+sep+"spec";
-        qaImpl = qaTest+sep+"impl";
-
+        builder.append(qaTestHome).append(sep).append("lib");
+        qaTestLib = builder.toString();
+        builder.delete(0, builder.length());
+        builder.append(qaTestHome).append(sep).append("src").append(sep)
+                .append("com").append(sep).append("sun").append(sep)
+                .append("jini").append(sep).append("test");
+        qaTest = builder.toString();
+        builder.delete(0,builder.length());
+        builder.append(qaTest).append(sep).append("spec");
+        qaSpec = builder.toString();
+        builder.delete(0,builder.length());
+        builder.append(qaTest).append(sep).append("impl");
+        qaImpl = builder.toString();
+        builder.delete(0,builder.length());
+        builder.append(qaImpl).append(sep).append("start").append(sep)
+                .append("policy.all");
         policyAll = sysConfig.getStringConfigVal
-                                    ("all.policyFile",
-                                      qaImpl+sep+"start"+sep+"policy.all" );
+                                    ("all.policyFile", builder.toString() );
+        builder.delete(0, builder.length());
         logger.log(Levels.HANDLED,"policyFile = "+policyAll);
 
         jiniHome = sysConfig.getStringConfigVal("com.sun.jini.jsk.home",
                                                 "/vob/jive");
-        jiniLib   = jiniHome+sep+"lib";
-        jiniLibDL = jiniHome+sep+"lib-dl";
+        builder.append(jiniHome).append(sep).append("lib");
+        jiniLib   = builder.toString();
+        builder.delete(0, builder.length());
+        builder.append(jiniHome).append(sep).append("lib-dl");
+        jiniLibDL = builder.toString();
+        builder.delete(0, builder.length());
 
         proto = sysConfig.getStringConfigVal
                                   ("com.sun.jini.qa.harness.configs", "jeri");
-        if(    (proto.compareToIgnoreCase("jeri") == 0)
-            || (proto.compareToIgnoreCase("jrmp") == 0)
-            || (proto.compareToIgnoreCase("http") == 0)
-            || (proto.compareToIgnoreCase("none") == 0) )
-        {
-            secureProto = false;
-        } else {
-            secureProto = true;
-        }//endif
+        secureProto = 
+                (proto.compareToIgnoreCase("jeri") != 0) &&
+                (proto.compareToIgnoreCase("jrmp") != 0) && 
+                (proto.compareToIgnoreCase("http") != 0) && 
+                (proto.compareToIgnoreCase("none") != 0);
 
         loggingFile = sysConfig.getStringConfigVal
                    ("java.util.logging.config.file","/vob/qa/src/qa1.logging");
@@ -303,7 +317,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         ServiceRegistration srvcReg =
                       lus.register(new ServiceItem(testID,testService,null),
                                    Long.MAX_VALUE);
-        Lease srvcLease = null;
+        Lease srvcLease;
         srvcReg = (ServiceRegistration) getConfig().prepare
                                     ("test.reggieServiceRegistrationPreparer",
                                      srvcReg);
@@ -343,25 +357,26 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         String[] serverProperties = sharedVMProperties(sysConfig);
         /* common no-op service descriptor info (for destroying the VMs */
         String noopServiceCodebase = groupCodebase();
-        logger.log(Levels.HANDLED,"noopServiceCodebase = "
-                                   +noopServiceCodebase);
+        logger.log(Levels.HANDLED, "noopServiceCodebase = {0}", noopServiceCodebase);
         String noopServicePolicyFile = policyAll;
         String noopServiceClasspath = sysConfig.getStringConfigVal
                                           ("sharedGroupImpl.classpath",null);
-        logger.log(Levels.HANDLED,"noopServiceClasspath = "
-                                   +noopServiceClasspath);
+        logger.log(Levels.HANDLED, "noopServiceClasspath = {0}", noopServiceClasspath);
         String noopServiceImplName = sysConfig.getStringConfigVal
                                               ("sharedGroupImpl.impl",null);
         String[] noopServiceArgsArray =  new String[] { starterConfigFile };
         /* common service descriptor info shared by each TestService  */
         String serviceCodebase = serviceCodebase();
-        logger.log(Levels.HANDLED,"serviceCodebase = "+serviceCodebase);
+        logger.log(Levels.HANDLED, "serviceCodebase = {0}", serviceCodebase);
         String servicePolicyFile = policyAll;
-        String serviceClasspath  = qaHarnessLib+sep+"jiniharness.jar"+pSep
-                                   +jiniLib+sep+"jsk-platform.jar"+pSep
-                                   +jiniLib+sep+"jsk-lib.jar"+pSep
-                                   +qaTestLib+sep+"jinitests.jar";
-        logger.log(Levels.HANDLED,"serviceClasspath = "+serviceClasspath);
+        builder.append(qaHarnessLib).append(sep).append("jiniharness.jar")
+                .append(pSep).append(jiniLib).append(sep)
+                .append("jsk-platform.jar").append(pSep)
+                .append(jiniLib).append(sep).append("jsk-lib.jar").append(pSep)
+                .append(qaTestLib).append(sep).append("jinitests.jar");
+        String serviceClasspath  = builder.toString();
+        builder.delete(0, builder.length());
+        logger.log(Levels.HANDLED, "serviceClasspath = {0}", serviceClasspath);
         String serviceImplName   = "com.sun.jini.test.impl.joinmanager."
                                    +"LeaseRenewDurRFE$RemoteTestServiceImpl";
         /* If com.sun.jini.qa.harness.configs (proto) is "none" then use only
@@ -370,7 +385,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
          */
         String serviceConfig = ( (proto.compareToIgnoreCase("none") == 0) ?
               "-" : sysConfig.getStringConfigVal("service.configFile","-") );
-        logger.log(Levels.HANDLED,"serviceConfig = "+serviceConfig);
+        logger.log(Levels.HANDLED, "serviceConfig = {0}", serviceConfig);
 
         /* service configuration overrides */
         String locConfigOverride = overrideLocsStr(locs);
@@ -378,25 +393,31 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         String[] serviceArgs1 = new String[nTestServices];
         String[] serviceArgs2 = new String[nTestServices];
         String[] serviceArgs3 = new String[nTestServices];
+        String servID = ".serviceID=";
+        String val = ".val=";
+        String invertedCommas = "\"";
+        String maxLeaseDur = "net.jini.lookup.JoinManager.maxLeaseDuration=";
         for(int v=0; v<nTestServices; v++) {
             serviceArgs0[v] = locConfigOverride;//common override
             /* service-specific overrides - TestService-v */
-            serviceArgs1[v] = OVERRIDE_COMPONENT_NAME+".serviceID="
-                              +"\""+srvcID[v].toString()+"\"";
-            serviceArgs2[v] = OVERRIDE_COMPONENT_NAME+".val="
-                              +String.valueOf(v);
-            serviceArgs3[v] = "net.jini.lookup.JoinManager.maxLeaseDuration="
-                              +String.valueOf(leaseDur[v]);
+            builder.append(OVERRIDE_COMPONENT_NAME).append(servID)
+                    .append(invertedCommas).append(srvcID[v].toString()).append(invertedCommas);
+            serviceArgs1[v] = builder.toString();
+            builder.delete(0, builder.length());
+            builder.append(OVERRIDE_COMPONENT_NAME).append(val).append(String.valueOf(v));
+            serviceArgs2[v] = builder.toString();
+            builder.delete(0, builder.length());
+            builder.append(maxLeaseDur).append(String.valueOf(leaseDur[v]));
+            serviceArgs3[v] = builder.toString();
+            builder.delete(0, builder.length());
             /* log service overrides - TestService-v */
             logger.log(Levels.HANDLED,
                  "  *******************************************************");
-            logger.log(Levels.HANDLED,
-                       "  ******** SETUP Config Overrides: TestService-"
-                       +v+" ********");
-            logger.log(Levels.HANDLED,"  "+serviceArgs0[v]);
-            logger.log(Levels.HANDLED,"  "+serviceArgs1[v]);
-            logger.log(Levels.HANDLED,"  "+serviceArgs2[v]);
-            logger.log(Levels.HANDLED,"  "+serviceArgs3[v]);
+            logger.log(Levels.HANDLED, "  ******** SETUP Config Overrides: TestService-{0} ********", v);
+            logger.log(Levels.HANDLED, "  {0}", serviceArgs0[v]);
+            logger.log(Levels.HANDLED, "  {0}", serviceArgs1[v]);
+            logger.log(Levels.HANDLED, "  {0}", serviceArgs2[v]);
+            logger.log(Levels.HANDLED, "  {0}", serviceArgs3[v]);
             logger.log(Levels.HANDLED,
                  "  *******************************************************");
             /* config and overrides for service descriptor - TestService-v */
@@ -420,7 +441,8 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             File sharedVMDirFD = new File(sharedVMDir);
             if( sharedVMDirFD.exists() ) {
                 File[] files = sharedVMDirFD.listFiles();
-                for(int i=0; i<files.length; i++) {
+                int l = files.length;
+                for(int i=0; i<l; i++) {
                     files[i].delete();
                 }//endif
                 sharedVMDirFD.delete();
@@ -488,6 +510,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
      *          value that was configured
      *   </ul>
      */
+    @Override
     public void run() throws Exception {
         logger.log(Levels.HANDLED, "run()");
         long blockMS = 3*60*1000;
@@ -498,16 +521,17 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                                       (TestServiceInterface)srvcItem.service;
                 long renewDur = srvcProxy.getRenewDur();
                 if(renewDur == Lease.FOREVER) {
-                    logger.log(Levels.HANDLED,"  TestService-"
-                               +srvcProxy.getVal()
-                               +": lease duration = DEFAULT");
+                    logger.log(Levels.HANDLED,
+                            "  TestService-{0}: lease duration = DEFAULT",
+                            srvcProxy.getVal());
                 } else {
-                    logger.log(Levels.HANDLED,"  TestService-"
-                               +srvcProxy.getVal()
-                               +": lease duration = "+renewDur);
+                    logger.log(Levels.HANDLED, 
+                            "  TestService-{0}: lease duration = {1}",
+                            new Object[]{srvcProxy.getVal(), renewDur});
                 }//endif
-                logger.log(Levels.HANDLED,"  TestService-"+srvcProxy.getVal()
-                                      +": ***** 'KILL' service "+v+" *****");
+                logger.log(Levels.HANDLED, 
+                        "  TestService-{0}: ***** ''KILL'' service {1} *****",
+                        new Object[]{srvcProxy.getVal(), v});
                 vmProxy[v].destroyVM(); /* "pull the plug" on the service */
                 //srvcProxy.exitService(); /* make service crash on its own */
 
@@ -518,9 +542,9 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                                             +leaseDur[v]+")");
                 }//endif
                 /* Wait (dur+delta) for lease to expire */
-                logger.log(Levels.HANDLED,"  TestService-"+v
-                           +": wait at most ("+(leaseDur[v]/1000)+"+"+rfeDelta
-                           +") secs for lease to expire");
+                logger.log(Levels.HANDLED, 
+                        "  TestService-{0}: wait at most ({1}+{2}) secs for lease to expire",
+                        new Object[]{v, leaseDur[v]/1000, rfeDelta});
                 /* First wait the lease duration */
                 try{ 
                     Thread.sleep(leaseDur[v]);
@@ -534,9 +558,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                     if(sdm.lookup(tmpl[v],null) == null) leaseExpired = true;
                 }//end loop
                 if(leaseExpired) {
-                    logger.log(Levels.HANDLED,"  TestService-"+v
-                               +": lease expired after ("+(leaseDur[v]/1000)
-                               +"+"+i+") secs");
+                    logger.log(Levels.HANDLED, "  TestService-{0}: lease expired after ({1}+{2}) secs", new Object[]{v, leaseDur[v]/1000, i});
                 } else {
                     throw new TestException("TestService-"+v+": lease did not "
                                             +"expire when expected (dur = "
@@ -549,13 +571,14 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                 File sharedVMDirFD = new File(sharedVMDir);
                 if( sharedVMDirFD.exists() ) {
                     File[] files = sharedVMDirFD.listFiles();
-                    for(int i=0; i<files.length; i++) {
+                    int l = files.length;
+                    for(int i=0; i<l; i++) {
                         files[i].delete();
                     }//endif
                     sharedVMDirFD.delete();
-                    logger.log(Levels.HANDLED,"  TestService-"+v
-                               +": cleanup - removed shared VM dir ("
-                               +sharedVMDir+")");
+                    logger.log(Levels.HANDLED, 
+                            "  TestService-{0}: cleanup - removed shared VM dir ({1})",
+                            new Object[]{v, sharedVMDir});
                 }//endif
             }//end loop
         }
@@ -604,7 +627,9 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 	    if (loginConfigVal == null) {
 		throw new TestException(loginConfigProp + " is undefined");
 	    }
-            logger.log(Levels.HANDLED, loginConfigKey+"="+loginConfigVal);
+            logger.log(Levels.HANDLED,
+                    "{0}={1}",
+                    new Object[]{loginConfigKey, loginConfigVal});
             propsList.add(loginConfigKey);
             propsList.add(loginConfigVal);
 
@@ -614,7 +639,9 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 	    if (secPropsVal == null) {
 		throw new TestException("trust.policyProps is undefined");
 	    }
-            logger.log(Levels.HANDLED, secPropsKey+"="+secPropsVal);
+            logger.log(Levels.HANDLED, 
+                    "{0}={1}", 
+                    new Object[]{secPropsKey, secPropsVal});
             propsList.add(secPropsKey);
             propsList.add(secPropsVal);
         }//endif
@@ -637,7 +664,8 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 	    if (trustStoreVal == null) {
 		throw new TestException("trust.truststoreFile is undefined");
 	    }
-            logger.log(Levels.HANDLED, trustStoreKey+"="+trustStoreVal);
+            logger.log(Levels.HANDLED, "{0}={1}",
+                    new Object[]{trustStoreKey, trustStoreVal});
             propsList.add(trustStoreKey);
             propsList.add(trustStoreVal);
 
@@ -646,28 +674,36 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             String realmKey = "java.security.krb5.realm";
             String realmVal =
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.realm", null);
-            logger.log(Levels.HANDLED, realmKey+"="+realmVal);
+            logger.log(Levels.HANDLED,
+                    "{0}={1}",
+                    new Object[]{realmKey, realmVal});
             propsList.add(realmKey);
             propsList.add(realmVal);
 
             String kdcKey = "java.security.krb5.kdc";
             String kdcVal = 
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.kdc", null);
-            logger.log(Levels.HANDLED, kdcKey+"="+kdcVal);
+            logger.log(Levels.HANDLED, 
+                    "{0}={1}", 
+                    new Object[]{kdcKey, kdcVal});
             propsList.add(kdcKey);
             propsList.add(kdcVal);
 
             String keyTabKey = "keytab";
             String keyTabVal = 
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.aggregatePasswordFile", null);
-            logger.log(Levels.HANDLED, keyTabKey+"="+keyTabVal);
+            logger.log(Levels.HANDLED, 
+                    "{0}={1}", 
+                    new Object[]{keyTabKey, keyTabVal});
             propsList.add(keyTabKey);
             propsList.add(keyTabVal);
 
             String phoenixKey = "phoenix";
             String phoenixVal = 
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.phoenixPrincipal", null);
-            logger.log(Levels.HANDLED, phoenixKey+"="+phoenixVal);
+            logger.log(Levels.HANDLED, 
+                    "{0}={1}",
+                    new Object[]{phoenixKey, phoenixVal});
             propsList.add(phoenixKey);
             propsList.add(phoenixVal);
 
@@ -675,62 +711,77 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             String groupVal = 	       
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.groupPrincipal", null);
 
-            logger.log(Levels.HANDLED, groupKey+"="+groupVal);
+            logger.log(Levels.HANDLED, "{0}={1}", new Object[]{groupKey, groupVal});
             propsList.add(groupKey);
             propsList.add(groupVal);
 
             String reggieKey = "reggie";
             String reggieVal = 
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.reggiePrincipal", null);
-            logger.log(Levels.HANDLED, reggieKey+"="+reggieVal);
+            logger.log(Levels.HANDLED, 
+                    "{0}={1}", 
+                    new Object[]{reggieKey, reggieVal});
             propsList.add(reggieKey);
             propsList.add(reggieVal);
 
             String mahaloKey = "mahalo";
             String mahaloVal = 
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.mahaloPrincipal", null);
-            logger.log(Levels.HANDLED, mahaloKey+"="+mahaloVal);
+            logger.log(Levels.HANDLED, 
+                    "{0}={1}", 
+                    new Object[]{mahaloKey, mahaloVal});
             propsList.add(mahaloKey);
             propsList.add(mahaloVal);
 
             String outriggerKey = "outrigger";
             String outriggerVal = 
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.outriggerPrincipal", null);
-            logger.log(Levels.HANDLED, outriggerKey+"="+outriggerVal);
+            logger.log(Levels.HANDLED, 
+                    "{0}={1}", 
+                    new Object[]{outriggerKey, outriggerVal});
             propsList.add(outriggerKey);
             propsList.add(outriggerVal);
 
             String mercuryKey = "mercury";
             String mercuryVal = 
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.mercuryPrincipal", null);
-            logger.log(Levels.HANDLED, mercuryKey+"="+mercuryVal);
+            logger.log(Levels.HANDLED, 
+                    "{0}={1}", 
+                    new Object[]{mercuryKey, mercuryVal});
             propsList.add(mercuryKey);
             propsList.add(mercuryVal);
 
             String normKey = "norm";
             String normVal = 
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.normPrincipal", null);
-            logger.log(Levels.HANDLED, normKey+"="+normVal);
+            logger.log(Levels.HANDLED, 
+                    "{0}={1}",
+                    new Object[]{normKey, normVal});
             propsList.add(normKey);
             propsList.add(normVal);
 
             String fiddlerKey = "fiddler";
             String fiddlerVal = 
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.fiddlerPrincipal", null);
-            logger.log(Levels.HANDLED, fiddlerKey+"="+fiddlerVal);
+            logger.log(Levels.HANDLED,
+                    "{0}={1}", 
+                    new Object[]{fiddlerKey, fiddlerVal});
             propsList.add(fiddlerKey);
             propsList.add(fiddlerVal);
 
             String testKey = "test";
             String testVal = 
 		sysConfig.getStringConfigVal("com.sun.jini.qa.harness.kerberos.testPrincipal", null);
-            logger.log(Levels.HANDLED, testKey+"="+testVal);
+            logger.log(Levels.HANDLED, "{0}={1}", 
+                    new Object[]{testKey, testVal});
             propsList.add(testKey);
             propsList.add(testVal);
 
             String subjectCredsKey = "javax.security.auth.useSubjectCredsOnly";
             String subjectCredsVal = "false";
-            logger.log(Levels.HANDLED, subjectCredsKey+"="+subjectCredsVal);
+            logger.log(Levels.HANDLED, 
+                    "{0}={1}",
+                    new Object[]{subjectCredsKey, subjectCredsVal});
             propsList.add(subjectCredsKey);
             propsList.add(subjectCredsVal);
 
@@ -781,7 +832,8 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
     }//end getDirs
 
     private String overrideLocsStr(LookupLocator[] locators) throws TestException {
-        String[] locStrs = null;
+        StringBuilder builder = new StringBuilder(2400);
+        String[] locStrs;
 
         String truststore      = null;
         String principalReggie = null;
@@ -796,248 +848,275 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
 		throw new TestException("trust.truststoreURL is undefined");
 	    }
             setConstraints = true;
-            truststore = "com.sun.jini.config.KeyStores.getKeyStore"
-                          +"("
-                          +"\""
-                          + truststoreURL
-                          +"\""
-                          +",null"
-                          +")"; 
-            logger.log(Levels.HANDLED,"  truststore = "+truststore);
+            builder.append("com.sun.jini.config.KeyStores.getKeyStore")
+                    .append("(")
+                    .append("\"")
+                    .append(truststoreURL)
+                    .append("\"")
+                    .append(",null")
+                    .append(")");
+            truststore = builder.toString(); 
+            builder.delete(0, builder.length());
+            logger.log(Levels.HANDLED, "  truststore = {0}", truststore);
         }//endif
 
         /* set protocol-specific locator constraints */
         if(    (proto.compareToIgnoreCase("jsse")  == 0)
             || (proto.compareToIgnoreCase("https") == 0) )
         {
-            principalReggie = "com.sun.jini.config.KeyStores.getX500Principal"
-                                    +"("+"\""+"reggie"+"\""+","+truststore+")";
-            principalTester = "com.sun.jini.config.KeyStores.getX500Principal"
-                                    +"("+"\""+"tester"+"\""+","+truststore+")";
+            builder.append("com.sun.jini.config.KeyStores.getX500Principal")
+                    .append("(").append("\"").append("reggie").append("\"")
+                    .append(",").append(truststore).append(")");
+            principalReggie = builder.toString();
+            builder.delete(0, builder.length());
+            builder.append("com.sun.jini.config.KeyStores.getX500Principal")
+                    .append("(").append("\"").append("tester").append("\"")
+                    .append(",").append(truststore).append(")");
+            principalTester = builder.toString();
+            builder.delete(0, builder.length());
             /* Note: the non-unicast constraints below are not necessary
              *       because all discovery is done using only unicast; but
              *       are included for reference.
              */
-            locConstraints = 
-            "new BasicMethodConstraints"
-            +"("
-                +"new MethodDesc[]"
-                +"{ "
+            locConstraints = builder
+            .append("new BasicMethodConstraints").append("(")
+                .append("new MethodDesc[]")
+                .append("{ ")
 
-                  +"new MethodDesc"
-                  +"("
-                      +"\""+"multicastRequest"+"\""+","
-                      +"new InvocationConstraints"
-                      +"("
-                          +"new InvocationConstraint[]"
-                          +"{"
-                              +"ClientAuthentication.YES,"
-                              +"new ClientMinPrincipal("+principalTester+"),"
-                              +"Integrity.YES,"
-                              +"DiscoveryProtocolVersion.TWO,"
-                              +"new MulticastMaxPacketSize(1024),"
-                              +"new MulticastTimeToLive(0),"
-                              +"new UnicastSocketTimeout(120000)"
-                          +"},"
-                          +"null"
-                      +")"
-                  +")"
-                  +","
+                   .append("new MethodDesc")
+                   .append("(")
+                      .append("\"").append("multicastRequest").append("\"").append(",")
+                      .append("new InvocationConstraints")
+                      .append("(")
+                         .append("new InvocationConstraint[]")
+                         .append("{")
+                              .append("ClientAuthentication.YES,")
+                              .append("new ClientMinPrincipal(").append(principalTester).append("),")
+                              .append("Integrity.YES,")
+                              .append("DiscoveryProtocolVersion.TWO,")
+                              .append("new MulticastMaxPacketSize(1024),")
+                              .append("new MulticastTimeToLive(0),")
+                              .append("new UnicastSocketTimeout(120000)")
+                          .append("},")
+                          .append("null")
+                      .append(")")
+                  .append(")")
+                  .append(",")
 
-                  +"new MethodDesc"
-                  +"("
-                      +"\""+"multicastAnnouncement"+"\""+","
-                      +"new InvocationConstraints"
-                      +"("
-                          +"new InvocationConstraint[]"
-                          +"{"
-                              +"Integrity.YES,"
-                              +"ServerAuthentication.YES,"
-                              +"new ServerMinPrincipal("+principalReggie+"),"
-                              +"DiscoveryProtocolVersion.TWO,"
-                              +"new MulticastMaxPacketSize(1024),"
-                              +"new MulticastTimeToLive(0),"
-                              +"new UnicastSocketTimeout(120000)"
-                          +"},"
-                          +"null"
-                      +")"
-                  +")"
-                  +","
+                  .append("new MethodDesc")
+                  .append("(")
+                      .append("\"").append("multicastAnnouncement").append("\"").append(",")
+                      .append("new InvocationConstraints")
+                      .append("(")
+                          .append("new InvocationConstraint[]")
+                          .append("{")
+                              .append("Integrity.YES,")
+                              .append("ServerAuthentication.YES,")
+                              .append("new ServerMinPrincipal(").append(principalReggie).append("),")
+                              .append("DiscoveryProtocolVersion.TWO,")
+                              .append("new MulticastMaxPacketSize(1024),")
+                              .append("new MulticastTimeToLive(0),")
+                              .append("new UnicastSocketTimeout(120000)")
+                          .append("},")
+                          .append("null")
+                      .append(")")
+                  .append(")")
+                  .append(",")
 
-                  +"new MethodDesc"
-                  +"("
-                      +"\""+"unicastDiscovery"+"\""+","
-                      +"new InvocationConstraints"
-                      +"("
-                          +"new InvocationConstraint[]"
-                          +"{"
-                              +"Integrity.YES,"
-                              +"ServerAuthentication.YES,"
-                              +"new ServerMinPrincipal("+principalReggie+"),"
-                              +"DiscoveryProtocolVersion.TWO,"
-                              +"new MulticastMaxPacketSize(1024),"
-                              +"new MulticastTimeToLive(0),"
-                              +"new UnicastSocketTimeout(120000)"
-                          +"},"
-                          +"null"
-                      +")"
-                  +")"
-                 +","
+                  .append("new MethodDesc")
+                  .append("(")
+                      .append("\"").append("unicastDiscovery").append("\"").append(",")
+                      .append("new InvocationConstraints")
+                      .append("(")
+                          .append("new InvocationConstraint[]")
+                          .append("{")
+                              .append("Integrity.YES,")
+                              .append("ServerAuthentication.YES,")
+                              .append("new ServerMinPrincipal(").append(principalReggie).append("),")
+                              .append("DiscoveryProtocolVersion.TWO,")
+                              .append("new MulticastMaxPacketSize(1024),")
+                              .append("new MulticastTimeToLive(0),")
+                              .append("new UnicastSocketTimeout(120000)")
+                          .append("},")
+                          .append("null")
+                      .append(")")
+                  .append(")")
+                 .append(",")
 
-                  +"new MethodDesc"
-                  +"("
-                      +"\""+"getRegistrar"+"\""+","
-                      +"new InvocationConstraints"
-                      +"("
-                          +"new InvocationConstraint[]"
-                          +"{"
-                              +"Integrity.YES,"
-                              +"ServerAuthentication.YES,"
-                              +"new ServerMinPrincipal("+principalReggie+"),"
-                              +"DiscoveryProtocolVersion.TWO,"
-                              +"new MulticastMaxPacketSize(1024),"
-                              +"new MulticastTimeToLive(0),"
-                              +"new UnicastSocketTimeout(120000)"
-                          +"},"
-                          +"null"
-                      +")"
-                  +")"
+                  .append("new MethodDesc")
+                  .append("(")
+                      .append("\"").append("getRegistrar").append("\"").append(",")
+                      .append("new InvocationConstraints")
+                      .append("(")
+                          .append("new InvocationConstraint[]")
+                          .append("{")
+                              .append("Integrity.YES,")
+                              .append("ServerAuthentication.YES,")
+                              .append("new ServerMinPrincipal(").append(principalReggie).append("),")
+                              .append("DiscoveryProtocolVersion.TWO,")
+                              .append("new MulticastMaxPacketSize(1024),")
+                              .append("new MulticastTimeToLive(0),")
+                              .append("new UnicastSocketTimeout(120000)")
+                          .append("},")
+                          .append("null")
+                      .append(")")
+                  .append(")")
 
-                +"}"
-            +")";
-
+                .append("}")
+            .append(")").toString();
+            builder.delete(0, builder.length());
         } else if(proto.compareToIgnoreCase("kerberos") == 0) {
 	    String pName = config.getStringConfigVal("com.sun.jini.qa.harness.kerberos.reggiePrincipal", null);
-            principalReggie = 
-                  "new javax.security.auth.kerberos.KerberosPrincipal"
-                   +"("
-                       +"\""+pName+"\""
-                   +")";
+            principalReggie = builder
+                  .append("new javax.security.auth.kerberos.KerberosPrincipal")
+                   .append("(")
+                       .append("\"").append(pName).append("\"")
+                   .append(")").toString();
+            builder.delete(0, builder.length());
 	    pName = config.getStringConfigVal("com.sun.jini.qa.harness.kerberos.testPrincipal", null);
-            principalTester = 
-                  "new javax.security.auth.kerberos.KerberosPrincipal"
-                   +"("
-                       +"\""+pName+"\""
-                   +")";
-            locConstraints = 
-            "new BasicMethodConstraints"
-            +"("
-                +"new MethodDesc[]"
-                +"{ "
+            principalTester = builder
+                  .append("new javax.security.auth.kerberos.KerberosPrincipal")
+                   .append("(")
+                       .append("\"").append(pName).append("\"")
+                   .append(")").toString();
+            builder.delete(0, builder.length());
+            locConstraints = builder
+            .append("new BasicMethodConstraints")
+            .append("(")
+                .append("new MethodDesc[]")
+                .append("{ ")
 
-                  +"new MethodDesc"
-                  +"("
-                      +"\""+"unicastDiscovery"+"\""+","
-                      +"new InvocationConstraints"
-                      +"("
-                          +"new InvocationConstraint[]"
-                          +"{"
-                              +"Integrity.YES,"
-                              +"ServerAuthentication.YES,"
-                              +"new ServerMinPrincipal("+principalReggie+"),"
-                              +"DiscoveryProtocolVersion.TWO,"
-                              +"new MulticastMaxPacketSize(1024),"
-                              +"new MulticastTimeToLive(0),"
-                              +"new UnicastSocketTimeout(120000)"
-                          +"},"
-                          +"null"
-                      +")"
-                  +")"
-                  +","
+                  .append("new MethodDesc")
+                  .append("(")
+                      .append("\"").append("unicastDiscovery").append("\"").append(",")
+                      .append("new InvocationConstraints")
+                      .append("(")
+                          .append("new InvocationConstraint[]")
+                          .append("{")
+                              .append("Integrity.YES,")
+                              .append("ServerAuthentication.YES,")
+                              .append("new ServerMinPrincipal(").append(principalReggie).append("),")
+                              .append("DiscoveryProtocolVersion.TWO,")
+                              .append("new MulticastMaxPacketSize(1024),")
+                              .append("new MulticastTimeToLive(0),")
+                              .append("new UnicastSocketTimeout(120000)")
+                          .append("},")
+                          .append("null")
+                      .append(")")
+                  .append(")")
+                  .append(",")
 
-                  +"new MethodDesc"
-                  +"("
-                      +"\""+"getRegistrar"+"\""+","
-                      +"new InvocationConstraints"
-                      +"("
-                          +"new InvocationConstraint[]"
-                          +"{"
-                              +"Integrity.YES,"
-                              +"ServerAuthentication.YES,"
-                              +"new ServerMinPrincipal("+principalReggie+"),"
-                              +"DiscoveryProtocolVersion.TWO,"
-                              +"new MulticastMaxPacketSize(1024),"
-                              +"new MulticastTimeToLive(0),"
-                              +"new UnicastSocketTimeout(120000)"
-                          +"},"
-                          +"null"
-                      +")"
-                  +")"
-                  +","
+                  .append("new MethodDesc")
+                  .append("(")
+                      .append("\"").append("getRegistrar").append("\"").append(",")
+                      .append("new InvocationConstraints")
+                      .append("(")
+                          .append("new InvocationConstraint[]")
+                          .append("{")
+                              .append("Integrity.YES,")
+                              .append("ServerAuthentication.YES,")
+                              .append("new ServerMinPrincipal(").append(principalReggie).append("),")
+                              .append("DiscoveryProtocolVersion.TWO,")
+                              .append("new MulticastMaxPacketSize(1024),")
+                              .append("new MulticastTimeToLive(0),")
+                              .append("new UnicastSocketTimeout(120000)")
+                          .append("},")
+                          .append("null")
+                      .append(")")
+                  .append(")")
+                  .append(",")
 
-                  +"new MethodDesc"
-                  +"("
-                      +"new InvocationConstraints"
-                      +"("
-                          +"new InvocationConstraint[]"
-                          +"{"
-                              +"DiscoveryProtocolVersion.TWO,"
-                              +"new MulticastMaxPacketSize(1024),"
-                              +"new MulticastTimeToLive(0),"
-                              +"new UnicastSocketTimeout(120000)"
-                          +"},"
-                          +"null"
-                      +")"
-                  +")"
+                  .append("new MethodDesc")
+                  .append("(")
+                      .append("new InvocationConstraints")
+                      .append("(")
+                          .append("new InvocationConstraint[]")
+                          .append("{")
+                              .append("DiscoveryProtocolVersion.TWO,")
+                              .append("new MulticastMaxPacketSize(1024),")
+                              .append("new MulticastTimeToLive(0),")
+                              .append("new UnicastSocketTimeout(120000)")
+                          .append("},")
+                          .append("null")
+                      .append(")")
+                  .append(")")
 
-                +"}"
-            +")";
-
+                .append("}")
+            .append(")").toString();
+            builder.delete(0, builder.length());
         }//endif(proto-constraints)
 
         if(locators.length == 0) {
             locStrs = new String[1];
-            locStrs[0] = 
-                " "+OVERRIDE_COMPONENT_NAME+"."
-               +"locatorsToJoin=new net.jini.core.discovery.LookupLocator[0]";
+            locStrs[0] = builder
+                .append(" ").append(OVERRIDE_COMPONENT_NAME).append(".")
+                .append("locatorsToJoin=new net.jini.core.discovery.LookupLocator[0]")
+                .toString();
+            builder.delete(0, builder.length());
             if(setConstraints) {
-                locStrs[0] = 
-                        " "+OVERRIDE_COMPONENT_NAME+"."
-                       +"locatorsToJoin=new net.jini.discovery."
-                       +"ConstrainableLookupLocator[0]";
+                locStrs[0] = builder
+                       .append(" ").append(OVERRIDE_COMPONENT_NAME).append(".")
+                       .append("locatorsToJoin=new net.jini.discovery.")
+                       .append("ConstrainableLookupLocator[0]").toString();
+                builder.delete(0, builder.length());
             }//endif
         } else {
             locStrs = new String[1+locators.length];
-            String jUrl =  "jini://"+locators[0].getHost()+":"
-                                                   +locators[0].getPort()+"/";
-            locStrs[0] = 
-                " "+OVERRIDE_COMPONENT_NAME+"."
-               +"locatorsToJoin=new net.jini.core.discovery.LookupLocator[] {"
-                  +"new net.jini.core.discovery.LookupLocator("
-                                                               +"\""
-                                                               +jUrl
-                                                               +"\""
-                                                               +")";
+            String jUrl =  builder
+                    .append("jini://").append(locators[0].getHost()).append(":")
+                                      .append(locators[0].getPort()).append("/")
+                    .toString();
+            builder.delete(0, builder.length());
+            locStrs[0] = builder
+               .append(" ").append(OVERRIDE_COMPONENT_NAME).append(".")
+               .append("locatorsToJoin=new net.jini.core.discovery.LookupLocator[] {")
+                  .append("new net.jini.core.discovery.LookupLocator(")
+                                                               .append("\"")
+                                                               .append(jUrl)
+                                                               .append("\"")
+                                                               .append(")")
+                    .toString();
+            builder.delete(0, builder.length());
             if(setConstraints) {
-                locStrs[0] = 
-                         " "+OVERRIDE_COMPONENT_NAME+"."
-                        +"locatorsToJoin=new net.jini.discovery."
-                        +"ConstrainableLookupLocator[] {"
-                        +"new net.jini.discovery.ConstrainableLookupLocator("
-                                                               +"\""
-                                                               +jUrl
-                                                               +"\""
-                                                               +","
-                                                               +locConstraints
-                                                               +")";
+                locStrs[0] = builder
+                        .append(" ").append(OVERRIDE_COMPONENT_NAME).append(".")
+                        .append("locatorsToJoin=new net.jini.discovery.")
+                        .append("ConstrainableLookupLocator[] {")
+                        .append("new net.jini.discovery.ConstrainableLookupLocator(")
+                                                               .append("\"")
+                                                               .append(jUrl)
+                                                               .append("\"")
+                                                               .append(",")
+                                                               .append(locConstraints)
+                                                               .append(")")
+                        .toString();
+                builder.delete(0, builder.length());
             }//endif
             for(int i=1; i<(locators.length-1); i++) {
-                jUrl = "jini://"+locators[i].getHost()+":"
-                                                   +locators[i].getPort()+"/";
-                locStrs[i] = ",new net.jini.core.discovery.LookupLocator("
-                                                               +"\""
-                                                               +jUrl
-                                                               +"\""
-                                                               +")";
+                jUrl = builder
+                       .append("jini://").append(locators[i].getHost()).append(":")
+                                       .append(locators[i].getPort()).append("/")
+                        .toString();
+                builder.delete(0, builder.length());
+                locStrs[i] = builder
+                        .append(",new net.jini.core.discovery.LookupLocator(")
+                                                               .append("\"")
+                                                               .append(jUrl)
+                                                               .append("\"")
+                                                               .append(")")
+                        .toString();
+                builder.delete(0, builder.length());
                 if(setConstraints) {
-                    locStrs[i] = 
-                        ",new net.jini.discovery.ConstrainableLookupLocator("
-                                                               +"\""
-                                                               +jUrl
-                                                               +"\""
-                                                               +","
-                                                               +locConstraints
-                                                               +")";
+                    locStrs[i] = builder
+                        .append(",new net.jini.discovery.ConstrainableLookupLocator(")
+                                                               .append("\"")
+                                                               .append(jUrl)
+                                                               .append("\"")
+                                                               .append(",")
+                                                               .append(locConstraints)
+                                                               .append(")")
+                            .toString();
+                    builder.delete(0, builder.length());
                 }//endif
             }//end loop
             locStrs[locators.length] = "}";
@@ -1131,6 +1210,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             context = null; //Be careful not to store things on the stack.
         }
 
+        @Override
         public void exitService() throws RemoteException, ActivationException {
             if (activationSystemUnregister) {
 	        activationSystem.unregisterGroup
@@ -1177,6 +1257,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                 return Subject.doAsPrivileged
                   ( loginContext.getSubject(),
                     new PrivilegedExceptionAction<Init>() {
+                        @Override
                         public Init run() throws Exception {
                             return doInit(  
                                         config, 
@@ -1257,19 +1338,22 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                                                           LookupLocator[].class, 
                                                           new LookupLocator[0]);
                 /* display the overridden config items */
-                logger.log(Levels.HANDLED," TestService-"+val+": service ID = "
-                                      +serviceID);
+                logger.log(Levels.HANDLED, 
+                        " TestService-{0}: service ID = {1}", 
+                        new Object[]{val, serviceID});
                 for(int i=0; i<locatorsToJoin.length; i++) {
-                    logger.log(Levels.HANDLED," TestService-"+val+": locsToJoin["
-                                          +i+"] = "+locatorsToJoin[i]);
+                    logger.log(Levels.HANDLED,
+                            " TestService-{0}: locsToJoin[{1}] = {2}",
+                            new Object[]{val, i, locatorsToJoin[i]});
                 }//end loop
                 if(renewDur == Lease.FOREVER) {
                     logger.log(Levels.HANDLED,
-                               " TestService-"+val+": lease duration = DEFAULT");
+                            " TestService-{0}: lease duration = DEFAULT",
+                            val);
                 } else {
                     logger.log(Levels.HANDLED,
-                               " TestService-"+val+": lease duration = "
-                               +renewDur);
+                            " TestService-{0}: lease duration = {1}",
+                            new Object[]{val, renewDur});
                 }//endif
 
                 ldm = new LookupDiscoveryManager(groupsToJoin, locatorsToJoin,
@@ -1321,14 +1405,17 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             
         }
 
+        @Override
         public synchronized TrustVerifier getProxyVerifier() {
             return new ProxyVerifier(innerProxy, proxyID);
         }//end getProxyVerifier
 
+        @Override
         public synchronized Object getProxy() {
             return innerProxy;
         }//end getProxy
 
+        @Override
         public synchronized Object getServiceProxy() {
             return outerProxy;
         }//end getServiceProxy
@@ -1338,6 +1425,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                 super("DestroyThread");
                 setDaemon(false);
             }//end constructor
+            @Override
             public void run() {
                 System.exit(0);
             }//end run
@@ -1379,26 +1467,32 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             this.renewDur = renewDur;
         }//end constructor
 
+        @Override
         public int getVal() {
             return val;
         }//end getVal
 
+        @Override
         public long getRenewDur() {
             return renewDur;
         }//end renewDur
 
+        @Override
         public void exitService() throws RemoteException, ActivationException {
             innerProxy.exitService();
         }//End exitService
 
+        @Override
         public Uuid getReferentUuid() {
             return proxyID;
         }//end getAdmin
 
+        @Override
         public int hashCode() {
 	    return proxyID.hashCode();
         }//end hashCode
 
+        @Override
         public boolean equals(Object obj) {
 	    return  ReferentUuids.compare(this,obj);
         }//end equals
@@ -1439,7 +1533,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                                                             new Class[] {} ),
             };//end methodMapArray
 
-            private MethodConstraints methodConstraints;
+            private final MethodConstraints methodConstraints;
 
             private ConstrainableTestServiceProxy
                                       (RemoteTestServiceInterface innerProxy, 
@@ -1466,6 +1560,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                 return ((RemoteTestServiceInterface)constrainedServer);
             }//end constrainServer
 
+            @Override
             public RemoteMethodControl setConstraints
                                               (MethodConstraints constraints)
             {
@@ -1473,6 +1568,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                            (innerProxy, proxyID, val, renewDur, constraints) );
             }//end setConstraints
 
+            @Override
             public MethodConstraints getConstraints() {
                 return methodConstraints;
             }//end getConstraints
@@ -1523,6 +1619,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
             this.proxyID = proxyID;
         }//end constructor
 
+        @Override
         public boolean isTrustedObject(Object obj,
                                        TrustVerifier.Context ctx)
                                                        throws RemoteException

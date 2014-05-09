@@ -24,6 +24,7 @@ import com.sun.jini.qa.harness.TestException;
 
 import com.sun.jini.test.spec.lookupservice.QATestRegistrar;
 import com.sun.jini.test.spec.lookupservice.QATestUtils;
+import com.sun.jini.test.spec.lookupservice.RemoteEventComparator;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceItem;
@@ -42,6 +43,8 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Vector;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 /** This class is used to verify that after using templates containing only 
@@ -65,26 +68,13 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
         /** Method called remotely by lookup to handle the generated event. */
         public void notify(RemoteEvent ev) {
             ServiceEvent srvcEvnt = (ServiceEvent)ev;
+            synchronized (NotifyOnSrvcLeaseExpiration.this){
             evntVec.add(srvcEvnt);
         }
     }
-
-    public static class EventComparator implements Comparator {
-        public int compare(Object o1, Object o2) {
-            long seq1 = ((ServiceEvent) o1).getSequenceNumber();
-            long seq2 = ((ServiceEvent) o2).getSequenceNumber();
-            if (seq1 < seq2)
-                return -1;
-            if (seq1 > seq1)
-                return 1;
-            return 0;
         }
-        public boolean equals(Object o) {
-            return o.getClass().equals(EventComparator.class);
-        }
-    }
 
-    protected final List<ServiceEvent> evntVec = new Vector<ServiceEvent>();
+    protected List<ServiceEvent> evntVec = new ArrayList<ServiceEvent>(50);
 
     private long srvcLeaseDurMS;
     private ServiceItem[] srvcItems;
@@ -183,7 +173,7 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
 	}
 
 	logger.log(Level.FINE, "Checking for the expect set of events.");
-        Collections.sort(evntVec, new EventComparator());
+        Collections.sort(evntVec, new RemoteEventComparator());
 	QATestUtils.verifyEventVector(evntVec,srvcRegs.length,
 				      EXPECTED_TRANSITION,srvcRegs);
     }

@@ -6,7 +6,7 @@ include0=../outrigger.properties
 
 com.sun.jini.test.share.restart_wait=10000
 com.sun.jini.test.impl.outrigger.matching.StressTest.num_entries=10000
-com.sun.jini.test.impl.outrigger.matching.StressTest.num_readers=500
-com.sun.jini.test.impl.outrigger.matching.StressTest.num_writers=500
+com.sun.jini.test.impl.outrigger.matching.StressTest.num_readers=50
+com.sun.jini.test.impl.outrigger.matching.StressTest.num_writers=50
 com.sun.jini.test.impl.outrigger.matching.tryShutdown=1
 

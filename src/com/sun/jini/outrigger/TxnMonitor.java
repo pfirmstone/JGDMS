@@ -96,9 +96,6 @@ class TxnMonitor implements Runnable {
      */
     private final Thread ourThread;
 
-    /** Set when we are told to stop */
-    private volatile boolean die = false;
-
     private volatile boolean started = false;
 
     /** Logger for logging transaction related information */
@@ -129,7 +126,7 @@ class TxnMonitor implements Runnable {
         );
 
         ourThread = new Thread(this, "TxnMonitor");
-	ourThread.setDaemon(true);
+	ourThread.setDaemon(false);
     }
     
     public void start(){
@@ -142,16 +139,15 @@ class TxnMonitor implements Runnable {
     public void destroy() {
         taskManager.shutdown();
 	wakeupMgr.stop();	
-
+        ourThread.interrupt();
 	synchronized (this) {
-	    die = true;
 	    notifyAll();
 	}
 
         try {
 	    if (started) ourThread.join();
 	} catch(InterruptedException ie) {
-	    // ignore
+	    Thread.currentThread().interrupt(); // restore
 	}
     }
 
@@ -202,16 +198,12 @@ class TxnMonitor implements Runnable {
     public void run() {
 	try {
 	    ToMonitor tm;
-	    for (;;)  {
+	    while (!Thread.currentThread().isInterrupted())  {
 		synchronized (this) {
-		
 		    // Sleep if nothing is pending.
-		    while (pending.isEmpty() && !die) {
+		    while (pending.isEmpty()) {
                         wait();
                     }
-
-		    if (die) return;
-
 		    tm = pending.removeFirst();
 		}
 
@@ -226,7 +218,7 @@ class TxnMonitor implements Runnable {
 		}
 	    }
 	} catch (InterruptedException e) {
-	    return;
+            Thread.currentThread().interrupt();// restore
 	}
     }
 

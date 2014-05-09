@@ -29,9 +29,9 @@ import java.io.OutputStream;
 import java.security.AccessController;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.NoSuchElementException;
 import java.util.Set;
@@ -119,14 +119,14 @@ public final class ConnectionManager {
     private static final long TIMEOUT =
 	( (Long) AccessController.doPrivileged(new GetLongAction(
 		"com.sun.jini.jeri.connectionTimeout", 
-		15000))).longValue();
+		360000))).longValue();
     /**
      * How long to wait for a server to respond to an initial client message.
      */
     private static final long HANDSHAKE_TIMEOUT =
 	((Long) AccessController.doPrivileged(new GetLongAction(
 		"com.sun.jini.jeri.handshakeTimeout", 
-		15000))).longValue();
+		360000))).longValue();
     /**
      * ConnectionManager logger.
      */
@@ -142,7 +142,7 @@ public final class ConnectionManager {
      * Set of connection managers with open or pending muxes
      * (connections), for consideration by the reaper thread.
      */
-    private static final Set reaperSet = new HashSet();
+    private static final Set<ConnectionManager> reaperSet = new HashSet<ConnectionManager>();
 
     /**
      * The endpoint.
@@ -151,25 +151,8 @@ public final class ConnectionManager {
     /**
      * The OutboundMuxes.
      */
-    private final List muxes = new ArrayList(1);
-    /**
-     * The active muxes (during connect).
-     */
-    private final List active = new ArrayList(1);
-    /**
-     * Unmodifiable view of active.
-     */
-    private final Collection roactive =
-	Collections.unmodifiableCollection(active);
-    /**
-     * The idle muxes (during connect).
-     */
-    private final List idle = new ArrayList(1);
-    /**
-     * Unmodifiable view of idle.
-     */
-    private final Collection roidle =
-	Collections.unmodifiableCollection(idle);
+    private final List<OutboundMux> muxes = new LinkedList<OutboundMux>();
+    
     /**
      * Number of pending connect calls.
      */
@@ -197,6 +180,14 @@ public final class ConnectionManager {
 	synchronized (this) {
 	    pendingConnects++;
 	}
+        /**
+         * The active muxes (during connect).
+         */
+        List<Connection> active = new LinkedList<Connection>();
+        /**
+         * The idle muxes (during connect).
+         */
+        List<Connection> idle = new LinkedList<Connection>();
 	try {
 	    synchronized (reaperSet) {
 		if (reaperSet.isEmpty()) {
@@ -206,8 +197,6 @@ public final class ConnectionManager {
 		reaperSet.add(this);
 	    }
 	    synchronized (this) {
-		active.clear();
-		idle.clear();
 		for (int i = muxes.size(); --i >= 0; ) {
 		    OutboundMux mux = (OutboundMux) muxes.get(i);
 		    try {
@@ -221,7 +210,9 @@ public final class ConnectionManager {
 			muxes.remove(i);
 		    }
 		}
-		Connection c = ep.connect(handle, roactive, roidle);
+            }
+            Connection c = ep.connect(handle, active, idle);
+            synchronized (this) {
 		if (c != null) {
 		    for (int i = muxes.size(); --i >= 0; ) {
 			OutboundMux mux = (OutboundMux) muxes.get(i);
@@ -239,7 +230,7 @@ public final class ConnectionManager {
 		    return mux;
 		}
 	    }
-	    Connection c = ep.connect(handle);
+	    c = ep.connect(handle);
 	    synchronized (this) {
 		OutboundMux mux = newOutboundMux(c);
 		mux.newRequestPending();
@@ -316,7 +307,8 @@ public final class ConnectionManager {
 	 /**
 	 * True if the mux needs to be started.
 	 */
-	private boolean pendingStart = true;
+	private volatile boolean notStarted = true;
+        private boolean starting = false;
 	/**
 	 * Number of pending newRequest calls.  Guarded by enclosing
 	 * ConnectionManager's lock.
@@ -327,7 +319,7 @@ public final class ConnectionManager {
 	 * thread.  Set to zero each time a request is initiated.
 	 * Guarded by enclosing ConnectionManager's lock.
 	 */
-	private long idleTime = 0;
+	private volatile long idleTime = 0;
 
 	/**
 	 * Constructs an instance from the connection's streams.
@@ -355,8 +347,7 @@ public final class ConnectionManager {
 	/**
 	 * Registers a pending newRequest call.
 	 */
-	void newRequestPending() {
-	    assert Thread.holdsLock(ConnectionManager.this);
+	synchronized void newRequestPending() {
 	    pendingNewRequests++;
 	}
 
@@ -365,38 +356,56 @@ public final class ConnectionManager {
 	 * idle time to zero. Starts the mux if necessary, and decrements
 	 * the pending newRequest count.
 	 */
+        @Override
 	public OutboundRequest newRequest() throws IOException {
 	    assert !Thread.holdsLock(ConnectionManager.this);
-	    boolean ok = false;
+            boolean interrupted = false;
 	    try {
-		synchronized (startLock) {
-		    if (pendingStart) {
-			pendingStart = false;
-			start();
+                boolean start = false;
+                if (notStarted){
+                    synchronized (startLock){
+                        while (starting){
+                            try {
+                                startLock.wait();
+                            } catch (InterruptedException ex) {
+                                interrupted = true;
 		    }
 		}
-		ok = true;
+                        if (notStarted){
+                            starting = true;
+                            start = true;
+                        }
+                    }
+                    if (start){
+                        try {
+                            start();
 	    } finally {
-		if (!ok) {
-		    synchronized (ConnectionManager.this) {
-			assert pendingNewRequests > 0;
-			pendingNewRequests--;
+                            synchronized (startLock){
+                                notStarted = false;
+                                starting = false;
+                                startLock.notifyAll();
 		    }
 		}
 	    }
-	    synchronized (ConnectionManager.this) {
-		assert pendingNewRequests > 0;
-		pendingNewRequests--;
+                }
+                synchronized (this) {
 		idleTime = 0;
 		return super.newRequest();
 	    }
+	    } finally {
+                synchronized (this) {
+                    assert pendingNewRequests > 0;
+                    pendingNewRequests--;
+	}
+                if (interrupted) Thread.currentThread().interrupt();
+            }
 	}
 
 	/**
 	 * Returns the number of active and pending requests.
 	 */
-	public int requestsInProgress() throws IOException {
-	    assert Thread.holdsLock(ConnectionManager.this);
+        @Override
+	public synchronized int requestsInProgress() throws IOException {
 	    return super.requestsInProgress() + pendingNewRequests;
 	}
 
@@ -407,8 +416,8 @@ public final class ConnectionManager {
 	 * idle time is zero, sets the recorded idle time to now.
 	 */
 	boolean checkIdle(long now) {
-	    assert Thread.holdsLock(ConnectionManager.this);
 	    try {
+                synchronized (this){
 		if (requestsInProgress() == 0) {
 		    if (idleTime == 0) {
 			idleTime = now;
@@ -417,6 +426,7 @@ public final class ConnectionManager {
 		    }
 		}
 		return false;
+                }
 	    } catch (IOException e) {
 		return true;
 	    }
@@ -425,6 +435,7 @@ public final class ConnectionManager {
 	/**
 	 * Close the connection, so that the provider is notified.
 	 */
+        @Override
 	protected void handleDown() {
 	    try {
 		c.close();
@@ -473,21 +484,25 @@ public final class ConnectionManager {
 	}
 
 	/* pass-through to the underlying request */
+        @Override
 	public OutputStream getRequestOutputStream() {
 	    return req.getRequestOutputStream();
 	}
 
 	/* return the wrapper */
+        @Override
 	public InputStream getResponseInputStream() {
 	    return in;
 	}
 
 	/* delegate to the connection */
+        @Override
 	public void populateContext(Collection context) {
 	    c.populateContext(handle, context);
 	}
 
 	/* delegate to the connection */
+        @Override
 	public InvocationConstraints getUnfulfilledConstraints() {
 	    return c.getUnfulfilledConstraints(handle);
 	}
@@ -496,11 +511,13 @@ public final class ConnectionManager {
 	 * False if readResponseData returned an exception, otherwise
 	 * pass-through to the underlying request.
 	 */
+        @Override
 	public boolean getDeliveryStatus() {
 	    return status && req.getDeliveryStatus();
 	}
 
 	/* pass-through to the underlying request */
+        @Override
 	public void abort() {
 	    req.abort();
 	}
@@ -545,30 +562,35 @@ public final class ConnectionManager {
 	    }
 
 	    /** Call readFirst, then pass through. */
+            @Override
 	    public int read() throws IOException {
 		readFirst();
 		return in.read();
 	    }
 
 	    /** Call readFirst, then pass through. */
+            @Override
 	    public int read(byte[] b, int off, int len) throws IOException {
 		readFirst();
 		return in.read(b, off, len);
 	    }
 
 	    /** Call readFirst, then pass through. */
+            @Override
 	    public long skip(long n) throws IOException {
 		readFirst();
 		return in.skip(n);
 	    }
 
 	    /** Call readFirst, then pass through. */
+            @Override
 	    public int available() throws IOException {
 		readFirst();
 		return in.available();
 	    }
 
 	    /** pass-through */
+            @Override
 	    public void close() throws IOException {
 		in.close();
 	    }
@@ -589,6 +611,7 @@ public final class ConnectionManager {
 	 * that have been collected, and if no managers with open
 	 * muxes remain terminate, else repeat (go back to sleep).
 	 */
+        @Override
 	public void run() {
 	    List idle = new ArrayList(1);
 	    boolean done;
@@ -644,7 +667,8 @@ public final class ConnectionManager {
 	 * Returns true if next has not yet been called or if the last mux
 	 * returned had an asynchronous close.
 	 */
-	public synchronized boolean hasNext() {
+        @Override
+	public boolean hasNext() {
 	    return first || (mux != null && mux.shouldRetry());
 	}
 
@@ -656,7 +680,8 @@ public final class ConnectionManager {
 	 * calls newRequest on the mux, calls writeRequestData on the
 	 * connection, and returns a new outbound request wrapper.
 	 */
-	public synchronized OutboundRequest next() throws IOException {
+        @Override
+	public OutboundRequest next() throws IOException {
 	    if (!hasNext()) {
 		throw new NoSuchElementException();
 	    }

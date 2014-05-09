@@ -2107,10 +2107,10 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
     static class LeaseExpireThread extends InterruptedStatusThread {
 
         private final FiddlerImpl fiddler;
-        /** Create a daemon thread */
+        
         public LeaseExpireThread(FiddlerImpl fiddler) {
             super("lease expire");
-            setDaemon(true);
+            setDaemon(false);
             this.fiddler = fiddler;
         }//end constructor
 
@@ -2239,10 +2239,10 @@ class FiddlerImpl implements ServerProxyTrust, ProxyAccessor, Fiddler, Startable
     static class SnapshotThread extends InterruptedStatusThread {
         private final FiddlerImpl fiddler;
         
-        /** Create a daemon thread */
+        /** Not a daemon thread, to avoid termination by jvm during snapshot */
         public SnapshotThread(FiddlerImpl fiddler) {
             super("snapshot thread");
-            setDaemon(true);
+            setDaemon(false);
             this.fiddler = fiddler;
         }
 

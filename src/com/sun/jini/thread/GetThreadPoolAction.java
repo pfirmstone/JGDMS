@@ -78,11 +78,12 @@ public final class GetThreadPoolAction implements PrivilegedAction {
     }
 
     public Object run() {
-	SecurityManager sm = System.getSecurityManager();
-	if (sm != null) {
-	    sm.checkPermission(user ? getUserThreadPoolPermission :
-			       getSystemThreadPoolPermission);
+        if (user){
+            getUserThreadPoolPermission.checkGuard(this);
+            return userThreadPool;
+        } else {
+            getSystemThreadPoolPermission.checkGuard(this);
+            return systemThreadPool;
 	}
-	return user ? userThreadPool : systemThreadPool;
     }
 }

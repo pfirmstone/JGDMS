@@ -587,7 +587,7 @@ public final class ClassLoading {
                     0,
                     TimeUnit.SECONDS,
                     new LinkedBlockingQueue(),
-                    new NamedThreadFactory(loader.toString(),true),
+                    new NamedThreadFactory(loader.toString(),false),
                     new ThreadPoolExecutor.CallerRunsPolicy()
             );
             ExecutorService existed = loaderMap.putIfAbsent(loader, exec);

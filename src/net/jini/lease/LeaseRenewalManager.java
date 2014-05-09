@@ -722,7 +722,7 @@ public class LeaseRenewalManager {
                     15,
                     TimeUnit.SECONDS, 
                     new SynchronousQueue<Runnable>(), /* Queue has no capacity */
-                    new NamedThreadFactory("LeaseRenewalManager",true),
+                    new NamedThreadFactory("LeaseRenewalManager",false),
                     new CallerRunsPolicy()
             );
     }
@@ -798,7 +798,7 @@ public class LeaseRenewalManager {
                 15,
                 TimeUnit.SECONDS, 
                 new SynchronousQueue<Runnable>(), /* No Capacity */
-                new NamedThreadFactory("LeaseRenewalManager",true),
+                new NamedThreadFactory("LeaseRenewalManager",false),
                 new CallerRunsPolicy()
         );
 	renewUntil(lease, desiredExpiration, listener);

@@ -1,0 +1,860 @@
+#
+# A fatal error has been detected by the Java Runtime Environment:
+#
+#  EXCEPTION_ACCESS_VIOLATION (0xc0000005) at pc=0x000000006b0b65eb, pid=19084, tid=20868
+#
+# JRE version: Java(TM) SE Runtime Environment (7.0_45-b18) (build 1.7.0_45-b18)
+# Java VM: Java HotSpot(TM) 64-Bit Server VM (24.45-b08 mixed mode windows-amd64 compressed oops)
+# Problematic frame:
+# V  [jvm.dll+0x1a65eb]
+#
+# Failed to write core dump. Minidumps are not enabled by default on client versions of Windows
+#
+# If you would like to submit a bug report, please visit:
+#   http://bugreport.sun.com/bugreport/crash.jsp
+#
+
+---------------  T H R E A D  ---------------
+
+Current thread (0x0000000012239000):  JavaThread "(JSK) mux request dispatch" daemon [_thread_in_vm, id=20868, stack(0x000000001b8a0000,0x000000001b9a0000)]
+
+siginfo: ExceptionCode=0xc0000005, reading address 0x0000000100000020
+
+Registers:
+RAX=0x000000077c607e08, RBX=0x000000000c7a6b40, RCX=0x000000001b99ea70, RDX=0x000000001b99eb90
+RSP=0x000000001b99ea28, RBP=0x000000001b99eb30, RSI=0x000000000c7a6b58, RDI=0x000000000c7a6b60
+R8 =0x0000000780c99638, R9 =0x0000000000000000, R10=0x0000000100000000, R11=0x00000000f01a25fb
+R12=0x0000000012239000, R13=0x0000000780c99638, R14=0x000000001b99f250, R15=0x00000000122391e8
+RIP=0x000000006b0b65eb, EFLAGS=0x0000000000010202
+
+Top of Stack: (sp=0x000000001b99ea28)
+0x000000001b99ea28:   000000006b0793ca 000000000c7a6b40
+0x000000001b99ea38:   000000000c7a6b58 000000001b99f258
+0x000000001b99ea48:   000000000c7a6b40 0000000012239000
+0x000000001b99ea58:   0000000781831870 000000000000000c
+0x000000001b99ea68:   0000000000000000 000000077bf7db50
+0x000000001b99ea78:   0000000780fe0fe8 000000001b99f2a0
+0x000000001b99ea88:   0000000000000000 000000001b99ea79
+0x000000001b99ea98:   00000007e0816b08 000000001b99ea89
+0x000000001b99eaa8:   0000000800000001 c00000bb00000000
+0x000000001b99eab8:   0000000000000100 0000000000000000
+0x000000001b99eac8:   000000001b99ea78 000000001b99eab9
+0x000000001b99ead8:   0000000800000101 000000001b99ec00
+0x000000001b99eae8:   000000001b99ea98 000000001b99ead9
+0x000000001b99eaf8:   0000000800000001 0000000000000000
+0x000000001b99eb08:   0000000000000000 0000000000000002
+0x000000001b99eb18:   000000006b485fe8 000000006afa13b0 
+
+Instructions: (pc=0x000000006b0b65eb)
+0x000000006b0b65cb:   8b 5b 18 48 85 db 75 dd 48 8b 5c 24 30 48 83 c4
+0x000000006b0b65db:   20 5f c3 cc cc 48 8b 82 f8 05 00 00 4c 8b 50 10
+0x000000006b0b65eb:   49 8b 42 20 4c 8b 50 20 4c 89 41 08 4c 89 11 48
+0x000000006b0b65fb:   8b 42 28 4c 89 49 18 48 89 41 10 c3 cc cc cc cc 
+
+
+Register to memory mapping:
+
+RAX=0x000000077c607e08 is pointing into object: 0x000000077c607df8
+{method} 
+ - klass: {other class}
+RBX=0x000000000c7a6b40 is an unknown value
+RCX=0x000000001b99ea70 is pointing into the stack for thread: 0x0000000012239000
+RDX=0x000000001b99eb90 is pointing into the stack for thread: 0x0000000012239000
+RSP=0x000000001b99ea28 is pointing into the stack for thread: 0x0000000012239000
+RBP=0x000000001b99eb30 is pointing into the stack for thread: 0x0000000012239000
+RSI=0x000000000c7a6b58 is an unknown value
+RDI=0x000000000c7a6b60 is an unknown value
+R8 =0x0000000780c99638 is an oop
+java.security.AccessControlContext 
+ - klass: 'java/security/AccessControlContext'
+R9 =0x0000000000000000 is an unknown value
+R10=0x0000000100000000 is an unknown value
+R11=0x00000000f01a25fb is an unknown value
+R12=0x0000000012239000 is a thread
+R13=0x0000000780c99638 is an oop
+java.security.AccessControlContext 
+ - klass: 'java/security/AccessControlContext'
+R14=0x000000001b99f250 is pointing into the stack for thread: 0x0000000012239000
+R15=0x00000000122391e8 is an unknown value
+
+
+Stack: [0x000000001b8a0000,0x000000001b9a0000],  sp=0x000000001b99ea28,  free space=1018k
+Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
+V  [jvm.dll+0x1a65eb]
+
+Java frames: (J=compiled Java code, j=interpreted, Vv=VM code)
+J  java.security.AccessController.doPrivileged(Ljava/security/PrivilegedAction;Ljava/security/AccessControlContext;)Ljava/lang/Object;
+J  com.sun.jini.jeri.internal.mux.MuxServer$1.run()V
+J  com.sun.jini.thread.ThreadPool$Task.run()V
+j  com.sun.jini.thread.ThreadPool$Worker.run()V+101
+j  java.lang.Thread.run()V+11
+v  ~StubRoutines::call_stub
+
+---------------  P R O C E S S  ---------------
+
+Java Threads: ( => current thread )
+  0x0000000023543000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@3e4c7eef_thread-0" daemon [_thread_blocked, id=6416, stack(0x0000000039cf0000,0x0000000039df0000)]
+  0x0000000023549800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@5d1921c3_thread-0" daemon [_thread_blocked, id=22452, stack(0x0000000039b60000,0x0000000039c60000)]
+  0x000000000c78d800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@783e9d6a_thread-0" daemon [_thread_blocked, id=10032, stack(0x00000000399e0000,0x0000000039ae0000)]
+  0x000000000c78e000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@550b445e_thread-0" daemon [_thread_blocked, id=22372, stack(0x0000000039870000,0x0000000039970000)]
+  0x000000000dc2d000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@56e7ff13_thread-0" daemon [_thread_blocked, id=22424, stack(0x0000000039660000,0x0000000039760000)]
+  0x000000000dc28000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@3151eb46_thread-0" daemon [_thread_blocked, id=22396, stack(0x0000000039460000,0x0000000039560000)]
+  0x0000000012154000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@4213a8fa_thread-0" daemon [_thread_blocked, id=14516, stack(0x0000000035d30000,0x0000000035e30000)]
+  0x000000001215e800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@465151ff_thread-0" daemon [_thread_blocked, id=22380, stack(0x0000000022180000,0x0000000022280000)]
+  0x0000000022eda800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@54008492_thread-0" daemon [_thread_blocked, id=22088, stack(0x00000000392e0000,0x00000000393e0000)]
+  0x0000000022ecd000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@d4eca4e_thread-0" daemon [_thread_blocked, id=22388, stack(0x00000000391b0000,0x00000000392b0000)]
+  0x0000000022ed5000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@2e3b0027_thread-0" daemon [_thread_blocked, id=22492, stack(0x0000000038fc0000,0x00000000390c0000)]
+  0x0000000012b37000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@31845624_thread-0" daemon [_thread_blocked, id=22440, stack(0x0000000038da0000,0x0000000038ea0000)]
+  0x0000000012b36000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@a42712b_thread-0" daemon [_thread_blocked, id=22420, stack(0x0000000038b80000,0x0000000038c80000)]
+  0x0000000012b35800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@468954fd_thread-0" daemon [_thread_blocked, id=18472, stack(0x0000000038c90000,0x0000000038d90000)]
+  0x0000000012117800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@2321c6d4_thread-0" daemon [_thread_blocked, id=22516, stack(0x00000000388c0000,0x00000000389c0000)]
+  0x0000000012113000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@356b12e7_thread-0" daemon [_thread_blocked, id=22448, stack(0x0000000038a30000,0x0000000038b30000)]
+  0x000000001211c000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@39d6e3b9_thread-0" daemon [_thread_blocked, id=22428, stack(0x00000000387b0000,0x00000000388b0000)]
+  0x000000000d85a800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@11cdcea7_thread-0" daemon [_thread_blocked, id=17600, stack(0x00000000385f0000,0x00000000386f0000)]
+  0x000000000d857800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@32d733e_thread-0" daemon [_thread_blocked, id=22456, stack(0x0000000038100000,0x0000000038200000)]
+  0x000000000d856000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@7a3193b4_thread-0" daemon [_thread_blocked, id=13024, stack(0x00000000384c0000,0x00000000385c0000)]
+  0x000000000d85c800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@6365fc90_thread-0" daemon [_thread_blocked, id=10744, stack(0x00000000383a0000,0x00000000384a0000)]
+  0x000000000d858000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@29bee132_thread-0" daemon [_thread_blocked, id=19492, stack(0x0000000038200000,0x0000000038300000)]
+  0x000000000c854800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@7351772a_thread-0" daemon [_thread_blocked, id=22332, stack(0x0000000037fa0000,0x00000000380a0000)]
+  0x000000000c84d800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@6887b106_thread-0" daemon [_thread_blocked, id=16524, stack(0x0000000037df0000,0x0000000037ef0000)]
+  0x000000000c850000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@42dc4160_thread-0" daemon [_thread_blocked, id=9820, stack(0x0000000037c70000,0x0000000037d70000)]
+  0x000000000c84f000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@5dc61231_thread-0" daemon [_thread_blocked, id=22356, stack(0x0000000037af0000,0x0000000037bf0000)]
+  0x000000000c853800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@301e7938_thread-0" daemon [_thread_blocked, id=22328, stack(0x00000000379c0000,0x0000000037ac0000)]
+  0x0000000012ba1800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@5091aefd_thread-0" daemon [_thread_blocked, id=4996, stack(0x00000000377c0000,0x00000000378c0000)]
+  0x0000000012ba2800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@7af365b7_thread-0" daemon [_thread_blocked, id=20132, stack(0x0000000037630000,0x0000000037730000)]
+  0x0000000012ba4800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@507625d7_thread-0" daemon [_thread_blocked, id=7980, stack(0x0000000037360000,0x0000000037460000)]
+  0x0000000012bbb000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@7126ce5b_thread-0" daemon [_thread_blocked, id=12624, stack(0x0000000036900000,0x0000000036a00000)]
+  0x0000000012ba6000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@6abbcd58_thread-0" daemon [_thread_blocked, id=17224, stack(0x000000002e5a0000,0x000000002e6a0000)]
+  0x0000000012bb4800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@1f45b838_thread-0" daemon [_thread_blocked, id=10384, stack(0x0000000034380000,0x0000000034480000)]
+  0x0000000012b9f800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@31e17003_thread-0" daemon [_thread_blocked, id=13136, stack(0x0000000036ff0000,0x00000000370f0000)]
+  0x0000000012bb5000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@488d0143_thread-0" daemon [_thread_blocked, id=4988, stack(0x00000000313d0000,0x00000000314d0000)]
+  0x0000000012bb0000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@42846fff_thread-0" daemon [_thread_blocked, id=16696, stack(0x000000002f3c0000,0x000000002f4c0000)]
+  0x0000000012bad000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@27feb51e_thread-0" daemon [_thread_blocked, id=21860, stack(0x000000002c970000,0x000000002ca70000)]
+  0x0000000012ba0000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@1f7f697b_thread-0" daemon [_thread_blocked, id=22000, stack(0x000000002d1b0000,0x000000002d2b0000)]
+  0x0000000012bb8000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@60a880b1_thread-0" daemon [_thread_blocked, id=21984, stack(0x000000002b740000,0x000000002b840000)]
+  0x0000000012bb9000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@3875a2ce_thread-0" daemon [_thread_blocked, id=21996, stack(0x000000002d920000,0x000000002da20000)]
+  0x0000000012ba4000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@2fb6b1a1_thread-0" daemon [_thread_blocked, id=22264, stack(0x00000000276e0000,0x00000000277e0000)]
+  0x0000000012bac000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@9cdc634_thread-0" daemon [_thread_blocked, id=21992, stack(0x000000002d0a0000,0x000000002d1a0000)]
+  0x0000000012b9e000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@5415ecf3_thread-0" daemon [_thread_blocked, id=21764, stack(0x0000000026a50000,0x0000000026b50000)]
+  0x0000000012bb7800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@41849a9e_thread-0" daemon [_thread_blocked, id=21988, stack(0x000000002c1e0000,0x000000002c2e0000)]
+  0x0000000012bb0800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@57c5282d_thread-0" daemon [_thread_blocked, id=21936, stack(0x000000002bdb0000,0x000000002beb0000)]
+  0x0000000012ba7800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@1fbc2cec_thread-0" daemon [_thread_blocked, id=21740, stack(0x000000002a510000,0x000000002a610000)]
+  0x0000000012bb9800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@72e8c023_thread-0" daemon [_thread_blocked, id=21812, stack(0x0000000029b80000,0x0000000029c80000)]
+  0x0000000012bba800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@77041b74_thread-0" daemon [_thread_blocked, id=16460, stack(0x00000000283f0000,0x00000000284f0000)]
+  0x0000000012bbc800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@674a53dc_thread-0" daemon [_thread_blocked, id=16508, stack(0x00000000279b0000,0x0000000027ab0000)]
+  0x0000000012bab800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@3c491dca_thread-0" daemon [_thread_blocked, id=22236, stack(0x00000000272c0000,0x00000000273c0000)]
+  0x0000000012bb6800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@62ea3ab2_thread-0" daemon [_thread_blocked, id=22472, stack(0x00000000212b0000,0x00000000213b0000)]
+  0x0000000012bb6000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@f61a86f_thread-0" daemon [_thread_blocked, id=22476, stack(0x0000000026dd0000,0x0000000026ed0000)]
+  0x0000000012ba9000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@217e30e_thread-0" daemon [_thread_blocked, id=21164, stack(0x0000000026ca0000,0x0000000026da0000)]
+  0x0000000012bb3000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@3185ecae_thread-0" daemon [_thread_blocked, id=21148, stack(0x0000000025670000,0x0000000025770000)]
+  0x0000000012bb3800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@6c020953_thread-0" daemon [_thread_blocked, id=22340, stack(0x0000000023910000,0x0000000023a10000)]
+  0x0000000012bb2000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@15569046_thread-0" daemon [_thread_blocked, id=20008, stack(0x00000000224e0000,0x00000000225e0000)]
+  0x0000000012b9e800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@364b8b06_thread-0" daemon [_thread_blocked, id=21132, stack(0x000000001f0b0000,0x000000001f1b0000)]
+  0x0000000012bad800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@2c0712d9_thread-0" daemon [_thread_blocked, id=22336, stack(0x000000001e030000,0x000000001e130000)]
+  0x0000000012baf000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@5f3ab7e3_thread-0" daemon [_thread_blocked, id=22252, stack(0x000000001c750000,0x000000001c850000)]
+  0x0000000012baa800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@11ae7c8e_thread-0" daemon [_thread_blocked, id=22344, stack(0x000000001d6f0000,0x000000001d7f0000)]
+  0x0000000012ba8800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@6a0f6d33_thread-0" daemon [_thread_blocked, id=22368, stack(0x000000001d0f0000,0x000000001d1f0000)]
+  0x0000000012baa000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@56130c90_thread-0" daemon [_thread_blocked, id=22256, stack(0x000000000fd70000,0x000000000fe70000)]
+  0x0000000012ba7000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@60408207_thread-0" daemon [_thread_blocked, id=17232, stack(0x000000000ff60000,0x0000000010060000)]
+  0x0000000012ba5800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@1004fd66_thread-0" daemon [_thread_blocked, id=22220, stack(0x000000000f590000,0x000000000f690000)]
+  0x0000000012ba3000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@41fcad4c_thread-0" daemon [_thread_blocked, id=22320, stack(0x000000000f400000,0x000000000f500000)]
+  0x0000000012bb1800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@15e3364a_thread-0" daemon [_thread_blocked, id=20856, stack(0x000000000eee0000,0x000000000efe0000)]
+  0x0000000012bae800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@385a0ac4_thread-0" daemon [_thread_blocked, id=22432, stack(0x000000000f020000,0x000000000f120000)]
+  0x0000000012bbc000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@1cde0b13_thread-0" daemon [_thread_blocked, id=22312, stack(0x000000000ede0000,0x000000000eee0000)]
+  0x0000000023152800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@1c45d08a_thread-0" daemon [_thread_blocked, id=22316, stack(0x00000000374c0000,0x00000000375c0000)]
+  0x0000000023148000 JavaThread "RMI TCP Connection(4)-127.0.0.1" daemon [_thread_blocked, id=22408, stack(0x0000000036d50000,0x0000000036e50000)]
+  0x0000000023160000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@6f63905_thread-0" daemon [_thread_blocked, id=21080, stack(0x0000000036670000,0x0000000036770000)]
+  0x000000002314d000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@654f102d_thread-0" daemon [_thread_blocked, id=20464, stack(0x0000000037120000,0x0000000037220000)]
+  0x0000000023157000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@1999f045_thread-0" daemon [_thread_blocked, id=12280, stack(0x0000000036ef0000,0x0000000036ff0000)]
+  0x0000000023142000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@5f9a2d4a_thread-0" daemon [_thread_blocked, id=18084, stack(0x0000000036c50000,0x0000000036d50000)]
+  0x0000000022e7e000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@38f2b642_thread-0" daemon [_thread_blocked, id=5456, stack(0x0000000036a80000,0x0000000036b80000)]
+  0x0000000022e7b000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@3946bb4_thread-0" daemon [_thread_blocked, id=9348, stack(0x0000000036770000,0x0000000036870000)]
+  0x0000000022e71000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@396a671a_thread-0" daemon [_thread_blocked, id=13092, stack(0x00000000354d0000,0x00000000355d0000)]
+  0x0000000022e72000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@24794927_thread-0" daemon [_thread_blocked, id=14632, stack(0x0000000036570000,0x0000000036670000)]
+  0x0000000022e75000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@2a10f1a6_thread-0" daemon [_thread_blocked, id=13408, stack(0x0000000033490000,0x0000000033590000)]
+  0x0000000022e6f800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@6b7aebad_thread-0" daemon [_thread_blocked, id=11596, stack(0x0000000034130000,0x0000000034230000)]
+  0x0000000012652800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@6a379a3a_thread-0" daemon [_thread_blocked, id=19696, stack(0x0000000035fd0000,0x00000000360d0000)]
+  0x000000001264f800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@599726c8_thread-0" daemon [_thread_blocked, id=22100, stack(0x0000000035820000,0x0000000035920000)]
+  0x0000000012648000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@3949c98e_thread-0" daemon [_thread_blocked, id=16120, stack(0x00000000288f0000,0x00000000289f0000)]
+  0x0000000012652000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@57f29c4c_thread-0" daemon [_thread_blocked, id=22460, stack(0x000000002fde0000,0x000000002fee0000)]
+  0x0000000012651000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@2d1e01ae_thread-0" daemon [_thread_blocked, id=14280, stack(0x0000000031f90000,0x0000000032090000)]
+  0x000000001264a800 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@1dfac17e_thread-0" daemon [_thread_blocked, id=22496, stack(0x0000000032630000,0x0000000032730000)]
+  0x000000001263c000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@669f87ad_thread-0" daemon [_thread_blocked, id=22520, stack(0x0000000030e80000,0x0000000030f80000)]
+  0x0000000023547000 JavaThread "javax.management.remote.rmi.RMIConnectionImpl$CombinedClassLoader@77baadde_thread-0" daemon [_thread_blocked, id=22488, stack(0x0000000027b20000,0x0000000027c20000)]
+  0x0000000012ba1000 JavaThread "CombinerSecurityManager_thread-6" daemon [_thread_blocked, id=22004, stack(0x0000000037240000,0x0000000037340000)]
+  0x0000000012650800 JavaThread "TxnMgr settlerPool_thread-149" [_thread_blocked, id=21968, stack(0x0000000036420000,0x0000000036520000)]
+  0x000000001264f000 JavaThread "TxnMgr settlerPool_thread-148" [_thread_blocked, id=21960, stack(0x00000000362f0000,0x00000000363f0000)]
+  0x000000001264e000 JavaThread "TxnMgr settlerPool_thread-147" [_thread_blocked, id=21956, stack(0x0000000036100000,0x0000000036200000)]
+  0x000000001264d800 JavaThread "TxnMgr settlerPool_thread-146" [_thread_blocked, id=21952, stack(0x0000000035e30000,0x0000000035f30000)]
+  0x000000001264c800 JavaThread "TxnMgr settlerPool_thread-145" [_thread_blocked, id=21948, stack(0x0000000035610000,0x0000000035710000)]
+  0x000000001264c000 JavaThread "TxnMgr settlerPool_thread-144" [_thread_blocked, id=21944, stack(0x0000000035c30000,0x0000000035d30000)]
+  0x000000001264b000 JavaThread "TxnMgr settlerPool_thread-143" [_thread_blocked, id=21940, stack(0x0000000035ae0000,0x0000000035be0000)]
+  0x0000000012649800 JavaThread "TxnMgr settlerPool_thread-142" [_thread_blocked, id=21932, stack(0x0000000035990000,0x0000000035a90000)]
+  0x0000000012649000 JavaThread "TxnMgr settlerPool_thread-141" [_thread_blocked, id=21928, stack(0x0000000035720000,0x0000000035820000)]
+  0x0000000012647800 JavaThread "TxnMgr settlerPool_thread-140" [_thread_blocked, id=21920, stack(0x0000000035230000,0x0000000035330000)]
+  0x0000000012646800 JavaThread "TxnMgr settlerPool_thread-139" [_thread_blocked, id=21916, stack(0x00000000353a0000,0x00000000354a0000)]
+  0x0000000012645800 JavaThread "TxnMgr settlerPool_thread-138" [_thread_blocked, id=21912, stack(0x00000000350d0000,0x00000000351d0000)]
+  0x0000000012645000 JavaThread "TxnMgr settlerPool_thread-137" [_thread_blocked, id=21908, stack(0x0000000034ef0000,0x0000000034ff0000)]
+  0x0000000012644000 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=21904, stack(0x0000000034bf0000,0x0000000034cf0000)]
+  0x0000000012643800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21900, stack(0x0000000034d50000,0x0000000034e50000)]
+  0x0000000012642800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21896, stack(0x0000000034af0000,0x0000000034bf0000)]
+  0x0000000012642000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21892, stack(0x0000000032e70000,0x0000000032f70000)]
+  0x0000000012641000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21888, stack(0x0000000034770000,0x0000000034870000)]
+  0x0000000012640800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21884, stack(0x00000000349e0000,0x0000000034ae0000)]
+  0x000000001263f800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21880, stack(0x00000000348a0000,0x00000000349a0000)]
+  0x000000001263f000 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=21876, stack(0x0000000034630000,0x0000000034730000)]
+  0x000000001263e000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21872, stack(0x0000000034480000,0x0000000034580000)]
+  0x000000001263d800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21868, stack(0x0000000034280000,0x0000000034380000)]
+  0x000000001263c800 JavaThread "TxnMgr settlerPool_thread-136" [_thread_blocked, id=21864, stack(0x0000000032910000,0x0000000032a10000)]
+  0x000000001263b000 JavaThread "TxnMgr settlerPool_thread-135" [_thread_blocked, id=21856, stack(0x0000000034030000,0x0000000034130000)]
+  0x000000001263a800 JavaThread "TxnMgr settlerPool_thread-134" [_thread_blocked, id=21852, stack(0x0000000033b30000,0x0000000033c30000)]
+  0x0000000012639800 JavaThread "TxnMgr settlerPool_thread-133" [_thread_blocked, id=21848, stack(0x00000000335b0000,0x00000000336b0000)]
+  0x0000000012639000 JavaThread "TxnMgr settlerPool_thread-132" [_thread_blocked, id=21844, stack(0x0000000033ed0000,0x0000000033fd0000)]
+  0x0000000012638000 JavaThread "TxnMgr settlerPool_thread-131" [_thread_blocked, id=21840, stack(0x0000000033d80000,0x0000000033e80000)]
+  0x0000000012637800 JavaThread "TxnMgr settlerPool_thread-130" [_thread_blocked, id=21836, stack(0x0000000033c50000,0x0000000033d50000)]
+  0x0000000012636800 JavaThread "TxnMgr settlerPool_thread-129" [_thread_blocked, id=21832, stack(0x0000000033a20000,0x0000000033b20000)]
+  0x0000000012636000 JavaThread "TxnMgr settlerPool_thread-128" [_thread_blocked, id=21828, stack(0x00000000338e0000,0x00000000339e0000)]
+  0x0000000012635000 JavaThread "TxnMgr settlerPool_thread-127" [_thread_blocked, id=21824, stack(0x0000000032b40000,0x0000000032c40000)]
+  0x0000000012634800 JavaThread "TxnMgr settlerPool_thread-126" [_thread_blocked, id=21820, stack(0x00000000336c0000,0x00000000337c0000)]
+  0x0000000012633800 JavaThread "TxnMgr settlerPool_thread-125" [_thread_blocked, id=21816, stack(0x0000000033190000,0x0000000033290000)]
+  0x000000002315f000 JavaThread "TxnMgr settlerPool_thread-124" [_thread_blocked, id=21808, stack(0x0000000033390000,0x0000000033490000)]
+  0x000000002315e800 JavaThread "TxnMgr settlerPool_thread-123" [_thread_blocked, id=21804, stack(0x0000000033290000,0x0000000033390000)]
+  0x000000002315d800 JavaThread "TxnMgr settlerPool_thread-122" [_thread_blocked, id=21800, stack(0x0000000033070000,0x0000000033170000)]
+  0x000000002315d000 JavaThread "TxnMgr settlerPool_thread-121" [_thread_blocked, id=21796, stack(0x0000000032f70000,0x0000000033070000)]
+  0x000000002315c000 JavaThread "TxnMgr settlerPool_thread-120" [_thread_blocked, id=21792, stack(0x000000002d6c0000,0x000000002d7c0000)]
+  0x000000002315b800 JavaThread "TxnMgr settlerPool_thread-119" [_thread_blocked, id=21788, stack(0x0000000032310000,0x0000000032410000)]
+  0x000000002315a800 JavaThread "TxnMgr settlerPool_thread-118" [_thread_blocked, id=21784, stack(0x0000000032d70000,0x0000000032e70000)]
+  0x000000002315a000 JavaThread "TxnMgr settlerPool_thread-117" [_thread_blocked, id=21780, stack(0x0000000032c40000,0x0000000032d40000)]
+  0x0000000023159000 JavaThread "TxnMgr settlerPool_thread-116" [_thread_blocked, id=21776, stack(0x0000000032a30000,0x0000000032b30000)]
+  0x0000000023158800 JavaThread "TxnMgr settlerPool_thread-115" [_thread_blocked, id=21772, stack(0x00000000327e0000,0x00000000328e0000)]
+  0x0000000023157800 JavaThread "TxnMgr settlerPool_thread-114" [_thread_blocked, id=21768, stack(0x0000000032510000,0x0000000032610000)]
+  0x0000000023156000 JavaThread "TxnMgr settlerPool_thread-113" [_thread_blocked, id=21760, stack(0x0000000032410000,0x0000000032510000)]
+  0x0000000023155800 JavaThread "TxnMgr settlerPool_thread-112" [_thread_blocked, id=21756, stack(0x0000000031cf0000,0x0000000031df0000)]
+  0x0000000023154800 JavaThread "TxnMgr settlerPool_thread-111" [_thread_blocked, id=21752, stack(0x00000000320c0000,0x00000000321c0000)]
+  0x0000000023154000 JavaThread "TxnMgr settlerPool_thread-110" [_thread_blocked, id=21748, stack(0x0000000031650000,0x0000000031750000)]
+  0x0000000023153000 JavaThread "TxnMgr settlerPool_thread-109" [_thread_blocked, id=21744, stack(0x00000000321c0000,0x00000000322c0000)]
+  0x0000000023151800 JavaThread "TxnMgr settlerPool_thread-108" [_thread_blocked, id=21736, stack(0x000000002f530000,0x000000002f630000)]
+  0x0000000023151000 JavaThread "TxnMgr settlerPool_thread-107" [_thread_blocked, id=21732, stack(0x0000000031e00000,0x0000000031f00000)]
+  0x0000000023150000 JavaThread "TxnMgr settlerPool_thread-106" [_thread_blocked, id=21728, stack(0x0000000031bb0000,0x0000000031cb0000)]
+  0x000000002314f800 JavaThread "TxnMgr settlerPool_thread-105" [_thread_blocked, id=21720, stack(0x0000000031a70000,0x0000000031b70000)]
+  0x000000002314e800 JavaThread "TxnMgr settlerPool_thread-104" [_thread_blocked, id=21716, stack(0x00000000318e0000,0x00000000319e0000)]
+  0x000000002314e000 JavaThread "TxnMgr settlerPool_thread-103" [_thread_blocked, id=21712, stack(0x0000000031750000,0x0000000031850000)]
+  0x000000002314c800 JavaThread "TxnMgr settlerPool_thread-102" [_thread_blocked, id=21704, stack(0x0000000031510000,0x0000000031610000)]
+  0x000000002314b800 JavaThread "TxnMgr settlerPool_thread-101" [_thread_blocked, id=21700, stack(0x0000000030fa0000,0x00000000310a0000)]
+  0x000000002314b000 JavaThread "TxnMgr settlerPool_thread-100" [_thread_blocked, id=21696, stack(0x0000000030200000,0x0000000030300000)]
+  0x000000002314a000 JavaThread "TxnMgr settlerPool_thread-99" [_thread_blocked, id=21692, stack(0x0000000031280000,0x0000000031380000)]
+  0x0000000023149800 JavaThread "TxnMgr settlerPool_thread-98" [_thread_blocked, id=21688, stack(0x00000000310c0000,0x00000000311c0000)]
+  0x0000000023148800 JavaThread "TxnMgr settlerPool_thread-97" [_thread_blocked, id=21684, stack(0x0000000030440000,0x0000000030540000)]
+  0x0000000023147000 JavaThread "TxnMgr settlerPool_thread-96" [_thread_blocked, id=21676, stack(0x0000000030c60000,0x0000000030d60000)]
+  0x0000000023146800 JavaThread "TxnMgr settlerPool_thread-95" [_thread_blocked, id=21672, stack(0x0000000030d70000,0x0000000030e70000)]
+  0x0000000023145800 JavaThread "TxnMgr settlerPool_thread-94" [_thread_blocked, id=21668, stack(0x0000000030b40000,0x0000000030c40000)]
+  0x0000000023145000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21664, stack(0x0000000030960000,0x0000000030a60000)]
+  0x0000000023144000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21660, stack(0x00000000307c0000,0x00000000308c0000)]
+  0x0000000023143800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21656, stack(0x0000000030660000,0x0000000030760000)]
+  0x0000000023142800 JavaThread "TxnMgr settlerPool_thread-93" [_thread_blocked, id=21652, stack(0x0000000030550000,0x0000000030650000)]
+  0x0000000023141000 JavaThread "TxnMgr settlerPool_thread-92" [_thread_blocked, id=21644, stack(0x0000000030310000,0x0000000030410000)]
+  0x0000000022edc000 JavaThread "TxnMgr settlerPool_thread-91" [_thread_blocked, id=21640, stack(0x00000000300f0000,0x00000000301f0000)]
+  0x0000000022edb000 JavaThread "TxnMgr settlerPool_thread-90" [_thread_blocked, id=21636, stack(0x000000002ff10000,0x0000000030010000)]
+  0x0000000022ed9800 JavaThread "TxnMgr settlerPool_thread-89" [_thread_blocked, id=21628, stack(0x000000002fc50000,0x000000002fd50000)]
+  0x0000000022ed9000 JavaThread "TxnMgr settlerPool_thread-88" [_thread_blocked, id=21624, stack(0x000000002fa30000,0x000000002fb30000)]
+  0x0000000022ed8000 JavaThread "TxnMgr settlerPool_thread-87" [_thread_blocked, id=21620, stack(0x000000002fb30000,0x000000002fc30000)]
+  0x0000000022ed7800 JavaThread "TxnMgr settlerPool_thread-86" [_thread_blocked, id=21616, stack(0x000000002f8e0000,0x000000002f9e0000)]
+  0x0000000022ed6800 JavaThread "TxnMgr settlerPool_thread-85" [_thread_blocked, id=21612, stack(0x000000002f7a0000,0x000000002f8a0000)]
+  0x0000000022ed6000 JavaThread "TxnMgr settlerPool_thread-84" [_thread_blocked, id=21608, stack(0x000000002f640000,0x000000002f740000)]
+  0x0000000022ed4800 JavaThread "TxnMgr settlerPool_thread-83" [_thread_blocked, id=21600, stack(0x000000002f040000,0x000000002f140000)]
+  0x0000000022ed3800 JavaThread "TxnMgr settlerPool_thread-82" [_thread_blocked, id=21596, stack(0x000000002f200000,0x000000002f300000)]
+  0x0000000022ed3000 JavaThread "TxnMgr settlerPool_thread-81" [_thread_blocked, id=21592, stack(0x000000002e840000,0x000000002e940000)]
+  0x0000000022ed2000 JavaThread "TxnMgr settlerPool_thread-80" [_thread_blocked, id=21588, stack(0x000000002ef30000,0x000000002f030000)]
+  0x0000000022ed1800 JavaThread "TxnMgr settlerPool_thread-79" [_thread_blocked, id=21584, stack(0x000000002ed60000,0x000000002ee60000)]
+  0x0000000022ed0800 JavaThread "TxnMgr settlerPool_thread-78" [_thread_blocked, id=21580, stack(0x000000002ec60000,0x000000002ed60000)]
+  0x0000000022ed0000 JavaThread "TxnMgr settlerPool_thread-77" [_thread_blocked, id=21576, stack(0x000000002ea90000,0x000000002eb90000)]
+  0x0000000022ecf000 JavaThread "TxnMgr settlerPool_thread-76" [_thread_blocked, id=21572, stack(0x000000002e960000,0x000000002ea60000)]
+  0x0000000022ece800 JavaThread "TxnMgr settlerPool_thread-75" [_thread_blocked, id=21568, stack(0x000000002e040000,0x000000002e140000)]
+  0x0000000022ecd800 JavaThread "TxnMgr settlerPool_thread-74" [_thread_blocked, id=21564, stack(0x000000002e700000,0x000000002e800000)]
+  0x0000000012122000 JavaThread "TxnMgr settlerPool_thread-73" [_thread_blocked, id=21556, stack(0x000000002e480000,0x000000002e580000)]
+  0x0000000012121800 JavaThread "TxnMgr settlerPool_thread-72" [_thread_blocked, id=21552, stack(0x000000002e360000,0x000000002e460000)]
+  0x0000000012120800 JavaThread "TxnMgr settlerPool_thread-71" [_thread_blocked, id=21548, stack(0x000000002e1a0000,0x000000002e2a0000)]
+  0x0000000012120000 JavaThread "TxnMgr settlerPool_thread-70" [_thread_blocked, id=21544, stack(0x000000002df00000,0x000000002e000000)]
+  0x000000001211f000 JavaThread "TxnMgr settlerPool_thread-69" [_thread_blocked, id=21540, stack(0x000000002dd10000,0x000000002de10000)]
+  0x000000001211e800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21536, stack(0x000000002da90000,0x000000002db90000)]
+  0x000000001211d800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21532, stack(0x000000002db90000,0x000000002dc90000)]
+  0x000000001211d000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21528, stack(0x000000002cd70000,0x000000002ce70000)]
+  0x000000001211b800 JavaThread "TxnMgr settlerPool_thread-68" [_thread_blocked, id=21520, stack(0x000000002d7d0000,0x000000002d8d0000)]
+  0x000000001211a800 JavaThread "TxnMgr settlerPool_thread-67" [_thread_blocked, id=21516, stack(0x000000002cf90000,0x000000002d090000)]
+  0x000000001211a000 JavaThread "TxnMgr settlerPool_thread-66" [_thread_blocked, id=21512, stack(0x000000002d5c0000,0x000000002d6c0000)]
+  0x0000000012119000 JavaThread "TxnMgr settlerPool_thread-65" [_thread_blocked, id=21508, stack(0x000000002d4a0000,0x000000002d5a0000)]
+  0x0000000012118800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=9660, stack(0x000000002d2b0000,0x000000002d3b0000)]
+  0x0000000012117000 JavaThread "TxnMgr settlerPool_thread-64" [_thread_blocked, id=17844, stack(0x000000002ce80000,0x000000002cf80000)]
+  0x0000000012116000 JavaThread "TxnMgr settlerPool_thread-63" [_thread_blocked, id=12932, stack(0x000000002cc70000,0x000000002cd70000)]
+  0x0000000012115800 JavaThread "TxnMgr settlerPool_thread-62" [_thread_blocked, id=15492, stack(0x000000002c860000,0x000000002c960000)]
+  0x0000000012114800 JavaThread "TxnMgr settlerPool_thread-61" [_thread_blocked, id=15184, stack(0x000000002b850000,0x000000002b950000)]
+  0x0000000012114000 JavaThread "TxnMgr settlerPool_thread-60" [_thread_blocked, id=17596, stack(0x000000002cb40000,0x000000002cc40000)]
+  0x000000002354c800 JavaThread "TxnMgr settlerPool_thread-59" [_thread_blocked, id=17312, stack(0x000000002c6d0000,0x000000002c7d0000)]
+  0x000000002354b800 JavaThread "TxnMgr settlerPool_thread-58" [_thread_blocked, id=15252, stack(0x000000002c5d0000,0x000000002c6d0000)]
+  0x000000002354b000 JavaThread "TxnMgr settlerPool_thread-57" [_thread_blocked, id=19052, stack(0x000000002c340000,0x000000002c440000)]
+  0x000000002354a000 JavaThread "TxnMgr settlerPool_thread-56" [_thread_blocked, id=15092, stack(0x000000002c490000,0x000000002c590000)]
+  0x0000000023548800 JavaThread "TxnMgr settlerPool_thread-55" [_thread_blocked, id=20972, stack(0x000000002c0d0000,0x000000002c1d0000)]
+  0x0000000023548000 JavaThread "TxnMgr settlerPool_thread-54" [_thread_blocked, id=17848, stack(0x000000002bee0000,0x000000002bfe0000)]
+  0x0000000023546800 JavaThread "TxnMgr settlerPool_thread-53" [_thread_blocked, id=20532, stack(0x000000002bbf0000,0x000000002bcf0000)]
+  0x0000000023545800 JavaThread "TxnMgr settlerPool_thread-52" [_thread_blocked, id=13328, stack(0x000000002bab0000,0x000000002bbb0000)]
+  0x0000000023544800 JavaThread "TxnMgr settlerPool_thread-51" [_thread_blocked, id=20940, stack(0x000000002b960000,0x000000002ba60000)]
+  0x0000000023544000 JavaThread "TxnMgr settlerPool_thread-50" [_thread_blocked, id=20876, stack(0x000000002b640000,0x000000002b740000)]
+  0x0000000023542800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20852, stack(0x000000002b0e0000,0x000000002b1e0000)]
+  0x0000000023541800 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=20812, stack(0x000000002b490000,0x000000002b590000)]
+  0x0000000023541000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20436, stack(0x000000002b2d0000,0x000000002b3d0000)]
+  0x0000000023540000 JavaThread "TxnMgr settlerPool_thread-49" [_thread_blocked, id=13848, stack(0x000000002ab20000,0x000000002ac20000)]
+  0x000000002353f800 JavaThread "TxnMgr settlerPool_thread-48" [_thread_blocked, id=21484, stack(0x000000002afe0000,0x000000002b0e0000)]
+  0x000000002353e800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21476, stack(0x000000002aee0000,0x000000002afe0000)]
+  0x000000002353e000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21472, stack(0x000000002adb0000,0x000000002aeb0000)]
+  0x000000002353d000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21468, stack(0x000000002ac30000,0x000000002ad30000)]
+  0x00000000121a6800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21464, stack(0x000000002a990000,0x000000002aa90000)]
+  0x00000000121a5800 JavaThread "TxnMgr settlerPool_thread-47" [_thread_blocked, id=21460, stack(0x000000002a870000,0x000000002a970000)]
+  0x00000000121a5000 JavaThread "TxnMgr settlerPool_thread-46" [_thread_blocked, id=21456, stack(0x000000002a690000,0x000000002a790000)]
+  0x00000000121a4000 JavaThread "TxnMgr settlerPool_thread-45" [_thread_blocked, id=21440, stack(0x000000002a090000,0x000000002a190000)]
+  0x00000000121a2800 JavaThread "TxnMgr settlerPool_thread-44" [_thread_blocked, id=21428, stack(0x000000002a390000,0x000000002a490000)]
+  0x00000000121a2000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21424, stack(0x000000002a220000,0x000000002a320000)]
+  0x00000000121a1000 JavaThread "TxnMgr settlerPool_thread-43" [_thread_blocked, id=21420, stack(0x0000000029de0000,0x0000000029ee0000)]
+  0x00000000121a0800 JavaThread "TxnMgr settlerPool_thread-42" [_thread_blocked, id=21416, stack(0x0000000029f60000,0x000000002a060000)]
+  0x000000001219f800 JavaThread "TxnMgr settlerPool_thread-41" [_thread_blocked, id=21412, stack(0x0000000029cd0000,0x0000000029dd0000)]
+  0x000000001219e000 JavaThread "TxnMgr settlerPool_thread-40" [_thread_blocked, id=21400, stack(0x00000000299f0000,0x0000000029af0000)]
+  0x000000001219d800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21388, stack(0x0000000029670000,0x0000000029770000)]
+  0x000000001219c800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21384, stack(0x0000000029830000,0x0000000029930000)]
+  0x000000001219c000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21380, stack(0x0000000028670000,0x0000000028770000)]
+  0x000000001219b000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21376, stack(0x0000000028cc0000,0x0000000028dc0000)]
+  0x000000001219a800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21372, stack(0x0000000029560000,0x0000000029660000)]
+  0x0000000012199800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21368, stack(0x0000000029380000,0x0000000029480000)]
+  0x0000000012199000 JavaThread "TxnMgr settlerPool_thread-39" [_thread_blocked, id=21360, stack(0x0000000029260000,0x0000000029360000)]
+  0x0000000012198000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21356, stack(0x0000000029070000,0x0000000029170000)]
+  0x0000000012197800 JavaThread "TxnMgr settlerPool_thread-38" [_thread_blocked, id=21332, stack(0x0000000028f00000,0x0000000029000000)]
+  0x0000000022e7f000 JavaThread "TxnMgr settlerPool_thread-37" [_thread_blocked, id=21328, stack(0x0000000028df0000,0x0000000028ef0000)]
+  0x0000000022e7d800 JavaThread "TxnMgr settlerPool_thread-36" [_thread_blocked, id=21320, stack(0x0000000028ba0000,0x0000000028ca0000)]
+  0x0000000022e7c800 JavaThread "TxnMgr settlerPool_thread-35" [_thread_blocked, id=21316, stack(0x0000000028a10000,0x0000000028b10000)]
+  0x0000000022e7c000 JavaThread "TxnMgr settlerPool_thread-34" [_thread_blocked, id=21312, stack(0x00000000287f0000,0x00000000288f0000)]
+  0x0000000022e7a800 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=21304, stack(0x0000000028560000,0x0000000028660000)]
+  0x0000000022e79800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21300, stack(0x0000000028150000,0x0000000028250000)]
+  0x0000000022e78800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21296, stack(0x0000000028290000,0x0000000028390000)]
+  0x0000000022e78000 JavaThread "TxnMgr settlerPool_thread-33" [_thread_blocked, id=21292, stack(0x0000000028000000,0x0000000028100000)]
+  0x0000000022e77000 JavaThread "TxnMgr settlerPool_thread-32" [_thread_blocked, id=21288, stack(0x00000000277f0000,0x00000000278f0000)]
+  0x0000000022e76800 JavaThread "TxnMgr settlerPool_thread-31" [_thread_blocked, id=21284, stack(0x0000000027e20000,0x0000000027f20000)]
+  0x0000000022e75800 JavaThread "TxnMgr settlerPool_thread-30" [_thread_blocked, id=21280, stack(0x0000000027c60000,0x0000000027d60000)]
+  0x0000000022e74000 JavaThread "(JSK) mux reader" daemon [_thread_blocked, id=21236, stack(0x00000000275c0000,0x00000000276c0000)]
+  0x0000000022e73800 JavaThread "(JSK) mux writer" daemon [_thread_blocked, id=21232, stack(0x00000000254a0000,0x00000000255a0000)]
+  0x0000000022e72800 JavaThread "TxnMgr settlerPool_thread-29" [_thread_blocked, id=21208, stack(0x00000000274b0000,0x00000000275b0000)]
+  0x0000000022e70800 JavaThread "TxnMgr settlerPool_thread-28" [_thread_blocked, id=21188, stack(0x0000000027070000,0x0000000027170000)]
+  0x000000000d85c000 JavaThread "TxnMgr settlerPool_thread-27" [_thread_blocked, id=21172, stack(0x00000000271c0000,0x00000000272c0000)]
+  0x000000000d85b000 JavaThread "TxnMgr settlerPool_thread-26" [_thread_blocked, id=21168, stack(0x0000000026f70000,0x0000000027070000)]
+  0x000000000d859800 JavaThread "TxnMgr settlerPool_thread-25" [_thread_blocked, id=21160, stack(0x0000000026b90000,0x0000000026c90000)]
+  0x000000000d859000 JavaThread "TxnMgr settlerPool_thread-24" [_thread_blocked, id=21156, stack(0x0000000026920000,0x0000000026a20000)]
+  0x000000000d856800 JavaThread "TxnMgr settlerPool_thread-23" [_thread_blocked, id=21144, stack(0x00000000267e0000,0x00000000268e0000)]
+  0x000000001215d800 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=21128, stack(0x0000000025280000,0x0000000025380000)]
+  0x0000000012b34800 JavaThread "RMI TCP Connection(idle)" daemon [_thread_blocked, id=21068, stack(0x0000000025390000,0x0000000025490000)]
+  0x0000000012b34000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21064, stack(0x0000000025100000,0x0000000025200000)]
+  0x0000000012b33000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21060, stack(0x0000000024f60000,0x0000000025060000)]
+  0x0000000012b32800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21056, stack(0x000000001f220000,0x000000001f320000)]
+  0x0000000012b31800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21052, stack(0x0000000024e20000,0x0000000024f20000)]
+  0x0000000012b30800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21048, stack(0x0000000024c40000,0x0000000024d40000)]
+  0x0000000012b30000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21044, stack(0x0000000024aa0000,0x0000000024ba0000)]
+  0x0000000012b2f000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21040, stack(0x0000000024940000,0x0000000024a40000)]
+  0x0000000012b2e800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21036, stack(0x00000000240d0000,0x00000000241d0000)]
+  0x0000000012b2d800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21032, stack(0x0000000024770000,0x0000000024870000)]
+  0x0000000012b2d000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21028, stack(0x00000000242d0000,0x00000000243d0000)]
+  0x0000000012b2c000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21024, stack(0x00000000245a0000,0x00000000246a0000)]
+  0x0000000012b2b800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21020, stack(0x00000000223c0000,0x00000000224c0000)]
+  0x0000000012b2a800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21016, stack(0x00000000243e0000,0x00000000244e0000)]
+  0x0000000012b2a000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21012, stack(0x00000000241d0000,0x00000000242d0000)]
+  0x0000000012b29000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21008, stack(0x0000000023f90000,0x0000000024090000)]
+  0x0000000012b28800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21004, stack(0x0000000023da0000,0x0000000023ea0000)]
+  0x0000000012b27800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=21000, stack(0x0000000023c50000,0x0000000023d50000)]
+  0x000000001215f000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20996, stack(0x0000000023a90000,0x0000000023b90000)]
+  0x000000001215d000 JavaThread "TxnMgr settlerPool_thread-22" [_thread_blocked, id=20968, stack(0x0000000022280000,0x0000000022380000)]
+  0x000000001215c000 JavaThread "TxnMgr settlerPool_thread-21" [_thread_blocked, id=20964, stack(0x0000000021a40000,0x0000000021b40000)]
+  0x000000001215b800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20960, stack(0x0000000022070000,0x0000000022170000)]
+  0x000000001215a800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20956, stack(0x0000000021f30000,0x0000000022030000)]
+  0x000000001215a000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20952, stack(0x0000000021d80000,0x0000000021e80000)]
+  0x0000000012159000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20948, stack(0x0000000021b90000,0x0000000021c90000)]
+  0x0000000012158800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20944, stack(0x0000000021940000,0x0000000021a40000)]
+  0x0000000012157800 JavaThread "TxnMgr settlerPool_thread-20" [_thread_blocked, id=20932, stack(0x0000000021770000,0x0000000021870000)]
+  0x0000000012151000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20928, stack(0x0000000020bb0000,0x0000000020cb0000)]
+  0x0000000012157000 JavaThread "*** Profiler Agent Special Execution Thread 6" daemon [_thread_blocked, id=20924, stack(0x0000000021630000,0x0000000021730000)]
+  0x0000000012156000 JavaThread "*** JFluid Monitor thread ***" daemon [_thread_blocked, id=20920, stack(0x00000000213f0000,0x00000000214f0000)]
+  0x0000000012155800 JavaThread "TxnMgr settlerPool_thread-19" [_thread_blocked, id=20916, stack(0x000000001e5a0000,0x000000001e6a0000)]
+  0x0000000012154800 JavaThread "TxnMgr settlerPool_thread-18" [_thread_blocked, id=20904, stack(0x0000000021010000,0x0000000021110000)]
+  0x0000000012153000 JavaThread "TxnMgr settlerPool_thread-17" [_thread_blocked, id=20892, stack(0x0000000021130000,0x0000000021230000)]
+  0x0000000012152800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20888, stack(0x0000000020ec0000,0x0000000020fc0000)]
+  0x0000000012151800 JavaThread "*** Profiler Agent Communication Thread" daemon [_thread_blocked, id=20880, stack(0x0000000020da0000,0x0000000020ea0000)]
+  0x0000000012150000 JavaThread "TxnMgr settlerPool_thread-16" [_thread_blocked, id=20872, stack(0x0000000020a60000,0x0000000020b60000)]
+=>0x0000000012239000 JavaThread "(JSK) mux request dispatch" daemon [_thread_in_vm, id=20868, stack(0x000000001b8a0000,0x000000001b9a0000)]
+  0x0000000012238800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20864, stack(0x0000000020590000,0x0000000020690000)]
+  0x0000000012237800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20844, stack(0x00000000207c0000,0x00000000208c0000)]
+  0x0000000012237000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20840, stack(0x00000000208c0000,0x00000000209c0000)]
+  0x0000000012236000 JavaThread "TxnMgr settlerPool_thread-15" [_thread_blocked, id=20832, stack(0x00000000206a0000,0x00000000207a0000)]
+  0x0000000012235800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20824, stack(0x0000000020470000,0x0000000020570000)]
+  0x0000000012234800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20820, stack(0x0000000020340000,0x0000000020440000)]
+  0x0000000012234000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20808, stack(0x0000000020230000,0x0000000020330000)]
+  0x0000000012233000 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=20796, stack(0x0000000020070000,0x0000000020170000)]
+  0x0000000012232800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20788, stack(0x000000001e240000,0x000000001e340000)]
+  0x0000000012231800 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=20764, stack(0x000000001fe90000,0x000000001ff90000)]
+  0x0000000012231000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20760, stack(0x000000001fd40000,0x000000001fe40000)]
+  0x0000000012230000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20756, stack(0x000000001fbb0000,0x000000001fcb0000)]
+  0x000000001222f800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20752, stack(0x000000001fa30000,0x000000001fb30000)]
+  0x000000001222e800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20748, stack(0x000000001f8f0000,0x000000001f9f0000)]
+  0x000000001222e000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20744, stack(0x000000001f730000,0x000000001f830000)]
+  0x000000001222d000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20736, stack(0x000000001f630000,0x000000001f730000)]
+  0x000000001222c800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20728, stack(0x000000001f490000,0x000000001f590000)]
+  0x000000001222b800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20716, stack(0x000000001f320000,0x000000001f420000)]
+  0x000000001222a000 JavaThread "TxnMgr settlerPool_thread-14" [_thread_blocked, id=20692, stack(0x000000001efa0000,0x000000001f0a0000)]
+  0x000000001220c000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20664, stack(0x000000001ee00000,0x000000001ef00000)]
+  0x000000001220b000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20660, stack(0x000000001ec70000,0x000000001ed70000)]
+  0x000000001220a800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20656, stack(0x000000001e7d0000,0x000000001e8d0000)]
+  0x0000000012209800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20652, stack(0x000000001eae0000,0x000000001ebe0000)]
+  0x0000000012209000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20648, stack(0x000000001e930000,0x000000001ea30000)]
+  0x0000000012208000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20644, stack(0x000000001e6c0000,0x000000001e7c0000)]
+  0x0000000012207800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20640, stack(0x000000001e470000,0x000000001e570000)]
+  0x0000000012206800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20636, stack(0x000000001dad0000,0x000000001dbd0000)]
+  0x0000000012206000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20632, stack(0x000000001de80000,0x000000001df80000)]
+  0x0000000012205000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20628, stack(0x000000001e340000,0x000000001e440000)]
+  0x000000000dc2e000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20624, stack(0x000000001e140000,0x000000001e240000)]
+  0x000000000dc2c800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20604, stack(0x000000001dcf0000,0x000000001ddf0000)]
+  0x000000000dc2b800 JavaThread "TxnMgr settlerPool_thread-13" [_thread_blocked, id=20600, stack(0x000000001dbd0000,0x000000001dcd0000)]
+  0x000000000dc2b000 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=20596, stack(0x000000001d5b0000,0x000000001d6b0000)]
+  0x000000000dc2a000 JavaThread "TxnMgr settlerPool_thread-12" [_thread_blocked, id=20592, stack(0x000000001d9d0000,0x000000001dad0000)]
+  0x000000000dc29800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20588, stack(0x000000001d340000,0x000000001d440000)]
+  0x000000000dc28800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20576, stack(0x000000001d880000,0x000000001d980000)]
+  0x000000000dc27000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20564, stack(0x000000001d480000,0x000000001d580000)]
+  0x000000000c78f800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20560, stack(0x000000001bc00000,0x000000001bd00000)]
+  0x000000000c78f000 JavaThread "TxnMgr settlerPool_thread-11" [_thread_blocked, id=20556, stack(0x000000001d240000,0x000000001d340000)]
+  0x000000000c78c800 JavaThread "TxnMgr settlerPool_thread-10" [_thread_blocked, id=20540, stack(0x000000001cfd0000,0x000000001d0d0000)]
+  0x000000000c78c000 JavaThread "TxnMgr settlerPool_thread-9" [_thread_blocked, id=20528, stack(0x000000001ce80000,0x000000001cf80000)]
+  0x000000000c78b000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20520, stack(0x000000001cd40000,0x000000001ce40000)]
+  0x000000000c78a800 JavaThread "TxnMgr settlerPool_thread-8" [_thread_blocked, id=20512, stack(0x000000001cbc0000,0x000000001ccc0000)]
+  0x000000000c789800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20508, stack(0x000000001ca40000,0x000000001cb40000)]
+  0x000000000c789000 JavaThread "TxnMgr settlerPool_thread-7" [_thread_blocked, id=20504, stack(0x000000001c890000,0x000000001c990000)]
+  0x000000000de19000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=13276, stack(0x000000001c620000,0x000000001c720000)]
+  0x000000000de18000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=20032, stack(0x000000001c470000,0x000000001c570000)]
+  0x000000000de17800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=16160, stack(0x000000001c280000,0x000000001c380000)]
+  0x000000000de16800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=10908, stack(0x000000001c120000,0x000000001c220000)]
+  0x000000000de16000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=12888, stack(0x000000001bf40000,0x000000001c040000)]
+  0x000000000de15000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=19064, stack(0x000000001bd50000,0x000000001be50000)]
+  0x000000000de14800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=17116, stack(0x000000001a610000,0x000000001a710000)]
+  0x000000000de13800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=15288, stack(0x000000001bb00000,0x000000001bc00000)]
+  0x000000000de13000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=19216, stack(0x000000001b030000,0x000000001b130000)]
+  0x000000000de12000 JavaThread "TxnMgr settlerPool_thread-6" [_thread_blocked, id=19388, stack(0x000000001b9a0000,0x000000001baa0000)]
+  0x000000000dbe1800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=17840, stack(0x000000001b7a0000,0x000000001b8a0000)]
+  0x000000000dbe0800 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=14712, stack(0x000000001b5f0000,0x000000001b6f0000)]
+  0x000000000dbe0000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=17664, stack(0x000000001b170000,0x000000001b270000)]
+  0x000000000dbdf000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=13800, stack(0x000000001b490000,0x000000001b590000)]
+  0x000000000dbde800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=15240, stack(0x000000001b2a0000,0x000000001b3a0000)]
+  0x000000000dbdd800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=13900, stack(0x000000001af10000,0x000000001b010000)]
+  0x000000000dbdd000 JavaThread "TxnMgr settlerPool_thread-5" [_thread_blocked, id=11760, stack(0x000000001ad80000,0x000000001ae80000)]
+  0x000000000dbdc000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=15384, stack(0x000000001ab60000,0x000000001ac60000)]
+  0x000000000dbdb000 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=13880, stack(0x000000001ac80000,0x000000001ad80000)]
+  0x000000000dbda800 JavaThread "TxnMgr settlerPool_thread-4" [_thread_blocked, id=19196, stack(0x000000001aa40000,0x000000001ab40000)]
+  0x000000000de60800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=14560, stack(0x0000000019da0000,0x0000000019ea0000)]
+  0x000000000de60000 JavaThread "TxnMgr settlerPool_thread-3" [_thread_blocked, id=20172, stack(0x000000001a910000,0x000000001aa10000)]
+  0x000000000de5f000 JavaThread "TxnMgr taskPool_thread-49" [_thread_blocked, id=5300, stack(0x000000001a740000,0x000000001a840000)]
+  0x000000000de5e800 JavaThread "TxnMgr taskPool_thread-48" [_thread_blocked, id=16896, stack(0x000000001a500000,0x000000001a600000)]
+  0x000000000de5d800 JavaThread "TxnMgr taskPool_thread-47" [_thread_blocked, id=16916, stack(0x0000000017e60000,0x0000000017f60000)]
+  0x000000000de5d000 JavaThread "TxnMgr taskPool_thread-46" [_thread_blocked, id=19536, stack(0x000000001a340000,0x000000001a440000)]
+  0x000000000de5c000 JavaThread "TxnMgr taskPool_thread-45" [_thread_blocked, id=7544, stack(0x000000001a150000,0x000000001a250000)]
+  0x000000000de5b800 JavaThread "TxnMgr taskPool_thread-44" [_thread_blocked, id=16716, stack(0x00000000197b0000,0x00000000198b0000)]
+  0x000000000de5a800 JavaThread "TxnMgr taskPool_thread-43" [_thread_blocked, id=14584, stack(0x000000001a020000,0x000000001a120000)]
+  0x000000000de5a000 JavaThread "TxnMgr taskPool_thread-42" [_thread_blocked, id=18204, stack(0x0000000018900000,0x0000000018a00000)]
+  0x000000000dbd9800 JavaThread "TxnMgr taskPool_thread-41" [_thread_blocked, id=9116, stack(0x0000000019ec0000,0x0000000019fc0000)]
+  0x000000000dbd8800 JavaThread "TxnMgr taskPool_thread-40" [_thread_blocked, id=17992, stack(0x0000000019c90000,0x0000000019d90000)]
+  0x000000000dbd8000 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=15604, stack(0x0000000019470000,0x0000000019570000)]
+  0x000000000dbd7000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=9924, stack(0x0000000019ab0000,0x0000000019bb0000)]
+  0x000000000dbd6800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=19692, stack(0x00000000198c0000,0x00000000199c0000)]
+  0x000000000dbd5800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=19348, stack(0x0000000018d40000,0x0000000018e40000)]
+  0x000000000dbd5000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=9588, stack(0x0000000015680000,0x0000000015780000)]
+  0x000000000dbd4000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=13764, stack(0x0000000019690000,0x0000000019790000)]
+  0x000000000dbd3000 JavaThread "TxnMgr settlerPool_thread-2" [_thread_blocked, id=16648, stack(0x0000000019570000,0x0000000019670000)]
+  0x000000000dbd2800 JavaThread "TxnMgr taskPool_thread-39" [_thread_blocked, id=19632, stack(0x0000000019360000,0x0000000019460000)]
+  0x000000000d7fc800 JavaThread "TxnMgr taskPool_thread-38" [_thread_blocked, id=7464, stack(0x00000000190b0000,0x00000000191b0000)]
+  0x000000000d7fc000 JavaThread "TxnMgr taskPool_thread-37" [_thread_blocked, id=17896, stack(0x00000000191b0000,0x00000000192b0000)]
+  0x000000000d7fb000 JavaThread "TxnMgr taskPool_thread-36" [_thread_blocked, id=16892, stack(0x0000000018f80000,0x0000000019080000)]
+  0x000000000d7fa800 JavaThread "TxnMgr taskPool_thread-35" [_thread_blocked, id=17132, stack(0x0000000018e50000,0x0000000018f50000)]
+  0x000000000d7f9800 JavaThread "TxnMgr taskPool_thread-34" [_thread_blocked, id=15300, stack(0x0000000018c10000,0x0000000018d10000)]
+  0x000000000d7f9000 JavaThread "TxnMgr taskPool_thread-33" [_thread_blocked, id=8668, stack(0x0000000018a20000,0x0000000018b20000)]
+  0x000000000d7f8000 JavaThread "TxnMgr taskPool_thread-32" [_thread_blocked, id=13892, stack(0x00000000187e0000,0x00000000188e0000)]
+  0x000000000d7f7800 JavaThread "TxnMgr taskPool_thread-31" [_thread_blocked, id=11492, stack(0x00000000184a0000,0x00000000185a0000)]
+  0x000000000d7f6800 JavaThread "TxnMgr taskPool_thread-30" [_thread_blocked, id=1292, stack(0x0000000018620000,0x0000000018720000)]
+  0x000000000d7f6000 JavaThread "TxnMgr taskPool_thread-29" [_thread_blocked, id=12660, stack(0x00000000181e0000,0x00000000182e0000)]
+  0x000000000d961800 JavaThread "TxnMgr taskPool_thread-28" [_thread_blocked, id=16364, stack(0x0000000018360000,0x0000000018460000)]
+  0x000000000d960800 JavaThread "TxnMgr taskPool_thread-27" [_thread_blocked, id=19944, stack(0x00000000180a0000,0x00000000181a0000)]
+  0x000000000d960000 JavaThread "TxnMgr taskPool_thread-26" [_thread_blocked, id=9452, stack(0x0000000017af0000,0x0000000017bf0000)]
+  0x000000000d95f000 JavaThread "TxnMgr taskPool_thread-25" [_thread_blocked, id=11628, stack(0x0000000017f60000,0x0000000018060000)]
+  0x000000000d95e800 JavaThread "TxnMgr taskPool_thread-24" [_thread_blocked, id=19988, stack(0x0000000017d60000,0x0000000017e60000)]
+  0x000000000d95d800 JavaThread "TxnMgr taskPool_thread-23" [_thread_blocked, id=16228, stack(0x0000000017c20000,0x0000000017d20000)]
+  0x000000000d95d000 JavaThread "TxnMgr taskPool_thread-22" [_thread_blocked, id=19916, stack(0x00000000179f0000,0x0000000017af0000)]
+  0x000000000d95c000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=18488, stack(0x00000000178a0000,0x00000000179a0000)]
+  0x000000000d95b800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=7364, stack(0x0000000016ee0000,0x0000000016fe0000)]
+  0x000000000d95a800 JavaThread "TxnMgr settlerPool_thread-1" [_thread_blocked, id=11548, stack(0x0000000014ff0000,0x00000000150f0000)]
+  0x000000000dcaf800 JavaThread "TxnMgr taskPool_thread-21" [_thread_blocked, id=15124, stack(0x0000000017760000,0x0000000017860000)]
+  0x000000000dcaf000 JavaThread "TxnMgr taskPool_thread-20" [_thread_blocked, id=16348, stack(0x00000000175b0000,0x00000000176b0000)]
+  0x000000000dcae000 JavaThread "TxnMgr taskPool_thread-19" [_thread_blocked, id=15236, stack(0x00000000174a0000,0x00000000175a0000)]
+  0x000000000dcad800 JavaThread "TxnMgr taskPool_thread-18" [_thread_blocked, id=11976, stack(0x00000000172d0000,0x00000000173d0000)]
+  0x000000000dcac800 JavaThread "TxnMgr taskPool_thread-17" [_thread_blocked, id=11808, stack(0x0000000017140000,0x0000000017240000)]
+  0x000000000dcac000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=17184, stack(0x0000000016ff0000,0x00000000170f0000)]
+  0x000000000dcab000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=19920, stack(0x00000000169b0000,0x0000000016ab0000)]
+  0x000000000dcaa800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=11136, stack(0x0000000016d60000,0x0000000016e60000)]
+  0x000000000dca9800 JavaThread "TxnMgr settlerPool_thread-0" [_thread_blocked, id=12192, stack(0x0000000016b70000,0x0000000016c70000)]
+  0x000000000dca9000 JavaThread "TxnMgr taskPool_thread-16" [_thread_blocked, id=18480, stack(0x0000000016760000,0x0000000016860000)]
+  0x00000000121f4000 JavaThread "TxnMgr taskPool_thread-15" [_thread_blocked, id=5856, stack(0x00000000168a0000,0x00000000169a0000)]
+  0x00000000121f3800 JavaThread "TxnMgr taskPool_thread-14" [_thread_blocked, id=13064, stack(0x0000000016620000,0x0000000016720000)]
+  0x00000000121f2800 JavaThread "TxnMgr taskPool_thread-13" [_thread_blocked, id=14620, stack(0x0000000013930000,0x0000000013a30000)]
+  0x00000000121f2000 JavaThread "TxnMgr taskPool_thread-12" [_thread_blocked, id=19060, stack(0x00000000164b0000,0x00000000165b0000)]
+  0x00000000121f1000 JavaThread "TxnMgr taskPool_thread-11" [_thread_blocked, id=18176, stack(0x00000000162f0000,0x00000000163f0000)]
+  0x00000000121f0800 JavaThread "TxnMgr taskPool_thread-10" [_thread_blocked, id=19592, stack(0x0000000016170000,0x0000000016270000)]
+  0x00000000121ef800 JavaThread "TxnMgr taskPool_thread-9" [_thread_blocked, id=13700, stack(0x0000000015c80000,0x0000000015d80000)]
+  0x00000000121ef000 JavaThread "TxnMgr taskPool_thread-8" [_thread_blocked, id=17872, stack(0x0000000015fb0000,0x00000000160b0000)]
+  0x00000000121ee000 JavaThread "TxnMgr taskPool_thread-7" [_thread_blocked, id=14808, stack(0x0000000015e00000,0x0000000015f00000)]
+  0x00000000121ed800 JavaThread "TxnMgr taskPool_thread-6" [_thread_blocked, id=19560, stack(0x0000000015b80000,0x0000000015c80000)]
+  0x0000000011fcb000 JavaThread "TxnMgr taskPool_thread-5" [_thread_blocked, id=16272, stack(0x00000000159c0000,0x0000000015ac0000)]
+  0x0000000011fca800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=16732, stack(0x00000000158b0000,0x00000000159b0000)]
+  0x0000000011fc9800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=7140, stack(0x0000000015780000,0x0000000015880000)]
+  0x0000000011fc9000 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=9584, stack(0x00000000144b0000,0x00000000145b0000)]
+  0x0000000011fc8000 JavaThread "CombinerSecurityManager_thread-5" daemon [_thread_blocked, id=14284, stack(0x0000000015340000,0x0000000015440000)]
+  0x0000000011fc7800 JavaThread "(JSK) mux reader" daemon [_thread_blocked, id=16288, stack(0x0000000015580000,0x0000000015680000)]
+  0x0000000011fc6800 JavaThread "(JSK) mux writer" daemon [_thread_blocked, id=14692, stack(0x0000000015460000,0x0000000015560000)]
+  0x0000000011fc6000 JavaThread "(JSK) mux reader" daemon [_thread_blocked, id=15108, stack(0x0000000014c20000,0x0000000014d20000)]
+  0x0000000011fc5000 JavaThread "(JSK) mux writer" daemon [_thread_blocked, id=17520, stack(0x00000000151f0000,0x00000000152f0000)]
+  0x0000000011fc4800 JavaThread "CombinerSecurityManager_thread-4" daemon [_thread_blocked, id=20328, stack(0x00000000150f0000,0x00000000151f0000)]
+  0x000000000d76a000 JavaThread "(JSK) ConnectionManager.Reaper" daemon [_thread_blocked, id=17096, stack(0x0000000014ef0000,0x0000000014ff0000)]
+  0x000000000d769800 JavaThread "TxnMgr taskPool_thread-4" [_thread_blocked, id=15168, stack(0x0000000014d60000,0x0000000014e60000)]
+  0x000000000d768800 JavaThread "TxnMgr taskPool_thread-3" [_thread_blocked, id=18192, stack(0x0000000014b00000,0x0000000014c00000)]
+  0x000000000d768000 JavaThread "TxnMgr taskPool_thread-2" [_thread_blocked, id=10172, stack(0x00000000149e0000,0x0000000014ae0000)]
+  0x000000000d767000 JavaThread "TxnMgr taskPool_thread-1" [_thread_blocked, id=15948, stack(0x00000000148e0000,0x00000000149e0000)]
+  0x000000000d766800 JavaThread "TxnMgr taskPool_thread-0" [_thread_blocked, id=14348, stack(0x0000000014700000,0x0000000014800000)]
+  0x000000000d765800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=19440, stack(0x00000000145d0000,0x00000000146d0000)]
+  0x000000000d765000 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=16944, stack(0x0000000011a90000,0x0000000011b90000)]
+  0x000000000d764000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=12720, stack(0x00000000143a0000,0x00000000144a0000)]
+  0x000000000d763800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=12140, stack(0x0000000013f60000,0x0000000014060000)]
+  0x000000000d973000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=17196, stack(0x0000000014230000,0x0000000014330000)]
+  0x000000000d972800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=13928, stack(0x0000000014080000,0x0000000014180000)]
+  0x000000000d971800 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=16148, stack(0x0000000013df0000,0x0000000013ef0000)]
+  0x000000000d971000 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=14264, stack(0x0000000013b70000,0x0000000013c70000)]
+  0x000000000d970000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=11176, stack(0x0000000013cf0000,0x0000000013df0000)]
+  0x000000000d96f800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=16440, stack(0x0000000013a40000,0x0000000013b40000)]
+  0x000000000d96e800 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=16544, stack(0x0000000013820000,0x0000000013920000)]
+  0x000000000d96e000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=11448, stack(0x00000000133f0000,0x00000000134f0000)]
+  0x000000000d96d000 JavaThread "JMX server connection timeout 64" daemon [_thread_blocked, id=14952, stack(0x00000000136a0000,0x00000000137a0000)]
+  0x000000000d96c800 JavaThread "RMI Scheduler(0)" daemon [_thread_blocked, id=12152, stack(0x00000000134f0000,0x00000000135f0000)]
+  0x000000000d97b800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=17252, stack(0x0000000011860000,0x0000000011960000)]
+  0x000000000d97b000 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=10692, stack(0x0000000012e80000,0x0000000012f80000)]
+  0x000000000d97a000 JavaThread "RMI TCP Connection(5)-127.0.0.1" daemon [_thread_blocked, id=16176, stack(0x00000000132d0000,0x00000000133d0000)]
+  0x000000000d979800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=17972, stack(0x0000000013190000,0x0000000013290000)]
+  0x000000000d978800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=14444, stack(0x0000000012fb0000,0x00000000130b0000)]
+  0x000000000d978000 JavaThread "RMI TCP Accept-0" daemon [_thread_in_native, id=13512, stack(0x00000000113e0000,0x00000000114e0000)]
+  0x000000000d977000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=14476, stack(0x0000000011600000,0x0000000011700000)]
+  0x000000000d976800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=18348, stack(0x0000000011d60000,0x0000000011e60000)]
+  0x000000000d975800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=11344, stack(0x0000000011b90000,0x0000000011c90000)]
+  0x000000000d975000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=19000, stack(0x0000000011990000,0x0000000011a90000)]
+  0x000000000d9c8800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=18444, stack(0x0000000011760000,0x0000000011860000)]
+  0x000000000d9c7800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=16104, stack(0x0000000011190000,0x0000000011290000)]
+  0x000000000d9c7000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=11052, stack(0x00000000114f0000,0x00000000115f0000)]
+  0x000000000d9c6000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=18548, stack(0x00000000112d0000,0x00000000113d0000)]
+  0x000000000d9c5800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=16404, stack(0x0000000011070000,0x0000000011170000)]
+  0x000000000d9c4800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=13316, stack(0x0000000010f10000,0x0000000011010000)]
+  0x000000000d9c4000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=11444, stack(0x0000000010da0000,0x0000000010ea0000)]
+  0x000000000d9c3000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=16036, stack(0x0000000010c30000,0x0000000010d30000)]
+  0x000000000d9c2800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=13084, stack(0x0000000010960000,0x0000000010a60000)]
+  0x000000000d9c1800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=12040, stack(0x0000000010420000,0x0000000010520000)]
+  0x000000000c85c000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=15736, stack(0x0000000010a90000,0x0000000010b90000)]
+  0x000000000c85b000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=19104, stack(0x0000000010830000,0x0000000010930000)]
+  0x000000000c85a800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=17372, stack(0x0000000010660000,0x0000000010760000)]
+  0x000000000c859800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=12340, stack(0x000000000fc70000,0x000000000fd70000)]
+  0x000000000c859000 JavaThread "net.jini.loader.pref.PreferredClassLoader@4cdbe837["http://User-VAIO:9082/qa1-share-dl.jar http://User-VAIO:9082/qa1-mahalo-dl.jar"]_thread-0" daemon [_thread_blocked, id=19212, stack(0x0000000010550000,0x0000000010650000)]
+  0x000000000c858000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=19564, stack(0x0000000010300000,0x0000000010400000)]
+  0x000000000c857800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=16700, stack(0x00000000100e0000,0x00000000101e0000)]
+  0x000000000c856800 JavaThread "(JSK) Idle" daemon [_thread_blocked, id=15460, stack(0x00000000101e0000,0x00000000102e0000)]
+  0x000000000c856000 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=15640, stack(0x000000000e890000,0x000000000e990000)]
+  0x000000000c855000 JavaThread "Thread-2" daemon [_thread_blocked, id=18948, stack(0x000000000de80000,0x000000000df80000)]
+  0x000000000c853000 JavaThread "event notifier" daemon [_thread_blocked, id=16992, stack(0x000000000f180000,0x000000000f280000)]
+  0x000000000c852000 JavaThread "event listener notification" daemon [_thread_blocked, id=12176, stack(0x000000000fb60000,0x000000000fc60000)]
+  0x000000000c851800 JavaThread "multicast announcement timer" daemon [_thread_blocked, id=16536, stack(0x000000000f9c0000,0x000000000fac0000)]
+  0x000000000c850800 JavaThread "multicast discovery announcement listener" daemon [_thread_in_native, id=9000, stack(0x000000000f7d0000,0x000000000f8d0000)]
+  0x000000000c84e800 JavaThread "settleThread" daemon [_thread_blocked, id=13984, stack(0x000000000f2d0000,0x000000000f3d0000)]
+  0x000000000c84d000 JavaThread "CombinerSecurityManager_thread-2" daemon [_thread_blocked, id=19144, stack(0x000000000eca0000,0x000000000eda0000)]
+  0x000000000d697000 JavaThread "com.sun.jini.start.ActivateWrapper$ExportClassLoader[importURLs=[file:/C:/Users/User/Documents/NetBeansProjects/River/trunk/lib/mahalo.jar],exportURLs=[http://User-VAIO:9080/mahalo-dl.jar, http://User-VAIO:9080/jsk-dl.jar],parent=sun.misc.Launcher$AppClassLoader@1497b7b1,id=2d4b8b4b-b42c-4729-99ec-4f7e54995883]_thread-0" daemon [_thread_blocked, id=19376, stack(0x000000000eb70000,0x000000000ec70000)]
+  0x000000000c6a6800 JavaThread "sun.misc.Launcher$AppClassLoader@1497b7b1_thread-0" daemon [_thread_blocked, id=15748, stack(0x000000000e990000,0x000000000ea90000)]
+  0x000000000c6a4800 JavaThread "(JSK) mux request dispatch" daemon [_thread_blocked, id=17488, stack(0x000000000e790000,0x000000000e890000)]
+  0x000000000c7ea000 JavaThread "(JSK) mux reader" daemon [_thread_in_native, id=12716, stack(0x000000000e670000,0x000000000e770000)]
+  0x000000000c72c000 JavaThread "(JSK) mux writer" daemon [_thread_blocked, id=17004, stack(0x000000000e0b0000,0x000000000e1b0000)]
+  0x0000000001bef800 JavaThread "DestroyJavaVM" [_thread_blocked, id=14800, stack(0x00000000024c0000,0x00000000025c0000)]
+  0x000000000c73e800 JavaThread "Thread-1" [_thread_blocked, id=14208, stack(0x000000000e4b0000,0x000000000e5b0000)]
+  0x000000000c73c800 JavaThread "(JSK) KeepAlive" [_thread_blocked, id=11300, stack(0x000000000e360000,0x000000000e460000)]
+  0x000000000c60c800 JavaThread "(JSK) Reaper" daemon [_thread_blocked, id=12008, stack(0x000000000e250000,0x000000000e350000)]
+  0x000000000c89f800 JavaThread "(JSK) TcpServerEndpoint.LH[ServerSocket[addr=0.0.0.0/0.0.0.0,localport=52250]] accept loop" daemon [_thread_in_native, id=20420, stack(0x000000000df80000,0x000000000e080000)]
+  0x000000000a91f800 JavaThread "Service Thread" daemon [_thread_blocked, id=12672, stack(0x000000000c3a0000,0x000000000c4a0000)]
+  0x000000000a91c800 JavaThread "C2 CompilerThread1" daemon [_thread_blocked, id=20148, stack(0x000000000c200000,0x000000000c300000)]
+  0x000000000a916000 JavaThread "C2 CompilerThread0" daemon [_thread_blocked, id=14536, stack(0x000000000c060000,0x000000000c160000)]
+  0x000000000a915800 JavaThread "Attach Listener" daemon [_thread_blocked, id=16028, stack(0x000000000be00000,0x000000000bf00000)]
+  0x000000000a90e000 JavaThread "Signal Dispatcher" daemon [_thread_blocked, id=12456, stack(0x000000000bf00000,0x000000000c000000)]
+  0x000000000a8bb000 JavaThread "Finalizer" daemon [_thread_blocked, id=20228, stack(0x000000000bc60000,0x000000000bd60000)]
+  0x000000000a8b2800 JavaThread "Reference Handler" daemon [_thread_blocked, id=18588, stack(0x000000000b970000,0x000000000ba70000)]
+
+Other Threads:
+  0x000000000a8ac800 VMThread [stack: 0x000000000bb10000,0x000000000bc10000] [id=11844]
+  0x000000000c4a9000 WatcherThread [stack: 0x000000000ca80000,0x000000000cb80000] [id=8268]
+
+VM state:synchronizing (normal execution)
+
+VM Mutex/Monitor currently owned by a thread:  ([mutex/lock_event])
+[0x00000000020b8900] Threads_lock - owner thread: 0x000000000a8ac800
+
+Heap
+ PSYoungGen      total 212480K, used 489K [0x00000007d5900000, 0x00000007e6a00000, 0x0000000800000000)
+  eden space 209408K, 0% used [0x00000007d5900000,0x00000007d597a788,0x00000007e2580000)
+  from space 3072K, 0% used [0x00000007e6700000,0x00000007e6700000,0x00000007e6a00000)
+  to   space 6144K, 0% used [0x00000007e5e00000,0x00000007e5e00000,0x00000007e6400000)
+ ParOldGen       total 126976K, used 65140K [0x0000000780c00000, 0x0000000788800000, 0x00000007d5900000)
+  object space 126976K, 51% used [0x0000000780c00000,0x0000000784b9d298,0x0000000788800000)
+ PSPermGen       total 32256K, used 13417K [0x000000077ba00000, 0x000000077d980000, 0x0000000780c00000)
+  object space 32256K, 41% used [0x000000077ba00000,0x000000077c71a4d8,0x000000077d980000)
+
+Card table byte_map: [0x00000000055c0000,0x00000000059f0000] byte_map_base: 0x00000000019e3000
+
+Polling page: 0x0000000001b60000
+
+Code Cache  [0x00000000025c0000, 0x0000000002a80000, 0x00000000055c0000)
+ total_blobs=1552 nmethods=1234 adapters=270 free_code_cache=44494Kb largest_free_block=45382272
+
+Compilation events (10 events):
+Event: 301.560 Thread 0x000000000a91c800 nmethod 2214 0x0000000002a67250 code [0x0000000002a674e0, 0x0000000002a67ef8]
+Event: 301.591 Thread 0x000000000a916000 nmethod 2215 0x0000000002a74910 code [0x0000000002a74ce0, 0x0000000002a76060]
+Event: 308.194 Thread 0x000000000a91c800 2216   !         au.net.zeus.collection.ReferenceProcessor$EnqueGarbageTask::run (101 bytes)
+Event: 308.214 Thread 0x000000000a91c800 nmethod 2216 0x0000000002a65bd0 code [0x0000000002a65dc0, 0x0000000002a667c0]
+Event: 320.220 Thread 0x000000000a916000 2217             java.util.concurrent.ScheduledThreadPoolExecutor$DelayedWorkQueue::take (5 bytes)
+Event: 320.221 Thread 0x000000000a916000 nmethod 2217 0x000000000265d190 code [0x000000000265d2e0, 0x000000000265d368]
+Event: 320.821 Thread 0x000000000a91c800 2218   !         org.cliffc.high_scale_lib.NonBlockingHashMap$SnapshotV::next (142 bytes)
+Event: 320.846 Thread 0x000000000a91c800 nmethod 2218 0x0000000002a69150 code [0x0000000002a69440, 0x0000000002a69f38]
+Event: 320.891 Thread 0x000000000a916000 2219             sun.security.provider.ByteArrayAccess::i2bBig (168 bytes)
+Event: 320.897 Thread 0x000000000a916000 nmethod 2219 0x00000000027ab510 code [0x00000000027ab640, 0x00000000027ab858]
+
+GC Heap History (10 events):
+Event: 313.298 GC heap before
+{Heap before GC invocations=105 (full 4):
+ PSYoungGen      total 157696K, used 157376K [0x00000007d5900000, 0x00000007e7680000, 0x0000000800000000)
+  eden space 154624K, 100% used [0x00000007d5900000,0x00000007df000000,0x00000007df000000)
+  from space 3072K, 89% used [0x00000007e7380000,0x00000007e7630010,0x00000007e7680000)
+  to   space 7168K, 0% used [0x00000007e6880000,0x00000007e6880000,0x00000007e6f80000)
+ ParOldGen       total 132096K, used 118307K [0x0000000780c00000, 0x0000000788d00000, 0x00000007d5900000)
+  object space 132096K, 89% used [0x0000000780c00000,0x0000000787f88cb0,0x0000000788d00000)
+ PSPermGen       total 34304K, used 13531K [0x000000077ba00000, 0x000000077db80000, 0x0000000780c00000)
+  object space 34304K, 39% used [0x000000077ba00000,0x000000077c736c88,0x000000077db80000)
+Event: 313.323 GC heap after
+Heap after GC invocations=105 (full 4):
+ PSYoungGen      total 176640K, used 2432K [0x00000007d5900000, 0x00000007e7400000, 0x0000000800000000)
+  eden space 174080K, 0% used [0x00000007d5900000,0x00000007d5900000,0x00000007e0300000)
+  from space 2560K, 95% used [0x00000007e6880000,0x00000007e6ae0000,0x00000007e6b00000)
+  to   space 7168K, 0% used [0x00000007e6d00000,0x00000007e6d00000,0x00000007e7400000)
+ ParOldGen       total 132096K, used 120899K [0x0000000780c00000, 0x0000000788d00000, 0x00000007d5900000)
+  object space 132096K, 91% used [0x0000000780c00000,0x0000000788210cc0,0x0000000788d00000)
+ PSPermGen       total 34304K, used 13531K [0x000000077ba00000, 0x000000077db80000, 0x0000000780c00000)
+  object space 34304K, 39% used [0x000000077ba00000,0x000000077c736c88,0x000000077db80000)
+}
+Event: 315.997 GC heap before
+{Heap before GC invocations=106 (full 4):
+ PSYoungGen      total 176640K, used 176512K [0x00000007d5900000, 0x00000007e7400000, 0x0000000800000000)
+  eden space 174080K, 100% used [0x00000007d5900000,0x00000007e0300000,0x00000007e0300000)
+  from space 2560K, 95% used [0x00000007e6880000,0x00000007e6ae0000,0x00000007e6b00000)
+  to   space 7168K, 0% used [0x00000007e6d00000,0x00000007e6d00000,0x00000007e7400000)
+ ParOldGen       total 132096K, used 120899K [0x0000000780c00000, 0x0000000788d00000, 0x00000007d5900000)
+  object space 132096K, 91% used [0x0000000780c00000,0x0000000788210cc0,0x0000000788d00000)
+ PSPermGen       total 34304K, used 13531K [0x000000077ba00000, 0x000000077db80000, 0x0000000780c00000)
+  object space 34304K, 39% used [0x000000077ba00000,0x000000077c736c88,0x000000077db80000)
+Event: 316.010 GC heap after
+Heap after GC invocations=106 (full 4):
+ PSYoungGen      total 197120K, used 2560K [0x00000007d5900000, 0x00000007e6f80000, 0x0000000800000000)
+  eden space 194560K, 0% used [0x00000007d5900000,0x00000007d5900000,0x00000007e1700000)
+  from space 2560K, 100% used [0x00000007e6d00000,0x00000007e6f80000,0x00000007e6f80000)
+  to   space 6656K, 0% used [0x00000007e6280000,0x00000007e6280000,0x00000007e6900000)
+ ParOldGen       total 132096K, used 123227K [0x0000000780c00000, 0x0000000788d00000, 0x00000007d5900000)
+  object space 132096K, 93% used [0x0000000780c00000,0x0000000788456cc0,0x0000000788d00000)
+ PSPermGen       total 34304K, used 13531K [0x000000077ba00000, 0x000000077db80000, 0x0000000780c00000)
+  object space 34304K, 39% used [0x000000077ba00000,0x000000077c736c88,0x000000077db80000)
+}
+Event: 319.025 GC heap before
+{Heap before GC invocations=107 (full 4):
+ PSYoungGen      total 197120K, used 197120K [0x00000007d5900000, 0x00000007e6f80000, 0x0000000800000000)
+  eden space 194560K, 100% used [0x00000007d5900000,0x00000007e1700000,0x00000007e1700000)
+  from space 2560K, 100% used [0x00000007e6d00000,0x00000007e6f80000,0x00000007e6f80000)
+  to   space 6656K, 0% used [0x00000007e6280000,0x00000007e6280000,0x00000007e6900000)
+ ParOldGen       total 132096K, used 123227K [0x0000000780c00000, 0x0000000788d00000, 0x00000007d5900000)
+  object space 132096K, 93% used [0x0000000780c00000,0x0000000788456cc0,0x0000000788d00000)
+ PSPermGen       total 34304K, used 13531K [0x000000077ba00000, 0x000000077db80000, 0x0000000780c00000)
+  object space 34304K, 39% used [0x000000077ba00000,0x000000077c736c88,0x000000077db80000)
+Event: 319.040 GC heap after
+Heap after GC invocations=107 (full 4):
+ PSYoungGen      total 190464K, used 2912K [0x00000007d5900000, 0x00000007e6d80000, 0x0000000800000000)
+  eden space 187392K, 0% used [0x00000007d5900000,0x00000007d5900000,0x00000007e1000000)
+  from space 3072K, 94% used [0x00000007e6280000,0x00000007e6558000,0x00000007e6580000)
+  to   space 6656K, 0% used [0x00000007e6700000,0x00000007e6700000,0x00000007e6d80000)
+ ParOldGen       total 132096K, used 125683K [0x0000000780c00000, 0x0000000788d00000, 0x00000007d5900000)
+  object space 132096K, 95% used [0x0000000780c00000,0x00000007886bccc0,0x0000000788d00000)
+ PSPermGen       total 34304K, used 13531K [0x000000077ba00000, 0x000000077db80000, 0x0000000780c00000)
+  object space 34304K, 39% used [0x000000077ba00000,0x000000077c736c88,0x000000077db80000)
+}
+Event: 321.895 GC heap before
+{Heap before GC invocations=108 (full 4):
+ PSYoungGen      total 190464K, used 190304K [0x00000007d5900000, 0x00000007e6d80000, 0x0000000800000000)
+  eden space 187392K, 100% used [0x00000007d5900000,0x00000007e1000000,0x00000007e1000000)
+  from space 3072K, 94% used [0x00000007e6280000,0x00000007e6558000,0x00000007e6580000)
+  to   space 6656K, 0% used [0x00000007e6700000,0x00000007e6700000,0x00000007e6d80000)
+ ParOldGen       total 132096K, used 125683K [0x0000000780c00000, 0x0000000788d00000, 0x00000007d5900000)
+  object space 132096K, 95% used [0x0000000780c00000,0x00000007886bccc0,0x0000000788d00000)
+ PSPermGen       total 34304K, used 13531K [0x000000077ba00000, 0x000000077db80000, 0x0000000780c00000)
+  object space 34304K, 39% used [0x000000077ba00000,0x000000077c736ca8,0x000000077db80000)
+Event: 321.913 GC heap after
+Heap after GC invocations=108 (full 4):
+ PSYoungGen      total 212480K, used 2976K [0x00000007d5900000, 0x00000007e6a00000, 0x0000000800000000)
+  eden space 209408K, 0% used [0x00000007d5900000,0x00000007d5900000,0x00000007e2580000)
+  from space 3072K, 96% used [0x00000007e6700000,0x00000007e69e8000,0x00000007e6a00000)
+  to   space 6144K, 0% used [0x00000007e5e00000,0x00000007e5e00000,0x00000007e6400000)
+ ParOldGen       total 132096K, used 128467K [0x0000000780c00000, 0x0000000788d00000, 0x00000007d5900000)
+  object space 132096K, 97% used [0x0000000780c00000,0x0000000788974cc0,0x0000000788d00000)
+ PSPermGen       total 34304K, used 13531K [0x000000077ba00000, 0x000000077db80000, 0x0000000780c00000)
+  object space 34304K, 39% used [0x000000077ba00000,0x000000077c736ca8,0x000000077db80000)
+}
+Event: 321.913 GC heap before
+{Heap before GC invocations=109 (full 5):
+ PSYoungGen      total 212480K, used 2976K [0x00000007d5900000, 0x00000007e6a00000, 0x0000000800000000)
+  eden space 209408K, 0% used [0x00000007d5900000,0x00000007d5900000,0x00000007e2580000)
+  from space 3072K, 96% used [0x00000007e6700000,0x00000007e69e8000,0x00000007e6a00000)
+  to   space 6144K, 0% used [0x00000007e5e00000,0x00000007e5e00000,0x00000007e6400000)
+ ParOldGen       total 132096K, used 128467K [0x0000000780c00000, 0x0000000788d00000, 0x00000007d5900000)
+  object space 132096K, 97% used [0x0000000780c00000,0x0000000788974cc0,0x0000000788d00000)
+ PSPermGen       total 34304K, used 13531K [0x000000077ba00000, 0x000000077db80000, 0x0000000780c00000)
+  object space 34304K, 39% used [0x000000077ba00000,0x000000077c736ca8,0x000000077db80000)
+Event: 322.123 GC heap after
+Heap after GC invocations=109 (full 5):
+ PSYoungGen      total 212480K, used 0K [0x00000007d5900000, 0x00000007e6a00000, 0x0000000800000000)
+  eden space 209408K, 0% used [0x00000007d5900000,0x00000007d5900000,0x00000007e2580000)
+  from space 3072K, 0% used [0x00000007e6700000,0x00000007e6700000,0x00000007e6a00000)
+  to   space 6144K, 0% used [0x00000007e5e00000,0x00000007e5e00000,0x00000007e6400000)
+ ParOldGen       total 126976K, used 65140K [0x0000000780c00000, 0x0000000788800000, 0x00000007d5900000)
+  object space 126976K, 51% used [0x0000000780c00000,0x0000000784b9d298,0x0000000788800000)
+ PSPermGen       total 32256K, used 13417K [0x000000077ba00000, 0x000000077d980000, 0x0000000780c00000)
+  object space 32256K, 41% used [0x000000077ba00000,0x000000077c71a4d8,0x000000077d980000)
+}
+
+Deoptimization events (10 events):
+Event: 220.821 Thread 0x000000000c73e800 Uncommon trap: reason=class_check action=maybe_recompile pc=0x00000000027ba534 method=org.cliffc.high_scale_lib.NonBlockingHashMap.keyeq(Ljava/lang/Object;Ljava/lang/Object;[III)Z @ 36
+Event: 220.821 Thread 0x000000000c73e800 Uncommon trap: reason=unreached action=reinterpret pc=0x00000000026f3eb4 method=org.cliffc.high_scale_lib.NonBlockingHashMap.get_impl(Lorg/cliffc/high_scale_lib/NonBlockingHashMap;[Ljava/lang/Object;Ljava/lang/Object;I)Ljava/lang/Object; @ 102
+Event: 283.647 Thread 0x0000000012238800 Uncommon trap: reason=unreached action=reinterpret pc=0x00000000026eed3c method=org.cliffc.high_scale_lib.NonBlockingHashMap.get_impl(Lorg/cliffc/high_scale_lib/NonBlockingHashMap;[Ljava/lang/Object;Ljava/lang/Object;I)Ljava/lang/Object; @ 94
+Event: 284.169 Thread 0x0000000023148000 Uncommon trap: reason=null_check action=make_not_entrant pc=0x00000000027af46c method=org.cliffc.high_scale_lib.NonBlockingHashMap.get(Ljava/lang/Object;)Ljava/lang/Object; @ 31
+Event: 300.820 Thread 0x000000000c73e800 Uncommon trap: reason=class_check action=maybe_recompile pc=0x0000000002a63600 method=org.cliffc.high_scale_lib.NonBlockingHashMap.keyeq(Ljava/lang/Object;Ljava/lang/Object;[III)Z @ 36
+Event: 300.820 Thread 0x000000000c73e800 Uncommon trap: reason=class_check action=maybe_recompile pc=0x0000000002a63600 method=org.cliffc.high_scale_lib.NonBlockingHashMap.keyeq(Ljava/lang/Object;Ljava/lang/Object;[III)Z @ 36
+Event: 300.820 Thread 0x000000000c73e800 Uncommon trap: reason=class_check action=maybe_recompile pc=0x0000000002a63600 method=org.cliffc.high_scale_lib.NonBlockingHashMap.keyeq(Ljava/lang/Object;Ljava/lang/Object;[III)Z @ 36
+Event: 300.820 Thread 0x000000000c73e800 Uncommon trap: reason=class_check action=maybe_recompile pc=0x0000000002a63600 method=org.cliffc.high_scale_lib.NonBlockingHashMap.keyeq(Ljava/lang/Object;Ljava/lang/Object;[III)Z @ 36
+Event: 300.821 Thread 0x000000000c73e800 Uncommon trap: reason=unreached action=reinterpret pc=0x0000000002a6cf58 method=org.cliffc.high_scale_lib.NonBlockingHashMap.keyeq(Ljava/lang/Object;Ljava/lang/Object;[III)Z @ 10
+Event: 303.768 Thread 0x000000000d97a000 Uncommon trap: reason=class_check action=maybe_recompile pc=0x000000000275f698 method=java.util.concurrent.ThreadPoolExecutor.getTask()Ljava/lang/Runnable; @ 146
+
+Internal exceptions (10 events):
+Event: 321.887 Thread 0x000000000d697000 Threw 0x00000007e0c1c6a0 at C:\re\jdk7u45\229\hotspot\src\share\vm\prims\jvm.cpp:1244
+Event: 321.887 Thread 0x000000000d697000 Threw 0x00000007e0c1d448 at C:\re\jdk7u45\229\hotspot\src\share\vm\prims\jvm.cpp:1244
+Event: 321.887 Thread 0x000000000d697000 Threw 0x00000007e0c1f3d8 at C:\re\jdk7u45\229\hotspot\src\share\vm\prims\jvm.cpp:1244
+Event: 321.887 Thread 0x000000000d697000 Threw 0x00000007e0f86728 at C:\re\jdk7u45\229\hotspot\src\share\vm\prims\jvm.cpp:1244
+Event: 321.890 Thread 0x000000000d697000 Threw 0x00000007e0f886d8 at C:\re\jdk7u45\229\hotspot\src\share\vm\prims\jvm.cpp:1244
+Event: 321.890 Thread 0x000000000d697000 Threw 0x00000007e0f89480 at C:\re\jdk7u45\229\hotspot\src\share\vm\prims\jvm.cpp:1244
+Event: 321.890 Thread 0x000000000d697000 Threw 0x00000007e0f8b410 at C:\re\jdk7u45\229\hotspot\src\share\vm\prims\jvm.cpp:1244
+Event: 321.890 Thread 0x000000000d697000 Threw 0x00000007e0f8c1b8 at C:\re\jdk7u45\229\hotspot\src\share\vm\prims\jvm.cpp:1244
+Event: 321.890 Thread 0x000000000d697000 Threw 0x00000007e0f8e148 at C:\re\jdk7u45\229\hotspot\src\share\vm\prims\jvm.cpp:1244
+Event: 321.890 Thread 0x000000000d697000 Threw 0x00000007e0f8eef0 at C:\re\jdk7u45\229\hotspot\src\share\vm\prims\jvm.cpp:1244
+
+Events (10 events):
+Event: 321.887 loading class 0x000000000d895410 done
+Event: 321.889 loading class 0x000000000d895410
+Event: 321.890 loading class 0x000000000d895410 done
+Event: 321.890 loading class 0x000000000d895410
+Event: 321.890 loading class 0x000000000d895410 done
+Event: 321.890 loading class 0x000000000d895410
+Event: 321.890 loading class 0x000000000d895410 done
+Event: 321.891 Executing VM operation: ParallelGCFailedAllocation
+Event: 322.123 Executing VM operation: ParallelGCFailedAllocation done
+Event: 322.124 Executing VM operation: RevokeBias
+
+
+Dynamic libraries:
+0x000000013f310000 - 0x000000013f343000 	C:\Program Files\Java\jdk1.7.0_45\jre\bin\java.exe
+0x0000000076ec0000 - 0x0000000077069000 	C:\Windows\SYSTEM32\ntdll.dll
+0x0000000076ca0000 - 0x0000000076dbf000 	C:\Windows\system32\kernel32.dll
+0x000007fefcdc0000 - 0x000007fefce2b000 	C:\Windows\system32\KERNELBASE.dll
+0x000007fefeb50000 - 0x000007fefec2b000 	C:\Windows\system32\ADVAPI32.dll
+0x000007fefe390000 - 0x000007fefe42f000 	C:\Windows\system32\msvcrt.dll
+0x000007fefe980000 - 0x000007fefe99f000 	C:\Windows\SYSTEM32\sechost.dll
+0x000007fefe180000 - 0x000007fefe2ad000 	C:\Windows\system32\RPCRT4.dll
+0x0000000076dc0000 - 0x0000000076eba000 	C:\Windows\system32\USER32.dll
+0x000007fefd0b0000 - 0x000007fefd117000 	C:\Windows\system32\GDI32.dll
+0x000007fefe010000 - 0x000007fefe01e000 	C:\Windows\system32\LPK.dll
+0x000007fefea80000 - 0x000007fefeb49000 	C:\Windows\system32\USP10.dll
+0x000007fefb190000 - 0x000007fefb384000 	C:\Windows\WinSxS\amd64_microsoft.windows.common-controls_6595b64144ccf1df_6.0.7601.17514_none_fa396087175ac9ac\COMCTL32.dll
+0x000007fefe900000 - 0x000007fefe971000 	C:\Windows\system32\SHLWAPI.dll
+0x000007fefe9f0000 - 0x000007fefea1e000 	C:\Windows\system32\IMM32.DLL
+0x000007fefec30000 - 0x000007fefed39000 	C:\Windows\system32\MSCTF.dll
+0x000000006ef90000 - 0x000000006f062000 	C:\Program Files\Java\jdk1.7.0_45\jre\bin\msvcr100.dll
+0x000000006af10000 - 0x000000006b6d9000 	C:\Program Files\Java\jdk1.7.0_45\jre\bin\server\jvm.dll
+0x000007feef3a0000 - 0x000007feef3a9000 	C:\Windows\system32\WSOCK32.dll
+0x000007fefe9a0000 - 0x000007fefe9ed000 	C:\Windows\system32\WS2_32.dll
+0x000007fefe870000 - 0x000007fefe878000 	C:\Windows\system32\NSI.dll
+0x000007fef8b40000 - 0x000007fef8b7b000 	C:\Windows\system32\WINMM.dll
+0x0000000077090000 - 0x0000000077097000 	C:\Windows\system32\PSAPI.DLL
+0x000000006f100000 - 0x000000006f10f000 	C:\Program Files\Java\jdk1.7.0_45\jre\bin\verify.dll
+0x000000006f0d0000 - 0x000000006f0f8000 	C:\Program Files\Java\jdk1.7.0_45\jre\bin\java.dll
+0x000000006f0b0000 - 0x000000006f0c5000 	C:\Program Files\Java\jdk1.7.0_45\jre\bin\zip.dll
+0x000007fefc550000 - 0x000007fefc567000 	C:\Windows\system32\CRYPTSP.dll
+0x000007fefc250000 - 0x000007fefc297000 	C:\Windows\system32\rsaenh.dll
+0x000007fefbf70000 - 0x000007fefbf8e000 	C:\Windows\system32\USERENV.dll
+0x000007fefcc80000 - 0x000007fefcc8f000 	C:\Windows\system32\profapi.dll
+0x000007fefcbb0000 - 0x000007fefcbbf000 	C:\Windows\system32\CRYPTBASE.dll
+0x000000006f090000 - 0x000000006f0a9000 	C:\Program Files\Java\jdk1.7.0_45\jre\bin\net.dll
+0x0000000180000000 - 0x000000018001d000 	C:\Windows\system32\VetRedir64.dll
+0x000007fefc4f0000 - 0x000007fefc545000 	C:\Windows\system32\mswsock.dll
+0x0000000002270000 - 0x0000000002297000 	C:\Windows\system32\isafeif64.dll
+0x000007fefc4e0000 - 0x000007fefc4e7000 	C:\Windows\System32\wship6.dll
+0x000007fefb710000 - 0x000007fefb725000 	C:\Windows\system32\NLAapi.dll
+0x000007fef7f30000 - 0x000007fef7f45000 	C:\Windows\system32\napinsp.dll
+0x000007fef7f50000 - 0x000007fef7f69000 	C:\Windows\system32\pnrpnsp.dll
+0x000007fefc370000 - 0x000007fefc3cb000 	C:\Windows\system32\DNSAPI.dll
+0x000007fef7ee0000 - 0x000007fef7eeb000 	C:\Windows\System32\winrnr.dll
+0x000007fef7ed0000 - 0x000007fef7ee0000 	C:\Windows\system32\wshbth.dll
+0x000007fef7f00000 - 0x000007fef7f2f000 	C:\Program Files\Common Files\Microsoft Shared\Windows Live\WLIDNSP.DLL
+0x000007fefbe50000 - 0x000007fefbe57000 	C:\Windows\System32\wshtcpip.dll
+0x000007fef9d20000 - 0x000007fef9d47000 	C:\Windows\system32\IPHLPAPI.DLL
+0x000007fef9d10000 - 0x000007fef9d1b000 	C:\Windows\system32\WINNSI.DLL
+0x000007fef7ef0000 - 0x000007fef7ef8000 	C:\Windows\system32\rasadhlp.dll
+0x000007fef9b50000 - 0x000007fef9ba3000 	C:\Windows\System32\fwpuclnt.dll
+0x000000006f070000 - 0x000000006f081000 	C:\Program Files\Java\jdk1.7.0_45\jre\bin\nio.dll
+0x000007fef9a20000 - 0x000007fef9a38000 	C:\Windows\system32\dhcpcsvc.DLL
+0x000007fef9980000 - 0x000007fef9991000 	C:\Windows\system32\dhcpcsvc6.DLL
+0x00000000734b0000 - 0x00000000734d3000 	C:\Program Files\Java\jdk1.7.0_45\jre\bin\instrument.dll
+0x000000006b6e0000 - 0x000000006b6eb000 	C:\Program Files\Java\jdk1.7.0_45\jre\bin\management.dll
+0x000000006f840000 - 0x000000006f84c000 	C:\Program Files\Java\jdk1.7.0_45\lib\visualvm\profiler\lib\deployed\jdk16\windows-amd64\profilerinterface.dll
+0x000007fefa4b0000 - 0x000007fefa5d5000 	C:\Windows\system32\dbghelp.dll
+
+VM Arguments:
+jvm_args: -Djava.rmi.server.codebase=http://User-VAIO:9081/nonactivatablegroup-dl.jar -Djava.security.policy=file:/C:/Users/User/Documents/NetBeansProjects/River/trunk/qa/harness/policy/defaultnonactvm.policy -esa -ea -Dcom.sun.jini.qa.harness.runkitserver=true -Dcom.sun.jini.test.port=9082 -Dnet.jini.core.lookup.ServiceRegistrar.portAbitraryIfInUse=true -Dcom.sun.jini.test.home=C:\Users\User\Documents\NetBeansProjects\River\trunk\qa -Dcom.sun.jini.jsk.port=9080 -Dcom.sun.jini.qa.harness.policies=file:/C:/Users/User/Documents/NetBeansProjects/River/trunk/qa/src/com/sun/jini/test/resources/jinitest.policy -Dcom.sun.jini.qa.harness.testhosts= -Djava.ext.dirs=C:\Program Files\Java\jdk1.7.0_45\jre\lib\ext;C:\Windows\Sun\Java\lib\ext;C:\Users\User\Documents\NetBeansProjects\River\trunk\qa\lib-ext;C:\Users\User\Documents\NetBeansProjects\River\trunk\lib-ext -Dcom.sun.jini.qa.port=9081 -Dcom.sun.jini.jsk.home=C:\Users\User\Documents\NetBeansProjects\River\trunk -Dcom.sun.jini.qa.home=C:\Users\User\Documents\NetBeansProjects\River\trunk\qa -Dcom.sun.jini.qa.harness.runjiniserver=true -Djava.rmi.server.useCodebaseOnly=false -Djava.util.logging.config.file=C:\Users\User\Documents\NetBeansProjects\River\trunk\qa\src\com\sun\jini\test\resources\qa1.logging -Dcom.sun.jini.qa.harness.testJar=C:\Users\User\Documents\NetBeansProjects\River\trunk\qa\lib\jinitests.jar -Djava.security.properties=file:/C:/Users/User/Documents/NetBeansProjects/River/trunk/qa/harness/trust/dynamic-policy.properties -Dcom.sun.jini.qa.harness.harnessJar=C:\Users\User\Documents\NetBeansProjects\River\trunk\qa\lib\jiniharness.jar 
+java_command: com.sun.jini.qa.harness.NonActivatableGroupImpl
+Launcher Type: SUN_STANDARD
+
+Environment Variables:
+PATH=C:\Program Files (x86)\PC Connectivity Solution\;C:\Program Files\Common Files\Microsoft Shared\Windows Live;C:\Program Files (x86)\Common Files\Microsoft Shared\Windows Live;C:\Windows\system32;C:\Windows;C:\Windows\System32\Wbem;C:\Windows\System32\WindowsPowerShell\v1.0\;C:\Program Files (x86)\Sony\VAIO Startup Setting Tool;;C:\Program Files (x86)\Windows Live\Shared;C:\Program Files\Java\jdk1.7.0_45\bin
+USERNAME=User
+OS=Windows_NT
+PROCESSOR_IDENTIFIER=Intel64 Family 6 Model 42 Stepping 7, GenuineIntel
+
+
+
+---------------  S Y S T E M  ---------------
+
+OS: Windows 7 , 64 bit Build 7601 Service Pack 1
+
+CPU:total 4 (2 cores per cpu, 2 threads per core) family 6 model 42 stepping 7, cmov, cx8, fxsr, mmx, sse, sse2, sse3, ssse3, sse4.1, sse4.2, popcnt, avx, ht, tsc, tscinvbit
+
+Memory: 4k page, physical 8335216k(2583576k free), swap 91195432k(84716532k free)
+
+vm_info: Java HotSpot(TM) 64-Bit Server VM (24.45-b08) for windows-amd64 JRE (1.7.0_45-b18), built on Oct  8 2013 05:47:22 by "java_re" with unknown MS VC++:1600
+
+time: Fri Apr 25 16:24:27 2014
+elapsed time: 322 seconds
+

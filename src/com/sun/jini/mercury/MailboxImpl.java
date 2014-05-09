@@ -3777,15 +3777,13 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
     /** Registration expiration thread code */
     private class ExpirationThread extends InterruptedStatusThread implements TimeConstants {
 
-	/** Create a daemon thread and start it */
 	public ExpirationThread() {
 	    super("ExpirationThread");
-	    setDaemon(true);
+	    setDaemon(false);
             if (expirationLogger.isLoggable(Level.FINEST)) {
                 expirationLogger.log(Level.FINEST,
 		    "ExpirationThread started ...");
             }
-            //start();
 	}
 
 	/** 
@@ -4952,11 +4950,13 @@ class MailboxImpl implements MailboxBackEnd, TimeConstants,
      */
     private class SnapshotThread extends InterruptedStatusThread {
 
-	/** Create a daemon thread */
+        /**
+         * Ensure thread is non daemon to avoid jvm terminating it during
+         * a snapshot.
+         */
 	public SnapshotThread() {
 	    super("SnapshotThread");
-	    setDaemon(true);
-//	    start();
+	    setDaemon(false);
 	}
 
 	public void run() {

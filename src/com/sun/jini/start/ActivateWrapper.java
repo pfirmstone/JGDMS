@@ -36,7 +36,6 @@ import java.rmi.MarshalException;
 import java.rmi.MarshalledObject;
 import java.rmi.Remote;
 import java.rmi.RemoteException;
-import java.rmi.activation.Activatable;
 import java.rmi.activation.ActivationDesc;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationGroupID;
@@ -209,9 +208,10 @@ public class ActivateWrapper implements Remote, Serializable {
     /** 
      * Fully qualified name of custom, service policy provider 
      */
-    private static String servicePolicyProvider =
+    private static final String servicePolicyProvider =
 	((String) AccessController.doPrivileged(
 	    new PrivilegedAction() {
+                @Override
 		public Object run() {
 		    return Security.getProperty(
 			    "com.sun.jini.start." +
@@ -280,6 +280,7 @@ public class ActivateWrapper implements Remote, Serializable {
 	    this.data = data;
 	}
         // Javadoc inherited from supertype
+        @Override
 	public String toString() {
 	    return "[className=" + className + ","
 	        + "importLocation=" 
@@ -335,24 +336,28 @@ public class ActivateWrapper implements Remote, Serializable {
             }
 	}
 	//Javadoc inherited from super type
+        @Override
         public URL[] getURLs() {
 	    return (URL[])exportURLs.clone();
 	}
 
         // Javadoc inherited from supertype
+        @Override
 	public String toString() {
+            StringBuilder builder = new StringBuilder(200);
             URL[] urls = super.getURLs();
-	    return this.getClass().getName() 
-		+ "[importURLs=" 
-                + (urls==null?null:Arrays.asList(urls))
-                + ","
-	        + "exportURLs="  
-                + (exportURLs==null?null:Arrays.asList(exportURLs))
-                + ","                    
-	        + "parent=" + getParent() 
-                + ","                    
-	        + "id=" + id 
-                + "]";
+	    return builder
+                .append(this.getClass().getName())
+		.append( "[importURLs=" )
+                .append(urls==null?null:Arrays.asList(urls))
+                .append(",")
+	        .append("exportURLs=") 
+                .append(exportURLs==null?null:Arrays.asList(exportURLs))
+                .append(",")                   
+	        .append("parent=").append(getParent())
+                .append(",")                   
+	        .append("id=").append(id)
+                .append("]").toString();
 	}
     }
     
@@ -382,6 +387,7 @@ public class ActivateWrapper implements Remote, Serializable {
      *
      * @param id The <code>ActivationID</code> of this object
      * @param data The activation data for this object
+     * @throws java.lang.Exception
      *
      * @see com.sun.jini.start.ActivateWrapper.ExportClassLoader
      * @see com.sun.jini.start.ActivateWrapper.ActivateDesc
@@ -586,10 +592,11 @@ public class ActivateWrapper implements Remote, Serializable {
         // Create desired permission object
 	Permission perm = new SharedActivationPolicyPermission(policy);
         Certificate[] certs = null;
-        CodeSource cs = null;
-	 ProtectionDomain pd = null;
+        CodeSource cs;
+	 ProtectionDomain pd;
 	// Loop over all codebases
-	for (int i=0; i < urls.length; i++) {
+        int l = urls.length;
+	for (int i=0; i < l; i++) {
             // Create ProtectionDomain for given codesource
 	    cs = new CodeSource(urls[i], certs);
 	    pd = new ProtectionDomain(cs, null, null, null);
@@ -627,7 +634,7 @@ public class ActivateWrapper implements Remote, Serializable {
         } else if (urls.length == 1) {
             return urls[0].toExternalForm();
         } else {
-            StringBuffer path = new StringBuffer(urls[0].toExternalForm());
+            StringBuilder path = new StringBuilder(urls[0].toExternalForm());
             for (int i = 1; i < urls.length; i++) {
                 path.append(' ');
                 path.append(urls[i].toExternalForm());
@@ -637,7 +644,7 @@ public class ActivateWrapper implements Remote, Serializable {
     }
     
     static Policy getServicePolicyProvider(Policy service_policy) throws Exception {
-        Policy servicePolicyWrapper = null;
+        Policy servicePolicyWrapper;
         if (servicePolicyProvider != null) {
  	    Class sp = Class.forName(servicePolicyProvider);
 	    logger.log(Level.FINEST, 

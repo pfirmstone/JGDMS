@@ -545,25 +545,25 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                         public List<Thread> run() throws Exception {
                             Thread t;
                             List<Thread> list = new ArrayList<Thread>(6);
-                            list.add(newDaemonThread(new ServiceExpire(RegistrarImpl.this), "service expire"));
-                            list.add(newDaemonThread(new EventExpire(RegistrarImpl.this),"event expire"));
+                            list.add(newThread(new ServiceExpire(RegistrarImpl.this), "service expire"));
+                            list.add(newThread(new EventExpire(RegistrarImpl.this),"event expire"));
                             unicast = new Unicast(RegistrarImpl.this, unicastPort);
                             list.add(newInterruptStatusThread(unicast, "unicast request"));
                             list.add(newInterruptStatusThread(new Multicast(RegistrarImpl.this), "multicast request"));
-                            list.add(newDaemonThread(new Announce(RegistrarImpl.this),"discovery announcement"));
-                            list.add(newDaemonThread(new Snapshot(RegistrarImpl.this),"snapshot thread"));
+                            list.add(newThread(new Announce(RegistrarImpl.this),"discovery announcement"));
+                            list.add(newThread(new Snapshot(RegistrarImpl.this),"snapshot thread"));
                             return list;
                         }
                         
-                        private Thread newDaemonThread(Runnable r, String name){
+                        private Thread newThread(Runnable r, String name){
                             Thread t = new Thread(r,name);
-                            t.setDaemon(true);
+                            t.setDaemon(false);
                             return t;
                         }
                         
                         private Thread newInterruptStatusThread(Runnable r, String name){
                             Thread t = new InterruptedStatusThread(r,name);
-                            t.setDaemon(true);
+                            t.setDaemon(false);
                             return t;
                         }
                 
@@ -2377,7 +2377,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     /** Service lease expiration thread code */
     private static class ServiceExpire implements Runnable {
         final RegistrarImpl reggie;
-	/** Create a daemon thread */
+        
 	public ServiceExpire(RegistrarImpl reggie) {
 	    this.reggie = reggie;
 	}
@@ -2503,7 +2503,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		reggie.serverExporter.unexport(true);
             }
 
-	    /* all daemons must terminate before deleting persistent store */
+	    /* all threads must terminate before deleting persistent store */
 	    reggie.serviceExpirer.interrupt();
 	    reggie.eventExpirer.interrupt();
 	    reggie.unicaster.interrupt();
@@ -2826,13 +2826,19 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 * on all platforms.
 	 */
 	public void interrupt() {
-	    try {
                 interrupted = true;
+            AccessController.doPrivileged( new PrivilegedAction(){
+                public Object run(){
+                    try {
                 Socket s = reggie.socketFactory.createSocket(InetAddress.getLocalHost(), port);
                 s.close();
 	    } catch (IOException e) {
+                    } finally {
+                        return null;
 	    }
 	}
+            });
+    }
     }
 
     /** Multicast discovery announcement thread code. */
@@ -3728,7 +3734,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    /* create a UnicastThread that listens on the new port */
             unicast = new Unicast(this, port);
 	    Thread newUnicaster = new InterruptedStatusThread( unicast , "unicast request");
-            newUnicaster.setDaemon(true);
+            newUnicaster.setDaemon(false);
 	    /* terminate the current UnicastThread listening on the old port */
 	    unicaster.interrupt();
 	    try {
@@ -4946,7 +4952,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 config, COMPONENT, "serviceIdGenerator", UuidGenerator.class,
                 u);
             // Set up Executor to perform remote event notifications
-            double blocking_coefficient = 0.9; // 0 CPU intensive to 0.9 IO intensive
+            double blocking_coefficient = 0.7; // 0 CPU intensive to 0.9 IO intensive
             int numberOfCores = Runtime.getRuntime().availableProcessors();
             int poolSizeLimit = (int) (numberOfCores / ( 1 - blocking_coefficient));
             this.scheduledExecutor = Config.getNonNullEntry(
@@ -4956,7 +4962,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                 ScheduledExecutorService.class, 
                 new ScheduledThreadPoolExecutor(
                     poolSizeLimit,
-                    new NamedThreadFactory("Reggie_Event_Notifier", true)   
+                    new NamedThreadFactory("Reggie_Event_Notifier", false)   
                 )
             );
             // Set up Executor to perform discovery responses
@@ -4971,7 +4977,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
                     15L, 
                     TimeUnit.MINUTES, 
                     new LinkedBlockingQueue(), /* Unbounded Queue */
-                    new NamedThreadFactory("Reggie_Discovery_Response", true)
+                    new NamedThreadFactory("Reggie_Discovery_Response", false)
                 ) 
             );
             this.unexportTimeout = Config.getLongEntry(
@@ -5822,7 +5828,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	Object val = subEventByService.get(sid);
 	if (val instanceof EventReg) {
 	    generateEvent((EventReg)val, pre, post, sid, now);
-	} else if (val != null) {
+	} else if (val instanceof EventReg[]) {
 	    EventReg[] regs = (EventReg[])val;
 	    for (int i = regs.length; --i >= 0; ) {
 		generateEvent(regs[i], pre, post, sid, now);

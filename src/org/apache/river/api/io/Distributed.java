@@ -88,9 +88,9 @@ package org.apache.river.api.io;
  * Caveat:<br>
  * Distributed Objects cannot be stored directly in a 
  * {@link java.rmi.MarshalledObject}, a {@link net.jini.io.MarshalledInstance}
- * must first be created and converted, also a Distributed Object will
+ * must first be created and converted, also a Distributed Object will be
  * returned as a {@link SerialReflectionFactory} when {@link java.rmi.MarshalledObject}
- * is un-marshaled, the {@link java.rmi.MarshalledObject} must first be
+ * is un-marshaled, a {@link java.rmi.MarshalledObject} must first be
  * converted to {@link net.jini.io.MarshalledInstance} before un-marshaling.
  * <p>
  * @author Peter Firmstone.

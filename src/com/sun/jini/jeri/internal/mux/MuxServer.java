@@ -200,6 +200,7 @@ public class MuxServer extends Mux {
      *
      * This method must NOT be invoked while synchronized on muxLock.
      **/
+    @Override
     void handleOpen(int sessionID) throws ProtocolException {
 	assert !Thread.holdsLock(muxLock);
 
@@ -235,11 +236,13 @@ public class MuxServer extends Mux {
 	addSession(sessionID, session);
 	try {
 	    userThreadPool.execute(new Runnable() {
+                @Override
 		public void run() {
 		    final InboundRequest request = session.getInboundRequest();
 		    try {
 			AccessController.doPrivileged(securityContext.wrap(
 			    new PrivilegedAction() {
+                                @Override
 				public Object run() {
 				    requestDispatcher.dispatch(request);
 				    return null;

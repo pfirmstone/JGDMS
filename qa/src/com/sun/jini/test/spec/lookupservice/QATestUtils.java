@@ -42,7 +42,9 @@ import java.lang.reflect.InvocationTargetException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QATestEnvironment;
+import java.util.Collection;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 
 import java.util.logging.Logger;
@@ -475,7 +477,7 @@ public class QATestUtils {
      *  @param serviceRegs array of ServiceRegistrations of each service
      *  @exception TestException usually indicates a failure
      */
-    public static void verifyEventVector(List<ServiceEvent> events,
+    public static void verifyEventVector(Collection<ServiceEvent> events,
                                          int nExpectedEvnts,
                                          int expectedTransition,
                                          ServiceRegistration[] serviceRegs)
@@ -488,12 +490,12 @@ public class QATestUtils {
                                              ") != # of Events Expected ("+
                                              nExpectedEvnts+")");
 	} else {
-            Collections.sort(events, new RemoteEventComparator());
             ServiceID evntSrvcID;
             ServiceID expdSrvcID;
             ServiceID handbackSrvcID;
-	    for(int i=0; i<events.size(); i++) {
-                evnt = (ServiceEvent)events.get(i);
+            Iterator<ServiceEvent> it = events.iterator();
+	    for (int i = 0; it.hasNext(); i++) {
+                evnt = it.next();
                 if (evnt == null) {
                     throw new TestException
                              ("null Event returned from Vector at element "+i);
@@ -529,15 +531,16 @@ public class QATestUtils {
 	verifyEventItems(events);
     }
 
-    public static void dumpEventIDs(List<ServiceEvent> events,
+    public static void dumpEventIDs(Collection<ServiceEvent> events,
                                     ServiceRegistration[] serviceRegs)
     {
         ServiceEvent evnt = null;
 	ServiceID evntSrvcID;
 	ServiceID expdSrvcID;
 	ServiceID handbackSrvcID;
-	for(int i=0; i<events.size(); i++) {
-	    evnt = (ServiceEvent)events.get(i);
+        Iterator<ServiceEvent> it = events.iterator();
+	for ( int i = 0; it.hasNext(); i++) {
+	    evnt = it.next();
 	    evntSrvcID = evnt.getServiceID();
 	    expdSrvcID = serviceRegs[i].getServiceID();
 	    System.out.println("Expected ID = " + expdSrvcID + ", received ID = " + evntSrvcID);
@@ -557,11 +560,11 @@ public class QATestUtils {
      *  @param events List containing the events to test
      *  @exception TestException usually indicates a failure
      */
-    public static void verifyEventItems(List<ServiceEvent> events)
+    public static void verifyEventItems(Collection<ServiceEvent> eventsCollection)
 	throws Exception
     {
-        Collections.sort(events, new RemoteEventComparator());
 	ServiceTemplate tmpl;
+        List<ServiceEvent> events = new ArrayList<ServiceEvent>(eventsCollection);
     outer:
 	for (int i = 0; i < events.size(); i++) {
 	    ServiceEvent evnt = (ServiceEvent)events.get(i);

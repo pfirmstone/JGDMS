@@ -399,10 +399,10 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
     private class Notifier extends Thread {
         // In case client code catches and resets interrupt.
         private volatile boolean interrupted = false;
-	/** Construct a daemon thread */
+        
 	public Notifier() {
 	    super("event notifier");
-	    setDaemon(true);
+	    setDaemon(false);
 	}//end constructor
         
         public void interrupt(){

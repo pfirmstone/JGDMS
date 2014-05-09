@@ -974,10 +974,10 @@ abstract class NormServerBaseImpl
     static class RenewLogThread extends InterruptedStatusThread {
         private PersistentStore store;
         private final List renewedList;
-	/** Create a daemon thread */
+	/** Don't create a daemon thread incase the jvm exits during store */
 	RenewLogThread(List renewedList) {
 	    super("log renewals thread");
-	    setDaemon(true);
+	    setDaemon(false);
             this.renewedList = renewedList;
             
 	}
@@ -1359,10 +1359,10 @@ abstract class NormServerBaseImpl
      */
     class SnapshotThread extends InterruptedStatusThread {
         private final PersistentStore store;
-	/** Create a daemon thread */
+	/** Don't create a daemon thread in case the jvm exits during snapshot */
 	SnapshotThread(PersistentStore store) {
 	    super("snapshot thread");
-	    setDaemon(true);
+	    setDaemon(false);
             this.store = store;
 	}
 

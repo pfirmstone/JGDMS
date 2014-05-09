@@ -66,7 +66,7 @@ public class SynchronousExecutors implements Startable {
         distributorWaiting = new AtomicBoolean(false);
         distributor = new Distributor(queues, pool, distributorLock, workToDo, distributorWaiting);
         distributorThread = new Thread(distributor ,"SynchronousQueueArray distributor");
-        distributorThread.setDaemon(true);
+        distributorThread.setDaemon(false);
     }
     
     void addQueue(Queue<Callable> queue){

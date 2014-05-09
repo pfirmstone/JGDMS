@@ -191,7 +191,7 @@ class LeaseExpirationMgr implements WeakTable.KeyGCHandler {
 
 	ExpirationThread() {
 	    super("expire lease sets thread");
-	    setDaemon(true);
+	    setDaemon(false);
 	}
 
 	public void run() {

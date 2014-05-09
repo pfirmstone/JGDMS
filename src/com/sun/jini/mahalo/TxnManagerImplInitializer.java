@@ -65,13 +65,15 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  */
 class TxnManagerImplInitializer {
     /* Default tuning parameters for thread pool */
-    int settlerthreads = 150;
+    int cores = Runtime.getRuntime().availableProcessors();
+    int settlerthreads = 15*cores;
     long settlertimeout = 1000 * 15;
     float settlerload = 1.0F;
-    int taskthreads = 50;
+    int taskthreads = 5*cores;
     long tasktimeout = 1000 * 15;
     float taskload = 1.0F;
-    ConcurrentMap<Long, TxnManagerTransaction> txns = new ConcurrentHashMap<Long, TxnManagerTransaction>();
+    ConcurrentMap<Long, TxnManagerTransaction> txns =
+            new ConcurrentHashMap<Long, TxnManagerTransaction>();
     /* Retrieve values from properties.          */
     ActivationSystem activationSystem = null;
     boolean activationPrepared = false;

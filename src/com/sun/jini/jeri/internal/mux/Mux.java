@@ -237,9 +237,7 @@ abstract class Mux {
                     }
 		}
 		if (muxDown) {
-		    IOException ioe = new IOException(muxDownMessage);
-		    ioe.initCause(muxDownCause);
-		    throw ioe;
+		    throw new IOException(muxDownMessage, muxDownCause);
 		}
 	    }
 	}

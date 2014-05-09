@@ -446,6 +446,7 @@ public final class ActivatableInvocationHandler
      * @throws	Throwable {@inheritDoc}
      * @see	java.lang.reflect.UndeclaredThrowableException
      **/
+    @Override
     public Object invoke(Object proxy, Method method, Object[] args)
 	throws Throwable
     {
@@ -878,6 +879,7 @@ public final class ActivatableInvocationHandler
 	    private RemoteException ex = null;
 	    private boolean advance = true;
 
+            @Override
 	    public synchronized boolean hasNext() {
 		if (advance) {
 		    advance = false;
@@ -929,6 +931,7 @@ public final class ActivatableInvocationHandler
 		return retries >= 0;
 	    }
 
+            @Override
 	    public synchronized Object next() throws RemoteException {
 		if (!hasNext()) {
 		    throw new NoSuchElementException();
@@ -943,6 +946,7 @@ public final class ActivatableInvocationHandler
 		}
 	    }
 
+            @Override
 	    public synchronized void setException(RemoteException e) {
 		if (e == null) {
 		    throw new NullPointerException("exception is null");
@@ -988,6 +992,7 @@ public final class ActivatableInvocationHandler
      * specified object, returns <code>false</code>.
      * </ul>
      **/
+    @Override
     public boolean checkTrustEquivalence(Object obj) {
 	if (this == obj) {
 	    return true;
@@ -1082,7 +1087,7 @@ public final class ActivatableInvocationHandler
 		throw new ActivateFailedException("unexpected activation id");
 	    }
 	    
-	    Remote newUproxy = null;
+	    Remote newUproxy;
             synchronized (handler){
                 newUproxy = handler.uproxy;
             }
