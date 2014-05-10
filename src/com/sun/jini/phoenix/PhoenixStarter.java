@@ -26,13 +26,15 @@ import com.sun.jini.start.ServiceProxyAccessor;
  * com.sun.jini.start.ServiceStarter}. 
  **/
 class PhoenixStarter implements ServiceProxyAccessor {
-
+    /**
+     * These fields cannot be final, this escaped during construction.
+     */
     /** reference to recovered Activation instance */
-    private final Activation phoenixImpl;
+    private Activation phoenixImpl;
     /** the ActivationSystem proxy */
-    private final Object serviceProxy;
+    private Object serviceProxy;
     /** the LifeCycle callback object */
-    private final LifeCycle lifeCycle;
+    private LifeCycle lifeCycle;
 
     /**
      * Constructs a <code>PhoenixStarter</code> instance.  This

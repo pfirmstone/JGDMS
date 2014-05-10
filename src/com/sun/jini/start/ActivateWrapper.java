@@ -282,17 +282,18 @@ public class ActivateWrapper implements Remote, Serializable {
         // Javadoc inherited from supertype
         @Override
 	public String toString() {
-	    return "[className=" + className + ","
-	        + "importLocation=" 
-                + ((importLocation == null) 
-                    ? null : Arrays.asList(importLocation)) 
-                + ","
-	        + "exportLocation="  
-                + ((exportLocation == null) 
-                    ? null : Arrays.asList(exportLocation)) 
-                + ","                    
-	        + "policy=" + policy + ","
-	        + "data=" + data + "]";
+            StringBuilder builder = new StringBuilder(260);
+	    return builder.append("[className=").append(className).append(",")
+	        .append("importLocation=" )
+                .append( ((importLocation == null) 
+                    ? null : Arrays.asList(importLocation)) )
+                .append(",")
+	        .append("exportLocation=")
+                .append( ((exportLocation == null) 
+                    ? null : Arrays.asList(exportLocation)) )
+                .append(",")                    
+	        .append("policy=").append(policy).append( ",")
+	        .append("data=").append(data).append("]").toString();
 	}
     }
 
