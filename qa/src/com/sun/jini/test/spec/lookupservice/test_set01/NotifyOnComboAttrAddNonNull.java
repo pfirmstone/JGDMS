@@ -42,6 +42,7 @@ import java.rmi.NoSuchObjectException;
 import java.util.Vector;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 /** This class is used to verify that after using templates containing a 
@@ -68,29 +69,31 @@ public class NotifyOnComboAttrAddNonNull extends QATestRegistrar {
         /** Method called remotely by lookup to handle the generated event. */
         public void notify(RemoteEvent ev) {
             ServiceEvent srvcEvnt = (ServiceEvent)ev;
-            evntVec.add(srvcEvnt);
-            try {
-                QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
-                                      (srvcEvnt.getRegistrationObject().get());
+            synchronized (NotifyOnComboAttrAddNonNull.this){
+                evntVec.add(srvcEvnt);
+                try {
+                    QATestUtils.SrvcAttrTuple tuple = (QATestUtils.SrvcAttrTuple)
+                                          (srvcEvnt.getRegistrationObject().get());
 
-                receivedTuples.add(new QATestUtils.SrvcAttrTuple
-                                                   (srvcItems,addAttrs,
-                                                    tuple.getSrvcObj(),
-                                                    tuple.getAttrObj(),
-                                                    srvcEvnt.getTransition()));
-            } catch (ClassNotFoundException e) {
-                logger.log(Level.INFO, "Unexpected exception", e);
-            } catch (IOException e) {
-                logger.log(Level.INFO, "Unexpected exception", e);
+                    receivedTuples.add(new QATestUtils.SrvcAttrTuple
+                                                       (srvcItems,addAttrs,
+                                                        tuple.getSrvcObj(),
+                                                        tuple.getAttrObj(),
+                                                        srvcEvnt.getTransition()));
+                } catch (ClassNotFoundException e) {
+                    logger.log(Level.INFO, "Unexpected exception", e);
+                } catch (IOException e) {
+                    logger.log(Level.INFO, "Unexpected exception", e);
+                }
             }
         }
     }
 
     protected QATestUtils.SrvcAttrTuple[][][] oldState;
     protected QATestUtils.SrvcAttrTuple[][][] newState;
-    protected List expectedTuples = new Vector();
-    protected List receivedTuples = new Vector();
-    protected List<ServiceEvent> evntVec = new Vector<ServiceEvent>();
+    protected List expectedTuples = new ArrayList(2850);
+    protected List receivedTuples = new ArrayList(2850);
+    protected List<ServiceEvent> evntVec = new ArrayList<ServiceEvent>(2850);
 
     private ServiceItem[] srvcItems;
     private ServiceItem[] srvcsForEquals;

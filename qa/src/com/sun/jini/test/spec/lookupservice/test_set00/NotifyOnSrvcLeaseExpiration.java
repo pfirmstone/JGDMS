@@ -69,10 +69,10 @@ public class NotifyOnSrvcLeaseExpiration extends QATestRegistrar {
         public void notify(RemoteEvent ev) {
             ServiceEvent srvcEvnt = (ServiceEvent)ev;
             synchronized (NotifyOnSrvcLeaseExpiration.this){
-            evntVec.add(srvcEvnt);
+                evntVec.add(srvcEvnt);
+            }
         }
     }
-        }
 
     protected List<ServiceEvent> evntVec = new ArrayList<ServiceEvent>(50);
 

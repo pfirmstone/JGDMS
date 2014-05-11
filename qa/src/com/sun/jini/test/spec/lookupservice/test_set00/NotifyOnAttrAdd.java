@@ -25,6 +25,7 @@ import com.sun.jini.qa.harness.TestException;
 
 import com.sun.jini.test.spec.lookupservice.QATestRegistrar;
 import com.sun.jini.test.spec.lookupservice.QATestUtils;
+import com.sun.jini.test.spec.lookupservice.RemoteEventComparator;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceItem;
@@ -42,6 +43,8 @@ import java.rmi.RemoteException;
 import java.rmi.NoSuchObjectException;
 import java.util.Vector;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** This class is used to verify that after using templates containing only 
@@ -64,11 +67,13 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
         /** Method called remotely by lookup to handle the generated event. */
         public void notify(RemoteEvent ev) {
             ServiceEvent srvcEvnt = (ServiceEvent)ev;
-            evntVec.add(srvcEvnt);
+            synchronized (NotifyOnAttrAdd.this){
+                evntVec.add(srvcEvnt);
+            }
         }
     }
 
-    protected final List<ServiceEvent> evntVec = new Vector<ServiceEvent>();
+    protected final List<ServiceEvent> evntVec = new ArrayList<ServiceEvent>(50);
 
     private ServiceItem[] srvcItems ;
     private ServiceRegistration[] srvcRegs ;
@@ -185,6 +190,7 @@ public class NotifyOnAttrAdd extends QATestRegistrar {
 	}
 
 	logger.log(Level.FINE, "Checking for the expected set of events.");
+        Collections.sort(evntVec, new RemoteEventComparator());
 	QATestUtils.verifyEventVector(evntVec,nExpectedEvnts,
 				      EXPECTED_TRANSITION,srvcRegs);
     }

@@ -42,6 +42,7 @@ import java.rmi.NoSuchObjectException;
 import java.util.Vector;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.ArrayList;
 import java.util.List;
 
 /** This class is used to verify that after using templates containing a 
@@ -88,9 +89,9 @@ public class NotifyOnComboAttrSet extends QATestRegistrar {
 
     protected QATestUtils.SrvcAttrTuple[][][] oldState;
     protected QATestUtils.SrvcAttrTuple[][][] newState;
-    protected List expectedTuples = new Vector();
-    protected List receivedTuples = new Vector();
-    protected List<ServiceEvent> evntVec = new Vector<ServiceEvent>();
+    protected List expectedTuples = new ArrayList(2850);
+    protected List receivedTuples = new ArrayList(2850);
+    protected List<ServiceEvent> evntVec = new ArrayList<ServiceEvent>(2850);
 
     private ServiceItem[] srvcItems;
     private ServiceItem[] srvcsForEquals;
