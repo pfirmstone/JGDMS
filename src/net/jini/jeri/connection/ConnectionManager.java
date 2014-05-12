@@ -295,7 +295,7 @@ public final class ConnectionManager {
     /**
      * Subclass wrapper around MuxClient for outbound connections.
      */
-    private final class OutboundMux extends MuxClient {
+    private static final class OutboundMux extends MuxClient {
 	/**
 	 * The outbound connection.
 	 */
@@ -358,7 +358,7 @@ public final class ConnectionManager {
 	 */
         @Override
 	public OutboundRequest newRequest() throws IOException {
-	    assert !Thread.holdsLock(ConnectionManager.this);
+//	    assert !Thread.holdsLock(ConnectionManager.this);
             boolean interrupted = false;
 	    try {
                 boolean start = false;
@@ -369,8 +369,8 @@ public final class ConnectionManager {
                                 startLock.wait();
                             } catch (InterruptedException ex) {
                                 interrupted = true;
-		    }
-		}
+                            }
+                        }
                         if (notStarted){
                             starting = true;
                             start = true;
@@ -378,25 +378,27 @@ public final class ConnectionManager {
                     }
                     if (start){
                         try {
-                            start();
-	    } finally {
+                            synchronized (this){
+                                start();
+                            }
+                        } finally {
                             synchronized (startLock){
                                 notStarted = false;
                                 starting = false;
                                 startLock.notifyAll();
-		    }
-		}
-	    }
+                            }
+                        }
+                    }
                 }
                 synchronized (this) {
-		idleTime = 0;
-		return super.newRequest();
-	    }
+                    idleTime = 0;
+                }
+                return super.newRequest();
 	    } finally {
                 synchronized (this) {
                     assert pendingNewRequests > 0;
                     pendingNewRequests--;
-	}
+                }
                 if (interrupted) Thread.currentThread().interrupt();
             }
 	}
@@ -547,7 +549,7 @@ public final class ConnectionManager {
 	     * Calls readResponseData on the connection, exactly once.
 	     * Sets the handle to null to indicate that it has been called.
 	     */
-	    private synchronized void readFirst() throws IOException {
+	    private void readFirst() throws IOException {
 		if (handle != null) {
 		    try {
 			IOException e = c.readResponseData(handle, in);
@@ -645,7 +647,11 @@ public final class ConnectionManager {
     /**
      * Outbound request iterator returned by newRequest.
      */
-    private final class ReqIterator implements OutboundRequestIterator {
+    private static final class ReqIterator implements OutboundRequestIterator {
+        /**
+         * ConnectionManager
+         */
+        private final ConnectionManager manager;
 	/**
 	 * The request handle.
 	 */
@@ -659,8 +665,9 @@ public final class ConnectionManager {
 	 */
 	private OutboundMux mux;
 
-	ReqIterator(OutboundRequestHandle handle) {
+	ReqIterator(OutboundRequestHandle handle, ConnectionManager cm) {
 	    this.handle = handle;
+            manager = cm;
 	}
 
 	/**
@@ -686,7 +693,7 @@ public final class ConnectionManager {
 		throw new NoSuchElementException();
 	    }
 	    first = false;
-	    mux = connect(handle);
+	    mux = manager.connect(handle);
 	    OutboundRequest req = mux.newRequest();
 	    OutboundRequest sreq = null;
 	    try {
@@ -695,7 +702,7 @@ public final class ConnectionManager {
 		sreq = new Outbound(req, c, handle);
 	    } finally {
 		if (sreq == null) {
-		    remove(mux);
+		    manager.remove(mux);
 		}
 	    }
 	    return sreq;
@@ -759,6 +766,6 @@ public final class ConnectionManager {
      * <code>null</code>
      **/
     public OutboundRequestIterator newRequest(OutboundRequestHandle handle) {
-	return new ReqIterator(handle);
+	return new ReqIterator(handle, this);
     }
 }

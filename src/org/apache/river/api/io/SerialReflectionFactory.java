@@ -219,9 +219,7 @@ public final class SerialReflectionFactory implements Externalizable {
          * object to do so if needs to.
          */
         out.writeObject(parameterTypes);
-        int l = parameters != null ? parameters.length : 0;
-        // Write length to stream.
-        out.writeByte(l);
+        int l = parameterTypes != null ? parameterTypes.length : 0;
         for (int i = 0; i < l; i++){
             writeObject(parameters[i], out);
         }
@@ -339,7 +337,7 @@ public final class SerialReflectionFactory implements Externalizable {
         classOrObject = in.readObject();
         method = (String) in.readObject();
         parameterTypes = (Class[]) in.readObject();
-        byte len = in.readByte();
+        int len = parameterTypes != null ? parameterTypes.length : 0;
         parameters = len == 0 ? null : new Object[len];
         for (int i = 0; i < len; i++){
             parameters[i] = readObject(in);

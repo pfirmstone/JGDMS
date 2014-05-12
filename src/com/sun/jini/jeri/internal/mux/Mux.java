@@ -36,6 +36,7 @@ import java.util.BitSet;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -88,7 +89,7 @@ abstract class Mux {
 	    new GetThreadPoolAction(false));
 
     /** session shutdown tasks to be executed asynchronously */
-    private static final LinkedList sessionShutdownQueue = new LinkedList();
+    private static final Queue<Runnable> sessionShutdownQueue = new LinkedList<Runnable>();
 
     private static class SessionShutdownTask implements Runnable {
 	private final Session[] sessions;
@@ -134,7 +135,7 @@ abstract class Mux {
     Throwable muxDownCause;
 
     final BitSet busySessions = new BitSet();
-    final Map sessions = new HashMap(5);
+    final Map<Integer,Session> sessions = new HashMap<Integer,Session>(128);
 
     private int expectedPingCookie = -1;
     
@@ -205,13 +206,14 @@ abstract class Mux {
      * see uninitialized state.
      */
     public void start() throws IOException {
-	if (role == CLIENT) {
-	    readState = READ_SERVER_CONNECTION_HEADER;
-	} else {
-	    assert role == SERVER;
-	    readState = READ_CLIENT_CONNECTION_HEADER;
-	}
-
+        synchronized (readStateLock){
+            if (role == CLIENT) {
+                readState = READ_SERVER_CONNECTION_HEADER;
+            } else {
+                assert role == SERVER;
+                readState = READ_CLIENT_CONNECTION_HEADER;
+            }
+        }
 	try {
 	    connectionIO.start();
 	} catch (IOException e) {
@@ -220,8 +222,8 @@ abstract class Mux {
 	}
 
 	if (role == CLIENT) {
-	    asyncSendClientConnectionHeader();
 	    synchronized (muxLock) {
+                asyncSendClientConnectionHeader();
 		long now = System.currentTimeMillis();
 		long endTime = now + this.startTimeout;
 		while (!muxDown && !clientConnectionReady) {
@@ -287,39 +289,37 @@ abstract class Mux {
      * This method MAY be invoked while synchronized on muxLock.
      */
     final void setDown(final String message, final Throwable cause) {
+        boolean needWorker = false;
 	synchronized (muxLock) {
-	    if (muxDown) {
-		return;
-	    }
+	    if (muxDown) return;
 	    muxDown = true;
 	    muxDownMessage = message;
 	    muxDownCause = cause;
 	    muxLock.notifyAll();
-	}
+            /*
+             * The following should be safe because we just left the
+             * synchonized block, and after setting the muxDown latch
+             * therein, no other thread should ever touch the "sessions"
+             * data structure.
+             *
+             * Sessions are shut down asynchronously in a separate thread
+             * to avoid deadlock, in case our caller holds muxLock,
+             * because individual session locks must never be acquired
+             * while holding muxLock.
+             */
 
-	/*
-	 * The following should be safe because we just left the
-	 * synchonized block, and after setting the muxDown latch
-	 * therein, no other thread should ever touch the "sessions"
-	 * data structure.
-	 *
-	 * Sessions are shut down asynchronously in a separate thread
-	 * to avoid deadlock, in case our caller holds muxLock,
-	 * because individual session locks must never be acquired
-	 * while holding muxLock.
-	 */
-	boolean needWorker = false;
-	synchronized (sessionShutdownQueue) {
-	    if (!sessions.values().isEmpty()) {
-		sessionShutdownQueue.add(new SessionShutdownTask(
-		    (Session[]) sessions.values().toArray(
-			new Session[sessions.values().size()]),
-		    message, cause));
-		needWorker = true;
-	    } else {
-		needWorker = !sessionShutdownQueue.isEmpty();
-	    }
-	}
+            synchronized (sessionShutdownQueue) {
+                if (!sessions.isEmpty()) {
+                    sessionShutdownQueue.add(new SessionShutdownTask(
+                        (Session[]) sessions.values().toArray(
+                            new Session[sessions.values().size()]),
+                        message, cause));
+                    needWorker = true;
+                } else {
+                    needWorker = !sessionShutdownQueue.isEmpty();
+                }
+            }
+        }
 	if (needWorker) {
 	    try {
 		systemThreadPool.execute(new Runnable() {
@@ -327,11 +327,8 @@ abstract class Mux {
 			while (true) {
 			    Runnable task;
 			    synchronized (sessionShutdownQueue) {
-				if (sessionShutdownQueue.isEmpty()) {
-				    break;
-				}
-				task = (Runnable)
-				    sessionShutdownQueue.removeFirst();
+				if (sessionShutdownQueue.isEmpty()) break;
+				task = sessionShutdownQueue.remove();
 			    }
 			    task.run();
 			}

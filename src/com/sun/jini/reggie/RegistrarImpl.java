@@ -80,6 +80,8 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
+import java.util.PriorityQueue;
+import java.util.Queue;
 import java.util.Random;
 import java.util.Set;
 import java.util.SortedMap;
@@ -220,7 +222,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
      * Map from ServiceID to SvcReg.  Every service is in this map under
      * its serviceID.
      */
-    private final Map<ServiceID,SvcReg> serviceByID = new HashMap<ServiceID,SvcReg>();
+    private final Map<ServiceID,SvcReg> serviceByID = new HashMap<ServiceID,SvcReg>(200);
     /**
      * Identity map from SvcReg to SvcReg, ordered by lease expiration.
      * Every service is in this map.
@@ -231,7 +233,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
      * is in this map under its types.
      */
     private final Map<String,Map<ServiceID,SvcReg>> serviceByTypeName 
-            = new HashMap<String,Map<ServiceID,SvcReg>>();
+            = new HashMap<String,Map<ServiceID,SvcReg>>(200);
     /**
      * Map from EntryClass to HashMap[] where each HashMap is a map from
      * Object (field value) to ArrayList(SvcReg).  The HashMap array has as
@@ -259,23 +261,23 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
      * Map from Long(eventID) to EventReg.  Every event registration is in
      * this map under its eventID.
      */
-    private final Map<Long,EventReg> eventByID = new HashMap<Long,EventReg>(11);
+    private final Map<Long,EventReg> eventByID = new HashMap<Long,EventReg>(200);
     /**
      * Identity map from EventReg to EventReg, ordered by lease expiration.
      * Every event registration is in this map.
      */
-    private final SortedMap<EventReg,EventReg> eventByTime = new TreeMap<EventReg,EventReg>();
+    private final Queue<EventReg> eventByTime = new PriorityQueue<EventReg>();
     /**
      * Map from ServiceID to EventReg or EventReg[].  An event
      * registration is in this map if its template matches on (at least)
      * a specific serviceID.
      */
-    private final Map<ServiceID,Object> subEventByService = new HashMap<ServiceID,Object>(11);
+    private final Map<ServiceID,Object> subEventByService = new HashMap<ServiceID,Object>(200);
     /**
      * Map from Long(eventID) to EventReg.  An event registration is in
      * this map if its template matches on ANY_SERVICE_ID.
      */
-    private final Map<Long,EventReg> subEventByID = new HashMap<Long,EventReg>(11);
+    private final Map<Long,EventReg> subEventByID = new HashMap<Long,EventReg>(200);
 
     /** Generator for resource (e.g., registration, lease) Uuids */
     private final UuidGenerator resourceIdGenerator;
@@ -527,7 +529,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         unicastDiscoveryConstraints = init.unicastDiscoveryConstraints;
         context = init.context;
         eventNotifierExec = new SynchronousExecutors(init.scheduledExecutor);
-        eventTaskMap = new TreeMap<EventReg,ExecutorService>();
+        eventTaskMap = new HashMap<EventReg,ExecutorService>(200);
         discoveryResponseExec = init.executor;
         ReliableLog log = null;
         Thread serviceExpirer = null;
@@ -729,17 +731,33 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    this.leaseExpiration = leaseExpiration;
 	}
         
-        synchronized long incrementSeqNo(long increment){
-            seqNo += increment;
-            return seqNo;
-        }
-        
-        synchronized long incrementAndGetSeqNo(){
+        long incrementAndGetSeqNo(){
             return ++seqNo;
         }
         
-        synchronized long getSeqNo(){
+        long getSeqNo(){
             return seqNo;
+        }
+
+        @Override
+        public int hashCode() {
+            int hash = 7;
+            hash = 97 * hash + (int) (this.eventID ^ (this.eventID >>> 32));
+            hash = 97 * hash + (this.leaseID != null ? this.leaseID.hashCode() : 0);
+            hash = 97 * hash + this.transitions;
+            hash = 97 * hash + (this.handback != null ? this.handback.hashCode() : 0);
+            return hash;
+        }
+        
+        @Override
+        public boolean equals(Object o){
+            if (this == o) return true;
+            if (!(o instanceof EventReg)) return false;
+            EventReg that = (EventReg) o;
+            if (this.eventID != that.eventID) return false;
+            if (this.transitions != that.transitions) return false;
+            if (!this.leaseID.equals(that.leaseID)) return false; // leaseID never null
+            return this.handback.equals(that.handback);
         }
 
 	/**
@@ -749,8 +767,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 */
 	public int compareTo(Object obj) {
 	    EventReg reg = (EventReg)obj;
-	    if (this == reg)
-		return 0;
+	    if (equals(obj)) return 0;
 	    if (getLeaseExpiration() < reg.getLeaseExpiration() ||
 		(getLeaseExpiration() == reg.getLeaseExpiration() &&
 		 eventID < reg.eventID))
@@ -762,7 +779,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 * Prepares listener (if non-null) using the given proxy preparer.  If
 	 * preparation fails, the listener field is set to null.
 	 */
-	public void prepareListener(ProxyPreparer preparer) {
+	void prepareListener(ProxyPreparer preparer) {
 	    if (listener != null) {
 		try {
 		    listener =
@@ -779,6 +796,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		    }
 		    listener = null;
 		}
+                seqNo += Integer.MAX_VALUE;
 	    }
 	}
 
@@ -1102,12 +1120,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
          * @see RegistrarImpl.LocalLogHandler#applyUpdate
 	 */
 	public void apply(RegistrarImpl regImpl) {
-            synchronized (eventReg){ // Atomic
-                eventReg.prepareListener(regImpl.recoveredListenerPreparer);
-                eventReg.incrementSeqNo(Integer.MAX_VALUE);
-            }
             regImpl.concurrentObj.writeLock();
             try{
+                eventReg.prepareListener(regImpl.recoveredListenerPreparer);
                 regImpl.addEvent(eventReg);
                 regImpl.eventID++;
             } finally {
@@ -2033,12 +2048,15 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         private final Registrar registrar;
         /* the time of the event */
         private final long now;
+        /* The listener */
+        private final RemoteEventListener listener;
 
 	/** Simple constructor, except increments reg.seqNo. */
 	public EventTask(EventReg reg, ServiceID sid, Item item, int transition, RegistrarProxy proxy, Registrar registrar, long now)
 	{
 	    this.reg = reg;
-	    seqNo = reg.incrementAndGetSeqNo();
+            this.listener = reg.listener;
+            seqNo = reg.incrementAndGetSeqNo();
 	    this.sid = sid;
 	    this.item = item;
 	    this.transition = transition;
@@ -2053,10 +2071,10 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		logger.log(
 		    Level.FINE,
 		    "notifying listener {0} of event {1}",
-		    new Object[]{ reg.listener, Long.valueOf(reg.eventID) });
+		    new Object[]{ listener, Long.valueOf(reg.eventID) });
 	    }
 	    try {
-		reg.listener.notify(new RegistrarEvent(proxy, reg.eventID,
+		listener.notify(new RegistrarEvent(proxy, reg.eventID,
 						       seqNo, reg.handback,
 						       sid, transition, item));
                 return Boolean.TRUE;
@@ -2092,18 +2110,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	    }
 	}
         
-        /** Keep events going to the same listener ordered. 
-         * Returns a positive integer if depends, 0 if 
-         * no dependency exists and a negative integer if 
-         * precedes.
-         */
-	public boolean dependsOn(EventTask obj) {
-            if (obj == null) return false;
-            if (reg.listener.equals(obj.reg.listener)) return true;
-	    return false;
-	}
-        
         /**
+         * Keep events going to the same listener ordered. 
          * This is inconsistent with Object.equals, it is simply intended to
          * order tasks by priority.
          * @param o
@@ -2437,8 +2445,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 		while (!Thread.currentThread().isInterrupted()) {
 		    long now = System.currentTimeMillis();
 		    reggie.minEventExpiration = Long.MAX_VALUE;
-		    while (!reggie.eventByTime.isEmpty()) {
-			EventReg reg = reggie.eventByTime.firstKey();
+		    for (EventReg reg = reggie.eventByTime.poll();
+                            reg != null; reg = reggie.eventByTime.poll()) {
 			if (reg.getLeaseExpiration() > now) {
 			    reggie.minEventExpiration = reg.getLeaseExpiration();
 			    break;
@@ -4298,7 +4306,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	}
 	Long id = Long.valueOf(reg.eventID);
 	eventByID.put(id, reg);
-	eventByTime.put(reg, reg);
+	eventByTime.offer(reg);
         eventTaskMap.put(reg, eventNotifierExec.newSerialExecutor(new PriorityBlockingQueue()) );
 	if (reg.tmpl.serviceID != null) {
 	    Object val = subEventByService.get(reg.tmpl.serviceID);
@@ -5701,7 +5709,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	/* force a re-sort: must remove before changing, then reinsert */
 	eventByTime.remove(reg);
 	reg.setLeaseExpiration(renewExpiration);
-	eventByTime.put(reg, reg);
+	eventByTime.offer(reg);
 	/* see if the expire thread needs to wake up earlier */
 	if (renewExpiration < minEventExpiration) {
 	    minEventExpiration = renewExpiration;
@@ -5717,13 +5725,13 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     {
         concurrentObj.writeLock();
         try {
-            EventReg reg = (EventReg)eventByID.get(Long.valueOf(eventID));
+            EventReg reg = eventByID.get(Long.valueOf(eventID));
             if (reg == null || !reg.leaseID.equals(leaseID))
                 return;
             /* force a re-sort: must remove before changing, then reinsert */
             eventByTime.remove(reg);
             reg.setLeaseExpiration(renewExpiration);
-            eventByTime.put(reg, reg);
+            eventByTime.offer(reg);
         } finally {
             concurrentObj.writeUnlock();
         }
@@ -5741,7 +5749,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     {
 	long now = System.currentTimeMillis();
 	Exception[] exceptions = null;
-	for (int i = 0; i < regIDs.length; i++) {
+        int l = regIDs.length;
+	for (int i = 0; i < l; i++) {
 	    Object id = regIDs[i];
 	    try {
 		if (id instanceof ServiceID)
@@ -6026,7 +6035,6 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	EventReg eReg;
 	while ((eReg = (EventReg)stream.readObject()) != null) {
 	    eReg.prepareListener(recoveredListenerPreparer);
-            eReg.incrementSeqNo(Integer.MAX_VALUE);
 	    addEvent(eReg);
 	}
     }

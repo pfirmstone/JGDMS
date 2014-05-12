@@ -43,12 +43,14 @@ public class BasicConnManagerFactory implements ConnManagerFactory {
      * @throws NullPointerException if <code>endpoint</code> is
      * <code>null</code>
      */
+    @Override
     public ConnManager create(final ConnectionEndpoint endpoint) {
 	return new ConnManager() {
 
 	    private final ConnectionManager manager =
-		new ConnectionManager(endpoint);
+                                            new ConnectionManager(endpoint);
 
+            @Override
 	    public OutboundRequestIterator newRequest(
 						OutboundRequestHandle handle)
 	    {
