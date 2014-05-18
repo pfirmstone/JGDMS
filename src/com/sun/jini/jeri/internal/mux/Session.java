@@ -28,8 +28,6 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.core.constraint.InvocationConstraints;
@@ -50,10 +48,10 @@ final class Session {
     static final int CLIENT = 0;
     static final int SERVER = 1;
 
-    private static final int IDLE	= 0;
-    private static final int OPEN	= 1;
-    private static final int FINISHED	= 2;
-    private static final int TERMINATED	= 3;
+    static final int IDLE	= 0;
+    static final int OPEN	= 1;
+    static final int FINISHED	= 2;
+    static final int TERMINATED	= 3;
     private static final String[] stateNames = {
 	"idle", "open", "finished", "terminated"
     };
@@ -66,11 +64,12 @@ final class Session {
      * This is not optimised, because exception conditions
      * are exceptional.
      */
-    private static boolean traceSupression(){
+    static boolean traceSupression(){
         try {
             return AccessController.doPrivileged(
                 new PrivilegedAction<Boolean>() 
                 {
+                    @Override
                     public Boolean run() {
                         return Boolean.getBoolean("com.sun.jini.jeri.server.suppressStackTraces");
                     }
@@ -90,58 +89,53 @@ final class Session {
 	    new GetThreadPoolAction(false));
 
     /** mux logger */
-    private static final Logger logger =
+    static final Logger logger =
 	Logger.getLogger("net.jini.jeri.connection.mux");
 
     private final Mux mux;
-    private final int sessionID;
-    private final int role;
+    final int sessionID;
+    final int role;
 
-    private final OutputStream out;
-    private final InputStream in;
+    private final MuxOutputStream out;
+    private final MuxInputStream in;
 
     /** lock guarding all mutable instance state (below) */
-    private final Object sessionLock = new Object();
-
-    private boolean sessionDown = false;
-    private String sessionDownMessage;
-    private Throwable sessionDownCause;
+    private final Object sessionLock;
+    private boolean sessionDown;
 
     private int outState;
     private int outRation;
-    private final boolean outRationInfinite;
-    private boolean partialDeliveryStatus = false;
+    final boolean outRationInfinite;
+    private boolean partialDeliveryStatus;
 
     private int inState;
     private int inRation;
-    private final boolean inRationInfinite;
-    private int inBufRemaining = 0;
-    private final LinkedList inBufQueue = new LinkedList();
-    private int inBufPos = 0;
-    private boolean inEOF = false;
-    private boolean inClosed = false;
+    final boolean inRationInfinite;
+		
+    private boolean removeLater;		// REMIND
 
-    private boolean fakeOKtoWrite = false;		// REMIND
-    private boolean removeLater = false;		// REMIND
+    private boolean receivedAckRequired;
 
-    private boolean receivedAckRequired = false;
-    private boolean sentAcknowledgment = false;
-
-    private final Collection<AcknowledgmentSource.Listener> ackListeners = new ArrayList<AcknowledgmentSource.Listener>(3);
-    private boolean sentAckRequired = false;
-    private boolean receivedAcknowledgment = false;
+    private final Collection<AcknowledgmentSource.Listener> ackListeners;
+    private boolean sentAckRequired;
+    private boolean receivedAcknowledgment;
 
     /**
      *
      */
     Session(Mux mux, int sessionID, int role) {
+        this.receivedAcknowledgment = false;
+        this.sentAckRequired = false;
+        this.receivedAckRequired = false;
+        this.removeLater = false;
+        this.partialDeliveryStatus = false;
+        this.sessionDown = false;
+        this.ackListeners = new ArrayList<AcknowledgmentSource.Listener>(3);
+        this.sessionLock = new Object();
 	this.mux = mux;
 	this.sessionID = sessionID;
 	this.role = role;
-
-	out = new MuxOutputStream();
-	in = new MuxInputStream();
-
+        
 	outState = (role == CLIENT ? IDLE : OPEN);
 	outRation = mux.initialOutboundRation;
 	outRationInfinite = (outRation == 0);
@@ -149,6 +143,8 @@ final class Session {
 	inState = (role == CLIENT ? IDLE : OPEN);
 	inRation = mux.initialInboundRation;
 	inRationInfinite = (inRation == 0);
+        out = new MuxOutputStream(mux, this, sessionLock);
+	in = new MuxInputStream(mux, this, sessionLock);
     }
 
     /**
@@ -157,9 +153,11 @@ final class Session {
     OutboundRequest getOutboundRequest() {
 	assert role == CLIENT;
 	return new OutboundRequest() {
+            @Override
 	    public void populateContext(Collection context) {
 		((MuxClient) mux).populateContext(context);
 	    }
+            @Override
 	    public InvocationConstraints getUnfulfilledConstraints() {
 		/*
 		 * NYI: We currently have no request-specific hook
@@ -168,13 +166,17 @@ final class Session {
 		 */
 		throw new AssertionError();
 	    }
+            @Override
 	    public OutputStream getRequestOutputStream() { return out; }
+            @Override
 	    public InputStream getResponseInputStream() { return in; }
+            @Override
 	    public boolean getDeliveryStatus() {
 		synchronized (sessionLock) {
 		    return partialDeliveryStatus;
 		}
 	    }
+            @Override
 	    public void abort() { Session.this.abort(); }
 	};
     }
@@ -185,17 +187,21 @@ final class Session {
     InboundRequest getInboundRequest() {
 	assert role == SERVER;
 	return new InboundRequest() {
+            @Override
 	    public void checkPermissions() {
 		((MuxServer) mux).checkPermissions();
 	    }
+            @Override
 	    public InvocationConstraints
 		checkConstraints(InvocationConstraints constraints)
 		throws UnsupportedConstraintException
 	    {
 		return ((MuxServer) mux).checkConstraints(constraints);
 	    }
+            @Override
 	    public void populateContext(Collection context) {
 		context.add(new AcknowledgmentSource() {
+                    @Override
 		    public boolean addAcknowledgmentListener(
 			AcknowledgmentSource.Listener listener)
 		    {
@@ -203,7 +209,7 @@ final class Session {
 			    throw new NullPointerException();
 			}
 			synchronized (sessionLock) {
-			    if (outState < FINISHED) {
+			    if (getOutState() < FINISHED) {
 				ackListeners.add(listener);
 				return true;
 			    } else {
@@ -214,8 +220,11 @@ final class Session {
 		});
 		((MuxServer) mux).populateContext(context);
 	    }
+            @Override
 	    public InputStream getRequestInputStream() { return in; }
+            @Override
 	    public OutputStream getResponseOutputStream() { return out; }
+            @Override
 	    public void abort() { Session.this.abort(); }
 	};
     }
@@ -228,15 +237,16 @@ final class Session {
 	    if (!sessionDown) {
 		if (logger.isLoggable(Level.FINEST)) {
 		    logger.log(Level.FINEST,
-			"outState=" + stateNames[outState] +
-			",inState=" + stateNames[inState] +
-			",role=" + (role == CLIENT ? "CLIENT" : "SERVER"));
+                            "outState={0},inState={1},role={2}",
+                            new Object[]{stateNames[getOutState()],
+                                stateNames[inState],
+                                role == CLIENT ? "CLIENT" : "SERVER"});
 		}
 
-		if (outState == IDLE) {
+		if (getOutState() == IDLE) {
 		    mux.removeSession(sessionID);
-		} else if (outState < TERMINATED) {
-		    if (role == SERVER && outState == FINISHED) {
+		} else if (getOutState() < TERMINATED) {
+		    if (role == SERVER && getOutState() == FINISHED) {
 			/*
 			 * In this case, send Close rather than Abort, so that
 			 * a client that still hasn't finished writing will not
@@ -259,7 +269,7 @@ final class Session {
 	     * After the application has invoked abort() on the request, we
 	     * must no longer try to "fake" an OK session.
 	     */
-	    fakeOKtoWrite = false;
+            out.abort();
 
 	    /*
 	     * If removing this session from the connection's table
@@ -270,7 +280,7 @@ final class Session {
 	     * future Acknowledgment message will be sent.
 	     */
 	    if (removeLater) {
-		if (outState < TERMINATED) {
+		if (getOutState() < TERMINATED) {
 		    setOutState(TERMINATED);
 		}
 		mux.removeSession(sessionID);
@@ -286,8 +296,9 @@ final class Session {
 	synchronized (sessionLock) {
 	    if (!sessionDown) {
 		sessionDown = true;
-		sessionDownMessage = message;
-		sessionDownCause = cause;
+                IOException ex = new IOException(message, cause);
+                out.down(ex);
+                in.down(ex);
 		sessionLock.notifyAll();
 	    }
 	}
@@ -306,7 +317,7 @@ final class Session {
 		if (outRation + increment < outRation) {
 		    throw new ProtocolException("ration overflow");
 		}
-		if (outState == OPEN) {
+		if (getOutState() == OPEN) {
 		    if (increment > 0) {
 			if (outRation == 0) {
 			    sessionLock.notifyAll();
@@ -345,7 +356,7 @@ final class Session {
 	     * that no late Acknowledgment message gets sent after the
 	     * session has been removed.
 	     */
-	    if (outState < TERMINATED) {
+	    if (getOutState() < TERMINATED) {
 		mux.asyncSendAbort(Mux.Abort | (role == SERVER ?
 						Mux.Abort_partial : 0),
 				   sessionID, null);
@@ -375,7 +386,7 @@ final class Session {
 		throw new ProtocolException("Close on " +
 		    stateNames[inState] + " session: " + sessionID);
 	    }
-	    if (outState < FINISHED) {
+	    if (getOutState() < FINISHED) {
 		/*
 		 * From a protocol perspective, we need to terminate the
 		 * session at this point (because we're not finished, but
@@ -387,7 +398,7 @@ final class Session {
 		 * (temporarily) fake that the session is still in OK
 		 * shape (but not send any more data for it).
 		 */
-		fakeOKtoWrite = true;
+                out.handleClose();
 		mux.asyncSendAbort(Mux.Abort, sessionID, null);
 		setOutState(TERMINATED);
 		/*
@@ -412,8 +423,8 @@ final class Session {
 	     * connection's table now, to prevent the sessionID being
 	     * reused before the Acknowledgment message is sent.
 	     */
-	    if (outState == TERMINATED ||
-		!receivedAckRequired || sentAcknowledgment)
+	    if (getOutState() == TERMINATED ||
+		!receivedAckRequired || in.isSentAcknowledgment())
 	    {
 		mux.removeSession(sessionID);
 	    } else {
@@ -435,7 +446,7 @@ final class Session {
 		throw new ProtocolException("Acknowledgment on " +
 		    stateNames[inState] + " session: " + sessionID);
 	    }
-	    if (outState < FINISHED) {
+	    if (getOutState() < FINISHED) {
 		throw new ProtocolException(
 		    "acknowledgment received before EOF sent");
 	    }
@@ -475,14 +486,14 @@ final class Session {
 	    if (!inRationInfinite && length > inRation) {
 		throw new ProtocolException("input ration exceeded");
 	    }
-	    if (!inClosed && outState < TERMINATED) {
+	    if (!in.isClosed() && getOutState() < TERMINATED) {
 		if (length > 0) {
-		    if (inBufRemaining == 0) {
+		    if (in.getBufRemaining() == 0) {
 			sessionLock.notifyAll();
 			notified = true;
 		    }
-		    inBufQueue.addLast(data);
-		    inBufRemaining += length;
+		    in.appendToBufQueue(data);
+		    in.setBufRemaining(in.getBufRemaining() + length);
 		    if (!inRationInfinite) {
 			inRation -= length;
 		    }
@@ -490,7 +501,7 @@ final class Session {
 	    }
 
 	    if (eof) {
-		inEOF = true;
+		in.setEOF(true);
 		setInState(FINISHED);
 		if (!notified) {
 		    sessionLock.notifyAll();
@@ -515,7 +526,7 @@ final class Session {
     void handleOpen() throws ProtocolException {
 	assert role == SERVER;
 	synchronized (sessionLock) {
-	    if (inState < FINISHED || outState < TERMINATED) {
+	    if (inState < FINISHED || getOutState() < TERMINATED) {
 		throw new ProtocolException(
                     inState < FINISHED ?
 		    ("Data/open on " +
@@ -536,7 +547,8 @@ final class Session {
     /**
      *
      */
-    private void setOutState(int newState) {
+    void setOutState(int newState) {
+        assert Thread.holdsLock(sessionLock);
 	assert newState > outState;
 	outState = newState;
     }
@@ -544,534 +556,138 @@ final class Session {
     /**
      *
      */
-    private void setInState(int newState) {
+    void setInState(int newState) {
+        assert Thread.holdsLock(sessionLock);
 	assert newState > inState;
 	inState = newState;
+    }
+    
+    boolean ackListeners(){
+        assert Thread.holdsLock(sessionLock);
+        return !ackListeners.isEmpty();
     }
 
     private void notifyAcknowledgmentListeners(final boolean received) {
 	if (!ackListeners.isEmpty()) {
-	    systemThreadPool.execute(new Runnable() {
-		public void run() {
-		    Iterator iter = ackListeners.iterator();
-		    while (iter.hasNext()) {
-			AcknowledgmentSource.Listener listener =
-			    (AcknowledgmentSource.Listener) iter.next();
-			listener.acknowledgmentReceived(received);
-		    }
-		}
-	    }, "Mux ack notifier");
+	    systemThreadPool.execute(
+                    new NotifyAcknowledgementListeners(ackListeners, received),
+                    "Mux ack notifier");
 	}
     }
-
-    /**
-     * Output stream returned by OutboundRequests and InboundRequests for
-     * a session of a multiplexed connection.
-     */
-    private class MuxOutputStream extends OutputStream {
-
-	private ByteBuffer buffer = mux.directBuffersUseful() ?
-	    ByteBuffer.allocateDirect(mux.maxFragmentSize) :
-	    ByteBuffer.allocate(mux.maxFragmentSize);
-
-	MuxOutputStream() { }
-
-	public synchronized void write(int b) throws IOException {
-	    if (!buffer.hasRemaining()) {
-		writeBuffer(false);
-	    } else {
-		synchronized (sessionLock) {	// REMIND: necessary?
-		    ensureOpen();
-		}
-	    }
-	    buffer.put((byte) b);
-	}
-
-	public synchronized void write(byte[] b, int off, int len)
-	    throws IOException
-	{
-	    if (b == null) {
-		throw new NullPointerException();
-	    } else if ((off < 0) || (off > b.length) || (len < 0) ||
-		       ((off + len) > b.length) || ((off + len) < 0))
-	    {
-		throw new IndexOutOfBoundsException();
-	    } else if (len == 0) {
-		synchronized (sessionLock) {
-		    ensureOpen();
-		}
-		return;
-	    }
-
-	    while (len > 0) {
-		int avail = buffer.remaining();
-		if (len <= avail) {
-		    synchronized (sessionLock) {
-			ensureOpen();
-		    }
-		    buffer.put(b, off, len);
-		    return;
-		}
-
-		buffer.put(b, off, avail);
-		off += avail;
-		len -= avail;
-		writeBuffer(false);
-	    }
-	}
-
-	public synchronized void flush() throws IOException {
-//	    synchronized (sessionLock) {
-//		ensureOpen();
-//	    }
-//
-//	    while (buffer.hasRemaining()) {
-//		writeBuffer(false);
-//	    }
-	}
-
-	public synchronized void close() throws IOException {
-	    if (logger.isLoggable(Level.FINEST)) {
-		logger.log(Level.FINEST,
-			   "STACK TRACE", new Throwable("STACK TRACE"));
-	    }
-
-	    synchronized (sessionLock) {
-		ensureOpen();
-	    }
-
-	    while (!writeBuffer(true)) { }
-	}
-
-	/**
-	 *
-	 * This method must ONLY be invoked while synchronized on
-	 * this session's lock.
-	 */
-	private void ensureOpen() throws IOException {
-	    assert Thread.holdsLock(sessionLock);
-
-	    /*
-	     * While we're faking that the session is still OK when it really
-	     * isn't (see above comments), return silently from here.
-	     */
-	    if (fakeOKtoWrite) {
-		return;
-	    }
-
-	    if (outState > OPEN) {
-		if (outState == FINISHED) {
-		    throw new IOException("stream closed");
-		} else {
-		    throw new IOException("session terminated");
-		}
-	    } else if (sessionDown) {
-		IOException ioe = new IOException(sessionDownMessage);
-		if (sessionDownCause != null) {
-		    ioe.initCause(sessionDownCause);
-		}
-		throw ioe;
-	    }
-	}
-
-	/**
-	 * Writes as much of the contents of this stream's output buffer
-	 * as is allowed by the current output ration.  Upon normal return,
-	 * at least one byte will have been transferred from the buffer to
-	 * the multiplexed connection output queue, and the buffer will have
-	 * been compacted, ready to be filled at the current position.
-	 *
-	 * Returns true if closeIfComplete and session was marked EOF (with
-	 * complete buffer written); if true, stream's output buffer should
-	 * no longer be accessed (because this method will not wait for
-	 * actual writing of the message).
-	 */
-	private boolean writeBuffer(boolean closeIfComplete)
-	    throws IOException
-	{
-	    buffer.flip();
-	    int origLimit = buffer.limit();
-
-	    int toSend;
-	    IOFuture future = null;
-	    boolean eofSent = false;
-	    synchronized (sessionLock) {
-		while (buffer.remaining() > 0 &&
-		       !outRationInfinite && outRation < 1 &&
-		       !sessionDown && outState == OPEN)
-		{
-		    try {
-			sessionLock.wait();	// REMIND: timeout?
-		    } catch (InterruptedException e) {
-			String message = "request I/O interrupted";
-			setDown(message, e);
-			IOException ioe = new IOException(message);
-			ioe.initCause(e);
-			throw ioe;
-		    }
-		}
-		ensureOpen();
-		assert buffer.remaining() == 0 || outRationInfinite ||
-		    outRation > 0 || fakeOKtoWrite;
-
-		/*
-		 * If we're just faking that the session is OK when it really
-		 * isn't, then we need to stop the writing from proceeding
-		 * past this barrier-- and if a close was requested, then
-		 * satisfy it right away.
-		 */
-		if (fakeOKtoWrite) {
-		    assert role == CLIENT && inState == TERMINATED;
-		    if (closeIfComplete) {
-			fakeOKtoWrite = false;
-		    }
-		    buffer.position(origLimit);
-		    buffer.compact();
-		    return closeIfComplete;
-		}
-
-		boolean complete;
-		if (outRationInfinite || buffer.remaining() <= outRation) {
-		    toSend = buffer.remaining();
-		    complete = true;
-		} else {
-		    toSend = outRation;
-		    buffer.limit(toSend);
-		    complete = false;
-		}
-
-		if (!outRationInfinite) {
-		    outRation -= toSend;
-		}
-		partialDeliveryStatus = true;
-
-		boolean open = outState == IDLE;
-		boolean eof = closeIfComplete && complete;
-		boolean close = role == SERVER && eof && inState > OPEN;
-		boolean ackRequired = role == SERVER && eof &&
-		    (!ackListeners.isEmpty());
-
-		int op = Mux.Data |
-		    (open ? Mux.Data_open : 0) |
-		    (eof ? Mux.Data_eof : 0) |
-		    (close ? Mux.Data_close : 0) |
-		    (ackRequired ? Mux.Data_ackRequired : 0);
-
-		/*
-		 * If we are the server-side, send even the final Data message
-		 * for this session synchronously with this method, so that the
-		 * VM will not exit before it gets delivered.  Otherwise, let
-		 * final Data messages (those with eof true) be sent after this
-		 * method completes.
-		 */
-		if (!eof || role == SERVER) {
-		    future = mux.futureSendData(op, sessionID, buffer);
-		} else {
-		    mux.asyncSendData(op, sessionID, buffer);
-		}
-
-		if (outState == IDLE) {
-		    setOutState(OPEN);
-		    setInState(OPEN);
-		}
-
-		if (eof) {
-		    eofSent = true;
-		    setOutState(close ? TERMINATED : FINISHED);
-		    if (ackRequired) {
-			sentAckRequired = true;
-		    }
-		    sessionLock.notifyAll();
-		}
-	    }
-
-	    if (future != null) {
-		waitForIO(future);
-		buffer.limit(origLimit);		// REMIND: finally?
-		buffer.compact();
-	    }
-
-	    return eofSent;
-	}
-
-	/**
-	 *
-	 * This method must NOT be invoked while synchronized on
-	 * this session's lock.
-	 */
-	private void waitForIO(IOFuture future) throws IOException {
-	    assert !Thread.holdsLock(sessionLock);
-
-	    try {
-		future.waitUntilDone();
-	    } catch (InterruptedException e) {
-		String message = "request I/O interrupted";
-		setDown(message, e);
-		IOException ioe = new IOException(message);
-		ioe.initCause(e);
-		throw ioe;
-	    } catch (IOException e) {
-		setDown(e.getMessage(), e.getCause());
-		throw e;
-	    }
-	}
-    }
-
-    /**
-     * Output stream returned by OutboundRequests and InboundRequests for
-     * a session of a multiplexed connection.
-     */
-    private class MuxInputStream extends InputStream {
-
-	MuxInputStream() { }
-
-	public int read() throws IOException {
-	    synchronized (sessionLock) {
-		if (inClosed) {
-		    throw new IOException("stream closed");
-		}
-
-		while (inBufRemaining == 0 &&
-		       !sessionDown && inState <= OPEN && !inClosed)
-		{
-		    if (inState == IDLE) {
-			assert outState == IDLE;
-			mux.asyncSendData(Mux.Data | Mux.Data_open,
-					  sessionID, null);
-			setOutState(OPEN);
-			setInState(OPEN);
-		    }
-		    if (!inRationInfinite && inRation == 0) {
-			int inc = mux.initialInboundRation;
-			mux.asyncSendIncrementRation(sessionID, inc);
-			inRation += inc;
-		    }
-		    try {
-			sessionLock.wait();	// REMIND: timeout?
-		    } catch (InterruptedException e) {
-			String message = "request I/O interrupted";
-			setDown(message, e);
-			throw wrap(message, e);
-		    }
-		}
-
-		if (inClosed) {
-		    throw new IOException("stream closed");
-		}
-
-		if (inBufRemaining == 0) {
-		    if (inEOF) {
-			return -1;
-		    } else {
-			if (inState == TERMINATED) {
-			    throw new IOException(
-				"request aborted by remote endpoint");
-			}
-			assert sessionDown;
-			IOException ioe = new IOException(sessionDownMessage);
-			if (sessionDownCause != null) {
-			    ioe.initCause(sessionDownCause);
-			}
-			throw ioe;
-		    }
-		}
-
-		assert inBufQueue.size() > 0;
-		int result = -1;
-		while (result == -1) {
-		    ByteBuffer buf = (ByteBuffer) inBufQueue.getFirst();
-		    if (inBufPos < buf.limit()) {
-			result = (buf.get() & 0xFF);
-			inBufPos++;
-			inBufRemaining--;
-		    }
-		    if (inBufPos == buf.limit()) {
-			inBufQueue.removeFirst();
-			inBufPos = 0;
-		    }
-		}
-
-		if (!inRationInfinite) {
-		    checkInboundRation();
-		}
-
-		return result;
-	    }
-	}
+    
+    private static class NotifyAcknowledgementListeners implements Runnable {
+        final Collection<AcknowledgmentSource.Listener> ackListeners;
+        final boolean received;
         
-        private IOException wrap(String message, Exception e){
-            Throwable t = null;
-            if (traceSupression()){
-                t = e;
-            } else {
-                t = e.fillInStackTrace();
-            }
-            return new IOException(message, t);
+        NotifyAcknowledgementListeners(
+                Collection<AcknowledgmentSource.Listener> ackListeners,
+                boolean received)
+        {
+            this.ackListeners = new ArrayList<AcknowledgmentSource.Listener>(ackListeners);
+            this.received = received;
         }
+        
+        @Override
+        public void run() {
+            for (AcknowledgmentSource.Listener listener : ackListeners) {
+                listener.acknowledgmentReceived(received);
+            }
+        }
+    }
 
-	public int read(byte b[], int off, int len) throws IOException {
-	    if (b == null) {
-		throw new NullPointerException();
-	    } else if ((off < 0) || (off > b.length) || (len < 0) ||
-		       ((off + len) > b.length) || ((off + len) < 0))
-	    {
-		throw new IndexOutOfBoundsException();
-	    }
+    /**
+     * @return the outState
+     */
+    int getOutState() {
+        assert Thread.holdsLock(sessionLock);
+        return outState;
+    }
 
-	    synchronized (sessionLock) {
-		if (inClosed) {
-		    throw new IOException("stream closed");
-		} else if (len == 0) {
-		    /*
-		     * REMIND: What if
-		     *     - stream is at EOF?
-		     *     - session was aborted?
-		     */
-		    return 0;
-		}
+    /**
+     * @return the outRation
+     */
+    int getOutRation() {
+        assert Thread.holdsLock(sessionLock);
+        return outRation;
+    }
 
-		while (inBufRemaining == 0 &&
-		       !sessionDown && inState <= OPEN && !inClosed)
-		{
-		    if (inState == IDLE) {
-			assert outState == IDLE;
-			mux.asyncSendData(Mux.Data | Mux.Data_open,
-					  sessionID, null);
-			setOutState(OPEN);
-			setInState(OPEN);
-		    }
-		    if (!inRationInfinite && inRation == 0) {
-			int inc = mux.initialInboundRation;
-			mux.asyncSendIncrementRation(sessionID, inc);
-			inRation += inc;
-		    }
-		    try {
-			sessionLock.wait();	// REMIND: timeout?
-		    } catch (InterruptedException e) {
-			String message = "request I/O interrupted";
-			setDown(message, e);
-			throw wrap(message, e);
-		    }
-		}
+    /**
+     * @param outRation the outRation to set
+     */
+    void setOutRation(int outRation) {
+        assert Thread.holdsLock(sessionLock);
+        this.outRation = outRation;
+    }
 
-		if (inClosed) {
-		    throw new IOException("stream closed");
-		}
+    /**
+     * @return the inState
+     */
+    int getInState() {
+        assert Thread.holdsLock(sessionLock);
+        return inState;
+    }
 
-		if (inBufRemaining == 0) {
-		    if (inEOF) {
-			return -1;
-		    } else {
-			if (inState == TERMINATED) {
-			    throw new IOException(
-				"request aborted by remote endpoint");
-			}
-			assert sessionDown;
-			IOException ioe = new IOException(sessionDownMessage);
-			if (sessionDownCause != null) {
-			    ioe.initCause(sessionDownCause);
-			}
-			throw ioe;
-		    }
-		}
+    /**
+     * @param partialDeliveryStatus the partialDeliveryStatus to set
+     */
+    void setPartialDeliveryStatus(boolean partialDeliveryStatus) {
+        assert Thread.holdsLock(sessionLock);
+        this.partialDeliveryStatus = partialDeliveryStatus;
+    }
 
-		assert inBufQueue.size() > 0;
-		int remaining = len;
-		while (remaining > 0 && inBufRemaining > 0) {
-		    ByteBuffer buf = (ByteBuffer) inBufQueue.getFirst();
-		    if (inBufPos < buf.limit()) {
-			int toCopy = Math.min(buf.limit() - inBufPos,
-					      remaining);
-			buf.get(b, off, toCopy);
-			inBufPos += toCopy;
-			inBufRemaining -= toCopy;
-			off += toCopy;
-			remaining -= toCopy;
-		    }
-		    if (inBufPos == buf.limit()) {
-			inBufQueue.removeFirst();
-			inBufPos = 0;
-		    }
-		}
+    /**
+     * @return the sentAckRequired
+     */
+    boolean isSentAckRequired() {
+        assert Thread.holdsLock(sessionLock);
+        return sentAckRequired;
+    }
 
-		if (!inRationInfinite) {
-		    checkInboundRation();
-		}
+    /**
+     * @param sentAckRequired the sentAckRequired to set
+     */
+    void setSentAckRequired(boolean sentAckRequired) {
+        assert Thread.holdsLock(sessionLock);
+        this.sentAckRequired = sentAckRequired;
+    }
 
-		return len - remaining;
-	    }
-	}
+    /**
+     * @return the inRation
+     */
+    int getInRation() {
+        assert Thread.holdsLock(sessionLock);
+        return inRation;
+    }
 
-	/**
-	 * Sends ration increment, if read drained buffers below
-	 * a certain mark.
-	 *
-	 * This method must NOT be invoked if the inbound ration in
-	 * infinite, and it must ONLY be invoked while synchronized on
-	 * this session's lock.
-	 *
-	 * REMIND: The implementation of this action will be a
-	 * significant area for performance tuning.
-	 */
-	private void checkInboundRation() {
-	    assert Thread.holdsLock(sessionLock);
-	    assert !inRationInfinite;
+    /**
+     * @param inRation the inRation to set
+     */
+    void setInRation(int inRation) {
+        assert Thread.holdsLock(sessionLock);
+        this.inRation = inRation;
+    }
 
-	    if (inState >= FINISHED) {
-		return;
-	    }
-	    int mark = mux.initialInboundRation / 2;
-	    int used = inBufRemaining + inRation;
-	    if (used <= mark) {
-		int inc = mux.initialInboundRation - used;
-		mux.asyncSendIncrementRation(sessionID, inc);
-		inRation += inc;
-	    }
-	}
+    /**
+     * @return the removeLater
+     */
+    boolean isRemoveLater() {
+        assert Thread.holdsLock(sessionLock);
+        return removeLater;
+    }
 
-	public int available() throws IOException {
-	    synchronized (sessionLock) {
-		if (inClosed) {
-		    throw new IOException("stream closed");
-		}
-		/*
-		 * REMIND: What if
-		 *     - stream is at EOF?
-		 *     - session was aborted?
-		 */
-		return inBufRemaining;
-	    }
-	}
+    /**
+     * @param removeLater the removeLater to set
+     */
+    void setRemoveLater(boolean removeLater) {
+        assert Thread.holdsLock(sessionLock);
+        this.removeLater = removeLater;
+    }
 
-	public void close() {
-	    synchronized (sessionLock) {
-		if (inClosed) {
-		    return;
-		}
-		
-		inClosed = true;
-		inBufQueue.clear();		// allow GC of unread data
-
-		if (role == CLIENT && !sentAcknowledgment &&
-		    receivedAckRequired && outState < TERMINATED)
-		{
-		    mux.asyncSendAcknowledgment(sessionID);
-		    sentAcknowledgment = true;
-		    /*
-		     * If removing this session from the connection's
-		     * table was delayed in order to be able to send
-		     * an Acknowledgment message, then take care of
-		     * removing it now.
-		     */
-		    if (removeLater) {
-			setOutState(TERMINATED);
-			mux.removeSession(sessionID);
-			removeLater = false;
-		    }
-		}
-
-		sessionLock.notifyAll();
-	    }
-	}
+    /**
+     * @return the receivedAckRequired
+     */
+    boolean isReceivedAckRequired() {
+        assert Thread.holdsLock(sessionLock);
+        return receivedAckRequired;
     }
 }

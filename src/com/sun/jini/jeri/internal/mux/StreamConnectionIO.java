@@ -29,6 +29,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.security.AccessController;
+import java.util.Deque;
 import java.util.LinkedList;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -70,7 +71,7 @@ final class StreamConnectionIO extends ConnectionIO {
      * 
      * Synchronised on super.mux.muxLock;
      */
-    private final LinkedList sendQueue;
+    private final Deque sendQueue;
 
     
     /**
@@ -92,6 +93,7 @@ final class StreamConnectionIO extends ConnectionIO {
      * Starts processing connection data.  This method starts
      * asynchronous actions to read and write from the connection.
      */
+    @Override
     void start() throws IOException {
 	try {
 	    systemThreadPool.execute(new Writer(), "mux writer");
@@ -102,13 +104,11 @@ final class StreamConnectionIO extends ConnectionIO {
 			   "could not create thread for request dispatch", e);
 	    } catch (Throwable t) {
 	    }
-	    // treat as an "expected" I/O error
-	    IOException ioe = new IOException("could not create I/O threads");
-	    ioe.initCause(e);
-	    throw ioe;
+	    throw new IOException("could not create I/O threads", e);
 	}
     }
 
+    @Override
     void asyncSend(ByteBuffer buffer) {
 	synchronized (mux.muxLock) {
 	    if (mux.muxDown) {
@@ -119,6 +119,7 @@ final class StreamConnectionIO extends ConnectionIO {
 	}
     }
 
+    @Override
     void asyncSend(ByteBuffer first, ByteBuffer second) {
 	synchronized (mux.muxLock) {
 	    if (mux.muxDown) {
@@ -130,6 +131,7 @@ final class StreamConnectionIO extends ConnectionIO {
 	}
     }
 
+    @Override
     IOFuture futureSend(ByteBuffer first, ByteBuffer second) {
 	synchronized (mux.muxLock) {
 	    IOFuture future = new IOFuture();
@@ -154,12 +156,13 @@ final class StreamConnectionIO extends ConnectionIO {
     private class Writer implements Runnable {
 	Writer() { }
 
+        @Override
 	public void run() {
-	    LinkedList localQueue = null;
+	    Deque localQueue = null;
 	    try {
 		while (true) {
 		    synchronized (mux.muxLock) {
-			while (!mux.muxDown && sendQueue.size() == 0) {
+			while (!mux.muxDown && sendQueue.isEmpty()) {
 			    /*
 			     * REMIND: Should we use a timeout here, to send
 			     * occasional PING messages during periods of
@@ -172,22 +175,27 @@ final class StreamConnectionIO extends ConnectionIO {
 			     * would leave it in an unrecoverable state anyway.
 			     */
 			}
-			if (mux.muxDown && sendQueue.size() == 0) {
+			if (mux.muxDown && sendQueue.isEmpty()) {
 			    logger.log(Level.FINEST,
 				       "mux writer thread dying, connection " +
 				       "down and nothing more to send");
 			    break;
 			}
                         /* Clone an unshared copy and clear the queue while synchronized */
-			localQueue = (LinkedList) sendQueue.clone();
+			localQueue = new LinkedList(sendQueue);
 			sendQueue.clear();
 		    }
 
 		    boolean needToFlush = false;
-		    while (!localQueue.isEmpty()) {
+                    ByteBuffer last = null;
+                    int lastIndex = Integer.MIN_VALUE;
+		    for  ( int i = 0; !localQueue.isEmpty(); i++) {
 			Object next = localQueue.getFirst();
 			if (next instanceof ByteBuffer) {
-			    outChannel.write((ByteBuffer) next);
+                            ByteBuffer buffer = (ByteBuffer) next;
+			    outChannel.write((buffer));
+                            last = buffer;
+                            lastIndex = i;
 			    needToFlush = true;
 			} else {
 			    assert next instanceof IOFuture;
@@ -195,7 +203,11 @@ final class StreamConnectionIO extends ConnectionIO {
 				out.flush();
 				needToFlush = false;
 			    }
-			    ((IOFuture) next).done();
+                            if (lastIndex == i - 1 && last != null){
+                                ((IOFuture) next).done(last.position());
+                            } else {
+                                ((IOFuture) next).done();
+                            }
 			}
 			localQueue.removeFirst();
 		    }
@@ -242,7 +254,7 @@ final class StreamConnectionIO extends ConnectionIO {
 	}
     }
 
-    private void drainQueue(LinkedList queue) {
+    private void drainQueue(Deque queue) {
 	while (!queue.isEmpty()) {
 	    Object next = queue.removeFirst();
 	    if (next instanceof IOFuture) {
@@ -344,6 +356,7 @@ final class StreamConnectionIO extends ConnectionIO {
 	    private volatile boolean open = true;
 
             // must be synchronized as per ReadableByteChannel contract
+            @Override
 	    public synchronized int read(ByteBuffer dst) throws IOException {
 		assert dst.hasArray();
 		byte[] array = dst.array();
@@ -372,11 +385,13 @@ final class StreamConnectionIO extends ConnectionIO {
 		return totalRead;
 	    }
                 
+            @Override
 	    public boolean isOpen() {
 		return open;
 	    }
             
             // Blocking as per Channel contract
+            @Override
 	    public synchronized void close() throws IOException {
 		in.close();
 		open = false;
@@ -389,23 +404,26 @@ final class StreamConnectionIO extends ConnectionIO {
 	    private volatile boolean open = true;
             
             // This method must block while writing as per WritableByteChannel contract.
+            @Override
 	    public synchronized int write(ByteBuffer src) throws IOException {
-		assert src.hasArray();
+                    assert src.hasArray();
 
-		int len = src.remaining();
-		if (len > 0) {
-		    int pos = src.position();
-		    out.write(src.array(), src.arrayOffset() + pos, len);
-		    src.position(pos + len);
-		}
-		return len;
-	    }
+                    int len = src.remaining();
+                    if (len > 0) {
+                        int pos = src.position();
+                        out.write(src.array(), src.arrayOffset() + pos, len);
+                        src.position(pos + len);
+                    }
+                    return len;
+                }
                 
+            @Override
 	    public boolean isOpen() {
 		return open;
 	    }
 
             // This method must block as per the Channel contract
+            @Override
 	    public synchronized void close() throws IOException {
 		out.close();
 		open = false;

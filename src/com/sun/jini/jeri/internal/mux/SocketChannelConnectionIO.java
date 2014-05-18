@@ -25,8 +25,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
+import java.util.Deque;
 import java.util.Iterator;
 import java.util.LinkedList;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -83,13 +85,13 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     /**
      * queue of buffers of data to be sent over connection
      */
-    private final LinkedList sendQueue = new LinkedList();
+    private final Deque sendQueue = new LinkedList();
 
     /**
      * queue of alternating buffers (that are in sendQueue) and IOFuture
      * objects that need to be notified when those buffers are written
      */
-    private final LinkedList notifyQueue = new LinkedList();
+    private final Deque notifyQueue = new LinkedList();
 
     /** buffer for reading incoming data from connection */
     private final ByteBuffer inputBuffer =
@@ -143,6 +145,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	}
     }
 
+    @Override
     void asyncSend(ByteBuffer first, ByteBuffer second) {
 	synchronized (mux.muxLock) {
 	    if (mux.muxDown) {
@@ -191,6 +194,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 	}
     }
 
+    @Override
     IOFuture futureSend(ByteBuffer first, ByteBuffer second) {
 	synchronized (mux.muxLock) {
 	    IOFuture future = new IOFuture();
@@ -226,7 +230,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 			notifyQueue.addLast(second);
 			notifyQueue.addLast(future);
 		    } else {
-			future.done();
+			future.done(second.position());
 		    }
 		} else {
 		    sendQueue.addLast(first);
@@ -313,7 +317,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 			} else {
 			    throw e;
 			}
-		    }
+		    }        
 		    for (int i = 0; i < len; i++) {
 			ByteBuffer bb = bufs[i];
 			assert bb == sendQueue.getFirst();
@@ -325,7 +329,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
 				notifyQueue.removeFirst();
 				IOFuture future =
 				    (IOFuture) notifyQueue.removeFirst();
-				future.done();
+				future.done(bb.position());
 			    }
 			} else {
 			    key.renewInterestMask(SelectionKey.OP_WRITE);// ###
@@ -455,6 +459,7 @@ final class SocketChannelConnectionIO extends ConnectionIO {
     }
 
     private class Handler implements SelectionManager.SelectionHandler {
+        @Override
 	public void handleSelection(int readyMask, SelectionManager.Key key) {
 	    if ((readyMask & SelectionKey.OP_WRITE) != 0) {
 		handleWriteReady();

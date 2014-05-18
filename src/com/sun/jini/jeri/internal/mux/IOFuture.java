@@ -30,6 +30,8 @@ import java.io.IOException;
 final class IOFuture {
 
     private boolean done = false;
+    boolean data = false;
+    private int position = -1;
     private IOException exception = null;
 
     IOFuture() { }
@@ -50,8 +52,9 @@ final class IOFuture {
      *
      * @throws	InterruptedException if the current thread was
      * interrupted while waiting for the I/O to complete.
+     * @return true if data remaining.
      */
-    synchronized void waitUntilDone()
+    synchronized boolean waitUntilDone()
 	throws IOException, InterruptedException
     {
 	while (!done) {
@@ -61,15 +64,33 @@ final class IOFuture {
 	    exception.fillInStackTrace();
 	    throw exception;
 	}
+        return data;
     }
-
+    
+    synchronized int getPosition(){
+        return position;
+    }
+    
     /**
      * Signals that this I/O operation has completed successfully.
      */
     synchronized void done() {
 	assert !done;
+        data = false;
 	done = true;
 	notifyAll();
+    }
+    
+    /**
+     * Signals that this I/O operation has remaining data.
+     * @param position 
+     */
+    synchronized void done(int position){
+        assert !done;
+        done = true;
+        data = true;
+        this.position = position;
+        notifyAll();
     }
 
     /**

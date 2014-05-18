@@ -93,7 +93,8 @@ public final class TcpEndpoint
      * weak set of canonical instances; in order to use WeakHashMap,
      * maps canonical instances to weak references to themselves
      **/
-    private static final Map internTable = new WeakHashMap();
+    private static final Map<TcpEndpoint,WeakReference<TcpEndpoint>> internTable 
+            = new WeakHashMap<TcpEndpoint,WeakReference<TcpEndpoint>>();
 
     /** client transport logger */
     private static final Logger logger =
@@ -126,7 +127,7 @@ public final class TcpEndpoint
      **/
     private final SocketFactory sf;
 
-    private transient ConnectionManager connectionManager;
+    private transient volatile ConnectionManager connectionManager;
 
     /**
      * Returns a <code>TcpEndpoint</code> instance for the given
@@ -189,16 +190,22 @@ public final class TcpEndpoint
      **/
     private static TcpEndpoint intern(TcpEndpoint endpoint) {
 	synchronized (internTable) {
-	    Reference ref = (WeakReference) internTable.get(endpoint);
+	    Reference<TcpEndpoint> ref = (WeakReference) internTable.get(endpoint);
 	    if (ref != null) {
-		TcpEndpoint canonical = (TcpEndpoint) ref.get();
+		TcpEndpoint canonical = ref.get();
 		if (canonical != null) {
 		    return canonical;
 		}
 	    }
 	    endpoint.connectionManager =
-		new ConnectionManager(endpoint.new ConnectionEndpointImpl());
-	    internTable.put(endpoint, new WeakReference(endpoint));
+		new ConnectionManager(
+                        new ConnectionEndpointImpl(
+                                endpoint.getHost(),
+                                endpoint.getPort(),
+                                endpoint.getSocketFactory()
+                        )
+                );
+	    internTable.put(endpoint, new WeakReference<TcpEndpoint>(endpoint));
 	    return endpoint;
 	}
     }
@@ -527,9 +534,16 @@ public final class TcpEndpoint
      * correctly, so we do not bother to validate request handles and
      * connections passed in.
      **/
-    private class ConnectionEndpointImpl implements ConnectionEndpoint {
+    private static class ConnectionEndpointImpl implements ConnectionEndpoint {
+        private final String host;
+        private final int port;
+        private final SocketFactory sf;
 
-	ConnectionEndpointImpl() { }
+	ConnectionEndpointImpl(String host, int port, SocketFactory sf) {
+            this.host = host;
+            this.port = port;
+            this.sf = sf;
+        }
 
 	/**
 	 * Invoked by ConnectionManager to create a new connection.

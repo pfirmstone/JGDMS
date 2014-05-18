@@ -209,7 +209,8 @@ public final class BasicObjectEndpoint
      * REMIND: We'd really like to use a weak *identity* hash map here--
      * does the lack of equals() security here create a risk?
      */
-    private static final Map streamBatches = new WeakHashMap(11);
+    private static final Map<ObjectInputStream,DgcBatchContext> streamBatches 
+            = new WeakHashMap<ObjectInputStream,DgcBatchContext>(11);
 
     /**
      * The endpoint to send remote call requests to.

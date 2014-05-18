@@ -33,10 +33,10 @@ import java.nio.charset.CharsetDecoder;
 import java.nio.charset.CharsetEncoder;
 import java.security.AccessController;
 import java.util.BitSet;
+import java.util.Deque;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
-import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -89,7 +89,7 @@ abstract class Mux {
 	    new GetThreadPoolAction(false));
 
     /** session shutdown tasks to be executed asynchronously */
-    private static final Queue<Runnable> sessionShutdownQueue = new LinkedList<Runnable>();
+    private static final Deque<Runnable> sessionShutdownQueue = new LinkedList<Runnable>();
 
     private static class SessionShutdownTask implements Runnable {
 	private final Session[] sessions;
@@ -179,7 +179,7 @@ abstract class Mux {
 	this.connectionIO = new SocketChannelConnectionIO(this, channel);
 	directBuffersUseful = true;
     }
-
+    
     /**
      * Time in milliseconds for client-side connections to wait for the server
      * to acknowledge an opening handshake. The default value is 15000
@@ -206,28 +206,27 @@ abstract class Mux {
      * see uninitialized state.
      */
     public void start() throws IOException {
-        synchronized (readStateLock){
-            if (role == CLIENT) {
-                readState = READ_SERVER_CONNECTION_HEADER;
-            } else {
-                assert role == SERVER;
-                readState = READ_CLIENT_CONNECTION_HEADER;
-            }
+        if (role == CLIENT) {
+            readState = READ_SERVER_CONNECTION_HEADER;
+        } else {
+            assert role == SERVER;
+            readState = READ_CLIENT_CONNECTION_HEADER;
         }
-	try {
-	    connectionIO.start();
-	} catch (IOException e) {
-	    setDown("I/O error starting connection", e);
-	    throw e;
-	}
 
-	if (role == CLIENT) {
+        try {
+            connectionIO.start();
+        } catch (IOException e) {
+            setDown("I/O error starting connection", e);
+            throw e;
+        }
+
+        if (role == CLIENT) {
+            asyncSendClientConnectionHeader();
 	    synchronized (muxLock) {
-                asyncSendClientConnectionHeader();
 		long now = System.currentTimeMillis();
 		long endTime = now + this.startTimeout;
 		while (!muxDown && !clientConnectionReady) {
-		    if (now >= endTime) {
+		    if (now > endTime) {
 			setDown("timeout waiting for server to respond to handshake", null);
 		    } else {
                         try {
@@ -289,13 +288,14 @@ abstract class Mux {
      * This method MAY be invoked while synchronized on muxLock.
      */
     final void setDown(final String message, final Throwable cause) {
-        boolean needWorker = false;
 	synchronized (muxLock) {
 	    if (muxDown) return;
 	    muxDown = true;
 	    muxDownMessage = message;
 	    muxDownCause = cause;
 	    muxLock.notifyAll();
+	}
+
             /*
              * The following should be safe because we just left the
              * synchonized block, and after setting the muxDown latch
@@ -307,7 +307,7 @@ abstract class Mux {
              * because individual session locks must never be acquired
              * while holding muxLock.
              */
-
+	boolean needWorker = false;
             synchronized (sessionShutdownQueue) {
                 if (!sessions.isEmpty()) {
                     sessionShutdownQueue.add(new SessionShutdownTask(
@@ -319,7 +319,6 @@ abstract class Mux {
                     needWorker = !sessionShutdownQueue.isEmpty();
                 }
             }
-        }
 	if (needWorker) {
 	    try {
 		systemThreadPool.execute(new Runnable() {
@@ -328,7 +327,7 @@ abstract class Mux {
 			    Runnable task;
 			    synchronized (sessionShutdownQueue) {
 				if (sessionShutdownQueue.isEmpty()) break;
-				task = sessionShutdownQueue.remove();
+				task = sessionShutdownQueue.removeFirst();
 			    }
 			    task.run();
 			}
@@ -675,7 +674,8 @@ abstract class Mux {
      * The returned IOFuture object can be used to wait until the write has
      * definitely completed (or will definitely not complete due to some
      * failure).  After the write has completed, the buffer's position will
-     * have been incremented to its limit (which will not have changed).
+     * have been incremented to its limit (which will not have changed), the
+     * position may be obtained by calling @link{IOFuture#getPosition()}.
      */
     final IOFuture futureSendData(int op, int sessionID, ByteBuffer data) {
 	assert (op & 0xE1) == Data;	// verify operation code
@@ -704,7 +704,7 @@ abstract class Mux {
      * current read state lock and variables
      */
     private final Object readStateLock = new Object();
-    private int readState;
+    private volatile int readState;
     private int currentOp;
     private int currentSessionID;
     private int currentLengthRemaining;
@@ -719,27 +719,19 @@ abstract class Mux {
 	    do {
 		switch (readState) {
 		  case READ_CLIENT_CONNECTION_HEADER:
-		    if (!readClientConnectionHeader(buffer)) {
-			break stateLoop;
-		    }
+		    if (!readClientConnectionHeader(buffer)) break stateLoop;
 		    break;
 
 		  case READ_SERVER_CONNECTION_HEADER:
-		    if (!readServerConnectionHeader(buffer)) {
-			break stateLoop;
-		    }
+		    if (!readServerConnectionHeader(buffer)) break stateLoop;
 		    break;
 
 		  case READ_MESSAGE_HEADER:
-		    if (!readMessageHeader(buffer)) {
-			break stateLoop;
-		    }
+		    if (!readMessageHeader(buffer)) break stateLoop;
 		    break;
 
 		  case READ_MESSAGE_BODY:
-		    if (!readMessageBody(buffer)) {
-			break stateLoop;
-		    }
+		    if (!readMessageBody(buffer)) break stateLoop;
 		    break;
 
 		  default:
@@ -755,6 +747,7 @@ abstract class Mux {
 	throws ProtocolException
     {
 	assert role == SERVER;
+        assert Thread.holdsLock(readStateLock);
 
 	validatePartialMagicNumber(buffer);
 	if (buffer.remaining() < 8) {
@@ -794,7 +787,8 @@ abstract class Mux {
 	throws ProtocolException
     {
 	assert role == CLIENT;
-
+        assert Thread.holdsLock(readStateLock);
+        
 	validatePartialMagicNumber(buffer);
 
 	if (buffer.remaining() < 8) {
@@ -848,6 +842,7 @@ abstract class Mux {
     private boolean readMessageHeader(ByteBuffer buffer)
 	throws ProtocolException
     {
+        assert Thread.holdsLock(readStateLock);
 	if (buffer.remaining() < 4) {
 	    return false;		// wait for complete header to arrive
 	}
@@ -1012,6 +1007,7 @@ abstract class Mux {
     private boolean readMessageBody(ByteBuffer buffer)
 	throws ProtocolException
     {
+        assert Thread.holdsLock(readStateLock);
 	assert currentLengthRemaining > 0;
 	assert currentDataBuffer == null ||
 	    currentDataBuffer.remaining() == currentLengthRemaining;
@@ -1194,13 +1190,14 @@ abstract class Mux {
 	    data.get(bytes);
 	    data.reset();
 	    logger.log(Level.FINEST,
-		"Data: sessionID=" + sessionID +
-		(open ? ",open" : "") +
-		(close ? ",close" : "") +
-		(eof ? ",eof" : "") +
-		(ackRequired ? ",ackRequired" : "") +
-		",length=" + length +
-		(length > 0 ? ",data=\n" + encoder.encode(bytes) : ""));
+                    "Data: sessionID={0}{1}{2}{3}{4},length={5}{6}",
+                    new Object[]{sessionID,
+                        open ? ",open" : "",
+                        close ? ",close" : "",
+                        eof ? ",eof" : "",
+                        ackRequired ? ",ackRequired" : "",
+                        length, 
+                        length > 0 ? ",data=\n" + encoder.encode(bytes) : ""});
 	}
 
 	if (!eof && (close || ackRequired)) {

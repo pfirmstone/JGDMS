@@ -83,20 +83,26 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
      * immediately, however:
      *
      * 1. When ThreadPool creates threads too aggressively, stress tests in the 
-     * qa suite create too many threads and hangs because tasks that need to 
+     * qa suite create too many threads and hang because tasks that need to 
      * respond within a required time cannot.  
      * 
      * 2. Conversely when thread creation takes too long, Javaspace tests that 
      * rely on event propagation to cancel a LeasedResource find that lease still 
      * available after lease expiry.
      * 
+     * 3. If no threads are available when JERI needs to start a Mux connection,
+     * then a mux writer cannot initiate a client connection, for this reason, a
+     * new thread must be created if no waiting threads are available to the caller.
+     * 
      * ThreadPool must degrade gracefully when a system is under significant
      * load, but it must also execute tasks as soon as possible.
      * 
-     * To address these issues, a SynchronousQueue has been selected, it has
+     * To address these issues, a SynchronousQueue was originally selected, it has
      * no storage capacity, it hands tasks directly from the calling thread to
-     * the task thread.  Consider TransferBlockingQueue when Java 6 is no
-     * longer supported.
+     * the task thread, however contention can cause more threads than necessary
+     * to be created, a LinkedBlockingQueue eliminates or reduces contention 
+     * between caller and worker threads, preventing unnecessary thread creation. 
+     * Consider TransferBlockingQueue when Java 6 is no longer supported.
      * 
      * Pool threads block waiting until a task is available or idleTimeout
      * occurs after which the pool thread dies, client threads block waiting 
@@ -111,10 +117,7 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
      * AccessControlContext of the calling thread, to avoid privilege escalation.
      */
     private final AtomicInteger workerCount;
-    private final AtomicInteger waitingThreads;
-    private final int delayFactor;
-    private final int numberOfThreads;
-    private final int availableProcessors;
+    private final AtomicInteger availableThreads;
     private volatile boolean shutdown = false;
     
     ThreadPool(ThreadGroup threadGroup){
@@ -129,19 +132,16 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 	this.threadGroup = threadGroup;
         queue = new LinkedBlockingQueue<Runnable>();
         workerCount = new AtomicInteger();
-        waitingThreads = new AtomicInteger();
-        this.delayFactor = delayFactor;
-        availableProcessors = Runtime.getRuntime().availableProcessors();
-        numberOfThreads = availableProcessors * 4;
+        availableThreads = new AtomicInteger();
         
 //         Thread not started until after constructor completes
 //         this escaping occurs safely.
         Runtime.getRuntime().addShutdownHook(new Thread ("ThreadPool destroy"){
             public void run (){
                 try {
-                    // Allow two seconds prior to shutdown for other
+                    // Allow three seconds prior to shutdown for other
                     // processes to complete.
-                    Thread.sleep(2000L);
+                    Thread.sleep(3000L);
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                 }
@@ -160,25 +160,25 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
         if (runnable == null) return;
         if (shutdown) throw new RejectedExecutionException("ThreadPool shutdown");
 	Runnable task = new Task(runnable, name);
-        boolean accepted = false;
         /* Startup ramps up very quickly because there are no waiting
-         * threads.
+         * threads available.
          * 
          * Tasks must not be allowed to build up in the queue, in case
          * of dependencies.
          */
-        int workers = workerCount.get();
-        if (workers < numberOfThreads
-                || (waitingThreads.get() < 1 && workers < queue.size() / 7)) { // need more threads or we get contention.
+        if ( availableThreads.get() < 1 ) { // need more threads.
             if (shutdown) {
                 throw new RejectedExecutionException("ThreadPool shutdown");
             }
             Thread t = AccessController.doPrivileged(
                     new NewThreadAction(threadGroup, new Worker(task), name, false));
             t.start();
-            accepted = true;
         } else {
-            accepted = queue.offer(task);
+            try {
+                queue.put(task);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
         }
     }
 
@@ -254,11 +254,11 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
                      */
                     try {
                         task = null;
-                        waitingThreads.incrementAndGet();
+                        availableThreads.incrementAndGet();
                         try {
                         task = queue.poll(idleTimeout, TimeUnit.MILLISECONDS);
                         } finally {
-                            waitingThreads.decrementAndGet();
+                            availableThreads.decrementAndGet();
                         }
                         thread.setName(NewThreadAction.NAME_PREFIX + task);
                         if (task != null) {
