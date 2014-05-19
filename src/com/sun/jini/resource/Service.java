@@ -32,6 +32,7 @@ import java.util.Set;
 import java.util.LinkedHashSet;
 import java.util.logging.Logger;
 import net.jini.loader.ClassLoading;
+import net.jini.loader.LoadClass;
 
 
 /**
@@ -274,7 +275,7 @@ public final class Service {
 	    String cn = nextName;
 	    nextName = null;
 	    try {
-		Class c = ClassLoading.forName(cn, true, loader);
+		Class c = LoadClass.forName(cn, true, loader);
 		if (!service.isAssignableFrom(c)) {
 			log.severe("service classloader is "
 					  + service.getClass().getClassLoader()

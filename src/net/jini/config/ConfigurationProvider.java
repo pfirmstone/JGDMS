@@ -33,6 +33,7 @@ import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.loader.ClassLoading;
+import net.jini.loader.LoadClass;
 import net.jini.security.Security;
 
 /**
@@ -241,7 +242,7 @@ public class ConfigurationProvider {
 	    return new ConfigurationFile(options, cl);
 	}
 	try {
-	    Class cls = ClassLoading.forName(cname, true, resourceLoader);
+	    Class cls = LoadClass.forName(cname, true, resourceLoader);
 	    if (!Configuration.class.isAssignableFrom(cls)) {
 		configEx = new ConfigurationException(
 		    "provider class " + cname +

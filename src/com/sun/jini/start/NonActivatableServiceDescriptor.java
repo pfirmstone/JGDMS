@@ -45,6 +45,7 @@ import java.util.Arrays;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.loader.ClassLoading;
+import net.jini.loader.LoadClass;
 
 /**
  * Class used to launch shared, non-activatable, in-process 
@@ -653,7 +654,7 @@ public class NonActivatableServiceDescriptor
         logger.finest("Attempting to get implementation class");
         Class implClass = null;
         implClass = 	
-            ClassLoading.forName(getImplClassName(), false, newClassLoader);
+            LoadClass.forName(getImplClassName(), false, newClassLoader);
         logger.finest("Setting context class loader");
         curThread.setContextClassLoader(newClassLoader);
 

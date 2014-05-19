@@ -55,6 +55,7 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.io.MarshalledInstance;
 import net.jini.loader.ClassLoading;
+import net.jini.loader.LoadClass;
 
 /**
  * A wrapper for activatable objects, providing separation of the import
@@ -465,7 +466,7 @@ public class ActivateWrapper implements Remote, Serializable {
 	    }
 	
 	    boolean initialize = false;
-	    Class ac = ClassLoading.forName(desc.className, initialize, cl);
+	    Class ac = LoadClass.forName(desc.className, initialize, cl);
  	    logger.log(Level.FINEST, "Obtained implementation class: {0}", ac);
 
 	    t.setContextClassLoader(cl);

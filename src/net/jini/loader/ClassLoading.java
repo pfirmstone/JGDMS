@@ -18,9 +18,6 @@
 
 package net.jini.loader;
 
-import au.net.zeus.collection.RC;
-import au.net.zeus.collection.Ref;
-import au.net.zeus.collection.Referrer;
 import java.lang.ref.SoftReference;
 import java.net.MalformedURLException;
 import java.rmi.server.RMIClassLoader;
@@ -32,19 +29,9 @@ import java.util.Iterator;
 import java.util.Map;
 import java.util.ServiceLoader;
 import java.util.WeakHashMap;
-import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.security.Security;
-import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * Provides static methods for loading classes using {@link
@@ -202,22 +189,6 @@ public final class ClassLoading {
             return provider(providerName, providerLoader);
         }
     }
-    
-    /**
-     * loaderMap contains a list of single threaded ExecutorService's for
-     * each ClassLoader, used for loading classes and proxies to avoid 
-     * ClassLoader lock contention. An Entry is removed if the ClassLoader
-     * becomes weakly reachable, or the ExecutorService hasn't been used
-     * recently.
-     */
-    private static final ConcurrentMap<ClassLoader,ExecutorService> loaderMap 
-            = RC.concurrentMap(
-                new ConcurrentHashMap<Referrer<ClassLoader>,Referrer<ExecutorService>>(),
-                Ref.WEAK_IDENTITY,
-                Ref.TIME,
-                10000L,
-                10000L
-            );
 
     /**
      * per-thread cache (weakly) mapping verifierLoader values to
@@ -542,95 +513,6 @@ public final class ClassLoading {
 	}
 	verifiedCodebases.put(codebase, new SoftReference(codebase));
 	return;
-    }
-    
-    /**
-     * Returns the {@code Class} object associated with the class or
-     * interface with the given string name, using the given class loader.
-     * 
-     * This method calls {@link Class#forName(String,boolean,ClassLoader)}, 
-     * from a Thread dedicated for each
-     * ClassLoader, avoiding contention for ClassLoader locks by thread
-     * confinement.  This provides a significant scalability benefit for
-     * JERI, without needing to resort to parallel ClassLoader locks, which 
-     * isn't part of the Java specification.
-     * 
-     * If loader is null, thread confinement is not used.
-     * 
-     * @param name       fully qualified name of the desired class
-     * @param initialize whether the class must be initialized
-     * @param loader     class loader from which the class must be loaded
-     * @return           class object representing the desired class
-     *
-     * @exception LinkageError if the linkage fails
-     * @exception ExceptionInInitializerError if the initialization provoked
-     *            by this method fails
-     * @exception ClassNotFoundException if the class cannot be located by
-     *            the specified class loader
-     * @see Class
-     * @since 3.0
-     */
-    public static Class<?> forName(String name, boolean initialize,
-                                   ClassLoader loader)
-        throws ClassNotFoundException
-    {
-        if (loader == null) return Class.forName(name, initialize, loader);
-        // Don't thread confine profiler ClassLoaders.
-        if (loader.toString().startsWith("javax.management.remote.rmi.RMIConnectionImpl") ) 
-            return Class.forName(name, initialize, loader);
-            
-        ExecutorService exec = loaderMap.get(loader);
-        if (exec == null){
-            exec = new ThreadPoolExecutor(
-                    1,
-                    1,
-                    0,
-                    TimeUnit.SECONDS,
-                    new LinkedBlockingQueue(),
-                    new NamedThreadFactory(loader.toString(),false),
-                    new ThreadPoolExecutor.CallerRunsPolicy()
-            );
-            ExecutorService existed = loaderMap.putIfAbsent(loader, exec);
-            if (existed != null){
-                exec = existed;
-            }
-        }
-        FutureTask<Class> future = new FutureTask(new GetClassTask(name, initialize, loader));
-        exec.submit(future);
-        try {
-            return future.get();
-        } catch (InterruptedException e){
-            e.fillInStackTrace();
-            throw new ClassNotFoundException("Interrupted, Unable to find Class: " + name, e);
-        } catch (ExecutionException e){
-            Throwable t = e.getCause();
-            if (t instanceof LinkageError) throw (LinkageError) t;
-            if (t instanceof ExceptionInInitializerError) 
-                throw (ExceptionInInitializerError) t;
-            if (t instanceof SecurityException) throw (SecurityException) t;
-            if (t instanceof ClassNotFoundException ) 
-                throw (ClassNotFoundException) t;
-            if (t instanceof NullPointerException) throw (NullPointerException) t;
-            throw new ClassNotFoundException("Unable to find Class:" + name, t);
-        }
-    }
-    
-    private static class GetClassTask implements Callable<Class> {
-        private final String name;
-        private final boolean initialize;
-        private final ClassLoader loader;
-        
-        private GetClassTask(String name, boolean initialize, ClassLoader loader){
-            this.name = name;
-            this.initialize = initialize;
-            this.loader = loader;
-        }
-
-        @Override
-        public Class call() throws ClassNotFoundException {
-            return Class.forName(name, initialize, loader);
-        }
-        
     }
 
     private ClassLoading() { throw new AssertionError(); }
