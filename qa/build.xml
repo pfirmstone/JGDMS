@@ -1010,9 +1010,9 @@
 
     <target name="qa1-multihomedmetainf.jar" depends="compile">
         <jar destfile="${lib.dir}/qa1-multihomedmetainf.jar" index="false" >
-            <metainf dir="${src.dir}/com/sun/jini/test/impl/reggie/META-INF">
+            <!--<metainf dir="${src.dir}/com/sun/jini/test/impl/reggie/META-INF">
                 <include name="**/*" />
-            </metainf>
+            </metainf>-->
             <fileset dir="${build.classes.dir}">
                 <include name="com/sun/jini/test/impl/reggie/**/*"/>
             </fileset>
