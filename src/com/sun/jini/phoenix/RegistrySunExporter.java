@@ -18,21 +18,12 @@
 
 package com.sun.jini.phoenix;
 
-import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
-import java.rmi.Remote;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.server.ObjID;
-import java.rmi.server.RemoteCall;
-import sun.rmi.server.MarshalInputStream;
-import sun.rmi.server.UnicastServerRef;
-import sun.rmi.transport.LiveRef;
 
 /**
  * JRMP exporter to export a <code>Registry</code> using the well-known
- * registry object identifier, and preventing remote code downloading for
- * incoming remote calls. This exporter implementation is only designed to
+ * registry object identifier. This exporter implementation is only designed to
  * work with Java(TM) 2 Standard Edition implementations from Sun
  * Microsystems(TM), Inc.
  *
@@ -57,65 +48,74 @@ public class RegistrySunExporter extends SunJrmpExporter {
     public RegistrySunExporter(int port) {
 	super(ObjID.REGISTRY_ID, port);
     }
+    
+    /* JRMP exporter to export a <code>Registry</code> using the well-known
+     * registry object identifier and preventing remote code downloading for 
+     * incoming remote calls.
+     * 
+     * UnicastServerRef now uses dynamic stubs by default, there shouldn't
+     * be any code downloads required.
+    */
 
-    UnicastServerRef getServerRef(LiveRef lref) {
-	return new BootstrapServerRef(lref);
-    }
+//    @Override
+//    RemoteRef getServerRef(Object lref) {
+//	return new BootstrapServerRef(lref);
+//    }
 
     /**
      * Server-side ref to prevent remote code downloading when unmarshalling
      * arguments.
      */
-    static class BootstrapServerRef extends UnicastServerRef {
-	private static final long serialVersionUID = 3007040253722540025L;
-	private static Method useCodebaseOnly;
-
-	static {
-	    try {
-		useCodebaseOnly =
-		    MarshalInputStream.class.getDeclaredMethod(
-					     "useCodebaseOnly", null);
-	    } catch (NoSuchMethodException e) {
-		throw new InternalError("XXX");
-	    }
-	    useCodebaseOnly.setAccessible(true);
-	}
-
-	/**
-	 * Construct an instance with the given live ref.
-	 */
-	public BootstrapServerRef(LiveRef lref) {
-	    super(lref);
-	}
-
-	/**
-	 * Disable remote code downloading on the input stream and then
-	 * continue normal dispatching.
-         * 
-         * From the RemoteCall javadoc:
-         * RemoteCall is an abstraction used solely by the RMI runtime 
-         * (in conjunction with stubs and skeletons of remote objects) 
-         * to carry out a call to a remote object. The RemoteCall interface 
-         * is deprecated because it is only used by deprecated methods of 
-         * java.rmi.server.RemoteRef.
-         * 
-         * This method is an overridden method from UnicastServerRef which is
-         * a sun internal implementation class.
-         * 
-         * @deprecated no replacement
-         * @see java.rmi.server.RemoteCall
-	 */
-	@Deprecated
-	@Override
-	public void dispatch(Remote obj, RemoteCall call) throws IOException {
-	    try {
-		useCodebaseOnly.invoke(call.getInputStream(), new Object[0]);
-	    } catch (IllegalAccessException e) {
-		throw new InternalError("XXX");
-	    } catch (InvocationTargetException e) {
-		throw (Error) e.getTargetException();
-	    }
-	    super.dispatch(obj, call);
-	}
-    }
+//    static class BootstrapServerRef extends UnicastServerRef {
+//	private static final long serialVersionUID = 3007040253722540025L;
+//	private static Method useCodebaseOnly;
+//
+//	static {
+//	    try {
+//		useCodebaseOnly =
+//		    MarshalInputStream.class.getDeclaredMethod(
+//					     "useCodebaseOnly", null);
+//	    } catch (NoSuchMethodException e) {
+//		throw new InternalError("XXX");
+//	    }
+//	    useCodebaseOnly.setAccessible(true);
+//	}
+//
+//	/**
+//	 * Construct an instance with the given live ref.
+//	 */
+//	public BootstrapServerRef(LiveRef lref) {
+//	    super(lref);
+//	}
+//
+//	/**
+//	 * Disable remote code downloading on the input stream and then
+//	 * continue normal dispatching.
+//         * 
+//         * From the RemoteCall javadoc:
+//         * RemoteCall is an abstraction used solely by the RMI runtime 
+//         * (in conjunction with stubs and skeletons of remote objects) 
+//         * to carry out a call to a remote object. The RemoteCall interface 
+//         * is deprecated because it is only used by deprecated methods of 
+//         * java.rmi.server.RemoteRef.
+//         * 
+//         * This method is an overridden method from UnicastServerRef which is
+//         * a sun internal implementation class.
+//         * 
+//         * @deprecated no replacement
+//         * @see java.rmi.server.RemoteCall
+//	 */
+//	@Deprecated
+//	@Override
+//	public void dispatch(Remote obj, RemoteCall call) throws IOException {
+//	    try {
+//		useCodebaseOnly.invoke(call.getInputStream(), new Object[0]);
+//	    } catch (IllegalAccessException e) {
+//		throw new InternalError("XXX");
+//	    } catch (InvocationTargetException e) {
+//		throw (Error) e.getTargetException();
+//	    }
+//	    super.dispatch(obj, call);
+//	}
+//    }
 }

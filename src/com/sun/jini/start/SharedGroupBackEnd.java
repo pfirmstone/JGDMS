@@ -31,7 +31,7 @@ import java.rmi.Remote;
  * @since 1.2
  */
 //@see com.sun.jini.start.SharedGroupAdmin
-interface SharedGroupBackEnd extends SharedGroup, Remote
+public interface SharedGroupBackEnd extends SharedGroup, Remote
 {
     // No additional methods
 }

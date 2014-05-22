@@ -137,11 +137,12 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 //         Thread not started until after constructor completes
 //         this escaping occurs safely.
         Runtime.getRuntime().addShutdownHook(new Thread ("ThreadPool destroy"){
+            @Override
             public void run (){
                 try {
-                    // Allow three seconds prior to shutdown for other
+                    // Allow four seconds prior to shutdown for other
                     // processes to complete.
-                    Thread.sleep(3000L);
+                    Thread.sleep(4000L);
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                 }
@@ -156,6 +157,7 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
     }
 
     // This method must not block - Executor
+    @Override
     public void execute(Runnable runnable, String name) {
         if (runnable == null) return;
         if (shutdown) throw new RejectedExecutionException("ThreadPool shutdown");
@@ -200,6 +202,7 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 	    this.name = name;
 	}
         
+        @Override
         public void run(){
             try {
                 runnable.run();
@@ -220,6 +223,7 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
             }
         }
 
+        @Override
         public String toString(){
             return name;
         }
@@ -237,6 +241,7 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 	    this.first = first;
 	}
 
+        @Override
 	public void run() {
             workerCount.incrementAndGet();
             try {

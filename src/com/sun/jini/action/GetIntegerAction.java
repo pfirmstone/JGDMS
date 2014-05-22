@@ -71,7 +71,7 @@ import net.jini.security.Security;
  * @see		Security
  * @since 2.0
  **/
-public class GetIntegerAction implements PrivilegedAction {
+public class GetIntegerAction implements PrivilegedAction<Integer> {
 
     private static final Logger logger =
 	Logger.getLogger("com.sun.jini.action.GetIntegerAction");
@@ -122,7 +122,7 @@ public class GetIntegerAction implements PrivilegedAction {
      * @return	an <code>Integer</code> representing the value of the
      * system property or the default value, or <code>null</code>
      **/
-    public Object run() {
+    public Integer run() {
 	try {
 	    Integer value = Integer.getInteger(theProp);
 	    if (value != null) {

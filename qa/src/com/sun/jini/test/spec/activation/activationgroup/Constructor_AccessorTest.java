@@ -17,17 +17,12 @@
  */
 package com.sun.jini.test.spec.activation.activationgroup;
 
-import java.util.logging.Level;
 import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.Test;
-import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.test.spec.activation.util.FakeActivationGroup;
-import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.rmi.activation.ActivationGroupID;
-import java.rmi.RemoteException;
 import java.rmi.server.RemoteRef;
-import sun.rmi.server.UnicastServerRef;
 /**
  * <pre>
  * Purpose:
@@ -66,7 +61,8 @@ public class Constructor_AccessorTest extends QATestEnvironment implements Test 
         fag = new FakeActivationGroup(aid);
         RemoteRef ref = fag.getRef();
         logger.log(Level.FINEST, "ActivationGroup.ref = " + ref);
-        assertion(ref instanceof UnicastServerRef,
+        Class unicastServerRefClass = Class.forName("sun.rmi.server.UnicastServerRef");
+        assertion(unicastServerRefClass.isInstance(ref),
                 "ActivationGroup should be exported as"
                 + " UnicastRemoteObject");
     }

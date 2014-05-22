@@ -60,8 +60,11 @@ public class MultihomedClientTest implements LegacyTest {
     private void appendProperties(StringBuffer buffer) {
         buffer.append("-cp ").append(
             config.getStringConfigVal("testClasspath",""))
-                .append(File.pathSeparator).append(
-                config.getStringConfigVal("metaInf","")).append(" ");
+                .append(File.pathSeparator)
+                .append(config.getStringConfigVal("metaInf",""))
+                .append(File.pathSeparator)
+                .append(config.getStringConfigVal("metaInf2", ""))
+                .append(" ");
         buffer.append("-Djava.security.manager= ");
         buffer.append("-Djava.security.policy=").append(
             config.getStringConfigVal("policy","")).append(" ");

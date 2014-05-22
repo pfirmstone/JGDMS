@@ -1,3 +1,4 @@
+com.sun.jini.qa.harness.verifier=com.sun.jini.qa.harness.SkipNonSunJDKTestVerifier
 testClass=LeaseRenewDurRFE
 testCategories=joinmanager,joinmanager_impl
 

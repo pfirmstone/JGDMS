@@ -17,19 +17,19 @@
  */
 package com.sun.jini.test.impl.start;
 
+import com.sun.jini.action.GetIntegerAction;
 import com.sun.jini.qa.harness.Test;
-import java.util.logging.Level;
-
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.start.SharedActivationGroupDescriptor;
-import net.jini.config.ConfigurationException;
-
 import java.lang.reflect.Constructor;
 import java.rmi.activation.ActivationSystem;
 import java.util.Arrays;
 import java.util.Properties;
+import java.util.logging.Level;
+import net.jini.config.ConfigurationException;
 
-import sun.security.action.GetIntegerAction;
+
+
 
 
 public class SharedActivationGroupDescriptorTest2 extends StarterBase implements Test {
@@ -152,15 +152,15 @@ public class SharedActivationGroupDescriptorTest2 extends StarterBase implements
     static boolean checkPort(int src, int dest) {
        int desired = 
 	   (src <= 0) ? 
-	       ((Integer)java.security.AccessController.doPrivileged(
-		   new GetIntegerAction("java.rmi.activation.port", 
-		   ActivationSystem.SYSTEM_PORT))).intValue()
+               (java.security.AccessController.doPrivileged(
+                       new GetIntegerAction("java.rmi.activation.port",
+                               ActivationSystem.SYSTEM_PORT))).intValue()
                : src;	
         return (desired == dest);
     }
     static boolean checkHost(String src, String dest) {
 	String desired = (src == null) ? "" : src;
-        return (desired == dest);
+        return (desired.equals(dest));
     }
 
     private static boolean checkOptions(String[] src, String[] dest) {

@@ -136,23 +136,25 @@ public final class ClassLoading {
                    = ServiceLoader.load(RMIClassLoaderSpi.class, providerLoader);
                 Iterator<RMIClassLoaderSpi> iter = loader.iterator();
                 RMIClassLoaderSpi spi;
-                while ( iter.hasNext() ) {
-                    try {
-                        spi = iter.next();
-                        if (spi != null) {
-                            if (!name.equals(spi.getClass().getName()))
-                                continue;
-                            logger.log(Level.CONFIG, "loaded: {0}", name);
-                            return spi;
+                try {
+                    while ( iter.hasNext() ) {
+                        try {
+                            spi = iter.next();
+                            if (spi != null) {
+                                if (!name.equals(spi.getClass().getName()))
+                                    continue;
+                                logger.log(Level.CONFIG, "loaded: {0}", name);
+                                return spi;
+                            }
+                        } catch (Throwable e) {
+                            logger.log( 
+                                    Level.CONFIG, 
+                                    "error loading RMIClassLoaderSpi: {0}",
+                                    new Object[]{e}
+                            );
                         }
-                    } catch (Exception e) {
-                        logger.log( 
-                                Level.CONFIG, 
-                                "error loading RMIClassLoaderSpi: {0}",
-                                new Object[]{e}
-                        );
                     }
-                }
+                } catch (Throwable t) { }
                 logger.log(Level.CONFIG, "uable to find {0}" , name);
                 return null;
             }
