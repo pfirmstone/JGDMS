@@ -22,7 +22,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.util.Deque;
-import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.LinkedList;
 
 /**
  * Output stream returned by OutboundRequests and InboundRequests for
@@ -44,7 +44,7 @@ class MuxInputStream extends InputStream {
         this.mux = mux;
         this.session = session;
         this.sessionLock = sessionLock;
-        this.inBufQueue = new ConcurrentLinkedDeque<ByteBuffer>();
+        this.inBufQueue = new LinkedList<ByteBuffer>();
     }
 
     void down(IOException e) {

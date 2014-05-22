@@ -21,23 +21,40 @@ import com.sun.jini.action.GetIntegerAction;
 import com.sun.jini.jeri.internal.connection.BasicServerConnManager;
 import com.sun.jini.jeri.internal.connection.ServerConnManager;
 import com.sun.jini.jeri.internal.runtime.Util;
+import com.sun.jini.logging.Levels;
 import com.sun.jini.thread.Executor;
 import com.sun.jini.thread.GetThreadPoolAction;
-import com.sun.jini.logging.Levels;
-import com.sun.security.jgss.GSSUtil;
-import net.jini.core.constraint.ClientAuthentication;
-import net.jini.core.constraint.ClientMaxPrincipal;
-import net.jini.core.constraint.ClientMaxPrincipalType;
-import net.jini.core.constraint.ClientMinPrincipal;
-import net.jini.core.constraint.ClientMinPrincipalType;
-import net.jini.core.constraint.Confidentiality;
-import net.jini.core.constraint.ConstraintAlternatives;
-import net.jini.core.constraint.Delegation;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.net.InetAddress;
+import java.net.ServerSocket;
+import java.net.Socket;
+import java.net.SocketException;
+import java.net.UnknownHostException;
+import java.nio.channels.SocketChannel;
+import java.security.AccessControlContext;
+import java.security.AccessController;
+import java.security.PrivilegedAction;
+import java.security.PrivilegedActionException;
+import java.security.PrivilegedExceptionAction;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.net.ServerSocketFactory;
+import javax.net.SocketFactory;
+import javax.security.auth.AuthPermission;
+import javax.security.auth.Subject;
+import javax.security.auth.kerberos.KerberosKey;
+import javax.security.auth.kerberos.KerberosPrincipal;
 import net.jini.core.constraint.Integrity;
 import net.jini.core.constraint.InvocationConstraint;
 import net.jini.core.constraint.InvocationConstraints;
-import net.jini.core.constraint.ServerAuthentication;
-import net.jini.core.constraint.ServerMinPrincipal;
 import net.jini.io.UnsupportedConstraintException;
 import net.jini.jeri.Endpoint;
 import net.jini.jeri.RequestDispatcher;
@@ -48,33 +65,6 @@ import net.jini.jeri.kerberos.KerberosUtil.Config;
 import net.jini.jeri.kerberos.KerberosUtil.ConfigIter;
 import net.jini.security.Security;
 import net.jini.security.SecurityContext;
-import java.io.InputStream;
-import java.io.IOException;
-import java.io.OutputStream;
-import java.net.InetAddress;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketException;
-import java.net.UnknownHostException;
-import java.nio.channels.SocketChannel;
-import java.security.AccessControlContext;
-import java.security.AccessController;
-import java.util.Collection;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import java.util.Set;
-import java.security.PrivilegedAction;
-import java.security.PrivilegedActionException;
-import java.security.PrivilegedExceptionAction;
-import javax.security.auth.AuthPermission;
-import javax.net.SocketFactory;
-import javax.net.ServerSocketFactory;
-import javax.security.auth.Subject;
-import javax.security.auth.kerberos.KerberosKey;
-import javax.security.auth.kerberos.KerberosPrincipal;
-import org.ietf.jgss.GSSContext;
 import org.ietf.jgss.GSSCredential;
 import org.ietf.jgss.GSSException;
 import org.ietf.jgss.GSSManager;
@@ -2081,66 +2071,85 @@ public final class KerberosServerEndpoint implements ServerEndpoint {
 
 	/** Returns a string representation of this object. */
 	public String toString() {
-	    StringBuffer b = new StringBuffer(
+	    StringBuilder b = new StringBuilder(
 		"KerberosServerEndpoint.ServerConnectionImpl[");
-	    b.append("clientPrincipal=" + clientPrincipal);
-	    b.append(" serverPrincipal=" + serverPrincipal);
-	    b.append(" doEncryption=" + doEncryption);
-	    b.append(" doDelegation=" + doDelegation);
-	    b.append(" client=" + sock.getInetAddress().getHostName());
-	    b.append(":" + sock.getPort());
-	    b.append(" server=" + sock.getLocalAddress().getHostName());
-	    b.append(":" + sock.getLocalPort());
+	    b.append("clientPrincipal=").append(clientPrincipal);
+	    b.append(" serverPrincipal=").append(serverPrincipal);
+	    b.append(" doEncryption=").append(doEncryption);
+	    b.append(" doDelegation=").append(doDelegation);
+	    b.append(" client=").append(sock.getInetAddress().getHostName());
+	    b.append(":").append(sock.getPort());
+	    b.append(" server=").append(sock.getLocalAddress().getHostName());
+	    b.append(":").append(sock.getLocalPort());
 	    b.append(']');
 	    return b.toString();
 	}
 
 	/** Carry out the GSS context establishment message exchanges */
 	void establishContext() throws IOException, GSSException {
-	    /* gssContext is defined in parent class for receiving
-               incoming requests from the client */
-	    gssContext = gssManager.createContext(listenHandle.serverCred);
-	    byte[] token = null;
-	    while (!gssContext.isEstablished()) {
-		token = new byte[dis.readInt()];
-		dis.readFully(token);
-		token = gssContext.acceptSecContext(token, 0, token.length);
-		/*
-		 * Send a token to the peer if one was generated by
-		 * acceptSecContext
-		 */
-		if (token != null) {
-		    dos.writeInt(token.length);
-		    dos.write(token);
-		    dos.flush();
-		}
-	    }
-
-	    if (!gssContext.getIntegState()) {
-		// this exception is logged by caller of this method
-		throw new IOException("Established GSSContext does not " +
-				      "support integrity.");
-	    }
-
-	    /*
-	     * Note that gssContext.getConfState() on client and
-	     * server side might not match each other, the meaningful
-	     * value will have to be acquired from the message
-	     * property of each token received.
-	     */
-	    doEncryption = gssContext.getConfState();
-	    doDelegation = gssContext.getCredDelegState();
-	    GSSName clientName = gssContext.getSrcName();
-	    clientPrincipal = new KerberosPrincipal(clientName.toString());
-	    if (gssContext.getCredDelegState())
-		clientCred = gssContext.getDelegCred();
-	    clientSubject = GSSUtil.createSubject(clientName, clientCred);
-	    clientSubject.setReadOnly();
-
-	    /* these handles need to be initialized after context
-               establishment, which sets client principal and deleg */
-	    handleWithEncryption = new InboundRequestHandleImpl(true);
-	    handleWithoutEncryption = new InboundRequestHandleImpl(false);
+            try {
+                /* gssContext is defined in parent class for receiving
+                incoming requests from the client */
+                gssContext = gssManager.createContext(listenHandle.serverCred);
+                byte[] token = null;
+                while (!gssContext.isEstablished()) {
+                    token = new byte[dis.readInt()];
+                    dis.readFully(token);
+                    token = gssContext.acceptSecContext(token, 0, token.length);
+                    /*
+                    * Send a token to the peer if one was generated by
+                    * acceptSecContext
+                    */
+                    if (token != null) {
+                        dos.writeInt(token.length);
+                        dos.write(token);
+                        dos.flush();
+                    }
+                }
+                
+                if (!gssContext.getIntegState()) {
+                    // this exception is logged by caller of this method
+                    throw new IOException("Established GSSContext does not " +
+                            "support integrity.");
+                }
+                
+                /*
+                * Note that gssContext.getConfState() on client and
+                * server side might not match each other, the meaningful
+                * value will have to be acquired from the message
+                * property of each token received.
+                */
+                doEncryption = gssContext.getConfState();
+                doDelegation = gssContext.getCredDelegState();
+                GSSName clientName = gssContext.getSrcName();
+                clientPrincipal = new KerberosPrincipal(clientName.toString());
+                if (gssContext.getCredDelegState())
+                    clientCred = gssContext.getDelegCred();
+                Class gssUtilClass = Class.forName("com.sun.security.jgss.GSSUtil");
+                Class [] parameterTypes = new Class [] {GSSName.class, GSSCredential.class};
+                
+                Method createSubjectMethod = gssUtilClass.getMethod("createSubject", parameterTypes);
+                Object [] args = new Object []{clientName, clientCred};
+                clientSubject = (Subject) createSubjectMethod.invoke(null, args);
+                clientSubject.setReadOnly();
+                
+                /* these handles need to be initialized after context
+                establishment, which sets client principal and deleg */
+                handleWithEncryption = new InboundRequestHandleImpl(true);
+                handleWithoutEncryption = new InboundRequestHandleImpl(false);
+            } catch (ClassNotFoundException ex) {
+                throw new IOException("Unable to create client Subject", ex);
+            } catch (NoSuchMethodException ex) {
+                throw new IOException("Unable to create client Subject", ex);
+            } catch (SecurityException ex) {
+                throw new IOException("Unable to create client Subject", ex);
+            } catch (IllegalAccessException ex) {
+                throw new IOException("Unable to create client Subject", ex);
+            } catch (IllegalArgumentException ex) {
+                throw new IOException("Unable to create client Subject", ex);
+            } catch (InvocationTargetException ex) {
+                throw new IOException("Unable to create client Subject", ex);
+            }
 	}
 
 	/**
