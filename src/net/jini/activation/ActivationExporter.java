@@ -273,7 +273,7 @@ public final class ActivationExporter implements Exporter
 	     */
 	    if (checkPublic && !Modifier.isPublic(intf.getModifiers())) {
 		throw new ExportException(
-		    "proxy implements non-public interface" + intf.getName());
+		    "proxy implements non-public interface " + intf.getName());
 	    }
 	    
 	    /*

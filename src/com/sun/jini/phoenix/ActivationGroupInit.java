@@ -26,6 +26,7 @@ import java.rmi.server.RMIClassLoader;
 import java.util.Collections;
 import net.jini.io.MarshalInputStream;
 import net.jini.loader.ClassLoading;
+import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  * This is the bootstrap code to start a virtual machine (VM) executing an
@@ -60,7 +61,7 @@ class ActivationGroupInit {
     {
 	try {
 	    if (System.getSecurityManager() == null) {
-		System.setSecurityManager(new SecurityManager());
+		System.setSecurityManager(new CombinerSecurityManager());
 	    }
 	    MarshalInputStream in =
 		new MarshalInputStream(

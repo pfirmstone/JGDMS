@@ -1133,7 +1133,7 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
         public void exitService()  throws RemoteException, ActivationException;
     }//end interface TestServiceInterface
 
-    static interface RemoteTestServiceInterface extends Remote, 
+    public static interface RemoteTestServiceInterface extends Remote, 
                                                         ServiceProxyAccessor
     {
         public void exitService()  throws RemoteException, ActivationException;

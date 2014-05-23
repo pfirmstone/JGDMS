@@ -93,6 +93,7 @@ import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;
+import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  * Phoenix main class.
@@ -1846,7 +1847,7 @@ class Activation implements Serializable {
      */
     public static void main(String[] args) {
 	if (System.getSecurityManager() == null) {
-	    System.setSecurityManager(new SecurityManager());
+	    System.setSecurityManager(new CombinerSecurityManager());
 	}
 	boolean stop = false;
 	if (args.length > 0 && args[0].equals("-stop")) {
