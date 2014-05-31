@@ -56,7 +56,7 @@
 
     <target name="hudson-qa" description="hudson QA build target" depends="diagnostics,hudson-qa-settings,all.clean,qa.run" />
     
-    <target name="hudson-category" description="hudson QA build target" depends="diagnostics,hudson-qa-settings,all.cleans">
+    <target name="hudson-category" description="hudson QA build target" depends="diagnostics,hudson-qa-settings,all.clean">
         <ant dir="qa" target="run-categories" inheritall="false">
             <property name="harness.generateHtml" value="${harness.generateHtml}" />
         </ant>
