@@ -24,6 +24,7 @@ import com.sun.jini.qa.harness.TestException;
 
 import com.sun.jini.test.spec.lookupservice.QATestRegistrar;
 import com.sun.jini.test.spec.lookupservice.QATestUtils;
+import com.sun.jini.test.spec.lookupservice.RemoteEventComparator;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceEvent;
 import net.jini.core.lookup.ServiceItem;
@@ -43,6 +44,7 @@ import java.util.Vector;
 import java.io.IOException;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /** This class is used to verify that after using templates containing a 
@@ -288,6 +290,7 @@ public class NotifyOnComboSrvcReg extends QATestRegistrar {
 	}
 	QATestUtils.verifyEventTuples
 	  (receivedTuples,expectedTuples,maxNMsToWaitForEvents,SHOW_TIMINGS, this);
+        Collections.sort(evntVec, new RemoteEventComparator());
 	QATestUtils.verifyEventItems(evntVec);
     }
 
