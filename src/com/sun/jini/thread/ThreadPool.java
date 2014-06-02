@@ -20,6 +20,7 @@ package com.sun.jini.thread;
 
 import com.sun.jini.action.GetLongAction;
 import java.security.AccessController;
+import java.security.PrivilegedAction;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -133,25 +134,31 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
         queue = new LinkedBlockingQueue<Runnable>();
         workerCount = new AtomicInteger();
         availableThreads = new AtomicInteger();
-        
 //         Thread not started until after constructor completes
 //         this escaping occurs safely.
-        Runtime.getRuntime().addShutdownHook(new Thread ("ThreadPool destroy"){
+        AccessController.doPrivileged(new PrivilegedAction(){
+
             @Override
-            public void run (){
-                try {
-                    // Allow four seconds prior to shutdown for other
-                    // processes to complete.
-                    Thread.sleep(4000L);
-                } catch (InterruptedException ex) {
-                    Thread.currentThread().interrupt();
-                }
-                shutdown = true;
-                Thread [] threads = new Thread [workerCount.get() + 1 ];
-                int count = threadGroup.enumerate(threads);
-                for (int i = 0; i < count; i++){
-                    threads [i].interrupt();
-                }
+            public Object run() {
+                Runtime.getRuntime().addShutdownHook(new Thread ("ThreadPool destroy"){
+                    @Override
+                    public void run (){
+                        try {
+                            // Allow four seconds prior to shutdown for other
+                            // processes to complete.
+                            Thread.sleep(4000L);
+                        } catch (InterruptedException ex) {
+                            Thread.currentThread().interrupt();
+                        }
+                        shutdown = true;
+                        Thread [] threads = new Thread [workerCount.get() + 1 ];
+                        int count = threadGroup.enumerate(threads);
+                        for (int i = 0; i < count; i++){
+                            threads [i].interrupt();
+                        }
+                    }
+                });
+                return null;
             }
         });
     }

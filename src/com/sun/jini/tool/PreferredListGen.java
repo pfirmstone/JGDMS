@@ -1066,7 +1066,11 @@ public class PreferredListGen {
 	    if (!listGraph.setPreferred(clazz, false, false)) {
 		return;
 	    }
-	    inspectClass(clazz);
+            try {
+                inspectClass(clazz);
+            } catch (NoClassDefFoundError e){
+                System.err.println(e.toString());
+            }
 	}
     }
 
