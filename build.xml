@@ -2067,7 +2067,6 @@
             <arg value="com.sun.jini.tool.JarWrapper"/>
             <arg value="com.sun.jini.tool.PreferredListGen"/>
             <arg value="com.sun.jini.tool.classdepend.AbstractDependencyVisitor"/>
-            <arg value="com.sun.jini.tool.classdepend.AbstractVisitor"/>
             <arg value="com.sun.jini.tool.classdepend.ClassDepend"/>
             <arg value="com.sun.jini.tool.classdepend.ClassDependencyRelationship"/>
             <arg value="com.sun.jini.tool.classdepend.ClassDependParameters$CDPBuilder"/>
