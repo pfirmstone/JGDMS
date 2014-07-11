@@ -49,7 +49,10 @@ grant {
         "accessClassInPackage.sun.security.provider";
     permission java.security.SecurityPermission "getDomainCombiner";
     permission java.security.SecurityPermission "createAccessControlContext";
-
+    permission java.net.NetPermission "getNetworkInformation";
+    permission java.net.SocketPermission "*", "listen,resolve";
+    permission java.lang.RuntimePermission "getenv.SOUL";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
 };
 
 /*

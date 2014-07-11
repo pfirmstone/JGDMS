@@ -29,7 +29,9 @@ grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
 
 grant { 
     permission java.net.SocketPermission "*",    "connect,accept"; 
+    permission java.net.SocketPermission "*",    "listen,resolve";
     permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.net.NetPermission "getNetworkInformation";
 };
 
 /*

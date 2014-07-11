@@ -558,15 +558,16 @@ public class MarshalledInstance implements Serializable {
      */
     private static class FromMOInputStream extends ObjectInputStream {
 
-	public FromMOInputStream(InputStream in) throws IOException {
+	FromMOInputStream(InputStream in) throws IOException {
 	    super(in);
-	}
- 
+        }
+
 	/**
 	 * Overrides <code>ObjectInputStream.resolveClass</code> to change
 	 * an occurence of class <code>java.rmi.MarshalledObject</code> to
 	 * class <code>net.jini.io.MarshalledObject</code>.
 	 */
+        @Override
 	protected Class resolveClass(ObjectStreamClass desc)
 	    throws IOException, ClassNotFoundException
 	{
@@ -584,16 +585,17 @@ public class MarshalledInstance implements Serializable {
      */
     private static class ToMOInputStream extends ObjectInputStream {
 
-	public ToMOInputStream(InputStream in) throws IOException {
+	ToMOInputStream(InputStream in) throws IOException {
 	    super(in);
-	}
- 
+        }
+
 	/**
 	 * Overrides <code>ObjectInputStream.resolveClass</code>
 	 * to change an occurence of class
 	 * <code>net.jini.io.MarshalledObject</code>
 	 * to class <code>java.rmi.MarshalledObject</code>.
 	 */
+        @Override
 	protected Class resolveClass(ObjectStreamClass desc)
 	    throws IOException, ClassNotFoundException
 	{

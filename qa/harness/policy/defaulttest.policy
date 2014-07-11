@@ -81,7 +81,15 @@ grant {
     permission java.io.FilePermission "${com.sun.jini.jsk.home}${/}lib${/}-", "read";
     permission java.io.FilePermission "${com.sun.jini.qa.home}${/}lib${/}-", "read";
     permission java.util.PropertyPermission "*", "read";
+    permission java.util.PropertyPermission "com.sun.jini.reggie.enableImplToStubReplacement", "read";
     permission java.lang.RuntimePermission "accessClassInPackage.com.sun.proxy";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.com.sun.jini.reggie";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.com.sun.jini.norm";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.com.sun.jini.outrigger";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.com.sun.jini.mercury";
+    permission java.lang.reflect.ReflectPermission "newProxyInPackage.com.sun.jini.fiddler";
+    permission java.net.NetPermission "getNetworkInformation";
+    permission java.net.URLPermission "http:*", "GET:";
 };
 
 // needed by some io tests

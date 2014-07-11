@@ -26,7 +26,7 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.Collection;
 import net.jini.loader.ClassLoading;
-import org.apache.river.api.io.DistributedObjectOutputStream;
+import org.apache.river.api.io.PortableObjectOutputStream;
 
 /**
  * An extension of <code>ObjectOutputStream</code> that implements the
@@ -58,7 +58,7 @@ import org.apache.river.api.io.DistributedObjectOutputStream;
  * @since 2.0
  **/
 public class MarshalOutputStream
-    extends DistributedObjectOutputStream
+    extends PortableObjectOutputStream
     implements ObjectStreamContext
 {
     /** context for ObjectStreamContext implementation */

@@ -94,9 +94,8 @@ public class ClientPermissionChecker implements ClientSubjectChecker {
 		pd = (ProtectionDomain) domains.get(subject);
 	    }
 	    if (pd == null) {
-		Set s = subject.getPrincipals();
-		Principal[] prins =
-		    (Principal[]) s.toArray(new Principal[s.size()]);
+		Set<Principal> s = subject.getPrincipals();
+		Principal[] prins = s.toArray(new Principal[s.size()]);
 		pd = new ProtectionDomain(emptyCS, null, null, prins);
 		synchronized (domains) {
 		    domains.put(subject, pd);

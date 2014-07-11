@@ -30,20 +30,20 @@ import org.junit.Test;
  *
  * @author peter
  */
-public class SerialReflectionFactoryTest {
+public class PortableFactoryTest {
     
-    private final SerialReflectionFactory stringInstance;
+    private final PortableFactory stringInstance;
     private final String str;
     
-    public SerialReflectionFactoryTest() {
+    public PortableFactoryTest() {
         str = "Fat Bear";
         Class[] cl = {(new char [0]).getClass()};
         Object [] chars = {str.toCharArray()};
-        stringInstance = new SerialReflectionFactory(str.getClass(), null, cl , chars);
+        stringInstance = new PortableFactory(str.getClass(), null, cl , chars);
     }
 
     /**
-     * Test of hashCode method, of class SerialReflectionFactory.
+     * Test of hashCode method, of class PortableFactory.
      */
     @Test
     public void testHashCode() throws IOException {
@@ -55,7 +55,7 @@ public class SerialReflectionFactoryTest {
     }
 
     /**
-     * Test of equals method, of class SerialReflectionFactory.
+     * Test of equals method, of class PortableFactory.
      */
     @Test
     public void testEquals() throws IOException {
@@ -64,9 +64,9 @@ public class SerialReflectionFactoryTest {
         Class[] cl = {(new char [0]).getClass()};
         Object [] chars = {str.toCharArray()};
         // More than one way to create a string.
-        Object secondInstance = new SerialReflectionFactory(str.getClass(), null, cl, chars );
-        SerialReflectionFactory thirdInstance = 
-                new SerialReflectionFactory(new StringBuilder(str), "toString", null, null );
+        Object secondInstance = new PortableFactory(str.getClass(), null, cl, chars );
+        PortableFactory thirdInstance = 
+                new PortableFactory(new StringBuilder(str), "toString", null, null );
         Object result = stringInstance.create();
         Assert.assertEquals(stringInstance, secondInstance);
         // Demonstrate that equal objects can have different serial form.
@@ -78,7 +78,7 @@ public class SerialReflectionFactoryTest {
     }
 
     /**
-     * Test of writeExternal method, of class SerialReflectionFactory.
+     * Test of writeExternal method, of class PortableFactory.
      */
     @Test
     public void testWriteExternal() throws Exception {
@@ -92,7 +92,7 @@ public class SerialReflectionFactoryTest {
     }
 
     /**
-     * Test of readExternal method, of class SerialReflectionFactory.
+     * Test of readExternal method, of class PortableFactory.
      */
     @Test
     public void testReadExternal() throws Exception {

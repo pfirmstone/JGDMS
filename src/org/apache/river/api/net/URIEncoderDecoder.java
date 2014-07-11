@@ -18,15 +18,11 @@
 package org.apache.river.api.net;
 
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URISyntaxException;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.apache.river.impl.Messages;
@@ -35,7 +31,7 @@ import org.apache.river.impl.Messages;
 /**
  * This class is used to encode a string using the format required by {@code
  * application/x-www-form-urlencoded} MIME content type. It contains helper
- * methods used by the URI class, and performs encoding and decoding in a
+ * methods used by the Uri class, and performs encoding and decoding in a
  * slightly different way than {@code URLEncoder} and {@code URLDecoder}.
  * @since 3.0.0
  */
@@ -55,7 +51,7 @@ class URIEncoderDecoder {
         int l = legals.length;
         for (int i = 0; i< l; i++){
             char ch = legals[i];
-            byte[] bytes = new byte[0];
+            byte[] bytes;
             try {
                 bytes = new String(new char[] { ch }).getBytes(encoding);
             } catch (UnsupportedEncodingException ex) {
@@ -109,12 +105,12 @@ class URIEncoderDecoder {
 
                 continue;
             }
-            if (!((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')
-                    || (ch >= '0' && ch <= '9') || legal.indexOf(ch) > -1 
-//                    || (ch > 127
-//                    && !Character.isSpaceChar(ch) && !Character
-//                    .isISOControl(ch))
-                    )) {
+            if (    !((ch >= 'a' && ch <= 'z') 
+                    || (ch >= 'A' && ch <= 'Z')
+                    || (ch >= '0' && ch <= '9') 
+                    || legal.indexOf(ch) > -1 )
+                ) 
+            {
                 throw new URISyntaxException(s, Messages.getString("luni.7F"), i); //$NON-NLS-1$
             }
             i++;
@@ -157,13 +153,13 @@ class URIEncoderDecoder {
         StringBuilder buf = new StringBuilder(s.length() + 24);
         for (int i = 0; i < s.length(); i++) {
             char ch = s.charAt(i);
-            if ( (ch >= 'a' && ch <= 'z')
+            if (       
+                       (ch >= 'a' && ch <= 'z')
                     || (ch >= 'A' && ch <= 'Z')
                     || (ch >= '0' && ch <= '9')
                     || legal.indexOf(ch) > -1
-//                    || (ch > 127 && !Character.isSpaceChar(ch) && !Character
-//                            .isISOControl(ch))
-                    ) {
+                ) 
+            {
                 buf.append(ch);
             } else {
                 byte[] bytes = new String(new char[] { ch }).getBytes(encoding);

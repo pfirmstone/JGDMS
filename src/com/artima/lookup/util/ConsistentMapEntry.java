@@ -42,19 +42,19 @@ import java.io.Serializable;
  *
  * @author Bill Venners
  */
-final class ConsistentMapEntry implements Map.Entry, Serializable {
+final class ConsistentMapEntry<K,V> implements Map.Entry<K,V>, Serializable {
 
     private static final long serialVersionUID = -8633627011729114409L;
 
     /**
      * @serial An <code>Object</code> key, or <code>null</code>
      */
-    private Object key;
+    private final K key;
 
     /**
      * @serial An <code>Object</code> value, or <code>null</code>
      */
-    private Object value;
+    private final V value;
 
     /**
      * Constructs a new <code>ConsistentMapEntry</code> with passed
@@ -64,7 +64,7 @@ final class ConsistentMapEntry implements Map.Entry, Serializable {
      * @param key the key (<code>null</code> key is OK)
      * @param value the value (<code>null</code> value is OK) associated with the key
      */
-    public ConsistentMapEntry(Object key, Object value) {
+    public ConsistentMapEntry(K key, V value) {
 
         this.key = key;
         this.value = value;
@@ -75,7 +75,8 @@ final class ConsistentMapEntry implements Map.Entry, Serializable {
      *
      * @return the key.
      */
-    public Object getKey() {
+    @Override
+    public K getKey() {
         return key;
     }
 
@@ -84,7 +85,8 @@ final class ConsistentMapEntry implements Map.Entry, Serializable {
      *
      * @return the value.
      */
-    public Object getValue() {
+    @Override
+    public V getValue() {
         return value;
     }
 
@@ -95,7 +97,8 @@ final class ConsistentMapEntry implements Map.Entry, Serializable {
      *
      * @throws UnsupportedOperationException always
      */
-    public Object setValue(Object value) {
+    @Override
+    public V setValue(V value) {
         throw new UnsupportedOperationException();
     }
 
@@ -113,6 +116,7 @@ final class ConsistentMapEntry implements Map.Entry, Serializable {
      * @return <code>true</code> if the objects are the semantically equal,
      *     <code>false</code> otherwise.
      */
+    @Override
     public boolean equals(Object o) {
 
         if (o == null) {
@@ -145,6 +149,7 @@ final class ConsistentMapEntry implements Map.Entry, Serializable {
      *
      * @return the hashcode for this object
      */ 
+    @Override
     public int hashCode() {
 
         int keyHash = (key == null ? 0 : key.hashCode());

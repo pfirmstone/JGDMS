@@ -19,7 +19,6 @@
 package com.sun.jini.mahalo;
 
 import com.sun.jini.mahalo.log.ClientLog;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 import java.rmi.RemoteException;
 import java.util.Iterator;

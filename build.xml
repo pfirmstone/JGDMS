@@ -253,9 +253,11 @@
                 <equals arg1="${ant.java.version}" arg2="1.1"/>
                 <equals arg1="${ant.java.version}" arg2="1.2"/>
                 <equals arg1="${ant.java.version}" arg2="1.3"/>
+                <equals arg1="${ant.java.version}" arg2="1.4"/>
+                <equals arg1="${ant.java.version}" arg2="1.5"/>
             </or>
         </condition>
-        <fail if="unsupported.jdk">Building ${product.name} requires Java 2 SDK 1.4 or greater.</fail>
+        <fail if="unsupported.jdk">Building ${product.name} requires JDK 1.6 or greater.</fail>
     </target>
 
     <!-- =========== documentation related ============ -->
@@ -2128,7 +2130,7 @@
             <property name="harness.generateHtml" value="${harness.generateHtml}" />
         </ant>
     </target>
-
+    
     <target name="all.build" depends="river-runtime"
             description="Build all, including subcomponents">
             <!-- Call qa subcomponent build -->

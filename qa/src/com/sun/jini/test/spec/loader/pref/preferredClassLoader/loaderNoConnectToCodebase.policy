@@ -140,4 +140,7 @@ grant {
     // discovery-specific PropertyPermission needed by the harness
     permission net.jini.discovery.DiscoveryPermission "*"; 
     permission java.lang.RuntimePermission "getenv.SOUL";
+    permission java.net.NetPermission "getNetworkInformation";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
+    permission java.net.SocketPermission "*", "listen,resolve";
 };

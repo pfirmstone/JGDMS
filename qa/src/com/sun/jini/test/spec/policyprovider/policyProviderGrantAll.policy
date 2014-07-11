@@ -53,9 +53,11 @@ grant codebase "http://*:${com.sun.jini.test.port}/qa1-loader-pref.jar" {
 };
 
 grant { 
-    permission java.net.SocketPermission "*",    "connect,accept"; 
+    permission java.net.SocketPermission "*", "connect,accept";
+    permission java.net.SocketPermission "*", "listen,resolve";
     permission java.lang.RuntimePermission "getProtectionDomain";
     permission java.lang.RuntimePermission "setFactory";
+    permission java.lang.RuntimePermission "getenv.SOUL";
 };
 
 /*

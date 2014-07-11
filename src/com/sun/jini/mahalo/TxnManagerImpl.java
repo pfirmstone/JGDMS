@@ -17,8 +17,6 @@
  */
 package com.sun.jini.mahalo;
 
-import com.sun.jini.config.Config;
-import com.sun.jini.landlord.FixedLeasePeriodPolicy;
 import com.sun.jini.landlord.Landlord;
 import com.sun.jini.landlord.LandlordUtil;
 import com.sun.jini.landlord.LeaseFactory;
@@ -27,7 +25,6 @@ import com.sun.jini.landlord.LeasePeriodPolicy;
 import com.sun.jini.landlord.LeasePeriodPolicy.Result;
 import com.sun.jini.landlord.LocalLandlord;
 import com.sun.jini.logging.Levels;
-import com.sun.jini.mahalo.log.ClientLog;
 import com.sun.jini.mahalo.log.LogException;
 import com.sun.jini.mahalo.log.LogManager;
 import com.sun.jini.mahalo.log.LogRecord;
@@ -38,17 +35,14 @@ import com.sun.jini.start.LifeCycle;
 import org.apache.river.api.util.Startable;
 import com.sun.jini.thread.InterruptedStatusThread;
 import com.sun.jini.thread.ReadyState;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
 
 import java.io.File;
 import java.io.IOException;
-import java.io.ObjectStreamException;
 import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
 import java.rmi.activation.Activatable;
 import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
 import java.rmi.activation.ActivationID;
 import java.rmi.activation.ActivationSystem;
 import java.security.AccessControlContext;
@@ -57,12 +51,8 @@ import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.security.SecureRandom;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.Map;
 import java.util.Queue;
-import java.util.Vector;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ConcurrentMap;
@@ -77,9 +67,7 @@ import javax.security.auth.Subject;
 import javax.security.auth.login.LoginContext;
 import javax.security.auth.login.LoginException;
 
-import net.jini.activation.ActivationExporter;
 import net.jini.config.Configuration;
-import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationProvider;
 import net.jini.core.constraint.RemoteMethodControl;
 import net.jini.core.discovery.LookupLocator;
@@ -105,14 +93,8 @@ import net.jini.export.ProxyAccessor;
 import net.jini.id.Uuid;
 import net.jini.id.UuidFactory;
 import net.jini.io.MarshalledInstance;
-import net.jini.jeri.BasicILFactory;
-import net.jini.jeri.BasicJeriExporter;
-import net.jini.jeri.tcp.TcpServerEndpoint;
 import net.jini.lookup.entry.ServiceInfo;
-import net.jini.security.BasicProxyPreparer;
 import net.jini.security.ProxyPreparer;
-import net.jini.security.Security;
-import net.jini.security.SecurityContext;
 import net.jini.security.proxytrust.ServerProxyTrust;
 import net.jini.security.TrustVerifier;
 import org.apache.river.impl.thread.ExtensibleExecutorService;
@@ -419,7 +401,7 @@ class TxnManagerImpl /*extends RemoteServer*/
         }
         try {
             if (thrown != null) throw thrown;
-            AccessController.doPrivileged(new PrivilegedExceptionAction(){
+            AccessController.doPrivileged(new PrivilegedExceptionAction<Object>(){
 
                 @Override
                 public Object run() throws Exception {

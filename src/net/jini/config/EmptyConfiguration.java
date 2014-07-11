@@ -67,8 +67,9 @@ public class EmptyConfiguration extends AbstractConfiguration {
      * @throws NoSuchEntryException unless <code>component</code>,
      * <code>name</code>, or <code>type</code> is <code>null</code>
      */
-    protected Object getEntryInternal(
-	String component, String name, Class type, Object data)
+    @Override
+    protected <T> T getEntryInternal(
+	String component, String name, Class<T> type, Object data)
 	throws NoSuchEntryException
     {
 	if (component == null || name == null || type == null) {

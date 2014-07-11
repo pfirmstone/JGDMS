@@ -24,6 +24,7 @@ import java.util.Iterator;
 import java.util.HashSet;
 import java.util.AbstractMap;
 import java.io.Serializable;
+import java.util.Collections;
 
 /**
  * An implementation of the <code>java.util.Map</code> interface that has
@@ -46,7 +47,7 @@ import java.io.Serializable;
  *
  * @author Bill Venners
  */
-public class ConsistentMap extends AbstractMap implements Serializable {
+public class ConsistentMap<K,V> extends AbstractMap<K,V> implements Serializable {
 
     private static final long serialVersionUID = -5223157327307155247L;
 
@@ -54,14 +55,14 @@ public class ConsistentMap extends AbstractMap implements Serializable {
      * @serial A <code>Set</code> of <code>java.util.Map.Entry</code> objects,
      *     the key-value pairs contained in this <code>ConsistentMap</code>.
      */
-    private Set entrySet;
+    private final Set<Map.Entry<K,V>> entrySet;
 
     /**
      * Constructs a new, empty <code>ConsistentMap</code>. All instances
      * of <code>ConsistentMap</code> are unmodifiable.
      */
     public ConsistentMap() {
-        entrySet = new ConsistentSet(new HashSet());
+        entrySet = new ConsistentSet<Map.Entry<K,V>>(new HashSet<Map.Entry<K,V>>());
     }
 
     /**
@@ -73,7 +74,7 @@ public class ConsistentMap extends AbstractMap implements Serializable {
      * @throws  NullPointerException if the passed <code>init</code> reference
      *     is <code>null</code>
      */
-    public ConsistentMap(Map init) {
+    public ConsistentMap(Map<K,V> init) {
 
         if (init == null) {
             throw new NullPointerException();
@@ -81,13 +82,13 @@ public class ConsistentMap extends AbstractMap implements Serializable {
 
         // Must put the key-value pairs into ConsistentMapEntry objects,
         // so they'll behave correctly when setValue() is invoked on them.
-        HashSet unmodEntries = new HashSet();
-        Set entries = init.entrySet();
-        Iterator it = entries.iterator();
+        Set<Map.Entry<K,V>> unmodEntries = new HashSet<Map.Entry<K,V>>(init.size());
+        Set<Map.Entry<K,V>> entries = init.entrySet();
+        Iterator<Map.Entry<K,V>> it = entries.iterator();
         while (it.hasNext()) {
 
-            Map.Entry entry = (Map.Entry) it.next();
-            Map.Entry unmodEntry = new ConsistentMapEntry(entry.getKey(), entry.getValue());
+            Map.Entry<K,V> entry = it.next();
+            Map.Entry<K,V> unmodEntry = new ConsistentMapEntry<K,V>(entry.getKey(), entry.getValue());
             unmodEntries.add(unmodEntry);
         }
         entrySet = new ConsistentSet(unmodEntries);
@@ -101,9 +102,9 @@ public class ConsistentMap extends AbstractMap implements Serializable {
      * @return a set view of the mappings contained in this
      *     <code>ConsistentMap</code>.
      */
-    public Set entrySet() {
-
-        return entrySet;
+    @Override
+    public Set<Map.Entry<K,V>> entrySet() {
+        return Collections.unmodifiableSet(entrySet);
     }
 }
 

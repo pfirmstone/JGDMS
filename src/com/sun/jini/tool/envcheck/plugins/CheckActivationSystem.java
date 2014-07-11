@@ -18,21 +18,12 @@
 package com.sun.jini.tool.envcheck.plugins;
 
 import com.sun.jini.tool.envcheck.AbstractPlugin;
-import com.sun.jini.tool.envcheck.Plugin;
 import com.sun.jini.tool.envcheck.EnvCheck;
 import com.sun.jini.tool.envcheck.Reporter;
 import com.sun.jini.tool.envcheck.Reporter.Message;
 import com.sun.jini.tool.envcheck.SubVMTask;
-import com.sun.jini.tool.envcheck.Util;
-import java.net.InetAddress;
 import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationException;
-import java.rmi.RMISecurityManager;
 import java.security.AccessControlException;
-import net.jini.config.ConfigurationException;
-import net.jini.config.NoSuchEntryException;
-import com.sun.jini.start.ServiceDescriptor;
-import com.sun.jini.start.SharedActivatableServiceDescriptor;
 
 /**
  * Plugin which checks the liveness of the activation system. The

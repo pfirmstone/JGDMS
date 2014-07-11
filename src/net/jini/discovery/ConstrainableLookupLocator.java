@@ -228,6 +228,7 @@ public final class ConstrainableLookupLocator
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
      */
+    @Override
     public ServiceRegistrar getRegistrar(int timeout)
 	throws IOException, ClassNotFoundException
     {

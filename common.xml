@@ -106,6 +106,18 @@
 
     <property name="debug" value="true"/>
     <property name="verbose" value="false"/>
+    <property name="source" value="6"/>
+    <property name="target" value="6"/>
+    <!-- Example add the following lines to build.properties to utilise Java 8 compact profiles
+    target=8
+    profile=compact3
+    -->
+    <condition property="prof" value="-profile ${profile}">
+        <isset property="profile"/>
+    </condition>
+    <condition property="prof" value="">
+        <not><isset property="profile"/></not>
+    </condition>
     <!-- Possible values for 'debuglevel': none or combination of lines,source,vars -->
     <property name="debuglevel" value="lines,source,vars"/>
     <property name="nowarn" value="true"/>
@@ -198,15 +210,15 @@
     </path>
 
     <property name="jre.ext.dir" location="${java.home}/lib/ext"/>
-
+        
     <macrodef name="javac-cmd" description="Run javac">
         <attribute name="source.pat" default="java.source"/>
         <attribute name="source.dir"/>
         <attribute name="dest.dir"/>
         <attribute name="debug" default="${debug}"/>
         <attribute name="debuglevel" default="${debuglevel}"/>
-        <attribute name="source" default="6"/>
-        <attribute name="target" default="6"/>
+        <attribute name="source" default="${source}"/>
+        <attribute name="target" default="${target}"/>
         <attribute name="deprecation" default="${deprecation}"/>
         <attribute name="verbose" default="${verbose}"/>
         <attribute name="nowarn" default="${nowarn}"/>
@@ -223,8 +235,14 @@
                     target="@{target}"
                     verbose="@{verbose}"
                     includeantruntime="false">
+                <compilerarg value="-version" />
                 <patternset refid="@{source.pat}"/>
+                <compilerarg line="${prof}"/>
+                <compilerarg value="-Xlint:unchecked" />
+                <compilerarg value="-Xlint:fallthrough" />
+                <compilerarg value="-Xlint:deprecation" />
                 <javac-cmd-elements/>
+                
             </javac>
         </sequential>
     </macrodef>

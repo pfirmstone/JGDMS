@@ -103,7 +103,7 @@ class DiscoveryV1 extends Discovery {
 	    groups.add(b);
 	}
 
-	List packets = new ArrayList();
+	List<DatagramPacket> packets = new ArrayList<DatagramPacket>();
 	do {
 	    ByteBuffer buf = ByteBuffer.allocate(maxPacketSize);
 
@@ -150,8 +150,7 @@ class DiscoveryV1 extends Discovery {
 	if (logger.isLoggable(Level.FINEST)) {
 	    logger.log(Level.FINEST, "encoded {0}", new Object[]{ request });
 	}
-	return (DatagramPacket[]) 
-	    packets.toArray(new DatagramPacket[packets.size()]);
+	return packets.toArray(new DatagramPacket[packets.size()]);
     }
 
     public MulticastRequest decodeMulticastRequest(
@@ -252,7 +251,7 @@ class DiscoveryV1 extends Discovery {
 	checkConstraints(constraints);
 
 	// precompute length of UTF-encoded group names
-	LinkedList groups = new LinkedList();
+	LinkedList<byte[]> groups = new LinkedList<byte[]>();
 	byte[] host = Plaintext.toUtf(announcement.getHost());
 	String[] g = announcement.getGroups();
 	for (int i = 0; i < g.length; i++) {
@@ -264,7 +263,7 @@ class DiscoveryV1 extends Discovery {
 	    groups.add(b);
 	}
 
-	List packets = new ArrayList();
+	List<DatagramPacket> packets = new ArrayList<DatagramPacket>();
 	do {
 	    ByteBuffer buf = ByteBuffer.allocate(maxPacketSize);
 

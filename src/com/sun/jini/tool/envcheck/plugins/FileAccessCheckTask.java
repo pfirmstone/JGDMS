@@ -19,8 +19,7 @@ package com.sun.jini.tool.envcheck.plugins;
 
 import com.sun.jini.tool.envcheck.SubVMTask;
 import com.sun.jini.tool.envcheck.Util;
-
-import java.rmi.RMISecurityManager;
+import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  * A subtask which checks for the accessibility of a file identified
@@ -41,7 +40,7 @@ public class FileAccessCheckTask implements SubVMTask {
      * @return the result of the check
      */
     public Object run(String[] args) {
-	System.setSecurityManager(new RMISecurityManager());
+	System.setSecurityManager(new CombinerSecurityManager());
 	return Util.checkSystemPropertyFile(args[0], args[1]);
     }
 }	

@@ -30,7 +30,9 @@ grant codebase "file:${com.sun.jini.jsk.home}${/}lib${/}jsk-lib.jar" {
 
 grant { 
     permission java.net.SocketPermission "*",    "connect,accept"; 
+    permission java.net.SocketPermission "*",    "listen,resolve";
     permission java.lang.RuntimePermission "getProtectionDomain";
+    permission java.net.NetPermission "getNetworkInformation";
 };
 
 /*
@@ -49,6 +51,7 @@ grant {
     permission java.lang.RuntimePermission "createSecurityManager";
     permission java.lang.RuntimePermission "setSecurityManager";
     permission java.lang.RuntimePermission "setIO";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
     permission javax.security.auth.AuthPermission "createLoginContext.com.sun.jini.Test";
     permission javax.security.auth.AuthPermission "doAs";
 

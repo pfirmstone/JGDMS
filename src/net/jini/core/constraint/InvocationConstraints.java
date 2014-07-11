@@ -157,16 +157,13 @@ public final class InvocationConstraints implements Serializable {
      * @throws IllegalArgumentException if any element of an argument is not
      * an instance of <code>InvocationConstraint</code>
      */
-    public InvocationConstraints(Collection reqs, Collection prefs) {
+    public InvocationConstraints(Collection<InvocationConstraint> reqs, Collection<InvocationConstraint> prefs) {
 	try {
 	    if (reqs != null) {
-		this.reqs =
-		    (InvocationConstraint[]) reqs.toArray(
-				       new InvocationConstraint[reqs.size()]);
+		this.reqs = reqs.toArray(new InvocationConstraint[reqs.size()]);
 	    }
 	    if (prefs != null) {
-		this.prefs =
-		    (InvocationConstraint[]) prefs.toArray(
+		this.prefs = prefs.toArray(
 				       new InvocationConstraint[prefs.size()]);
 	    }
 	} catch (ArrayStoreException e) {

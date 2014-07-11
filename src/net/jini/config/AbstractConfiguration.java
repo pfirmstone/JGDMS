@@ -93,13 +93,13 @@ public abstract class AbstractConfiguration implements Configuration {
      *
      * @since 2.0
      */
-    public static final class Primitive {
+    public static final class Primitive<T> {
 
 	/** The value, as a wrapper instance. */
-	private final Object value;
+	private final T value;
 
 	/** The primitive type. */
-	private final Class type;
+	private final Class<T> type;
 
 	/**
 	 * Creates an object that represents a primitive value of the type
@@ -109,7 +109,7 @@ public abstract class AbstractConfiguration implements Configuration {
 	 * @throws IllegalArgumentException if <code>value</code> is not an
 	 * instance of a primitive wrapper class
 	 */
-	public Primitive(Object value) {
+	public Primitive(T value) {
 	    this.value = value;
 	    type = (value != null)
 		? Utilities.getPrimitiveType(value.getClass()) : null;
@@ -125,7 +125,7 @@ public abstract class AbstractConfiguration implements Configuration {
 	 *
 	 * @return the value of this object, as a primitive wrapper instance
 	 */
-	public Object getValue() {
+	public T getValue() {
 	    return value;
 	}
 
@@ -134,11 +134,12 @@ public abstract class AbstractConfiguration implements Configuration {
 	 *
 	 * @return the primitive type of the value associated with this object
 	 */
-	public Class getType() {
+	public Class<T> getType() {
 	    return type;
 	}
 
 	/** Returns a string representation of this object. */
+        @Override
 	public String toString() {
 	    return "Primitive[(" + type + ") " + value + "]";
 	}
@@ -149,12 +150,14 @@ public abstract class AbstractConfiguration implements Configuration {
 	 * <code>getValue</code> is the same as the value for this instance,
 	 * otherwise <code>false</code>.
 	 */
+        @Override
 	public boolean equals(Object obj) {
 	    return obj instanceof Primitive &&
 		value.equals(((Primitive) obj).value);
 	}
 
 	/** Returns a hash code value for this object. */
+        @Override
 	public int hashCode() {
 	    return value.hashCode();
 	}
@@ -187,7 +190,8 @@ public abstract class AbstractConfiguration implements Configuration {
      * @throws IllegalArgumentException {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    public Object getEntry(String component, String name, Class type)
+    @Override
+    public <T> T getEntry(String component, String name, Class<T> type)
 	throws ConfigurationException
     {
 	return getEntryInternal(component, name, type, NO_DEFAULT, NO_DATA);
@@ -219,9 +223,10 @@ public abstract class AbstractConfiguration implements Configuration {
      * @throws IllegalArgumentException {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    public Object getEntry(String component,
+    @Override
+    public <T> T getEntry(String component,
 			   String name,
-			   Class type,
+			   Class<T> type,
 			   Object defaultValue)
 	throws ConfigurationException
     {
@@ -254,9 +259,10 @@ public abstract class AbstractConfiguration implements Configuration {
      * @throws IllegalArgumentException {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    public Object getEntry(String component,
+    @Override
+    public <T> T getEntry(String component,
 			   String name,
-			   Class type,
+			   Class<T> type,
 			   Object defaultValue,
 			   Object data)
 	throws ConfigurationException
@@ -279,6 +285,7 @@ public abstract class AbstractConfiguration implements Configuration {
      * made to this method by those methods will have arguments that are not
      * <code>null</code> and that have the correct syntax.
      *
+     * @param <T>
      * @param component the component being configured
      * @param name the name of the entry for the component
      * @param type the type of object requested
@@ -294,9 +301,9 @@ public abstract class AbstractConfiguration implements Configuration {
      * <code>name</code>, or <code>type</code> is <code>null</code>
      * @see Configuration#getEntry(String,String,Class) Configuration.getEntry
      */
-    protected abstract Object getEntryInternal(String component,
+    protected abstract <T> Object getEntryInternal(String component,
 					       String name,
-					       Class type,
+					       Class<T> type,
 					       Object data)
 	throws ConfigurationException;
 
@@ -305,9 +312,9 @@ public abstract class AbstractConfiguration implements Configuration {
      * which checks for null or illegal arguments, and logs and wraps
      * exceptions.
      */
-    private Object getEntryInternal(String component,
+    private <T> T getEntryInternal(String component,
 				    String name,
-				    Class type,
+				    Class<T> type,
 				    Object defaultValue,
 				    Object data)
 	throws ConfigurationException
@@ -338,12 +345,12 @@ public abstract class AbstractConfiguration implements Configuration {
 	ConfigurationException configEx;
 	try {
 	    Object result = getEntryInternal(component, name, type, data);
-	    Class resultType;
+	    Class<T> resultType;
 	    if (result instanceof Primitive) {
-		resultType = ((Primitive) result).getType();
-		result = ((Primitive) result).getValue();
+		resultType = ((Primitive<T>) result).getType();
+		result = ((Primitive<T>) result).getValue();
 	    } else if (result != null) {
-		resultType = result.getClass();
+		resultType = (Class<T>) result.getClass();
 	    } else {
 		resultType = null;
 	    }
@@ -365,7 +372,7 @@ public abstract class AbstractConfiguration implements Configuration {
 			       new Double(data == NO_DATA ? 0 : 1), data, result
 			   });
 	    }
-	    return result;
+	    return (T) result;
 	} catch (NoSuchEntryException e) {
 	    if (defaultValue == NO_DEFAULT) {
 		if (logger.isLoggable(Levels.FAILED)) {
@@ -381,7 +388,24 @@ public abstract class AbstractConfiguration implements Configuration {
 			"{0}, component {1}, name {2}: returns default {3}",
 			new Object[] { this, component, name, defaultValue });
 		}
-		return defaultValue;
+                if (type.isInstance(defaultValue)) {
+                    return (T) defaultValue;
+                } else if (defaultValue == null){
+                    return null;
+                } else if (type.isPrimitive()){
+                    if (type == boolean.class && defaultValue instanceof Boolean||
+                        type == byte.class && defaultValue instanceof Byte||
+                        type == char.class && defaultValue instanceof Character||
+                        type == short.class && defaultValue instanceof Short||
+                        type == int.class && defaultValue instanceof Integer||
+                        type == long.class && defaultValue instanceof Long||
+                        type == float.class && defaultValue instanceof Float||
+                        type == double.class && defaultValue instanceof Double) 
+                        return ((T)defaultValue) ;
+                }
+                throw new ClassCastException("default value not instance of " 
+                        + type.toString() + " found " 
+                        + defaultValue.getClass() + " instead");
 	    }
 	} catch (ConfigurationException e) {
 	    configEx = e;

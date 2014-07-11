@@ -48,16 +48,12 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedList;
-import java.util.NavigableSet;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.jini.loader.ClassAnnotation;
 import net.jini.loader.DownloadPermission;
 import org.apache.river.api.net.RFC3986URLClassLoader;
-import org.apache.river.api.security.PermissionComparator;
-import org.apache.river.api.security.PermissionGrant;
 
 /**
  * A class loader that supports preferred classes.
@@ -401,10 +397,9 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
          * PreferredClassLoader, and it must not be invoked again after it
          * has completed successfully.
          * 
-         * This was called from privileged context when it as part of a method,
-         * but we shouldn't need to do that here, any code that can construct
-         * a ClassLoader has privilege.  Note that InputStream is not subject
-         * to deserialization attacks like ObjectInputStream.
+         * This was called from privileged context when it as part of a method.  
+         * Note that InputStream is not subject to deserialization attacks 
+         * like ObjectInputStream.
          * 
          * Also synchronization is not required as it is called from within
          * the constructor now, this change was made to remove any possiblity
@@ -413,31 +408,17 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
         IOException except = null;
         PreferredResources pref = null;
 	if (firstURL != null) {
-            InputStream prefIn = null;
             try {
-                prefIn = getPreferredInputStream(firstURL);
-                if (prefIn != null) {
-                    try {
-                        pref = new PreferredResources(prefIn);
-                    } finally {
-                        try {
-                            prefIn.close();
-                        } catch (IOException e) {
-                        }
-                    }
+                pref = AccessController.doPrivileged(
+                    new PreferredResourcesPrivilegedExceptionAction(firstURL)
+                );
+            } catch (PrivilegedActionException ex) {
+                Exception e = ex.getException();
+                if (e instanceof IOException){
+                    except = (IOException) e;
+                } else {
+                    except = new IOException(e);
                 }
-            } catch (IOException ex) {
-                Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.SEVERE, "Unable to access preferred resources", ex);
-                except = ex;
-            } finally {
-                try {
-                    if (prefIn != null){
-                        prefIn.close();
-                    }
-                } catch (IOException ex) {
-                    Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.SEVERE, "Problem closing preferred resources input stream", ex);
-                } 
-                
             }
 	}
         exceptionWhileLoadingPreferred = except;
@@ -446,7 +427,7 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
         Enumeration<Permission> en = permissions.elements();
         while(en.hasMoreElements()){
             this.permissions.add(en.nextElement());
-    }
+        }
     }
 
     /**
@@ -1381,5 +1362,37 @@ public class PreferredClassLoader extends RFC3986URLClassLoader
                 // Sun Bug ID: 6536522
             }
 	}
+    }
+    
+    private class PreferredResourcesPrivilegedExceptionAction 
+                implements PrivilegedExceptionAction<PreferredResources>{
+        
+        private URL firstURL;
+        
+        PreferredResourcesPrivilegedExceptionAction(URL first){
+            firstURL = first;
+        }
+
+        @Override
+        public PreferredResources run() throws Exception {
+            PreferredResources pref = null;
+            InputStream prefIn = null;
+            try {
+                prefIn = getPreferredInputStream(firstURL);
+                if (prefIn != null) pref = new PreferredResources(prefIn);
+            } catch (IOException ex) {
+                Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.CONFIG, "Unable to access preferred resources", ex);
+                throw ex;
+            } finally {
+                try {
+                    if (prefIn != null){
+                        prefIn.close();
+                    }
+                } catch (IOException ex) {
+                    Logger.getLogger(PreferredClassLoader.class.getName()).log(Level.CONFIG, "Problem closing preferred resources input stream", ex);
+                } 
+            }
+            return pref;
+        }
     }
 }

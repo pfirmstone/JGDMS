@@ -54,7 +54,6 @@ import java.util.jar.Manifest;
 
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import org.apache.river.api.net.RFC3986URLClassLoader;
 
 /**
  * Tool used to generate the preferred class information for downloadable JAR
@@ -1152,7 +1151,7 @@ public class PreferredListGen {
 	    if (cl != null) {
 		cl = cl.getParent(); // the extension classloader
 	    }
-	    loader = new RFC3986URLClassLoader(urls, cl);
+	    loader = new URLClassLoader(urls, cl);
 	}
 	loadJars();
 	Collection roots = getRoots();

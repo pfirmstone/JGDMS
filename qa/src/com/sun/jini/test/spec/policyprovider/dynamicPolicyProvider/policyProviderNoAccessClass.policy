@@ -47,6 +47,8 @@ grant {
     permission javax.security.auth.AuthPermission "createLoginContext.com.sun.jini.Test";
     permission javax.security.auth.AuthPermission "doAs";
     permission java.lang.RuntimePermission "accessClassInPackage.sun.misc";
+    permission java.lang.RuntimePermission "getenv.SOUL";
+    permission java.net.SocketPermission "*", "listen,resolve";
 
     // Allow reflection to examine service starter framework classes
     permission java.lang.RuntimePermission "accessDeclaredMembers";

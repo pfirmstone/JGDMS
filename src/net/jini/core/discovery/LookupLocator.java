@@ -17,29 +17,31 @@
  */
 package net.jini.core.discovery;
 
-import com.sun.jini.jeri.internal.runtime.Util;
-import java.io.DataOutputStream;
+import com.sun.jini.discovery.Discovery;
+import com.sun.jini.discovery.DiscoveryConstraints;
+import com.sun.jini.discovery.UnicastResponse;
+import com.sun.jini.discovery.UnicastSocketTimeout;
+import com.sun.jini.discovery.internal.MultiIPDiscovery;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
-import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.Socket;
-import java.net.SocketException;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.UnknownHostException;
-import java.rmi.MarshalledObject;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
+import java.util.ArrayList;
+import java.util.Collection;
+import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.ConstrainableLookupLocator;
-import net.jini.io.MarshalledInstance;
 import org.apache.river.api.net.Uri;
 
 /**
- * LookupLocator supports unicast discovery, using only version 1 of the
- * unicast discovery protocol, which is deprecated.  
+ * LookupLocator supports unicast discovery, using either Discovery V1 or V2.
+ * 
+ * Version 1 of the unicast discovery protocol is deprecated.  
  * <p>
  * It's main purpose now is to contain a host name and port number, it is now
  * immutable, since River 2.2.1, this may break overriding classes.
@@ -85,8 +87,9 @@ public class LookupLocator implements Serializable {
      * the lookup service.
      */
     static final int defaultTimeout =
-	((Integer)AccessController.doPrivileged(new PrivilegedAction() {
-	    public Object run() {
+	AccessController.doPrivileged(new PrivilegedAction<Integer>() {
+            @Override
+	    public Integer run() {
 		Integer timeout = Integer.valueOf(60 * 1000);
 		try {
 		    Integer val = Integer.getInteger(
@@ -97,7 +100,7 @@ public class LookupLocator implements Serializable {
 		    return timeout;
 		}
 	    }
-	})).intValue();
+	}).intValue();
 
     /**
      * Construct a new <code>LookupLocator</code> object, set up to perform
@@ -165,10 +168,12 @@ public class LookupLocator implements Serializable {
      * @throws NullPointerException if <code>host</code> is <code>null</code>
      */
     public LookupLocator(String host, int port) {
-        if (host == null) throw new NullPointerException("null host");
-	StringBuilder sb = new StringBuilder();
+        if (host == null) {
+            throw new NullPointerException("null host");
+        }
+        StringBuilder sb = new StringBuilder();
         sb.append("jini://").append(host);
-        if ( port != -1 ) { //URI compliance -1 is converted to discoveryPort.
+        if (port != -1) { //URI compliance -1 is converted to discoveryPort.
             sb.append(":").append(port);
         }
         try {
@@ -179,56 +184,61 @@ public class LookupLocator implements Serializable {
             throw new IllegalArgumentException("host cannot be parsed", ex);
         }
     }
-    
-    private URI parseURI(String url) throws MalformedURLException{
+
+    private URI parseURI(String url) throws MalformedURLException {
         if (url == null) {
-	    throw new NullPointerException("url is null");
-	}
-	URI uri = null;
-	try {
+            throw new NullPointerException("url is null");
+        }
+        URI uri = null;
+        try {
             uri = Uri.uriToURI(Uri.parseAndCreate(url));
-//            url = UriString.escapeIllegalCharacters(url);
-//	    uri = new URI(url);
-//            uri = UriString.normalise(uri);
-	} catch (URISyntaxException e) {
-	    MalformedURLException mue =
-		new MalformedURLException("URI parsing failure: " + url);
-	    mue.initCause(e);
-	    throw mue;
-	}
+        } catch (URISyntaxException e) {
+            MalformedURLException mue
+                    = new MalformedURLException("URI parsing failure: " + url);
+            mue.initCause(e);
+            throw mue;
+        }
 	if (!uri.isAbsolute()) throw new MalformedURLException("no scheme specified: " + url);
 	if (uri.isOpaque()) throw new MalformedURLException("not a hierarchical url: " + url);
 	if (!uri.getScheme().toLowerCase().equals("jini")) throw new MalformedURLException("Invalid URL scheme: " + url);
-	
-	String uriPath = uri.getPath();
-	if ((uriPath.length() != 0) && (!uriPath.equals("/"))) {
-	    throw new MalformedURLException(
-		"URL path contains path segments: " + url);
-	}
+
+        String uriPath = uri.getPath();
+        if ((uriPath.length() != 0) && (!uriPath.equals("/"))) {
+            throw new MalformedURLException(
+                    "URL path contains path segments: " + url);
+        }
 	if (uri.getQuery() != null) throw new MalformedURLException("invalid character, '?', in URL: " + url);
 	if (uri.getFragment() != null) throw new MalformedURLException("invalid character, '#', in URL: " + url);
         if (uri.getUserInfo() != null) throw new MalformedURLException("invalid character, '@', in URL host: " + url);
         if ((uri.getHost()) == null) {
             // authority component does not exist - not a hierarchical URL
             throw new MalformedURLException(
-                "Not a hierarchical URL: " + url);
+                    "Not a hierarchical URL: " + url);
         }
         int port = uri.getPort();
         if (port == -1) {
             port = discoveryPort;
             try {
-                uri = new URI(uri.getScheme(), uri.getRawUserInfo(), uri.getHost(), port, uri.getRawPath(), uri.getRawQuery(), uri.getRawFragment());
+                uri = new URI(
+                        uri.getScheme(),
+                        uri.getRawUserInfo(),
+                        uri.getHost(), 
+                        port, 
+                        uri.getRawPath(),
+                        uri.getRawQuery(),
+                        uri.getRawFragment()
+                );
             } catch (URISyntaxException e) {
-                MalformedURLException mue =
-		new MalformedURLException("recreation of URI with discovery port failed");
+                MalformedURLException mue
+                        = new MalformedURLException("recreation of URI with discovery port failed");
                 mue.initCause(e);
                 throw mue;
             }
         }
-	
-	if ((uri.getPort() <= 0) || (uri.getPort() >= 65536)) {
-	    throw new MalformedURLException("port number out of range: " + url);
-	}
+
+        if ((uri.getPort() <= 0) || (uri.getPort() >= 65536)) {
+            throw new MalformedURLException("port number out of range: " + url);
+        }
         return uri;
     }
 
@@ -302,79 +312,25 @@ public class LookupLocator implements Serializable {
     public ServiceRegistrar getRegistrar(int timeout)
 	throws IOException, ClassNotFoundException
     {
-	InetAddress[] addrs = null;
-	try {
-	    addrs = InetAddress.getAllByName(host);
-	} catch (UnknownHostException uhe) {
-	    // Cannot resolve the host name, maybe the socket implementation
-	    // can do it for us.
-	    Socket sock = new Socket(host, port);
-	    return getRegistrarFromSocket(sock, timeout);
-	}
-	IOException ioEx = null;
-	SecurityException secEx = null;
-	ClassNotFoundException cnfEx = null;
-	for (int i = 0; i < addrs.length; i++) {
-	    try {
-                Socket sock = new Socket(addrs[i], port);
-		return getRegistrarFromSocket(sock, timeout);
-	    } catch (ClassNotFoundException ex) {
-		cnfEx = ex;
-	    } catch (IOException ex) {
-		ioEx = ex;
-	    } catch (SecurityException ex) {
-		secEx = ex;
-	    }
-	}
-	// All our attempts failed. Throw ClassNotFoundException, IOException,
-	// SecurityException in that order of preference.
-	if (cnfEx != null) {
-	    throw cnfEx;
-	}
-	if (ioEx != null) {
-	    throw ioEx;
-	}
-	assert (secEx != null);
-	throw secEx;
+	InvocationConstraints ic = InvocationConstraints.EMPTY;
+	Collection reqs = new ArrayList(ic.requirements());
+	reqs.add(new UnicastSocketTimeout(timeout));
+	return getRegistrar(new InvocationConstraints(reqs, ic.preferences()));
     }
 
-    // Convenience method to do unicast discovery on a socket
-    private static ServiceRegistrar getRegistrarFromSocket(Socket sock,
-							   int timeout)
-	throws IOException, ClassNotFoundException
-    {
-	try {
-	    sock.setSoTimeout(timeout);
-	    try {
-		sock.setTcpNoDelay(true);
-	    } catch (SocketException e) {
-		// ignore possible failures and proceed anyway
-	    }
-	    try {
-		sock.setKeepAlive(true);
-	    } catch (SocketException e) {
-		// ignore possible failures and proceed anyway
-	    }
-	    DataOutputStream dstr =
-		new DataOutputStream(sock.getOutputStream());
-	    dstr.writeInt(protoVersion);
-	    dstr.flush();
-	    ObjectInputStream istr =
-		new ObjectInputStream(sock.getInputStream());
-	    ServiceRegistrar registrar =
-		(ServiceRegistrar) new MarshalledInstance(
-                        (MarshalledObject)istr.readObject()).get(false);
-	    for (int grpCount = istr.readInt(); --grpCount >= 0; ) {
-		istr.readUTF(); // ensure proper format, then discard
-	    }
-	    return registrar;
-	} finally {
-	    try {
-		sock.close();
-	    } catch (IOException e) {
-		// ignore
-	    }
-	}
+    private ServiceRegistrar getRegistrar(InvocationConstraints constraints)
+            throws IOException, ClassNotFoundException {
+        UnicastResponse resp = new MultiIPDiscovery() {
+            @Override
+            protected UnicastResponse performDiscovery(Discovery disco,
+                    DiscoveryConstraints dc,
+                    Socket s)
+                    throws IOException, ClassNotFoundException {
+                return disco.doUnicastDiscovery(
+                        s, dc.getUnfulfilledConstraints(), null, null, null);
+            }
+        }.getResponse(host, port, constraints);
+        return resp.getRegistrar();
     }
     
     /**

@@ -104,9 +104,9 @@ public final class ConstraintAlternatives
      * instances of <code>InvocationConstraint</code>, or if fewer than two
      * elements remain after duplicate constraints are removed
      */
-    public ConstraintAlternatives(Collection c) {
+    public ConstraintAlternatives(Collection<InvocationConstraint> c) {
 	try {
-	    constraints = reduce((InvocationConstraint[]) c.toArray(
+	    constraints = reduce( c.toArray(
 					  new InvocationConstraint[c.size()]));
 	} catch (ArrayStoreException e) {
 	    throw new IllegalArgumentException(
@@ -157,11 +157,9 @@ public final class ConstraintAlternatives
      * or if the elements are not all instances of
      * <code>InvocationConstraint</code>
      */
-    public static InvocationConstraint create(Collection c) {
+    public static InvocationConstraint create(Collection<InvocationConstraint> c) {
 	try {
-	    return reduce((InvocationConstraint[]) c.toArray(
-					  new InvocationConstraint[c.size()]),
-			  false);
+	    return reduce( c.toArray( new InvocationConstraint[c.size()]), false);
 	} catch (ArrayStoreException e) {
 	    throw new IllegalArgumentException(
 		       "element of collection is not an InvocationConstraint");

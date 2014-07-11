@@ -716,22 +716,24 @@ class SecureClient implements Constants, TestClient, Runnable {
     private void doAllConstraints(SmartInterface proxy) {
         logger.writeLog();
         /* loop for all combinations of non-conflicting requirements */
-        for (int req = 0; req < (1 << constraintsArray.length); req++) {
+        int l = constraintsArray.length;
+        for (int req = 0; req < (1 << l); req++) {
             if (((req & BADCONF) == BADCONF)||((req & BADINTEG) == BADINTEG)
                 || ((req & BADDELEG) == BADDELEG)){
                 continue;
             }
             /* split constraints between proxy and context */
             int flags = req;
-            ArrayList reqList = new ArrayList();
-            for (int i = 0; i < constraintsArray.length; i++) {
+            ArrayList<InvocationConstraint> reqList = new ArrayList<InvocationConstraint>(l);
+            for (int i = 0; i < l; i++) {
                 if ((flags & 1) != 0) {
                     reqList.add(constraintsArray[i]);
                 }
                 flags >>= 1;
             }
             /* loop for all combinations of non-conflicting preferences */
-            for (int pref = 0; pref < (1 << preferencesArray.length); pref++) {
+            int len = preferencesArray.length;
+            for (int pref = 0; pref < (1 << len); pref++) {
                 logger.startBoundary("Proxy setup");
                 if ((pref & BADSTRENGTH) == BADSTRENGTH) {
                     continue;
@@ -750,8 +752,8 @@ class SecureClient implements Constants, TestClient, Runnable {
                 }
                 /* split preferences between proxy and context */
                 flags = pref;
-                ArrayList prefList = new ArrayList();
-                for (int i = 0; i < preferencesArray.length; i++) {
+                ArrayList<InvocationConstraint> prefList = new ArrayList<InvocationConstraint>(len);
+                for (int i = 0; i < len; i++) {
                     if ((flags & 1) != 0) {
                         prefList.add(preferencesArray[i]);
                     }

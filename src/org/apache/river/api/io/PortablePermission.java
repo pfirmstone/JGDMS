@@ -20,19 +20,19 @@ import java.io.ObjectOutput;
 import java.security.BasicPermission;
 
 /**
- * This Permission allows an object to be Distributed by an implementation of
+ * This Permission allows an object to be Portable by an implementation of
  * ObjectOutput
  * 
  * @author peter
- * @see SerialReflectionFactory
+ * @see PortableFactory
  * @see ObjectOutput
  * @since 3.0.0
  */
-public class DistributePermission  extends BasicPermission{
+public class PortablePermission  extends BasicPermission{
     private static final long serialVersionUID = 1L;
 
-    public DistributePermission(){
-        super("DISTRIBUTE");
+    public PortablePermission(){
+        super("Portable");
     }
 
 }

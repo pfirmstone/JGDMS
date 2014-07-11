@@ -17,39 +17,25 @@
  */
 package com.sun.jini.tool.envcheck.plugins;
 
-import com.sun.jini.start.NonActivatableServiceDescriptor;
+import com.sun.jini.start.ServiceDescriptor;
 import com.sun.jini.start.SharedActivatableServiceDescriptor;
 import com.sun.jini.start.SharedActivationGroupDescriptor;
-import com.sun.jini.start.ServiceDescriptor;
-
 import com.sun.jini.tool.envcheck.AbstractPlugin;
 import com.sun.jini.tool.envcheck.EnvCheck;
-import com.sun.jini.tool.envcheck.Plugin;
 import com.sun.jini.tool.envcheck.Reporter;
 import com.sun.jini.tool.envcheck.Reporter.Message;
 import com.sun.jini.tool.envcheck.SubVMTask;
 import com.sun.jini.tool.envcheck.Util;
-
 import java.io.File;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.URL;
-import java.net.URLClassLoader;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.RMISecurityManager;
 import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.Iterator;
-import java.util.Properties;
 import java.util.ResourceBundle;
 import java.util.Set;
-
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.config.ConfigurationFile;
 import net.jini.config.ConfigurationProvider;
-import net.jini.config.NoSuchEntryException;
+import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  * Check that the persistence directory supplied by any
@@ -177,7 +163,7 @@ public class CheckPersistence extends AbstractPlugin {
 	    Util.getResourceBundle(CheckPersistence.class);
 
 	public Object run(String[] args) {
-	    System.setSecurityManager(new RMISecurityManager());
+	    System.setSecurityManager(new CombinerSecurityManager());
 	    String dir = args[0];
 	    File dirFile = new File(dir);
 	    if (!dirFile.exists()) {
@@ -230,19 +216,18 @@ public class CheckPersistence extends AbstractPlugin {
 	 */
 	private Object getEntries(Configuration conf) {
 	    ConfigurationFile cf = (ConfigurationFile) conf;
-	    ArrayList list = new ArrayList();
-	    Set names = cf.getEntryNames();
-	    Iterator it = names.iterator();
+	    ArrayList<String> list = new ArrayList<String>();
+	    Set<String> names = cf.getEntryNames();
+	    Iterator<String> it = names.iterator();
 	    String s = "";
 	    while (it.hasNext()) {
-		String name = (String) it.next();
+		String name = it.next();
 		s += name + "\n";
 		int lastDot = name.lastIndexOf(".persistenceDirectory");
 		if (lastDot > 0) {
 		    String component = name.substring(0, lastDot);
 		    try {
-			String dir =
-			    (String) conf.getEntry(component, 
+			String dir = conf.getEntry(component, 
 						   "persistenceDirectory",
 						   String.class,
 						   null);

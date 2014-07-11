@@ -18,9 +18,6 @@ package org.apache.river.api.net;
 
 import java.io.File;
 import java.net.URISyntaxException;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
 import java.util.StringTokenizer;
 import org.apache.river.impl.Messages;
 
@@ -104,7 +101,7 @@ final class UriParser {
                 query = temp.substring(index + 1);
                 temp.delete(index, temp.length());
                 validateQuery(uri, query, index2 + 1 + index);
-                if (query == "") query = null;
+                if ("".equals(query)) query = null;
             }
             // Authority and Path
             if (temp.length() >= 2 && temp.charAt(0) == fSlash && temp.charAt(1) == fSlash) {
@@ -134,9 +131,6 @@ final class UriParser {
                     authority = null;
                 } 
                 // Authority validated by userinfo, host and port, later.
-//                else {
-//                    validateAuthority(uri, authority, index1 + 3);
-//                }
             } else {
                 // no authority specified
                 String legal;
@@ -222,21 +216,6 @@ final class UriParser {
         }
     }
 
-//    private void validateAuthority(String uri, String authority, int index) throws URISyntaxException {
-//        try {
-//            URIEncoderDecoder.validate(authority, "@[]" + Uri.someLegal); //$NON-NLS-1$
-//        } catch (URISyntaxException e) {
-//            throw new URISyntaxException(uri, Messages.getString("luni.87", e.getReason()), index + e.getIndex());
-//        }
-//    }
-//
-//    private void validatePath(String uri, String path, int index) throws URISyntaxException {
-//        try {
-//            URIEncoderDecoder.validate(path, "/@" + Uri.someLegal); //$NON-NLS-1$
-//        } catch (URISyntaxException e) {
-//            throw new URISyntaxException(uri, Messages.getString("luni.88", e.getReason()), index + e.getIndex());
-//        }
-//    }
     private void validateSegment(String uri, String segment, int index, String legal) throws URISyntaxException {
         try {
             URIEncoderDecoder.validate(segment, legal); //$NON-NLS-1$
@@ -278,7 +257,7 @@ final class UriParser {
         }
         String temp;
         String tempUserinfo = null;
-        String tempHost = null;
+        String tempHost;
         int index;
         int hostindex = 0;
         int tempPort = -1;
@@ -340,13 +319,6 @@ final class UriParser {
         } catch (URISyntaxException e) {
             throw new URISyntaxException(uri, Messages.getString("luni.8C", e.getReason()), index + e.getIndex());
         }
-//        
-//        for (int i = 0; i < userinfo.length(); i++) {
-//            char ch = userinfo.charAt(i);
-//            if (ch == ']' || ch == '[') {
-//                throw new URISyntaxException(uri, Messages.getString("luni.8C"), index + i);
-//            }
-//        }
     }
 
     /**
@@ -403,7 +375,7 @@ final class UriParser {
                 return false;
             }
         }
-        if (!label.equals(host)) {
+        if ( label != null && !label.equals(host)) {
             char ch = label.charAt(0);
             if (ch >= '0' && ch <= '9') {
                 return false;
@@ -436,7 +408,7 @@ final class UriParser {
             if (num < 0 || num > 255) {
                 return false;
             }
-        } catch (Exception e) {
+        } catch (NumberFormatException e) {
             return false;
         }
         return true;
@@ -449,7 +421,7 @@ final class UriParser {
         int numberOfPeriods = 0;
         String word = ""; //$NON-NLS-1$
         char c = 0;
-        char prevChar = 0;
+        char prevChar;
         int offset = 0; // offset for [] ip addresses
         if (length < 2) {
             return false;
@@ -544,7 +516,7 @@ final class UriParser {
             // If we have an empty word at the end, it means we ended in
             // either a : or a .
             // If we did not end in :: then this is invalid
-            if (word == "" && ipAddress.charAt(length - 1 - offset) != ':' && ipAddress.charAt(length - 2 - offset) != ':') {
+            if (word.equals("") && ipAddress.charAt(length - 1 - offset) != ':' && ipAddress.charAt(length - 2 - offset) != ':') {
                 return false;
             }
         }
@@ -553,19 +525,12 @@ final class UriParser {
 
     private boolean isValidIP4Word(String word) {
         char c;
-        if (word.length() < 1 || word.length() > 3) {
-            return false;
-        }
+        if (word.length() < 1 || word.length() > 3) return false;
         for (int i = 0; i < word.length(); i++) {
             c = word.charAt(i);
-            if (!(c >= '0' && c <= '9')) {
-                return false;
-            }
+            if (!(c >= '0' && c <= '9')) return false;
         }
-        if (Integer.parseInt(word) > 255) {
-            return false;
-        }
-        return true;
+        return (Integer.parseInt(word) <= 255);
     }
 
     private boolean isValidHexChar(char c) {
@@ -604,7 +569,7 @@ final class UriParser {
 
         // break the path into segments and store in the list
         int current = 0;
-        int index2 = 0;
+        int index2;
         index = (pathlen > 0 && path.charAt(0) == '/') ? 1 : 0;
         while ((index2 = path.indexOf('/', index + 1)) != -1) {
             seglist[current++] = path.substring(index, index2);
@@ -681,13 +646,15 @@ final class UriParser {
         // ssp = [//authority][path][?query]
         StringBuilder ssp = new StringBuilder();
         if (authority != null) {
-            ssp.append("//" + authority); //$NON-NLS-1$
+            ssp.append("//"); //$NON-NLS-1$
+            ssp.append(authority);
         }
         if (path != null) {
             ssp.append(path);
         }
         if (query != null) {
-            ssp.append("?" + query); //$NON-NLS-1$
+            ssp.append("?"); //$NON-NLS-1$
+            ssp.append(query);
         }
         // reset string, so that it can be re-calculated correctly when asked.
         return ssp.toString();

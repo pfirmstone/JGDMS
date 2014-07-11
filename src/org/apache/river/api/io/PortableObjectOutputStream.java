@@ -23,27 +23,28 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 
 /**
- * DistributedObjectOutputStream replaces @ref{Distributed} instances
- * in the OutputStream with a SerialReflectionFactory that recreates the 
- * Distributed Object during unmarshalling.
+ * PortableObjectOutputStream replaces @ref{Portable} instances
+ * in the OutputStream with a PortableFactory that recreates the 
+ * Portable Object during unmarshalling.
  * 
  * @author peter
  * @since 3.0.0
  */
-public class DistributedObjectOutputStream extends ObjectOutputStream {
+public class PortableObjectOutputStream extends ObjectOutputStream {
     
      public static ObjectOutputStream create(OutputStream out) throws IOException{
-        DistributedObjectOutputStream result = new DistributedObjectOutputStream(out);
+        PortableObjectOutputStream result = new PortableObjectOutputStream(out);
         AccessController.doPrivileged(new EnableReplaceObject(result));
         return result;
     }
     
-    protected DistributedObjectOutputStream (OutputStream out) throws IOException{
+    protected PortableObjectOutputStream (OutputStream out) throws IOException{
         super(out);
     }
     
+     @Override
     protected Object replaceObject(Object o){
-        if (o instanceof Distributed) return ((Distributed)o).substitute();
+        if (o instanceof Portable) return ((Portable)o).factory();
         return o;
     }
     
@@ -52,9 +53,9 @@ public class DistributedObjectOutputStream extends ObjectOutputStream {
     }
     
     private static class EnableReplaceObject implements PrivilegedAction{
-        private final DistributedObjectOutputStream out;
+        private final PortableObjectOutputStream out;
         
-        EnableReplaceObject(DistributedObjectOutputStream out){
+        EnableReplaceObject(PortableObjectOutputStream out){
             this.out = out;
         }
         

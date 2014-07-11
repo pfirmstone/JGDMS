@@ -23,12 +23,6 @@ import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Locale;
-import java.util.Map;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import org.apache.river.impl.Messages;
 
 
@@ -289,6 +283,8 @@ public final class Uri implements Comparable<Uri> {
     /** Fixes windows file URI string by converting back slashes to forward
      * slashes and inserting a forward slash before the drive letter if it is
      * missing.  No normalisation or modification of case is performed.
+     * @param uri String representation of URI
+     * @return fixed URI String
      */
     public static String fixWindowsURI(String uri) {
         if (uri == null) return null;
@@ -780,8 +776,9 @@ public final class Uri implements Comparable<Uri> {
      *            the URI this instance has to compare with.
      * @return the value representing the order of the two instances.
      */
+    @Override
     public int compareTo(Uri uri) {
-        int ret = 0;
+        int ret;
 
         // compare schemes
         if (scheme == null && uri.scheme != null) {
@@ -790,9 +787,7 @@ public final class Uri implements Comparable<Uri> {
             return 1;
         } else if (scheme != null && uri.scheme != null) {
             ret = scheme.compareToIgnoreCase(uri.scheme);
-            if (ret != 0) {
-                return ret;
-            }
+            if (ret != 0) return ret;
         }
 
         // compare opacities
@@ -920,6 +915,7 @@ public final class Uri implements Comparable<Uri> {
      * 
      * @param unescapedString
      * @return an RFC3986 compliant Uri.
+     * @throws java.net.URISyntaxException
      */
     public static Uri escapeAndCreate(String unescapedString) throws URISyntaxException{
         return new Uri(quoteComponent(unescapedString, allLegalUnescaped));
@@ -932,6 +928,7 @@ public final class Uri implements Comparable<Uri> {
      * The escape character % is not re-encoded.
      * @param nonCompliantEscapedString 
      * @return an RFC3986 compliant Uri.
+     * @throws java.net.URISyntaxException
      */
     public static Uri parseAndCreate(String nonCompliantEscapedString) throws URISyntaxException{
         return new Uri(quoteComponent(nonCompliantEscapedString, allLegal));
@@ -948,7 +945,7 @@ public final class Uri implements Comparable<Uri> {
             return s;
         }
 
-        int index = 0, previndex = 0;
+        int index, previndex = 0;
         while ((index = s.indexOf('%', previndex)) != -1) {
             result.append(s.substring(previndex, index + 1));
             // Convert to upper case ascii
@@ -967,31 +964,7 @@ public final class Uri implements Comparable<Uri> {
     private boolean equalsHexCaseInsensitive(String first, String second) {
         //Hex will always be upper case.
         if (first != null) return first.equals(second); 
-        if (second != null) return false;
-        return true;
-//        if (first.indexOf('%') != second.indexOf('%')) {
-//            return first.equals(second);
-//        }
-//
-//        int index = 0, previndex = 0;
-//        while ((index = first.indexOf('%', previndex)) != -1
-//                && second.indexOf('%', previndex) == index) {
-//            boolean match = first.substring(previndex, index).equals(
-//                    second.substring(previndex, index));
-//            if (!match) {
-//                return false;
-//            }
-//
-//            match = first.substring(index + 1, index + 3).equalsIgnoreCase(
-//                    second.substring(index + 1, index + 3));
-//            if (!match) {
-//                return false;
-//            }
-//
-//            index += 3;
-//            previndex = index;
-//        }
-//        return first.substring(previndex).equals(second.substring(previndex));
+        return second == null;
     }
 
     /**
@@ -1038,8 +1011,6 @@ public final class Uri implements Comparable<Uri> {
                     || fileSchemeCaseInsensitiveOS
                     // Upper case comparison required for Windows & VMS.
                     && asciiStringsUpperCaseEqual(path, uri.path)
-//                    path.toUpperCase(Locale.ENGLISH).equals(
-//                    uri.path.toUpperCase(Locale.ENGLISH))
                     ))) 
             {
                 return false;
@@ -1579,7 +1550,7 @@ public final class Uri implements Comparable<Uri> {
 
         // break the path into segments and store in the list
         int current = 0;
-        int index2 = 0;
+        int index2;
         index = (pathlen > 0 && path.charAt(0) == '/') ? 1 : 0;
         while ((index2 = path.indexOf('/', index + 1)) != -1) {
             seglist[current++] = path.substring(index, index2);
@@ -1712,18 +1683,18 @@ public final class Uri implements Comparable<Uri> {
             }
         }
 
-        String query = relative.query;
+        String qry = relative.query;
         // the result URI is the remainder of the relative URI's path
-        String path = relativePath.substring(thisPath.length());
+        String pth = relativePath.substring(thisPath.length());
         return new Uri( null,
                         null,
-                        setSchemeSpecificPart(null, path, query),
+                        setSchemeSpecificPart(null, pth, qry),
                         null,
                         null,
                         null,
                         -1,
-                        path,
-                        query,
+                        pth,
+                        qry,
                         relative.fragment,
                         false,
                         false,
@@ -1829,13 +1800,15 @@ public final class Uri implements Comparable<Uri> {
         // ssp = [//authority][path][?query]
         StringBuilder ssp = new StringBuilder();
         if (authority != null) {
-            ssp.append("//" + authority); //$NON-NLS-1$
+            ssp.append("//"); //$NON-NLS-1$
+            ssp.append(authority);
         }
         if (path != null) {
             ssp.append(path);
         }
         if (query != null) {
-            ssp.append("?" + query); //$NON-NLS-1$
+            ssp.append("?"); //$NON-NLS-1$
+            ssp.append(query);
         }
         // reset string, so that it can be re-calculated correctly when asked.
         return ssp.toString();
@@ -1934,11 +1907,13 @@ public final class Uri implements Comparable<Uri> {
                     result.append(authority);
                 } else {
                     if (userinfo != null) {
-                        result.append(userinfo + "@"); //$NON-NLS-1$
+                        result.append(userinfo); //$NON-NLS-1$
+                        result.append("@");
                     }
                     result.append(toAsciiLowerCase(host));
                     if (port != -1) {
-                        result.append(":" + port); //$NON-NLS-1$
+                        result.append(":"); //$NON-NLS-1$
+                        result.append(port);
                     }
                 }
             }

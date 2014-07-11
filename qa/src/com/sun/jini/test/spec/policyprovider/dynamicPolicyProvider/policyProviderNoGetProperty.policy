@@ -36,6 +36,10 @@ grant {
         "setProperty.net.jini.security.policy.*";
     permission java.lang.RuntimePermission
         "accessClassInPackage.sun.security.provider";
+    permission java.net.NetPermission "getNetworkInformation";
+    permission java.net.SocketPermission "*", "listen,resolve";
+    permission java.lang.RuntimePermission "getenv.SOUL";
+    permission java.lang.RuntimePermission "accessClassInPackage.sun.util.logging.resources";
 };
 
 /*

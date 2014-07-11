@@ -572,7 +572,7 @@ public class ConstructorsTest extends AbstractConstructorsTest {
      * constructor or null if no exception is expected
      * @throws TestException if any verification fails
      */
-    protected void callConstructor(Object tc, Collection c, Class ex)
+    protected void callConstructor(Object tc, Collection<InvocationConstraint> c, Class ex)
             throws TestException {
 
         /*
@@ -651,7 +651,7 @@ public class ConstructorsTest extends AbstractConstructorsTest {
         InvocationConstraint constraintBefore = null;
 
         try {
-            constraintBefore = ConstraintAlternatives.create((Collection) c);
+            constraintBefore = ConstraintAlternatives.create(c);
         } catch (Exception e) {
             throw new TestException("Exception is thrown while invoking"
                     + " ConstraintAlternatives.create() method", e);

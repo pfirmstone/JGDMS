@@ -29,7 +29,6 @@ import net.jini.security.ProxyPreparer;
 import java.rmi.activation.ActivationException;
 import java.rmi.activation.ActivationSystem;
 import java.rmi.Naming;
-import java.rmi.RMISecurityManager;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
 import java.util.ArrayList;
@@ -161,7 +160,7 @@ public class ServiceStarter {
     }
 
     /** Array of strong references to transient services */
-    private static ArrayList transient_service_refs;
+    private static ArrayList<Object> transient_service_refs;
     
     /** Prevent instantiation */
     private ServiceStarter() { }
@@ -229,10 +228,11 @@ public class ServiceStarter {
 	loginContext.login();
 	Result[] results = null;
 	    try {
-	        results = (Result[])Subject.doAsPrivileged(
+	        results = Subject.doAsPrivileged(
 	            loginContext.getSubject(),
-                    new PrivilegedExceptionAction() {
-                        public Object run()
+                    new PrivilegedExceptionAction<Result[]>() {
+                        @Override
+                        public Result[] run()
                             throws Exception
                         {
                             return create(descs, config);
@@ -274,7 +274,7 @@ public class ServiceStarter {
     {
         logger.entering(ServiceStarter.class.getName(), "create", 
 	    new Object[] {descs, config});
-	ArrayList proxies = new ArrayList();
+	ArrayList<Result> proxies = new ArrayList<Result>();
 
 	Object result = null;
 	Exception problem = null;
@@ -295,7 +295,7 @@ public class ServiceStarter {
 	}
 	    
         logger.exiting(ServiceStarter.class.getName(), "create", proxies);
-        return (Result[])proxies.toArray(new Result[proxies.size()]);
+        return proxies.toArray(new Result[proxies.size()]);
     }
     
     /**
@@ -379,7 +379,7 @@ public class ServiceStarter {
            "maintainNonActivatableReferences", (Object[])results);
         if (results.length == 0) 
 	    return;
-        transient_service_refs = new ArrayList();
+        transient_service_refs = new ArrayList<Object>();
         for (int i=0; i < results.length; i++) {
 	    if (results[i] != null &&
 	        results[i].result != null &&

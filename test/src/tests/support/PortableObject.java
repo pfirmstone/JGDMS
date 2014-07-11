@@ -17,17 +17,17 @@
 package tests.support;
 
 import java.io.Serializable;
-import org.apache.river.api.io.Distributed;
-import org.apache.river.api.io.SerialReflectionFactory;
+import org.apache.river.api.io.Portable;
+import org.apache.river.api.io.PortableFactory;
 
 /**
  *
  * @author peter
  */
-public class DistributedObject implements Distributed {
+public class PortableObject implements Portable {
     
-    public static DistributedObject create(String str){
-        return new DistributedObject(str);
+    public static PortableObject create(String str){
+        return new PortableObject(str);
     }
     
     private final String testString;
@@ -39,63 +39,63 @@ public class DistributedObject implements Distributed {
      */
     private final int method;
     
-    public DistributedObject(String str){
+    public PortableObject(String str){
         testString = str;
         method = 0;
     }
     
-    public DistributedObject(Number num){
+    public PortableObject(Number num){
         testString = num.toString();
         method = 5;
     }
     
-    public DistributedObject(Character ch){
+    public PortableObject(Character ch){
         testString = ch.toString();
         method = 4;
     }
     
-    public DistributedObject(Boolean b){
+    public PortableObject(Boolean b){
         testString = b.toString();
         method = 3;
     }
     
-    public DistributedObject(boolean b){
+    public PortableObject(boolean b){
         testString = Boolean.toString(b);
         method = 6;
     }
     
-    public DistributedObject(String str, int method){
+    public PortableObject(String str, int method){
         testString = str;
         this.method = method;
     }
 
-    public SerialReflectionFactory substitute() {
+    public PortableFactory factory() {
         Class[] signature = new Class[1];
         Object[] parameters = new Object[1];
         parameters[0] = testString;
         switch (method){
             case 0: signature[0] = String.class;
-                    return new SerialReflectionFactory(this.getClass(), null, signature, parameters );
+                    return new PortableFactory(this.getClass(), null, signature, parameters );
         
             case 1 :
                     signature[0] = String.class;
-                    return new SerialReflectionFactory(this.getClass(), "create", signature, parameters);
+                    return new PortableFactory(this.getClass(), "create", signature, parameters);
         
             case 2:
                     Builder builder = new Builder().setString(testString);
-                    return new SerialReflectionFactory(builder, "build", null, null);
+                    return new PortableFactory(builder, "build", null, null);
             case 3:
                     signature[0] = Boolean.class;
                     parameters[0] = Boolean.valueOf(testString);
-                    return new SerialReflectionFactory(this.getClass(), null, signature, parameters);
+                    return new PortableFactory(this.getClass(), null, signature, parameters);
             case 4:
                     signature[0] = Character.class;
                     parameters[0] = Character.valueOf(testString.charAt(0));
-                    return new SerialReflectionFactory(this.getClass(), null, signature, parameters);
+                    return new PortableFactory(this.getClass(), null, signature, parameters);
             case 6:
                     signature[0] = Boolean.TYPE;
                     parameters[0] = Boolean.valueOf(testString);
-                    return new SerialReflectionFactory(this.getClass(), null, signature, parameters);
+                    return new PortableFactory(this.getClass(), null, signature, parameters);
             default:
                     return null;
         }
@@ -119,8 +119,8 @@ public class DistributedObject implements Distributed {
             return this;
         }
         
-        public DistributedObject build(){
-            return new DistributedObject(str);
+        public PortableObject build(){
+            return new PortableObject(str);
         }
     }
     

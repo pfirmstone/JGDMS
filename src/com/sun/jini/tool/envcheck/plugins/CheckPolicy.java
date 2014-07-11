@@ -18,27 +18,19 @@
 package com.sun.jini.tool.envcheck.plugins;
 
 import com.sun.jini.tool.envcheck.AbstractPlugin;
-import com.sun.jini.tool.envcheck.Plugin;
 import com.sun.jini.tool.envcheck.EnvCheck;
 import com.sun.jini.tool.envcheck.Reporter;
 import com.sun.jini.tool.envcheck.Reporter.Message;
 import com.sun.jini.tool.envcheck.SubVMTask;
 import com.sun.jini.tool.envcheck.Util;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.PrintStream;
 import java.net.URL;
-import java.net.MalformedURLException;
-import java.rmi.RMISecurityManager;
 import java.security.AllPermission;
 import java.security.CodeSource;
 import java.security.Policy;
 import java.security.PermissionCollection;
-import java.util.ArrayList;
-import java.util.Properties;
-import java.util.Enumeration;
 import com.sun.jini.start.ServiceDescriptor;
-import com.sun.jini.start.SharedActivatableServiceDescriptor;
 import com.sun.jini.start.SharedActivationGroupDescriptor;
 import com.sun.jini.start.NonActivatableServiceDescriptor;
 

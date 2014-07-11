@@ -20,6 +20,7 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipFile
 
 def jarMap = [
+        "../lib-ext/jsk-policy.jar"           : "apache-river/river-policy",
         "../lib/jsk-platform.jar"           : "apache-river/river-platform",
         "../lib/jsk-resources.jar"          : "apache-river/river-resources",
         "../lib/start.jar"                  : "apache-river/river-start",
@@ -38,6 +39,7 @@ def jarMap = [
         "../lib-dl/reggie-dl.jar"           : "apache-river/river-services/reggie/reggie-dl",
         "../lib/reggie.jar"                 : "apache-river/river-services/reggie/reggie-service"]
 
+def policy = []
 def platform = []
 def lib = []
 def lib_dl = []
@@ -60,19 +62,26 @@ for(Map.Entry<String, String> entry : jarMap.entrySet()) {
             prepAndCopy(zipFile, zipEntry, src, target)
         } else {
             if(!zipEntry.getName().contains("\$") && !zipEntry.isDirectory()) {
-                if(jar.contains("jsk-platform")) {
-                    platform << zipEntry.getName()
+                if (jar.contains("jsk-policy")) {
+                    policy << zipEntry.getName()
                     prepAndCopy(zipFile, zipEntry, src, target)
+                } else if(jar.contains("jsk-platform")) {
+                    platform << zipEntry.getName()
+                    if (skip(zipEntry, policy)){
+                        println "\t- ${zipEntry.getName()}"
+                    } else {
+                        prepAndCopy(zipFile, zipEntry, src, target)
+                    }
                 } else if(jar.contains("jsk-dl") || jar.contains("serviceui")) {
                     lib_dl << zipEntry.getName()
-                    if(skip(zipEntry, platform)) {
+                    if(skip(zipEntry, policy, platform)) {
                         println "\t- ${zipEntry.getName()}"
                     } else {
                         prepAndCopy(zipFile, zipEntry, src, target)
                     }
                 } else if(jar.contains("jsk-lib")) {
                     lib << zipEntry.getName()
-                    if(skip(zipEntry, platform, lib_dl)) {
+                    if(skip(zipEntry, policy, platform, lib_dl)) {
                         println "\t- ${zipEntry.getName()}"
                     } else {
                         prepAndCopy(zipFile, zipEntry, src, target)
@@ -86,7 +95,7 @@ for(Map.Entry<String, String> entry : jarMap.entrySet()) {
                         dlJarClassList << zipEntry.name
                         dlMap.put key, dlJarClassList
 
-                        if(skip(zipEntry, platform, lib_dl, lib)) {
+                        if(skip(zipEntry, policy, platform, lib_dl, lib)) {
                             println "\tSkip ${zipEntry.getName()}"
                         } else {
                             prepAndCopy(zipFile, zipEntry, src, target)
@@ -94,7 +103,7 @@ for(Map.Entry<String, String> entry : jarMap.entrySet()) {
                     } else {
                         String key = getKeyName(jar)
                         dlJarClassList = dlMap.get(key)
-                        if(skip(zipEntry, platform, lib_dl, lib, dlJarClassList as List)) {
+                        if(skip(zipEntry, policy, platform, lib_dl, lib, dlJarClassList as List)) {
                             println "\tSkip ${zipEntry.getName()}"
                         } else {
                             prepAndCopy(zipFile, zipEntry, src, target)

@@ -23,16 +23,16 @@ import java.security.AccessController;
 import java.security.PrivilegedAction;
 
 /**
- * DistributedObjectInputStream, an extension to Java serialization that allows
+ * PortableObjectInputStream, an extension to Java serialization that allows
  * for immutable and safely constructed objects
  * 
  * @author Peter.
  * @since 3.0.0
  */
-public class DistributedObjectInputStream extends ObjectInputStream {
+public class PortableObjectInputStream extends ObjectInputStream {
     
     public static ObjectInputStream create(InputStream in) throws IOException{
-        DistributedObjectInputStream result = new DistributedObjectInputStream(in);
+        PortableObjectInputStream result = new PortableObjectInputStream(in);
         AccessController.doPrivileged(new EnableResolveObject(result));
         return result;
     }
@@ -44,7 +44,7 @@ public class DistributedObjectInputStream extends ObjectInputStream {
      * @param in
      * @throws IOException 
      */
-    protected DistributedObjectInputStream(InputStream in) throws IOException{
+    protected PortableObjectInputStream(InputStream in) throws IOException{
         super(in);
     }
     
@@ -53,14 +53,14 @@ public class DistributedObjectInputStream extends ObjectInputStream {
     }
     
     protected Object resolveObject(Object o) throws IOException{
-        if (o instanceof SerialReflectionFactory) return ((SerialReflectionFactory)o).create();
+        if (o instanceof PortableFactory) return ((PortableFactory)o).create();
         return o;
     }
     
     private static class EnableResolveObject implements PrivilegedAction{
-        private final DistributedObjectInputStream in;
+        private final PortableObjectInputStream in;
         
-        EnableResolveObject(DistributedObjectInputStream in){
+        EnableResolveObject(PortableObjectInputStream in){
             this.in = in;
         }
         

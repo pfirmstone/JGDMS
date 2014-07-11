@@ -62,7 +62,7 @@ public class DiscoveryConstraints {
 	}
     }
 
-    private static final Set supportedProtocols = new HashSet(2);
+    private static final Set<DiscoveryProtocolVersion> supportedProtocols = new HashSet<DiscoveryProtocolVersion>(2);
     static {
 	supportedProtocols.add(DiscoveryProtocolVersion.ONE);
 	supportedProtocols.add(DiscoveryProtocolVersion.TWO);

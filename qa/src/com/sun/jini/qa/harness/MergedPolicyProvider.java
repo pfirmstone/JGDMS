@@ -172,11 +172,11 @@ public class MergedPolicyProvider extends AbstractPolicy implements ScalableNest
      * Refresh all of the underlying policies.
      */
     public void refresh() {
-	System.out.println("In REFRESH");
+//	System.out.println("In REFRESH");
 	Iterator<Policy> it = policies.iterator();
 	while (it.hasNext()) {
 	    Policy p = it.next();
-	    System.out.println("CALLING refresh on " + p);
+//	    System.out.println("CALLING refresh on " + p);
 	    p.refresh();
 	}
     }

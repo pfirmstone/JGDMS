@@ -11,6 +11,7 @@ grant {
         permission java.util.PropertyPermission "java.system.class.loader", "read";
 	permission java.io.FilePermission "${com.sun.jini.test.home}${/}lib${/}-", "read";
         permission java.util.PropertyPermission "com.sun.jini.reggie.enableImplToStubReplacement", "read";
+        permission java.net.URLPermission "http:*", "GET:";
 };
 
 grant {

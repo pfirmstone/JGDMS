@@ -828,7 +828,7 @@ public class CreateTest extends QATestEnvironment implements Test {
                 + "Argument passed to ConstraintAlternatives.create() methods"
                 + " is non-null, but contains null element");
         {
-            Collection argColl = new ArrayList();
+            Collection<InvocationConstraint> argColl = new ArrayList<InvocationConstraint>();
             argColl.add(ClientAuthentication.YES);
             argColl.add(null);
 
@@ -837,8 +837,7 @@ public class CreateTest extends QATestEnvironment implements Test {
                 throw new TestException(
                         "" + " test failed");
             }
-            InvocationConstraint[] argArray = (InvocationConstraint[])
-                    argColl.toArray(new InvocationConstraint[0]);
+            InvocationConstraint[] argArray = argColl.toArray(new InvocationConstraint[0]);
 
             if (!checkException(argArray,
                     java.lang.NullPointerException.class)) {
@@ -950,12 +949,12 @@ public class CreateTest extends QATestEnvironment implements Test {
      * @return true if all checks for both method are satisfied or
      *         false otherwise
      */
-    public boolean checker(Collection c, InvocationConstraint ic) {
+    public boolean checker(Collection<InvocationConstraint> c, InvocationConstraint ic) {
 
         /*
          * Argument for ConstraintAlternatives.create(Collection) method
          */
-        Collection argC;
+        Collection<InvocationConstraint> argC;
 
         /*
          * Argument for ConstraintAlternatives.create(InvocationConstraint[])
@@ -970,13 +969,12 @@ public class CreateTest extends QATestEnvironment implements Test {
         InvocationConstraint[] argACopy;
 
         try {
-            argC = new ArrayList(c);
+            argC = new ArrayList<InvocationConstraint>(c);
             logger.log(Level.FINE,
                     "Collection used as an argument for"
                     + " ConstraintAlternatives.create(Collection) method::\n"
                     + argC);
-            argA = (InvocationConstraint[]) c.toArray(new
-                    InvocationConstraint[0]);
+            argA = c.toArray(new InvocationConstraint[0]);
             logger.log(Level.FINE,
                     "Array used as an argument for"
                     + " ConstraintAlternatives.create(InvocationConstraint[])"
@@ -1094,7 +1092,7 @@ public class CreateTest extends QATestEnvironment implements Test {
      * @return true if ConstraintAlternatives.create() method throws exception
      *         type of which is equal to the expected one or false otherwise
      */
-    public boolean checkException(Collection c, Class cl) {
+    public boolean checkException(Collection<InvocationConstraint> c, Class cl) {
         // Testing ConstraintAlternatives.create(Collection) method
         logger.log(Level.FINE,
                 "+++ Testing ConstraintAlternatives.create(Collection) ...");

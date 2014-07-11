@@ -31,7 +31,7 @@ import java.util.HashMap;
 import java.util.Map;
 import net.jini.loader.ClassLoading;
 import net.jini.security.Security;
-import org.apache.river.api.io.DistributedObjectInputStream;
+import org.apache.river.api.io.PortableObjectInputStream;
 
 /**
  * An extension of <code>ObjectInputStream</code> that implements the
@@ -85,8 +85,7 @@ import org.apache.river.api.io.DistributedObjectInputStream;
  * @since 2.0
  **/
 public class MarshalInputStream
-    extends DistributedObjectInputStream
-    implements ObjectStreamContext
+    extends PortableObjectInputStream implements ObjectStreamContext
 {
     /**
      * maps keywords for primitive types and void to corresponding

@@ -22,6 +22,7 @@ import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
+import org.apache.river.api.common.Beta;
 import org.apache.river.api.util.ResultStream;
 
 /**
@@ -48,6 +49,7 @@ import org.apache.river.api.util.ResultStream;
  * @author Peter Firmstone
  * @since 3.0.0
  */
+@Beta
 public interface StreamServiceRegistrar extends ServiceRegistrar{
 
     /**
@@ -65,6 +67,7 @@ public interface StreamServiceRegistrar extends ServiceRegistrar{
      *
      * @param tmpl template to match
      * specified template
+     * @param entryClasses
      * 
      * @param maxBatchSize held locally, larger batch sizes reduce network 
      * traffic, but may delay processing locally depending on implementation.

@@ -23,40 +23,40 @@ import java.io.ObjectOutputStream;
 import java.io.OutputStream;
 import org.junit.Test;
 import static org.junit.Assert.*;
-import tests.support.DistributedObject;
+import tests.support.PortableObject;
 
 /**
  *
  * @author peter
  */
-public class DistributedObjectOutputStreamTest {
+public class PortableObjectOutputStreamTest {
     
-    public DistributedObjectOutputStreamTest() {
+    public PortableObjectOutputStreamTest() {
     }
 
     /**
-     * Test of create method, of class DistributedObjectOutputStream.
+     * Test of create method, of class PortableObjectOutputStream.
      */
     @Test
     public void testCreate() throws Exception {
         System.out.println("create: test constructor, static method and object method");
-        DistributedObject expResult = new DistributedObject("Testing");
+        PortableObject expResult = new PortableObject("Testing");
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        ObjectOutputStream outst = DistributedObjectOutputStream.create(out);
+        ObjectOutputStream outst = PortableObjectOutputStream.create(out);
         outst.writeObject(expResult);
-        ObjectInputStream in = DistributedObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
+        ObjectInputStream in = PortableObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
         Object result = in.readObject();
         assertEquals(expResult.toString(), result.toString());
         out = new ByteArrayOutputStream();
-        outst = DistributedObjectOutputStream.create(out);
-        expResult = new DistributedObject("Testing", 1);
+        outst = PortableObjectOutputStream.create(out);
+        expResult = new PortableObject("Testing", 1);
         outst.writeObject(expResult);
-        in = DistributedObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
+        in = PortableObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
         result = in.readObject();
         assertEquals(expResult.toString(), result.toString());
-        expResult = new DistributedObject("Testing", 2);
+        expResult = new PortableObject("Testing", 2);
         outst.writeObject(expResult);
-        in = DistributedObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
+        in = PortableObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
         result = in.readObject();
         assertEquals(expResult.toString(), result.toString());
     }
@@ -64,18 +64,18 @@ public class DistributedObjectOutputStreamTest {
     @Test
     public void testPrimitives() throws Exception {
         System.out.println("create: test constructor, static method and object method");
-        DistributedObject expResult = new DistributedObject(Boolean.TRUE);
+        PortableObject expResult = new PortableObject(Boolean.TRUE);
         ByteArrayOutputStream out = new ByteArrayOutputStream();
-        ObjectOutputStream outst = DistributedObjectOutputStream.create(out);
+        ObjectOutputStream outst = PortableObjectOutputStream.create(out);
         outst.writeObject(expResult);
-        ObjectInputStream in = DistributedObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
+        ObjectInputStream in = PortableObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
         Object result = in.readObject();
         assertEquals(expResult.toString(), result.toString());
         out = new ByteArrayOutputStream();
-        outst = DistributedObjectOutputStream.create(out);
-        expResult = new DistributedObject(true);
+        outst = PortableObjectOutputStream.create(out);
+        expResult = new PortableObject(true);
         outst.writeObject(expResult);
-        in = DistributedObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
+        in = PortableObjectInputStream.create(new ByteArrayInputStream(out.toByteArray()));
         result = in.readObject();
         assertEquals(expResult.toString(), result.toString());
         

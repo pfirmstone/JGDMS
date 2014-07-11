@@ -18,11 +18,12 @@
 
 package com.artima.lookup.util;
 
-import java.util.HashSet;
-import java.util.Collection;
-import java.util.AbstractSet;
-import java.util.Iterator;
 import java.io.Serializable;
+import java.util.AbstractSet;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Set;
 
 /**
  * An implementation of the <code>java.util.Set</code> interface that has
@@ -45,7 +46,7 @@ import java.io.Serializable;
  *
  * @author Bill Venners
  */
-public class ConsistentSet extends AbstractSet implements Serializable {
+public class ConsistentSet<T> extends AbstractSet<T> implements Serializable {
 
     private static final long serialVersionUID = -533615203387369436L;
 
@@ -53,14 +54,14 @@ public class ConsistentSet extends AbstractSet implements Serializable {
      * @serial An array of the <code>Object</code> elements contained in
      *     this <code>ConsistentSet</code>.
      */
-    private Object[] elements;
+    private final T[] elements;
 
     /**
      * Constructs a new, empty <code>ConsistentSet</code>. All instances
      * of <code>ConsistentSet</code> are unmodifiable.
      */
     public ConsistentSet() {
-        elements = new Object[0];
+        elements = (T[]) new Object[0];
     }
 
     /**
@@ -72,21 +73,16 @@ public class ConsistentSet extends AbstractSet implements Serializable {
      * @throws NullPointerException if the passed <code>init</code> reference
      *     is <code>null</code>
      */
-    public ConsistentSet(Collection init) {
+    public ConsistentSet(Collection<T> init) {
 
         if (init == null) {
             throw new NullPointerException();
         }
 
         // Put the collection in a HashSet to get rid of duplicates
-        HashSet tempSet = new HashSet(init);
+        Set<T> tempSet = new HashSet<T>(init);
 
-        elements = new Object[tempSet.size()];
-
-        Iterator it = tempSet.iterator();
-        for (int i = 0; it.hasNext(); ++i) {
-            elements[i] = it.next();
-        }
+        elements = tempSet.toArray((T[]) new Object[init.size()]);
     }
 
     /**
@@ -99,22 +95,26 @@ public class ConsistentSet extends AbstractSet implements Serializable {
      * @return an <code>Iterator</code> over the elements in this
      *     <code>ConsistentSet</code>.
      */
-    public Iterator iterator() {
+    @Override
+    public Iterator<T> iterator() {
 
         return new Iterator() {
 
             private int nextPos = 0;
 
+            @Override
             public boolean hasNext() {
                 return nextPos < elements.length;
             }
 
-            public Object next() {
-                Object next = elements[nextPos];
+            @Override
+            public T next() {
+                T next = elements[nextPos];
                 ++nextPos;
                 return next;
             }
 
+            @Override
             public void remove() {
                 throw new IllegalArgumentException();
             }
@@ -126,6 +126,7 @@ public class ConsistentSet extends AbstractSet implements Serializable {
      *
      * @return the number of elements in this <code>ConsistentSet</code> (its cardinality).
      */
+    @Override
     public int size() {
         return elements.length;
     }

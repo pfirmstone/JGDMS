@@ -38,29 +38,29 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
- * Distributed form, required for reflective calls to instantiate objects remotely, 
+ * Portable form, required to create objects during de-serialization, 
  * using a constructor, static method or an Object method.
  * 
  * This object must be Thread confined, it is not thread safe.  It should be
- * created on demand, it is primarily for use by {@link DistributedObjectInputStream}
- * and {@link DistributedObjectOutputStream}, it is created by {@link Distributed}
- * Object implementations and {@link DistributedObjectInputStream}
+ * created on demand, it is primarily for use by {@link PortableObjectInputStream}
+ * and {@link PortableObjectOutputStream}, it is created by {@link Portable}
+ * implementations.
  * 
  * Internal state is guarded, arrays are not defensively copied.
  * 
  * This is compatible with Version 2 of the Java Serialization Protocol.
  * 
  * @author Peter Firmstone.
- * @see Distributed
- * @see DistributePermission
+ * @see Portable
+ * @see PortablePermission
  * @see Serializable
  * @see Externalizable
  * @since 3.0.0
  */
-public final class SerialReflectionFactory implements Externalizable {
+public final class PortableFactory implements Externalizable {
     private static final long serialVersionUID = 1L;
     /* Guard private state */
-    private static final Guard distributable = new DistributePermission();
+    private static final Guard distributable = new PortablePermission();
     
     /* Minimal protocol to write primitives directly to stream, only for parameters.
      * Strings are written as Objects, since they are a special case, identical
@@ -98,18 +98,18 @@ public final class SerialReflectionFactory implements Externalizable {
     /**
      * Public method provided for java serialization framework.
      */
-    public SerialReflectionFactory(){
+    public PortableFactory(){
         constructed = false;
     }
     
     /**
      * Reflection is used at the remote end, with information provided to
-     * SerialReflectionFactory, to call a constructor, static method
-     * or an object method after de-serialization by DistributedObjectInputStream.
+     * PortableFactory, to call a constructor, static method
+     * or an object method after de-serialization by PortableObjectInputStream.
      * <p>
-     * Information given to SerialReflectionFactory is guarded by DistributePermission.
+     * Information given to PortableFactory is guarded by PortablePermission.
      * <p>
-     * Instantiation of a Distributed object at a remote endpoint proceeds as follows:
+     * Instantiation of a Portable object at a remote endpoint proceeds as follows:
      * <ul><li>
      * If factoryClassOrObject is a Class and methodName is null, a constructor
      * of that Class is called reflectively with parameterTypes and parameters.
@@ -129,7 +129,7 @@ public final class SerialReflectionFactory implements Externalizable {
      * as primitives.
      * <p>
      * Constructor parameters must either be Serializable, Externalizable or
-     * Distributed objects.
+     * Portable objects.
      * <p>
      * Creation is performed using only privileges granted to all CodeSource's,
      * if there are no default grants set by the policy administrator, the
@@ -144,9 +144,9 @@ public final class SerialReflectionFactory implements Externalizable {
      * @param methodName name of static factory method, null if using a constructor.
      * @param parameterTypes Type signature of method or constructor, or null.
      * @param parameters array of Objects to be passed to constructor, or null.
-     * @see DistributePermission
+     * @see PortablePermission
      */
-    public SerialReflectionFactory(Object factoryClassOrObject, String methodName, Class[] parameterTypes, Object [] parameters){
+    public PortableFactory(Object factoryClassOrObject, String methodName, Class[] parameterTypes, Object [] parameters){
         classOrObject = factoryClassOrObject;
         method = methodName;
         this.parameterTypes = parameterTypes;
@@ -203,7 +203,7 @@ public final class SerialReflectionFactory implements Externalizable {
             }
                     , acc);
         } catch (PrivilegedActionException ex) {
-            Logger.getLogger(SerialReflectionFactory.class.getName()).log(Level.SEVERE, null, ex);
+            Logger.getLogger(PortableFactory.class.getName()).log(Level.SEVERE, null, ex);
             throw new IOException(ex);
         }
     }
@@ -211,7 +211,7 @@ public final class SerialReflectionFactory implements Externalizable {
     // Inherit documentation
     public void writeExternal(ObjectOutput out) throws IOException {
         distributable.checkGuard(null);
-        if (! constructed) throw new IOException("Attempt to write blank SerialReflectionFactory");
+        if (! constructed) throw new IOException("Attempt to write blank PortableFactory");
         out.writeByte(VERSION);
         out.writeObject(classOrObject);
         out.writeObject(method);
@@ -326,14 +326,14 @@ public final class SerialReflectionFactory implements Externalizable {
         if (constructed) throw new IllegalStateException("Object already constructed");
         constructed = true;
         /* Don't defensively copy arrays, the object is used immediately after
-         * deserialization to construct the Distributed Object, the fields are
+         * deserialization to construct the Portable Object, the fields are
          * not accessed again, it is up to creator methods themselves to 
          * preserve invariants.
          */
         byte version = in.readByte();
         // In future we could potentially handle different versions, but for now,
         // bail out.
-        if (version != VERSION) throw new ProtocolException("Incompatible SerialReflectionFactory protocol");
+        if (version != VERSION) throw new ProtocolException("Incompatible PortableFactory protocol");
         classOrObject = in.readObject();
         method = (String) in.readObject();
         parameterTypes = (Class[]) in.readObject();
@@ -345,7 +345,7 @@ public final class SerialReflectionFactory implements Externalizable {
         int hash = 7;
         hash = 89 * hash + (this.classOrObject != null ? this.classOrObject.hashCode() : 0);
         hash = 89 * hash + (this.method != null ? this.method.hashCode() : 0);
-        hash = 89 * hash + Arrays.deepHashCode(this.parameterTypes);
+        hash = 89 * hash + Arrays.hashCode(this.parameterTypes);
         hash = 89 * hash + Arrays.deepHashCode(this.parameters);
         this.hash = hash;
     }
@@ -359,9 +359,9 @@ public final class SerialReflectionFactory implements Externalizable {
     
     @Override
     public boolean equals(Object o){
-        if (!(o instanceof SerialReflectionFactory)) return false;
+        if (!(o instanceof PortableFactory)) return false;
         if ( hash != o.hashCode()) return false;
-        SerialReflectionFactory other = (SerialReflectionFactory) o;
+        PortableFactory other = (PortableFactory) o;
         if ( classOrObject == null && other.classOrObject != null) return false;
         if ( classOrObject != null && ! classOrObject.equals(other.classOrObject)) return false;
         if ( method == null && other.method != null) return false;

@@ -417,8 +417,8 @@ public class ConfigurationFile extends AbstractConfiguration {
      * there would be more kinds of security holes if ConfigurationFile
      * permitted calls to instance methods.  -tjb[5.Aug.2002]
      */
-    private static final Set prohibitedMethods =
-	new HashSet(Arrays.asList(new String[] {
+    private static final Set<String> prohibitedMethods =
+	new HashSet<String>(Arrays.asList(new String[] {
 	    "java.lang.Class.forName",
 	    "java.lang.ClassLoader.getSystemClassLoader",
 	    "java.lang.Package.getPackage",
@@ -481,8 +481,8 @@ public class ConfigurationFile extends AbstractConfiguration {
 
     /** Returns the current context class loader. */
     private static final PrivilegedAction contextClassLoader =
-	new PrivilegedAction() {
-	    public Object run() {
+	new PrivilegedAction<ClassLoader>() {
+	    public ClassLoader run() {
 		return Thread.currentThread().getContextClassLoader();
 	    }
 	};
@@ -492,13 +492,13 @@ public class ConfigurationFile extends AbstractConfiguration {
 	new RuntimePermission("getClassLoader");
 
     /** Map from entry names to Entry instances. */
-    final Map entries = new HashMap(11);
+    final Map<String,Entry> entries = new HashMap<String,Entry>(11);
 
     /**
      * Map of simple class names to the full class names that were explicitly
      * imported.
      */
-    final Map classImports = new HashMap(1);
+    final Map<String,String> classImports = new HashMap<String,String>(1);
 
     /**
      * List of packages or classes whose member classes should be imported on
@@ -608,7 +608,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	 * Calculates and returns the declared type of the parse node, as
 	 * referred to by the specified entry.
 	 */
-	abstract Class resolve(Entry inEntry) throws ConfigurationException;
+	abstract <T> Class<T> resolve(Entry inEntry) throws ConfigurationException;
 
 	/** Returns true if the value is a constant. */
 	abstract boolean isConstant() throws ConfigurationException;
@@ -690,7 +690,8 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    refersToData = true;
 	}
 
-	Class resolve(Entry inEntry) throws ConfigurationException {
+        @Override
+	<T> Class<T> resolve(Entry inEntry) throws ConfigurationException {
 	    /*
 	     * Grab a single lock when resolving any entry.  Until we know that
 	     * the entry contains no textually circular references, which is
@@ -944,7 +945,8 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    this.arg = arg;
 	}
 
-	Class resolve(Entry inEntry) throws ConfigurationException {
+        @Override
+	<T> Class<T> resolve(Entry inEntry) throws ConfigurationException {
 	    type = findClass(typeName, lineno, override);
 	    if (isArray) {
 		type = Array.newInstance(type, 0).getClass();
@@ -987,10 +989,12 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    return null;	/* Not reached */
 	}
 
+        @Override
 	boolean isConstant() throws ConfigurationException {
 	    return arg.isConstant();
 	}
 
+        @Override
 	Object eval(Object data) throws ConfigurationException {
 	    Object val = arg.eval(data);
 	    if (type.isPrimitive()) {
@@ -1018,6 +1022,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    this.args = args;
 	}
 
+        @Override
 	boolean isConstant() {
 	    return false;
 	}
@@ -1047,6 +1052,7 @@ public class ConfigurationFile extends AbstractConfiguration {
             super(args,lineno);
         }
         
+        @Override
         Class resolve(Entry inEntry) throws ConfigurationException {
             Class[] types = resolveArgs(inEntry);
             if (!(types[0] == String.class || types[1] == String.class)) {
@@ -1060,12 +1066,14 @@ public class ConfigurationFile extends AbstractConfiguration {
             return String.class;
         }
         
+        @Override
         boolean isConstant() {
             return false;
         }
         
+        @Override
         Object eval(Object data) throws ConfigurationException {
-            StringBuffer value = new StringBuffer();
+            StringBuilder value = new StringBuilder();
             Object[] evaledArgs = evalArgs(data);
             for (int i = 0; i < evaledArgs.length; i++) {
                 Object o1 = evaledArgs[i];
@@ -1088,12 +1096,14 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    this.typeName = typeName;
 	}
 
+        @Override
 	Class resolve(Entry inEntry) throws ConfigurationException {
 	    constructor = findConstructor(
 		typeName, resolveArgs(inEntry), lineno, override);
 	    return constructor.getDeclaringClass();
 	}
 
+        @Override
 	Object eval(Object data) throws ConfigurationException {
 	    Object[] evaluatedArgs = evalArgs(data);
 	    Throwable except;
@@ -1125,6 +1135,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    this.fullName = fullName;
 	}
 
+        @Override
 	Class resolve(Entry inEntry) throws ConfigurationException {
 	    method = findMethod(
 		fullName, resolveArgs(inEntry), lineno, override);
@@ -1135,6 +1146,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    return c;
 	}
 
+        @Override
 	Object eval(Object data) throws ConfigurationException {
 	    Object[] evaluatedArgs = evalArgs(data);
 	    Throwable except;
@@ -1167,6 +1179,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    this.typeName = typeName;
 	}
 
+        @Override
 	Class resolve(Entry inEntry) throws ConfigurationException {
 	    type = findClass(typeName, lineno, override);
 	    Class[] types = resolveArgs(inEntry);
@@ -1190,6 +1203,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    return Array.newInstance(type, 0).getClass();
 	}
 
+        @Override
 	Object eval(Object data) throws ConfigurationException {
 	    Object[] contents = evalArgs(data);
 	    Object result = Array.newInstance(type, args.length);
@@ -2020,12 +2034,14 @@ public class ConfigurationFile extends AbstractConfiguration {
      * return the identical object.<p>
      *   
      *
+     * @return T or Primitive
      * @throws NoSuchEntryException {@inheritDoc}
      * @throws NullPointerException {@inheritDoc}
      */
-    protected Object getEntryInternal(String component,
+    @Override
+    protected <T> Object getEntryInternal(String component,
 				      String name,
-				      Class type,
+				      Class<T> type,
 				      Object data)
 	throws ConfigurationException
     {
@@ -2045,9 +2061,9 @@ public class ConfigurationFile extends AbstractConfiguration {
 		entry.isConstant())
 	    {
 		/* Handle primitive narrowing conversion */
-		Object narrow = narrowingAssignable(entry.eval(NO_DATA), type);
+		T narrow = narrowingAssignable(entry.eval(NO_DATA), type);
 		if (narrow != null) {
-		    return new Primitive(narrow);
+		    return new Primitive<T>(narrow);
 		}
 	    }
             oops("entry of wrong type for component " + component +
@@ -2061,7 +2077,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    if (entryType != type) {
 		result = convertPrimitive(result, type);
 	    }
-	    return new Primitive(result);
+	    return new Primitive<T>((T) result);
 	} else {
 	    return result;
 	}
@@ -2074,10 +2090,10 @@ public class ConfigurationFile extends AbstractConfiguration {
      * @return a set containing the fully qualified names of all non-private
      * entries defined for this instance
      */
-    public Set getEntryNames() {
-	Set result = new HashSet(entries.size());
-	for (Iterator iter = entries.values().iterator(); iter.hasNext(); ) {
-	    Entry entry = (Entry) iter.next();
+    public Set<String> getEntryNames() {
+	Set<String> result = new HashSet<String>(entries.size());
+	for (Iterator<Entry> iter = entries.values().iterator(); iter.hasNext(); ) {
+	    Entry entry = iter.next();
 	    if (!entry.isPrivate) {
 		result.add(entry.fullName);
 	    }
@@ -2104,7 +2120,7 @@ public class ConfigurationFile extends AbstractConfiguration {
      * <i>Identifier</i>
      * @throws NullPointerException if either argument is <code>null</code>
      */
-    public Class getEntryType(String component, String name)
+    public <T> Class<T> getEntryType(String component, String name)
 	throws ConfigurationException
     {
 	if (component == null) {
@@ -2118,7 +2134,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	    throw new IllegalArgumentException(
 		"name must be a valid identifier");
 	}
-	Entry entry = (Entry) entries.get(component + '.' + name);
+	Entry entry = entries.get(component + '.' + name);
 	if (entry == null || entry.isPrivate) {
 	    if (logger.isLoggable(Levels.FAILED)) {
 		logger.log(
@@ -2131,7 +2147,7 @@ public class ConfigurationFile extends AbstractConfiguration {
 	}
 	ConfigurationException configEx;
 	try {
-	    Class result = entry.resolve(null);
+	    Class<T> result = entry.resolve(null);
 	    if (logger.isLoggable(Level.FINER)) {
 		logger.log(Level.FINER,
 			   "{0}, component {1}, name {2}: returns {3}",
@@ -2589,7 +2605,7 @@ public class ConfigurationFile extends AbstractConfiguration {
      * wrapper object in "from" can be assigned to parameters of type "to"
      * using a narrowing primitive conversion, else null.
      */
-    Object narrowingAssignable(Object from, Class to) {
+    <T> T narrowingAssignable(Object from, Class<T> to) {
 	if (from instanceof Byte ||
 	    from instanceof Character ||
 	    from instanceof Short ||
@@ -2599,17 +2615,17 @@ public class ConfigurationFile extends AbstractConfiguration {
 		((Character) from).charValue() : ((Number) from).intValue();
 	    if (to == Byte.TYPE) {
 		if (val >= Byte.MIN_VALUE && val <= Byte.MAX_VALUE) {
-		    return Byte.valueOf((byte) val);
+		    return (T) Byte.valueOf((byte) val);
 		}
 	    } else if (to == Character.TYPE) {
 		if (val >= Character.MIN_VALUE &&
 		    val <= Character.MAX_VALUE)
 		{
-		    return Character.valueOf((char) val);
+		    return (T) Character.valueOf((char) val);
 		}
 	    } else if (to == Short.TYPE) {
 		if (val >= Short.MIN_VALUE && val <= Short.MAX_VALUE) {
-		    return Short.valueOf((short) val);
+		    return (T) Short.valueOf((short) val);
 		}
 	    }
 	}

@@ -88,9 +88,9 @@ public class Client implements UnicastDiscoveryClient {
     }
 
     private static final class ClientImpl extends EndpointBasedClient {
-	private static EndpointInternals epi = (EndpointInternals)
-	    AccessController.doPrivileged(new PrivilegedAction() {
-		public Object run() {
+	private static EndpointInternals epi = 
+	    AccessController.doPrivileged(new PrivilegedAction<EndpointInternals>() {
+		public EndpointInternals run() {
 		    return KerberosEndpointInternalsAccess.get();
 		}
 	    });

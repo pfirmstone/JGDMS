@@ -25,20 +25,18 @@ import com.sun.jini.logging.Levels;
 import com.sun.jini.mahalo.log.ClientLog;
 import com.sun.jini.mahalo.log.LogException;
 import com.sun.jini.mahalo.log.LogManager;
-import com.sun.jini.thread.TaskManager;
 import com.sun.jini.thread.WakeupManager;
-
 import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Date;
 import java.util.Enumeration;
 
-import java.util.Date;
 import java.util.List;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.Vector;
 import java.util.concurrent.ExecutorService;
-import net.jini.core.lease.UnknownLeaseException;
-
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import net.jini.core.transaction.CannotAbortException;
 import net.jini.core.transaction.CannotCommitException;
 import net.jini.core.transaction.CannotJoinException;
@@ -136,7 +134,7 @@ class TxnManagerTransaction
     /**
      * @serial
      */
-    private final List parts = new Vector();
+    private final List<ParticipantHandle> parts = new Vector<ParticipantHandle>();
 
     /**
      * @serial
@@ -611,7 +609,7 @@ class TxnManagerTransaction
 	//if no one has joined, at this point, attempt to
 	//get to the COMMITTED state through valid state changes
 
-        Vector joinvec = parthandles();
+        List<ParticipantHandle> joinvec = parthandles();
  
         if (joinvec == null) {
 	    if (!modifyTxnState(VOTING))
@@ -626,10 +624,8 @@ class TxnManagerTransaction
         }
 
 	try {
-	    Enumeration joined = joinvec.elements();
 	    int numparts = joinvec.size();
-	    ParticipantHandle[] phs = new ParticipantHandle[numparts];
-	    joinvec.copyInto(phs);
+	    ParticipantHandle[] phs = joinvec.toArray(new ParticipantHandle[numparts]);
 
             long now = starttime;
             long transpired = 0;
@@ -980,7 +976,7 @@ class TxnManagerTransaction
 //TODO - Change internal, lease logic to call overload w/o expiration check
 //TODO - Add expiration check to abort for external clients     
 	try {
-            Vector joinvec = parthandles();
+            List<ParticipantHandle> joinvec = parthandles();
 
 	    if (joinvec == null) {
 		if (modifyTxnState(ABORTED))
@@ -991,8 +987,7 @@ class TxnManagerTransaction
 	    }
 
             int numparts = joinvec.size();
-            ParticipantHandle[] phs = new ParticipantHandle[numparts];
-            joinvec.copyInto(phs);
+            ParticipantHandle[] phs = joinvec.toArray(new ParticipantHandle[numparts]);
 
             ClientLog log = logmgr.logFor(str.id);
 
@@ -1199,7 +1194,7 @@ class TxnManagerTransaction
     }
 
 
-private Vector parthandles() {
+private List<ParticipantHandle> parthandles() {
         if (operationsLogger.isLoggable(Level.FINER)) {
             operationsLogger.entering(TxnManagerTransaction.class.getName(), 
 	        "parthandles");
@@ -1207,7 +1202,7 @@ private Vector parthandles() {
 	if ( (parts == null ) || ( parts.size() == 0 ) )
 	    return null;
 
-        Vector vect = new Vector(parts);
+        List<ParticipantHandle> vect = new ArrayList<ParticipantHandle>(parts);
  
         if (transactionsLogger.isLoggable(Level.FINEST)) {
             transactionsLogger.log(Level.FINEST,
@@ -1263,7 +1258,7 @@ private Vector parthandles() {
     	if ( (parts == null ) || ( parts.size() == 0 ) )
 	    return;
 
-	ParticipantHandle[] handles = (ParticipantHandle[])
+	ParticipantHandle[] handles =
 	    parts.toArray(new ParticipantHandle[parts.size()]);
         for (int i=0; i < handles.length; i++) {
 	    handles[i].restoreTransientState(preparer);
