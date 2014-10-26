@@ -216,6 +216,7 @@ class MasterHarness {
 	try {
 	    Thread.sleep(1000);
 	} catch (InterruptedException ignore) {
+            Thread.currentThread().interrupt();
 	}
 	SlaveHarness.connect();
 	// check for installed provider. Failure here should kill slaves.
@@ -424,6 +425,7 @@ class MasterHarness {
 		try {
 		    testThread.join();
 		} catch (InterruptedException e) { //shouldn't happen
+                    Thread.currentThread().interrupt();
 		    outStream.println("testThread.join() interrupted..." +
 		    "should not happen");
 		}
@@ -921,13 +923,21 @@ class MasterHarness {
 	    } catch (Exception e2) {
 		printStream.println();
 		printStream.println("Attempt to dump threads of test VM failed");
+	    } finally {
+                Thread.currentThread().interrupt();
 	    }
-        } catch (Throwable e) {
+        } catch (TestException e) {
 	    unexpectedException = e;
             testResult = new TestResult(testRun,
 				false,
 				Test.TEST,
 				"runTestOtherVM failed: " + e);
+        } catch (IOException e) {
+            unexpectedException = e;
+            testResult = new TestResult(testRun,
+                    false,
+                    Test.TEST,
+                    "runTestOtherVM failed: " + e);
         } finally {
 	    if (discardOKOutput && !testResult.state) {
 		printStream.flush(); // don't know if this is necessary
@@ -956,7 +966,8 @@ class MasterHarness {
 			outStream.println("Test process was destroyed "
 			    + "but has not yet terminated");
 			itse.printStackTrace();
-	        } catch (Exception e) {
+	        } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
 	        }
 	    }
 	} 
@@ -1405,6 +1416,7 @@ class MasterHarness {
 			try {
 			    Thread.sleep(5000); // give it time to flush
 			} catch (InterruptedException e) {
+                            Thread.currentThread().interrupt();
 			}
 		    }
 		}

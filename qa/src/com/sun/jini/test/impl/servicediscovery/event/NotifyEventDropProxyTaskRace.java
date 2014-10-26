@@ -169,7 +169,6 @@ public class NotifyEventDropProxyTaskRace extends AbstractBaseTest {
 	    cache = srvcDiscoveryMgr.createLookupCache(template,
 						       firstStageFilter,
 						       srvcListener);
-	    cacheList.add(cache);
             logger.log(Level.FINE, 
 		       "cache created ... wait "+nSecsRemoteCall
 		       +" seconds for event registration to complete");

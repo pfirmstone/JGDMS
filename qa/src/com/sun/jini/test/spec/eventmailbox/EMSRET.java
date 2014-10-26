@@ -140,6 +140,7 @@ public class EMSRET extends EMSTestBase implements TimeConstants {
 	try {
             Thread.sleep(delay);
 	} catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
 	    logger.log(Level.INFO, "Sleep interrupted");
 	} 
 

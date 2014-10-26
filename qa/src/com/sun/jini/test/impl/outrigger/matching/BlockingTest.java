@@ -77,7 +77,9 @@ public class BlockingTest extends MatchTestBase {
             logger.log(Level.INFO, "sleeping for " + writeWait + "...");
             Thread.sleep(writeWait);
             logger.log(Level.INFO, "awake");
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         final long writeStart = System.currentTimeMillis();
         logger.log(Level.INFO, writeStart + " write start");
         writeBunch();

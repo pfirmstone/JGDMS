@@ -18,8 +18,6 @@
 
 package com.sun.jini.action;
 
-import com.sun.jini.logging.Levels;
-import com.sun.jini.logging.LogUtil;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
 import java.util.logging.Logger;

@@ -113,6 +113,7 @@ public abstract class LookupTestBase extends TestBase implements Test {
 	try {
 	    Thread.sleep(dur);
 	} catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
 	}
     }
 

@@ -94,6 +94,7 @@ public class PullTimeoutTest
                 logger.log(Level.FINEST, 
                     "MyEventGeneratorRunnable awoken @ {0}", new Date());
             } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
                 // ignore
                 logger.log(Level.FINEST, 
                     "Sleep interrupted", ie);

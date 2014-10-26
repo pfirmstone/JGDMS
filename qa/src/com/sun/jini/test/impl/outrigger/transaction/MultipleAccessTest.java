@@ -82,14 +82,18 @@ public class MultipleAccessTest extends TransactionTestBase {
             for (int i = 0; i < NUM_WORKERS; i++) {
                 workers[i].join();
             }
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
         // stop illegal access thread and check the result
         peeker.exit();
 
         try {
             peeker.join();
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
         if (peeker.getReadCount() > 0) {
             throw new TestException(
@@ -195,6 +199,7 @@ public class MultipleAccessTest extends TransactionTestBase {
                     try {
                         sleep(400);
                     } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
                         break;
                     }
                 }
@@ -270,7 +275,9 @@ public class MultipleAccessTest extends TransactionTestBase {
                     if (entry == null) {
                         try {
                             sleep(WAIT_UNIT);
-                        } catch (InterruptedException ie) {}
+                        } catch (InterruptedException ie) {
+                            Thread.currentThread().interrupt();
+                        }
 
                         if (++waitCount > (MAX_WAIT / WAIT_UNIT)) {
                             synchronized(lock) {
@@ -323,6 +330,7 @@ public class MultipleAccessTest extends TransactionTestBase {
                     try {
                         lock.wait(MAX_WAIT);
                     } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         e.printStackTrace();
                     }
                 }

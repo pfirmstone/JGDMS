@@ -199,6 +199,7 @@ abstract class CallHandler implements Constants {
 	    try {
 		Thread.sleep(timeoutDuration);
 	    } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
 		timedOut = false;
 	    }
 	    if (timedOut) {

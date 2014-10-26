@@ -105,7 +105,9 @@ public class CommitTerminationTest extends TransactionTestBase {
         // wait for a while,
         try {
             Thread.sleep(1000);
-        } catch (InterruptedException ie) {}
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
         pass("step-2: thread #1: try to get an entry (blocked).");
         Entry gotEntry = new SimpleEntry();
 
@@ -119,7 +121,9 @@ public class CommitTerminationTest extends TransactionTestBase {
         // wait for threads
         try {
             committer.join();
-        } catch (InterruptedException ie) {}
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
 
         if (failException != null) {
             throw failException;
@@ -144,7 +148,9 @@ public class CommitTerminationTest extends TransactionTestBase {
             try {
                 try {
                     sleep(2000);
-                } catch (InterruptedException e) {}
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
 
                 // commit transaction
                 parent.pass("step-3: thread #2: commit transaction");
@@ -152,7 +158,9 @@ public class CommitTerminationTest extends TransactionTestBase {
 
                 try {
                     sleep(1000);
-                } catch (InterruptedException e) {}
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
 
                 // commit transaction
                 parent.pass("step-5: thread #2: commit dummy transaction");

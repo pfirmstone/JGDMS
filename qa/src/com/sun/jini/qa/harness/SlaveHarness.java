@@ -206,6 +206,7 @@ class SlaveHarness {
 	    try {
 		Thread.sleep(10000);
 	    } catch (InterruptedException ignore) {
+                Thread.currentThread().interrupt();
 	    }
 	}
 	throw new TestException("Timeout connecting to slave " + slave.name);
@@ -604,6 +605,7 @@ class SlaveHarness {
 	    try {
 		Thread.sleep(500);
 	    } catch (InterruptedException ignore) {
+                Thread.currentThread().interrupt();
 	    }
 	}
 	return false;

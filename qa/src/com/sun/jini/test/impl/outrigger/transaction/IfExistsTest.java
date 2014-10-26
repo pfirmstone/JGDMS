@@ -130,7 +130,9 @@ public class IfExistsTest extends TransactionTestBase {
         // wait for a while,
         try {
             Thread.sleep(1000);
-        } catch (InterruptedException ie) {}
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
 
         // write matching entry
         if (ope.isIfExists()) {
@@ -148,7 +150,9 @@ public class IfExistsTest extends TransactionTestBase {
                 pass("step-3: thread #1: wait until thread #2 die.");
             }
             getter.join();
-        } catch (InterruptedException ie) {}
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
 
         if (isFailed) {
             fail("EntryGetter failed with exception" + failMsg);

@@ -18,36 +18,23 @@
 package com.sun.jini.test.spec.lookupservice;
 
 import java.util.ArrayList;
-import com.sun.jini.test.spec.lookupservice.QATestUtils;
 import net.jini.core.entry.Entry;
 import net.jini.core.lease.*;
 import net.jini.core.lookup.*;
 import net.jini.core.event.RemoteEventListener;
 import net.jini.core.event.EventRegistration;
 import net.jini.admin.Administrable;
-import com.sun.jini.start.ServiceStarter;
-import java.util.Properties;
 import java.io.File;
 import java.io.Serializable;
-import java.io.IOException;
 import java.io.ObjectStreamException;
-import java.rmi.activation.ActivationGroup;
-import java.rmi.activation.ActivationGroupID;
-import java.rmi.activation.ActivationException;
-import java.rmi.activation.UnknownGroupException;
-import java.rmi.RMISecurityManager;
-import java.rmi.MarshalledObject;
 import java.rmi.RemoteException;
-import java.util.List;
 import java.util.HashMap;
 import java.util.logging.Level;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.QATestEnvironment;
-import com.sun.jini.qa.harness.ActivatableServiceStarterAdmin;
 
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
-import net.jini.security.ProxyPreparer;
 import net.jini.export.Exporter;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ServerProxyTrust;

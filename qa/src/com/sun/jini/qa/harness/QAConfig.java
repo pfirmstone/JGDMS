@@ -1535,7 +1535,9 @@ public class QAConfig implements Serializable {
 	    }
             try {
                 Thread.sleep(1000); // wait 1 second
-            } catch (InterruptedException e) { }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+        }
         }
 	if (lastException != null) {
 	    logger.log(Level.SEVERE, 
@@ -2940,6 +2942,7 @@ public class QAConfig implements Serializable {
 		try {
 		    runLock.wait();
 		} catch (InterruptedException ignore) {
+                    Thread.currentThread().interrupt();
 		}
 	    }
 	}

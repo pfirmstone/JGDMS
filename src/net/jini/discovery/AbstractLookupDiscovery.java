@@ -111,7 +111,7 @@ abstract class AbstractLookupDiscovery implements DiscoveryManagement,
     /** Maximum number of concurrent tasks that can be run in any executor
      * created by this class.
      */
-    private static final int MAX_N_TASKS = 15;
+    private static final int MAX_N_TASKS = 5;
     /** Default maximum size of multicast packets to send and receive. */
     private static final int DEFAULT_MAX_PACKET_SIZE = 512;
     /** Default time to live value to use for sending multicast packets. */

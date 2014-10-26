@@ -92,7 +92,7 @@ is prefixed with the string "initial" is retrieved only when the service
 is started for the first time. All other entries, unless otherwise stated,
 are retrieved from the configuration when the service is started
 or restarted.
-
+</a>
 <a name="activationIdPreparer">
 <table summary="Describes the activationIdPreparer configuration entry" 
                border="0" cellpadding="2">
@@ -124,7 +124,7 @@ or restarted.
             {@link java.rmi.activation.ActivationID#activate activate}
              method if they need to reactivate this service.
   </table>
-
+</a>
 <a name="activationSystemPreparer">
 <table summary="Describes the activationSystemPreparer configuration entry" 
                border="0" cellpadding="2">
@@ -153,7 +153,7 @@ or restarted.
                                                               unregisterObject}
              </ul>
   </table>
-
+</a>
 <a name="discoveryManager">
 <table summary="Describes the discoveryManager configuration entry" 
                border="0" cellpadding="2">
@@ -188,7 +188,7 @@ or restarted.
              (<code>new </code>{@link net.jini.core.discovery.LookupLocator
              LookupLocator}[0]).
   </table>
-
+</a>
 <a name="initialLeaseBound">
 <table summary="Describes the initialLeaseBound configuration entry" 
                border="0" cellpadding="2">
@@ -218,7 +218,7 @@ or restarted.
              value - rather than this configuration item - is always
              consulted during recovery.
   </table>
-
+</a>
 <a name="initialLookupAttributes">
 <table summary="Describes the initialLookupAttributes configuration entry" 
                border="0" cellpadding="2">
@@ -263,7 +263,7 @@ or restarted.
              those persisted attributes - rather than this configuration
              item - are always consulted during recovery.
   </table>
-
+</a>
 <a name="initialLookupGroups">
 <table summary="Describes the initialLookupGroups configuration entry" 
                border="0" cellpadding="2">
@@ -298,7 +298,7 @@ or restarted.
              names - rather than this configuration item - are always 
              consulted during recovery.
   </table>
-
+</a>
 <a name="initialLookupLocators">
 <table summary="Describes the initialLookupLocators configuration entry" 
                border="0" cellpadding="2">
@@ -333,7 +333,7 @@ or restarted.
              locators - rather than this configuration item - are 
              always consulted during recovery.
   </table>
-
+</a>
 <a name="initialPersistenceSnapshotThreshold">
 <table summary="Describes the initialPersistenceSnapshotThreshold
                configuration entry" border="0" cellpadding="2">
@@ -366,7 +366,7 @@ or restarted.
              value - rather than this configuration item - is always
              consulted during recovery.
   </table>
-
+</a>
 <a name="initialPersistenceSnapshotWeight">
 <table summary="Describes the initialPersistenceSnapshotWeight configuration
                entry" border="0" cellpadding="2">
@@ -399,7 +399,7 @@ or restarted.
              value - rather than this configuration item - is always
              consulted during recovery.
   </table>
-
+</a>
 <a name="leaseMax">
 <table summary="Describes the leaseMax configuration entry" 
                border="0" cellpadding="2">
@@ -419,7 +419,7 @@ or restarted.
         <td> When re-setting the bound on lease durations, that bound 
              cannot be set to a value larger than this value.
   </table>
-
+</a>
 <a name="listenerPreparer">
 <table summary="Describes the listenerPreparer configuration entry"
                border="0" cellpadding="2">
@@ -457,7 +457,7 @@ or restarted.
               <li>{@link net.jini.core.event.RemoteEventListener#notify notify}
              </ul>
   </table>
-
+</a>
 <a name="locatorToDiscoverPreparer">
 <table summary="Describes the locatorToDiscoverPreparer configuration entry"
                border="0" cellpadding="2">
@@ -494,7 +494,7 @@ or restarted.
              by this preparer are invoked by this implementation of the
              service.
   </table>
-
+</a>
 <a name="locatorToJoinPreparer">
 <table summary="Describes the locatorToJoinPreparer configuration entry" 
                border="0" cellpadding="2">
@@ -539,7 +539,7 @@ or restarted.
                                                                  getRegistrar}
              </ul>
   </table>
-
+</a>
 <a name="loginContext">
 <table summary="Describes the loginContext configuration entry" 
                border="0" cellpadding="2">
@@ -562,7 +562,7 @@ or restarted.
              logged in. If the value of this entry is <code>null</code>,
              no JAAS login is performed.
   </table>
-
+</a>
 <a name="persistenceDirectory">
 <table summary="Describes the persistenceDirectory configuration entry" 
                border="0" cellpadding="2">
@@ -591,7 +591,7 @@ or restarted.
              <code>{@link com.sun.jini.admin.DestroyAdmin}</code> 
              interface.
   </table>
-
+</a>
 <a name="recoveredListenerPreparer">
 <table summary="Describes the recoveredListenerPreparer configuration entry"
                border="0" cellpadding="2">
@@ -629,7 +629,7 @@ or restarted.
               <li>{@link net.jini.core.event.RemoteEventListener#notify notify}
              </ul>
   </table>
-
+</a>
 <a name="recoveredLocatorToDiscoverPreparer">
 <table summary="Describes the recoveredLocatorToDiscoverPreparer configuration
                entry" border="0" cellpadding="2">
@@ -661,7 +661,7 @@ or restarted.
              which need to be performed in the environment in which the 
              proxy is unmarshalled; typically the granting of permissions.
   </table>
-
+</a>
 <a name="recoveredLocatorToJoinPreparer">
 <table summary="Describes the recoveredLocatorToJoinPreparer configuration
                entry" border="0" cellpadding="2">
@@ -696,7 +696,7 @@ or restarted.
              <code>initialLookupLocators</code> are prepared by this 
              preparer only during recovery.
   </table>
-
+</a>
 <a name="serverExporter">
 <table summary="Describes the serverExporter configuration entry" 
                border="0" cellpadding="2">
@@ -748,32 +748,35 @@ or restarted.
              in the activatable mode, the call to <code>getEntry</code> will
              supply the activation ID in the <code>data</code> argument.
   </table>
-
-<a name="taskManager">
-<table summary="Describes the taskManager configuration entry" 
+</a>
+<a name="executorService">
+<table summary="Describes the executorService configuration entry" 
                border="0" cellpadding="2">
     <tr valign="top">
       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
       <th scope="col" align="left" colspan="2"> <font size="+1">
-      <code>taskManager</code></font>
+      <code>executorService</code></font>
 
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Type: <td> {@link com.sun.jini.thread.TaskManager}
+      Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
 
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
       Default: <td> <code>new 
-              {@link com.sun.jini.thread.TaskManager#TaskManager()
-                                    TaskManager}(10, (15*1000), 1.0f)</code>
+              {@link java.util.concurrent/ThreadPoolExecutor ThreadPoolExecutor}(
+                        10,
+                        10,
+                        15,
+                        TimeUnit.SECONDS,
+                        new LinkedBlockingQueue(),
+                        new NamedThreadFactory("Fiddler Executor", false)
+                    )</code>
 
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
       Description:
         <td> The object that pools and manages the various threads 
-             executed by this implementation of the service. The 
-             default manager creates a maximum of 10 threads, waits 
-             15 seconds before removing idle threads, and uses a load 
-             factor of 1.0 when determining whether to create a new 
-             thread.
+             executed by this implementation of the service.
   </table>
+</a>
 <p>
 
 The configuration passed to Fiddler will be passed to one or more
@@ -800,12 +803,12 @@ each class.
 <a name="fiddlerAccessControl">
 <h2>Access Control Permission Targets</h2>
 </a>
-
+<p>
 The following table lists the names of the remote methods provided
 by the proxy objects to the Fiddler backend server, and each method's
 corresponding target name, which can be used to enforce access control
 using {@link com.sun.jini.fiddler.FiddlerPermission}:
-<p>
+</p>
 <table border="1" cellpadding="5"
        summary="The proxy methods and associated target names for
        FiddlerPermission.">

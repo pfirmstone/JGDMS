@@ -189,7 +189,7 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
     private static final int N_SERVICES = 2*125; //2*125;//always even
     private static final int MAX_N_SECS = 2*240;
 
-    private static boolean inShutdown   = false;
+    private static volatile boolean inShutdown = false;
 
     protected int testServiceType  = AbstractBaseTest.TEST_SERVICE;
     protected int nAddedExpected   = N_SERVICES;
@@ -199,27 +199,31 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
     protected LookupDiscoveryManager ldm;
 
     public static class SDMListener extends AbstractBaseTest.SrvcListener {
-        String sdmName;
+        final String sdmName;
         public SDMListener(QAConfig config, String sdmName) {
             super(config,"");
             this.sdmName = sdmName;
         }//end constructor
 
+        @Override
 	public void serviceAdded(ServiceDiscoveryEvent event) {
             super.serviceAdded(event);
             if(!inShutdown) {
-                logger.log(Level.FINER, "added event -- "
-                           +event.getPostEventServiceItem().serviceID+" -- "
-                           +sdmName+" (nAdded = "+this.getNAdded()+")");
+                logger.log(Level.FINER, 
+                        "added event -- {0} -- {1} (nAdded = {2})",
+                        new Object[]{event.getPostEventServiceItem().serviceID,
+                            sdmName, this.getNAdded()});
             }//endif
 	}//end serviceAdded
 
+        @Override
 	public void serviceRemoved(ServiceDiscoveryEvent event) {
             super.serviceRemoved(event);
             if(!inShutdown) {
-                logger.log(Level.FINER, "removed event -- "
-                          +event.getPreEventServiceItem().serviceID+" -- "
-                          +sdmName+" (nRemoved = "+this.getNRemoved()+")");
+                logger.log(Level.FINER,
+                        "removed event -- {0} -- {1} (nRemoved = {2})",
+                        new Object[]{event.getPreEventServiceItem().serviceID,
+                            sdmName, this.getNRemoved()});
             }//endif
 	}//end serviceAdded
     }//end class SDMListener
@@ -276,7 +280,7 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
         registerServices(startVal, nSrvcs, nAttrs, testServiceType);
 
         /* 2. Create half the SDM's and caches */
-        for (int i=0; i<(N_SDM/2); i++) {
+        for (int i=0, n = (N_SDM/2); i<n; i++) {
             ServiceDiscoveryManager sdm = new ServiceDiscoveryManager
                                       (ldm,null,testConfig.getConfiguration());
             sdmList.add(sdm);
@@ -305,7 +309,7 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
         boolean done = false;
         while( (nSecsTotal < MAX_N_SECS) && !done ) {
             done = true;
-            for(int i=0;i<sdmListeners.size();i++) {
+            for(int i=0, n = sdmListeners.size();i<n;i++) {
                 SDMListener l = (SDMListener)sdmListeners.get(i);
                 if( l.getNAdded() != nAddedExpected ) {
                     done = false;
@@ -324,8 +328,8 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
             SDMListener l = (SDMListener)sdmListeners.get(i);
             int nAddedThisSDM = l.getNAdded();
             logger.log(Levels.HANDLED,
-                       ""+nAddedThisSDM+" added events -- "
-                       +N_SERVICES+" services -- SDM_"+i);
+                    "{0} added events -- {1} services -- SDM_{2}", 
+                    new Object[]{nAddedThisSDM, N_SERVICES, i});
             if(nAddedThisSDM != nAddedExpected) nWithWrongAdded++;
         }//end loop
 
@@ -335,8 +339,8 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
             SDMListener l = (SDMListener)sdmListeners.get(i);
             int nRemovedThisSDM = l.getNRemoved();
             logger.log(Levels.HANDLED,
-                       ""+nRemovedThisSDM+" removed events -- "
-                       +"SDM_"+i);
+                       "{0} removed events -- SDM_{1}",
+                       new Object[]{nRemovedThisSDM, i});
             if(nRemovedThisSDM > 0) nWithWrongRemoved++;
         }//end loop
 
@@ -345,22 +349,22 @@ public class LookupTaskServiceIdMapRace extends AbstractBaseTest {
         /* 8. Determine if/how failure has occurred */
         String failStr = null;
         if( (nWithWrongAdded > 0) && (nWithWrongRemoved > 0) ) {
-            failStr = new String(" -- failure -- "+nWithWrongAdded
-                                 +" SDMs with wrong number of added "
-                                 +"events, "+nWithWrongRemoved+" SDMs with "
-                                 +"wrong number of removed events");
+            failStr = " -- failure -- "+nWithWrongAdded
+                    +" SDMs with wrong number of added "
+                    +"events, "+nWithWrongRemoved+" SDMs with "
+                    +"wrong number of removed events";
         } else if(nWithWrongAdded > 0) {
-            failStr = new String(" -- failure -- "+nWithWrongAdded
-                                 +" SDMs with wrong number of added "
-                                 +"events, (removed events OKAY) ");
+            failStr = " -- failure -- "+nWithWrongAdded
+                    +" SDMs with wrong number of added "
+                    +"events, (removed events OKAY) ";
         } else if(nWithWrongRemoved > 0) {
-            failStr = new String(" -- failure -- "+nWithWrongRemoved
-                                 +" SDMs with wrong number of removed "
-                                 +"event, (added events OKAY) ");
+            failStr = " -- failure -- "+nWithWrongRemoved
+                    +" SDMs with wrong number of removed "
+                    +"event, (added events OKAY) ";
         }//endif
 
         /* Turn off events from the lookup service before exiting */
-        for(int i=0; i<caches.size(); i++) {
+        for(int i=0, n = caches.size(); i<n; i++) {
             try {
                 ((LookupCache)caches.get(i)).terminate();
             } catch(Exception e) {

@@ -53,6 +53,7 @@ public class DemoScalabilityTest extends QATestEnvironment implements Test {
 	try {
 	    Thread.sleep(10000);
 	} catch (InterruptedException ignore) {
+            Thread.currentThread().interrupt();
 	}
 
 	// simulate phase 2 work

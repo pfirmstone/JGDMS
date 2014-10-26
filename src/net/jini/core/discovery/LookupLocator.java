@@ -19,20 +19,20 @@ package net.jini.core.discovery;
 
 import com.sun.jini.discovery.Discovery;
 import com.sun.jini.discovery.DiscoveryConstraints;
+import com.sun.jini.discovery.DiscoveryProtocolVersion;
 import com.sun.jini.discovery.UnicastResponse;
 import com.sun.jini.discovery.UnicastSocketTimeout;
 import com.sun.jini.discovery.internal.MultiIPDiscovery;
 import java.io.IOException;
 import java.io.ObjectInputStream;
 import java.io.Serializable;
+import java.lang.reflect.Method;
 import java.net.MalformedURLException;
 import java.net.Socket;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.security.AccessController;
 import java.security.PrivilegedAction;
-import java.util.ArrayList;
-import java.util.Collection;
 import net.jini.core.constraint.InvocationConstraints;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.discovery.ConstrainableLookupLocator;
@@ -41,7 +41,8 @@ import org.apache.river.api.net.Uri;
 /**
  * LookupLocator supports unicast discovery, using either Discovery V1 or V2.
  * 
- * Version 1 of the unicast discovery protocol is deprecated.  
+ * Version 1 of the unicast discovery protocol is deprecated.  By default
+ * Discovery V2 is a preferred constraint.
  * <p>
  * It's main purpose now is to contain a host name and port number, it is now
  * immutable, since River 2.2.1, this may break overriding classes.
@@ -59,16 +60,12 @@ import org.apache.river.api.net.Uri;
  */
 public class LookupLocator implements Serializable {
     private static final long serialVersionUID = 1448769379829432795L;
-
+    
     /**
      * The port for both unicast and multicast boot requests.
      */
     private static final short discoveryPort = 4160;
-    /**
-     * The current version of the unicast discovery protocol.
-     */
-    private static final int protoVersion = 1;
-
+    
     /**
      * The name of the host at which to perform discovery.
      *
@@ -86,7 +83,7 @@ public class LookupLocator implements Serializable {
      * The timeout after which we give up waiting for a response from
      * the lookup service.
      */
-    static final int defaultTimeout =
+    private static final int defaultTimeout =
 	AccessController.doPrivileged(new PrivilegedAction<Integer>() {
             @Override
 	    public Integer run() {
@@ -312,13 +309,31 @@ public class LookupLocator implements Serializable {
     public ServiceRegistrar getRegistrar(int timeout)
 	throws IOException, ClassNotFoundException
     {
-	InvocationConstraints ic = InvocationConstraints.EMPTY;
-	Collection reqs = new ArrayList(ic.requirements());
-	reqs.add(new UnicastSocketTimeout(timeout));
-	return getRegistrar(new InvocationConstraints(reqs, ic.preferences()));
+	return getRegistrar(
+                new InvocationConstraints(
+                        new UnicastSocketTimeout(timeout), 
+                        DiscoveryProtocolVersion.TWO 
+                )
+        );
     }
 
-    private ServiceRegistrar getRegistrar(InvocationConstraints constraints)
+    /**
+     * Perform unicast discovery and return the ServiceRegistrar
+     * object for the given lookup service, with the given constraints.
+     * 
+     * Unicast discovery is performed anew each time this method is called.
+     * <code>LookupLocator</code> implements this method to use the values
+     * of the <code>host</code> and <code>port</code> field in determining
+     * the host and port to connect to.
+     * @param constraints
+     * @return lookup service proxy
+     * @throws IOException
+     * @throws net.jini.io.UnsupportedConstraintException if the
+     * discovery-related constraints contain conflicts, or otherwise cannot be
+     * processed
+     * @throws ClassNotFoundException
+     */
+    protected final ServiceRegistrar getRegistrar(InvocationConstraints constraints)
             throws IOException, ClassNotFoundException {
         UnicastResponse resp = new MultiIPDiscovery() {
             @Override

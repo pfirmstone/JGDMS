@@ -18,36 +18,23 @@
 
 package com.sun.jini.test.spec.servicediscovery;
 
-import java.util.logging.Level;
-
-import com.sun.jini.qa.harness.TestException;
-import com.sun.jini.test.share.BaseQATest;
-
-import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
-import com.sun.jini.qa.harness.Test;
-
+import com.sun.jini.qa.harness.TestException;
+import com.sun.jini.test.share.BaseQATest;
 import com.sun.jini.test.share.DiscoveryServiceUtil;
 import com.sun.jini.test.share.GroupsUtil;
 import com.sun.jini.test.share.LocatorsUtil;
+import java.io.IOException;
+import java.io.Serializable;
+import java.rmi.RemoteException;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 
-import com.sun.jini.qa.harness.TestException;
-
+import java.util.logging.Level;
 import net.jini.admin.Administrable;
-
-import net.jini.discovery.DiscoveryManagement;
-import net.jini.discovery.LookupDiscoveryManager;
-
-import net.jini.lease.LeaseRenewalEvent;
-import net.jini.lease.LeaseRenewalManager;
-import net.jini.lease.DesiredExpirationListener;
-
-import net.jini.lookup.ServiceDiscoveryEvent;
-import net.jini.lookup.ServiceDiscoveryListener;
-import net.jini.lookup.ServiceDiscoveryManager;
-import net.jini.lookup.ServiceItemFilter;
-
+import net.jini.config.ConfigurationException;
 import net.jini.core.discovery.LookupLocator;
 import net.jini.core.entry.Entry;
 import net.jini.core.lease.Lease;
@@ -57,18 +44,15 @@ import net.jini.core.lookup.ServiceItem;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceRegistration;
 import net.jini.core.lookup.ServiceTemplate;
-
-import java.io.IOException;
-import java.io.Serializable;
-
-import java.rmi.RemoteException;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Properties;
-
-import net.jini.config.ConfigurationException;
+import net.jini.discovery.DiscoveryManagement;
+import net.jini.discovery.LookupDiscoveryManager;
+import net.jini.lease.DesiredExpirationListener;
+import net.jini.lease.LeaseRenewalEvent;
+import net.jini.lease.LeaseRenewalManager;
+import net.jini.lookup.ServiceDiscoveryEvent;
+import net.jini.lookup.ServiceDiscoveryListener;
+import net.jini.lookup.ServiceDiscoveryManager;
+import net.jini.lookup.ServiceItemFilter;
 
 /**
  * This class is an abstract class that acts as the base class which
@@ -250,32 +234,38 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
             this.util = util;
             this.classname = classname;
         }//end constructor
+        @Override
 	public void serviceAdded(ServiceDiscoveryEvent event) {
             ServiceItem srvcItem = event.getPostEventServiceItem();
             ServiceID srvcID = srvcItem.serviceID;
+            int nadded;
             synchronized(lock) {
-                logger.log(Level.FINE, "{0} -- serviceAdded()-{1}-{2}", 
-                        new Object[]{nAdded, srvcItem.service, srvcID});
-                nAdded++;
+                nadded = nAdded++;
             }
+            logger.log(Level.FINE, "{0} -- serviceAdded()-{1}-{2}", 
+                        new Object[]{nadded, srvcItem.service, srvcID});
 	}//end serviceAdded
+        @Override
 	public void serviceRemoved(ServiceDiscoveryEvent event) {
             ServiceItem srvcItem = event.getPreEventServiceItem();
             ServiceID srvcID = srvcItem.serviceID;
+            int nremoved;
             synchronized(lock) {
-                logger.log(Level.FINE, "{0} -- serviceRemoved()-{1}-{2}", 
-                        new Object[]{nRemoved, srvcItem.service, srvcID});
-                nRemoved++;
+                nremoved = nRemoved++;
             }
+            logger.log(Level.FINE, "{0} -- serviceRemoved()-{1}-{2}", 
+                        new Object[]{nremoved, srvcItem.service, srvcID});
 	}//end serviceRemoved
+        @Override
 	public void serviceChanged(ServiceDiscoveryEvent event) {
             ServiceItem srvcItem = event.getPreEventServiceItem();
             ServiceID srvcID = srvcItem.serviceID;
+            int nchanged;
             synchronized(lock) {
-                logger.log(Level.FINE, "{0} -- serviceChanged()-{1}-{2}", 
-                        new Object[]{nChanged, srvcItem.service, srvcID});
-                nChanged++;
+                nchanged = nChanged++;
             }
+            logger.log(Level.FINE, "{0} -- serviceChanged()-{1}-{2}", 
+                        new Object[]{nchanged, srvcItem.service, srvcID});
 	}//end serviceChanged
         public int getNAdded() {
             synchronized(lock) {
@@ -394,14 +384,12 @@ abstract public class AbstractBaseTest extends BaseQATest implements Test {
                    = "AbstractBaseTest for ServiceDiscoveryManager.lookup()"
                     +" -- number of services -- ";
 
-    protected volatile String[] subCategories;
-
     protected volatile boolean createSDMduringConstruction = true;
     protected volatile boolean waitForLookupDiscovery = true;
 
     protected volatile ServiceDiscoveryManager srvcDiscoveryMgr = null;
-    protected final ArrayList sdmList = new ArrayList(1);
-    protected final ArrayList cacheList = new ArrayList(1);
+    protected final ArrayList<ServiceDiscoveryManager> sdmList 
+            = new ArrayList<ServiceDiscoveryManager>(1);
 
     protected volatile ServiceTemplate   template    = null;
     protected volatile ServiceItemFilter firstStageFilter   = null;

@@ -18,6 +18,8 @@
 
 package com.sun.jini.thread;
 
+import java.util.concurrent.RejectedExecutionException;
+
 /**
  * Executor is an abstraction for a thread factory or thread pool for
  * executing actions asynchronously.
@@ -49,6 +51,7 @@ public interface Executor {
      *
      * @param	name string to include in the name of the thread used
      * to execute the action
+     * @throws RejectedExecutionException 
      */
-    void execute(Runnable runnable, String name);
+    void execute(Runnable runnable, String name) throws RejectedExecutionException;
 }

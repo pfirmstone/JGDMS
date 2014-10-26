@@ -90,7 +90,9 @@ public class ExceptionTest2 extends TransactionTestBase {
         // wait for a while,
         try {
             Thread.sleep(1000);
-        } catch (InterruptedException ie) {}
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
 
         // then commit/abort the transaction
         pass("step-2: thread #1: abort the transaction");
@@ -99,7 +101,9 @@ public class ExceptionTest2 extends TransactionTestBase {
         // wait for the thread stops
         try {
             getter.join();
-        } catch (InterruptedException ie) {}
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
 
         if (failException != null) {
 	    throw failException;

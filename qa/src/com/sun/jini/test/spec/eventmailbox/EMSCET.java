@@ -129,6 +129,7 @@ public class EMSCET extends EMSTestBase implements TimeConstants {
 	try {
 	    Thread.sleep(5000);
 	} catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
 	    logger.log(Level.INFO, "waking up early - interrupted");
 	}
 	logger.log(Level.INFO, "awoken");

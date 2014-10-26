@@ -5,7 +5,6 @@
 package net.jini.core.discovery;
 
 import java.net.MalformedURLException;
-import net.jini.core.lookup.ServiceRegistrar;
 import org.junit.After;
 import org.junit.AfterClass;
 import org.junit.Before;

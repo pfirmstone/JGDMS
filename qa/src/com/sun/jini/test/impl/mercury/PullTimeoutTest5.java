@@ -90,6 +90,7 @@ public class PullTimeoutTest5
                 logger.log(Level.FINEST, 
                     "Enabler awoken @ {0}", new Date());
             } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
                 // ignore
                 logger.log(Level.FINEST, 
                     "Sleep interrupted", ie);

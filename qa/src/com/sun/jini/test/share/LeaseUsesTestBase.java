@@ -211,6 +211,7 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
 			shutdownTime = -1; // Oneshot
 			shutdown(0, restartSleep);
 		    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
 			// Should never happen, and if it does we don't care
 		    } catch (Throwable e) {
 			throw new TestException("Shutdown Failed:" + e.getMessage());
@@ -243,6 +244,7 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
 		logger.log(Level.INFO, "awake ... time:{0}", System.currentTimeMillis());
                 
 	    } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
 		// Should not happen
 		throw new TestException("Cancel slop sleep interupted!");
 	    }

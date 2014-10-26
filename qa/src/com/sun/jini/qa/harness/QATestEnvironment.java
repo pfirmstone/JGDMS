@@ -132,6 +132,7 @@ public abstract class QATestEnvironment implements TestEnvironment {
 	    try {
 		Thread.sleep(1000 * delayTime);
 	    } catch (InterruptedException ignore) {
+                Thread.currentThread().interrupt();
 	    }
 	}
 	this.config = config;
@@ -246,6 +247,7 @@ public abstract class QATestEnvironment implements TestEnvironment {
 		    try {
 			Thread.sleep(5000); // give it time to flush
 		    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
 		    }
 		}
 	    }

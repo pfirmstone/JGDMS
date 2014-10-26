@@ -105,6 +105,7 @@ class Pipe implements Runnable {
 	try {
 	    outThread.join(timeout);
 	} catch (InterruptedException ignore) {
+            Thread.currentThread().interrupt();
 	}
     }
 

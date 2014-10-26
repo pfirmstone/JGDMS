@@ -744,20 +744,50 @@ new {@link net.jini.activation.ActivationExporter}(
     start and restart.
 </table>
 
-<table summary="Describes the taskManager configuration entry"
+<table summary="Describes the eventNotifierExecutor configuration entry"
        border="0" cellpadding="2">
   <tr valign="top">
     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
     <th scope="col" align="left" colspan="2"> <font size="+1"><code>
-    taskManager</code></font>
+    eventNotifierExecutor</code></font>
   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-    Type: <td> {@link com.sun.jini.thread.TaskManager}
+    Type: <td> {@link java.util.concurrent/ScheduledExecutorService ScheduledExecutorService}
   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-    Default: <td> <code>new TaskManager(50, 1000 * 15, 1.0F)</code>
+    Default: <td> <code>new ScheduledThreadPoolExecutor(
+                    poolSizeLimit, /* = (numberOfCPUCores / 0.3) */
+                    new NamedThreadFactory("Reggie_Event_Notifier", false))</code>
   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
     Description: <td> Specifies the object that pools and manages the threads
-    used by this service to respond to discovery requests and send event
-    notifications.  This entry is obtained at service start and restart.
+    used by this service to send event notifications.  
+    The {@link java.util.concurrent/ExecutorService#shutdown shutdown}
+    method of this object will be called when the service is destroyed.
+    This entry is obtained at service start and restart.
+</table>
+
+<table summary="Describes the discoveryResponseExecutor configuration entry"
+       border="0" cellpadding="2">
+  <tr valign="top">
+    <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
+    <th scope="col" align="left" colspan="2"> <font size="+1"><code>
+    discoveryResponseExecutor</code></font>
+  <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+    Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
+  <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+    Default: <td> <code>new ThreadPoolExecutor(
+                    poolSizeLimit, /* = (numberOfCPUCores / 0.3) */
+                    poolSizeLimit, /* Ignored */
+                    15L, 
+                    TimeUnit.MINUTES, 
+                    new LinkedBlockingQueue(), /* Unbounded Queue */
+                    new NamedThreadFactory("Reggie_Discovery_Response", false)
+                ) </code>
+  <tr valign="top"> <td> &nbsp <th scope="row" align="right">
+    Description: <td> Specifies the object that pools and manages the threads
+    used by this service to respond to discovery requests.  
+    The {@link java.util.concurrent/ExecutorService#shutdownNow shutdownNow}
+    method of this object will be called when the service is destroyed. Sockets
+    for remaining tasks will be closed after this method returns.
+    This entry is obtained at service start and restart.
 </table>
 
 <a name="unexportTimeout"></a>

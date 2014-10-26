@@ -229,6 +229,7 @@ public class NonActivatableGroupAdmin extends AbstractServiceAdmin
 	    process.waitFor();
 	    timeout.cancel();
 	} catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
 	    logger.log(Level.INFO, "Nonactivatable group process did not exit");
 	}
     }

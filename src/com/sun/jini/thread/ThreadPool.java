@@ -165,7 +165,7 @@ final class ThreadPool implements Executor, java.util.concurrent.Executor {
 
     // This method must not block - Executor
     @Override
-    public void execute(Runnable runnable, String name) {
+    public void execute(Runnable runnable, String name) throws RejectedExecutionException {
         if (runnable == null) return;
         if (shutdown) throw new RejectedExecutionException("ThreadPool shutdown");
 	Runnable task = new Task(runnable, name);

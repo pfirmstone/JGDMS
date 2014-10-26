@@ -326,7 +326,7 @@ public class EventType implements Serializable {
 	if (!haveListener())
 	    return lastSeqNum;
 	
-	final ExecutorService mgr = generator.getTaskManager();
+	final ExecutorService mgr = generator.getExecutorService();
 	final WakeupManager wMgr = generator.getWakeupManager();
 	mgr.execute(new SendTask(mgr, wMgr, factory, lastSeqNum));
 	

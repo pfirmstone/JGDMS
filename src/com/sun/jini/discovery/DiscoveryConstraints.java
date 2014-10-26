@@ -516,7 +516,7 @@ public class DiscoveryConstraints {
 	DiscoveryProtocolVersion bias = unfulfilled.isEmpty() ? 
 	    DiscoveryProtocolVersion.ONE : DiscoveryProtocolVersion.TWO;
 	Set[] sets = { protocolVersionPrefs, protocolVersions };
-	for (int i = 0; i < sets.length; i++) {
+	for (int i = 0, l = sets.length; i < l; i++) {
 	    Set s = sets[i];
 	    if (s.contains(bias)) {
 		return bias.getVersion();

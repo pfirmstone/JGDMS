@@ -19,6 +19,7 @@
 package org.apache.river.impl.thread;
 
 import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -41,8 +42,8 @@ public class DependencyLinker implements FutureObserver {
     }
 
     public synchronized void register() {
-        int l = tasks.size();
-        for (int i = 0; i < l; i++){
+        // Iterator causes ConcurrentModificationException
+        for (int i = 0, l = tasks.size(); i < l; i++){
             ObservableFuture f = null;
             try {
                 f = tasks.get(i);

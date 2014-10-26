@@ -312,7 +312,6 @@ public class ModifyAttrServiceChanged extends AbstractBaseTest {
 	cache = srvcDiscoveryMgr.createLookupCache(tmpl,
 						   null,//filter
 						   srvcListener);
-	cacheList.add(cache);
         delayOnCache();
         verifyCurrentEvents(nAddedExpected,0,0);
     }//end createCacheAndVerify

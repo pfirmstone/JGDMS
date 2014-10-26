@@ -255,6 +255,7 @@ public abstract class LeaseUsesTestBase extends LeaseGrantTestBase {
                         shutdownTime = -1; // Oneshot
                         shutdown(0, restartSleep);
                     } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
                         // Should never happen, and if it does we don't care
                     }
                 }

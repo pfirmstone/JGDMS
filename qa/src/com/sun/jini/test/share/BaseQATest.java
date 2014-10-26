@@ -1709,6 +1709,7 @@ abstract public class BaseQATest extends QATestEnvironment {
                     listener.discovered.await(1000L, TimeUnit.MILLISECONDS); // Wait for discovery for 1000 ms.
                     duration = System.currentTimeMillis() - startTime;
                 } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
                     throw new TestException("Interrupted while waiting for discovery", ex);
                 }
                 //DiscoveryServiceUtil.delayMS(1000);
@@ -1877,6 +1878,7 @@ abstract public class BaseQATest extends QATestEnvironment {
                         remain = finishTime - System.currentTimeMillis();
                     } while (remain > 0); //To avoid spurious wakeup
                 } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
                     throw new TestException("Test interrupted while waiting for discard", ex);
                 }
                 //DiscoveryServiceUtil.delayMS(1000);
@@ -2043,6 +2045,7 @@ abstract public class BaseQATest extends QATestEnvironment {
                         remain = finishTime - System.currentTimeMillis();
                     } while (remain > 0); //To avoid spurious wakeup
                 } catch (InterruptedException ex) {
+                    Thread.currentThread().interrupt();
                     throw new TestException("Test interrupted while waiting for change event", ex);
                 }
                 // can't do this anymore because we need to release sync first.

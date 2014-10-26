@@ -619,23 +619,30 @@ new {@link net.jini.discovery.LookupDiscoveryManager}(
   </table>
 
 
-<a name="notificationsTaskManager"></a>
-<table summary="Describes the notificationsTaskManager configuration entry"
+<a name="notificationsExecutorService"></a>
+<table summary="Describes the notificationsExecutorService configuration entry"
 	 border="0" cellpadding="2">
     <tr valign="top">
       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
       <th scope="col" align="left" colspan="2"> <font size="+1">
-      <code>notificationsTaskManager</code></font>
+      <code>notificationsExecutorService</code></font>
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Type: <td> {@link com.sun.jini.thread.TaskManager}
+      Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
       Default: <td> <code>new </code>{@link
-      com.sun.jini.thread.TaskManager#TaskManager() TaskManager()}
+      java.util.concurrent/ThreadPoolExecutor ThreadPoolExecutor}(
+                10,
+                10,
+                15,
+                TimeUnit.SECONDS, 
+                new LinkedBlockingQueue(),
+                new NamedThreadFactory("OutriggerServerImpl Notifier", false)
+            )
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
 
       Description: <td> The pool of threads used to make event delivery
       attempts. 
-      The {@link com.sun.jini.thread.TaskManager#terminate terminate}
+      The {@link java.util.concurrent/ExecutorService#shutdown shutdown}
       method of this object will be called when the service is
       destroyed. Obtained at service start and restart.
   </table>
@@ -953,24 +960,31 @@ new {@link net.jini.discovery.LookupDiscoveryManager}(
       Obtained at service start and restart.      
   </table>
 
-<a name="txnMonitorTaskManager"></a>
-<table summary="Describes the txnMonitorTaskManager configuration entry"
+<a name="txnMonitorExecutorService"></a>
+<table summary="Describes the txnMonitorExecutorService configuration entry"
 	 border="0" cellpadding="2">
     <tr valign="top">
       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
       <th scope="col" align="left" colspan="2"> <font size="+1">
-      <code>txnMonitorTaskManager</code></font>
+      <code>txnMonitorExecutorService</code></font>
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Type: <td> {@link com.sun.jini.thread.TaskManager}
+      Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
       Default: <td> <code>new </code>{@link
-      com.sun.jini.thread.TaskManager#TaskManager() TaskManager()}
+      java.util.concurrent/ThreadPoolExecutor ThreadPoolExecutor}(
+                    10,
+                    10,
+                    15,
+                    TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue(),
+                    new NamedThreadFactory("OutriggerServerImpl TxnMonitor", false)
+            )
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
 
       Description: <td> The pool of threads used to check the status
       of transactions that have been prepared or have locked contended 
       resources.
-      The {@link com.sun.jini.thread.TaskManager#terminate terminate}
+      The {@link java.util.concurrent/ExecutorService#shutdown shutdown}
       method of this object will be called when the service is
       destroyed. Obtained at service start and restart.
   </table>

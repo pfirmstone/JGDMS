@@ -548,12 +548,16 @@ public class LeaseRenewDurRFE extends AbstractBaseTest {
                 /* First wait the lease duration */
                 try{ 
                     Thread.sleep(leaseDur[v]);
-                } catch(InterruptedException e) { }
+                } catch(InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
                 /* Wait a delta amount to account for communication latency */
                 boolean leaseExpired = false;
                 int i = 0;
                 while( !leaseExpired && (i < rfeDelta) ) {
-                    try{ Thread.sleep(1000); } catch(InterruptedException e) {}
+                    try{ Thread.sleep(1000); } catch(InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
                     i = i+1;
                     if(sdm.lookup(tmpl[v],null) == null) leaseExpired = true;
                 }//end loop

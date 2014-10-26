@@ -714,6 +714,7 @@ public class MainTestDescription extends TestDescription {
 		    p.waitFor();
 		    logger.log(Level.FINEST, "compile finished");
 		} catch (InterruptedException ignore) {
+                    Thread.currentThread().interrupt();
 		} catch (IOException e) {
 		    throw new TestException("Exception running compiler", e);
 		}

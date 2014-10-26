@@ -72,6 +72,7 @@ public class HeartOfTheMachine
             }
             Runtime.getRuntime().halt(100);
         } catch( InterruptedException e ) {
+            Thread.currentThread().interrupt();
             // ignore.
         } finally {
         }

@@ -392,7 +392,7 @@ public class StressTest extends MatchTestCore {
             try {
                 Thread.sleep(1000 * 1); // 1.0 sec
             } catch (InterruptedException ie) {
-
+                Thread.currentThread().interrupt();
                 // trap, but do nothing.
             }
         }
@@ -458,7 +458,7 @@ public class StressTest extends MatchTestCore {
                 wait();
             }
         } catch (InterruptedException ie) {
-
+            Thread.currentThread().interrupt();
             // Not a fatal exception, but note it anyway.
             if (debug) {
                 logger.log(Level.INFO, "Task wait was interrupted");

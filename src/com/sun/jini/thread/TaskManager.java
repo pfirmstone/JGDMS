@@ -52,7 +52,7 @@ import java.util.logging.Logger;
  * </table>
  *
  * @author Sun Microsystems, Inc.
- * @deprecated will be removed from River 2.4.0 onward
+ * @deprecated will be removed from a future release soon.
  */
 @Deprecated
 public class TaskManager {

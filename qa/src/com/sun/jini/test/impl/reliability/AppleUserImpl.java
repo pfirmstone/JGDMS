@@ -216,6 +216,7 @@ public class AppleUserImpl extends QATestEnvironment implements AppleUser, Test 
 	            try {
 	                Thread.sleep(Math.abs(random.nextInt() % 10) * 1000);
 	            } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
 	            }
 
 	        } while (System.currentTimeMillis() < stopTime);

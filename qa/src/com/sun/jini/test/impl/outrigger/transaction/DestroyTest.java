@@ -98,7 +98,9 @@ public class DestroyTest extends TransactionTestBase {
                     + destroyDelay + " seconds...");
             Thread.sleep(destroyDelay * 1000);
             logger.log(Level.INFO, "...awake");
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
         // Check abort/commit cause RemoteException
         try {

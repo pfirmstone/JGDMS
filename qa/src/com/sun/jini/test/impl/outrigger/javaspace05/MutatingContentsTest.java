@@ -338,6 +338,7 @@ public class MutatingContentsTest extends TestBase implements Test {
 		    try {
 			wait();
 		    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
 			failure("interrupted", e);
 			return;
 		    }

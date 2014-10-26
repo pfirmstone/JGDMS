@@ -62,10 +62,8 @@ class TxnManagerImplInitializer {
     int cores = Runtime.getRuntime().availableProcessors();
     int settlerthreads = 15*cores;
     long settlertimeout = 1000 * 15;
-    float settlerload = 1.0F;
     int taskthreads = 5*cores;
     long tasktimeout = 1000 * 15;
-    float taskload = 1.0F;
     ConcurrentMap<Long, TxnManagerTransaction> txns =
             new ConcurrentHashMap<Long, TxnManagerTransaction>();
     /* Retrieve values from properties.          */

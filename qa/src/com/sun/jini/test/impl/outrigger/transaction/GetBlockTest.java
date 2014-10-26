@@ -154,7 +154,9 @@ public class GetBlockTest extends TransactionTestBase {
         // wait for a while,
         try {
             Thread.sleep(1000);
-        } catch (InterruptedException ie) {}
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
 
         // commit/abort the transaction
         if (useAbort) {
@@ -169,7 +171,9 @@ public class GetBlockTest extends TransactionTestBase {
         try {
             pass("step-4: thread #1: wait until thread #2 die.");
             getter.join();
-        } catch (InterruptedException ie) {}
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+        }
 
         if (isFailed) {
             fail("EntryGetter failed with exception" + failMsg);

@@ -100,13 +100,32 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      * 			<code>preEventItem </code>and the 
      * 			<code>postEventItem</code> parameters.
      */
-    public ServiceDiscoveryEvent(Object source, ServiceItem preEventItem,
-				 ServiceItem postEventItem) {
-	super(source);
-	if((preEventItem == null && postEventItem == null)
-	   || source == null)
+    public ServiceDiscoveryEvent(
+            Object source, 
+            ServiceItem preEventItem,
+            ServiceItem postEventItem) 
+    {
+	this(source, preEventItem, postEventItem, 
+                nullCheck(source, preEventItem, postEventItem));
+    }
+    
+    private static boolean nullCheck( //Prevent finalizer attack.
+            Object source, 
+            ServiceItem preEventItem,
+            ServiceItem postEventItem) throws NullPointerException 
+    {
+        if((preEventItem == null && postEventItem == null)|| source == null)
 	    throw new NullPointerException();
-
+        return true;
+    }
+    
+    private ServiceDiscoveryEvent(
+            Object source,
+            ServiceItem preEventItem,
+            ServiceItem postEventItem,
+            boolean check)
+    {
+        super(source);
 	if(preEventItem != null)
 	    this.preEventItem = new ServiceItem(preEventItem.serviceID,
 					    preEventItem.service,
@@ -117,7 +136,6 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
 					     postEventItem.service,
 					     postEventItem.attributeSets);
         else this.postEventItem = null;
-	
     }
 
     /**
@@ -146,7 +164,8 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      * @return ServiceItem containing the service reference corresponding 
      *  		to the given event.
      */
-    public ServiceItem getPreEventServiceItem() {
+    public ServiceItem getPreEventServiceItem() 
+    {
 	return preEventItem;
     }
 
@@ -175,7 +194,8 @@ public class ServiceDiscoveryEvent extends java.util.EventObject {
      * @return ServiceItem containing the service reference corresponding 
      *  		to the given event.
      */
-    public ServiceItem getPostEventServiceItem() {
+    public ServiceItem getPostEventServiceItem() 
+    {
 	return postEventItem;
     }
 	

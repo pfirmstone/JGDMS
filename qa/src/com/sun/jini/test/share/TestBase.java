@@ -199,7 +199,9 @@ public abstract class TestBase extends QATestEnvironment {
         logger.log(Level.FINE, "Test Name = " + this.getClass().getName());
 
         // set security manager
+        if (System.getSecurityManager() == null) {
         System.setSecurityManager(new CombinerSecurityManager());
+        }
         return new Test(){
 
             public void run() throws Exception {
@@ -336,6 +338,7 @@ public abstract class TestBase extends QATestEnvironment {
 		    try {
 			Thread.sleep(killDelay * 1000);
 		    } catch (InterruptedException ignore) {
+                        Thread.currentThread().interrupt();
 		    }
 		}
 	    }
@@ -363,7 +366,9 @@ public abstract class TestBase extends QATestEnvironment {
                 + " milliseconds...");
             Thread.sleep(willWait);
             logger.log(Level.INFO, "...awake");
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+    }
     }
 
     /**
@@ -387,7 +392,9 @@ public abstract class TestBase extends QATestEnvironment {
                     + " milliseconds...");
             Thread.sleep(wait);
             logger.log(Level.INFO, "awake");
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+    }
     }
 
     /**
@@ -620,7 +627,7 @@ public abstract class TestBase extends QATestEnvironment {
                         Thread.sleep(cleanupWait);
                     }
                 } catch (InterruptedException e) {
-
+                    Thread.currentThread().interrupt();
                     // Do nothing.
                 }
             }

@@ -96,7 +96,6 @@ public class CacheLookup extends AbstractBaseTest {
 	cache = srvcDiscoveryMgr.createLookupCache(template,
 						   firstStageFilter,
 						   null);//listener
-	cacheList.add(cache);
         /* Query the cache for the desired registered service. */
 	for (int i = 0; i < 3; i++) {	
 	    logger.log(Level.FINE, "waiting "+(cacheDelay/1000)

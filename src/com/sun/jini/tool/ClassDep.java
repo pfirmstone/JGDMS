@@ -883,9 +883,9 @@ public class ClassDep {
         Map classDependencyRelationMap = null;
         try{
             classDependencyRelationMap = cd.getDependencyRelationshipMap(classes, true); // get the reference to Collection<Class>
-        }catch (ClassNotFoundException e){
+        } catch (ClassNotFoundException e){
             e.printStackTrace();
-        }catch (IOException e) {
+        } catch (IOException e) {
             e.printStackTrace();
         }
          
@@ -1328,8 +1328,8 @@ public class ClassDep {
             //boolean files = false;
             dep.setupOptions(args);
             String[] vals = dep.compute();
-
-            for (int i = 0; i < vals.length; i++) {
+            int l = vals.length;
+            for (int i = 0; i < l; i++) {
                 if (dep.getFiles()) {
                     System.out.println(vals[i].replace('.', File.separatorChar) + ".class");
                 } else {
@@ -1337,6 +1337,7 @@ public class ClassDep {
                 }
             }
         } finally {
+            System.out.flush();
             System.out.close();
         }
     }

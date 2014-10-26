@@ -71,16 +71,16 @@ This document provides the following information about Mahalo:
 <a name="configuration">
 <h2>Configuring Mahalo</h2>
 </a>
-
+<p>
 The Mahalo service implementation obtains its configuration by calling
 {@link net.jini.config.ConfigurationProvider#getInstance(String[], ClassLoader) 
 ConfigurationProvider.getInstance} with the specified
 <i>configOptions</i> and the class loader for the implementation
 class.
+</p>
 <p>
-
 The implementation supports the following configuration entries, with
-component <code>com.sun.jini.mahalo</code>: <p>
+component <code>com.sun.jini.mahalo</code>: </p>
 
   <table summary="Describes the activationIdPreparer configuration entry"
          border="0" cellpadding="2">
@@ -480,14 +480,17 @@ new {@link net.jini.jeri.BasicJeriExporter}(
       <th scope="col" align="left" colspan="2"> <font size="+1">
       <code>settlerPool</code></font>
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Type: <td> {@link com.sun.jini.thread.TaskManager}
+      Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
       Default: <td> <code>new </code>{@link
-      com.sun.jini.thread.TaskManager#TaskManager(int, long, float) TaskManager(
-      150 /* maxThreads */, 
+      java.util.concurrent/ThreadPoolExecutor ThreadPoolExecutor}(
+        15 * processor cores /* core pool size */, 
+        15 * processor cores /* ignored */
       15000 /* timeout */,
-      1.0 /* loadFactor */
-      )}
+        TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue(), /* Unbounded Queue */
+        new NamedThreadFactory("TxnMgr settlerPool", false)
+      )
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
 
       Description: <td> The pool of threads used to settle outstanding
@@ -498,7 +501,7 @@ new {@link net.jini.jeri.BasicJeriExporter}(
       and
       {@link net.jini.core.transaction.Transaction#commit(long) commit} 
       that take a timeout parameter.
-      The {@link com.sun.jini.thread.TaskManager#terminate terminate}
+      The {@link java.util.concurrent/ExecutorService#shutdown shutdown}
       method of this object will be called when the service is
       destroyed. Obtained at service start and restart.
   </table>
@@ -510,19 +513,22 @@ new {@link net.jini.jeri.BasicJeriExporter}(
       <th scope="col" align="left" colspan="2"> <font size="+1">
       <code>taskPool</code></font>
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Type: <td> {@link com.sun.jini.thread.TaskManager}
+      Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
       Default: <td> <code>new </code>{@link
-      com.sun.jini.thread.TaskManager#TaskManager(int, long, float) TaskManager(
-      50 /* maxThreads */, 
+      java.util.concurrent/ThreadPoolExecutor ThreadPoolExecutor}(
+        5 * processor cores /* core pool size */, 
+        5 * processor cores /* ignored */
       15000 /* timeout */,
-      3.0 /* loadFactor */
-      )}
+        TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue(), /* Unbounded Queue */
+        new NamedThreadFactory("TxnMgr taskPool", false)
+      )
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
 
       Description: <td> The pool of threads used to settle 
       transactions. 
-      The {@link com.sun.jini.thread.TaskManager#terminate terminate}
+      The {@link java.util.concurrent/ExecutorService#shutdown shutdown}
       method of this object will be called when the service is
       destroyed. Obtained at service start and restart.
   </table>

@@ -163,7 +163,9 @@ public class CheckPersistence extends AbstractPlugin {
 	    Util.getResourceBundle(CheckPersistence.class);
 
 	public Object run(String[] args) {
+            if (System.getSecurityManager() == null) {
 	    System.setSecurityManager(new CombinerSecurityManager());
+            }
 	    String dir = args[0];
 	    File dirFile = new File(dir);
 	    if (!dirFile.exists()) {

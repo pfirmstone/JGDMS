@@ -565,6 +565,7 @@ class SecureClient implements Constants, TestClient, Runnable {
                 try {
                     goMonitor.wait();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                 }
             }
         }
@@ -1893,6 +1894,7 @@ class SecureClient implements Constants, TestClient, Runnable {
                 try {
                     goMonitor.wait();
                 } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
                     e.printStackTrace();
                 }
             }

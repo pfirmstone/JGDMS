@@ -17,8 +17,6 @@
  */
 
 package net.jini.lookup;
-
-import net.jini.core.lookup.ServiceItem;
 /**
  * The <code>ServiceDiscoveryListener</code> interface defines the
  * methods used by objects such as a {@link net.jini.lookup.LookupCache 

@@ -97,6 +97,7 @@ public class PullTimeoutTest6B
                 logger.log(Level.FINEST, 
                     "MyDestroyerRunnable awoken @ {0}", new Date());
             } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
                 // ignore
                 logger.log(Level.FINEST, 
                     "Sleep interrupted", ie);

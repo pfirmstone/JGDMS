@@ -19,6 +19,8 @@ package net.jini.discovery;
 
 import java.io.IOException;
 import java.util.logging.Logger;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ThreadPoolExecutor;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.core.constraint.MethodConstraints;
@@ -120,7 +122,7 @@ import net.jini.core.constraint.MethodConstraints;
  *         	underlying implementations of versions 1 and 2 of the discovery
  *              protocols.
  * </table>
- *
+ * </a>
  * <a name="finalMulticastRequestInterval">
  * <table summary="Describes the finalMulticastRequestInterval
  *                configuration entry" border="0" cellpadding="2">
@@ -144,6 +146,7 @@ import net.jini.core.constraint.MethodConstraints;
  *            equal to the value of the <a href="#multicastRequestMax">
  *            <code>multicastRequestMax</code></a> entry of this component.
  * </table>
+ * </a>
  * <a name="initialMulticastRequestDelayRange">
  * <table summary="Describes the initialMulticastRequestDelayRange
  *                configuration entry" border="0" cellpadding="2">
@@ -172,6 +175,7 @@ import net.jini.core.constraint.MethodConstraints;
  *       request is not delayed if the groups to discover are subsequently
  *       changed.
  * </table>
+ * </a>
  * <a name="multicastAnnouncementInterval">
  * <table summary="Describes the multicastAnnouncementInterval
  *                configuration entry" border="0" cellpadding="2">
@@ -194,7 +198,7 @@ import net.jini.core.constraint.MethodConstraints;
  *            this utility examines the multicast announcements from
  *            previously discovered lookup services for <i>liveness</i>.
  * </table>
- *
+ * </a>
  * <a name="multicastInterfaceRetryInterval">
  * <table summary="Describes the multicastInterfaceRetryInterval
  *                configuration entry" border="0" cellpadding="2">
@@ -221,7 +225,7 @@ import net.jini.core.constraint.MethodConstraints;
  *            <code>multicastInterfaceRetryInterval</code></a> milliseconds
  *            until success is encountered.
  * </table>
- *
+ * </a>
  * <a name="multicastInterfaces">
  * <table summary="Describes the multicastInterfaces
  *                configuration entry" border="0" cellpadding="2">
@@ -251,7 +255,7 @@ import net.jini.core.constraint.MethodConstraints;
  *            the interface to which the operating system defaults will be
  *            used.
  * </table>
- *
+ * </a>
  * <a name="multicastRequestHost">
  * <table summary="Describes the multicastRequestHost
  *                configuration entry" border="0" cellpadding="2">
@@ -273,7 +277,7 @@ import net.jini.core.constraint.MethodConstraints;
  *            requests if participating in <b><i>version 2</i></b> of the
  *            multicast request protocol. The name cannot be <code>null</code>.
  * </table>
- *
+ * </a>
  * <a name="multicastRequestInterval">
  * <table summary="Describes the multicastRequestInterval
  *                configuration entry" border="0" cellpadding="2">
@@ -298,7 +302,7 @@ import net.jini.core.constraint.MethodConstraints;
  *          <a href="#multicastRequestMax"><code>multicastRequestMax</code></a>
  *          entry of this component.
  * </table>
- *
+ * </a>
  * <a name="multicastRequestMax">
  * <table summary="Describes the multicastRequestMax
  *                configuration entry" border="0" cellpadding="2">
@@ -319,7 +323,7 @@ import net.jini.core.constraint.MethodConstraints;
  *            utility is started for the first time, and whenever the
  *            groups to discover is changed.
  * </table>
- *
+ * </a>
  * <a name="registrarPreparer">
  * <table summary="Describes the registrarPreparer configuration entry" 
  *                border="0" cellpadding="2">
@@ -358,33 +362,37 @@ import net.jini.core.constraint.MethodConstraints;
  *                                                           getLocator}
  *       </ul>
  * </table>
- *
- * <a name="taskManager">
+ * </a>
+ * <a name="executorService">
  * <table summary="Describes the taskManager configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>taskManager</code></font>
+ *     <code>executorService</code></font>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link com.sun.jini.thread.TaskManager}
+ *     Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Default: <td> <code>new 
- *             {@link com.sun.jini.thread.TaskManager#TaskManager()
- *                                   TaskManager}(15, (15*1000), 1.0f)</code>
+ *             {@link java.util.concurrent/ThreadPoolExecutor
+ *              ThreadPoolExecutor}(
+ *                      15, 
+ *                      15, 
+ *                      15, 
+ *                      TimeUnit.SECONDS,
+ *                      new LinkedBlockingQueue(),
+ *                      new NamedThreadFactory("LookupDiscovery",false))</code>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
  *       <td> The object that pools and manages the various threads
- *            executed by this utility. The default manager creates a
- *            maximum of 15 threads, waits 15 seconds before removing
- *            idle threads, and uses a load factor of 1.0 when
- *            determining whether to create a new thread. This object
+ *            executed by this utility. This object
  *            should not be shared with other components in the
  *            application that employs this utility.
  * </table>
+ *  </a>
  * <a name="unicastDelayRange">
  * <table summary="Describes the unicastDelayRange
  *                configuration entry" border="0" cellpadding="2">
@@ -411,6 +419,7 @@ import net.jini.core.constraint.MethodConstraints;
  *       <code>LookupDiscovery</code> instances simultaneously receive multicast
  *       announcements from the lookup service.
  * </table>
+ * </a>
  * <a name="wakeupManager">
  * <table summary="Describes the wakeupManager configuration entry" 
  *                border="0" cellpadding="2">
@@ -437,6 +446,7 @@ import net.jini.core.constraint.MethodConstraints;
  *       configuration entry of this utility. This entry is processed only
  *       if <code>unicastDelayRange</code> has a positive value.
  * </table>
+ * </a>
  * <a name="ldLogging">
  * <p>
  * <b><font size="+1">Logging</font></b>

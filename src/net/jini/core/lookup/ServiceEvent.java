@@ -94,8 +94,9 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * <code>ServiceEvent</code>.
      * @return a <code>String</code> representation of this object
      */
+    @Override
     public String toString() {
-	StringBuffer sBuffer = new StringBuffer();
+	StringBuilder sBuffer = new StringBuilder(256);
 	sBuffer.append(getClass().getName()).append(
 	       "[serviceID=").append(getServiceID()).append(
 	       ", transition=");
@@ -127,5 +128,15 @@ public abstract class ServiceEvent extends net.jini.core.event.RemoteEvent {
      * @return a <tt>ServiceItem</tt> object representing the service item value
      */
     public abstract ServiceItem getServiceItem();
+    
+    /**
+     * Serialization evolution support
+     * @serialData 
+     */
+    private void readObject(java.io.ObjectInputStream stream)
+	throws java.io.IOException, ClassNotFoundException
+    {
+	stream.defaultReadObject();
+    }
 }
 

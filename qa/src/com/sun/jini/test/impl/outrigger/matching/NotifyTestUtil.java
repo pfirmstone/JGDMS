@@ -111,6 +111,7 @@ class NotifyTestUtil {
         try {
             Thread.sleep(wait);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             final String msg = "Sleep was interrupted";
             logger.log(Level.INFO, msg);
             e.printStackTrace();

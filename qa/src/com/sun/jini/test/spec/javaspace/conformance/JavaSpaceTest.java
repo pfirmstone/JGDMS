@@ -22,7 +22,6 @@ import com.sun.jini.qa.harness.QAConfiguration;
 import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.Test;
 import com.sun.jini.qa.harness.TestException;
-import java.rmi.RMISecurityManager;
 import java.rmi.RemoteException;
 import java.util.LinkedList;
 import java.util.logging.Level;
@@ -36,6 +35,7 @@ import net.jini.core.transaction.TransactionFactory;
 import net.jini.core.transaction.server.TransactionManager;
 import net.jini.security.ProxyPreparer;
 import net.jini.space.JavaSpace;
+import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  *
@@ -156,7 +156,7 @@ public abstract class JavaSpaceTest extends QATestEnvironment implements Test {
         JavaSpace js = null;
         try {
             if (System.getSecurityManager() == null) {
-                System.setSecurityManager(new RMISecurityManager());
+                System.setSecurityManager(new CombinerSecurityManager());
             }
             printSpaceInfo();
             js = (JavaSpace) getManager().startService(spaceName); // prepared

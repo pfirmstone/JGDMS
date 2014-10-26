@@ -32,7 +32,6 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.SynchronousQueue;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.ThreadPoolExecutor.CallerRunsPolicy;
@@ -197,10 +196,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *     involved with renewing leases and sending notifications. The
  *     value must not be <code>null</code>. The default value creates
  *     a maximum of 11 threads for performing operations, waits 15
- *     seconds before removing idle threads, and uses a load factor of
- *     1.0 when determining whether to create a new thread. Note that
- *     the implementation of the renewal algorithm includes an assumption
- *     that the <code>ExecutorService</code> uses a load factor of 1.0.
+ *     seconds before removing idle threads.
  * </table>
  * 
  * <a name="logging">
@@ -450,6 +446,7 @@ public class LeaseRenewalManager {
 	    }
 	}
 
+        @Override
 	public void run() {
 	    if (noRenewals) {
 		// Just notify
@@ -609,6 +606,7 @@ public class LeaseRenewalManager {
 	}
 
 	/** Sort by decreasing renew time, secondary sort by decreasing id */
+        @Override
 	public int compareTo(Object obj) {
 	    if (this == obj)
 		return 0;
@@ -1407,9 +1405,8 @@ public class LeaseRenewalManager {
 		       e.lease);
 	} else {
 	    logger.log(Levels.FAILED,
-		       "Lease {0} expired before reaching "
-		       + "desired expiration of " 
-		       + e.expiration);
+               "Lease '{'0'}' expired before reaching desired expiration of {0}",
+               e.expiration);
 	}
     }
 		

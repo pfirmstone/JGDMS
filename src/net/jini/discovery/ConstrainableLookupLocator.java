@@ -95,7 +95,6 @@ public final class ConstrainableLookupLocator
 {
     private static final long serialVersionUID = 7061417093114347317L;
 
-    private static final int DEFAULT_TIMEOUT = 60 * 1000;
     private static final Method getRegistrarMethod;
     private static final Method getRegistrarTimeoutMethod;
     static {
@@ -206,10 +205,13 @@ public final class ConstrainableLookupLocator
      * <code>ConstrainableLookupLocator</code> implements this method to use the
      * values of the <code>host</code> and <code>port</code> field in
      * determining the host and port to connect to.
+     * @return lookup service proxy
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
+     * @throws java.lang.ClassNotFoundException
      */
+    @Override
     public ServiceRegistrar getRegistrar()
 	throws IOException, ClassNotFoundException
     {
@@ -224,9 +226,11 @@ public final class ConstrainableLookupLocator
      * supplied discovery constraints. The <code>timeout</code> is considered a
      * requirement with respect to other constraints specified for this
      * instance.
+     * @return lookup service proxy
      * @throws net.jini.io.UnsupportedConstraintException if the
      * discovery-related constraints contain conflicts, or otherwise cannot be
      * processed
+     * @throws java.lang.ClassNotFoundException
      */
     @Override
     public ServiceRegistrar getRegistrar(int timeout)
@@ -259,19 +263,4 @@ public final class ConstrainableLookupLocator
 	return constraints;
     }
 
-    private ServiceRegistrar getRegistrar(InvocationConstraints constraints)
-	throws IOException, ClassNotFoundException
-    {
-	UnicastResponse resp = new MultiIPDiscovery() {	    
-	    protected UnicastResponse performDiscovery(Discovery disco,
-		    DiscoveryConstraints dc,
-		    Socket s)
-		throws IOException, ClassNotFoundException
-	    {
-		return disco.doUnicastDiscovery(
-		    s, dc.getUnfulfilledConstraints(), null, null, null);
-	    }
-	}.getResponse(host, port, constraints);
-	return resp.getRegistrar();
-    }
 }

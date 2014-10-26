@@ -151,7 +151,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *            not be shared with other components in the application that
  *            employs this utility.
  * </table>
- *
+ * </a>
  * <a name="leaseManager">
  * <table summary="Describes the leaseManager configuration entry" 
  *                border="0" cellpadding="2">
@@ -176,7 +176,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *            be retrieved from the configuration only if no lease 
  *            renewal manager is specified in the constructor.
  * </table>
- *
+ * </a>
  * <a name="maxLeaseDuration">
  * <table summary="Describes the maxLeaseDuration
  *                configuration entry" border="0" cellpadding="2">
@@ -201,7 +201,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *            while the service is up, and lease expiration will occur sooner
  *            when the service goes down.
  * </table>
- *
+ * </a>
  * <a name="registrarPreparer">
  * <table summary="Describes the registrarPreparer configuration entry" 
  *                border="0" cellpadding="2">
@@ -228,7 +228,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *         <li>{@link net.jini.core.lookup.ServiceRegistrar#register register}
  *       </ul>
  * </table>
- *
+ * </a>
  * <a name="registrationPreparer">
  * <table summary="Describes the registrationPreparer configuration entry" 
  *                border="0" cellpadding="2">
@@ -265,7 +265,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *                                                           setAttributes}
  *       </ul>
  * </table>
- *
+ * </a>
  * <a name="serviceLeasePreparer">
  * <table summary="Describes the serviceLeasePreparer configuration entry" 
  *                border="0" cellpadding="2">
@@ -290,34 +290,36 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *          Currently, none of the methods on the service lease returned
  *          by this preparer are invoked by this implementation of the utility.
  * </table>
- *
- * <a name="taskManager">
- * <table summary="Describes the taskManager configuration entry" 
+ * </a>
+ * <a name="executorService">
+ * <table summary="Describes the executorService configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>taskManager</code></font>
+ *     <code>executorService</code></font>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link com.sun.jini.thread.TaskManager}
+ *     Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Default: <td> <code>new 
- *             {@link com.sun.jini.thread.TaskManager#TaskManager()
- *                                   TaskManager}(15, (15*1000), 1.0f)</code>
+ *             {@link java.util.concurrent/ThreadPoolExecutor ThreadPoolExecutor}(
+ *                   15,
+ *                   15,
+ *                   15,
+ *                   TimeUnit.SECONDS,
+ *                   new {@link java.util.concurrent/LinkedBlockingQueue LinkedBlockingQueue}(),
+ *                   new {@link org.apache.river.impl.thread.NamedThreadFactory NamedThreadFactory}("JoinManager executor thread", false))</code>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
  *       <td> The object that pools and manages the various threads
- *            executed by this utility. The default manager creates a
- *            maximum of 15 threads, waits 15 seconds before removing
- *            idle threads, and uses a load factor of 1.0 when
- *            determining whether to create a new thread. This object
+ *            executed by this utility. This object
  *            should not be shared with other components in the
  *            application that employs this utility.
  * </table>
- *
+ * </a>
  * <a name="wakeupManager">
  * <table summary="Describes the wakeupManager configuration entry" 
  *                border="0" cellpadding="2">
@@ -340,10 +342,10 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *     Description:
  *       <td> Object that pools and manages the various tasks that are
  *            initially executed by the object corresponding to the
- *            <a href="#taskManager"><code>taskManager</code></a> entry
+ *            <a href="#executorService"><code>executorService</code></a> entry
  *            of this component, but which fail during that initial execution.
  *            This object schedules the re-execution of such a failed task -
- *            in the <a href="#taskManager"><code>taskManager</code></a>
+ *            in the <a href="#executorService"><code>executorService</code></a>
  *            object - at various times in the future, until either the
  *            task succeeds or the task has been executed the maximum
  *            number of allowable times, corresponding to the 
@@ -352,7 +354,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *            with other components in the application that employs this
  *            utility.
  * </table>
- *
+ * </a>
  * <a name="wakeupRetries">
  * <table summary="Describes the wakeupRetries
  *                configuration entry" border="0" cellpadding="2">
@@ -374,7 +376,7 @@ import org.apache.river.impl.thread.NamedThreadFactory;
  *            <a href="#wakeupManager"><code>wakeupManager</code></a>
  *            entry of this component.
  * </table>
- *
+ * </a>
  * <a name="jmLogging">
  * <p>
  * <b><font size="+1">Logging</font></b>
@@ -585,7 +587,7 @@ public class JoinManager {
 
         /** Basic constructor; simply stores the input parameters */
         ProxyRegTask(ProxyReg proxyReg, int seqN) {
-            super(JoinManager.this.taskMgr,JoinManager.this.wakeupMgr);
+            super(JoinManager.this.executor,JoinManager.this.wakeupMgr);
             this.proxyReg = proxyReg;
             this.seqN = seqN;
         }//end constructor
@@ -1508,7 +1510,7 @@ public class JoinManager {
     /* Logger used by this utility. */
     private static final Logger logger = Logger.getLogger(COMPONENT_NAME);
     /** Maximum number of concurrent tasks that can be run in any default
-     * task manager created by this class.
+     * ExecutorService created by this class.
      */
     private static final int MAX_N_TASKS = 15;
     /** Whenever a task is created in this join manager, it is assigned a
@@ -1521,14 +1523,14 @@ public class JoinManager {
     private int taskSeqN = 0; // access sync on taskList
     /** Task manager for the various tasks executed by this join manager.
      *  On the first attempt to execute any task is managed by this
-     *  <code>TaskManager</code> so that the number of concurrent threads
+     *  <code>ExecutorService</code> so that the number of concurrent threads
      *  can be bounded. If one or more of those attempts fails, a
      *  <code>WakeupManager</code> is used (through the use of a
      *  <code>RetryTask</code>) to schedule - at a later time (employing a
      *  "backoff strategy") - the re-execution of each failed task in this
-     *  <code>TaskManager</code>.
+     *  <code>ExecutorService</code>.
      */
-    private final ExecutorService taskMgr;
+    private final ExecutorService executor;
     private final ProxyRegTaskQueue proxyRegTaskQueue;
     /** Maximum number of times a failed task is allowed to be re-executed. */
     private final int maxNRetries;
@@ -2517,7 +2519,7 @@ public class JoinManager {
         ProxyPreparer registrarPreparer;
         ProxyPreparer registrationPreparer;
         ProxyPreparer serviceLeasePreparer;
-        ExecutorService taskManager;
+        ExecutorService executorService;
         WakeupManager wakeupManager;
         Integer maxNretrys;
         LeaseRenewalManager leaseRenewalManager;
@@ -2539,7 +2541,7 @@ public class JoinManager {
             this.registrarPreparer = registrarPreparer;
             this.registrationPreparer = registrationPreparer;
             this.serviceLeasePreparer = serviceLeasePreparer;
-            this.taskManager = taskManager;
+            this.executorService = taskManager;
             this.wakeupManager = wakeupManager;
             this.maxNretrys = maxNretrys;
             this.leaseRenewalManager = leaseRenewalManager;
@@ -2704,7 +2706,7 @@ public class JoinManager {
 	registrarPreparer = conf.registrarPreparer;
         registrationPreparer = conf.registrationPreparer;
         serviceLeasePreparer = conf.serviceLeasePreparer;
-        taskMgr = new ExtensibleExecutorService(conf.taskManager, 
+        executor = new ExtensibleExecutorService(conf.executorService, 
                 new RunnableFutureFactory(){
 
             @Override
@@ -2720,7 +2722,7 @@ public class JoinManager {
             }
             
         });
-        proxyRegTaskQueue = new ProxyRegTaskQueue(taskMgr);
+        proxyRegTaskQueue = new ProxyRegTaskQueue(executor);
         wakeupMgr = conf.wakeupManager;
         maxNRetries = conf.maxNretrys;
         leaseRenewalMgr = conf.leaseRenewalManager;
@@ -2759,7 +2761,7 @@ public class JoinManager {
      */
     private void removeTasks(ProxyReg proxyReg) {
         if(proxyReg == null) return;
-        if(taskMgr == null) return;
+        if(executor == null) return;
         synchronized(proxyReg.taskList) {
             if(proxyReg.proxyRegTask != null) {
                 proxyReg.proxyRegTask.cancel(false);                
@@ -2782,7 +2784,7 @@ public class JoinManager {
             wakeupMgr.stop();//stop execution of the wakeup manager
         }
         /* Interrupt all active tasks, prepare taskMgr for GC. */
-        taskMgr.shutdownNow();
+        executor.shutdownNow();
     }//end terminateTaskMgr
 
     /** Examines the elements of the input set and, upon finding at least one

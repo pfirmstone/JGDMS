@@ -115,6 +115,7 @@ public class RenewingRemoteListener extends RememberingRemoteListener {
 		    try {
 			Thread.sleep(250L); // try every quarter of a second
 		    } catch (InterruptedException interruptedEx) {
+                        Thread.currentThread().interrupt();
 			canBeRenewed = false; // okay we'll stop, I guess??
 		    }
 		}	    

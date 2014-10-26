@@ -54,7 +54,7 @@ import net.jini.security.Security;
  * @see		Security
  * @since 2.0
  **/
-public class GetBooleanAction implements PrivilegedAction {
+public class GetBooleanAction implements PrivilegedAction<Boolean> {
 
     private static final Logger logger =
 	Logger.getLogger("com.sun.jini.action.GetBooleanAction");
@@ -85,7 +85,8 @@ public class GetBooleanAction implements PrivilegedAction {
      * @return	a <code>Boolean</code> representing the value of
      * the system property
      **/
-    public Object run() {
+    @Override
+    public Boolean run() {
 	try {
 	    return Boolean.getBoolean(theProp) ? Boolean.TRUE : Boolean.FALSE;
 	} catch (SecurityException e) {

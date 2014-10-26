@@ -136,7 +136,9 @@ public class DiscoveryServiceUtil {
     public static void delayMS(long nMS) {
         try {
             Thread.sleep(nMS);
-        } catch (InterruptedException e) { }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }//end delayMS
 
     /** Converts a given absolute expiration time to a time of duration

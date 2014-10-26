@@ -57,6 +57,7 @@ public class InterruptTest extends TestBase implements Test {
             try {
                 space.read(null, null, 10000);
             } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
                 rslt = e;
             } catch (Exception e) {
                 rslt = e;
@@ -85,7 +86,7 @@ public class InterruptTest extends TestBase implements Test {
         if (readThread.rslt == null) {
             throw new TestException("Read returned normally");
         } else if (readThread.rslt instanceof InterruptedException) {
-            return;
+            Thread.currentThread().interrupt();
         } else {
             throw new TestException(
                     "Expected: InterruptedException. Returned: "

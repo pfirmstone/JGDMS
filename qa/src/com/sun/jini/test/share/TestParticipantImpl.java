@@ -211,7 +211,7 @@ public class TestParticipantImpl
 	try {
 	    Thread.sleep(millis);
 	} catch (InterruptedException ie) {
-	    ;
+            Thread.currentThread().interrupt();
 	}
     }
 

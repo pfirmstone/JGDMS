@@ -241,7 +241,9 @@ public class RandomStressTest extends TxnManagerTest {
 
 	    try {
 		Thread.sleep(sleep_time);
-	    } catch (InterruptedException ie) {}
+	    } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
+	}
 	}
 
 	if (!allComplete) {

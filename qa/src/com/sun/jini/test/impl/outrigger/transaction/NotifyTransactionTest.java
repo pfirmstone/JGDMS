@@ -125,7 +125,9 @@ public class NotifyTransactionTest extends TransactionTestBase {
         // give time for events to arrive
         try {
             Thread.sleep(5000);
-        } catch (InterruptedException e) {}
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
 
         // check results
         if (tCatcher.getNotifyCount(tReg) != (NUM_SAME + NUM_NULL)) {

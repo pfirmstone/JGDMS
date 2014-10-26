@@ -73,7 +73,9 @@ public class KillVMUtil {
                                                  codeLocation,null,false);
         KillVMObject serverStub = (KillVMObject)(Activatable.register(desc));
         long delay = serverStub.killVM();        
-        try {Thread.sleep(delay);} catch (InterruptedException e) { }
+        try {Thread.sleep(delay);} catch (InterruptedException e) { 
+            Thread.currentThread().interrupt();
+        }
     }//end killActivationGroup
 
     /** Remote interface that should be implemented by any object desiring
@@ -168,7 +170,9 @@ public class KillVMUtil {
 	    public void run() {
                 try {
                     Thread.sleep(delay);
-                } catch (InterruptedException e) { }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
                 System.exit(0);
 	    }
         }//end class KillVMThread

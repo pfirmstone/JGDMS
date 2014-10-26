@@ -17,33 +17,8 @@
  */
 package com.sun.jini.test.spec.javaspace.conformance;
 
-import java.util.logging.Level;
-
-// java.util
-import java.util.ArrayList;
-
-// java.rmi
-import java.rmi.RemoteException;
-import java.rmi.RMISecurityManager;
-
-// net.jini
-import net.jini.core.lease.Lease;
-import net.jini.core.entry.Entry;
-import net.jini.core.event.EventRegistration;
-import net.jini.core.transaction.Transaction;
-import net.jini.core.transaction.TransactionFactory;
-import net.jini.core.transaction.server.TransactionManager;
-import net.jini.space.JavaSpace;
-
-// com.sun.jini
-import com.sun.jini.qa.harness.QATestEnvironment;
 import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.Test;
-import com.sun.jini.qa.harness.TestException;
-
-import net.jini.security.ProxyPreparer;
-import net.jini.config.Configuration;
-import net.jini.config.ConfigurationException;
 
 /**
  * Abstract Test base for all javaspace conformance tests.

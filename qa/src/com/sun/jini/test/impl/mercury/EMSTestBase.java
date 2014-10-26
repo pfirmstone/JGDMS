@@ -87,7 +87,9 @@ public abstract class EMSTestBase extends MailboxTestBase {
 		    // Sleep one second between checks
 		    Thread.sleep(1000);
 // 	            Thread.yield(); //Give someone else a chance
-	        } catch (InterruptedException ie) { /* ignore */ }
+	        } catch (InterruptedException ie) { /* ignore */ 
+                    Thread.currentThread().interrupt();
+	    }
 	    }
 	    events = tpl.getRemoteEvents(mr);
         }
@@ -110,7 +112,9 @@ public abstract class EMSTestBase extends MailboxTestBase {
 	    try {
 		// Sleep one second between checks
 		Thread.sleep(1000);
-	    } catch (InterruptedException ie) { /* ignore */ }
+	    } catch (InterruptedException ie) { /* ignore */
+                Thread.currentThread().interrupt();
+            }
 
             long received = tl.getEventCount();
             if (received >= desired)

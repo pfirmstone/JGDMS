@@ -104,10 +104,10 @@ java.util.logging.FileHandler.level = INFO
 #  FINEST (lowest value) 
 
 # For Everything
-sun.rmi.level = CONFIG
-net.jini.level = FINE
-org.apache.river.level = CONFIG
-com.sun.jini.level = CONFIG
+sun.rmi.level = SEVERE
+net.jini.level = SEVERE
+org.apache.river.level = SEVERE
+com.sun.jini.level = SEVERE
 
 # For the LogManager
 com.sun.jini.logging.LogManager.level = SEVERE
@@ -184,9 +184,9 @@ com.sun.jini.discovery.level = SEVERE
 # For the Helper Utilities
 net.jini.discovery.LookupDiscovery.level = SEVERE
 net.jini.discovery.LookupLocatorDiscovery.level = SEVERE
-net.jini.lookup.JoinManager.level = FINE
+net.jini.lookup.JoinManager.level = SEVERE
 net.jini.lookup.ServiceDiscoveryManager.level = SEVERE
-net.jini.lease.LeaseRenewalManager.level = FINEST
+net.jini.lease.LeaseRenewalManager.level = SEVERE
 
 # For Thread Pool Utilities
 com.sun.jini.thread.RetryTask.level = SEVERE
@@ -246,7 +246,7 @@ com.sun.jini.outrigger.entryMatching.level = SEVERE
 com.sun.jini.outrigger.event.level = SEVERE
 com.sun.jini.outrigger.iterator.level = SEVERE
 com.sun.jini.outrigger.join.level = SEVERE
-com.sun.jini.outrigger.leases.level = CONFIG
+com.sun.jini.outrigger.leases.level = SEVERE
 com.sun.jini.outrigger.lifecycle.level = SEVERE
 com.sun.jini.outrigger.operations.level = SEVERE
 com.sun.jini.outrigger.store.level = SEVERE
@@ -256,6 +256,7 @@ com.sun.jini.outrigger.transactions.level = SEVERE
 com.sun.jini.example.browser.level = SEVERE
 
 # For the test harness, tests, and infrastructure.
+com.sun.jini.qa.harness.level = CONFIG
 com.sun.jini.qa.harness.test.level = CONFIG
 com.sun.jini.qa.harness.service.level = CONFIG
 com.sun.jini.qa.harness.config.level = CONFIG

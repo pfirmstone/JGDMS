@@ -118,6 +118,7 @@ public abstract class PreparedTransactionTest extends TransactionTestBase
     public void run() throws Exception {
         spaceOnlySetup();
         TesterTransactionManager mgr = new TesterTransactionManager();
+        mgr.start();
         TesterTransaction tt = mgr.create();
 
         // an entry that should be there at the start

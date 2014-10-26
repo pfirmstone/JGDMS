@@ -172,7 +172,6 @@ public class LookupDropProxyTaskRace extends AbstractBaseTest {
 	    cache = srvcDiscoveryMgr.createLookupCache(template,
 						       firstStageFilter,
 						       srvcListener);
-	    cacheList.add(cache);
 	    //delay to allow LookupTask to get started before L0
 	    //is removed from proxyRegSet when it is discarded below
 	    logger.log(Level.FINE, "cache created ... "

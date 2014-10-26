@@ -54,13 +54,13 @@ import com.sun.jini.test.share.LookupServices;
  */
 public class AddListenerEvent extends AbstractBaseTest {
 
-    protected LookupCache cache;
-    protected int testServiceType;
+    protected volatile LookupCache cache;
+    protected volatile int testServiceType;
 
-    protected int nListeners = 2;
-    protected int nAddedExpected = 0;
+    protected final int nListeners = 2;
+    protected volatile int nAddedExpected = 0;
 
-    protected SDMListener[] sdmListener = new SDMListener[nListeners];
+    protected final SDMListener[] sdmListener = new SDMListener[nListeners];
 
     public static class SDMListener extends AbstractBaseTest.SrvcListener {
         final String testName;
@@ -131,7 +131,6 @@ public class AddListenerEvent extends AbstractBaseTest {
 	    cache = srvcDiscoveryMgr.createLookupCache(template,
 						       firstStageFilter,
 						       sdmListener[0]);
-	    cacheList.add(cache);
 	} catch(RemoteException e) {
 	    throw new TestException("RemoteException during lookup cache "
 				    +"creation", e);
@@ -155,6 +154,9 @@ public class AddListenerEvent extends AbstractBaseTest {
 	indx = 1;
 	logger.log(Level.FINE, "adding listener_"+indx+" to cache");
 	cache.addListener(sdmListener[indx]);
+        // The next line was added to allow more time for the new task based
+        // executor program structre in SDM.
+        DiscoveryServiceUtil.delayMS(nSecsServiceDiscovery*1000);
 	nAdded = sdmListener[indx].getNAdded();
 	logger.log(Level.FINE, "listener_"+indx
 		   +" ---> "+nAdded+" event(s) received, "

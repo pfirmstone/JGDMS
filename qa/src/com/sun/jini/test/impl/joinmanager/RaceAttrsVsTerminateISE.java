@@ -117,7 +117,9 @@ public class RaceAttrsVsTerminateISE extends AbstractBaseTest {
         jm.setAttributes(newServiceAttrs);
 
         logger.log(Level.INFO,  "Delay "+(nMS/1000)+" seconds");
-        try { Thread.sleep(nMS); } catch (InterruptedException e) { }
+        try { Thread.sleep(nMS); } catch (InterruptedException e) { 
+            Thread.currentThread().interrupt();
+        }
 
         logger.log(Level.INFO,  "JoinManager.terminate");
         jm.terminate();

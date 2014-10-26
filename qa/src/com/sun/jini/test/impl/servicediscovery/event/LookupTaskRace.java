@@ -169,7 +169,6 @@ public class LookupTaskRace extends AbstractBaseTest {
 	    cache = srvcDiscoveryMgr.createLookupCache(template,
 						       firstStageFilter,
 						       srvcListener);
-	    cacheList.add(cache);
 	} catch(RemoteException e) {
 	    throw new TestException(" -- RemoteException during lookup cache "
 			      +"creation", e);

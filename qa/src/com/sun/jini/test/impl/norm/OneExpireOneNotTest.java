@@ -165,6 +165,7 @@ public class OneExpireOneNotTest extends QATestEnvironment implements Test {
 		try {
 		    wait(expsLease.getExpiration() - now + setDuration);
 		} catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
 		    throw new TestException(
 			"Unexpected InterruptedException.");
 		}

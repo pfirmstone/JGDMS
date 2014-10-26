@@ -86,6 +86,7 @@ class Timeout implements Runnable {
 	    try {
 		Thread.sleep(interval - delta);
 	    } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
 		return;
 	    }
 	    delta = new Date().getTime() - startTime;

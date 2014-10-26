@@ -299,7 +299,9 @@ public class DiscoveryProtocolSimulator {
             logger.log(Level.FINE, 
                               "     multicastAnnouncementThread.join()");
             multicastAnnouncementThread.join();
-        } catch (InterruptedException e) { }
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
         logger.log(Level.FINE, "     close all request sockets");
         closeRequestSockets(taskMgr.getPending());
         logger.log(Level.FINE, "   stopAnnouncements exited");
@@ -405,7 +407,9 @@ public class DiscoveryProtocolSimulator {
             unicastRequestThread.interrupt();
             try {
                 unicastRequestThread.join();
-            } catch (InterruptedException e) { }
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
             /* start the UnicastThread listening on the new port */
             unicastRequestThread = newUnicastRequestThread;
             unicastRequestThread.start();
@@ -669,6 +673,7 @@ public class DiscoveryProtocolSimulator {
                     }
 		}
 	    } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
 	    }
 // disable this to allow simulation of disappearance of multicast announcements
 //	    if (memberGroups.length > 0) 

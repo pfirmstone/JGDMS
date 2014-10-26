@@ -48,7 +48,7 @@ public class EventTypeGenerator implements Serializable {
     private long nextEvID = 1;
 
     /**
-     * Task manager used to send events
+     * ExecutorService used to send events
      */
     private transient ExecutorService taskManager = 
             new ThreadPoolExecutor(
@@ -120,10 +120,10 @@ public class EventTypeGenerator implements Serializable {
     }
 
     /**
-     * Return the task manager that <code>EventType</code> objects created
+     * Return the ExecutorService that <code>EventType</code> objects created
      * by this generator should use to send their events.
      */
-    ExecutorService getTaskManager() {
+    ExecutorService getExecutorService() {
 	return taskManager;
     }
 

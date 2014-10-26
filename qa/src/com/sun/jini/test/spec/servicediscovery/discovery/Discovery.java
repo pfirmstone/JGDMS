@@ -20,15 +20,7 @@ package com.sun.jini.test.spec.servicediscovery.discovery;
 import java.util.logging.Level;
 
 // java packages
-import java.io.File;
-import java.io.IOException;
-import java.io.PrintWriter;
 import java.rmi.RemoteException;
-import java.rmi.RMISecurityManager;
-import java.rmi.activation.ActivationException;
-
-// Test harness imports
-import com.sun.jini.qa.harness.QAConfig;
 import com.sun.jini.qa.harness.TestException;
 import com.sun.jini.qa.harness.QATestEnvironment;
 
@@ -38,9 +30,7 @@ import net.jini.discovery.DiscoveryEvent;
 import net.jini.discovery.DiscoveryListener;
 import net.jini.discovery.DiscoveryGroupManagement;
 import net.jini.discovery.LookupDiscovery;
-import com.sun.jini.admin.DestroyAdmin;
 import com.sun.jini.qa.harness.Test;
-import com.sun.jini.start.ServiceStarter;
 import net.jini.lookup.DiscoveryAdmin;
 import net.jini.core.lookup.ServiceRegistrar;
 import net.jini.core.lookup.ServiceID;

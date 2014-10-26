@@ -152,6 +152,7 @@ public class RunningServiceAdmin extends AbstractServiceAdmin implements Admin {
 		    try {
 			eventList.wait(); // XXX timeout?
 		    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
 		    }
 		}
 	    }

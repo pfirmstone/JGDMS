@@ -113,6 +113,7 @@ public class TxnMgrImplNullRecoveredLocators extends QATestEnvironment implement
 	    try {
 		Thread.sleep(killDelay * 1000);
 	    } catch (InterruptedException ie) {
+                Thread.currentThread().interrupt();
 		logger.log(Level.INFO, "Sleep was interrupted");
 		//ignore
             }

@@ -21,6 +21,7 @@ import java.util.logging.Logger;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
 import net.jini.core.discovery.LookupLocator;
+import org.apache.river.impl.thread.NamedThreadFactory;
 
 /**
  * This class encapsulates the functionality required of an entity that
@@ -60,7 +61,7 @@ import net.jini.core.discovery.LookupLocator;
  * is associated with the component name
  * <code>net.jini.discovery.LookupLocatorDiscovery</code>. Note that the
  * configuration entries specified here are specific to this implementation
- * of <codeLookupLocatorDiscovery</code>. Unless otherwise stated, each
+ * of <code>LookupLocatorDiscovery</code>. Unless otherwise stated, each
  * entry is retrieved from the configuration only once per instance of
  * this utility, where each such retrieval is performed in the constructor.
  *
@@ -93,6 +94,7 @@ import net.jini.core.discovery.LookupLocator;
  *       It does not delay discovery requests that are initiated if the managed
  *       <code>LookupLocator</code>s are subsequently changed.
  * </table>
+ * </a>
  * <a name="registrarPreparer">
  * <table summary="Describes the registrarPreparer configuration entry" 
  *                border="0" cellpadding="2">
@@ -123,34 +125,38 @@ import net.jini.core.discovery.LookupLocator;
  *          returned by this preparer are invoked by this implementation of
  *          <code>LookupLocatorDiscovery</code>.
  * </table>
- *
- * <a name="taskManager">
- * <table summary="Describes the taskManager configuration entry" 
+ * </a>
+ * <a name="executorService">
+ * <table summary="Describes the executorService configuration entry" 
  *                border="0" cellpadding="2">
  *   <tr valign="top">
  *     <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
  *     <th scope="col" align="left" colspan="2"> <font size="+1">
- *     <code>taskManager</code></font>
+ *     <code>executorService</code></font>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
- *     Type: <td> {@link com.sun.jini.thread.TaskManager}
+ *     Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Default: <td> <code>new 
- *             {@link com.sun.jini.thread.TaskManager#TaskManager()
- *                                   TaskManager}(15, (15*1000), 1.0f)</code>
+ *             {@link java.util.concurrent/ThreadPoolExecutor
+ *                  ThreadPoolExecutor}(
+ *                       15,
+ *                       15,
+ *                       15,
+ *                       TimeUnit.SECONDS,
+ *                       new {@link java.util.concurrent/LinkedBlockingQueue LinkedBlockingQueue}(),
+ *                       new {@link NamedThreadFactory}("LookupLocatorDiscovery", false)
+ *                   )</code>
  * 
  *   <tr valign="top"> <td> &nbsp <th scope="row" align="right">
  *     Description:
  *       <td> The object that pools and manages the various threads
- *            executed by this utility. The default manager creates a
- *            maximum of 15 threads, waits 15 seconds before removing
- *            idle threads, and uses a load factor of 1.0 when
- *            determining whether to create a new thread. This object
+ *            executed by this utility. This object
  *            should not be shared with other components in the
  *            application that employs this utility.
  * </table>
- *
+ * </a>
  * <a name="wakeupManager">
  * <table summary="Describes the wakeupManager configuration entry" 
  *                border="0" cellpadding="2">
@@ -173,17 +179,17 @@ import net.jini.core.discovery.LookupLocator;
  *     Description:
  *       <td> Object that pools and manages the various tasks that are
  *            initially executed by the object corresponding to the
- *            <a href="#taskManager"><code>taskManager</code></a> entry
+ *            <a href="#executorService"><code>executorService</code></a> entry
  *            of this component, but which fail during that initial execution.
  *            This object schedules the re-execution of such a failed task -
- *            in the <a href="#taskManager"><code>taskManager</code></a>
+ *            in the <a href="#executorService"><code>executorService</code></a>
  *            object - at various times in the future, (employing a
  *            "backoff strategy"). The re-execution of the failed task will
  *            continue to be scheduled by this object until the task finally
  *            succeeds. This object should not be shared with other components
  *            in the application that employs this utility.
  * </table>
- *
+ * </a>
  * <a name="lldLogging">
  * <p>
  * <b><font size="+1">Logging</font></b>

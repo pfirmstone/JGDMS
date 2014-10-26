@@ -24,7 +24,6 @@ import com.sun.jini.test.spec.servicediscovery.AbstractBaseTest;
 import com.sun.jini.test.share.DiscoveryServiceUtil;
 
 import net.jini.lookup.LookupCache;
-import net.jini.lookup.ServiceDiscoveryManager;
 
 import java.rmi.RemoteException;
 
@@ -106,27 +105,24 @@ public class ReRegisterGoodEquals extends AbstractBaseTest {
 	    cache = srvcDiscoveryMgr.createLookupCache(template,
 						       firstStageFilter,
 						       srvcListener);
-	    cacheList.add(cache);
 	} catch(RemoteException e) {
 	    throw new TestException(" -- RemoteException during lookup cache "
 				    +"creation");
 	}
-	logger.log(Level.FINE, "wait "
-		   +getnSecsServiceDiscovery()+" seconds to allow the "
-		   +"cache to be populated ... ");
+	logger.log(Level.FINE, "wait {0}"+" seconds to allow the "
+		   +"cache to be populated ... ", getnSecsServiceDiscovery());
         DiscoveryServiceUtil.delayMS(getnSecsServiceDiscovery()*1000);
         /* Re-register new proxies */
 	reRegisterServices(0, getnServices(), getnAttributes(),testServiceType);
-	logger.log(Level.FINE, "wait "
-		   +getnSecsServiceDiscovery()+" seconds to allow the "
-		   +"cache to be re-populated ... ");
+	logger.log(Level.FINE, "wait {0}"+" seconds to allow the "
+		   +"cache to be re-populated ... ", getnSecsServiceDiscovery());
         DiscoveryServiceUtil.delayMS(getnSecsServiceDiscovery()*1000);
 	int nAdded   = srvcListener.getNAdded();
 	int nRemoved = srvcListener.getNRemoved();
-	logger.log(Level.FINE, "nAdded = "+nAdded
-		   +", nAddedExpected = "+nAddedExpected
-		   +", nRemoved = "+nRemoved
-		   +", nRemovedExpected = "+nRemovedExpected);
+        int nChanged = srvcListener.getNChanged();
+	logger.log(Level.FINE, 
+                "nAdded = {0}, nAddedExpected = {1}, nRemoved = {2}, nRemovedExpected = {3}, nChanged = {4}, nChangedExpected = {5}",
+                new Object[]{nAdded, nAddedExpected, nRemoved, nRemovedExpected, nChanged, nChangedExpected});
 	if((nAdded != nAddedExpected) || (nRemoved != nRemovedExpected)) {
 	    throw new TestException(" -- failure -- nAdded = "+nAdded
 				    +", nAddedExpected = "+nAddedExpected

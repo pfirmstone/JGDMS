@@ -178,6 +178,7 @@ public class RenewAtTest extends TestBase implements Test {
 			shutdown(0);
 		    }
 		} catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
 		    throw new TestException("wait interupted:" + e.getMessage());
 		}
 

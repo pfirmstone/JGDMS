@@ -21,8 +21,8 @@
       vlink="#cc1877" alink="#ffffff">
 
 
-<h1><center>Apache River Release 
-<br>v2.2.0 Manual Pages</center></h1><br>
+<h1>Apache River Release 
+<br>v3.0.0 Manual Pages</h1><br>
 
 
 <hr>
@@ -32,7 +32,7 @@ A set of "manual pages" has been written to assist you in executing the
 <a href="#tools">tools</a> that are part of the Apache River release. 
 These package.html or class.html files provide implementation 
 specifics for services, utilities, and tools. 
-<ul><a name="services"></a>
+<ul><LI><a name="services"></a>
 <H2>Services</H2>
 <ul>
     <!--Please don't replace Jini with River, Jini is the spec, River the implementation -->
@@ -96,10 +96,10 @@ specifics for services, utilities, and tools.
 <li><a href="api/org/apache/river/api/security/package-summary.html">Apache River's
         Security Extensions</a> - A scalable SecurityManager and ConcurrentPolicyFile
         solve long standing performance issues in distributed environments.
-<li><a href="api/org/apache/river/api/io/package-summary.html">Distributed objects</a>
-    - an extension of the Serialization protocol, Distributed objects are themselves
+<li><a href="api/org/apache/river/api/io/package-summary.html">Portable objects</a>
+    - an extension of the Serialization protocol, Portable objects are themselves
     not Serialized, instead only instructions for recreating an object remotely 
-    using reflection are Marshalled.  This allows Distributed objects to utilised
+    using reflection are Marshalled.  This allows Portable objects to utilize
     public api methods for construction, avoid publishing their internal state 
     and to be immutable and safely constructed with invariants checked or 
     defensively copied using final fields.
@@ -156,7 +156,7 @@ to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License. You may obtain a copy of the License at
 <ul>
-     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+    <LI><a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
 </ul>
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,

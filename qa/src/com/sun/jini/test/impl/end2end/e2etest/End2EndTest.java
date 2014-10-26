@@ -19,17 +19,13 @@
 package com.sun.jini.test.impl.end2end.e2etest;
 
 import java.io.Serializable;
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.rmi.MarshalledObject;
-import java.rmi.RMISecurityManager;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.Set;
+import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  * The entry point for the end-to-end test. Sets up the server
@@ -118,7 +114,9 @@ public class End2EndTest implements Constants, TestCoordinator {
 	for (int i=testNames.length; --i>=0; ) {
 	    tests.add(testNames[i]);
 	}
-	System.setSecurityManager(new RMISecurityManager());
+        if (System.getSecurityManager() == null) {
+            System.setSecurityManager(new CombinerSecurityManager());
+        }
 	server = new SecureServer(this);
 	MarshalledObject pickeledStub = server.getProxy();
 	for (int i=threadCount; --i >= 0; ) {
@@ -152,6 +150,7 @@ public class End2EndTest implements Constants, TestCoordinator {
 	    try {
 		threadArray[i].join();
 	    } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
 	    }
 	    TestClient client = (TestClient) clients.get(i);
 	    totalFailures += client.getFailureCount();

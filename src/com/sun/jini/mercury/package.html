@@ -80,7 +80,7 @@ class.
 <p>
 
 The implementation supports the following configuration entries, with
-component <code>com.sun.jini.mercury</code>: <p>
+component <code>com.sun.jini.mercury</code>: </p>
 
   <table summary="Describes the activationIdPreparer configuration entry"
          border="0" cellpadding="2">
@@ -410,23 +410,31 @@ new {@link com.sun.jini.landlord.FixedLeasePeriodPolicy}(
       configuration entry.
 </table>
 
-<a name="notificationsTaskManager"></a>
+<a name="notificationsExecutorService"></a>
 <table summary="Describes the notificationsTaskManager configuration entry"
          border="0" cellpadding="2">
     <tr valign="top">
       <th scope="col" summary="layout"> <font size="+1">&#X2022;</font>
       <th scope="col" align="left" colspan="2"> <font size="+1">
-      <code>notificationsTaskManager</code></font>
+      <code>notificationsExecutorService</code></font>
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
-      Type: <td> {@link com.sun.jini.thread.TaskManager}
+      Type: <td> {@link java.util.concurrent/ExecutorService ExecutorService}
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
       Default: <td> <code>new </code>{@link
-      com.sun.jini.thread.TaskManager#TaskManager() TaskManager()}
+      java.util.concurrent/ThreadPoolExecutor ThreadPoolExecutor}(
+                    10,
+                    10, /* Ignored */
+                    15,
+                    TimeUnit.SECONDS, 
+                    new LinkedBlockingQueue(), /* Unbounded Queue */
+                    new NamedThreadFactory("EventTypeGenerator", false)
+                )
+      
     <tr valign="top"> <td> &nbsp <th scope="row" align="right">
 
       Description: <td> The pool of threads used to make event delivery
       attempts. 
-      The {@link com.sun.jini.thread.TaskManager#terminate terminate}
+      The {@link java.util.concurrent/ExecutorService#shutdown shutdown}
       method of this object will be called when the service is
       destroyed. This entry is obtained at service start and restart.
   </table>

@@ -40,7 +40,9 @@ public class FileAccessCheckTask implements SubVMTask {
      * @return the result of the check
      */
     public Object run(String[] args) {
+        if (System.getSecurityManager() == null) {
 	System.setSecurityManager(new CombinerSecurityManager());
+        }
 	return Util.checkSystemPropertyFile(args[0], args[1]);
     }
 }	

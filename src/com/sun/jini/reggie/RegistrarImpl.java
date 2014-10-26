@@ -764,8 +764,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	 * (required by TreeMap).
 	 */
 	public int compareTo(Object obj) {
-	    EventReg reg = (EventReg)obj;
 	    if (equals(obj)) return 0;
+	    EventReg reg = (EventReg)obj;
 	    if (getLeaseExpiration() < reg.getLeaseExpiration() ||
 		(getLeaseExpiration() == reg.getLeaseExpiration() &&
 		 eventID < reg.eventID))
@@ -2064,6 +2064,7 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
 	}
 
 	/** Send the event */
+        @Override
 	public Boolean call() throws Exception {
 	    if (logger.isLoggable(Level.FINE)) {
 		logger.log(
@@ -2119,6 +2120,8 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
         public int compareTo(EventTask o) {
             if (this.now < o.now) return -1;
             if (this.now > o.now) return 1;
+            if (this.seqNo < o.seqNo) return -1;
+            if (this.seqNo > o.seqNo) return 1;
             return 0;
         }
     }
@@ -4710,9 +4713,9 @@ class RegistrarImpl implements Registrar, ProxyAccessor, ServerProxyTrust, Start
     }
 
     /** Close any sockets that were sitting in the task queue. */
-    private void closeRequestSockets(List tasks) {
+    private void closeRequestSockets(List<Runnable> tasks) {
 	for (int i = tasks.size(); --i >= 0; ) {
-	    Object obj = tasks.get(i);
+	    Runnable obj = tasks.get(i);
 	    if (obj instanceof SocketTask) {
 		try {
 		    ((SocketTask)obj).socket.close();

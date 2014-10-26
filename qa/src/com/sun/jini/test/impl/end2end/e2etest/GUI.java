@@ -176,6 +176,7 @@ class GUI extends JFrame implements Constants {
         try {
             Thread.sleep(100);
         } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             done = true;
         }
         }

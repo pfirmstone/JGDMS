@@ -17,34 +17,27 @@
  */
 package com.sun.jini.test.share;
 
-import java.util.logging.Level;
-
-// All imports
-import net.jini.core.transaction.*;
-import net.jini.core.transaction.server.*;
-import java.rmi.*;
-import java.rmi.server.*;
-import java.util.Map;
-import java.util.HashMap;
-import java.util.Collections;
+import com.sun.jini.qa.harness.QAConfig;
 import java.io.ObjectStreamException;
 import java.io.Serializable;
+import java.rmi.RemoteException;
 import java.security.PrivilegedActionException;
 import java.security.PrivilegedExceptionAction;
-
-import java.util.logging.Logger;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.logging.Level;
-
-import javax.security.auth.login.LoginContext;
+import java.util.logging.Logger;
 import javax.security.auth.Subject;
-
-import net.jini.export.Exporter;
+import javax.security.auth.login.LoginContext;
 import net.jini.config.Configuration;
 import net.jini.config.ConfigurationException;
+import net.jini.core.transaction.*;
+import net.jini.core.transaction.server.*;
+import net.jini.export.Exporter;
 import net.jini.security.TrustVerifier;
 import net.jini.security.proxytrust.ProxyTrust;
-import com.sun.jini.qa.harness.QATestEnvironment;
-import com.sun.jini.qa.harness.QAConfig;
+import org.apache.river.api.util.Startable;
 
 /**
  * This class provides a simple transaction manager that tests can use
@@ -56,7 +49,7 @@ import com.sun.jini.qa.harness.QAConfig;
  * by the test.
  */
 public class TesterTransactionManager
-        implements TransactionManager, TransactionConstants, Serializable, ProxyTrust {
+        implements TransactionManager, TransactionConstants, Serializable, ProxyTrust, Startable {
 
     private static Logger logger = 
 	Logger.getLogger("com.sun.jini.qa.harness");
@@ -64,19 +57,23 @@ public class TesterTransactionManager
     private static int serviceID = 100;
 
     /** Our transaction objects. */
-    private Map txns = Collections.synchronizedMap(new HashMap());
+    private final Map txns;
 
     /** The next ID to allocate. */
     private static long nextID = 1;
 
-    LoginContext context;
+    final LoginContext context;
+    final RemoteException exception;
+    final Configuration c;
 
     private Object proxy;
     private Object myRef;
 
     public TesterTransactionManager() throws RemoteException {
-	Configuration c = QAConfig.getConfig().getConfiguration();
-	context = null;
+        this.txns = Collections.synchronizedMap(new HashMap());
+        c = QAConfig.getConfig().getConfiguration();
+	LoginContext context = null;
+        RemoteException exception = null;
 	try {
 	    context = (LoginContext) c.getEntry("test", 
 						"mahaloLoginContext",
@@ -86,16 +83,14 @@ public class TesterTransactionManager
 		logger.log(Level.FINEST, "got a TesterTransactionManager login context");
 	    }
 	} catch (Throwable e) {
-	    throw new RemoteException("Configuration error", e);
+	    exception = new RemoteException("Configuration error", e);
+	} finally {
+            this.context = context;
+            this.exception = exception;
 	}	
-	if (context != null) {
-	    doExportWithLogin(context, c);
-	} else {
-	    doExport(c);
 	}
-    }
 
-    public TrustVerifier getProxyVerifier() {
+    public synchronized TrustVerifier getProxyVerifier() {
 	return new TesterTransactionManagerProxyVerifier((TransactionManager) myRef);
     }
 
@@ -140,14 +135,14 @@ public class TesterTransactionManager
 	}
     }
 
-    public Object writeReplace() throws ObjectStreamException {
+    public synchronized Object writeReplace() throws ObjectStreamException {
 	return proxy;
     }
 
     /**
      * Return a new <code>ServerTransaction</code> object.
      */
-    public TesterTransaction create() {
+    public synchronized TesterTransaction create() {
         TesterTransaction tt = new TesterTransaction(this, nextID());
         txns.put(tt.idObj, tt);
         return tt;
@@ -172,7 +167,7 @@ public class TesterTransactionManager
     /**
      * This implementation ignores the time -- it is always synchronous.
      */
-    public void commit(long id)
+    public synchronized void commit(long id)
             throws UnknownTransactionException, CannotCommitException,
             RemoteException {
         tt(id).commit();
@@ -198,7 +193,7 @@ public class TesterTransactionManager
     /**
      * This implementation ignores the time -- it is always synchronous.
      */
-    public void abort(long id)
+    public synchronized void abort(long id)
             throws UnknownTransactionException, CannotAbortException,
             RemoteException {
         tt(id).sendAbort();
@@ -218,7 +213,7 @@ public class TesterTransactionManager
     /**
      * Return the current state of this transasction.
      */
-    public int getState(long id)
+    public synchronized int getState(long id)
             throws UnknownTransactionException, RemoteException {
         return tt(id).getState();
     }
@@ -227,9 +222,19 @@ public class TesterTransactionManager
      * Join the transaction.  Only one participant in each transaction,
      * currently.
      */
-    public void join(long id, TransactionParticipant part, long crashCnt)
+    public synchronized void join(long id, TransactionParticipant part, long crashCnt)
             throws UnknownTransactionException, CannotJoinException,
             CrashCountException {
         tt(id).join(part, crashCnt);
+    }
+
+    @Override
+    public synchronized void start() throws Exception {
+        if (exception != null) throw exception;
+        if (context != null) {
+	    doExportWithLogin(context, c);
+	} else {
+	    doExport(c);
+}
     }
 }

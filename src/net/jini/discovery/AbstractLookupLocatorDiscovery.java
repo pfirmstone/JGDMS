@@ -39,7 +39,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.WeakHashMap;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -270,6 +269,7 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
 	    throws IOException, ClassNotFoundException
         {
 	    UnicastResponse resp = new MultiIPDiscovery() {
+                @Override
 		protected UnicastResponse performDiscovery(
 							Discovery disco,
 							DiscoveryConstraints dc,
@@ -285,6 +285,7 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
 		    
 		}
 		
+                @Override
 		protected void socketCloseException(IOException e) {
 		   logger.log(Level.FINEST,
 		       "IOException on socket close upon "
@@ -292,6 +293,7 @@ abstract class AbstractLookupLocatorDiscovery implements DiscoveryManagement,
 		       e);	
 		}
 		
+                @Override
 		protected void singleResponseException(Exception e,
 						       InetAddress addr,
 						       int port)

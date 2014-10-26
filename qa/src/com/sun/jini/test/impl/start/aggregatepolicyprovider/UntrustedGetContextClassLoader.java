@@ -43,7 +43,9 @@ public class UntrustedGetContextClassLoader extends QATestEnvironment implements
 	Test test = new Test();
 	test.start();
 
-	try { test.join(); } catch (InterruptedException ex) {}
+	try { test.join(); } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+        }
 
 	if (test.getContextClassLoaderCalled) {
 	    throw new TestException("getContextClassLoader has been called.");

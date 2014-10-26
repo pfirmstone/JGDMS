@@ -157,6 +157,7 @@ public class TerminateSemantics extends AbstractBaseTest {
         } catch(IllegalStateException e) {
             logger.log(Level.FINE, successStr+methodStr);
         } catch(InterruptedException e) {
+            Thread.currentThread().interrupt();
             e.printStackTrace();
             logger.log(Level.FINE, "InterruptedException occurred "
                               +"on call to "+methodStr);
@@ -196,6 +197,7 @@ public class TerminateSemantics extends AbstractBaseTest {
         } catch(IllegalStateException e) {
             logger.log(Level.FINE, successStr+methodStr);
         } catch(InterruptedException e) {
+            Thread.currentThread().interrupt();
             e.printStackTrace();
             logger.log(Level.FINE, "InterruptedException occurred "
                               +"on call to "+methodStr);

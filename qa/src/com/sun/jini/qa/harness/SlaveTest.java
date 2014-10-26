@@ -34,6 +34,7 @@ import javax.security.auth.login.LoginException;
 import javax.security.auth.Subject;
 
 import net.jini.config.Configuration;
+import org.apache.river.api.security.CombinerSecurityManager;
 
 /**
  * The slave side of a distributed test. This class provides the main
@@ -171,6 +172,7 @@ public class SlaveTest {
 	    try {
 		Thread.sleep(1000);
 	    } catch (InterruptedException e) {
+                Thread.currentThread().interrupt(); // restore
 	    }
 	}
     }
@@ -190,20 +192,22 @@ public class SlaveTest {
 	origErr = System.err;
 	System.setErr(System.out);
 	if (System.getSecurityManager() == null) {
-	    System.setSecurityManager(new java.rmi.RMISecurityManager());
+	    System.setSecurityManager(new CombinerSecurityManager());
 	}
 	try {
 	    ObjectInputStream ois = new ObjectInputStream(System.in);
 	    config = (QAConfig) ois.readObject();
 	} catch (Exception e) {
-	    e.printStackTrace();
+            e.fillInStackTrace();
+	    logger.log(Level.SEVERE, "Unexpected exception ", e);
 	    System.exit(1);
 	}
 	// used to be handled by config.readObject, but this broke SlaveHarness
 	try {
 	    config.loadTestConfiguration();
 	} catch (TestException e) {
-	    e.printStackTrace();
+            e.fillInStackTrace();
+	    logger.log(Level.SEVERE, "Unexpected exception ", e);
 	}
 	manager = new AdminManager(config);
 	Configuration c = config.getConfiguration(); // the davis config
@@ -217,7 +221,8 @@ public class SlaveTest {
 		logger.log(Level.FINEST, "got a login context");
 	    }
 	} catch (Throwable e) {
-	    e.printStackTrace();
+            e.fillInStackTrace();
+	    logger.log(Level.SEVERE, "Unexpected exception ", e);
 	    System.exit(1);
 	}	
 	Thread autotRequestThread =
@@ -250,7 +255,8 @@ public class SlaveTest {
 	try {
 	    context.login();
 	} catch (Throwable e) {
-	    e.printStackTrace();
+            e.fillInStackTrace();
+	    logger.log(Level.SEVERE, "Unexpected exception ", e);
 	    System.exit(1);
 	}
 	// doTest should always call exit, so this call never returns
@@ -289,7 +295,8 @@ public class SlaveTest {
 		try {
 		    o = request.doSlaveRequest(new SlaveTest());
 		} catch (Throwable e) {
-		    logger.log(Level.SEVERE, "Unexpected Exception", e);
+                    e.fillInStackTrace();
+		    logger.log(Level.SEVERE, "Unexpected Exception ", e);
 		    o = e;
 		}
 		ObjectOutputStream oos = 
@@ -304,6 +311,7 @@ public class SlaveTest {
 	    config.callTestHost(new InboundCallsEnabledRequest(false));
 	    System.exit(0);
 	} catch (Throwable e) {
+            e.fillInStackTrace();
 	    logger.log(Level.SEVERE, "Unexpected exception", e);
 	    System.exit(1); //???
 	}
@@ -363,7 +371,8 @@ public class SlaveTest {
 		    try {
 			o = request.doRequest(config, manager);
 		    } catch (Throwable e) {
-			logger.log(Level.SEVERE, "Unexpected Exception", e);
+                        e.fillInStackTrace();
+			logger.log(Level.SEVERE, "Unexpected Exception ", e);
 			o = e;
 		    }
 		    ObjectOutputStream oos = 
@@ -374,7 +383,8 @@ public class SlaveTest {
 		    requestSocket.close();//redundant??
 		}
 	    } catch (Throwable e) {
-		logger.log(Level.SEVERE, "Unexpected exception", e);
+                e.fillInStackTrace();
+		logger.log(Level.SEVERE, "Unexpected exception ", e);
 	    }
 	}
     }

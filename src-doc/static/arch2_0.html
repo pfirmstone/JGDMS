@@ -16,18 +16,18 @@
  ! limitations under the License.
  !-->
 <html>
+<title>Jini Specification Important Additions - Apache River Release v3.0.0</title>
 <body text="#000000" bgcolor="#ffffff" link="#9b37cc"
       vlink="#cc1877" alink="#ffffff">
 
-<title>Jini Specification Overview - Apache River Release v3.0.0</title>
-<a name="TOP">
-<center><h1>Jini Specification Overview<br>
+<a name="TOP"></a>
+<center><h1>Jini Specification Important Additions<br>
     Apache River Release v3.0.0</h1></center>
 
 <br>
 
 <p>This document provides an overview of the implementation details of
-Jini Specifications included in Apache River and
+Jini Specification Additions included in Apache River and
 explains how these components fit together.  Much of this
 information is available in the package, interface, and class
 documentation, but this document provides a higher-level overview
@@ -38,23 +38,8 @@ and indicates where to find more information.
 
 <p>The Jini system architecture consists of three categories:
 <i>programming model</i>, <i>infrastructure</i>, and <i>services</i>.
-The original <a href="../doc/specs/html/jini-spec.html"><i>Jini
-Architecture Specification Version 1.0</i></a> defines these categories as follows:
 
-<blockquote>
-    The infrastructure is the set of components that enables
-    building a federated Jini system, while the services are the
-    entities within the federation.  The programming model is a
-    set of interfaces that enables the construction of reliable
-    services, including those that are part of the infrastructure
-    and those that join into the federation.
-</blockquote>
-
-<p>Originally, the programming model defined models for leasing, event
-notification, and transactions.  The basic infrastructure consisted of
-the discovery/join protocol and the lookup service.  Previous versions
-delivered implementations of the following Jini
-technology-enabled services (Jini services):
+<p>Apache River provides the following Jini service implementations:
 
 <ul>
 <li> Lookup Service (reggie)
@@ -65,13 +50,10 @@ technology-enabled services (Jini services):
 <li> JavaSpaces Service (outrigger)
 </ul>
 
-<p>Apache River releases following and including the Jini v2.0 release add
+<p>Apache River releases and the Jini v2.0 release provide additional
 components to the first two
 categories (programming model and infrastructure) of the Jini
-architecture, although some components span both of these categories.
-Additionally, this release provides updates to existing services to
-account for the additions to the infrastructure and the programming
-model.  The component additions can be summarized as follows:
+architecture.  The component additions can be summarized as follows:
 
 <p><i>Additions to Programming Models</i>
 <ul>
@@ -1126,7 +1108,8 @@ implement <code>TrustVerifier</code> for a smart/custom proxy,
 and to reference a <code>Configuration</code>.
 
 <blockquote>
-<p> <a href="http://java.sun.com/j2se/1.4.2/docs/api/java/rmi/server/RMIClassLoaderSpi.html"><code>java.rmi.server.RMIClassLoaderSpi</code></a> (defined in J2SE)
+<p> <a href="http://docs.oracle.com/javase/6/docs/api/java/rmi/server/RMIClassLoaderSpi.html">
+        <code>java.rmi.server.RMIClassLoaderSpi</code></a> (defined in J2SE)
 <ul>
 <li>	<code>net.jini.loader.pref.PreferredClassProvider</code>
 <li>	<code>net.jini.loader.pref.RequireDlPermProvider</code>
@@ -1161,7 +1144,7 @@ and to reference a <code>Configuration</code>.
 </ul>
 
 <p> <a href="api/net/jini/security/policy/DynamicPolicy.html"><code>net.jini.security.policy.DynamicPolicy</code></a> and
-      <a href="http://java.sun.com/j2se/1.4.2/docs/api/java/security/Policy.html"><code>java.security.Policy</code></a>
+      <a href="http://docs.oracle.com/javase/6/docs/api/java/security/Policy.html"><code>java.security.Policy</code></a>
 <ul>
 <li> <code>net.jini.security.policy.DynamicPolicyProvider</code>
 </ul>
@@ -1230,7 +1213,7 @@ to you under the Apache License, Version 2.0 (the
 "License"); you may not use this file except in compliance
 with the License. You may obtain a copy of the License at
 <ul>
-     <a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
+    <LI><a href="http://www.apache.org/licenses/LICENSE-2.0">http://www.apache.org/licenses/LICENSE-2.0</a>
 </ul>
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
