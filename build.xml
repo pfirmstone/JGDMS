@@ -29,8 +29,7 @@
 <project name="river" basedir="." default="all.build"
         xmlns:artifact="antlib:org.apache.maven.artifact.ant">
 
-    <description>Apache River is a project furthering the development
-        and advancement of Jini technology.</description>
+    <description>Apache River is a project furthering the development and advancement of Jini technology.</description>
         
     <!-- import common settings and macros -->
     <import file="common.xml"/>
