@@ -27,6 +27,6 @@ net.jini.discovery.LookupDiscovery.multicastRequestHost: String
 net.jini.discovery.LookupDiscovery.multicastRequestInterval: long
 net.jini.discovery.LookupDiscovery.multicastRequestMax: int
 net.jini.discovery.LookupDiscovery.registrarPreparer: net.jini.security.ProxyPreparer
-net.jini.discovery.LookupDiscovery.taskManager: com.sun.jini.thread.TaskManager
+net.jini.discovery.LookupDiscovery.taskManager: org.apache.river.thread.TaskManager
 net.jini.discovery.LookupDiscovery.unicastDelayRange: long
-net.jini.discovery.LookupDiscovery.wakeupManager: com.sun.jini.thread.WakeupManager
+net.jini.discovery.LookupDiscovery.wakeupManager: org.apache.river.thread.WakeupManager

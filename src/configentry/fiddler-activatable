@@ -17,5 +17,5 @@
 #*/
 
 # activatable persistent fiddler configuration entries
-com.sun.jini.fiddler.activationIdPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.fiddler.activationSystemPreparer: net.jini.security.ProxyPreparer
+org.apache.river.fiddler.activationIdPreparer: net.jini.security.ProxyPreparer
+org.apache.river.fiddler.activationSystemPreparer: net.jini.security.ProxyPreparer

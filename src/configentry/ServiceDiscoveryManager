@@ -17,8 +17,8 @@
 #*/
 
 # ServiceDiscoveryManager configuration entries
-net.jini.lookup.ServiceDiscoveryManager.cacheTaskManager: com.sun.jini.thread.TaskManager
-net.jini.lookup.ServiceDiscoveryManager.discardTaskManager: com.sun.jini.thread.TaskManager
+net.jini.lookup.ServiceDiscoveryManager.cacheTaskManager: org.apache.river.thread.TaskManager
+net.jini.lookup.ServiceDiscoveryManager.discardTaskManager: org.apache.river.thread.TaskManager
 net.jini.lookup.ServiceDiscoveryManager.discardWait: long
 net.jini.lookup.ServiceDiscoveryManager.discoveryManager: net.jini.discovery.DiscoveryManagement
 net.jini.lookup.ServiceDiscoveryManager.eventLeasePreparer: net.jini.security.ProxyPreparer

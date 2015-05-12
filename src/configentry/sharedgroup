@@ -17,7 +17,7 @@
 #*/
 
 # SharedGroupImpl configuration entries
-com.sun.jini.start.activationIdPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.start.activationSystemPreparer: net.jini.security.ProxyPreparer
-com.sun.jini.start.exporter: net.jini.export.Exporter
-com.sun.jini.start.loginContext: javax.security.auth.login.LoginContext
+org.apache.river.start.activationIdPreparer: net.jini.security.ProxyPreparer
+org.apache.river.start.activationSystemPreparer: net.jini.security.ProxyPreparer
+org.apache.river.start.exporter: net.jini.export.Exporter
+org.apache.river.start.loginContext: javax.security.auth.login.LoginContext

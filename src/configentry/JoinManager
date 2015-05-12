@@ -23,6 +23,6 @@ net.jini.lookup.JoinManager.maxLeaseDuration: long
 net.jini.lookup.JoinManager.registrarPreparer: net.jini.security.ProxyPreparer
 net.jini.lookup.JoinManager.registrationPreparer: net.jini.security.ProxyPreparer
 net.jini.lookup.JoinManager.serviceLeasePreparer: net.jini.security.ProxyPreparer
-net.jini.lookup.JoinManager.taskManager: com.sun.jini.thread.TaskManager
-net.jini.lookup.JoinManager.wakeupManager: com.sun.jini.thread.WakeupManager
+net.jini.lookup.JoinManager.taskManager: org.apache.river.thread.TaskManager
+net.jini.lookup.JoinManager.wakeupManager: org.apache.river.thread.WakeupManager
 net.jini.lookup.JoinManager.wakeupRetries: int
